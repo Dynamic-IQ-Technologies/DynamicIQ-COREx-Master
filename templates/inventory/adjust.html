@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Inventory - MRP System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Adjust Inventory</h2>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5>{{ item.code }} - {{ item.name }}</h5>
+        <p class="mb-0"><strong>Current Quantity:</strong> {{ item.quantity }} {{ item.unit_of_measure }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="adjustment_type" class="form-label">Adjustment Type *</label>
+                <select class="form-select" id="adjustment_type" name="adjustment_type" required>
+                    <option value="add">Add to Inventory</option>
+                    <option value="subtract">Subtract from Inventory</option>
+                    <option value="set">Set Absolute Quantity</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="quantity" class="form-label">Quantity *</label>
+                <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" required>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Adjust Inventory</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Work Order {{ workorder.wo_number }} - MRP System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Work Order: {{ workorder.wo_number }}</h2>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Work Order Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Product:</strong> {{ workorder.code }} - {{ workorder.name }}</p>
+                        <p><strong>Quantity:</strong> {{ workorder.quantity }} {{ workorder.unit_of_measure }}</p>
+                        <p><strong>Status:</strong> <span class="badge bg-info">{{ workorder.status }}</span></p>
+                        <p><strong>Priority:</strong> {{ workorder.priority }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Planned Start:</strong> {{ workorder.planned_start_date or 'Not set' }}</p>
+                        <p><strong>Planned End:</strong> {{ workorder.planned_end_date or 'Not set' }}</p>
+                        <p><strong>Actual Start:</strong> {{ workorder.actual_start_date or 'Not started' }}</p>
+                        <p><strong>Actual End:</strong> {{ workorder.actual_end_date or 'Not completed' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Cost Summary</h5>
+            </div>
+            <div class="card-body">
+                {% if cost_info %}
+                <p><strong>Material Cost:</strong> ${{ "%.2f"|format(cost_info.material_cost) }}</p>
+                <p><strong>Labor Cost:</strong> ${{ "%.2f"|format(cost_info.labor_cost) }}</p>
+                <p><strong>Overhead Cost:</strong> ${{ "%.2f"|format(cost_info.overhead_cost) }}</p>
+                <hr>
+                <p><strong>Total Cost:</strong> ${{ "%.2f"|format(cost_info.total_cost) }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if session.role in ['Admin', 'Production Staff'] %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Update Status</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('workorder_routes.update_workorder_status', id=workorder.id) }}">
+            <div class="row align-items-end">
+                <div class="col-md-6">
+                    <label for="status" class="form-label">New Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
+                        <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
+                        <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Material Requirements</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Product</th>
+                        <th>Required Qty</th>
+                        <th>Available Qty</th>
+                        <th>Shortage Qty</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requirements %}
+                    <tr>
+                        <td>{{ req.code }}</td>
+                        <td>{{ req.name }}</td>
+                        <td>{{ "%.2f"|format(req.required_quantity) }}</td>
+                        <td>{{ "%.2f"|format(req.available_quantity) }}</td>
+                        <td>{{ "%.2f"|format(req.shortage_quantity) }}</td>
+                        <td>
+                            {% if req.status == 'Satisfied' %}
+                            <span class="badge bg-success">{{ req.status }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ req.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

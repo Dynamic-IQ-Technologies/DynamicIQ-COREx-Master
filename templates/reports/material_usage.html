@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Material Usage Report - MRP System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Material Usage Report</h2>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>WO Number</th>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Required Qty</th>
+                        <th>Available Qty</th>
+                        <th>Shortage Qty</th>
+                        <th>Total Cost</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in material_usage %}
+                    <tr>
+                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=item.work_order_id) }}">{{ item.wo_number }}</a></td>
+                        <td>{{ item.code }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ "%.2f"|format(item.required_quantity) }}</td>
+                        <td>{{ "%.2f"|format(item.available_quantity) }}</td>
+                        <td>{{ "%.2f"|format(item.shortage_quantity) }}</td>
+                        <td>${{ "%.2f"|format(item.total_cost) }}</td>
+                        <td>
+                            {% if item.status == 'Satisfied' %}
+                            <span class="badge bg-success">{{ item.status }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ item.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

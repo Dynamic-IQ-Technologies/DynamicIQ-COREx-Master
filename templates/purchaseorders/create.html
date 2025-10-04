@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Create Purchase Order - MRP System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Create Purchase Order</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="po_number" class="form-label">PO Number *</label>
+                        <input type="text" class="form-control" id="po_number" name="po_number" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="supplier_id" class="form-label">Supplier *</label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                            <option value="">Select Supplier</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}">{{ supplier.code }} - {{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product *</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Select Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="unit_price" class="form-label">Unit Price *</label>
+                        <input type="number" step="0.01" class="form-control" id="unit_price" name="unit_price" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Draft">Draft</option>
+                            <option value="Ordered">Ordered</option>
+                            <option value="Received">Received</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="order_date" class="form-label">Order Date</label>
+                        <input type="date" class="form-control" id="order_date" name="order_date">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="expected_delivery_date" class="form-label">Expected Delivery</label>
+                        <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Purchase Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders - MRP System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Purchase Orders</h2>
+    <div>
+        {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
+        <a href="{{ url_for('po_routes.purchase_suggestions') }}" class="btn btn-info me-2"><i class="bi bi-lightbulb"></i> Suggestions</a>
+        {% endif %}
+        {% if session.role in ['Admin', 'Procurement'] %}
+        <a href="{{ url_for('po_routes.create_purchaseorder') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Create PO</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Supplier</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Expected Delivery</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in purchase_orders %}
+                    <tr>
+                        <td>{{ po.po_number }}</td>
+                        <td>{{ po.supplier_name }}</td>
+                        <td>{{ po.code }} - {{ po.product_name }}</td>
+                        <td>{{ po.quantity }}</td>
+                        <td>${{ "%.2f"|format(po.unit_price) }}</td>
+                        <td>${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+                        <td>
+                            {% if po.status == 'Received' %}
+                            <span class="badge bg-success">{{ po.status }}</span>
+                            {% elif po.status == 'Ordered' %}
+                            <span class="badge bg-info">{{ po.status }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ po.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ po.expected_delivery_date }}</td>
+                        <td>
+                            {% if session.role in ['Admin', 'Procurement'] and po.status != 'Received' %}
+                            <form method="POST" action="{{ url_for('po_routes.receive_purchaseorder', id=po.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-circle"></i> Receive</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

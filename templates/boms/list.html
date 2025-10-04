@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}BOMs - MRP System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Bill of Materials (BOM)</h2>
+    {% if session.role in ['Admin', 'Planner'] %}
+    <a href="{{ url_for('bom_routes.create_bom') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add BOM</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Parent Product</th>
+                        <th>Child Product</th>
+                        <th>Quantity</th>
+                        <th>Scrap %</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bom in boms %}
+                    <tr>
+                        <td>{{ bom.parent_code }} - {{ bom.parent_name }}</td>
+                        <td>{{ bom.child_code }} - {{ bom.child_name }}</td>
+                        <td>{{ bom.quantity }}</td>
+                        <td>{{ bom.scrap_percentage }}%</td>
+                        <td>
+                            {% if session.role in ['Admin', 'Planner'] %}
+                            <form method="POST" action="{{ url_for('bom_routes.delete_bom', id=bom.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

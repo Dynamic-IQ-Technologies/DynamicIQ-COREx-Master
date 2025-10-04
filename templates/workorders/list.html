@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Work Orders - MRP System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Work Orders</h2>
+    {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+    <a href="{{ url_for('workorder_routes.create_workorder') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Create Work Order</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>WO Number</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Planned Start</th>
+                        <th>Planned End</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wo in workorders %}
+                    <tr>
+                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
+                        <td>{{ wo.code }} - {{ wo.name }}</td>
+                        <td>{{ wo.quantity }}</td>
+                        <td>
+                            {% if wo.status == 'Completed' %}
+                            <span class="badge bg-success">{{ wo.status }}</span>
+                            {% elif wo.status == 'In Progress' %}
+                            <span class="badge bg-info">{{ wo.status }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ wo.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ wo.priority }}</td>
+                        <td>{{ wo.planned_start_date }}</td>
+                        <td>{{ wo.planned_end_date }}</td>
+                        <td>
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

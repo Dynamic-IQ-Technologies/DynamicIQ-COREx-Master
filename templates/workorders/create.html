@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Create Work Order - MRP System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Create Work Order</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="wo_number" class="form-label">WO Number *</label>
+                        <input type="text" class="form-control" id="wo_number" name="wo_number" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product *</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Select Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Planned">Planned</option>
+                            <option value="Released">Released</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priority</label>
+                        <select class="form-select" id="priority" name="priority">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="planned_start_date" class="form-label">Planned Start Date</label>
+                        <input type="date" class="form-control" id="planned_start_date" name="planned_start_date">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="planned_end_date" class="form-label">Planned End Date</label>
+                        <input type="date" class="form-control" id="planned_end_date" name="planned_end_date">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="labor_cost" class="form-label">Labor Cost</label>
+                        <input type="number" step="0.01" class="form-control" id="labor_cost" name="labor_cost" value="0">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="overhead_cost" class="form-label">Overhead Cost</label>
+                        <input type="number" step="0.01" class="form-control" id="overhead_cost" name="overhead_cost" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Work Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

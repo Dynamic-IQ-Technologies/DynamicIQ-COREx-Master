@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Order Suggestions - MRP System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Purchase Order Suggestions</h2>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Items Below Reorder Point</h5>
+    </div>
+    <div class="card-body">
+        {% if suggestions %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Product</th>
+                        <th>Current Stock</th>
+                        <th>Reorder Point</th>
+                        <th>Suggested Order Qty</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in suggestions %}
+                    <tr>
+                        <td>{{ item.code }}</td>
+                        <td>{{ item.name }}</td>
+                        <td><span class="badge bg-danger">{{ item.current_stock }}</span></td>
+                        <td>{{ item.reorder_point }}</td>
+                        <td><strong>{{ item.suggested_quantity }}</strong></td>
+                        <td>
+                            <a href="{{ url_for('po_routes.create_purchaseorder') }}" class="btn btn-sm btn-primary">Create PO</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle"></i> All items are adequately stocked. No purchase orders needed at this time.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
