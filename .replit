@@ -15,10 +15,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "MRP Application"
+args = "Dynamic.IQ.MRP"
 
 [[workflows.workflow]]
-name = "MRP Application"
+name = "Dynamic.IQ.MRP"
 author = "agent"
 
 [[workflows.workflow.tasks]]
