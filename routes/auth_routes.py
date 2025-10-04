@@ -34,10 +34,9 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-        role = request.form.get('role', 'Production Staff')
         
         try:
-            User.create(username, email, password, role)
+            User.create(username, email, password, 'Production Staff')
             flash('Registration successful! Please log in.', 'success')
             return redirect(url_for('auth_routes.login'))
         except Exception as e:
