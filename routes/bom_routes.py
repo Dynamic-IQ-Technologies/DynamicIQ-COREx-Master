@@ -94,6 +94,20 @@ def export_boms():
         headers={'Content-Disposition': 'attachment; filename=boms_export.csv'}
     )
 
+@bom_bp.route('/boms/template')
+@login_required
+def download_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Parent Code', 'Parent Name', 'Child Code', 'Child Name', 'Quantity', 'Scrap Percentage'])
+    
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=bom_import_template.csv'}
+    )
+
 @bom_bp.route('/boms/import', methods=['POST'])
 @role_required('Admin', 'Planner')
 def import_boms():

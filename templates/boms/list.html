@@ -6,6 +6,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Bill of Materials (BOM)</h2>
     <div>
+        <a href="{{ url_for('bom_routes.download_template') }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-file-earmark-arrow-down"></i> Download Template
+        </a>
         <a href="{{ url_for('bom_routes.export_boms') }}" class="btn btn-success me-2">
             <i class="bi bi-download"></i> Export CSV
         </a>

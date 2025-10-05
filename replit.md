@@ -14,6 +14,7 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 - Built permissions management UI with category-based checkboxes for fine-grained access control
 - Updated navigation menu with User Management and Permissions links (Admin only)
 - Added BOM Import/Export functionality with CSV support
+  - Template Download: Provides blank CSV template with proper column headers for easy data entry
   - Export: Generates CSV with all BOM data (parent/child products, quantities, scrap percentages)
   - Import: Supports CSV upload with robust error handling, per-row validation, and automatic scrap percentage defaulting to 0
   - Error reporting: Shows specific errors for up to 10 failed rows to help users fix issues
