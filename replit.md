@@ -6,19 +6,20 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management, Permissions, BOM Import/Export, and Work Order Auto-numbering features added
+**October 5, 2025**: User Management, Permissions, Import/Export, and Work Order Auto-numbering features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
 - Created User.get_permissions(), User.set_permission(), and User.get_all_with_permissions() model methods
 - Built permissions management UI with category-based checkboxes for fine-grained access control
 - Updated navigation menu with User Management and Permissions links (Admin only)
-- Added BOM Import/Export functionality with CSV support
-  - Template Download: Provides blank CSV template with proper column headers for easy data entry
-  - Export: Generates CSV with all BOM data (parent/child products, quantities, scrap percentages)
-  - Import: Supports CSV upload with robust error handling, per-row validation, and automatic scrap percentage defaulting to 0
+- Added comprehensive Import/Export functionality with CSV support for BOMs, Products, Inventory, and Suppliers
+  - **BOMs**: Template download, export all BOMs, import with validation (Admin/Planner only)
+  - **Products**: Template download, export all products, import new/update existing with auto inventory creation (Admin/Planner only)
+  - **Inventory**: Template download, export all inventory, import quantity updates (Admin/Production Staff only)
+  - **Suppliers**: Template download, export all suppliers, import new/update existing (Admin/Procurement only)
+  - All imports support robust error handling, per-row validation, and detailed error reporting
   - Error reporting: Shows specific errors for up to 10 failed rows to help users fix issues
-  - Security: Import restricted to Admin and Planner roles only
 - Implemented automatic Work Order number generation
   - Format: WO-XXXXXX (6 digits starting from WO-000001)
   - Sequential numbering with retry logic to handle concurrent submissions
@@ -92,13 +93,20 @@ Preferred communication style: Simple, everyday language.
 
 **Core Entities**:
 - **Products**: Managed with code, type (Raw Material/Component/Finished Good), unit of measure, and cost
+  - CSV Import/Export: Bulk import/export with template download, auto-creates inventory for new products
+  - Format: Code, Name, Description, Unit of Measure, Product Type, Cost
 - **Bill of Materials (BOM)**: Parent-child relationships with quantity and scrap percentage
   - CSV Import/Export: Bulk import and export BOMs with validation and error handling
   - Format: Parent Code, Parent Name, Child Code, Child Name, Quantity, Scrap Percentage
 - **Inventory**: Tracks quantity, reorder points, and safety stock levels
+  - CSV Import/Export: Bulk import/export for updating inventory levels and parameters
+  - Format: Product Code, Product Name, Quantity, Reorder Point, Safety Stock
 - **Work Orders**: Production orders with status tracking, cost allocation (material/labor/overhead)
+  - Auto-generated WO numbers in format WO-XXXXXX
 - **Purchase Orders**: Procurement tracking with supplier relationships
 - **Suppliers**: Vendor management with contact information
+  - CSV Import/Export: Bulk import/export with template download for supplier management
+  - Format: Code, Name, Contact Person, Email, Phone, Address
 
 **Inventory Management**:
 - Real-time stock level tracking
