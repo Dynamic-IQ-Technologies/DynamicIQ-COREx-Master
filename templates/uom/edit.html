@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Edit UOM - {{ uom.uom_code }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2>Edit Unit of Measure: {{ uom.uom_code }}</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="uom_code" class="form-label">UOM Code</label>
+                    <input type="text" class="form-control" id="uom_code" value="{{ uom.uom_code }}" disabled>
+                    <small class="text-muted">UOM code cannot be changed</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="uom_name" class="form-label">UOM Name *</label>
+                    <input type="text" class="form-control" id="uom_name" name="uom_name" value="{{ uom.uom_name }}" required maxlength="50">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="uom_type" class="form-label">UOM Type</label>
+                    <select class="form-select" id="uom_type" name="uom_type">
+                        <option value="">Select Type</option>
+                        {% for type in uom_types %}
+                        <option value="{{ type }}" {% if uom.uom_type == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="rounding_precision" class="form-label">Rounding Precision</label>
+                    <input type="number" class="form-control" id="rounding_precision" name="rounding_precision" value="{{ uom.rounding_precision }}" min="0" max="6">
+                    <small class="text-muted">Decimal places (0-6)</small>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Note:</strong> Conversion Factor and Base UOM cannot be modified after creation to prevent accounting discrepancies. 
+                Current values: 
+                <strong>Factor: {{ "%.6f"|format(uom.conversion_factor) }}</strong>
+                {% if uom.base_uom_id %}
+                | <strong>Base UOM: {{ uom.base_uom_id }}</strong>
+                {% else %}
+                | <strong>This is a base unit</strong>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ uom.description or '' }}</textarea>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('uom_routes.view_uom', id=uom.id) }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Update UOM</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

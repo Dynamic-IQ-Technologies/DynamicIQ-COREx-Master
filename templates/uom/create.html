@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Create UOM - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2>Create Unit of Measure</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="uom_code" class="form-label">UOM Code *</label>
+                    <input type="text" class="form-control" id="uom_code" name="uom_code" required maxlength="10" style="text-transform: uppercase;">
+                    <small class="text-muted">Unique identifier (e.g., EA, KG, LTR)</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="uom_name" class="form-label">UOM Name *</label>
+                    <input type="text" class="form-control" id="uom_name" name="uom_name" required maxlength="50">
+                    <small class="text-muted">Full name (e.g., Each, Kilogram, Liter)</small>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="uom_type" class="form-label">UOM Type</label>
+                    <select class="form-select" id="uom_type" name="uom_type">
+                        <option value="">Select Type</option>
+                        {% for type in uom_types %}
+                        <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="rounding_precision" class="form-label">Rounding Precision</label>
+                    <input type="number" class="form-control" id="rounding_precision" name="rounding_precision" value="2" min="0" max="6">
+                    <small class="text-muted">Decimal places (0-6)</small>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="base_uom_id" class="form-label">Base UOM</label>
+                    <select class="form-select" id="base_uom_id" name="base_uom_id">
+                        <option value="">None (This is a base unit)</option>
+                        {% for base in base_uoms %}
+                        <option value="{{ base.id }}">{{ base.uom_code }} - {{ base.uom_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Select if this UOM converts to another unit</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="conversion_factor" class="form-label">Conversion Factor</label>
+                    <input type="number" step="0.000001" class="form-control" id="conversion_factor" name="conversion_factor" value="1.0" min="0.000001">
+                    <small class="text-muted">How many base units = 1 of this unit (e.g., 12 for Dozen)</small>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('uom_routes.list_uoms') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create UOM</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Show conversion factor info based on base UOM selection
+document.getElementById('base_uom_id').addEventListener('change', function() {
+    const conversionInput = document.getElementById('conversion_factor');
+    if (this.value) {
+        conversionInput.removeAttribute('disabled');
+        conversionInput.parentElement.querySelector('small').textContent = 'How many base units = 1 of this unit';
+    } else {
+        conversionInput.value = '1.0';
+        conversionInput.setAttribute('disabled', 'disabled');
+        conversionInput.parentElement.querySelector('small').textContent = 'Base units always have factor 1.0';
+    }
+});
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', function() {
+    const baseSelect = document.getElementById('base_uom_id');
+    if (!baseSelect.value) {
+        document.getElementById('conversion_factor').setAttribute('disabled', 'disabled');
+    }
+});
+</script>
+{% endblock %}
