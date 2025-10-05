@@ -85,19 +85,25 @@
                 </div>
                 <div class="col-md-3">
                     <div class="mb-3">
-                        <label for="warehouse_location" class="form-label">Warehouse</label>
-                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" value="Main">
+                        <label for="warehouse_location" class="form-label">Warehouse *</label>
+                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" value="Main" required>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="mb-3">
-                        <label for="receiver_name" class="form-label">Receiver Name</label>
-                        <input type="text" class="form-control" id="receiver_name" name="receiver_name" value="{{ session.username }}">
+                        <label for="bin_location" class="form-label">Bin Location</label>
+                        <input type="text" class="form-control" id="bin_location" name="bin_location" placeholder="e.g., A-01, B-15">
                     </div>
                 </div>
             </div>
 
             <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="receiver_name" class="form-label">Receiver Name</label>
+                        <input type="text" class="form-control" id="receiver_name" name="receiver_name" value="{{ session.username }}">
+                    </div>
+                </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="packing_slip_number" class="form-label">Packing Slip Number</label>

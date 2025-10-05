@@ -37,13 +37,17 @@ def create_inventory():
             return redirect(url_for('inventory_routes.list_inventory'))
         
         conn.execute('''
-            INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock, 
+                                   warehouse_location, bin_location, condition, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available')
         ''', (
             product_id,
             float(request.form.get('quantity', 0)),
             float(request.form.get('reorder_point', 0)),
-            float(request.form.get('safety_stock', 0))
+            float(request.form.get('safety_stock', 0)),
+            request.form.get('warehouse_location', 'Main'),
+            request.form.get('bin_location', ''),
+            request.form.get('condition', 'Serviceable')
         ))
         
         inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]

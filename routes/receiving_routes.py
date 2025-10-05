@@ -46,6 +46,7 @@ def create_receiving():
             packing_slip = request.form.get('packing_slip_number', '')
             tracking = request.form.get('shipment_tracking', '')
             warehouse = request.form.get('warehouse_location', 'Main')
+            bin_location = request.form.get('bin_location', '')
             receiver = request.form.get('receiver_name', '')
             condition = request.form.get('condition', 'New')
             remarks = request.form.get('remarks', '')
@@ -132,12 +133,12 @@ def create_receiving():
                     WHERE product_id = ?
                 ''', (new_qty, receipt_date, product_id))
             else:
-                # Create inventory record
+                # Create inventory record with location info
                 conn.execute('''
                     INSERT INTO inventory 
-                    (product_id, quantity, condition, warehouse_location, last_received_date, status)
-                    VALUES (?, ?, ?, ?, ?, 'Available')
-                ''', (product_id, quantity_received, condition, warehouse, receipt_date))
+                    (product_id, quantity, condition, warehouse_location, bin_location, last_received_date, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 'Available')
+                ''', (product_id, quantity_received, condition, warehouse, bin_location, receipt_date))
             
             conn.commit()
             flash(f'Material received successfully! Receipt Number: {receipt_number}', 'success')

@@ -49,6 +49,35 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="warehouse_location" class="form-label">Warehouse *</label>
+                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" value="Main" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="bin_location" class="form-label">Bin Location</label>
+                        <input type="text" class="form-control" id="bin_location" name="bin_location" placeholder="e.g., A-01, B-15">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label for="condition" class="form-label">Condition *</label>
+                        <select class="form-select" id="condition" name="condition" required>
+                            <option value="New">New</option>
+                            <option value="Serviceable" selected>Serviceable</option>
+                            <option value="Overhauled">Overhauled</option>
+                            <option value="Repaired">Repaired</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Inventory</button>
