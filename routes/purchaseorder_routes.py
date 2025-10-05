@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
-from models import Database
+from models import Database, CompanySettings
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime
@@ -160,7 +160,9 @@ def print_purchaseorder(id):
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
-    return render_template('purchaseorders/print.html', po=po, current_date=datetime.now().strftime('%B %d, %Y'))
+    company_settings = CompanySettings.get_or_create_default()
+    
+    return render_template('purchaseorders/print.html', po=po, company_settings=company_settings, current_date=datetime.now().strftime('%B %d, %Y'))
 
 @po_bp.route('/purchaseorders/<int:id>/download')
 @login_required
@@ -183,7 +185,9 @@ def download_purchaseorder(id):
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
-    html_content = render_template('purchaseorders/print.html', po=po, current_date=datetime.now().strftime('%B %d, %Y'))
+    company_settings = CompanySettings.get_or_create_default()
+    
+    html_content = render_template('purchaseorders/print.html', po=po, company_settings=company_settings, current_date=datetime.now().strftime('%B %d, %Y'))
     
     response = make_response(html_content)
     response.headers['Content-Type'] = 'text/html'

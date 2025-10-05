@@ -186,9 +186,28 @@
     </div>
     
     <div class="header">
-        <h1><span class="company-name">Dynamic.IQ.MRP</span></h1>
-        <div style="opacity: 0.9; margin-top: 5px;">Manufacturing Resource Planning System</div>
-        <div class="po-number">Purchase Order: {{ po.po_number }}</div>
+        <div class="row align-items-center">
+            <div class="col-8">
+                <h1><span class="company-name">{{ company_settings.company_name }}</span></h1>
+                {% if company_settings.dba %}
+                <div style="opacity: 0.9; margin-top: 5px;">DBA: {{ company_settings.dba }}</div>
+                {% endif %}
+                <div style="opacity: 0.9; margin-top: 5px;">
+                    {% if company_settings.address_line1 %}
+                        {{ company_settings.address_line1 }}{% if company_settings.address_line2 %}, {{ company_settings.address_line2 }}{% endif %}<br>
+                        {{ company_settings.city }}{% if company_settings.city and company_settings.state %},{% endif %} {{ company_settings.state }} {{ company_settings.postal_code }}
+                    {% endif %}
+                </div>
+                <div class="po-number">Purchase Order: {{ po.po_number }}</div>
+            </div>
+            <div class="col-4 text-end">
+                {% if company_settings.logo_filename %}
+                <img src="{{ url_for('static', filename='uploads/company/' + company_settings.logo_filename) }}" 
+                     alt="Company Logo" 
+                     style="max-height: 120px; max-width: 100%;">
+                {% endif %}
+            </div>
+        </div>
     </div>
     
     <div class="info-section">
@@ -291,7 +310,14 @@
     </table>
     
     <div class="footer">
-        <p><strong>Dynamic.IQ.MRP</strong> - Manufacturing Resource Planning System</p>
+        <p><strong>{{ company_settings.company_name }}</strong></p>
+        {% if company_settings.phone or company_settings.email or company_settings.website %}
+        <p>
+            {% if company_settings.phone %}Phone: {{ company_settings.phone }}{% endif %}
+            {% if company_settings.email %} | Email: {{ company_settings.email }}{% endif %}
+            {% if company_settings.website %} | Web: {{ company_settings.website }}{% endif %}
+        </p>
+        {% endif %}
         <p>This is a computer-generated purchase order. No signature required.</p>
     </div>
 </body>

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Company Settings - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Edit Company Settings</h2>
+    <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-secondary">
+        <i class="bi bi-x-circle"></i> Cancel
+    </a>
+</div>
+
+<form method="POST" enctype="multipart/form-data">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-building"></i> General Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="company_name" class="form-label">Company Name *</label>
+                        <input type="text" class="form-control" id="company_name" name="company_name" 
+                               value="{{ settings.company_name or '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dba" class="form-label">DBA (Doing Business As)</label>
+                        <input type="text" class="form-control" id="dba" name="dba" 
+                               value="{{ settings.dba or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="address_line1" class="form-label">Address Line 1</label>
+                        <input type="text" class="form-control" id="address_line1" name="address_line1" 
+                               value="{{ settings.address_line1 or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="address_line2" class="form-label">Address Line 2</label>
+                        <input type="text" class="form-control" id="address_line2" name="address_line2" 
+                               value="{{ settings.address_line2 or '' }}">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" name="city" 
+                                   value="{{ settings.city or '' }}">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="state" class="form-label">State / Province</label>
+                            <input type="text" class="form-control" id="state" name="state" 
+                                   value="{{ settings.state or '' }}">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="postal_code" class="form-label">Postal Code</label>
+                            <input type="text" class="form-control" id="postal_code" name="postal_code" 
+                                   value="{{ settings.postal_code or '' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="country" class="form-label">Country</label>
+                        <input type="text" class="form-control" id="country" name="country" 
+                               value="{{ settings.country or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-telephone"></i> Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" 
+                               value="{{ settings.phone or '' }}" placeholder="+1 (555) 123-4567">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ settings.email or '' }}" placeholder="info@company.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="website" class="form-label">Website</label>
+                        <input type="url" class="form-control" id="website" name="website" 
+                               value="{{ settings.website or '' }}" placeholder="https://www.company.com">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-file-text"></i> Tax & Regulatory Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="tax_id" class="form-label">Tax ID / VAT Number</label>
+                        <input type="text" class="form-control" id="tax_id" name="tax_id" 
+                               value="{{ settings.tax_id or '' }}" placeholder="XX-XXXXXXX">
+                    </div>
+                    <div class="mb-3">
+                        <label for="duns_number" class="form-label">DUNS Number</label>
+                        <input type="text" class="form-control" id="duns_number" name="duns_number" 
+                               value="{{ settings.duns_number or '' }}" placeholder="XX-XXX-XXXX">
+                        <div class="form-text">Data Universal Numbering System identifier</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cage_code" class="form-label">CAGE Code</label>
+                        <input type="text" class="form-control" id="cage_code" name="cage_code" 
+                               value="{{ settings.cage_code or '' }}" placeholder="XXXXX">
+                        <div class="form-text">Commercial and Government Entity Code (for aviation/government contractors)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-image"></i> Company Logo</h5>
+                </div>
+                <div class="card-body">
+                    {% if settings.logo_filename %}
+                    <div class="text-center mb-3">
+                        <img src="{{ url_for('static', filename='uploads/company/' + settings.logo_filename) }}" 
+                             alt="Current Logo" 
+                             class="img-fluid" 
+                             style="max-height: 150px;">
+                        <p class="text-muted mt-2 mb-0"><small>Current Logo</small></p>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label for="logo" class="form-label">Upload New Logo</label>
+                        <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                        <div class="form-text">Accepted formats: PNG, JPG, GIF. Maximum size: 5MB</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <button type="submit" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-check-circle"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-secondary w-100">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

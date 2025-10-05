@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Company Settings - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Company Settings</h2>
+    {% if session.role == 'Admin' %}
+    <a href="{{ url_for('settings_routes.edit_company_settings') }}" class="btn btn-primary">
+        <i class="bi bi-pencil"></i> Edit Settings
+    </a>
+    {% endif %}
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> General Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Company Name:</strong></div>
+                    <div class="col-8">{{ settings.company_name or 'Not set' }}</div>
+                </div>
+                {% if settings.dba %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>DBA:</strong></div>
+                    <div class="col-8">{{ settings.dba }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Address:</strong></div>
+                    <div class="col-8">
+                        {% if settings.address_line1 %}
+                            {{ settings.address_line1 }}<br>
+                            {% if settings.address_line2 %}{{ settings.address_line2 }}<br>{% endif %}
+                            {% if settings.city or settings.state or settings.postal_code %}
+                                {{ settings.city }}{% if settings.city and settings.state %},{% endif %} {{ settings.state }} {{ settings.postal_code }}<br>
+                            {% endif %}
+                            {% if settings.country %}{{ settings.country }}{% endif %}
+                        {% else %}
+                            <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-telephone"></i> Contact Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Phone:</strong></div>
+                    <div class="col-8">{{ settings.phone or 'Not set' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Email:</strong></div>
+                    <div class="col-8">
+                        {% if settings.email %}
+                        <a href="mailto:{{ settings.email }}">{{ settings.email }}</a>
+                        {% else %}
+                        Not set
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Website:</strong></div>
+                    <div class="col-8">
+                        {% if settings.website %}
+                        <a href="{{ settings.website }}" target="_blank">{{ settings.website }}</a>
+                        {% else %}
+                        Not set
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> Tax & Regulatory Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Tax ID / VAT Number:</strong></div>
+                    <div class="col-8">{{ settings.tax_id or 'Not set' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>DUNS Number:</strong></div>
+                    <div class="col-8">{{ settings.duns_number or 'Not set' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>CAGE Code:</strong></div>
+                    <div class="col-8">{{ settings.cage_code or 'Not set' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-image"></i> Company Logo</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if settings.logo_filename %}
+                <img src="{{ url_for('static', filename='uploads/company/' + settings.logo_filename) }}" 
+                     alt="Company Logo" 
+                     class="img-fluid mb-3" 
+                     style="max-height: 200px;">
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-image" style="font-size: 3rem;"></i>
+                    <p class="mt-2 mb-0">No logo uploaded</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Last Updated</h5>
+            </div>
+            <div class="card-body">
+                {% if settings.last_updated %}
+                <p class="mb-2"><strong>Date:</strong> {{ settings.last_updated }}</p>
+                {% endif %}
+                {% if updated_by_user %}
+                <p class="mb-0"><strong>By:</strong> {{ updated_by_user.username }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-file-earmark"></i> Document Header Preview</h5>
+    </div>
+    <div class="card-body">
+        <div style="border: 1px solid #ddd; padding: 20px; background: #f8f9fa;">
+            <div class="row">
+                <div class="col-md-8">
+                    <h4 class="mb-1">{{ settings.company_name }}</h4>
+                    {% if settings.dba %}
+                    <p class="text-muted mb-2"><small>DBA: {{ settings.dba }}</small></p>
+                    {% endif %}
+                    {% if settings.address_line1 %}
+                    <p class="mb-0" style="line-height: 1.4;">
+                        <small>
+                        {{ settings.address_line1 }}{% if settings.address_line2 %}, {{ settings.address_line2 }}{% endif %}<br>
+                        {{ settings.city }}{% if settings.city and settings.state %},{% endif %} {{ settings.state }} {{ settings.postal_code }}<br>
+                        {% if settings.phone %}Phone: {{ settings.phone }}{% endif %}
+                        {% if settings.email %} | Email: {{ settings.email }}{% endif %}
+                        </small>
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 text-end">
+                    {% if settings.logo_filename %}
+                    <img src="{{ url_for('static', filename='uploads/company/' + settings.logo_filename) }}" 
+                         alt="Logo" 
+                         style="max-height: 80px; max-width: 100%;">
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <p class="text-muted mt-2 mb-0"><small><i class="bi bi-info-circle"></i> This is how your company information will appear on generated documents (Purchase Orders, Invoices, etc.)</small></p>
+    </div>
+</div>
+{% endblock %}

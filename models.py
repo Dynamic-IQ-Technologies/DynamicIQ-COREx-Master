@@ -143,6 +143,30 @@ class Database:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS company_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                company_name TEXT NOT NULL,
+                dba TEXT,
+                address_line1 TEXT,
+                address_line2 TEXT,
+                city TEXT,
+                state TEXT,
+                postal_code TEXT,
+                country TEXT,
+                phone TEXT,
+                email TEXT,
+                website TEXT,
+                tax_id TEXT,
+                duns_number TEXT,
+                cage_code TEXT,
+                logo_filename TEXT,
+                updated_by INTEGER,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (updated_by) REFERENCES users(id)
+            )
+        ''')
+        
         cursor.execute("PRAGMA table_info(boms)")
         existing_columns = [col[1] for col in cursor.fetchall()]
         
@@ -199,6 +223,14 @@ class User:
         db = Database()
         conn = db.get_connection()
         user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        conn.close()
+        return user
+    
+    @staticmethod
+    def get_by_email(email):
+        db = Database()
+        conn = db.get_connection()
+        user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
         return user
     
@@ -270,3 +302,99 @@ class User:
         
         conn.close()
         return result
+
+class CompanySettings:
+    @staticmethod
+    def get():
+        db = Database()
+        conn = db.get_connection()
+        settings = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+        conn.close()
+        return settings
+    
+    @staticmethod
+    def create_or_update(data, user_id):
+        db = Database()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        existing = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+        
+        if existing:
+            cursor.execute('''
+                UPDATE company_settings SET
+                    company_name = ?, dba = ?, address_line1 = ?, address_line2 = ?,
+                    city = ?, state = ?, postal_code = ?, country = ?,
+                    phone = ?, email = ?, website = ?, tax_id = ?,
+                    duns_number = ?, cage_code = ?, logo_filename = ?,
+                    updated_by = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE id = 1
+            ''', (
+                data.get('company_name'), data.get('dba'), data.get('address_line1'),
+                data.get('address_line2'), data.get('city'), data.get('state'),
+                data.get('postal_code'), data.get('country'), data.get('phone'),
+                data.get('email'), data.get('website'), data.get('tax_id'),
+                data.get('duns_number'), data.get('cage_code'), data.get('logo_filename'),
+                user_id
+            ))
+        else:
+            cursor.execute('''
+                INSERT INTO company_settings (
+                    id, company_name, dba, address_line1, address_line2,
+                    city, state, postal_code, country, phone, email, website,
+                    tax_id, duns_number, cage_code, logo_filename, updated_by
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                data.get('company_name'), data.get('dba'), data.get('address_line1'),
+                data.get('address_line2'), data.get('city'), data.get('state'),
+                data.get('postal_code'), data.get('country'), data.get('phone'),
+                data.get('email'), data.get('website'), data.get('tax_id'),
+                data.get('duns_number'), data.get('cage_code'), data.get('logo_filename'),
+                user_id
+            ))
+        
+        conn.commit()
+        conn.close()
+        return True
+    
+    @staticmethod
+    def get_or_create_default():
+        settings = CompanySettings.get()
+        if not settings:
+            default_data = {
+                'company_name': 'Your Company Name',
+                'dba': '',
+                'address_line1': '',
+                'address_line2': '',
+                'city': '',
+                'state': '',
+                'postal_code': '',
+                'country': '',
+                'phone': '',
+                'email': '',
+                'website': '',
+                'tax_id': '',
+                'duns_number': '',
+                'cage_code': '',
+                'logo_filename': None
+            }
+            db = Database()
+            conn = db.get_connection()
+            conn.execute('''
+                INSERT INTO company_settings (
+                    id, company_name, dba, address_line1, address_line2,
+                    city, state, postal_code, country, phone, email, website,
+                    tax_id, duns_number, cage_code, logo_filename
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                default_data['company_name'], default_data['dba'],
+                default_data['address_line1'], default_data['address_line2'],
+                default_data['city'], default_data['state'], default_data['postal_code'],
+                default_data['country'], default_data['phone'], default_data['email'],
+                default_data['website'], default_data['tax_id'], default_data['duns_number'],
+                default_data['cage_code'], default_data['logo_filename']
+            ))
+            conn.commit()
+            conn.close()
+            settings = CompanySettings.get()
+        return settings
