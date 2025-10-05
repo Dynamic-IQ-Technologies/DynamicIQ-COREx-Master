@@ -12,10 +12,12 @@ def list_purchaseorders():
     db = Database()
     conn = db.get_connection()
     purchase_orders = conn.execute('''
-        SELECT po.*, s.name as supplier_name, p.code, p.name as product_name
+        SELECT po.*, s.name as supplier_name, p.code, p.name as product_name, p.unit_of_measure,
+               uom.uom_code, uom.uom_name
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         JOIN products p ON po.product_id = p.id
+        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         ORDER BY po.order_date DESC
     ''').fetchall()
     conn.close()
@@ -125,11 +127,13 @@ def view_purchaseorder(id):
     po = conn.execute('''
         SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone,
                p.code as product_code, p.name as product_name, p.unit_of_measure,
-               i.quantity as inventory_quantity
+               i.quantity as inventory_quantity,
+               uom.uom_code, uom.uom_name
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         JOIN products p ON po.product_id = p.id
         LEFT JOIN inventory i ON i.product_id = p.id
+        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         WHERE po.id = ?
     ''', (id,)).fetchone()
     
@@ -149,10 +153,12 @@ def print_purchaseorder(id):
     
     po = conn.execute('''
         SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address,
-               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description
+               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description,
+               uom.uom_code, uom.uom_name
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         JOIN products p ON po.product_id = p.id
+        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         WHERE po.id = ?
     ''', (id,)).fetchone()
     
@@ -174,10 +180,12 @@ def download_purchaseorder(id):
     
     po = conn.execute('''
         SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address,
-               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description
+               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description,
+               uom.uom_code, uom.uom_name
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         JOIN products p ON po.product_id = p.id
+        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         WHERE po.id = ?
     ''', (id,)).fetchone()
     
