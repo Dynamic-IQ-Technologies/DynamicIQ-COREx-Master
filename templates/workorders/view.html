@@ -143,10 +143,10 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for('task_routes.view_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" title="View">
+                            <a href="{{ url_for('task_routes.view_task', task_id=task.id) }}" class="btn btn-sm btn-outline-primary" title="View">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{{ url_for('task_routes.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                            <a href="{{ url_for('task_routes.edit_task', task_id=task.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
                         </td>

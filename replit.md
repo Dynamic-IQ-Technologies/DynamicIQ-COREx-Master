@@ -50,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 
 **Inventory Management**: Features real-time stock level tracking, low stock alerts, manual adjustments, and automatic updates from work order processing.
 
-**Reporting System**: Provides inventory valuation, work order cost analysis, material requirements reports (with summary statistics, CSV export, and direct procurement capability), and material usage tracking.
+**Reporting System**: Provides inventory valuation, work order cost analysis, material requirements reports (with summary statistics, CSV export, and direct procurement capability), material usage tracking, and active labor report showing real-time clocked-in employees with labor cost tracking.
 
 **Accounting System**: Comprehensive double-entry accounting module with:
 - **Chart of Accounts (COA)**: Hierarchical account structure with parent-child relationships, supporting Assets, Liabilities, Equity, Revenue, and Expense accounts. Auto-seeded with standard accounts (30+ accounts) organized by type. Full CRUD operations with account activation/deactivation.
