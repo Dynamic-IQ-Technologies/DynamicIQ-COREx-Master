@@ -6,7 +6,7 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, Material Requirements Report, and Industry-Standard BOM System features added
+**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, Material Requirements Report with Direct Procurement, Individual PO View, and Industry-Standard BOM System features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
@@ -48,7 +48,8 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
     - Select supplier for each product
     - Adjust quantities and unit prices before creating POs
     - Automatically generates sequential PO numbers
-    - Streamlined procurement workflow from identification to ordering
+    - **Clickable PO Links**: Success messages include direct links to created purchase orders
+    - Streamlined procurement workflow from identification to viewing
   - Accessible from Reports menu in sidebar navigation
 - Upgraded BOM System to Full Industry Standards (Aviation/Manufacturing/MRO)
   - **Multi-Level BOM Hierarchy**: Automatic level numbering (1.0, 1.1, 1.1.1) with recursive tree structure
@@ -159,6 +160,9 @@ Preferred communication style: Simple, everyday language.
   - Auto-generated WO numbers in format WO-XXXXXX
 - **Purchase Orders**: Procurement tracking with supplier relationships
   - Auto-generated PO numbers in format PO-XXXXXX
+  - Individual PO view with detailed supplier info, product details, cost breakdown, and inventory status
+  - Clickable PO numbers in list view for quick access
+  - Direct receive functionality from PO detail page
 - **Suppliers**: Vendor management with contact information
   - CSV Import/Export: Bulk import/export with template download for supplier management
   - Format: Code, Name, Contact Person, Email, Phone, Address

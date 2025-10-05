@@ -35,7 +35,7 @@
                 <tbody>
                     {% for po in purchase_orders %}
                     <tr>
-                        <td>{{ po.po_number }}</td>
+                        <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
                         <td>{{ po.supplier_name }}</td>
                         <td>{{ po.code }} - {{ po.product_name }}</td>
                         <td>{{ po.quantity }}</td>
@@ -52,6 +52,7 @@
                         </td>
                         <td>{{ po.expected_delivery_date }}</td>
                         <td>
+                            <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-sm btn-info me-1"><i class="bi bi-eye"></i> View</a>
                             {% if session.role in ['Admin', 'Procurement'] and po.status != 'Received' %}
                             <form method="POST" action="{{ url_for('po_routes.receive_purchaseorder', id=po.id) }}" style="display:inline;">
                                 <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-circle"></i> Receive</button>

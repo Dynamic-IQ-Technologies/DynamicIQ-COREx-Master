@@ -113,6 +113,31 @@ def create_purchaseorder():
     
     return render_template('purchaseorders/create.html', suppliers=suppliers, products=products, next_po_number=next_po_number)
 
+@po_bp.route('/purchaseorders/<int:id>')
+@login_required
+def view_purchaseorder(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    po = conn.execute('''
+        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone,
+               p.code as product_code, p.name as product_name, p.unit_of_measure,
+               i.quantity as inventory_quantity
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        JOIN products p ON po.product_id = p.id
+        LEFT JOIN inventory i ON i.product_id = p.id
+        WHERE po.id = ?
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not po:
+        flash('Purchase order not found', 'danger')
+        return redirect(url_for('po_routes.list_purchaseorders'))
+    
+    return render_template('purchaseorders/view.html', po=po)
+
 @po_bp.route('/purchaseorders/<int:id>/receive', methods=['POST'])
 @role_required('Admin', 'Procurement')
 def receive_purchaseorder(id):

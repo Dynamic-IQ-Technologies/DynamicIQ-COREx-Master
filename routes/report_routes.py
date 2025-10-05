@@ -151,6 +151,7 @@ def procure_from_requirements():
     conn = db.get_connection()
     
     created_pos = []
+    created_po_ids = []
     errors = []
     
     try:
@@ -180,8 +181,10 @@ def procure_from_requirements():
                             VALUES (?, ?, ?, ?, ?, ?, DATE('now'))
                         ''', (next_po_number, supplier_id, product_id, quantity, unit_price, 'Ordered'))
                         
+                        po_id = cursor.lastrowid
                         conn.commit()
-                        created_pos.append(next_po_number)
+                        created_pos.append({'number': next_po_number, 'id': po_id})
+                        created_po_ids.append(po_id)
                         break
                     except Exception as e:
                         if 'UNIQUE constraint' in str(e) and attempt < 4:
@@ -194,7 +197,8 @@ def procure_from_requirements():
                 errors.append(f"Error creating PO for item {i}: {str(item_error)}")
         
         if created_pos:
-            flash(f'Successfully created {len(created_pos)} purchase order(s): {", ".join(created_pos)}', 'success')
+            po_links = ', '.join([f'<a href="{url_for("po_routes.view_purchaseorder", id=po["id"])}" class="alert-link">{po["number"]}</a>' for po in created_pos])
+            flash(f'Successfully created {len(created_pos)} purchase order(s): {po_links}', 'success')
         
         if errors:
             for error in errors:
