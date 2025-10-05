@@ -54,9 +54,16 @@
                         <td>
                             <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-sm btn-info me-1"><i class="bi bi-eye"></i> View</a>
                             {% if session.role in ['Admin', 'Procurement'] and po.status != 'Received' %}
-                            <form method="POST" action="{{ url_for('po_routes.receive_purchaseorder', id=po.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-circle"></i> Receive</button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-success receive-btn"
+                                    data-po-id="{{ po.id }}"
+                                    data-po-number="{{ po.po_number }}"
+                                    data-product-code="{{ po.code }}"
+                                    data-product-name="{{ po.product_name }}"
+                                    data-quantity="{{ po.quantity }}"
+                                    data-supplier-name="{{ po.supplier_name }}"
+                                    data-product-id="{{ po.product_id }}">
+                                <i class="bi bi-check-circle"></i> Receive
+                            </button>
                             {% endif %}
                         </td>
                     </tr>
@@ -66,4 +73,114 @@
         </div>
     </div>
 </div>
+
+<!-- Receive Material Modal -->
+<div class="modal fade" id="receiveModal" tabindex="-1" aria-labelledby="receiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%); color: white;">
+                <h5 class="modal-title" id="receiveModalLabel"><i class="bi bi-inbox-fill"></i> Receive Material</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" id="receiveForm">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>PO:</strong> <span id="modal_po_number"></span><br>
+                        <strong>Product:</strong> <span id="modal_product"></span><br>
+                        <strong>Supplier:</strong> <span id="modal_supplier"></span><br>
+                        <strong>Quantity:</strong> <span id="modal_quantity"></span>
+                    </div>
+                    
+                    <input type="hidden" name="product_id" id="modal_product_id">
+                    
+                    <div class="mb-3">
+                        <label for="modal_receipt_date" class="form-label">Receipt Date *</label>
+                        <input type="date" class="form-control" id="modal_receipt_date" name="receipt_date" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modal_quantity_received" class="form-label">Quantity Received *</label>
+                                <input type="number" step="0.01" class="form-control" id="modal_quantity_received" name="quantity_received" required min="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modal_condition" class="form-label">Condition *</label>
+                                <select class="form-select" id="modal_condition" name="condition" required>
+                                    <option value="New">New</option>
+                                    <option value="Serviceable">Serviceable</option>
+                                    <option value="Overhauled">Overhauled</option>
+                                    <option value="Repaired">Repaired</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modal_warehouse_location" class="form-label">Warehouse *</label>
+                                <input type="text" class="form-control" id="modal_warehouse_location" name="warehouse_location" value="Main" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modal_bin_location" class="form-label">Bin Location *</label>
+                                <input type="text" class="form-control" id="modal_bin_location" name="bin_location" placeholder="e.g., A-01, B-15" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modal_remarks" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="modal_remarks" name="remarks" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Receive Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers to all receive buttons
+    document.querySelectorAll('.receive-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const poId = this.dataset.poId;
+            const poNumber = this.dataset.poNumber;
+            const productCode = this.dataset.productCode;
+            const productName = this.dataset.productName;
+            const quantity = this.dataset.quantity;
+            const supplier = this.dataset.supplierName;
+            const productId = this.dataset.productId;
+            
+            // Populate modal
+            document.getElementById('modal_po_number').textContent = poNumber;
+            document.getElementById('modal_product').textContent = productCode + ' - ' + productName;
+            document.getElementById('modal_supplier').textContent = supplier;
+            document.getElementById('modal_quantity').textContent = quantity;
+            document.getElementById('modal_quantity_received').value = quantity;
+            document.getElementById('modal_quantity_received').max = quantity;
+            document.getElementById('modal_product_id').value = productId;
+            
+            // Set form action
+            document.getElementById('receiveForm').action = '/purchaseorders/' + poId + '/receive';
+            
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('modal_receipt_date').value = today;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('receiveModal'));
+            modal.show();
+        });
+    });
+});
+</script>
 {% endblock %}

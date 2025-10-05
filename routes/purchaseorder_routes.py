@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session
 from models import Database, CompanySettings
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
@@ -201,27 +201,133 @@ def receive_purchaseorder(id):
     db = Database()
     conn = db.get_connection()
     
-    po = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (id,)).fetchone()
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase Order not found', 'danger')
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        # Get form data
+        receipt_date = request.form.get('receipt_date')
+        quantity_received = float(request.form.get('quantity_received', 0))
+        condition = request.form.get('condition', 'New')
+        warehouse_location = request.form.get('warehouse_location', '').strip()
+        bin_location = request.form.get('bin_location', '').strip()
+        remarks = request.form.get('remarks', '')
+        product_id_str = request.form.get('product_id')
+        
+        if not product_id_str:
+            flash('Product ID is required', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        product_id = int(product_id_str)
+        
+        # Validate required fields
+        if not warehouse_location:
+            flash('Warehouse location is required', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if not bin_location:
+            flash('Bin location is required', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if quantity_received <= 0:
+            flash('Quantity received must be greater than 0', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        # Validate quantity not exceeding ordered quantity
+        remaining = po['quantity'] - (po['received_quantity'] or 0)
+        if quantity_received > remaining:
+            flash(f'Quantity exceeds remaining amount ({remaining})', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        # Generate receipt number
+        last_receipt = conn.execute('''
+            SELECT receipt_number FROM receiving_transactions 
+            WHERE receipt_number LIKE 'RCV-%'
+            ORDER BY CAST(SUBSTR(receipt_number, 5) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_receipt:
+            try:
+                last_number = int(last_receipt['receipt_number'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        receipt_number = f'RCV-{next_number:06d}'
+        
+        # Create receiving transaction
+        conn.execute('''
+            INSERT INTO receiving_transactions 
+            (receipt_number, po_id, product_id, quantity_received, receipt_date, condition, 
+             warehouse_location, bin_location, remarks, received_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (receipt_number, id, product_id, quantity_received, receipt_date, condition,
+              warehouse_location, bin_location, remarks, session['user_id']))
+        
+        # Update inventory with combined warehouse + bin location
+        combined_location = f"{warehouse_location}/{bin_location}"
+        inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
+        
+        inventory_id = None
+        if inventory:
+            new_qty = inventory['quantity'] + quantity_received
+            conn.execute('''
+                UPDATE inventory 
+                SET quantity=?, 
+                    warehouse_location=?,
+                    bin_location=?,
+                    condition=?,
+                    status = CASE 
+                        WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                        ELSE status 
+                    END,
+                    last_updated=CURRENT_TIMESTAMP 
+                WHERE product_id=?
+            ''', (new_qty, warehouse_location, bin_location, condition, new_qty, product_id))
+            inventory_id = inventory['id']
+        else:
+            # Create new inventory record
+            conn.execute('''
+                INSERT INTO inventory 
+                (product_id, quantity, warehouse_location, bin_location, condition, 
+                 status, reorder_point, safety_stock)
+                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0)
+            ''', (product_id, quantity_received, warehouse_location, bin_location, condition))
+            inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        # Update purchase order
+        new_received = (po['received_quantity'] or 0) + quantity_received
+        new_status = 'Received' if new_received >= po['quantity'] else 'Partial'
+        
+        conn.execute('''
+            UPDATE purchase_orders 
+            SET received_quantity=?, 
+                status=?,
+                actual_delivery_date=? 
+            WHERE id=?
+        ''', (new_received, new_status, receipt_date, id))
+        
+        conn.commit()
+        
+        flash(f'Material received successfully! Receipt: {receipt_number}, Inventory: INV-{inventory_id:06d}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error receiving material: {str(e)}', 'danger')
+    finally:
+        conn.close()
     
-    conn.execute('UPDATE purchase_orders SET status="Received", actual_delivery_date=CURRENT_DATE WHERE id=?', (id,))
-    
-    inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (po['product_id'],)).fetchone()
-    
-    inventory_id = None
-    if inventory:
-        new_qty = inventory['quantity'] + po['quantity']
-        conn.execute('UPDATE inventory SET quantity=?, last_updated=CURRENT_TIMESTAMP WHERE product_id=?', 
-                    (new_qty, po['product_id']))
-        inventory_id = inventory['id']
-    else:
-        conn.execute('INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock) VALUES (?, ?, 0, 0)', 
-                    (po['product_id'], po['quantity']))
-        inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    
-    conn.commit()
-    conn.close()
-    
-    flash(f'Purchase Order received and inventory updated! Inventory ID: INV-{inventory_id:06d}', 'success')
     return redirect(url_for('po_routes.list_purchaseorders'))
 
 @po_bp.route('/purchaseorders/suggestions')
