@@ -163,6 +163,71 @@
 </div>
 {% endif %}
 
+<!-- Accounts Payable Section -->
+{% if session.role in ['Admin', 'Accountant', 'Procurement'] %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-credit-card"></i> Accounts Payable ({{ ap_records|length }})</h5>
+        <a href="{{ url_for('ap_routes.list_ap') }}" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-eye"></i> View All A/P
+        </a>
+    </div>
+    <div class="card-body">
+        {% if ap_records %}
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>AP Number</th>
+                        <th>Invoice Date</th>
+                        <th>Due Date</th>
+                        <th>Total Amount</th>
+                        <th>Amount Paid</th>
+                        <th>Balance Due</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ap in ap_records %}
+                    <tr>
+                        <td><strong>{{ ap.invoice_number }}</strong></td>
+                        <td>{{ ap.invoice_date }}</td>
+                        <td>
+                            {{ ap.due_date }}
+                            {% if ap.due_date < (now().strftime('%Y-%m-%d')) and ap.status in ['Open', 'Pending Invoice'] %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ "%.2f"|format(ap.total_amount) }}</td>
+                        <td>${{ "%.2f"|format(ap.amount_paid) }}</td>
+                        <td><strong>${{ "%.2f"|format(ap.balance_due) }}</strong></td>
+                        <td>
+                            {% if ap.status == 'Paid' %}
+                            <span class="badge bg-success">{{ ap.status }}</span>
+                            {% elif ap.status == 'Pending Invoice' %}
+                            <span class="badge bg-warning">{{ ap.status }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ ap.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No A/P records have been created for this Purchase Order yet. A/P records are automatically created when materials are received.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Audit Trail Section (Admin, Planner, Accountant, Procurement only) -->
 {% if session.role in ['Admin', 'Planner', 'Accountant', 'Procurement'] %}
 <div class="card mb-4">

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}A/P {{ ap.invoice_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Accounts Payable: {{ ap.invoice_number }}</h2>
+        <a href="{{ url_for('ap_routes.list_ap') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-file-text"></i> A/P Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>AP Number:</strong></div>
+                        <div class="col-8">{{ ap.invoice_number }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Status:</strong></div>
+                        <div class="col-8">
+                            {% if ap.status == 'Paid' %}
+                            <span class="badge bg-success">{{ ap.status }}</span>
+                            {% elif ap.status == 'Pending Invoice' %}
+                            <span class="badge bg-warning">{{ ap.status }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ ap.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Invoice Date:</strong></div>
+                        <div class="col-8">{{ ap.invoice_date }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Due Date:</strong></div>
+                        <div class="col-8">
+                            {{ ap.due_date }}
+                            {% if ap.due_date < (now().strftime('%Y-%m-%d')) and ap.status in ['Open', 'Pending Invoice'] %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>PO Number:</strong></div>
+                        <div class="col-8">
+                            {% if ap.po_number %}
+                            <a href="{{ url_for('po_routes.view_purchaseorder', id=ap.po_id) }}">{{ ap.po_number }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>GL Entry:</strong></div>
+                        <div class="col-8">
+                            {% if ap.gl_entry_number %}
+                            <a href="{{ url_for('journal_routes.view_journal_entry', id=ap.gl_entry_id) }}">{{ ap.gl_entry_number }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-building"></i> Vendor Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Vendor:</strong></div>
+                        <div class="col-8">{{ ap.vendor_name }} ({{ ap.vendor_code }})</div>
+                    </div>
+                    {% if ap.contact_person %}
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Contact:</strong></div>
+                        <div class="col-8">{{ ap.contact_person }}</div>
+                    </div>
+                    {% endif %}
+                    {% if ap.email %}
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Email:</strong></div>
+                        <div class="col-8">{{ ap.email }}</div>
+                    </div>
+                    {% endif %}
+                    {% if ap.phone %}
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Phone:</strong></div>
+                        <div class="col-8">{{ ap.phone }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="row mb-3">
+                        <div class="col-4"><strong>Payment Terms:</strong></div>
+                        <div class="col-8">Net {{ ap.payment_terms or 30 }} days</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Amount Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <tr>
+                            <td><strong>Subtotal:</strong></td>
+                            <td class="text-end">${{ "%.2f"|format(ap.amount) }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Tax:</strong></td>
+                            <td class="text-end">${{ "%.2f"|format(ap.tax_amount) }}</td>
+                        </tr>
+                        <tr class="table-light">
+                            <td><strong>Total Amount:</strong></td>
+                            <td class="text-end"><strong>${{ "%.2f"|format(ap.total_amount) }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Amount Paid:</strong></td>
+                            <td class="text-end">${{ "%.2f"|format(ap.amount_paid) }}</td>
+                        </tr>
+                        <tr class="table-primary">
+                            <td><strong>Balance Due:</strong></td>
+                            <td class="text-end"><strong>${{ "%.2f"|format(ap.total_amount - ap.amount_paid) }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if session.role in ['Admin', 'Accountant'] %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Update Status</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('ap_routes.update_ap_status', id=ap.id) }}">
+                <div class="row align-items-end">
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="Pending Invoice" {% if ap.status == 'Pending Invoice' %}selected{% endif %}>Pending Invoice</option>
+                            <option value="Open" {% if ap.status == 'Open' %}selected{% endif %}>Open</option>
+                            <option value="Paid" {% if ap.status == 'Paid' %}selected{% endif %}>Paid</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="submit" class="btn btn-primary">Update Status</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if receipts %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-box-seam"></i> Related Receipts</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Receipt Number</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Receipt Date</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receipt in receipts %}
+                        <tr>
+                            <td>{{ receipt.receipt_number }}</td>
+                            <td>{{ receipt.product_code }} - {{ receipt.product_name }}</td>
+                            <td>{{ receipt.quantity_received }}</td>
+                            <td>{{ receipt.receipt_date }}</td>
+                            <td>{{ receipt.warehouse_location }} / {{ receipt.bin_location }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Audit Trail Section -->
+    {% if session.role in ['Admin', 'Accountant'] %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-clock-history"></i> Audit Trail</h5>
+            <a href="{{ url_for('audit_routes.view_audit_trail', record_type='accounts_payable', record_id=ap.id) }}" 
+               class="btn btn-sm btn-outline-info">
+                <i class="bi bi-eye"></i> View Full History
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <iframe src="{{ url_for('audit_routes.view_audit_trail', record_type='accounts_payable', record_id=ap.id) }}" 
+                    style="width: 100%; height: 400px; border: none;">
+            </iframe>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

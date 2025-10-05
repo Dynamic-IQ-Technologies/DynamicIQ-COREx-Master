@@ -198,9 +198,17 @@ def view_purchaseorder(id):
         ORDER BY pol.line_number
     ''', (id,)).fetchall()
     
+    # Get related A/P records
+    ap_records = conn.execute('''
+        SELECT vi.*, (vi.total_amount - vi.amount_paid) as balance_due
+        FROM vendor_invoices vi
+        WHERE vi.po_id = ?
+        ORDER BY vi.created_at DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
-    return render_template('purchaseorders/view.html', po=po, lines=lines)
+    return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records)
 
 @po_bp.route('/purchaseorders/<int:id>/print')
 @login_required

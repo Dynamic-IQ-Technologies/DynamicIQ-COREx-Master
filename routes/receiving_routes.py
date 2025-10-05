@@ -202,7 +202,7 @@ def create_receiving():
                 }
             ]
             
-            GLAutoPost.create_auto_journal_entry(
+            gl_entry_id = GLAutoPost.create_auto_journal_entry(
                 conn=conn,
                 entry_date=receipt_date,
                 description=f'Material Receiving - {receipt_number}',
@@ -213,8 +213,92 @@ def create_receiving():
                 created_by=session['user_id']
             )
             
+            # Verify GL entry was created successfully before proceeding with A/P
+            if not gl_entry_id:
+                raise Exception("Failed to create GL entry for receiving transaction")
+            
+            # Auto-create Accounts Payable (Vendor Invoice) record
+            # Check if AP already exists for this receipt (by linking to receipt_id via GL entry)
+            # A receipt can only have one AP record
+            existing_ap = conn.execute('''
+                SELECT vi.id, vi.invoice_number FROM vendor_invoices vi
+                JOIN gl_entries ge ON vi.gl_entry_id = ge.id
+                WHERE ge.reference_type = 'receiving_transaction' AND ge.reference_id = ?
+            ''', (receipt_id,)).fetchone()
+            
+            if existing_ap:
+                # Duplicate receipt - reuse existing AP
+                conn.commit()
+                flash(f'Material received successfully! Receipt: {receipt_number}, Linked to existing A/P: {existing_ap["invoice_number"]}', 'success')
+                return redirect(url_for('receiving_routes.view_receiving', receipt_number=receipt_number))
+            
+            # Get supplier payment terms
+            supplier = conn.execute('''
+                SELECT payment_terms FROM suppliers WHERE id = ?
+            ''', (po['supplier_id'],)).fetchone()
+            
+            payment_terms_days = supplier['payment_terms'] if supplier and supplier['payment_terms'] else 30
+            
+            # Calculate due date based on payment terms
+            from datetime import datetime, timedelta
+            receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
+            due_date = (receipt_dt + timedelta(days=payment_terms_days)).strftime('%Y-%m-%d')
+            
+            # Generate unique AP number (only after confirming no duplicate)
+            last_ap = conn.execute('''
+                SELECT invoice_number FROM vendor_invoices 
+                WHERE invoice_number LIKE 'AP-%'
+                ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
+                LIMIT 1
+            ''').fetchone()
+            
+            if last_ap:
+                try:
+                    last_number = int(last_ap['invoice_number'].split('-')[1])
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            
+            ap_number = f'AP-{next_number:07d}'
+            
+            # Create vendor invoice (A/P record)
+            # Note: amount_paid is initialized to 0 and should be updated via payment processing workflow
+            cursor.execute('''
+                INSERT INTO vendor_invoices 
+                (invoice_number, vendor_id, po_id, invoice_date, due_date, 
+                 amount, tax_amount, total_amount, amount_paid, status, gl_entry_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                ap_number,
+                po['supplier_id'],
+                po_id,
+                receipt_date,
+                due_date,
+                total_value,
+                0,  # tax_amount - can be enhanced later
+                total_value,
+                0,  # amount_paid - updated by payment processing
+                'Pending Invoice',
+                gl_entry_id
+            ))
+            
+            ap_id = cursor.lastrowid
+            
+            # Log audit trail for A/P creation
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='accounts_payable',
+                record_id=ap_id,
+                action_type='Created',
+                modified_by=session.get('user_id'),
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+            
             conn.commit()
-            flash(f'Material received successfully! Receipt Number: {receipt_number}', 'success')
+            flash(f'Material received successfully! Receipt: {receipt_number}, A/P: {ap_number} created', 'success')
             return redirect(url_for('receiving_routes.view_receiving', receipt_number=receipt_number))
             
         except Exception as e:

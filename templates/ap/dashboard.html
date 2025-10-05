@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}A/P Dashboard - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-graph-up"></i> Accounts Payable Dashboard</h2>
+        <div>
+            <a href="{{ url_for('ap_routes.list_ap') }}" class="btn btn-secondary">
+                <i class="bi bi-list"></i> View All A/P
+            </a>
+            <a href="{{ url_for('ap_routes.export_ap') }}" class="btn btn-success">
+                <i class="bi bi-download"></i> Export
+            </a>
+        </div>
+    </div>
+
+    <!-- Aging Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h6>Current</h6>
+                    <h4>${{ "%.2f"|format(aging_totals.current) }}</h4>
+                    <small>{{ aging_data.current|length }} invoices</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h6>1-30 Days</h6>
+                    <h4>${{ "%.2f"|format(aging_totals['1_30']) }}</h4>
+                    <small>{{ aging_data['1_30']|length }} invoices</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h6>31-60 Days</h6>
+                    <h4>${{ "%.2f"|format(aging_totals['31_60']) }}</h4>
+                    <small>{{ aging_data['31_60']|length }} invoices</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
+                <div class="card-body text-center">
+                    <h6>61-90 Days</h6>
+                    <h4>${{ "%.2f"|format(aging_totals['61_90']) }}</h4>
+                    <small>{{ aging_data['61_90']|length }} invoices</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h6>Over 90 Days</h6>
+                    <h4>${{ "%.2f"|format(aging_totals.over_90) }}</h4>
+                    <small>{{ aging_data.over_90|length }} invoices</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6>Total Outstanding</h6>
+                    <h4>${{ "%.2f"|format(aging_totals.current + aging_totals['1_30'] + aging_totals['31_60'] + aging_totals['61_90'] + aging_totals.over_90) }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Vendors by Payables -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-building"></i> Top Vendors by Outstanding Amount</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_vendors %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Vendor</th>
+                                    <th>Open Invoices</th>
+                                    <th>Total Outstanding</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vendor in top_vendors %}
+                                <tr>
+                                    <td>{{ vendor.vendor_name }}</td>
+                                    <td><span class="badge bg-info">{{ vendor.invoice_count }}</span></td>
+                                    <td><strong>${{ "%.2f"|format(vendor.total_due) }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No outstanding payables.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aging Details Accordion -->
+    <div class="accordion" id="agingAccordion">
+        <!-- Current -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingCurrent">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCurrent">
+                    Current ({{ aging_data.current|length }} invoices - ${{ "%.2f"|format(aging_totals.current) }})
+                </button>
+            </h2>
+            <div id="collapseCurrent" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
+                <div class="accordion-body">
+                    {% if aging_data.current %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>AP#</th><th>Vendor</th><th>Due Date</th><th>Amount</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aging_data.current %}
+                            <tr>
+                                <td>{{ ap.invoice_number }}</td>
+                                <td>{{ ap.vendor_name }}</td>
+                                <td>{{ ap.due_date }}</td>
+                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No current payables.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 1-30 Days -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1_30">
+                    1-30 Days Past Due ({{ aging_data['1_30']|length }} invoices - ${{ "%.2f"|format(aging_totals['1_30']) }})
+                </button>
+            </h2>
+            <div id="collapse1_30" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
+                <div class="accordion-body">
+                    {% if aging_data['1_30'] %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>AP#</th><th>Vendor</th><th>Due Date</th><th>Days Overdue</th><th>Amount</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aging_data['1_30'] %}
+                            <tr>
+                                <td>{{ ap.invoice_number }}</td>
+                                <td>{{ ap.vendor_name }}</td>
+                                <td>{{ ap.due_date }}</td>
+                                <td><span class="badge bg-warning">{{ ap.days_overdue|int }} days</span></td>
+                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No payables in this range.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 31-60 Days -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse31_60">
+                    31-60 Days Past Due ({{ aging_data['31_60']|length }} invoices - ${{ "%.2f"|format(aging_totals['31_60']) }})
+                </button>
+            </h2>
+            <div id="collapse31_60" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
+                <div class="accordion-body">
+                    {% if aging_data['31_60'] %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>AP#</th><th>Vendor</th><th>Due Date</th><th>Days Overdue</th><th>Amount</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aging_data['31_60'] %}
+                            <tr>
+                                <td>{{ ap.invoice_number }}</td>
+                                <td>{{ ap.vendor_name }}</td>
+                                <td>{{ ap.due_date }}</td>
+                                <td><span class="badge bg-warning">{{ ap.days_overdue|int }} days</span></td>
+                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No payables in this range.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 61-90 Days -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse61_90">
+                    61-90 Days Past Due ({{ aging_data['61_90']|length }} invoices - ${{ "%.2f"|format(aging_totals['61_90']) }})
+                </button>
+            </h2>
+            <div id="collapse61_90" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
+                <div class="accordion-body">
+                    {% if aging_data['61_90'] %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>AP#</th><th>Vendor</th><th>Due Date</th><th>Days Overdue</th><th>Amount</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aging_data['61_90'] %}
+                            <tr>
+                                <td>{{ ap.invoice_number }}</td>
+                                <td>{{ ap.vendor_name }}</td>
+                                <td>{{ ap.due_date }}</td>
+                                <td><span class="badge bg-danger">{{ ap.days_overdue|int }} days</span></td>
+                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No payables in this range.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Over 90 Days -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOver90">
+                    Over 90 Days Past Due ({{ aging_data.over_90|length }} invoices - ${{ "%.2f"|format(aging_totals.over_90) }})
+                </button>
+            </h2>
+            <div id="collapseOver90" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
+                <div class="accordion-body">
+                    {% if aging_data.over_90 %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>AP#</th><th>Vendor</th><th>Due Date</th><th>Days Overdue</th><th>Amount</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aging_data.over_90 %}
+                            <tr>
+                                <td>{{ ap.invoice_number }}</td>
+                                <td>{{ ap.vendor_name }}</td>
+                                <td>{{ ap.due_date }}</td>
+                                <td><span class="badge bg-danger">{{ ap.days_overdue|int }} days</span></td>
+                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No payables in this range.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

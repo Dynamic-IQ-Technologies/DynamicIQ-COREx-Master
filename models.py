@@ -61,6 +61,7 @@ class Database:
                 email TEXT,
                 phone TEXT,
                 address TEXT,
+                payment_terms INTEGER DEFAULT 30,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')

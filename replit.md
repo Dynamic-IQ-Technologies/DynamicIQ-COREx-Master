@@ -47,7 +47,8 @@ The system utilizes Bootstrap 5 for a responsive and modern user interface, comp
     - **Manual Journal Entries**: Create and manage journal entries with balance validation and post/unpost workflow.
     - **Automatic GL Posting**: Automates journal entry creation and posting for all inventory transactions.
     - **Financial Reports**: Trial Balance, Balance Sheet, Income Statement (P&L).
-    - **Role-based Access**: Limited to Admin and Accountant roles.
+    - **Accounts Payable (A/P)**: Automated vendor invoice creation upon material receiving. Auto-generates unique AP numbers (AP-0000001), calculates payment due dates based on supplier terms (default Net 30), creates GL entries (DR: Inventory, CR: AP), and prevents orphaned records with GL validation. Features A/P dashboard with aging reports (Current, 1-30, 31-60, 61-90, 90+ days), top vendor analysis, status management, and CSV export. Integrated audit trail tracks all A/P changes. Each receiving transaction creates its own A/P record for proper accounting of partial deliveries.
+    - **Role-based Access**: Limited to Admin and Accountant roles (with Procurement having view-only access to A/P).
 
 ## External Dependencies
 
