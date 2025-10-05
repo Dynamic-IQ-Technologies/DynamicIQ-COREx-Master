@@ -163,7 +163,7 @@ def procure_from_requirements():
             try:
                 product_id = int(request.form.get(f'items[{i}][product_id]'))
                 supplier_id = int(request.form.get(f'items[{i}][supplier_id]'))
-                quantity = float(request.form.get(f'items[{i}][quantity]'))
+                quantity = int(request.form.get(f'items[{i}][quantity]'))
                 unit_price = float(request.form.get(f'items[{i}][unit_price]'))
                 
                 existing_po_count = conn.execute(
