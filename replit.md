@@ -45,6 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Suppliers**: Vendor management with contact information, supporting CSV import/export.
 - **Company Settings**: Configurable business information (singleton pattern) including general, contact, tax/regulatory details, and logo upload for professional document generation. Admin-only editing.
 - **Work Order Tasks & Labor Planning**: Complete task management system with labor resource tracking, time tracking, and planned vs actual analysis. Features task creation (TASK-XXXXXX), labor resource management (EMP-XXXXXX), labor issuance (LBR-XXXXXX), automatic cost calculations cascading from labor → task → work order, and task summaries integrated into work order views.
+- **Time Tracking (Clock In/Clock Out)**: Employee time tracking system with secure user-to-employee linking via user_id foreign key. Features real-time clock in/clock out to work orders and tasks, auto-generated entry numbers (CLK-XXXXXX), elapsed time calculation, hourly rate tracking, automatic labor cost calculation, work notes, and comprehensive history views. Includes ownership verification to prevent unauthorized access to other users' time entries. Supervisor view available for Admin/Planner roles to monitor all employee time tracking. Labor resources must be linked to user accounts for time tracking access.
 
 **Inventory Management**: Features real-time stock level tracking, low stock alerts, manual adjustments, and automatic updates from work order processing.
 

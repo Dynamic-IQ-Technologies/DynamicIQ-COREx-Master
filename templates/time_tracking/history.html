@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Time Tracking History - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar3"></i> Time Tracking History</h2>
+    <a href="{{ url_for('time_tracking_routes.time_tracking_page') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Clock In/Out</a>
+</div>
+
+{% if employee %}
+<div class="card bg-light mb-4">
+    <div class="card-body">
+        <h5><i class="bi bi-person-badge"></i> {{ employee.name }} ({{ employee.employee_code }})</h5>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Entry #</th>
+                        <th>Date</th>
+                        <th>Work Order</th>
+                        <th>Task</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th>Hours</th>
+                        <th>Cost</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.entry_number }}</td>
+                        <td>{{ entry.clock_in_time[:10] }}</td>
+                        <td>{{ entry.wo_number }} - {{ entry.product_name }}</td>
+                        <td>{{ entry.task_name or 'General' }}</td>
+                        <td>{{ entry.clock_in_time[11:16] }}</td>
+                        <td>{{ entry.clock_out_time[11:16] if entry.clock_out_time else '-' }}</td>
+                        <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
+                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                        <td>
+                            {% if entry.status == 'Completed' %}
+                            <span class="badge bg-success">{{ entry.status }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ entry.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if not entries %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-clock-history" style="font-size: 3rem;"></i>
+            <p class="mt-2">No time tracking history found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

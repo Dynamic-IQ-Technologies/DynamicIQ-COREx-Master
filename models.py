@@ -370,6 +370,14 @@ class Database:
             )
         ''')
         
+        # Add user_id column to labor_resources if it doesn't exist
+        lr_columns = [row[1] for row in cursor.execute('PRAGMA table_info(labor_resources)').fetchall()]
+        if 'user_id' not in lr_columns:
+            try:
+                cursor.execute('ALTER TABLE labor_resources ADD COLUMN user_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        
         # Create work_order_tasks table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS work_order_tasks (
@@ -419,6 +427,33 @@ class Database:
                 FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
                 FOREIGN KEY (resource_id) REFERENCES labor_resources(id),
                 FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create work_order_time_tracking table for clock in/out
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_time_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_number TEXT UNIQUE NOT NULL,
+                employee_id INTEGER NOT NULL,
+                work_order_id INTEGER NOT NULL,
+                task_id INTEGER,
+                clock_in_time TIMESTAMP NOT NULL,
+                clock_out_time TIMESTAMP,
+                hours_worked REAL DEFAULT 0,
+                labor_cost REAL DEFAULT 0,
+                hourly_rate REAL DEFAULT 0,
+                status TEXT DEFAULT 'In Progress',
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_by INTEGER,
+                modified_at TIMESTAMP,
+                FOREIGN KEY (employee_id) REFERENCES labor_resources(id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (task_id) REFERENCES work_order_tasks(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (modified_by) REFERENCES users(id)
             )
         ''')
         

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Time Tracking - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clock-history"></i> Work Order Time Tracking</h2>
+    <div>
+        <a href="{{ url_for('time_tracking_routes.time_tracking_history') }}" class="btn btn-secondary"><i class="bi bi-calendar3"></i> View History</a>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('time_tracking_routes.supervisor_view') }}" class="btn btn-info"><i class="bi bi-people"></i> Supervisor View</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if employee %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h5><i class="bi bi-person-badge"></i> Employee: {{ employee.name }} ({{ employee.employee_code }})</h5>
+                <p class="mb-0">Role: {{ employee.role }} | Hourly Rate: ${{ "%.2f"|format(employee.hourly_rate) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if active_entry %}
+<div class="card border-success mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-clock"></i> Currently Clocked In</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Work Order:</strong> {{ active_entry.wo_number }} - {{ active_entry.product_name }}</p>
+                <p><strong>Task:</strong> {{ active_entry.task_name or 'General Work' }}</p>
+                <p><strong>Clock In Time:</strong> {{ active_entry.clock_in_time }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Elapsed Time:</strong> <span id="elapsedTime" class="badge bg-primary" style="font-size: 1.2rem;">Calculating...</span></p>
+                <p><strong>Entry Number:</strong> {{ active_entry.entry_number }}</p>
+            </div>
+        </div>
+        <hr>
+        <form method="POST" action="{{ url_for('time_tracking_routes.clock_out', entry_id=active_entry.id) }}">
+            <div class="mb-3">
+                <label for="notes" class="form-label">Work Notes (Optional)</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Describe the work completed...">{{ active_entry.notes or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-danger btn-lg"><i class="bi bi-stop-circle"></i> Clock Out</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card border-primary mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-play-circle"></i> Clock In to Work Order</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('time_tracking_routes.clock_in') }}" id="clockInForm">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="work_order_id" class="form-label">Work Order *</label>
+                    <select class="form-select" id="work_order_id" name="work_order_id" required onchange="loadTasks()">
+                        <option value="">Select Work Order</option>
+                        {% for wo in work_orders %}
+                        <option value="{{ wo.id }}">{{ wo.wo_number }} - {{ wo.product_name }} ({{ wo.status }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="task_id" class="form-label">Task (Optional)</label>
+                    <select class="form-select" id="task_id" name="task_id">
+                        <option value="">General Work (No Specific Task)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes (Optional)</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Add any notes about this work session..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-play-circle"></i> Clock In</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if todays_entries %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-list-check"></i> Today's Completed Entries</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Entry #</th>
+                        <th>Work Order</th>
+                        <th>Task</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th>Hours</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in todays_entries %}
+                    <tr>
+                        <td>{{ entry.entry_number }}</td>
+                        <td>{{ entry.wo_number }}</td>
+                        <td>{{ entry.task_name or 'General' }}</td>
+                        <td>{{ entry.clock_in_time[:16] }}</td>
+                        <td>{{ entry.clock_out_time[:16] if entry.clock_out_time else '-' }}</td>
+                        <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
+                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <td colspan="5" class="text-end"><strong>Total Today:</strong></td>
+                        <td><strong>{{ "%.2f"|format(todays_entries|sum(attribute='hours_worked')) }}</strong></td>
+                        <td><strong>${{ "%.2f"|format(todays_entries|sum(attribute='labor_cost')) }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function loadTasks() {
+    const woId = document.getElementById('work_order_id').value;
+    const taskSelect = document.getElementById('task_id');
+    
+    taskSelect.innerHTML = '<option value="">General Work (No Specific Task)</option>';
+    
+    if (woId) {
+        fetch(`/time-tracking/tasks/${woId}`)
+            .then(response => response.json())
+            .then(tasks => {
+                tasks.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = task.id;
+                    option.textContent = task.task_name;
+                    taskSelect.appendChild(option);
+                });
+            });
+    }
+}
+
+{% if active_entry %}
+// Calculate elapsed time
+function updateElapsedTime() {
+    const clockInTime = new Date('{{ active_entry.clock_in_time }}');
+    const now = new Date();
+    const diff = now - clockInTime;
+    
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    
+    const display = `${hours}h ${minutes}m ${seconds}s`;
+    document.getElementById('elapsedTime').textContent = display;
+}
+
+setInterval(updateElapsedTime, 1000);
+updateElapsedTime();
+{% endif %}
+</script>
+{% endblock %}
