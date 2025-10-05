@@ -6,7 +6,7 @@ from datetime import datetime
 issuance_bp = Blueprint('issuance_routes', __name__)
 
 def update_material_requirement_status(conn, work_order_id, product_id):
-    """Update the status of a material requirement based on available and issued quantities."""
+    """Update the status of a material requirement based on issued quantities."""
     # Check if material requirement exists for this product
     requirement = conn.execute('''
         SELECT id, required_quantity FROM material_requirements
@@ -20,7 +20,18 @@ def update_material_requirement_status(conn, work_order_id, product_id):
         ''', (product_id,)).fetchone()
         
         available_quantity = inventory['quantity'] if inventory else 0
-        shortage_quantity = max(0, requirement['required_quantity'] - available_quantity)
+        
+        # Get total issued quantity for this work order and product
+        issued = conn.execute('''
+            SELECT COALESCE(SUM(quantity_issued), 0) as total_issued
+            FROM material_issues
+            WHERE work_order_id = ? AND product_id = ?
+        ''', (work_order_id, product_id)).fetchone()
+        
+        total_issued = issued['total_issued'] if issued else 0
+        
+        # Status based on whether materials have been issued, not inventory availability
+        shortage_quantity = max(0, requirement['required_quantity'] - total_issued)
         status = 'Satisfied' if shortage_quantity == 0 else 'Shortage'
         
         # Update material requirement
