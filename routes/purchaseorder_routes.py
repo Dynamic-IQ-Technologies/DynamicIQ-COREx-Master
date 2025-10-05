@@ -54,17 +54,18 @@ def create_purchaseorder():
                 
                 conn.execute('''
                     INSERT INTO purchase_orders 
-                    (po_number, supplier_id, product_id, quantity, unit_price, status, order_date, expected_delivery_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (po_number, supplier_id, product_id, quantity, unit_price, status, order_date, expected_delivery_date, uom_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     po_number,
                     int(request.form['supplier_id']),
                     int(request.form['product_id']),
-                    int(request.form['quantity']),
+                    float(request.form['quantity']),
                     float(request.form['unit_price']),
                     request.form['status'],
                     request.form.get('order_date'),
-                    request.form.get('expected_delivery_date')
+                    request.form.get('expected_delivery_date'),
+                    int(request.form['uom_id']) if request.form.get('uom_id') else None
                 ))
                 
                 po_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
