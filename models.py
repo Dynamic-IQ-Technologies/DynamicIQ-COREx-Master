@@ -131,6 +131,18 @@ class Database:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_permissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                permission_key TEXT NOT NULL,
+                permission_value INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, permission_key)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
 
@@ -186,3 +198,51 @@ class User:
         cursor.execute('UPDATE users SET role = ? WHERE id = ?', (new_role, user_id))
         conn.commit()
         conn.close()
+    
+    @staticmethod
+    def get_permissions(user_id):
+        db = Database()
+        conn = db.get_connection()
+        permissions = conn.execute(
+            'SELECT permission_key, permission_value FROM user_permissions WHERE user_id = ?',
+            (user_id,)
+        ).fetchall()
+        conn.close()
+        return {p['permission_key']: p['permission_value'] for p in permissions}
+    
+    @staticmethod
+    def set_permission(user_id, permission_key, permission_value):
+        db = Database()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''INSERT INTO user_permissions (user_id, permission_key, permission_value) 
+               VALUES (?, ?, ?)
+               ON CONFLICT(user_id, permission_key) 
+               DO UPDATE SET permission_value = ?''',
+            (user_id, permission_key, permission_value, permission_value)
+        )
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def get_all_with_permissions():
+        db = Database()
+        conn = db.get_connection()
+        users = conn.execute(
+            'SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC'
+        ).fetchall()
+        
+        result = []
+        for user in users:
+            permissions = conn.execute(
+                'SELECT permission_key, permission_value FROM user_permissions WHERE user_id = ?',
+                (user['id'],)
+            ).fetchall()
+            
+            user_dict = dict(user)
+            user_dict['permissions'] = {p['permission_key']: p['permission_value'] for p in permissions}
+            result.append(user_dict)
+        
+        conn.close()
+        return result

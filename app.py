@@ -10,6 +10,7 @@ from routes.workorder_routes import workorder_bp
 from routes.purchaseorder_routes import po_bp
 from routes.report_routes import report_bp
 from routes.user_routes import user_bp
+from routes.permission_routes import permission_bp
 import os
 
 app = Flask(__name__)
@@ -25,6 +26,7 @@ app.register_blueprint(workorder_bp)
 app.register_blueprint(po_bp)
 app.register_blueprint(report_bp)
 app.register_blueprint(user_bp)
+app.register_blueprint(permission_bp)
 
 @app.context_processor
 def inject_user():
