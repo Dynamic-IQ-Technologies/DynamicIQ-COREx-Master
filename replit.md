@@ -6,11 +6,14 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management feature added
+**October 5, 2025**: User Management and Permissions features added
 - Created admin-only User Management interface to view all users and change roles
-- Added User.get_all() and User.update_role() model methods
-- Implemented user_routes.py blueprint with role change functionality
-- Updated navigation menu to show User Management link for Admin users only
+- Implemented granular Permissions Management system with user_permissions table
+- Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
+- Created User.get_permissions(), User.set_permission(), and User.get_all_with_permissions() model methods
+- Built permissions management UI with category-based checkboxes for fine-grained access control
+- Updated navigation menu with User Management and Permissions links (Admin only)
+- UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
 **October 4, 2025**: Complete MRP application implemented
@@ -36,8 +39,9 @@ Preferred communication style: Simple, everyday language.
 **Database Layer**: 
 - SQLite database (`mrp.db`) with raw SQL queries
 - Database abstraction through a `Database` class that manages connections
-- Schema includes users, products, BOMs, inventory, work orders, purchase orders, and suppliers
+- Schema includes users, products, BOMs, inventory, work orders, purchase orders, suppliers, and user_permissions
 - Uses SQLite's row factory for dictionary-like result access
+- User permissions table stores granular permissions per user with unique constraints
 
 **Authentication & Authorization**:
 - Session-based authentication using Flask sessions
@@ -48,9 +52,10 @@ Preferred communication style: Simple, everyday language.
 
 **Application Structure**:
 - Blueprint-based modular routing system
-- Separate route modules for each major feature (auth, products, BOMs, suppliers, inventory, work orders, purchase orders, reports)
+- Separate route modules for each major feature (auth, products, BOMs, suppliers, inventory, work orders, purchase orders, reports, users, permissions)
 - Context processor injects current user into all templates
 - Before-request hook initializes database on each request
+- Granular permissions system allows fine-grained access control beyond role-based authorization
 
 **Business Logic**:
 - `MRPEngine` class handles core MRP calculations
