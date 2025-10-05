@@ -352,6 +352,76 @@ class Database:
                 except sqlite3.OperationalError:
                     pass
         
+        # Create labor_resources table for employees/technicians
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS labor_resources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_code TEXT UNIQUE NOT NULL,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                role TEXT NOT NULL,
+                skillset TEXT,
+                hourly_rate REAL DEFAULT 0,
+                cost_center TEXT,
+                email TEXT,
+                phone TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create work_order_tasks table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_number TEXT UNIQUE NOT NULL,
+                work_order_id INTEGER NOT NULL,
+                task_name TEXT NOT NULL,
+                description TEXT,
+                category TEXT DEFAULT 'General',
+                sequence_number INTEGER DEFAULT 0,
+                priority TEXT DEFAULT 'Medium',
+                planned_start_date TIMESTAMP,
+                planned_end_date TIMESTAMP,
+                actual_start_date TIMESTAMP,
+                actual_end_date TIMESTAMP,
+                planned_hours REAL DEFAULT 0,
+                actual_hours REAL DEFAULT 0,
+                planned_labor_cost REAL DEFAULT 0,
+                actual_labor_cost REAL DEFAULT 0,
+                assigned_resource_id INTEGER,
+                status TEXT DEFAULT 'Not Started',
+                remarks TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (assigned_resource_id) REFERENCES labor_resources(id)
+            )
+        ''')
+        
+        # Create labor_issuance table for time tracking
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS labor_issuance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                issuance_number TEXT UNIQUE NOT NULL,
+                task_id INTEGER NOT NULL,
+                work_order_id INTEGER NOT NULL,
+                resource_id INTEGER NOT NULL,
+                work_date DATE NOT NULL,
+                start_time TIMESTAMP,
+                end_time TIMESTAMP,
+                hours_worked REAL NOT NULL,
+                hourly_rate REAL DEFAULT 0,
+                labor_cost REAL DEFAULT 0,
+                remarks TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES work_order_tasks(id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (resource_id) REFERENCES labor_resources(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
 
