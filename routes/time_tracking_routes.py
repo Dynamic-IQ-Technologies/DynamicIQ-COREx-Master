@@ -313,6 +313,46 @@ def time_tracking_history():
                          employee=employee,
                          entries=entries)
 
+@time_tracking_bp.route('/time-tracking/active-labor-report')
+@login_required
+@role_required('Admin', 'Planner')
+def active_labor_report():
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get all currently clocked in employees
+    active_entries = conn.execute('''
+        SELECT tt.*, wo.wo_number, p.name as product_name, p.code as product_code,
+               wot.task_name, (lr.first_name || ' ' || lr.last_name) as employee_name, 
+               lr.employee_code, lr.hourly_rate
+        FROM work_order_time_tracking tt
+        JOIN work_orders wo ON tt.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        JOIN labor_resources lr ON tt.employee_id = lr.id
+        LEFT JOIN work_order_tasks wot ON tt.task_id = wot.id
+        WHERE tt.status = 'In Progress'
+        ORDER BY tt.clock_in_time ASC
+    ''').fetchall()
+    
+    # Calculate summary statistics
+    total_employees = len(active_entries)
+    total_hourly_cost = sum(entry['hourly_rate'] for entry in active_entries)
+    
+    # Calculate estimated current labor cost based on elapsed time
+    current_labor_cost = 0
+    for entry in active_entries:
+        clock_in = datetime.fromisoformat(entry['clock_in_time'])
+        elapsed_hours = (datetime.now() - clock_in).total_seconds() / 3600
+        current_labor_cost += elapsed_hours * entry['hourly_rate']
+    
+    conn.close()
+    
+    return render_template('time_tracking/active_labor_report.html',
+                         active_entries=active_entries,
+                         total_employees=total_employees,
+                         total_hourly_cost=total_hourly_cost,
+                         current_labor_cost=current_labor_cost)
+
 @time_tracking_bp.route('/time-tracking/supervisor')
 @login_required
 @role_required('Admin', 'Planner')
