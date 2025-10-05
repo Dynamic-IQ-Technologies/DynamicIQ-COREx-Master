@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify
 from models import Database
 from auth import login_required, role_required
 import csv
@@ -14,6 +14,15 @@ def list_suppliers():
     suppliers = conn.execute('SELECT * FROM suppliers ORDER BY code').fetchall()
     conn.close()
     return render_template('suppliers/list.html', suppliers=suppliers)
+
+@supplier_bp.route('/suppliers/list-json')
+@login_required
+def list_suppliers_json():
+    db = Database()
+    conn = db.get_connection()
+    suppliers = conn.execute('SELECT id, code, name, email, phone FROM suppliers ORDER BY code').fetchall()
+    conn.close()
+    return jsonify([dict(s) for s in suppliers])
 
 @supplier_bp.route('/suppliers/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')

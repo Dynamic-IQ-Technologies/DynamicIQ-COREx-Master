@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, Response
+from flask import Blueprint, render_template, Response, request, redirect, url_for, flash
 from models import Database
 from auth import login_required
 import csv
@@ -143,3 +143,66 @@ def export_material_requirements():
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename=material_requirements_report.csv'}
     )
+
+@report_bp.route('/reports/material-requirements/procure', methods=['POST'])
+@login_required
+def procure_from_requirements():
+    db = Database()
+    conn = db.get_connection()
+    
+    created_pos = []
+    errors = []
+    
+    try:
+        form_data = request.form.to_dict(flat=False)
+        
+        num_items = len([k for k in form_data.keys() if k.startswith('items[') and k.endswith('][product_id]')])
+        
+        for i in range(num_items):
+            try:
+                product_id = int(request.form.get(f'items[{i}][product_id]'))
+                supplier_id = int(request.form.get(f'items[{i}][supplier_id]'))
+                quantity = float(request.form.get(f'items[{i}][quantity]'))
+                unit_price = float(request.form.get(f'items[{i}][unit_price]'))
+                
+                existing_po_count = conn.execute(
+                    "SELECT COUNT(*) as count FROM purchase_orders WHERE po_number LIKE 'PO-%'"
+                ).fetchone()['count']
+                
+                next_po_number = f"PO-{str(existing_po_count + 1).zfill(6)}"
+                
+                for attempt in range(5):
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute('''
+                            INSERT INTO purchase_orders (po_number, supplier_id, product_id, quantity, 
+                                                        unit_price, status, order_date)
+                            VALUES (?, ?, ?, ?, ?, ?, DATE('now'))
+                        ''', (next_po_number, supplier_id, product_id, quantity, unit_price, 'Ordered'))
+                        
+                        conn.commit()
+                        created_pos.append(next_po_number)
+                        break
+                    except Exception as e:
+                        if 'UNIQUE constraint' in str(e) and attempt < 4:
+                            existing_po_count += 1
+                            next_po_number = f"PO-{str(existing_po_count + 1).zfill(6)}"
+                        else:
+                            raise
+                
+            except Exception as item_error:
+                errors.append(f"Error creating PO for item {i}: {str(item_error)}")
+        
+        if created_pos:
+            flash(f'Successfully created {len(created_pos)} purchase order(s): {", ".join(created_pos)}', 'success')
+        
+        if errors:
+            for error in errors:
+                flash(error, 'warning')
+                
+    except Exception as e:
+        flash(f'Error processing procurement: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('report_routes.material_requirements_report'))

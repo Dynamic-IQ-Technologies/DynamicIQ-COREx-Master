@@ -42,6 +42,13 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
   - Rows with shortages highlighted in yellow for quick identification
   - CSV export functionality for external analysis
   - Ordered by planned start date and shortage priority
+  - **Direct Procurement Capability**: Create purchase orders directly from material requirements
+    - Select multiple items with shortages using checkboxes
+    - Auto-populate quantities based on shortage amounts
+    - Select supplier for each product
+    - Adjust quantities and unit prices before creating POs
+    - Automatically generates sequential PO numbers
+    - Streamlined procurement workflow from identification to ordering
   - Accessible from Reports menu in sidebar navigation
 - Upgraded BOM System to Full Industry Standards (Aviation/Manufacturing/MRO)
   - **Multi-Level BOM Hierarchy**: Automatic level numbering (1.0, 1.1, 1.1.1) with recursive tree structure
@@ -165,9 +172,10 @@ Preferred communication style: Simple, everyday language.
 **Reporting System**:
 - Inventory valuation reports
 - Work order cost analysis
-- Material requirements report with summary statistics and CSV export
+- Material requirements report with summary statistics, CSV export, and direct procurement capability
 - Material usage tracking
 - Purchase order suggestions based on stock levels
+- Integrated procurement workflow from material requirements to purchase orders
 
 ### Access Control & Permissions
 
