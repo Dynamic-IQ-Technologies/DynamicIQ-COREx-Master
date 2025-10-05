@@ -531,9 +531,9 @@ class Database:
             )
         ''')
         
-        # Create unit_of_measure table (UOM Master)
+        # Create uom_master table (UOM Master)
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS unit_of_measure (
+            CREATE TABLE IF NOT EXISTS uom_master (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 uom_code TEXT UNIQUE NOT NULL,
                 uom_name TEXT NOT NULL,
@@ -541,13 +541,13 @@ class Database:
                 conversion_factor REAL DEFAULT 1.0,
                 base_uom_id INTEGER,
                 rounding_precision INTEGER DEFAULT 2,
-                status TEXT DEFAULT 'Active',
+                is_active INTEGER DEFAULT 1,
                 description TEXT,
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 modified_by INTEGER,
                 modified_at TIMESTAMP,
-                FOREIGN KEY (base_uom_id) REFERENCES unit_of_measure(id),
+                FOREIGN KEY (base_uom_id) REFERENCES uom_master(id),
                 FOREIGN KEY (created_by) REFERENCES users(id),
                 FOREIGN KEY (modified_by) REFERENCES users(id)
             )
@@ -566,7 +566,7 @@ class Database:
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products(id),
-                FOREIGN KEY (uom_id) REFERENCES unit_of_measure(id),
+                FOREIGN KEY (uom_id) REFERENCES uom_master(id),
                 FOREIGN KEY (created_by) REFERENCES users(id),
                 UNIQUE(product_id, uom_id)
             )
@@ -780,78 +780,78 @@ class Database:
     def seed_unit_of_measure(self):
         conn = self.get_connection()
         
-        existing = conn.execute('SELECT COUNT(*) as count FROM unit_of_measure').fetchone()
+        existing = conn.execute('SELECT COUNT(*) as count FROM uom_master').fetchone()
         if existing['count'] > 0:
             conn.close()
             return
         
         # Insert base UOMs (standalone units with conversion factor 1.0)
         base_uoms = [
-            ('EA', 'Each', 'Count', 1.0, None, 0, 'Active', 'Basic counting unit'),
-            ('KG', 'Kilogram', 'Weight', 1.0, None, 3, 'Active', 'Base weight unit (metric)'),
-            ('LB', 'Pound', 'Weight', 1.0, None, 3, 'Active', 'Base weight unit (imperial)'),
-            ('LTR', 'Liter', 'Volume', 1.0, None, 3, 'Active', 'Base volume unit (metric)'),
-            ('GAL', 'Gallon', 'Volume', 1.0, None, 3, 'Active', 'Base volume unit (imperial)'),
-            ('M', 'Meter', 'Length', 1.0, None, 3, 'Active', 'Base length unit (metric)'),
-            ('FT', 'Foot', 'Length', 1.0, None, 3, 'Active', 'Base length unit (imperial)'),
-            ('HR', 'Hour', 'Time', 1.0, None, 2, 'Active', 'Base time unit'),
+            ('EA', 'Each', 'Count', 1.0, None, 0, 1, 'Basic counting unit'),
+            ('KG', 'Kilogram', 'Weight', 1.0, None, 3, 1, 'Base weight unit (metric)'),
+            ('LB', 'Pound', 'Weight', 1.0, None, 3, 1, 'Base weight unit (imperial)'),
+            ('LTR', 'Liter', 'Volume', 1.0, None, 3, 1, 'Base volume unit (metric)'),
+            ('GAL', 'Gallon', 'Volume', 1.0, None, 3, 1, 'Base volume unit (imperial)'),
+            ('M', 'Meter', 'Length', 1.0, None, 3, 1, 'Base length unit (metric)'),
+            ('FT', 'Foot', 'Length', 1.0, None, 3, 1, 'Base length unit (imperial)'),
+            ('HR', 'Hour', 'Time', 1.0, None, 2, 1, 'Base time unit'),
         ]
         
         uom_map = {}
-        for code, name, uom_type, conv_factor, base_id, precision, status, desc in base_uoms:
+        for code, name, uom_type, conv_factor, base_id, precision, is_active, desc in base_uoms:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO unit_of_measure (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, status, description)
+                INSERT INTO uom_master (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, is_active, description)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (code, name, uom_type, conv_factor, base_id, precision, status, desc))
+            ''', (code, name, uom_type, conv_factor, base_id, precision, is_active, desc))
             uom_map[code] = cursor.lastrowid
         
         # Insert derived UOMs with conversion factors
         derived_uoms = [
             # Count-based
-            ('PCS', 'Pieces', 'Count', 1.0, 'EA', 0, 'Active', 'Same as Each'),
-            ('BOX', 'Box', 'Count', 1.0, 'EA', 0, 'Active', 'Container unit (define conversion per product)'),
-            ('CASE', 'Case', 'Count', 1.0, 'EA', 0, 'Active', 'Larger container unit'),
-            ('PALLET', 'Pallet', 'Count', 1.0, 'EA', 0, 'Active', 'Pallet unit'),
-            ('DOZEN', 'Dozen', 'Count', 12.0, 'EA', 0, 'Active', '12 pieces'),
+            ('PCS', 'Pieces', 'Count', 1.0, 'EA', 0, 1, 'Same as Each'),
+            ('BOX', 'Box', 'Count', 1.0, 'EA', 0, 1, 'Container unit (define conversion per product)'),
+            ('CASE', 'Case', 'Count', 1.0, 'EA', 0, 1, 'Larger container unit'),
+            ('PALLET', 'Pallet', 'Count', 1.0, 'EA', 0, 1, 'Pallet unit'),
+            ('DOZEN', 'Dozen', 'Count', 12.0, 'EA', 0, 1, '12 pieces'),
             
             # Weight-based (metric)
-            ('G', 'Gram', 'Weight', 0.001, 'KG', 3, 'Active', '1/1000 of a kilogram'),
-            ('MT', 'Metric Ton', 'Weight', 1000.0, 'KG', 3, 'Active', '1000 kilograms'),
+            ('G', 'Gram', 'Weight', 0.001, 'KG', 3, 1, '1/1000 of a kilogram'),
+            ('MT', 'Metric Ton', 'Weight', 1000.0, 'KG', 3, 1, '1000 kilograms'),
             
             # Weight-based (imperial)
-            ('OZ', 'Ounce', 'Weight', 0.0625, 'LB', 3, 'Active', '1/16 of a pound'),
-            ('TON', 'Ton', 'Weight', 2000.0, 'LB', 3, 'Active', '2000 pounds'),
+            ('OZ', 'Ounce', 'Weight', 0.0625, 'LB', 3, 1, '1/16 of a pound'),
+            ('TON', 'Ton', 'Weight', 2000.0, 'LB', 3, 1, '2000 pounds'),
             
             # Volume-based (metric)
-            ('ML', 'Milliliter', 'Volume', 0.001, 'LTR', 3, 'Active', '1/1000 of a liter'),
+            ('ML', 'Milliliter', 'Volume', 0.001, 'LTR', 3, 1, '1/1000 of a liter'),
             
             # Volume-based (imperial)
-            ('QT', 'Quart', 'Volume', 0.25, 'GAL', 3, 'Active', '1/4 of a gallon'),
-            ('PT', 'Pint', 'Volume', 0.125, 'GAL', 3, 'Active', '1/8 of a gallon'),
-            ('FLOZ', 'Fluid Ounce', 'Volume', 0.0078125, 'GAL', 4, 'Active', '1/128 of a gallon'),
+            ('QT', 'Quart', 'Volume', 0.25, 'GAL', 3, 1, '1/4 of a gallon'),
+            ('PT', 'Pint', 'Volume', 0.125, 'GAL', 3, 1, '1/8 of a gallon'),
+            ('FLOZ', 'Fluid Ounce', 'Volume', 0.0078125, 'GAL', 4, 1, '1/128 of a gallon'),
             
             # Length-based (metric)
-            ('CM', 'Centimeter', 'Length', 0.01, 'M', 3, 'Active', '1/100 of a meter'),
-            ('MM', 'Millimeter', 'Length', 0.001, 'M', 3, 'Active', '1/1000 of a meter'),
-            ('KM', 'Kilometer', 'Length', 1000.0, 'M', 3, 'Active', '1000 meters'),
+            ('CM', 'Centimeter', 'Length', 0.01, 'M', 3, 1, '1/100 of a meter'),
+            ('MM', 'Millimeter', 'Length', 0.001, 'M', 3, 1, '1/1000 of a meter'),
+            ('KM', 'Kilometer', 'Length', 1000.0, 'M', 3, 1, '1000 meters'),
             
             # Length-based (imperial)
-            ('IN', 'Inch', 'Length', 0.0833333, 'FT', 4, 'Active', '1/12 of a foot'),
-            ('YD', 'Yard', 'Length', 3.0, 'FT', 3, 'Active', '3 feet'),
-            ('MI', 'Mile', 'Length', 5280.0, 'FT', 3, 'Active', '5280 feet'),
+            ('IN', 'Inch', 'Length', 0.0833333, 'FT', 4, 1, '1/12 of a foot'),
+            ('YD', 'Yard', 'Length', 3.0, 'FT', 3, 1, '3 feet'),
+            ('MI', 'Mile', 'Length', 5280.0, 'FT', 3, 1, '5280 feet'),
             
             # Time-based
-            ('MIN', 'Minute', 'Time', 0.0166667, 'HR', 4, 'Active', '1/60 of an hour'),
-            ('DAY', 'Day', 'Time', 24.0, 'HR', 2, 'Active', '24 hours'),
+            ('MIN', 'Minute', 'Time', 0.0166667, 'HR', 4, 1, '1/60 of an hour'),
+            ('DAY', 'Day', 'Time', 24.0, 'HR', 2, 1, '24 hours'),
         ]
         
-        for code, name, uom_type, conv_factor, base_code, precision, status, desc in derived_uoms:
+        for code, name, uom_type, conv_factor, base_code, precision, is_active, desc in derived_uoms:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO unit_of_measure (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, status, description)
+                INSERT INTO uom_master (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, is_active, description)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (code, name, uom_type, conv_factor, uom_map.get(base_code), precision, status, desc))
+            ''', (code, name, uom_type, conv_factor, uom_map.get(base_code), precision, is_active, desc))
         
         conn.commit()
         conn.close()
