@@ -34,6 +34,24 @@ def create_purchaseorder():
         po_number = None
         po_id = None
         
+        # Extract line items from form data
+        lines = {}
+        for key in request.form.keys():
+            if key.startswith('lines['):
+                # Parse lines[1][product_id] format
+                parts = key.replace('lines[', '').replace(']', '').split('[')
+                line_num = parts[0]
+                field_name = parts[1]
+                
+                if line_num not in lines:
+                    lines[line_num] = {}
+                lines[line_num][field_name] = request.form[key]
+        
+        if not lines:
+            flash('Please add at least one line item to the purchase order.', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.create_purchaseorder'))
+        
         for attempt in range(max_attempts):
             try:
                 last_po = conn.execute('''
@@ -54,23 +72,37 @@ def create_purchaseorder():
                 
                 po_number = f'PO-{next_number:06d}'
                 
+                # Insert PO header
                 conn.execute('''
                     INSERT INTO purchase_orders 
-                    (po_number, supplier_id, product_id, quantity, unit_price, status, order_date, expected_delivery_date, uom_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (po_number, supplier_id, status, order_date, expected_delivery_date, notes)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ''', (
                     po_number,
                     int(request.form['supplier_id']),
-                    int(request.form['product_id']),
-                    float(request.form['quantity']),
-                    float(request.form['unit_price']),
                     request.form['status'],
                     request.form.get('order_date'),
                     request.form.get('expected_delivery_date'),
-                    int(request.form['uom_id']) if request.form.get('uom_id') else None
+                    request.form.get('notes')
                 ))
                 
                 po_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                
+                # Insert line items
+                for line_num, line_data in sorted(lines.items()):
+                    conn.execute('''
+                        INSERT INTO purchase_order_lines
+                        (po_id, line_number, product_id, quantity, unit_price, uom_id)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        po_id,
+                        int(line_num),
+                        int(line_data['product_id']),
+                        float(line_data['quantity']),
+                        float(line_data['unit_price']),
+                        int(line_data['uom_id']) if line_data.get('uom_id') else None
+                    ))
+                
                 conn.commit()
                 break
                 
@@ -79,6 +111,7 @@ def create_purchaseorder():
                     conn.rollback()
                     continue
                 else:
+                    conn.rollback()
                     conn.close()
                     flash(f'Error creating purchase order: {str(e)}', 'danger')
                     return redirect(url_for('po_routes.list_purchaseorders'))
@@ -86,7 +119,7 @@ def create_purchaseorder():
         conn.close()
         
         if po_id:
-            flash(f'Purchase Order {po_number} created successfully!', 'success')
+            flash(f'Purchase Order {po_number} created successfully with {len(lines)} line(s)!', 'success')
             return redirect(url_for('po_routes.list_purchaseorders'))
         else:
             flash('Failed to create purchase order after multiple attempts', 'danger')
