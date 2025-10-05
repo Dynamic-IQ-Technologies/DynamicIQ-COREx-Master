@@ -6,6 +6,13 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
+**October 5, 2025**: User Management feature added
+- Created admin-only User Management interface to view all users and change roles
+- Added User.get_all() and User.update_role() model methods
+- Implemented user_routes.py blueprint with role change functionality
+- Updated navigation menu to show User Management link for Admin users only
+- Test admin account created: username=admin, password=admin123
+
 **October 4, 2025**: Complete MRP application implemented
 - Created comprehensive database schema with 8 tables (users, products, BOMs, suppliers, inventory, work orders, purchase orders, material requirements)
 - Implemented full authentication system with secure role-based access control
