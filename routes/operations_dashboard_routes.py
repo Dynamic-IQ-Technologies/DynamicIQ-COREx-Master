@@ -46,7 +46,7 @@ def dashboard():
     
     end_date = today.strftime('%Y-%m-%d')
     
-    # KPI 1: Work Order Status Distribution
+    # KPI 1: Work Order Status Distribution (for selected period)
     wo_status = conn.execute('''
         SELECT status, COUNT(*) as count
         FROM work_orders
@@ -55,8 +55,8 @@ def dashboard():
     ''', (start_date,)).fetchall()
     
     total_wo = sum(row['count'] for row in wo_status)
-    pending_wo = sum(row['count'] for row in wo_status if row['status'] == 'Pending')
-    in_progress_wo = sum(row['count'] for row in wo_status if row['status'] == 'In Progress')
+    pending_wo_period = sum(row['count'] for row in wo_status if row['status'] == 'Pending')
+    in_progress_wo_period = sum(row['count'] for row in wo_status if row['status'] == 'In Progress')
     completed_wo = sum(row['count'] for row in wo_status if row['status'] == 'Completed')
     
     # KPI 2: Production Efficiency (Completed vs Planned)
@@ -72,13 +72,17 @@ def dashboard():
     production_efficiency = (efficiency_data['total_completed'] / efficiency_data['total_planned'] * 100) if efficiency_data['total_planned'] > 0 else 0
     on_time_delivery = (efficiency_data['on_time_completed'] / efficiency_data['total_completed'] * 100) if efficiency_data['total_completed'] > 0 else 0
     
-    # KPI 3: Current Backlog (Pending + In Progress Work Orders)
-    backlog_count = pending_wo + in_progress_wo
-    backlog_value = conn.execute('''
-        SELECT COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as backlog_value
+    # KPI 3: Current Backlog (ALL current Pending + In Progress Work Orders, regardless of date created)
+    backlog_data = conn.execute('''
+        SELECT 
+            COUNT(*) as backlog_count,
+            COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as backlog_value
         FROM work_orders
         WHERE status IN ('Pending', 'In Progress')
-    ''').fetchone()['backlog_value']
+    ''').fetchone()
+    
+    backlog_count = backlog_data['backlog_count']
+    backlog_value = backlog_data['backlog_value']
     
     # KPI 4: Resource Utilization (Active Labor)
     active_labor = conn.execute('''
@@ -118,29 +122,29 @@ def dashboard():
         LIMIT 10
     ''').fetchall()
     
-    # Work Order Trend (Last 30 days)
+    # Work Order Trend (respects date filter)
     wo_trend = conn.execute('''
         SELECT 
             DATE(created_at) as date,
             COUNT(*) as count,
             SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
         FROM work_orders
-        WHERE created_at >= DATE('now', '-30 days')
+        WHERE created_at >= ?
         GROUP BY DATE(created_at)
         ORDER BY date
-    ''').fetchall()
+    ''', (start_date,)).fetchall()
     
-    # Material Usage Trend
+    # Material Usage Trend (respects date filter)
     material_usage = conn.execute('''
         SELECT 
             DATE(mi.issue_date) as date,
             COALESCE(SUM(mi.quantity_issued * p.unit_cost), 0) as value
         FROM material_issues mi
         JOIN products p ON mi.product_id = p.id
-        WHERE mi.issue_date >= DATE('now', '-30 days')
+        WHERE mi.issue_date >= ?
         GROUP BY DATE(mi.issue_date)
         ORDER BY date
-    ''').fetchall()
+    ''', (start_date,)).fetchall()
     
     # Top Products by Work Order Volume
     top_products = conn.execute('''
@@ -184,8 +188,8 @@ def dashboard():
     
     return render_template('operations/executive_dashboard.html',
                          total_wo=total_wo,
-                         pending_wo=pending_wo,
-                         in_progress_wo=in_progress_wo,
+                         pending_wo=pending_wo_period,
+                         in_progress_wo=in_progress_wo_period,
                          completed_wo=completed_wo,
                          production_efficiency=production_efficiency,
                          on_time_delivery=on_time_delivery,
