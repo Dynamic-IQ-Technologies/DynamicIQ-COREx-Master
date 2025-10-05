@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Mass Update Inventory - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-pencil-square"></i> Mass Update Inventory</h2>
+    <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Inventory
+    </a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> <strong>Instructions:</strong>
+            <ul class="mb-0">
+                <li>Check the boxes next to items you want to update</li>
+                <li>Edit the fields directly in the table</li>
+                <li>Click "Update Selected Items" to save changes</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<form method="POST" id="massUpdateForm">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;">
+                                <input type="checkbox" id="selectAll" title="Select All">
+                            </th>
+                            <th>Inventory ID</th>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Quantity</th>
+                            <th>Reorder Point</th>
+                            <th>Safety Stock</th>
+                            <th>Warehouse</th>
+                            <th>Bin Location</th>
+                            <th>Condition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in inventory %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="selected_ids" value="{{ item.id }}" class="item-checkbox">
+                            </td>
+                            <td><span class="badge bg-secondary">INV-{{ "%06d"|format(item.id) }}</span></td>
+                            <td>{{ item.code }}</td>
+                            <td>{{ item.name }}</td>
+                            <td>
+                                <input type="number" step="0.01" class="form-control form-control-sm" 
+                                       name="quantity_{{ item.id }}" value="{{ item.quantity }}" min="0">
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" class="form-control form-control-sm" 
+                                       name="reorder_point_{{ item.id }}" value="{{ item.reorder_point or 0 }}" min="0">
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" class="form-control form-control-sm" 
+                                       name="safety_stock_{{ item.id }}" value="{{ item.safety_stock or 0 }}" min="0">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" 
+                                       name="warehouse_location_{{ item.id }}" value="{{ item.warehouse_location or 'Main' }}">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" 
+                                       name="bin_location_{{ item.id }}" value="{{ item.bin_location or '' }}" placeholder="e.g., A-01">
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="condition_{{ item.id }}">
+                                    <option value="New" {% if item.condition == 'New' %}selected{% endif %}>New</option>
+                                    <option value="Serviceable" {% if item.condition == 'Serviceable' or not item.condition %}selected{% endif %}>Serviceable</option>
+                                    <option value="Overhauled" {% if item.condition == 'Overhauled' %}selected{% endif %}>Overhauled</option>
+                                    <option value="Repaired" {% if item.condition == 'Repaired' %}selected{% endif %}>Repaired</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <span id="selectedCount">0</span> items selected
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+            <i class="bi bi-check-circle"></i> Update Selected Items
+        </button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('massUpdateForm');
+    
+    function updateSelectedCount() {
+        const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+        selectedCountSpan.textContent = checkedCount;
+        submitBtn.disabled = checkedCount === 0;
+    }
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        itemCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedCount();
+    });
+    
+    itemCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectedCount();
+            selectAllCheckbox.checked = document.querySelectorAll('.item-checkbox:checked').length === itemCheckboxes.length;
+        });
+    });
+    
+    form.addEventListener('submit', function(e) {
+        const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+        if (checkedCount === 0) {
+            e.preventDefault();
+            alert('Please select at least one item to update.');
+            return false;
+        }
+        
+        if (!confirm(`Are you sure you want to update ${checkedCount} inventory item(s)?`)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -145,6 +145,74 @@ def download_template():
         headers={'Content-Disposition': 'attachment; filename=inventory_import_template.csv'}
     )
 
+@inventory_bp.route('/inventory/mass-update', methods=['GET', 'POST'])
+@role_required('Admin', 'Production Staff')
+def mass_update_inventory():
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        try:
+            selected_ids = request.form.getlist('selected_ids')
+            
+            if not selected_ids:
+                flash('No items selected for update.', 'warning')
+                return redirect(url_for('inventory_routes.mass_update_inventory'))
+            
+            updated_count = 0
+            
+            for item_id in selected_ids:
+                try:
+                    item_id_int = int(item_id)
+                    
+                    quantity = float(request.form.get(f'quantity_{item_id}', 0))
+                    reorder_point = float(request.form.get(f'reorder_point_{item_id}', 0))
+                    safety_stock = float(request.form.get(f'safety_stock_{item_id}', 0))
+                    warehouse_location = request.form.get(f'warehouse_location_{item_id}', 'Main')
+                    bin_location = request.form.get(f'bin_location_{item_id}', '')
+                    condition = request.form.get(f'condition_{item_id}', 'Serviceable')
+                    
+                    conn.execute('''
+                        UPDATE inventory
+                        SET quantity = ?,
+                            reorder_point = ?,
+                            safety_stock = ?,
+                            warehouse_location = ?,
+                            bin_location = ?,
+                            condition = ?,
+                            status = CASE WHEN ? <= 0 THEN 'Out of Stock' ELSE status END,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (quantity, reorder_point, safety_stock, warehouse_location, 
+                          bin_location, condition, quantity, item_id_int))
+                    
+                    updated_count += 1
+                except Exception as e:
+                    flash(f'Error updating inventory ID {item_id}: {str(e)}', 'warning')
+            
+            conn.commit()
+            flash(f'Successfully updated {updated_count} inventory item(s)!', 'success')
+            return redirect(url_for('inventory_routes.list_inventory'))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error during mass update: {str(e)}', 'danger')
+        finally:
+            conn.close()
+        
+        return redirect(url_for('inventory_routes.mass_update_inventory'))
+    
+    # GET request - show form
+    inventory = conn.execute('''
+        SELECT i.*, p.code, p.name, p.unit_of_measure
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        ORDER BY p.code
+    ''').fetchall()
+    conn.close()
+    
+    return render_template('inventory/mass_update.html', inventory=inventory)
+
 @inventory_bp.route('/inventory/import', methods=['POST'])
 @role_required('Admin', 'Production Staff')
 def import_inventory():
