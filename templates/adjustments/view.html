@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Adjustment {{ adjustment.adjustment_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-sliders"></i> Inventory Adjustment {{ adjustment.adjustment_number }}</h2>
+    <div>
+        <a href="{{ url_for('adjustment_routes.list_adjustments') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> Adjustment Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Adjustment #:</strong></div>
+                    <div class="col-8">{{ adjustment.adjustment_number }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Date:</strong></div>
+                    <div class="col-8">{{ adjustment.adjustment_date }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Type:</strong></div>
+                    <div class="col-8">
+                        {% if adjustment.adjustment_type == 'Increase' %}
+                        <span class="badge bg-success fs-6"><i class="bi bi-arrow-up"></i> Increase</span>
+                        {% else %}
+                        <span class="badge bg-danger fs-6"><i class="bi bi-arrow-down"></i> Decrease</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Adjusted By:</strong></div>
+                    <div class="col-8">{{ adjustment.adjusted_by_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Reason:</strong></div>
+                    <div class="col-8"><span class="badge bg-warning text-dark">{{ adjustment.reason }}</span></div>
+                </div>
+                {% if adjustment.reference %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Reference:</strong></div>
+                    <div class="col-8">{{ adjustment.reference }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Quantity Changes</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Product:</strong></div>
+                    <div class="col-8">{{ adjustment.product_code }} - {{ adjustment.product_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Qty Adjusted:</strong></div>
+                    <div class="col-8 fs-5 fw-bold text-primary">
+                        {{ "%.2f"|format(adjustment.quantity_adjusted) }} {{ adjustment.unit_of_measure }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Before:</strong></div>
+                    <div class="col-8">{{ "%.2f"|format(adjustment.quantity_before) }} {{ adjustment.unit_of_measure }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>After:</strong></div>
+                    <div class="col-8 fs-5 fw-bold" style="color: {% if adjustment.adjustment_type == 'Increase' %}green{% else %}orange{% endif %}">
+                        {{ "%.2f"|format(adjustment.quantity_after) }} {{ adjustment.unit_of_measure }}
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Unit Cost:</strong></div>
+                    <div class="col-8">${{ "%.2f"|format(adjustment.unit_cost or 0) }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Cost Impact:</strong></div>
+                    <div class="col-8 fs-5 fw-bold" style="color: {% if adjustment.cost_impact and adjustment.cost_impact > 0 %}green{% elif adjustment.cost_impact and adjustment.cost_impact < 0 %}red{% else %}gray{% endif %}">
+                        {% if adjustment.cost_impact and adjustment.cost_impact > 0 %}+{% endif %}${{ "%.2f"|format(adjustment.cost_impact or 0) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if adjustment.remarks %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> Remarks</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-0">{{ adjustment.remarks }}</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> <strong>Audit Trail:</strong> This adjustment was made on {{ adjustment.adjustment_date }} by {{ adjustment.adjusted_by_name }}. The inventory has been updated accordingly.
+</div>
+
+{% endblock %}

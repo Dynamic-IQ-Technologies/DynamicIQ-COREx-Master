@@ -226,6 +226,8 @@ class Database:
                 reason TEXT,
                 remarks TEXT,
                 returned_by INTEGER,
+                unit_cost REAL DEFAULT 0,
+                total_cost REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
                 FOREIGN KEY (product_id) REFERENCES products(id),
@@ -238,14 +240,18 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 adjustment_number TEXT UNIQUE NOT NULL,
                 product_id INTEGER NOT NULL,
+                adjustment_type TEXT,
                 quantity_before REAL NOT NULL,
                 quantity_adjusted REAL NOT NULL,
                 quantity_after REAL NOT NULL,
                 adjustment_date DATE NOT NULL,
                 reason TEXT NOT NULL,
+                reference TEXT,
                 warehouse_location TEXT,
                 remarks TEXT,
                 adjusted_by INTEGER,
+                unit_cost REAL DEFAULT 0,
+                cost_impact REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products(id),
                 FOREIGN KEY (adjusted_by) REFERENCES users(id)
@@ -309,6 +315,40 @@ class Database:
             if col_name not in po_columns:
                 try:
                     cursor.execute(f'ALTER TABLE purchase_orders ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
+        # Add cost tracking to material_returns
+        cursor.execute("PRAGMA table_info(material_returns)")
+        mr_columns = [col[1] for col in cursor.fetchall()]
+        
+        mr_cost_columns = [
+            ('unit_cost', 'REAL DEFAULT 0'),
+            ('total_cost', 'REAL DEFAULT 0')
+        ]
+        
+        for col_name, col_type in mr_cost_columns:
+            if col_name not in mr_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE material_returns ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
+        # Add cost tracking to inventory_adjustments
+        cursor.execute("PRAGMA table_info(inventory_adjustments)")
+        ia_columns = [col[1] for col in cursor.fetchall()]
+        
+        ia_cost_columns = [
+            ('adjustment_type', 'TEXT'),
+            ('reference', 'TEXT'),
+            ('unit_cost', 'REAL DEFAULT 0'),
+            ('cost_impact', 'REAL DEFAULT 0')
+        ]
+        
+        for col_name, col_type in ia_cost_columns:
+            if col_name not in ia_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE inventory_adjustments ADD COLUMN {col_name} {col_type}')
                 except sqlite3.OperationalError:
                     pass
         

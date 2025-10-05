@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Adjustments - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-sliders"></i> Inventory Adjustments</h2>
+    <div>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('adjustment_routes.create_adjustment') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New Adjustment
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Adjustment #</th>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Qty Adjusted</th>
+                        <th>Cost Impact</th>
+                        <th>Before</th>
+                        <th>After</th>
+                        <th>Date</th>
+                        <th>Adjusted By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adj in adjustments %}
+                    <tr>
+                        <td><a href="{{ url_for('adjustment_routes.view_adjustment', adjustment_number=adj.adjustment_number) }}">{{ adj.adjustment_number }}</a></td>
+                        <td>{{ adj.product_code }} - {{ adj.product_name }}</td>
+                        <td>
+                            {% if adj.adjustment_type == 'Increase' %}
+                            <span class="badge bg-success"><i class="bi bi-arrow-up"></i> Increase</span>
+                            {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-arrow-down"></i> Decrease</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(adj.quantity_adjusted) }} {{ adj.unit_of_measure }}</td>
+                        <td class="fw-bold" style="color: {% if adj.cost_impact and adj.cost_impact > 0 %}green{% elif adj.cost_impact and adj.cost_impact < 0 %}red{% else %}gray{% endif %}">
+                            {% if adj.cost_impact and adj.cost_impact > 0 %}+{% endif %}${{ "%.2f"|format(adj.cost_impact or 0) }}
+                        </td>
+                        <td>{{ "%.2f"|format(adj.quantity_before) }}</td>
+                        <td>{{ "%.2f"|format(adj.quantity_after) }}</td>
+                        <td>{{ adj.adjustment_date }}</td>
+                        <td>{{ adj.adjusted_by_name }}</td>
+                        <td>
+                            <a href="{{ url_for('adjustment_routes.view_adjustment', adjustment_number=adj.adjustment_number) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

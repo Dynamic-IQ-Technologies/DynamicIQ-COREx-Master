@@ -11,6 +11,7 @@ from routes.purchaseorder_routes import po_bp
 from routes.receiving_routes import receiving_bp
 from routes.issuance_routes import issuance_bp
 from routes.returns_routes import returns_bp
+from routes.adjustment_routes import adjustment_bp
 from routes.report_routes import report_bp
 from routes.user_routes import user_bp
 from routes.permission_routes import permission_bp
@@ -31,6 +32,7 @@ app.register_blueprint(po_bp)
 app.register_blueprint(receiving_bp)
 app.register_blueprint(issuance_bp)
 app.register_blueprint(returns_bp)
+app.register_blueprint(adjustment_bp)
 app.register_blueprint(report_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(permission_bp)

@@ -24,9 +24,9 @@
                         <th>Work Order</th>
                         <th>Product</th>
                         <th>Qty Returned</th>
+                        <th>Cost Credited</th>
                         <th>Return Date</th>
                         <th>Condition</th>
-                        <th>Reason</th>
                         <th>Returned By</th>
                         <th>Actions</th>
                     </tr>
@@ -38,6 +38,7 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=ret.work_order_id) }}">{{ ret.wo_number }}</a></td>
                         <td>{{ ret.product_code }} - {{ ret.product_name }}</td>
                         <td>{{ "%.2f"|format(ret.quantity_returned) }} {{ ret.unit_of_measure }}</td>
+                        <td class="text-success fw-bold">${{ "%.2f"|format(ret.total_cost or 0) }}</td>
                         <td>{{ ret.return_date }}</td>
                         <td>
                             {% if ret.condition == 'New' %}
@@ -48,7 +49,6 @@
                             <span class="badge bg-secondary">{{ ret.condition }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ ret.reason or '-' }}</td>
                         <td>{{ ret.returned_by_name }}</td>
                         <td>
                             <a href="{{ url_for('returns_routes.view_return', return_number=ret.return_number) }}" class="btn btn-sm btn-info">

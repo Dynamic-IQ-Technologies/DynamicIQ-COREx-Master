@@ -81,6 +81,16 @@ def create_return():
                 conn.close()
                 return redirect(url_for('returns_routes.create_return'))
             
+            # Get product cost
+            product = conn.execute('SELECT cost FROM products WHERE id = ?', (product_id,)).fetchone()
+            unit_cost = product['cost'] if product else 0
+            
+            # Warn if product has zero cost
+            if unit_cost == 0:
+                flash('Warning: This product has zero cost. Cost tracking may be inaccurate.', 'warning')
+            
+            total_cost = unit_cost * quantity_returned
+            
             # Generate return number
             last_return = conn.execute('''
                 SELECT return_number FROM material_returns 
@@ -100,14 +110,16 @@ def create_return():
             
             return_number = f'RET-{next_number:06d}'
             
-            # Create material return
+            # Create material return with cost tracking
             conn.execute('''
                 INSERT INTO material_returns 
                 (return_number, work_order_id, product_id, quantity_returned, return_date, 
-                 warehouse_location, bin_location, condition, reason, remarks, returned_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 warehouse_location, bin_location, condition, reason, remarks, returned_by,
+                 unit_cost, total_cost)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (return_number, wo_id, product_id, quantity_returned, return_date,
-                  warehouse, bin_location, condition, reason, remarks, session['user_id']))
+                  warehouse, bin_location, condition, reason, remarks, session['user_id'],
+                  unit_cost, total_cost))
             
             # Update inventory - add quantity back
             inventory = conn.execute('''
@@ -131,14 +143,11 @@ def create_return():
                     VALUES (?, ?, ?, ?, 'Available')
                 ''', (product_id, quantity_returned, condition, warehouse))
             
-            # Get product cost and reduce work order material cost
-            product = conn.execute('SELECT cost FROM products WHERE id = ?', (product_id,)).fetchone()
-            cost_reduction = (product['cost'] if product else 0) * quantity_returned
-            
+            # Reduce work order material cost (already calculated as total_cost above)
             current_cost = conn.execute(
                 'SELECT material_cost FROM work_orders WHERE id = ?', (wo_id,)
             ).fetchone()
-            new_material_cost = max(0, (current_cost['material_cost'] or 0) - cost_reduction)
+            new_material_cost = max(0, (current_cost['material_cost'] or 0) - total_cost)
             
             conn.execute('''
                 UPDATE work_orders 
