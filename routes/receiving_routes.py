@@ -113,11 +113,11 @@ def create_receiving():
             conn.execute('''
                 INSERT INTO receiving_transactions 
                 (receipt_number, po_id, product_id, quantity_received, receipt_date, 
-                 packing_slip_number, shipment_tracking, warehouse_location, receiver_name, 
-                 condition, remarks, received_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 packing_slip_number, shipment_tracking, warehouse_location, bin_location, 
+                 receiver_name, condition, remarks, received_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (receipt_number, po_id, product_id, quantity_received, receipt_date,
-                  packing_slip, tracking, warehouse, receiver, condition, remarks, session['user_id']))
+                  packing_slip, tracking, warehouse, bin_location, receiver, condition, remarks, session['user_id']))
             
             # Update PO received quantity
             new_received = received_so_far + quantity_received
