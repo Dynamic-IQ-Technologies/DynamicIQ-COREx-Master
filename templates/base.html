@@ -49,6 +49,11 @@
                             <li><a class="dropdown-item" href="{{ url_for('report_routes.material_usage_report') }}">Material Usage</a></li>
                         </ul>
                     </li>
+                    {% if session.role == 'Admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user_routes.list_users') }}"><i class="bi bi-people-fill"></i> User Management</a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <span class="navbar-text me-3">
                     <i class="bi bi-person-circle"></i> {{ session.username }} ({{ session.role }})
