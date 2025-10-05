@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Create BOM - Dynamic.IQ.MRP{% endblock %}
+{% block title %}{% if request.args.get('parent_id') %}Add BOM Line{% else %}Create BOM{% endif %} - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Create Bill of Materials</h2>
+<h2 class="mb-4">{% if request.args.get('parent_id') %}Add Line to BOM{% else %}Create Bill of Materials{% endif %}</h2>
+
+{% if request.args.get('parent_id') %}
+<div class="alert alert-info mb-3">
+    <i class="bi bi-info-circle"></i> You are adding a new component line to an existing BOM
+</div>
+{% endif %}
 
 <div class="card">
     <div class="card-body">
@@ -15,9 +21,12 @@
                         <select class="form-select" id="parent_product_id" name="parent_product_id" required onchange="updateFindNumber(this.value)">
                             <option value="">Select Parent Product</option>
                             {% for product in products %}
-                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            <option value="{{ product.id }}" {% if request.args.get('parent_id') and product.id == request.args.get('parent_id')|int %}selected{% endif %}>{{ product.code }} - {{ product.name }}</option>
                             {% endfor %}
                         </select>
+                        {% if request.args.get('parent_id') %}
+                        <small class="text-muted">Adding components to this BOM</small>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -116,7 +125,7 @@
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('bom_routes.list_boms') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Create BOM
+                    <i class="bi bi-plus-circle"></i> {% if request.args.get('parent_id') %}Add Line to BOM{% else %}Create BOM{% endif %}
                 </button>
             </div>
         </form>
