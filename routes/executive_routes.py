@@ -54,10 +54,10 @@ def dashboard():
     # KPI 1: Total Revenue (from sales/production completions)
     # Revenue = Finished goods value from completed work orders
     revenue_query = '''
-        SELECT COALESCE(SUM(wo.total_cost), 0) as total_revenue
+        SELECT COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as total_revenue
         FROM work_orders wo
         WHERE wo.status = 'Completed'
-        AND wo.actual_completion_date BETWEEN ? AND ?
+        AND wo.actual_end_date BETWEEN ? AND ?
     '''
     revenue = conn.execute(revenue_query, (start_date, end_date)).fetchone()['total_revenue']
     
@@ -78,20 +78,30 @@ def dashboard():
     profit_margin = (gross_profit / revenue * 100) if revenue > 0 else 0
     
     # KPI 4: Total Accounts Payable (Open & Due)
+    ap_open_params = []
     ap_open_query = '''
         SELECT COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as ap_open
         FROM vendor_invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
     '''
-    ap_open = conn.execute(ap_open_query).fetchone()['ap_open']
+    if vendor_filter:
+        ap_open_query += ' AND vendor_id = ?'
+        ap_open_params.append(vendor_filter)
     
+    ap_open = conn.execute(ap_open_query, ap_open_params).fetchone()['ap_open']
+    
+    ap_due_params = [today.strftime('%Y-%m-%d')]
     ap_due_query = '''
         SELECT COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as ap_due
         FROM vendor_invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
         AND due_date <= ?
     '''
-    ap_due = conn.execute(ap_due_query, (today.strftime('%Y-%m-%d'),)).fetchone()['ap_due']
+    if vendor_filter:
+        ap_due_query += ' AND vendor_id = ?'
+        ap_due_params.append(vendor_filter)
+    
+    ap_due = conn.execute(ap_due_query, ap_due_params).fetchone()['ap_due']
     
     # KPI 5: Cash on Hand (from GL cash accounts)
     cash_query = '''
@@ -120,9 +130,9 @@ def dashboard():
     # Chart Data: Revenue vs Expense Trend (Last 12 months)
     trend_query = '''
         WITH months AS (
-            SELECT DISTINCT strftime('%Y-%m', wo.actual_completion_date) as month
+            SELECT DISTINCT strftime('%Y-%m', wo.actual_end_date) as month
             FROM work_orders wo
-            WHERE wo.actual_completion_date >= date('now', '-12 months')
+            WHERE wo.actual_end_date >= date('now', '-12 months')
             UNION
             SELECT DISTINCT strftime('%Y-%m', ge.entry_date) as month
             FROM gl_entries ge
@@ -130,7 +140,7 @@ def dashboard():
         )
         SELECT 
             m.month,
-            COALESCE(SUM(wo.total_cost), 0) as revenue,
+            COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as revenue,
             COALESCE((
                 SELECT SUM(ABS(gll.debit_amount - gll.credit_amount))
                 FROM gl_lines gll
@@ -141,7 +151,7 @@ def dashboard():
                 AND ge.status = 'Posted'
             ), 0) as expenses
         FROM months m
-        LEFT JOIN work_orders wo ON strftime('%Y-%m', wo.actual_completion_date) = m.month
+        LEFT JOIN work_orders wo ON strftime('%Y-%m', wo.actual_end_date) = m.month
             AND wo.status = 'Completed'
         GROUP BY m.month
         ORDER BY m.month
@@ -149,6 +159,7 @@ def dashboard():
     trend_data = conn.execute(trend_query).fetchall()
     
     # Chart Data: A/P Aging
+    ap_aging_params = []
     ap_aging_query = '''
         SELECT 
             CASE 
@@ -161,6 +172,12 @@ def dashboard():
             COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
         FROM vendor_invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
+    '''
+    if vendor_filter:
+        ap_aging_query += ' AND vendor_id = ?'
+        ap_aging_params.append(vendor_filter)
+    
+    ap_aging_query += '''
         GROUP BY aging_bucket
         ORDER BY 
             CASE aging_bucket
@@ -171,9 +188,10 @@ def dashboard():
                 ELSE 5
             END
     '''
-    ap_aging = conn.execute(ap_aging_query).fetchall()
+    ap_aging = conn.execute(ap_aging_query, ap_aging_params).fetchall()
     
     # Chart Data: Top 10 Vendors by Spend
+    top_vendors_params = [start_date, end_date]
     top_vendors_query = '''
         SELECT 
             s.name as vendor_name,
@@ -181,23 +199,29 @@ def dashboard():
         FROM suppliers s
         LEFT JOIN vendor_invoices vi ON s.id = vi.vendor_id
         WHERE vi.invoice_date BETWEEN ? AND ?
+    '''
+    if vendor_filter:
+        top_vendors_query += ' AND s.id = ?'
+        top_vendors_params.append(vendor_filter)
+    
+    top_vendors_query += '''
         GROUP BY s.id, s.name
         ORDER BY total_spend DESC
         LIMIT 10
     '''
-    top_vendors = conn.execute(top_vendors_query, (start_date, end_date)).fetchall()
+    top_vendors = conn.execute(top_vendors_query, top_vendors_params).fetchall()
     
     # Chart Data: Work Order Cost Analysis (Top 10 by cost)
     top_workorders_query = '''
         SELECT 
             wo.wo_number,
-            p.product_name,
-            wo.total_cost
+            p.name as product_name,
+            (wo.material_cost + wo.labor_cost + wo.overhead_cost) as total_cost
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         WHERE wo.status = 'Completed'
-        AND wo.actual_completion_date BETWEEN ? AND ?
-        ORDER BY wo.total_cost DESC
+        AND wo.actual_end_date BETWEEN ? AND ?
+        ORDER BY total_cost DESC
         LIMIT 10
     '''
     top_workorders = conn.execute(top_workorders_query, (start_date, end_date)).fetchall()
@@ -233,6 +257,7 @@ def dashboard():
                          inventory_value=inventory_value,
                          period_label=period_label,
                          date_filter=date_filter,
+                         vendor_filter=vendor_filter,
                          trend_labels=trend_labels,
                          trend_revenue=trend_revenue,
                          trend_expenses=trend_expenses,
@@ -252,6 +277,7 @@ def export_dashboard():
     conn = db.get_connection()
     
     date_filter = request.args.get('date_range', 'ytd')
+    vendor_filter = request.args.get('vendor_id', '')
     today = datetime.now()
     current_year = today.year
     current_month = today.month
@@ -259,16 +285,20 @@ def export_dashboard():
     if date_filter == 'mtd':
         start_date = datetime(current_year, current_month, 1).strftime('%Y-%m-%d')
         end_date = today.strftime('%Y-%m-%d')
-    else:
+    elif date_filter == 'qtd':
+        quarter_start_month = ((current_month - 1) // 3) * 3 + 1
+        start_date = datetime(current_year, quarter_start_month, 1).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+    else:  # ytd
         start_date = datetime(current_year, 1, 1).strftime('%Y-%m-%d')
         end_date = today.strftime('%Y-%m-%d')
     
     # Get summary data
     revenue = conn.execute('''
-        SELECT COALESCE(SUM(wo.total_cost), 0) as total_revenue
+        SELECT COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as total_revenue
         FROM work_orders wo
         WHERE wo.status = 'Completed'
-        AND wo.actual_completion_date BETWEEN ? AND ?
+        AND wo.actual_end_date BETWEEN ? AND ?
     ''', (start_date, end_date)).fetchone()['total_revenue']
     
     expenses = conn.execute('''
@@ -281,11 +311,24 @@ def export_dashboard():
         AND ge.status = 'Posted'
     ''', (start_date, end_date)).fetchone()['total_expenses']
     
-    ap_open = conn.execute('''
+    ap_params = []
+    ap_query = '''
         SELECT COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as ap_open
         FROM vendor_invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
-    ''').fetchone()['ap_open']
+    '''
+    if vendor_filter:
+        ap_query += ' AND vendor_id = ?'
+        ap_params.append(vendor_filter)
+    
+    ap_open = conn.execute(ap_query, ap_params).fetchone()['ap_open']
+    
+    # Get vendor name if filtered
+    vendor_name = 'All Vendors'
+    if vendor_filter:
+        vendor_row = conn.execute('SELECT name FROM suppliers WHERE id = ?', (vendor_filter,)).fetchone()
+        if vendor_row:
+            vendor_name = vendor_row['name']
     
     conn.close()
     
@@ -296,6 +339,7 @@ def export_dashboard():
     writer.writerow(['Executive Dashboard Summary'])
     writer.writerow(['Generated:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
     writer.writerow(['Period:', date_filter.upper()])
+    writer.writerow(['Vendor Filter:', vendor_name])
     writer.writerow([])
     writer.writerow(['Metric', 'Value'])
     writer.writerow(['Total Revenue', f'${revenue:,.2f}'])
@@ -305,7 +349,8 @@ def export_dashboard():
     writer.writerow(['Accounts Payable (Open)', f'${ap_open:,.2f}'])
     
     response = make_response(output.getvalue())
-    response.headers['Content-Disposition'] = f'attachment; filename=executive_dashboard_{date_filter}_{today.strftime("%Y%m%d")}.csv'
+    filename_suffix = f'_{vendor_name.replace(" ", "_")}' if vendor_filter else ''
+    response.headers['Content-Disposition'] = f'attachment; filename=executive_dashboard_{date_filter}{filename_suffix}_{today.strftime("%Y%m%d")}.csv'
     response.headers['Content-Type'] = 'text/csv'
     
     return response

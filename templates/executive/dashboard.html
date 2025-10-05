@@ -7,14 +7,19 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-graph-up-arrow"></i> Executive Accounting Dashboard</h2>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('executive_routes.export_dashboard', date_range=date_filter) }}" class="btn btn-outline-success btn-sm">
+            <a href="{{ url_for('executive_routes.export_dashboard', date_range=date_filter, vendor_id=vendor_filter) }}" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-download"></i> Export to CSV
             </a>
         </div>
     </div>
 
     <div class="alert alert-info d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-info-circle"></i> Viewing <strong>{{ period_label }}</strong> data</span>
+        <div>
+            <i class="bi bi-info-circle"></i> Viewing <strong>{{ period_label }}</strong> data
+            {% if vendor_filter %}
+            <span class="badge bg-primary ms-2">Vendor Filter Active: A/P & Vendor Spend Only</span>
+            {% endif %}
+        </div>
         <small class="text-muted">Last Updated: {{ last_updated }}</small>
     </div>
 
@@ -25,6 +30,15 @@
                 <option value="mtd" {% if date_filter == 'mtd' %}selected{% endif %}>Month to Date</option>
                 <option value="qtd" {% if date_filter == 'qtd' %}selected{% endif %}>Quarter to Date</option>
                 <option value="ytd" {% if date_filter == 'ytd' %}selected{% endif %}>Year to Date</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="vendor_id" class="form-label">Filter by Vendor</label>
+            <select class="form-select" id="vendor_id" name="vendor_id" onchange="this.form.submit()">
+                <option value="">All Vendors</option>
+                {% for vendor in vendors %}
+                <option value="{{ vendor.id }}" {% if vendor_filter == vendor.id|string %}selected{% endif %}>{{ vendor.name }}</option>
+                {% endfor %}
             </select>
         </div>
     </form>

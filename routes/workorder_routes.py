@@ -405,7 +405,7 @@ def work_order_traveler(id):
     tasks = conn.execute('''
         SELECT 
             wot.*,
-            lr.employee_name as assigned_resource_name
+            (lr.first_name || ' ' || lr.last_name) as assigned_resource_name
         FROM work_order_tasks wot
         LEFT JOIN labor_resources lr ON wot.assigned_resource_id = lr.id
         WHERE wot.work_order_id = ?
