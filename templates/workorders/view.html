@@ -115,7 +115,12 @@
                         </td>
                         {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
                         <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ req.id }}, '{{ req.code }} - {{ req.name }}', {{ req.required_quantity }})" title="Edit">
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    data-req-id="{{ req.id }}"
+                                    data-product-name="{{ (req.code ~ ' - ' ~ req.name)|tojson }}"
+                                    data-required-qty="{{ req.required_quantity }}"
+                                    onclick="openEditModal(this)" 
+                                    title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <form method="POST" action="{{ url_for('workorder_routes.delete_material_requirement', wo_id=workorder.id, req_id=req.id) }}" style="display:inline;">
@@ -196,7 +201,11 @@
 </div>
 
 <script>
-function openEditModal(reqId, productName, requiredQty) {
+function openEditModal(button) {
+    const reqId = button.getAttribute('data-req-id');
+    const productName = button.dataset.productName;
+    const requiredQty = parseFloat(button.getAttribute('data-required-qty'));
+    
     document.getElementById('edit_product_name').value = productName;
     document.getElementById('edit_required_quantity').value = requiredQty;
     document.getElementById('editMaterialForm').action = '{{ url_for("workorder_routes.edit_material_requirement", wo_id=workorder.id, req_id=0) }}'.replace('/0/', '/' + reqId + '/');

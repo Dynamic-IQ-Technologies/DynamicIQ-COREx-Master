@@ -1,0 +1,208 @@
+Update the app to allow full control of material purchasing, receiving, inventory management, and issuance to work orders, ensuring traceability and accuracy from purchase order creation through work order material usage.
+
+1. Material Receiving Functionality
+Receiving Setup
+
+Enable users to receive materials against approved Purchase Orders (POs).
+
+Create a Material Receiving Page that allows:
+
+Selection of an existing Purchase Order.
+
+Viewing of ordered line items (part number, description, quantity ordered, unit cost).
+
+Entry of received quantity and receipt date.
+
+Input of packing slip number, shipment tracking, and receiving warehouse location.
+
+Receiving Features
+
+Validate that the received quantity ≤ ordered quantity.
+
+Automatically update inventory quantities upon successful receipt.
+
+Generate a unique Receiving Transaction ID for traceability.
+
+Allow partial receipts (receive items in multiple shipments).
+
+Include “Receive All” button for full receipt.
+
+Automatically flag PO lines as Closed when fully received.
+
+Capture receiver name, date/time, and condition (e.g., new, serviceable, overhauled).
+
+Inventory Integration
+
+Once received, materials should:
+
+Post to the designated inventory location.
+
+Update quantity on hand and value on hand.
+
+Automatically record cost based on PO cost (FIFO or average method).
+
+2. Inventory Management Enhancements
+Inventory Record Fields
+
+Part Number
+
+Description
+
+Condition (New, OH, SV, etc.)
+
+Warehouse / Bin Location
+
+Quantity on Hand
+
+Unit Cost
+
+Extended Value
+
+Last Received Date
+
+Source (PO, RMA, or Work Order Return)
+
+Inventory Controls
+
+Prevent negative inventory balances.
+
+Include “Inventory Adjustment” function with reason tracking (e.g., correction, loss, damage).
+
+Add Stock Status Indicators:
+
+🟢 Available
+
+🔵 Reserved for Work Order
+
+🔴 Out of Stock
+
+3. Issue Material to Work Orders
+Material Issue Process
+
+Allow users to issue parts or materials from inventory to active Work Orders (WOs).
+
+Create an “Issue Material” screen or modal where user can:
+
+Select a Work Order Number.
+
+Search and select part(s) from inventory.
+
+Specify quantity to issue.
+
+Confirm issuing warehouse/bin location.
+
+Add optional remarks or reference to task number.
+
+Automations
+
+Upon issuing material:
+
+Deduct issued quantity from inventory.
+
+Update the Work Order Material Cost and Material Consumption Log.
+
+Change status of the item from “Available” to “Issued.”
+
+Record Issued By, Date, and Issued To (technician/work order).
+
+Support returns to stock for unused or excess issued materials.
+
+Material Tracking
+
+Each Work Order should have a Material Tab listing:
+
+Issued parts (with part numbers, serials, and quantities).
+
+Cost per part and total material cost.
+
+Issue/return history with timestamps.
+
+Enable traceability from the Work Order back to the original PO and receiving record.
+
+4. Financial & Cost Tracking
+
+Automatically record the material cost transaction at issue time.
+
+Integrate with the GL/Accounting module:
+
+Debit: Work Order Material Expense (or WIP Account)
+
+Credit: Inventory Asset Account
+
+Ensure cost roll-up from issued materials contributes to the total Work Order cost summary.
+
+5. Validation & Permissions
+
+Allow only authorized users (e.g., Warehouse Clerk, Inventory Manager) to perform receipts and issues.
+
+Prevent issuing parts not yet received or not available in stock.
+
+Require supervisor approval for:
+
+Over-issue (issuing more than available).
+
+Manual cost overrides.
+
+6. UI/UX Requirements
+
+Add dedicated tabs or sections in the app for:
+
+Purchase Orders
+
+Receiving
+
+Inventory
+
+Work Orders
+
+Provide real-time visual indicators:
+
+🟢 Received & In Stock
+
+🟡 Partially Received
+
+🔴 Pending Receipt
+
+Include search and filter options (by PO, part, date, warehouse, or status).
+
+Provide a summary dashboard:
+
+Materials received this week
+
+Materials issued to WOs
+
+Inventory valuation overview
+
+7. Audit & Reporting
+
+Maintain complete transaction history for:
+
+Receipts
+
+Issues
+
+Returns
+
+Adjustments
+
+Create standard reports:
+
+Received Materials Report
+
+Issued Materials by Work Order
+
+Inventory Value Report
+
+Pending Receipts Report
+
+Expected Outcome
+
+After implementation, your app will:
+
+Allow seamless receipt of purchased materials into inventory.
+
+Maintain accurate inventory balances and costs.
+
+Support controlled issuance of materials to work orders.
+
+Provide full traceability from PO → Receiving → Inventory → Work Order → Cost Accounting.
