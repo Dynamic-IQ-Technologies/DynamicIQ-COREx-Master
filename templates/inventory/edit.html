@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Inventory - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-pencil-square"></i> Edit Inventory</h2>
+
+<div class="card">
+    <div class="card-body">
+        <div class="alert alert-info mb-4">
+            <strong>Inventory ID:</strong> INV-{{ "%06d"|format(inventory.id) }}<br>
+            <strong>Product:</strong> {{ inventory.code }} - {{ inventory.name }}<br>
+            <strong>UOM:</strong> {{ inventory.unit_of_measure }}
+            {% if inventory.description %}
+            <br><strong>Description:</strong> {{ inventory.description }}
+            {% endif %}
+        </div>
+        
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" 
+                               value="{{ '%.2f'|format(inventory.quantity) }}" required min="0">
+                        <small class="text-muted">Current: {{ '%.2f'|format(inventory.quantity) }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="reorder_point" class="form-label">Reorder Point *</label>
+                        <input type="number" step="0.01" class="form-control" id="reorder_point" name="reorder_point" 
+                               value="{{ '%.2f'|format(inventory.reorder_point) }}" required min="0">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="safety_stock" class="form-label">Safety Stock *</label>
+                        <input type="number" step="0.01" class="form-control" id="safety_stock" name="safety_stock" 
+                               value="{{ '%.2f'|format(inventory.safety_stock) }}" required min="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="warehouse_location" class="form-label">Warehouse *</label>
+                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" 
+                               value="{{ inventory.warehouse_location or 'Main' }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="bin_location" class="form-label">Bin Location *</label>
+                        <input type="text" class="form-control" id="bin_location" name="bin_location" 
+                               value="{{ inventory.bin_location or '' }}" placeholder="e.g., A-01, B-15" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="condition" class="form-label">Condition *</label>
+                        <select class="form-select" id="condition" name="condition" required>
+                            <option value="New" {% if inventory.condition == 'New' %}selected{% endif %}>New</option>
+                            <option value="Serviceable" {% if inventory.condition == 'Serviceable' %}selected{% endif %}>Serviceable</option>
+                            <option value="Overhauled" {% if inventory.condition == 'Overhauled' %}selected{% endif %}>Overhauled</option>
+                            <option value="Repaired" {% if inventory.condition == 'Repaired' %}selected{% endif %}>Repaired</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Available" {% if inventory.status == 'Available' %}selected{% endif %}>Available</option>
+                            <option value="Reserved" {% if inventory.status == 'Reserved' %}selected{% endif %}>Reserved</option>
+                            <option value="Out of Stock" {% if inventory.status == 'Out of Stock' %}selected{% endif %}>Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

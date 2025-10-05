@@ -3,6 +3,7 @@ from models import Database
 from auth import login_required, role_required
 import csv
 import io
+import math
 
 inventory_bp = Blueprint('inventory_routes', __name__)
 
@@ -65,6 +66,127 @@ def create_inventory():
     conn.close()
     
     return render_template('inventory/create.html', products=products)
+
+@inventory_bp.route('/inventory/<int:id>/edit', methods=['GET', 'POST'])
+@role_required('Admin', 'Production Staff')
+def edit_inventory(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        try:
+            # Parse numeric fields with error handling
+            try:
+                quantity = float(request.form.get('quantity', 0))
+                reorder_point = float(request.form.get('reorder_point', 0))
+                safety_stock = float(request.form.get('safety_stock', 0))
+            except (ValueError, TypeError):
+                flash('Invalid numeric value provided', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            warehouse_location = request.form.get('warehouse_location', '').strip()
+            bin_location = request.form.get('bin_location', '').strip()
+            condition = request.form.get('condition', 'Serviceable')
+            status = request.form.get('status', 'Available')
+            
+            # Validate numeric fields are finite
+            if not math.isfinite(quantity):
+                flash('Quantity must be a valid number', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            if not math.isfinite(reorder_point):
+                flash('Reorder point must be a valid number', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            if not math.isfinite(safety_stock):
+                flash('Safety stock must be a valid number', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            # Validate numeric fields are non-negative
+            if quantity < 0:
+                flash('Quantity cannot be negative', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            if reorder_point < 0:
+                flash('Reorder point cannot be negative', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            if safety_stock < 0:
+                flash('Safety stock cannot be negative', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            # Validate required fields
+            if not warehouse_location:
+                flash('Warehouse location is required', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            if not bin_location:
+                flash('Bin location is required', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            # Validate condition and status values
+            valid_conditions = ['New', 'Serviceable', 'Overhauled', 'Repaired']
+            if condition not in valid_conditions:
+                flash('Invalid condition value', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            valid_statuses = ['Available', 'Reserved', 'Out of Stock']
+            if status not in valid_statuses:
+                flash('Invalid status value', 'danger')
+                conn.close()
+                return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
+            # Update inventory
+            conn.execute('''
+                UPDATE inventory 
+                SET quantity=?, 
+                    reorder_point=?, 
+                    safety_stock=?, 
+                    warehouse_location=?,
+                    bin_location=?,
+                    condition=?,
+                    status=?,
+                    last_updated=CURRENT_TIMESTAMP 
+                WHERE id=?
+            ''', (quantity, reorder_point, safety_stock, warehouse_location, bin_location, 
+                  condition, status, id))
+            
+            conn.commit()
+            flash('Inventory updated successfully!', 'success')
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error updating inventory: {str(e)}', 'danger')
+        finally:
+            conn.close()
+        
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    # GET request - show edit form
+    inventory = conn.execute('''
+        SELECT i.*, p.code, p.name, p.unit_of_measure, p.description
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.id = ?
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not inventory:
+        flash('Inventory record not found', 'danger')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    return render_template('inventory/edit.html', inventory=inventory)
 
 @inventory_bp.route('/inventory/<int:id>/adjust', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
