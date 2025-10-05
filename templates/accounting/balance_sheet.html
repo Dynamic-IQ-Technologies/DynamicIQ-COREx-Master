@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Balance Sheet - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Balance Sheet</h2>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filter</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="end_date" class="form-label">As of Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filter</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Assets</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        {% for asset in assets %}
+                        <tr>
+                            <td>{{ asset.code }}</td>
+                            <td>{{ asset.name }}</td>
+                            <td class="text-end">${{ "%.2f"|format(asset.balance) }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-active">
+                            <td colspan="2"><strong>Total Assets</strong></td>
+                            <td class="text-end"><strong>${{ "%.2f"|format(total_assets) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Liabilities</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        {% for liability in liabilities %}
+                        <tr>
+                            <td>{{ liability.code }}</td>
+                            <td>{{ liability.name }}</td>
+                            <td class="text-end">${{ "%.2f"|format(liability.balance) }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-active">
+                            <td colspan="2"><strong>Total Liabilities</strong></td>
+                            <td class="text-end"><strong>${{ "%.2f"|format(total_liabilities) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Equity</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        {% for eq in equity %}
+                        <tr>
+                            <td>{{ eq.code }}</td>
+                            <td>{{ eq.name }}</td>
+                            <td class="text-end">${{ "%.2f"|format(eq.balance) }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-active">
+                            <td colspan="2"><strong>Total Equity</strong></td>
+                            <td class="text-end"><strong>${{ "%.2f"|format(total_equity) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5>Balance Check</h5>
+        <p><strong>Total Liabilities + Equity:</strong> ${{ "%.2f"|format(total_liabilities + total_equity) }}</p>
+        <p><strong>Total Assets:</strong> ${{ "%.2f"|format(total_assets) }}</p>
+        <p><strong>Difference:</strong> ${{ "%.2f"|format((total_assets - (total_liabilities + total_equity))|abs) }}
+            {% if (total_assets - (total_liabilities + total_equity))|abs < 0.01 %}
+            <span class="badge bg-success">Balanced</span>
+            {% else %}
+            <span class="badge bg-danger">Out of Balance</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}

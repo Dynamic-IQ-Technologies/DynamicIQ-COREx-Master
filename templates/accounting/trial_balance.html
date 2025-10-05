@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Trial Balance - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Trial Balance</h2>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filter</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="end_date" class="form-label">As of Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filter</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Trial Balance as of {{ end_date }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Account Code</th>
+                        <th>Account Name</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in accounts %}
+                    <tr>
+                        <td>{{ account.account_code }}</td>
+                        <td>{{ account.account_name }}</td>
+                        <td class="text-end">{% if account.total_debit > 0 %}${{ "%.2f"|format(account.total_debit) }}{% endif %}</td>
+                        <td class="text-end">{% if account.total_credit > 0 %}${{ "%.2f"|format(account.total_credit) }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="table-active">
+                        <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                        <td class="text-end"><strong>${{ "%.2f"|format(total_debits) }}</strong></td>
+                        <td class="text-end"><strong>${{ "%.2f"|format(total_credits) }}</strong></td>
+                    </tr>
+                    <tr class="{% if (total_debits - total_credits)|abs < 0.01 %}table-success{% else %}table-danger{% endif %}">
+                        <td colspan="2" class="text-end"><strong>Difference:</strong></td>
+                        <td colspan="2" class="text-end">
+                            <strong>${{ "%.2f"|format((total_debits - total_credits)|abs) }}</strong>
+                            {% if (total_debits - total_credits)|abs < 0.01 %}
+                            <span class="badge bg-success ms-2">Balanced</span>
+                            {% else %}
+                            <span class="badge bg-danger ms-2">Out of Balance</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -320,6 +320,24 @@
                     <span>General Ledger</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('financial_reports_routes.trial_balance') }}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Trial Balance</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('financial_reports_routes.balance_sheet') }}">
+                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                    <span>Balance Sheet</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('financial_reports_routes.income_statement') }}">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    <span>Income Statement</span>
+                </a>
+            </li>
         </ul>
         {% endif %}
         

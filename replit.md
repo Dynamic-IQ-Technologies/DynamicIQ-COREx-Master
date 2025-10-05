@@ -44,14 +44,25 @@ Preferred communication style: Simple, everyday language.
 - **Inventory Adjustments**: Manual inventory quantity adjustments with auto-generated adjustment numbers (ADJ-XXXXXX), reason tracking (physical count, damage, scrap, etc.), adjustment type (Increase/Decrease), cost impact calculation, full audit trail with before/after quantities. Includes validation warnings for zero-cost products to maintain data integrity.
 - **Suppliers**: Vendor management with contact information, supporting CSV import/export.
 - **Company Settings**: Configurable business information (singleton pattern) including general, contact, tax/regulatory details, and logo upload for professional document generation. Admin-only editing.
+- **Work Order Tasks & Labor Planning**: Complete task management system with labor resource tracking, time tracking, and planned vs actual analysis. Features task creation (TASK-XXXXXX), labor resource management (EMP-XXXXXX), labor issuance (LBR-XXXXXX), automatic cost calculations cascading from labor → task → work order, and task summaries integrated into work order views.
 
 **Inventory Management**: Features real-time stock level tracking, low stock alerts, manual adjustments, and automatic updates from work order processing.
 
 **Reporting System**: Provides inventory valuation, work order cost analysis, material requirements reports (with summary statistics, CSV export, and direct procurement capability), and material usage tracking.
 
+**Accounting System**: Comprehensive double-entry accounting module with:
+- **Chart of Accounts (COA)**: Hierarchical account structure with parent-child relationships, supporting Assets, Liabilities, Equity, Revenue, and Expense accounts. Auto-seeded with standard accounts (30+ accounts) organized by type. Full CRUD operations with account activation/deactivation.
+- **General Ledger (GL)**: Complete GL viewing with date and account filters, showing all posted journal entries with debit/credit columns and transaction sources.
+- **Manual Journal Entries**: Create journal entries with dynamic line items, auto-generated entry numbers (JE-XXXXXX), real-time debit/credit balance validation (must balance within $0.01), minimum 2 lines required. Post/Unpost workflow with audit trail tracking created by/posted by users and timestamps. Draft and Posted status management.
+- **Financial Reports**:
+  - **Trial Balance**: Shows account balances with debit/credit totals, balance verification, filterable by date
+  - **Balance Sheet**: Assets, Liabilities, and Equity with balance check (Assets = Liabilities + Equity)
+  - **Income Statement (P&L)**: Revenue and Expense breakdown with Net Income calculation, filterable by date range
+- **Role-based Access**: Admin and Accountant roles only, with Admin having exclusive unpost privileges
+
 ### Access Control & Permissions
 
-**Role Hierarchy**: Defines access levels for Admin (full access), Planner (manages products, BOMs, work orders, reports), Production Staff (creates work orders, adjusts inventory, views dashboards), and Procurement (manages suppliers and purchase orders).
+**Role Hierarchy**: Defines access levels for Admin (full access), Planner (manages products, BOMs, work orders, reports), Production Staff (creates work orders, adjusts inventory, views dashboards), Procurement (manages suppliers and purchase orders), and Accountant (manages accounting, financial reports, journal entries - with Admin having exclusive unpost privileges).
 
 **Permission Model**: Route-level authorization via decorators and template-level conditional rendering based on user roles and granular permissions.
 
