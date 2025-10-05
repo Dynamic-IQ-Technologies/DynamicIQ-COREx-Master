@@ -90,6 +90,7 @@
                         <th>Code</th>
                         <th>Product</th>
                         <th>Required Qty</th>
+                        <th>Qty Issued</th>
                         <th>Available Qty</th>
                         <th>Shortage Qty</th>
                         <th>Status</th>
@@ -104,6 +105,13 @@
                         <td>{{ req.code }}</td>
                         <td>{{ req.name }}</td>
                         <td>{{ req.required_quantity|int }}</td>
+                        <td>
+                            {% if req.quantity_issued > 0 %}
+                            <span class="badge bg-primary">{{ "%.2f"|format(req.quantity_issued) }}</span>
+                            {% else %}
+                            <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
                         <td>{{ req.available_quantity|int }}</td>
                         <td>{{ req.shortage_quantity|int }}</td>
                         <td>

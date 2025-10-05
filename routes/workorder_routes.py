@@ -130,7 +130,17 @@ def view_workorder(id):
     ''', (id,)).fetchone()
     
     requirements = conn.execute('''
-        SELECT mr.*, p.code, p.name, p.unit_of_measure
+        SELECT 
+            mr.*, 
+            p.code, 
+            p.name, 
+            p.unit_of_measure,
+            COALESCE(
+                (SELECT SUM(mi.quantity_issued) 
+                 FROM material_issues mi 
+                 WHERE mi.work_order_id = mr.work_order_id 
+                   AND mi.product_id = mr.product_id), 0
+            ) as quantity_issued
         FROM material_requirements mr
         JOIN products p ON mr.product_id = p.id
         WHERE mr.work_order_id=?
