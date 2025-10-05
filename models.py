@@ -169,3 +169,20 @@ class User:
     @staticmethod
     def verify_password(user, password):
         return check_password_hash(user['password_hash'], password)
+    
+    @staticmethod
+    def get_all():
+        db = Database()
+        conn = db.get_connection()
+        users = conn.execute('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC').fetchall()
+        conn.close()
+        return users
+    
+    @staticmethod
+    def update_role(user_id, new_role):
+        db = Database()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET role = ? WHERE id = ?', (new_role, user_id))
+        conn.commit()
+        conn.close()

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-people-fill"></i> User Management</h2>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Current Role</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>
+                                    <i class="bi bi-person-fill"></i> {{ user.username }}
+                                    {% if user.id == session.user_id %}
+                                        <span class="badge bg-info ms-2">You</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.role == 'Admin' %}
+                                        <span class="badge bg-danger">{{ user.role }}</span>
+                                    {% elif user.role == 'Planner' %}
+                                        <span class="badge bg-primary">{{ user.role }}</span>
+                                    {% elif user.role == 'Procurement' %}
+                                        <span class="badge bg-success">{{ user.role }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ user.role }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('user_routes.update_user_role', user_id=user.id) }}" class="d-inline">
+                                        <select name="role" class="form-select form-select-sm d-inline-block w-auto me-2" onchange="this.form.submit()">
+                                            <option value="">Change Role...</option>
+                                            <option value="Admin" {% if user.role == 'Admin' %}disabled{% endif %}>Admin</option>
+                                            <option value="Planner" {% if user.role == 'Planner' %}disabled{% endif %}>Planner</option>
+                                            <option value="Production Staff" {% if user.role == 'Production Staff' %}disabled{% endif %}>Production Staff</option>
+                                            <option value="Procurement" {% if user.role == 'Procurement' %}disabled{% endif %}>Procurement</option>
+                                        </select>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-4">
+            <h5><i class="bi bi-info-circle"></i> Role Descriptions</h5>
+            <ul class="mb-0">
+                <li><strong>Admin:</strong> Full system access including user management and delete operations</li>
+                <li><strong>Planner:</strong> Can manage products, BOMs, work orders, and view reports</li>
+                <li><strong>Production Staff:</strong> Can create work orders, adjust inventory, and view dashboards</li>
+                <li><strong>Procurement:</strong> Can manage suppliers and purchase orders</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
