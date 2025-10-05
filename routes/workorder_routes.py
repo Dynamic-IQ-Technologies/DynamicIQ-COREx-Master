@@ -19,6 +19,21 @@ def list_workorders():
     conn.close()
     return render_template('workorders/list.html', workorders=workorders)
 
+@workorder_bp.route('/workorders/list-json')
+@login_required
+def list_workorders_json():
+    from flask import jsonify
+    db = Database()
+    conn = db.get_connection()
+    workorders = conn.execute('''
+        SELECT wo.id, wo.wo_number, wo.status, p.code as product_code, p.name as product_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        ORDER BY wo.planned_start_date DESC
+    ''').fetchall()
+    conn.close()
+    return jsonify([dict(wo) for wo in workorders])
+
 @workorder_bp.route('/workorders/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def create_workorder():

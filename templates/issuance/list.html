@@ -16,15 +16,25 @@
 
 <!-- Available Materials Section -->
 <div class="card mb-4">
-    <div class="card-header bg-success text-white">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-box-seam"></i> Available Materials Ready to Issue</h5>
+        {% if session.role in ['Admin', 'Production Staff', 'Planner'] and available_materials %}
+        <button type="button" class="btn btn-light" id="issueSelectedBtn" disabled data-bs-toggle="modal" data-bs-target="#batchIssueModal">
+            <i class="bi bi-box-arrow-right"></i> Issue Selected (<span id="selectedCount">0</span>)
+        </button>
+        {% endif %}
     </div>
     <div class="card-body">
         {% if available_materials %}
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="availableMaterialsTable">
                 <thead>
                     <tr>
+                        {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+                        <th style="width: 50px;">
+                            <input type="checkbox" id="selectAllMaterials" title="Select All">
+                        </th>
+                        {% endif %}
                         <th>Inventory ID</th>
                         <th>Product Code</th>
                         <th>Product Name</th>
@@ -40,6 +50,18 @@
                 <tbody>
                     {% for item in available_materials %}
                     <tr>
+                        {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+                        <td>
+                            <input type="checkbox" class="material-checkbox" 
+                                   data-product-id="{{ item.product_id }}"
+                                   data-product-code="{{ item.product_code }}"
+                                   data-product-name="{{ item.product_name }}"
+                                   data-available-qty="{{ '%.2f'|format(item.available_quantity) }}"
+                                   data-uom="{{ item.unit_of_measure }}"
+                                   data-warehouse="{{ item.warehouse_location }}"
+                                   data-bin="{{ item.bin_location or '' }}">
+                        </td>
+                        {% endif %}
                         <td><span class="badge bg-secondary">INV-{{ "%06d"|format(item.id) }}</span></td>
                         <td><strong>{{ item.product_code }}</strong></td>
                         <td>{{ item.product_name }}</td>
@@ -123,4 +145,173 @@
         </div>
     </div>
 </div>
+
+<!-- Batch Issue Modal -->
+<div class="modal fade" id="batchIssueModal" tabindex="-1" aria-labelledby="batchIssueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="batchIssueModalLabel"><i class="bi bi-box-arrow-right"></i> Issue Selected Materials</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('issuance_routes.batch_issue') }}" id="batchIssueForm">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> <strong><span id="modalSelectedCount">0</span> material(s) selected</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="work_order_id" class="form-label">Work Order *</label>
+                        <select class="form-select" id="work_order_id" name="work_order_id" required>
+                            <option value="">Select Work Order</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="issue_date" class="form-label">Issue Date *</label>
+                                <input type="date" class="form-control" id="issue_date" name="issue_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="issued_to" class="form-label">Issued To</label>
+                                <input type="text" class="form-control" id="issued_to" name="issued_to">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="task_reference" class="form-label">Task Reference</label>
+                        <input type="text" class="form-control" id="task_reference" name="task_reference">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="remarks" name="remarks" rows="2"></textarea>
+                    </div>
+                    
+                    <h6 class="mb-3">Selected Materials & Quantities:</h6>
+                    <div class="table-responsive" id="selectedMaterialsContainer">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product Code</th>
+                                    <th>Product Name</th>
+                                    <th>Available</th>
+                                    <th>Qty to Issue *</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody id="selectedMaterialsList">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Issue Materials
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllMaterials');
+    const materialCheckboxes = document.querySelectorAll('.material-checkbox');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const issueSelectedBtn = document.getElementById('issueSelectedBtn');
+    const batchIssueModal = document.getElementById('batchIssueModal');
+    const batchIssueForm = document.getElementById('batchIssueForm');
+    
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('issue_date').value = today;
+    
+    // Load work orders
+    fetch('/workorders/list-json')
+        .then(response => response.json())
+        .then(data => {
+            const woSelect = document.getElementById('work_order_id');
+            data.forEach(wo => {
+                if (wo.status !== 'Completed') {
+                    const option = document.createElement('option');
+                    option.value = wo.id;
+                    option.textContent = `${wo.wo_number} - ${wo.product_code} (${wo.status})`;
+                    woSelect.appendChild(option);
+                }
+            });
+        });
+    
+    function updateSelectedCount() {
+        const checkedCount = document.querySelectorAll('.material-checkbox:checked').length;
+        selectedCountSpan.textContent = checkedCount;
+        issueSelectedBtn.disabled = checkedCount === 0;
+    }
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            materialCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateSelectedCount();
+        });
+    }
+    
+    materialCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectedCount();
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = document.querySelectorAll('.material-checkbox:checked').length === materialCheckboxes.length;
+            }
+        });
+    });
+    
+    // When modal is shown, populate selected materials
+    if (batchIssueModal) {
+        batchIssueModal.addEventListener('show.bs.modal', function() {
+            const selectedMaterials = Array.from(document.querySelectorAll('.material-checkbox:checked'));
+            const modalCount = document.getElementById('modalSelectedCount');
+            const materialsList = document.getElementById('selectedMaterialsList');
+            
+            modalCount.textContent = selectedMaterials.length;
+            materialsList.innerHTML = '';
+            
+            selectedMaterials.forEach((checkbox, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${checkbox.dataset.productCode}</td>
+                    <td>${checkbox.dataset.productName}</td>
+                    <td><span class="badge bg-success">${checkbox.dataset.availableQty} ${checkbox.dataset.uom}</span></td>
+                    <td>
+                        <input type="hidden" name="materials[${index}][product_id]" value="${checkbox.dataset.productId}">
+                        <input type="number" step="0.01" min="0.01" max="${checkbox.dataset.availableQty}" 
+                               class="form-control form-control-sm" name="materials[${index}][quantity]" 
+                               value="${checkbox.dataset.availableQty}" required>
+                    </td>
+                    <td>${checkbox.dataset.warehouse}${checkbox.dataset.bin ? ' / ' + checkbox.dataset.bin : ''}</td>
+                `;
+                materialsList.appendChild(row);
+            });
+        });
+    }
+    
+    // Form submission
+    if (batchIssueForm) {
+        batchIssueForm.addEventListener('submit', function(e) {
+            const selectedCount = document.querySelectorAll('.material-checkbox:checked').length;
+            if (selectedCount === 0) {
+                e.preventDefault();
+                alert('Please select at least one material to issue.');
+                return false;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
