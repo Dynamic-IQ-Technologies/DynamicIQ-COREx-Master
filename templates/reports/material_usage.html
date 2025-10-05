@@ -27,9 +27,9 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=item.work_order_id) }}">{{ item.wo_number }}</a></td>
                         <td>{{ item.code }}</td>
                         <td>{{ item.name }}</td>
-                        <td>{{ "%.2f"|format(item.required_quantity) }}</td>
-                        <td>{{ "%.2f"|format(item.available_quantity) }}</td>
-                        <td>{{ "%.2f"|format(item.shortage_quantity) }}</td>
+                        <td>{{ item.required_quantity|int }}</td>
+                        <td>{{ item.available_quantity|int }}</td>
+                        <td>{{ item.shortage_quantity|int }}</td>
                         <td>${{ "%.2f"|format(item.total_cost) }}</td>
                         <td>
                             {% if item.status == 'Satisfied' %}

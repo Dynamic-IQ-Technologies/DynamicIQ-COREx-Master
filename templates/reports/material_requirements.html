@@ -73,7 +73,7 @@
                     <tr>
                         <td>{{ item.code }}</td>
                         <td>{{ item.name }}</td>
-                        <td class="text-danger">{{ "%.2f"|format(item.total_shortage) }}</td>
+                        <td class="text-danger">{{ item.total_shortage|int }}</td>
                         <td class="text-danger">${{ "%.2f"|format(item.shortage_value) }}</td>
                     </tr>
                     {% endfor %}
@@ -134,11 +134,11 @@
                         <td>{{ req.code }}</td>
                         <td>{{ req.name }}</td>
                         <td>{{ req.unit_of_measure }}</td>
-                        <td>{{ "%.2f"|format(req.required_quantity) }}</td>
-                        <td>{{ "%.2f"|format(req.available_quantity) }}</td>
+                        <td>{{ req.required_quantity|int }}</td>
+                        <td>{{ req.available_quantity|int }}</td>
                         <td>
                             {% if req.shortage_quantity > 0 %}
-                            <span class="text-danger fw-bold">{{ "%.2f"|format(req.shortage_quantity) }}</span>
+                            <span class="text-danger fw-bold">{{ req.shortage_quantity|int }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
