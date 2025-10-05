@@ -102,6 +102,28 @@
             letter-spacing: 0.5px;
         }
         
+        .sidebar-section-title.collapsible {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-section-title.collapsible:hover {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .sidebar-section-title .toggle-icon {
+            font-size: 0.9rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .collapsible-content {
+            transition: all 0.3s ease;
+        }
+        
         .sidebar-user {
             padding: 1rem 1.25rem;
             background: rgba(0, 0, 0, 0.2);
@@ -306,8 +328,11 @@
         </ul>
         
         {% if session.role in ['Admin', 'Accountant'] %}
-        <div class="sidebar-section-title">Accounting</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('accounting')">
+            <span>Accounting</span>
+            <i class="bi bi-chevron-down toggle-icon" id="accounting-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="accounting-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.list_accounts') }}">
                     <i class="bi bi-list-ul"></i>
@@ -347,8 +372,11 @@
         </ul>
         {% endif %}
         
-        <div class="sidebar-section-title">Reports</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('reports')">
+            <span>Reports</span>
+            <i class="bi bi-chevron-down toggle-icon" id="reports-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="reports-content">
             <li class="sidebar-nav-item">
                 <div class="dropdown-submenu">
                     <a href="{{ url_for('report_routes.inventory_report') }}">
@@ -378,8 +406,11 @@
         </ul>
         
         {% if session.role == 'Admin' %}
-        <div class="sidebar-section-title">Administration</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('administration')">
+            <span>Administration</span>
+            <i class="bi bi-chevron-down toggle-icon" id="administration-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="administration-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('settings_routes.view_company_settings') }}">
                     <i class="bi bi-gear-fill"></i>
@@ -443,6 +474,42 @@
                     sidebar.classList.remove('show');
                 }
             }
+        });
+        
+        // Collapsible section toggle functionality
+        function toggleSection(section) {
+            const content = document.getElementById(section + '-content');
+            const icon = document.getElementById(section + '-icon');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.classList.remove('bi-chevron-right');
+                icon.classList.add('bi-chevron-down');
+                localStorage.setItem('section-' + section, 'open');
+            } else {
+                content.style.display = 'none';
+                icon.classList.remove('bi-chevron-down');
+                icon.classList.add('bi-chevron-right');
+                localStorage.setItem('section-' + section, 'closed');
+            }
+        }
+        
+        // Restore collapsed state from localStorage on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = ['accounting', 'reports', 'administration'];
+            sections.forEach(function(section) {
+                const content = document.getElementById(section + '-content');
+                const icon = document.getElementById(section + '-icon');
+                
+                if (content && icon) {
+                    const state = localStorage.getItem('section-' + section);
+                    if (state === 'closed') {
+                        content.style.display = 'none';
+                        icon.classList.remove('bi-chevron-down');
+                        icon.classList.add('bi-chevron-right');
+                    }
+                }
+            });
         });
     </script>
     {% block scripts %}{% endblock %}
