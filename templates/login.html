@@ -47,9 +47,19 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
-            animation: pulse 15s ease-in-out infinite;
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 35px,
+                    rgba(255, 255, 255, 0.03) 35px,
+                    rgba(255, 255, 255, 0.03) 70px
+                );
+            animation: moveLines 20s linear infinite;
+        }
+        
+        @keyframes moveLines {
+            0% { background-position: 0 0; }
+            100% { background-position: 70px 70px; }
         }
         
         @keyframes pulse {
