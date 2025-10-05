@@ -164,3 +164,113 @@ def update_workorder_status(id):
     
     flash(f'Work Order status updated to {new_status}!', 'success')
     return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+@workorder_bp.route('/workorders/<int:wo_id>/materials/add', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def add_material_requirement(wo_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        product_id = int(request.form['product_id'])
+        required_quantity = float(request.form['required_quantity'])
+        
+        # Check if this material requirement already exists
+        existing = conn.execute('''
+            SELECT id FROM material_requirements 
+            WHERE work_order_id = ? AND product_id = ?
+        ''', (wo_id, product_id)).fetchone()
+        
+        if existing:
+            flash('This material is already in the requirements list. Use Edit to update it.', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Get available quantity from inventory
+        inventory = conn.execute('''
+            SELECT quantity FROM inventory WHERE product_id = ?
+        ''', (product_id,)).fetchone()
+        
+        available_quantity = inventory['quantity'] if inventory else 0
+        shortage_quantity = max(0, required_quantity - available_quantity)
+        status = 'Satisfied' if shortage_quantity == 0 else 'Shortage'
+        
+        conn.execute('''
+            INSERT INTO material_requirements 
+            (work_order_id, product_id, required_quantity, available_quantity, shortage_quantity, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (wo_id, product_id, required_quantity, available_quantity, shortage_quantity, status))
+        
+        conn.commit()
+        flash('Material requirement added successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error adding material requirement: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+@workorder_bp.route('/workorders/<int:wo_id>/materials/<int:req_id>/edit', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def edit_material_requirement(wo_id, req_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        required_quantity = float(request.form['required_quantity'])
+        
+        # Get current material requirement
+        req = conn.execute('''
+            SELECT product_id FROM material_requirements WHERE id = ?
+        ''', (req_id,)).fetchone()
+        
+        if not req:
+            flash('Material requirement not found.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Get available quantity from inventory
+        inventory = conn.execute('''
+            SELECT quantity FROM inventory WHERE product_id = ?
+        ''', (req['product_id'],)).fetchone()
+        
+        available_quantity = inventory['quantity'] if inventory else 0
+        shortage_quantity = max(0, required_quantity - available_quantity)
+        status = 'Satisfied' if shortage_quantity == 0 else 'Shortage'
+        
+        conn.execute('''
+            UPDATE material_requirements 
+            SET required_quantity = ?, available_quantity = ?, shortage_quantity = ?, status = ?
+            WHERE id = ?
+        ''', (required_quantity, available_quantity, shortage_quantity, status, req_id))
+        
+        conn.commit()
+        flash('Material requirement updated successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating material requirement: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+@workorder_bp.route('/workorders/<int:wo_id>/materials/<int:req_id>/delete', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def delete_material_requirement(wo_id, req_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('DELETE FROM material_requirements WHERE id = ?', (req_id,))
+        conn.commit()
+        flash('Material requirement deleted successfully!', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting material requirement: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
