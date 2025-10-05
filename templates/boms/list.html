@@ -74,113 +74,140 @@
 
 <div class="card">
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped" id="bomTable">
-                <thead>
-                    <tr>
-                        <th>Find #</th>
-                        <th>Parent Product</th>
-                        <th>Child Product</th>
-                        <th>Category</th>
-                        <th>Quantity</th>
-                        <th>Scrap %</th>
-                        <th>Rev</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for bom in boms %}
-                    <tr data-parent="{{ bom.parent_code }} {{ bom.parent_name }}" 
-                        data-category="{{ bom.category or 'Other' }}" 
-                        data-status="{{ bom.status or 'Active' }}">
-                        <td>{{ bom.find_number or '-' }}</td>
-                        <td>
-                            <a href="{{ url_for('bom_routes.view_bom_hierarchy', product_id=bom.parent_product_id) }}" class="text-decoration-none">
-                                <strong>{{ bom.parent_code }}</strong> - {{ bom.parent_name }}
-                            </a>
-                        </td>
-                        <td>{{ bom.child_code }} - {{ bom.child_name }}</td>
-                        <td><span class="badge bg-secondary">{{ bom.category or 'Other' }}</span></td>
-                        <td>{{ bom.quantity }}</td>
-                        <td>{{ bom.scrap_percentage or 0 }}%</td>
-                        <td>{{ bom.revision or 'A' }}</td>
-                        <td>
-                            {% if bom.status == 'Active' or not bom.status %}
-                            <span class="badge bg-success">Active</span>
-                            {% elif bom.status == 'Obsolete' %}
-                            <span class="badge bg-danger">Obsolete</span>
-                            {% else %}
-                            <span class="badge bg-warning">{{ bom.status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('bom_routes.view_bom_hierarchy', product_id=bom.parent_product_id) }}" class="btn btn-sm btn-outline-info" title="View Hierarchy">
-                                <i class="bi bi-diagram-3"></i>
-                            </a>
-                            {% if session.role in ['Admin', 'Planner'] %}
-                            <a href="{{ url_for('bom_routes.create_bom', parent_id=bom.parent_product_id) }}" class="btn btn-sm btn-outline-success" title="Add Line to {{ bom.parent_code }}">
-                                <i class="bi bi-plus-circle"></i>
-                            </a>
-                            <a href="{{ url_for('bom_routes.edit_bom', id=bom.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form method="POST" action="{{ url_for('bom_routes.delete_bom', id=bom.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')" title="Delete">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% if boms_grouped %}
+        <div class="accordion" id="bomAccordion">
+            {% for bom_group in boms_grouped %}
+            <div class="accordion-item bom-parent-item" 
+                 data-parent="{{ bom_group.parent_code }} {{ bom_group.parent_name }}"
+                 data-category="{{ bom_group.children[0].category or 'Other' }}"
+                 data-status="{{ bom_group.children[0].status or 'Active' }}">
+                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ loop.index }}">
+                        <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                            <div>
+                                <strong class="text-primary">{{ bom_group.parent_code }}</strong> - {{ bom_group.parent_name }}
+                                <span class="badge bg-info ms-2">{{ bom_group.children|length }} components</span>
+                            </div>
+                            <div class="btn-group btn-group-sm me-2" role="group" onclick="event.stopPropagation();">
+                                <a href="{{ url_for('bom_routes.view_bom_hierarchy', product_id=bom_group.parent_id) }}" class="btn btn-outline-info" title="View Hierarchy">
+                                    <i class="bi bi-diagram-3"></i>
+                                </a>
+                                {% if session.role in ['Admin', 'Planner'] %}
+                                <a href="{{ url_for('bom_routes.create_bom', parent_id=bom_group.parent_id) }}" class="btn btn-outline-success" title="Add Component">
+                                    <i class="bi bi-plus-circle"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#bomAccordion">
+                    <div class="accordion-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Find #</th>
+                                        <th>Component</th>
+                                        <th>Category</th>
+                                        <th>Quantity</th>
+                                        <th>Scrap %</th>
+                                        <th>Rev</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for child in bom_group.children %}
+                                    <tr>
+                                        <td>{{ child.find_number or '-' }}</td>
+                                        <td>
+                                            <strong>{{ child.child_code }}</strong> - {{ child.child_name }}
+                                        </td>
+                                        <td><span class="badge bg-secondary">{{ child.category or 'Other' }}</span></td>
+                                        <td>{{ child.quantity }}</td>
+                                        <td>{{ child.scrap_percentage or 0 }}%</td>
+                                        <td>{{ child.revision or 'A' }}</td>
+                                        <td>
+                                            {% if child.status == 'Active' or not child.status %}
+                                            <span class="badge bg-success">Active</span>
+                                            {% elif child.status == 'Obsolete' %}
+                                            <span class="badge bg-danger">Obsolete</span>
+                                            {% else %}
+                                            <span class="badge bg-warning">{{ child.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if session.role in ['Admin', 'Planner'] %}
+                                            <a href="{{ url_for('bom_routes.edit_bom', id=child.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('bom_routes.delete_bom', id=child.id) }}" style="display:inline;">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this BOM line?')" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No BOMs found. Create your first BOM to get started!
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <script>
-function filterTable() {
+function filterBOMs() {
     const parentFilter = document.getElementById('filterParent').value.toLowerCase();
     const categoryFilter = document.getElementById('filterCategory').value;
     const statusFilter = document.getElementById('filterStatus').value;
-    const table = document.getElementById('bomTable');
-    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
     
-    for (let row of rows) {
-        const parent = row.getAttribute('data-parent').toLowerCase();
-        const category = row.getAttribute('data-category');
-        const status = row.getAttribute('data-status');
+    const items = document.querySelectorAll('.bom-parent-item');
+    
+    items.forEach(item => {
+        const parent = item.getAttribute('data-parent').toLowerCase();
+        const category = item.getAttribute('data-category');
+        const status = item.getAttribute('data-status');
         
-        let showRow = true;
+        let showItem = true;
         
         if (parentFilter && !parent.includes(parentFilter)) {
-            showRow = false;
+            showItem = false;
         }
         
         if (categoryFilter && category !== categoryFilter) {
-            showRow = false;
+            showItem = false;
         }
         
         if (statusFilter && status !== statusFilter) {
-            showRow = false;
+            showItem = false;
         }
         
-        row.style.display = showRow ? '' : 'none';
-    }
+        item.style.display = showItem ? '' : 'none';
+    });
 }
 
 function clearFilters() {
     document.getElementById('filterParent').value = '';
     document.getElementById('filterCategory').value = '';
     document.getElementById('filterStatus').value = '';
-    filterTable();
+    filterBOMs();
 }
 
-document.getElementById('filterParent').addEventListener('input', filterTable);
-document.getElementById('filterCategory').addEventListener('change', filterTable);
-document.getElementById('filterStatus').addEventListener('change', filterTable);
+document.getElementById('filterParent').addEventListener('input', filterBOMs);
+document.getElementById('filterCategory').addEventListener('change', filterBOMs);
+document.getElementById('filterStatus').addEventListener('change', filterBOMs);
 </script>
 
 {% if session.role in ['Admin', 'Planner'] %}
