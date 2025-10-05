@@ -45,11 +45,22 @@ def create_receiving():
             receipt_date = request.form['receipt_date']
             packing_slip = request.form.get('packing_slip_number', '')
             tracking = request.form.get('shipment_tracking', '')
-            warehouse = request.form.get('warehouse_location', 'Main')
-            bin_location = request.form.get('bin_location', '')
+            warehouse = request.form.get('warehouse_location', '').strip()
+            bin_location = request.form.get('bin_location', '').strip()
             receiver = request.form.get('receiver_name', '')
             condition = request.form.get('condition', 'New')
             remarks = request.form.get('remarks', '')
+            
+            # Validate required location fields
+            if not warehouse:
+                flash('Warehouse location is required.', 'danger')
+                conn.close()
+                return redirect(url_for('receiving_routes.create_receiving'))
+            
+            if not bin_location:
+                flash('Bin location is required.', 'danger')
+                conn.close()
+                return redirect(url_for('receiving_routes.create_receiving'))
             
             # Get PO details
             po = conn.execute('''
