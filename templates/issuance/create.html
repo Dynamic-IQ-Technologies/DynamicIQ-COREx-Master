@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Material - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-box-arrow-right"></i> Issue Material to Work Order</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="work_order_id" class="form-label">Work Order *</label>
+                        <select class="form-select" id="work_order_id" name="work_order_id" required>
+                            <option value="">Select Work Order</option>
+                            {% for wo in work_orders %}
+                            <option value="{{ wo.id }}">
+                                {{ wo.wo_number }} - {{ wo.product_code }} ({{ wo.status }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="issue_date" class="form-label">Issue Date *</label>
+                        <input type="date" class="form-control" id="issue_date" name="issue_date" required value="{{ today }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product to Issue *</label>
+                        <select class="form-select" id="product_id" name="product_id" required onchange="updateProductDetails()">
+                            <option value="">Select Product</option>
+                            {% for item in inventory_items %}
+                            <option value="{{ item.product_id }}"
+                                    data-code="{{ item.product_code }}"
+                                    data-name="{{ item.product_name }}"
+                                    data-available="{{ '%.2f'|format(item.available_quantity) }}"
+                                    data-uom="{{ item.unit_of_measure }}"
+                                    data-cost="{{ '%.2f'|format(item.cost) }}"
+                                    data-warehouse="{{ item.warehouse_location or 'Main' }}">
+                                {{ item.product_code }} - {{ item.product_name }} (Available: {{ "%.2f"|format(item.available_quantity) }} {{ item.unit_of_measure }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="quantity_issued" class="form-label">Quantity to Issue *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity_issued" name="quantity_issued" required min="0.01" onchange="calculateCost()">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Available</label>
+                        <input type="text" class="form-control" id="available_display" readonly style="background-color: #e9ecef;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-light mb-3" id="cost_details" style="display:none;">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Unit Cost:</strong> $<span id="unit_cost_display">0.00</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total Cost:</strong> <span class="text-primary fs-5">$<span id="total_cost_display">0.00</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="warehouse_location" class="form-label">Warehouse</label>
+                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" value="Main">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="bin_location" class="form-label">Bin Location</label>
+                        <input type="text" class="form-control" id="bin_location" name="bin_location">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="issued_to" class="form-label">Issued To</label>
+                        <input type="text" class="form-control" id="issued_to" name="issued_to">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="task_reference" class="form-label">Task Reference</label>
+                        <input type="text" class="form-control" id="task_reference" name="task_reference">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="remarks" class="form-label">Remarks</label>
+                <textarea class="form-control" id="remarks" name="remarks" rows="3"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('issuance_routes.list_issues') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Issue Material</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentUnitCost = 0;
+let currentAvailable = 0;
+
+function updateProductDetails() {
+    const select = document.getElementById('product_id');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        currentAvailable = parseFloat(option.dataset.available);
+        currentUnitCost = parseFloat(option.dataset.cost);
+        
+        document.getElementById('available_display').value = currentAvailable + ' ' + option.dataset.uom;
+        document.getElementById('warehouse_location').value = option.dataset.warehouse;
+        document.getElementById('unit_cost_display').textContent = currentUnitCost.toFixed(2);
+        document.getElementById('quantity_issued').max = currentAvailable;
+        document.getElementById('cost_details').style.display = 'block';
+        
+        calculateCost();
+    } else {
+        document.getElementById('cost_details').style.display = 'none';
+        document.getElementById('available_display').value = '';
+    }
+}
+
+function calculateCost() {
+    const quantity = parseFloat(document.getElementById('quantity_issued').value) || 0;
+    const totalCost = quantity * currentUnitCost;
+    document.getElementById('total_cost_display').textContent = totalCost.toFixed(2);
+}
+</script>
+{% endblock %}

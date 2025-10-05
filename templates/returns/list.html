@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Material Returns - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-arrow-return-left"></i> Material Returns</h2>
+    <div>
+        {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+        <a href="{{ url_for('returns_routes.create_return') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Return Material
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Return #</th>
+                        <th>Work Order</th>
+                        <th>Product</th>
+                        <th>Qty Returned</th>
+                        <th>Return Date</th>
+                        <th>Condition</th>
+                        <th>Reason</th>
+                        <th>Returned By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ret in returns %}
+                    <tr>
+                        <td><a href="{{ url_for('returns_routes.view_return', return_number=ret.return_number) }}">{{ ret.return_number }}</a></td>
+                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=ret.work_order_id) }}">{{ ret.wo_number }}</a></td>
+                        <td>{{ ret.product_code }} - {{ ret.product_name }}</td>
+                        <td>{{ "%.2f"|format(ret.quantity_returned) }} {{ ret.unit_of_measure }}</td>
+                        <td>{{ ret.return_date }}</td>
+                        <td>
+                            {% if ret.condition == 'New' %}
+                            <span class="badge bg-success">{{ ret.condition }}</span>
+                            {% elif ret.condition == 'Serviceable' %}
+                            <span class="badge bg-info">{{ ret.condition }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ ret.condition }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ret.reason or '-' }}</td>
+                        <td>{{ ret.returned_by_name }}</td>
+                        <td>
+                            <a href="{{ url_for('returns_routes.view_return', return_number=ret.return_number) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

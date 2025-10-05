@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Return {{ ret.return_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-arrow-return-left"></i> Material Return {{ ret.return_number }}</h2>
+    <div>
+        <a href="{{ url_for('returns_routes.list_returns') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> Return Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Return Number:</strong></div>
+                    <div class="col-8">{{ ret.return_number }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Return Date:</strong></div>
+                    <div class="col-8">{{ ret.return_date }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Work Order:</strong></div>
+                    <div class="col-8">
+                        <a href="{{ url_for('workorder_routes.view_workorder', id=ret.work_order_id) }}">{{ ret.wo_number }}</a>
+                        <span class="badge bg-info ms-2">{{ ret.wo_status }}</span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Returned By:</strong></div>
+                    <div class="col-8">{{ ret.returned_by_name }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Location & Condition</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Warehouse:</strong></div>
+                    <div class="col-8">{{ ret.warehouse_location }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Bin Location:</strong></div>
+                    <div class="col-8">{{ ret.bin_location or '-' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Condition:</strong></div>
+                    <div class="col-8">
+                        {% if ret.condition == 'New' %}
+                        <span class="badge bg-success">{{ ret.condition }}</span>
+                        {% elif ret.condition == 'Serviceable' %}
+                        <span class="badge bg-info">{{ ret.condition }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ ret.condition }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-box"></i> Product Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Qty Returned</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ ret.product_code }}</td>
+                        <td>{{ ret.product_name }}</td>
+                        <td>{{ "%.2f"|format(ret.quantity_returned) }} {{ ret.unit_of_measure }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if ret.reason or ret.remarks %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> Details</h5>
+    </div>
+    <div class="card-body">
+        {% if ret.reason %}
+        <div class="mb-3">
+            <strong>Reason:</strong> {{ ret.reason }}
+        </div>
+        {% endif %}
+        {% if ret.remarks %}
+        <div>
+            <strong>Remarks:</strong> {{ ret.remarks }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> <strong>Success:</strong> This material has been returned to inventory and work order material cost has been adjusted.
+</div>
+
+{% endblock %}

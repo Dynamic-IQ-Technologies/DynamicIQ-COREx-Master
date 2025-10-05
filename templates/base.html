@@ -273,6 +273,18 @@
                     <span>Receiving</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Material Issues</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('returns_routes.list_returns') }}">
+                    <i class="bi bi-arrow-return-left"></i>
+                    <span>Material Returns</span>
+                </a>
+            </li>
         </ul>
         
         <div class="sidebar-section-title">Reports</div>

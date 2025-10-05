@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Return Material - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-arrow-return-left"></i> Return Material from Work Order</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="work_order_id" class="form-label">Work Order *</label>
+                        <select class="form-select" id="work_order_id" name="work_order_id" required onchange="loadIssuedMaterials()">
+                            <option value="">Select Work Order</option>
+                            {% for wo in work_orders %}
+                            <option value="{{ wo.id }}">
+                                {{ wo.wo_number }} - {{ wo.product_code }} ({{ wo.status }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="return_date" class="form-label">Return Date *</label>
+                        <input type="date" class="form-control" id="return_date" name="return_date" required value="{{ today }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product to Return *</label>
+                        <select class="form-select" id="product_id" name="product_id" required onchange="updateAvailable()">
+                            <option value="">Select Work Order First</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="quantity_returned" class="form-label">Quantity to Return *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity_returned" name="quantity_returned" required min="0.01">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Available to Return</label>
+                        <input type="text" class="form-control" id="available_display" readonly style="background-color: #e9ecef;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="condition" class="form-label">Condition *</label>
+                        <select class="form-select" id="condition" name="condition" required>
+                            <option value="Serviceable">Serviceable</option>
+                            <option value="New">New</option>
+                            <option value="Damaged">Damaged</option>
+                            <option value="Overhauled">Overhauled</option>
+                            <option value="Repaired">Repaired</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="warehouse_location" class="form-label">Warehouse</label>
+                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" value="Main">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="bin_location" class="form-label">Bin Location</label>
+                        <input type="text" class="form-control" id="bin_location" name="bin_location">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="reason" class="form-label">Reason for Return</label>
+                <input type="text" class="form-control" id="reason" name="reason" placeholder="e.g., Excess material, unused parts">
+            </div>
+
+            <div class="mb-3">
+                <label for="remarks" class="form-label">Remarks</label>
+                <textarea class="form-control" id="remarks" name="remarks" rows="3"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('returns_routes.list_returns') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Return Material</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let issuedMaterials = [];
+
+function loadIssuedMaterials() {
+    const woId = document.getElementById('work_order_id').value;
+    if (!woId) {
+        document.getElementById('product_id').innerHTML = '<option value="">Select Work Order First</option>';
+        return;
+    }
+    
+    fetch(`/returns/get_issued_materials/${woId}`)
+        .then(response => response.json())
+        .then(data => {
+            issuedMaterials = data;
+            const select = document.getElementById('product_id');
+            select.innerHTML = '<option value="">Select Product</option>';
+            
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.product_id;
+                option.textContent = `${item.product_code} - ${item.product_name} (Available: ${item.available_to_return.toFixed(2)} ${item.unit_of_measure})`;
+                option.dataset.available = item.available_to_return;
+                option.dataset.uom = item.unit_of_measure;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading materials:', error);
+            alert('Error loading issued materials');
+        });
+}
+
+function updateAvailable() {
+    const select = document.getElementById('product_id');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        const available = parseFloat(option.dataset.available);
+        document.getElementById('available_display').value = available.toFixed(2) + ' ' + option.dataset.uom;
+        document.getElementById('quantity_returned').max = available;
+    } else {
+        document.getElementById('available_display').value = '';
+    }
+}
+</script>
+{% endblock %}
