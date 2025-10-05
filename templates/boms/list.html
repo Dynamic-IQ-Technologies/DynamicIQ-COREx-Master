@@ -79,8 +79,7 @@
             {% for bom_group in boms_grouped %}
             <div class="accordion-item bom-parent-item" 
                  data-parent="{{ bom_group.parent_code }} {{ bom_group.parent_name }}"
-                 data-category="{{ bom_group.children[0].category or 'Other' }}"
-                 data-status="{{ bom_group.children[0].status or 'Active' }}">
+                 data-parent-id="{{ bom_group.parent_id }}">
                 <h2 class="accordion-header" id="heading{{ loop.index }}">
                     <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ loop.index }}">
                         <div class="d-flex justify-content-between align-items-center w-100 me-3">
@@ -119,7 +118,9 @@
                                 </thead>
                                 <tbody>
                                     {% for child in bom_group.children %}
-                                    <tr>
+                                    <tr class="bom-child-row"
+                                        data-category="{{ child.category or 'Other' }}"
+                                        data-status="{{ child.status or 'Active' }}">
                                         <td>{{ child.find_number or '-' }}</td>
                                         <td>
                                             <strong>{{ child.child_code }}</strong> - {{ child.child_name }}
@@ -177,24 +178,46 @@ function filterBOMs() {
     
     items.forEach(item => {
         const parent = item.getAttribute('data-parent').toLowerCase();
-        const category = item.getAttribute('data-category');
-        const status = item.getAttribute('data-status');
         
-        let showItem = true;
+        // Check if parent name matches
+        let matchesParent = !parentFilter || parent.includes(parentFilter);
         
-        if (parentFilter && !parent.includes(parentFilter)) {
-            showItem = false;
+        if (!matchesParent) {
+            item.style.display = 'none';
+            return;
         }
         
-        if (categoryFilter && category !== categoryFilter) {
-            showItem = false;
+        // If parent matches and no dropdown filters are active, show it
+        if (!categoryFilter && !statusFilter) {
+            item.style.display = '';
+            return;
         }
         
-        if (statusFilter && status !== statusFilter) {
-            showItem = false;
-        }
+        // Check if any child component matches category/status filters
+        const childRows = item.querySelectorAll('.bom-child-row');
+        let hasMatchingChild = false;
         
-        item.style.display = showItem ? '' : 'none';
+        childRows.forEach(row => {
+            const childCategory = row.getAttribute('data-category');
+            const childStatus = row.getAttribute('data-status');
+            
+            let matchesFilters = true;
+            
+            if (categoryFilter && childCategory !== categoryFilter) {
+                matchesFilters = false;
+            }
+            
+            if (statusFilter && childStatus !== statusFilter) {
+                matchesFilters = false;
+            }
+            
+            if (matchesFilters) {
+                hasMatchingChild = true;
+            }
+        });
+        
+        // Show parent only if it has at least one matching child for dropdown filters
+        item.style.display = hasMatchingChild ? '' : 'none';
     });
 }
 
