@@ -6,7 +6,7 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management, Permissions, and BOM Import/Export features added
+**October 5, 2025**: User Management, Permissions, BOM Import/Export, and Work Order Auto-numbering features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
@@ -18,6 +18,11 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
   - Import: Supports CSV upload with robust error handling, per-row validation, and automatic scrap percentage defaulting to 0
   - Error reporting: Shows specific errors for up to 10 failed rows to help users fix issues
   - Security: Import restricted to Admin and Planner roles only
+- Implemented automatic Work Order number generation
+  - Format: WO-XXXXXX (6 digits starting from WO-000001)
+  - Sequential numbering with retry logic to handle concurrent submissions
+  - Displays next WO number on creation form
+  - Handles legacy work order formats gracefully
 - UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
