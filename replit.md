@@ -30,6 +30,11 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
   - Sequential numbering with retry logic to handle concurrent submissions
   - Displays next PO number on creation form
   - Handles legacy purchase order formats gracefully
+- Added manual Inventory creation capability
+  - Auto-generated Inventory IDs in format INV-XXXXXX
+  - Create inventory records for products without existing inventory
+  - Inventory ID displayed when creating or receiving inventory
+  - Purchase order receiving now shows the inventory ID upon completion
 - UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
@@ -104,8 +109,11 @@ Preferred communication style: Simple, everyday language.
   - CSV Import/Export: Bulk import and export BOMs with validation and error handling
   - Format: Parent Code, Parent Name, Child Code, Child Name, Quantity, Scrap Percentage
 - **Inventory**: Tracks quantity, reorder points, and safety stock levels
+  - Manual Creation: Create inventory records for products without existing inventory
+  - Auto-generated Inventory IDs in format INV-XXXXXX (displayed in list and confirmation messages)
   - CSV Import/Export: Bulk import/export for updating inventory levels and parameters
   - Format: Product Code, Product Name, Quantity, Reorder Point, Safety Stock
+  - Inventory ID automatically created when receiving purchase orders
 - **Work Orders**: Production orders with status tracking, cost allocation (material/labor/overhead)
   - Auto-generated WO numbers in format WO-XXXXXX
 - **Purchase Orders**: Procurement tracking with supplier relationships

@@ -16,6 +16,9 @@
         <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#importModal">
             <i class="bi bi-upload"></i> Import CSV
         </button>
+        <a href="{{ url_for('inventory_routes.create_inventory') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Inventory
+        </a>
         {% endif %}
     </div>
 </div>
@@ -26,6 +29,7 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
+                        <th>Inventory ID</th>
                         <th>Code</th>
                         <th>Product</th>
                         <th>Quantity</th>
@@ -39,6 +43,7 @@
                 <tbody>
                     {% for item in inventory %}
                     <tr>
+                        <td><span class="badge bg-secondary">INV-{{ "%06d"|format(item.id) }}</span></td>
                         <td>{{ item.code }}</td>
                         <td>{{ item.name }}</td>
                         <td>{{ item.quantity }}</td>

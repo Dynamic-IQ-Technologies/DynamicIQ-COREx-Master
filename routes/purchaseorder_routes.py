@@ -125,18 +125,21 @@ def receive_purchaseorder(id):
     
     inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (po['product_id'],)).fetchone()
     
+    inventory_id = None
     if inventory:
         new_qty = inventory['quantity'] + po['quantity']
         conn.execute('UPDATE inventory SET quantity=?, last_updated=CURRENT_TIMESTAMP WHERE product_id=?', 
                     (new_qty, po['product_id']))
+        inventory_id = inventory['id']
     else:
-        conn.execute('INSERT INTO inventory (product_id, quantity) VALUES (?, ?)', 
+        conn.execute('INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock) VALUES (?, ?, 0, 0)', 
                     (po['product_id'], po['quantity']))
+        inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
     
     conn.commit()
     conn.close()
     
-    flash('Purchase Order received and inventory updated!', 'success')
+    flash(f'Purchase Order received and inventory updated! Inventory ID: INV-{inventory_id:06d}', 'success')
     return redirect(url_for('po_routes.list_purchaseorders'))
 
 @po_bp.route('/purchaseorders/suggestions')

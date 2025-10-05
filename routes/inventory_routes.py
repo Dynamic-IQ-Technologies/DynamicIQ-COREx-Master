@@ -20,6 +20,48 @@ def list_inventory():
     conn.close()
     return render_template('inventory/list.html', inventory=inventory)
 
+@inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
+@role_required('Admin', 'Production Staff')
+def create_inventory():
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        product_id = int(request.form['product_id'])
+        
+        existing = conn.execute('SELECT id FROM inventory WHERE product_id=?', (product_id,)).fetchone()
+        
+        if existing:
+            conn.close()
+            flash('Inventory already exists for this product. Use adjust instead.', 'warning')
+            return redirect(url_for('inventory_routes.list_inventory'))
+        
+        conn.execute('''
+            INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
+            VALUES (?, ?, ?, ?)
+        ''', (
+            product_id,
+            float(request.form.get('quantity', 0)),
+            float(request.form.get('reorder_point', 0)),
+            float(request.form.get('safety_stock', 0))
+        ))
+        
+        inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        conn.commit()
+        conn.close()
+        
+        flash(f'Inventory created successfully! Inventory ID: INV-{inventory_id:06d}', 'success')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    products = conn.execute('''
+        SELECT p.* FROM products p
+        WHERE p.id NOT IN (SELECT product_id FROM inventory)
+        ORDER BY p.code
+    ''').fetchall()
+    conn.close()
+    
+    return render_template('inventory/create.html', products=products)
+
 @inventory_bp.route('/inventory/<int:id>/adjust', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
 def adjust_inventory(id):
