@@ -25,6 +25,11 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
   - Sequential numbering with retry logic to handle concurrent submissions
   - Displays next WO number on creation form
   - Handles legacy work order formats gracefully
+- Implemented automatic Purchase Order number generation
+  - Format: PO-XXXXXX (6 digits starting from PO-000001)
+  - Sequential numbering with retry logic to handle concurrent submissions
+  - Displays next PO number on creation form
+  - Handles legacy purchase order formats gracefully
 - UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
@@ -104,6 +109,7 @@ Preferred communication style: Simple, everyday language.
 - **Work Orders**: Production orders with status tracking, cost allocation (material/labor/overhead)
   - Auto-generated WO numbers in format WO-XXXXXX
 - **Purchase Orders**: Procurement tracking with supplier relationships
+  - Auto-generated PO numbers in format PO-XXXXXX
 - **Suppliers**: Vendor management with contact information
   - CSV Import/Export: Bulk import/export with template download for supplier management
   - Format: Code, Name, Contact Person, Email, Phone, Address

@@ -27,32 +27,91 @@ def create_purchaseorder():
     conn = db.get_connection()
     
     if request.method == 'POST':
-        conn.execute('''
-            INSERT INTO purchase_orders 
-            (po_number, supplier_id, product_id, quantity, unit_price, status, order_date, expected_delivery_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            request.form['po_number'],
-            int(request.form['supplier_id']),
-            int(request.form['product_id']),
-            float(request.form['quantity']),
-            float(request.form['unit_price']),
-            request.form['status'],
-            request.form.get('order_date'),
-            request.form.get('expected_delivery_date')
-        ))
+        max_attempts = 5
+        po_number = None
+        po_id = None
         
-        conn.commit()
+        for attempt in range(max_attempts):
+            try:
+                last_po = conn.execute('''
+                    SELECT po_number FROM purchase_orders 
+                    WHERE po_number LIKE 'PO-%'
+                    ORDER BY CAST(SUBSTR(po_number, 4) AS INTEGER) DESC 
+                    LIMIT 1
+                ''').fetchone()
+                
+                if last_po:
+                    try:
+                        last_number = int(last_po['po_number'].split('-')[1])
+                        next_number = last_number + 1
+                    except (ValueError, IndexError):
+                        next_number = 1
+                else:
+                    next_number = 1
+                
+                po_number = f'PO-{next_number:06d}'
+                
+                conn.execute('''
+                    INSERT INTO purchase_orders 
+                    (po_number, supplier_id, product_id, quantity, unit_price, status, order_date, expected_delivery_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    po_number,
+                    int(request.form['supplier_id']),
+                    int(request.form['product_id']),
+                    float(request.form['quantity']),
+                    float(request.form['unit_price']),
+                    request.form['status'],
+                    request.form.get('order_date'),
+                    request.form.get('expected_delivery_date')
+                ))
+                
+                po_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                conn.commit()
+                break
+                
+            except Exception as e:
+                if 'UNIQUE constraint failed' in str(e) and attempt < max_attempts - 1:
+                    conn.rollback()
+                    continue
+                else:
+                    conn.close()
+                    flash(f'Error creating purchase order: {str(e)}', 'danger')
+                    return redirect(url_for('po_routes.list_purchaseorders'))
+        
         conn.close()
         
-        flash('Purchase Order created successfully!', 'success')
-        return redirect(url_for('po_routes.list_purchaseorders'))
+        if po_id:
+            flash(f'Purchase Order {po_number} created successfully!', 'success')
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        else:
+            flash('Failed to create purchase order after multiple attempts', 'danger')
+            return redirect(url_for('po_routes.list_purchaseorders'))
     
     suppliers = conn.execute('SELECT * FROM suppliers ORDER BY code').fetchall()
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    
+    last_po = conn.execute('''
+        SELECT po_number FROM purchase_orders 
+        WHERE po_number LIKE 'PO-%'
+        ORDER BY CAST(SUBSTR(po_number, 4) AS INTEGER) DESC 
+        LIMIT 1
+    ''').fetchone()
+    
+    if last_po:
+        try:
+            last_number = int(last_po['po_number'].split('-')[1])
+            next_number = last_number + 1
+        except (ValueError, IndexError):
+            next_number = 1
+    else:
+        next_number = 1
+    
+    next_po_number = f'PO-{next_number:06d}'
+    
     conn.close()
     
-    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products)
+    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products, next_po_number=next_po_number)
 
 @po_bp.route('/purchaseorders/<int:id>/receive', methods=['POST'])
 @role_required('Admin', 'Procurement')
