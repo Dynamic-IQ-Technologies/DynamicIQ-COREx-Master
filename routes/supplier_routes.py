@@ -31,11 +31,30 @@ def create_supplier():
         db = Database()
         conn = db.get_connection()
         
+        # Auto-generate supplier code
+        last_supplier = conn.execute('''
+            SELECT code FROM suppliers 
+            WHERE code LIKE 'SUP-%'
+            ORDER BY CAST(SUBSTR(code, 5) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_supplier:
+            try:
+                last_number = int(last_supplier['code'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        supplier_code = f'SUP-{next_number:06d}'
+        
         conn.execute('''
             INSERT INTO suppliers (code, name, contact_person, email, phone, address)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
-            request.form['code'],
+            supplier_code,
             request.form['name'],
             request.form.get('contact_person', ''),
             request.form.get('email', ''),
@@ -46,7 +65,7 @@ def create_supplier():
         conn.commit()
         conn.close()
         
-        flash('Supplier created successfully!', 'success')
+        flash(f'Supplier created successfully! Code: {supplier_code}', 'success')
         return redirect(url_for('supplier_routes.list_suppliers'))
     
     return render_template('suppliers/create.html')
