@@ -91,6 +91,7 @@ def create_purchaseorder():
     
     suppliers = conn.execute('SELECT * FROM suppliers ORDER BY code').fetchall()
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    uoms = conn.execute('SELECT * FROM uom_master WHERE is_active = 1 ORDER BY uom_code').fetchall()
     
     last_po = conn.execute('''
         SELECT po_number FROM purchase_orders 
@@ -112,7 +113,7 @@ def create_purchaseorder():
     
     conn.close()
     
-    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products, next_po_number=next_po_number)
+    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products, uoms=uoms, next_po_number=next_po_number)
 
 @po_bp.route('/purchaseorders/<int:id>')
 @login_required
