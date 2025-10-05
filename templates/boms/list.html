@@ -5,9 +5,19 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Bill of Materials (BOM)</h2>
-    {% if session.role in ['Admin', 'Planner'] %}
-    <a href="{{ url_for('bom_routes.create_bom') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add BOM</a>
-    {% endif %}
+    <div>
+        <a href="{{ url_for('bom_routes.export_boms') }}" class="btn btn-success me-2">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="bi bi-upload"></i> Import CSV
+        </button>
+        <a href="{{ url_for('bom_routes.create_bom') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add BOM
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 <div class="card">
@@ -44,4 +54,37 @@
         </div>
     </div>
 </div>
+
+{% if session.role in ['Admin', 'Planner'] %}
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">Import BOMs from CSV</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('bom_routes.import_boms') }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>CSV Format:</strong> Your CSV file should have the following columns:<br>
+                        <code>Parent Code, Parent Name, Child Code, Child Name, Quantity, Scrap Percentage</code>
+                        <br><br>
+                        <strong>Note:</strong> Products must already exist in the system. Existing BOMs will be updated.
+                    </div>
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select CSV File</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
