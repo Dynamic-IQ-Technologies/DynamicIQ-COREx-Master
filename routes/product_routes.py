@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
 from models import Database
 from auth import login_required, role_required
+import csv
+import io
 
 product_bp = Blueprint('product_routes', __name__)
 
@@ -96,4 +98,138 @@ def delete_product(id):
     conn.close()
     
     flash('Product deleted successfully!', 'success')
+    return redirect(url_for('product_routes.list_products'))
+
+@product_bp.route('/products/export')
+@login_required
+def export_products():
+    db = Database()
+    conn = db.get_connection()
+    products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Code', 'Name', 'Description', 'Unit of Measure', 'Product Type', 'Cost'])
+    
+    for product in products:
+        writer.writerow([product['code'], product['name'], product['description'], 
+                        product['unit_of_measure'], product['product_type'], product['cost']])
+    
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=products_export.csv'}
+    )
+
+@product_bp.route('/products/template')
+@login_required
+def download_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Code', 'Name', 'Description', 'Unit of Measure', 'Product Type', 'Cost'])
+    
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=product_import_template.csv'}
+    )
+
+@product_bp.route('/products/import', methods=['POST'])
+@role_required('Admin', 'Planner')
+def import_products():
+    if 'file' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(url_for('product_routes.list_products'))
+    
+    file = request.files['file']
+    if not file or not file.filename:
+        flash('No file selected', 'danger')
+        return redirect(url_for('product_routes.list_products'))
+    
+    if not file.filename.lower().endswith('.csv'):
+        flash('Please upload a CSV file', 'danger')
+        return redirect(url_for('product_routes.list_products'))
+    
+    db = Database()
+    conn = None
+    
+    try:
+        stream = io.StringIO(file.stream.read().decode('UTF8'), newline=None)
+        csv_reader = csv.DictReader(stream)
+        
+        conn = db.get_connection()
+        
+        imported_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for row_num, row in enumerate(csv_reader, start=2):
+            try:
+                code = row.get('Code', '').strip()
+                name = row.get('Name', '').strip()
+                description = row.get('Description', '').strip()
+                unit_of_measure = row.get('Unit of Measure', '').strip()
+                product_type = row.get('Product Type', '').strip()
+                cost_str = row.get('Cost', '').strip()
+                
+                if not code or not name or not unit_of_measure or not product_type:
+                    skipped_count += 1
+                    errors.append(f"Row {row_num}: Missing required fields")
+                    continue
+                
+                try:
+                    cost = float(cost_str) if cost_str else 0.0
+                except ValueError:
+                    skipped_count += 1
+                    errors.append(f"Row {row_num}: Invalid cost format")
+                    continue
+                
+                existing = conn.execute('SELECT id FROM products WHERE code = ?', (code,)).fetchone()
+                
+                if existing:
+                    conn.execute('''
+                        UPDATE products 
+                        SET name=?, description=?, unit_of_measure=?, product_type=?, cost=?
+                        WHERE code=?
+                    ''', (name, description, unit_of_measure, product_type, cost, code))
+                else:
+                    conn.execute('''
+                        INSERT INTO products (code, name, description, unit_of_measure, product_type, cost)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (code, name, description, unit_of_measure, product_type, cost))
+                    
+                    product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                    
+                    conn.execute('''
+                        INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
+                        VALUES (?, 0, 0, 0)
+                    ''', (product_id,))
+                
+                imported_count += 1
+            except Exception as row_error:
+                skipped_count += 1
+                errors.append(f"Row {row_num}: {str(row_error)}")
+        
+        conn.commit()
+        
+        if imported_count > 0:
+            flash(f'Successfully imported {imported_count} products. Skipped {skipped_count} rows.', 'success')
+        else:
+            flash(f'No products imported. Skipped {skipped_count} rows.', 'warning')
+        
+        if errors and len(errors) <= 10:
+            for error in errors:
+                flash(error, 'warning')
+        elif errors:
+            flash(f'First 10 errors: {"; ".join(errors[:10])}', 'warning')
+            
+    except Exception as e:
+        flash(f'Error importing products: {str(e)}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+    
     return redirect(url_for('product_routes.list_products'))
