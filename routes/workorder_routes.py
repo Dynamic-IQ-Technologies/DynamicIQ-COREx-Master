@@ -178,6 +178,16 @@ def view_workorder(id):
         WHERE work_order_id = ?
     ''', (id,)).fetchone()
     
+    # Get all tasks for this work order
+    tasks = conn.execute('''
+        SELECT 
+            wot.*,
+            (SELECT COUNT(*) FROM labor_issuance WHERE task_id = wot.id) as labor_count
+        FROM work_order_tasks wot
+        WHERE wot.work_order_id = ?
+        ORDER BY wot.sequence_number, wot.id
+    ''', (id,)).fetchall()
+    
     cost_info = mrp.calculate_work_order_cost(id)
     
     conn.close()
@@ -187,7 +197,8 @@ def view_workorder(id):
                          requirements=requirements,
                          cost_info=cost_info,
                          all_products=all_products,
-                         task_summary=task_summary)
+                         task_summary=task_summary,
+                         tasks=tasks)
 
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')
