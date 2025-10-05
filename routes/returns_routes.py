@@ -5,6 +5,33 @@ from datetime import datetime
 
 returns_bp = Blueprint('returns_routes', __name__)
 
+def update_material_requirement_status(conn, work_order_id, product_id):
+    """Update the status of a material requirement based on available and issued quantities."""
+    # Check if material requirement exists for this product
+    requirement = conn.execute('''
+        SELECT id, required_quantity FROM material_requirements
+        WHERE work_order_id = ? AND product_id = ?
+    ''', (work_order_id, product_id)).fetchone()
+    
+    if requirement:
+        # Get current inventory quantity
+        inventory = conn.execute('''
+            SELECT quantity FROM inventory WHERE product_id = ?
+        ''', (product_id,)).fetchone()
+        
+        available_quantity = inventory['quantity'] if inventory else 0
+        shortage_quantity = max(0, requirement['required_quantity'] - available_quantity)
+        status = 'Satisfied' if shortage_quantity == 0 else 'Shortage'
+        
+        # Update material requirement
+        conn.execute('''
+            UPDATE material_requirements
+            SET available_quantity = ?,
+                shortage_quantity = ?,
+                status = ?
+            WHERE id = ?
+        ''', (available_quantity, shortage_quantity, status, requirement['id']))
+
 @returns_bp.route('/returns')
 @login_required
 def list_returns():
@@ -154,6 +181,9 @@ def create_return():
                 SET material_cost = ?
                 WHERE id = ?
             ''', (new_material_cost, wo_id))
+            
+            # Update material requirement status
+            update_material_requirement_status(conn, wo_id, product_id)
             
             conn.commit()
             flash(f'Material returned successfully! Return Number: {return_number}', 'success')
