@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Receive Material - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-inbox-fill"></i> Receive Material</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="po_id" class="form-label">Purchase Order *</label>
+                        <select class="form-select" id="po_id" name="po_id" required onchange="updatePODetails()">
+                            <option value="">Select Purchase Order</option>
+                            {% for po in pos %}
+                            <option value="{{ po.id }}" 
+                                    data-product-id="{{ po.product_id }}"
+                                    data-product-code="{{ po.product_code }}"
+                                    data-product-name="{{ po.product_name }}"
+                                    data-supplier="{{ po.supplier_name }}"
+                                    data-ordered="{{ '%.2f'|format(po.quantity) }}"
+                                    data-received="{{ '%.2f'|format(po.received_so_far) }}"
+                                    data-remaining="{{ '%.2f'|format(po.remaining_quantity) }}"
+                                    data-uom="{{ po.unit_of_measure }}">
+                                {{ po.po_number }} - {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="receipt_date" class="form-label">Receipt Date *</label>
+                        <input type="date" class="form-control" id="receipt_date" name="receipt_date" required value="{{ today }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-light mb-3" id="po_details" style="display:none;">
+                <div class="card-body">
+                    <h6 class="card-title">Purchase Order Details</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Product:</strong> <span id="detail_product"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Supplier:</strong> <span id="detail_supplier"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Ordered:</strong> <span id="detail_ordered"></span>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-4">
+                            <strong>Already Received:</strong> <span id="detail_received" class="text-success"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Remaining:</strong> <span id="detail_remaining" class="text-primary"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" id="product_id" name="product_id">
+
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="quantity_received" class="form-label">Quantity Received *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity_received" name="quantity_received" required min="0.01">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="condition" class="form-label">Condition *</label>
+                        <select class="form-select" id="condition" name="condition" required>
+                            <option value="New">New</option>
+                            <option value="Serviceable">Serviceable</option>
+                            <option value="Overhauled">Overhauled</option>
+                            <option value="Repaired">Repaired</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="warehouse_location" class="form-label">Warehouse</label>
+                        <input type="text" class="form-control" id="warehouse_location" name="warehouse_location" value="Main">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="receiver_name" class="form-label">Receiver Name</label>
+                        <input type="text" class="form-control" id="receiver_name" name="receiver_name" value="{{ session.username }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="packing_slip_number" class="form-label">Packing Slip Number</label>
+                        <input type="text" class="form-control" id="packing_slip_number" name="packing_slip_number">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="shipment_tracking" class="form-label">Shipment Tracking</label>
+                        <input type="text" class="form-control" id="shipment_tracking" name="shipment_tracking">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="remarks" class="form-label">Remarks</label>
+                <textarea class="form-control" id="remarks" name="remarks" rows="3"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('receiving_routes.list_receiving') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Receive Material</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updatePODetails() {
+    const select = document.getElementById('po_id');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        document.getElementById('product_id').value = option.dataset.productId;
+        document.getElementById('detail_product').textContent = option.dataset.productCode + ' - ' + option.dataset.productName;
+        document.getElementById('detail_supplier').textContent = option.dataset.supplier;
+        document.getElementById('detail_ordered').textContent = option.dataset.ordered + ' ' + option.dataset.uom;
+        document.getElementById('detail_received').textContent = option.dataset.received + ' ' + option.dataset.uom;
+        document.getElementById('detail_remaining').textContent = option.dataset.remaining + ' ' + option.dataset.uom;
+        document.getElementById('po_details').style.display = 'block';
+        
+        // Set max quantity to remaining
+        document.getElementById('quantity_received').max = option.dataset.remaining;
+    } else {
+        document.getElementById('po_details').style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

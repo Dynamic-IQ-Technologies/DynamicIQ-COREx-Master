@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Material Receiving - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-inbox-fill"></i> Material Receiving</h2>
+    <div>
+        {% if session.role in ['Admin', 'Procurement', 'Production Staff'] %}
+        <a href="{{ url_for('receiving_routes.create_receiving') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Receive Material
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Receipt #</th>
+                        <th>PO Number</th>
+                        <th>Product</th>
+                        <th>Qty Received</th>
+                        <th>Receipt Date</th>
+                        <th>Supplier</th>
+                        <th>Warehouse</th>
+                        <th>Condition</th>
+                        <th>Received By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for receipt in receipts %}
+                    <tr>
+                        <td><a href="{{ url_for('receiving_routes.view_receiving', receipt_number=receipt.receipt_number) }}">{{ receipt.receipt_number }}</a></td>
+                        <td><a href="{{ url_for('po_routes.view_purchaseorder', id=receipt.po_id) }}">{{ receipt.po_number }}</a></td>
+                        <td>{{ receipt.product_code }} - {{ receipt.product_name }}</td>
+                        <td>{{ "%.2f"|format(receipt.quantity_received) }} {{ receipt.unit_of_measure }}</td>
+                        <td>{{ receipt.receipt_date }}</td>
+                        <td>{{ receipt.supplier_name }}</td>
+                        <td>{{ receipt.warehouse_location }}</td>
+                        <td>
+                            {% if receipt.condition == 'New' %}
+                            <span class="badge bg-success">{{ receipt.condition }}</span>
+                            {% elif receipt.condition == 'Serviceable' %}
+                            <span class="badge bg-info">{{ receipt.condition }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ receipt.condition }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ receipt.received_by_name }}</td>
+                        <td>
+                            <a href="{{ url_for('receiving_routes.view_receiving', receipt_number=receipt.receipt_number) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

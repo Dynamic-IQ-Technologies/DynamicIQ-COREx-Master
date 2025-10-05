@@ -167,6 +167,91 @@ class Database:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS receiving_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                receipt_number TEXT UNIQUE NOT NULL,
+                po_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity_received REAL NOT NULL,
+                receipt_date DATE NOT NULL,
+                packing_slip_number TEXT,
+                shipment_tracking TEXT,
+                warehouse_location TEXT,
+                receiver_name TEXT,
+                condition TEXT DEFAULT 'New',
+                remarks TEXT,
+                received_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (po_id) REFERENCES purchase_orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (received_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS material_issues (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                issue_number TEXT UNIQUE NOT NULL,
+                work_order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity_issued REAL NOT NULL,
+                issue_date DATE NOT NULL,
+                warehouse_location TEXT,
+                bin_location TEXT,
+                issued_to TEXT,
+                task_reference TEXT,
+                unit_cost REAL DEFAULT 0,
+                total_cost REAL DEFAULT 0,
+                remarks TEXT,
+                issued_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (issued_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS material_returns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                return_number TEXT UNIQUE NOT NULL,
+                work_order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity_returned REAL NOT NULL,
+                return_date DATE NOT NULL,
+                warehouse_location TEXT,
+                bin_location TEXT,
+                condition TEXT DEFAULT 'Serviceable',
+                reason TEXT,
+                remarks TEXT,
+                returned_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (returned_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS inventory_adjustments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                adjustment_number TEXT UNIQUE NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity_before REAL NOT NULL,
+                quantity_adjusted REAL NOT NULL,
+                quantity_after REAL NOT NULL,
+                adjustment_date DATE NOT NULL,
+                reason TEXT NOT NULL,
+                warehouse_location TEXT,
+                remarks TEXT,
+                adjusted_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (adjusted_by) REFERENCES users(id)
+            )
+        ''')
+        
         cursor.execute("PRAGMA table_info(boms)")
         existing_columns = [col[1] for col in cursor.fetchall()]
         
@@ -188,6 +273,42 @@ class Database:
             if col_name not in existing_columns:
                 try:
                     cursor.execute(f'ALTER TABLE boms ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
+        cursor.execute("PRAGMA table_info(inventory)")
+        inv_columns = [col[1] for col in cursor.fetchall()]
+        
+        inventory_new_columns = [
+            ('condition', 'TEXT DEFAULT "New"'),
+            ('warehouse_location', 'TEXT DEFAULT "Main"'),
+            ('bin_location', 'TEXT'),
+            ('status', 'TEXT DEFAULT "Available"'),
+            ('reserved_quantity', 'REAL DEFAULT 0'),
+            ('last_received_date', 'DATE')
+        ]
+        
+        for col_name, col_type in inventory_new_columns:
+            if col_name not in inv_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE inventory ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
+        cursor.execute("PRAGMA table_info(purchase_orders)")
+        po_columns = [col[1] for col in cursor.fetchall()]
+        
+        po_new_columns = [
+            ('received_quantity', 'REAL DEFAULT 0'),
+            ('packing_slip_number', 'TEXT'),
+            ('shipment_tracking', 'TEXT'),
+            ('receiver_name', 'TEXT')
+        ]
+        
+        for col_name, col_type in po_new_columns:
+            if col_name not in po_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE purchase_orders ADD COLUMN {col_name} {col_type}')
                 except sqlite3.OperationalError:
                     pass
         

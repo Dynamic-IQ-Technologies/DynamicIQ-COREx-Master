@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Receipt {{ receipt.receipt_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-inbox-fill"></i> Receipt {{ receipt.receipt_number }}</h2>
+    <div>
+        <a href="{{ url_for('receiving_routes.list_receiving') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> Receipt Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Receipt Number:</strong></div>
+                    <div class="col-8">{{ receipt.receipt_number }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Receipt Date:</strong></div>
+                    <div class="col-8">{{ receipt.receipt_date }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>PO Number:</strong></div>
+                    <div class="col-8"><a href="{{ url_for('po_routes.view_purchaseorder', id=receipt.po_id) }}">{{ receipt.po_number }}</a></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Received By:</strong></div>
+                    <div class="col-8">{{ receipt.received_by_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Receiver Name:</strong></div>
+                    <div class="col-8">{{ receipt.receiver_name }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Supplier Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Supplier:</strong></div>
+                    <div class="col-8">{{ receipt.supplier_name }}</div>
+                </div>
+                {% if receipt.contact_person %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Contact:</strong></div>
+                    <div class="col-8">{{ receipt.contact_person }}</div>
+                </div>
+                {% endif %}
+                {% if receipt.phone %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Phone:</strong></div>
+                    <div class="col-8">{{ receipt.phone }}</div>
+                </div>
+                {% endif %}
+                {% if receipt.email %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>Email:</strong></div>
+                    <div class="col-8">{{ receipt.email }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-box"></i> Product Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Qty Received</th>
+                        <th>Condition</th>
+                        <th>Warehouse</th>
+                        <th>Unit Price</th>
+                        <th>Total Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ receipt.product_code }}</td>
+                        <td>{{ receipt.product_name }}</td>
+                        <td>{{ "%.2f"|format(receipt.quantity_received) }} {{ receipt.unit_of_measure }}</td>
+                        <td>
+                            {% if receipt.condition == 'New' %}
+                            <span class="badge bg-success">{{ receipt.condition }}</span>
+                            {% elif receipt.condition == 'Serviceable' %}
+                            <span class="badge bg-info">{{ receipt.condition }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ receipt.condition }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ receipt.warehouse_location }}</td>
+                        <td>${{ "%.2f"|format(receipt.unit_price) }}</td>
+                        <td class="fw-bold">${{ "%.2f"|format(receipt.quantity_received * receipt.unit_price) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-truck"></i> Shipment Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-4"><strong>Packing Slip:</strong></div>
+            <div class="col-8">{{ receipt.packing_slip_number or '-' }}</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-4"><strong>Tracking Number:</strong></div>
+            <div class="col-8">{{ receipt.shipment_tracking or '-' }}</div>
+        </div>
+        {% if receipt.remarks %}
+        <div class="row mb-3">
+            <div class="col-4"><strong>Remarks:</strong></div>
+            <div class="col-8">{{ receipt.remarks }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Purchase Order Status</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Ordered Quantity:</strong>
+                <p class="fs-5">{{ "%.2f"|format(receipt.po_quantity) }} {{ receipt.unit_of_measure }}</p>
+            </div>
+            <div class="col-md-3">
+                <strong>Total Received:</strong>
+                <p class="fs-5 text-success">{{ "%.2f"|format(receipt.po_received_quantity) }} {{ receipt.unit_of_measure }}</p>
+            </div>
+            <div class="col-md-3">
+                <strong>Remaining:</strong>
+                <p class="fs-5 text-primary">{{ "%.2f"|format(receipt.po_quantity - receipt.po_received_quantity) }} {{ receipt.unit_of_measure }}</p>
+            </div>
+            <div class="col-md-3">
+                <strong>Progress:</strong>
+                <div class="progress mt-2" style="height: 25px;">
+                    {% set progress = (receipt.po_received_quantity / receipt.po_quantity * 100)|int %}
+                    <div class="progress-bar" role="progressbar" style="width: {{ progress }}%;" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ progress }}%
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

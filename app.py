@@ -8,6 +8,7 @@ from routes.supplier_routes import supplier_bp
 from routes.inventory_routes import inventory_bp
 from routes.workorder_routes import workorder_bp
 from routes.purchaseorder_routes import po_bp
+from routes.receiving_routes import receiving_bp
 from routes.report_routes import report_bp
 from routes.user_routes import user_bp
 from routes.permission_routes import permission_bp
@@ -25,6 +26,7 @@ app.register_blueprint(supplier_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(workorder_bp)
 app.register_blueprint(po_bp)
+app.register_blueprint(receiving_bp)
 app.register_blueprint(report_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(permission_bp)

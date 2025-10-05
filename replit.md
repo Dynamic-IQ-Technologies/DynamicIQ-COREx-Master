@@ -14,13 +14,13 @@ Preferred communication style: Simple, everyday language.
 
 **Framework**: Flask web application using Python.
 
-**Database Layer**: SQLite database (`mrp.db`) managed through a `Database` class, utilizing raw SQL queries. The schema includes tables for users, products, BOMs, inventory, work orders, purchase orders, suppliers, user permissions, and company settings. A singleton pattern is enforced for company settings.
+**Database Layer**: SQLite database (`mrp.db`) managed through a `Database` class, utilizing raw SQL queries. The schema includes tables for users, products, BOMs, inventory (enhanced with condition, warehouse/bin location, status tracking, reserved quantities), work orders, purchase orders (with received quantity tracking), suppliers, receiving transactions, material issues, material returns, inventory adjustments, user permissions, and company settings. A singleton pattern is enforced for company settings.
 
 **Authentication & Authorization**: Session-based authentication with Flask sessions and Werkzeug for password hashing. Role-based access control is implemented using decorators (`@login_required`, `@role_required`) for four distinct roles: Admin, Planner, Production Staff, and Procurement. A granular permissions system allows fine-grained control beyond roles. New user registration defaults to "Production Staff" role.
 
 **Application Structure**: Modular design using Flask Blueprints for features like authentication, products, BOMs, inventory, etc. A context processor injects the current user into templates, and a before-request hook initializes the database. Secure file upload handling is included.
 
-**Business Logic**: The `MRPEngine` class manages core MRP calculations, including a recursive BOM explosion algorithm to determine material requirements, supporting scrap percentage calculations. Automatic sequential numbering is implemented for Work Orders (WO-XXXXXX), Purchase Orders (PO-XXXXXX), and Inventory IDs (INV-XXXXXX).
+**Business Logic**: The `MRPEngine` class manages core MRP calculations, including a recursive BOM explosion algorithm to determine material requirements, supporting scrap percentage calculations. Automatic sequential numbering is implemented for Work Orders (WO-XXXXXX), Purchase Orders (PO-XXXXXX), Receiving Transactions (RCV-XXXXXX), and Inventory IDs (INV-XXXXXX). Material receiving automatically updates inventory levels and purchase order statuses.
 
 ### Frontend Architecture
 
@@ -35,9 +35,10 @@ Preferred communication style: Simple, everyday language.
 **Core Entities**:
 - **Products**: Managed with code, type (Raw Material/Component/Finished Good), unit, and cost. Supports CSV import/export.
 - **Bill of Materials (BOM)**: Industry-standard multi-level system with hierarchy support, auto-generated find numbers, categories (e.g., Electrical, Mechanical), revision control, reference designators, document links, and cost tracking. Features an accordion-style grouped display where each parent product (assembly) appears once with all child components listed in a nested table underneath. Includes interactive tree view, advanced filtering (supporting mixed category/status children), clone functionality, mass updates, and roll-up summaries. Supports CSV import/export with validation. Quick "Add Line" workflow allows rapid component addition with green ➕ button that pre-selects parent product.
-- **Inventory**: Tracks quantity, reorder points, and safety stock. Includes manual creation, auto-generated Inventory IDs, and CSV import/export for updates.
+- **Inventory**: Enhanced tracking with quantity, reorder points, safety stock, condition (New/Serviceable/Overhauled/Repaired), warehouse/bin location, status (Available/Reserved/Out of Stock), and reserved quantities for work orders. Includes manual creation, auto-generated Inventory IDs, and CSV import/export for updates.
 - **Work Orders**: Production orders with status tracking, cost allocation, and manual material requirements management. Supports auto-generated WO numbers, automatic BOM-based material calculations, and the ability to add, edit, or delete material requirements directly from the work order view. Material requirements automatically integrate with inventory to show available quantities and shortages.
-- **Purchase Orders**: Procurement tracking with supplier relationships, auto-generated PO numbers, detailed individual views, direct receiving, and professional print/download functionality with company branding.
+- **Purchase Orders**: Procurement tracking with supplier relationships, auto-generated PO numbers, detailed individual views, partial/full receiving support with shipment tracking, and professional print/download functionality with company branding.
+- **Material Receiving**: Complete receiving system against purchase orders with auto-generated receipt numbers (RCV-XXXXXX), partial receipt support, condition tracking (New/Serviceable/Overhauled/Repaired), warehouse location assignment, packing slip and shipment tracking, automatic inventory updates, and PO status management. Validates received quantities and ensures product integrity.
 - **Suppliers**: Vendor management with contact information, supporting CSV import/export.
 - **Company Settings**: Configurable business information (singleton pattern) including general, contact, tax/regulatory details, and logo upload for professional document generation. Admin-only editing.
 
