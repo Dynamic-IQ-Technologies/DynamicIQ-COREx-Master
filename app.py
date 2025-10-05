@@ -26,6 +26,7 @@ from routes.time_tracking_routes import time_tracking_bp
 from routes.uom_routes import uom_bp
 from routes.audit_routes import audit_bp
 from routes.ap_routes import ap_bp
+from routes.executive_routes import executive_routes
 import os
 
 app = Flask(__name__)
@@ -57,6 +58,7 @@ app.register_blueprint(time_tracking_bp)
 app.register_blueprint(uom_bp)
 app.register_blueprint(audit_bp)
 app.register_blueprint(ap_bp)
+app.register_blueprint(executive_routes)
 
 @app.context_processor
 def inject_user():

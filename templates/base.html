@@ -322,6 +322,12 @@
         </div>
         <ul class="sidebar-nav collapsible-content" id="accounting-content">
             <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('executive_routes.dashboard') }}">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Executive Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.list_accounts') }}">
                     <i class="bi bi-list-ul"></i>
                     <span>Chart of Accounts</span>

@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Accounting Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-graph-up-arrow"></i> Executive Accounting Dashboard</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('executive_routes.export_dashboard', date_range=date_filter) }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download"></i> Export to CSV
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-info-circle"></i> Viewing <strong>{{ period_label }}</strong> data</span>
+        <small class="text-muted">Last Updated: {{ last_updated }}</small>
+    </div>
+
+    <form method="GET" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="date_range" class="form-label">Period</label>
+            <select class="form-select" id="date_range" name="date_range" onchange="this.form.submit()">
+                <option value="mtd" {% if date_filter == 'mtd' %}selected{% endif %}>Month to Date</option>
+                <option value="qtd" {% if date_filter == 'qtd' %}selected{% endif %}>Quarter to Date</option>
+                <option value="ytd" {% if date_filter == 'ytd' %}selected{% endif %}>Year to Date</option>
+            </select>
+        </div>
+    </form>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 border-primary">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Revenue</h6>
+                    <h3 class="card-title text-primary mb-0">${{ "{:,.2f}".format(revenue) }}</h3>
+                    <small class="text-muted">{{ period_label }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-danger">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Expenses</h6>
+                    <h3 class="card-title text-danger mb-0">${{ "{:,.2f}".format(expenses) }}</h3>
+                    <small class="text-muted">{{ period_label }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 {% if profit_margin >= 20 %}border-success{% elif profit_margin >= 10 %}border-warning{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Gross Profit Margin</h6>
+                    <h3 class="card-title {% if profit_margin >= 20 %}text-success{% elif profit_margin >= 10 %}text-warning{% else %}text-danger{% endif %} mb-0">
+                        {{ "{:.2f}".format(profit_margin) }}%
+                    </h3>
+                    <small class="text-muted">Profit: ${{ "{:,.2f}".format(gross_profit) }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 {% if net_income >= 0 %}border-success{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Net Income</h6>
+                    <h3 class="card-title {% if net_income >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">
+                        ${{ "{:,.2f}".format(net_income) }}
+                    </h3>
+                    <small class="text-muted">{{ period_label }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100 border-warning">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Accounts Payable (Open)</h6>
+                    <h3 class="card-title text-warning mb-0">${{ "{:,.2f}".format(ap_open) }}</h3>
+                    <small class="text-muted">Due Now: ${{ "{:,.2f}".format(ap_due) }}</small>
+                    <div class="mt-2">
+                        <a href="{{ url_for('ap_routes.list_payables') }}" class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-arrow-right"></i> View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Cash on Hand</h6>
+                    <h3 class="card-title text-info mb-0">${{ "{:,.2f}".format(cash_balance) }}</h3>
+                    <small class="text-muted">From GL Cash Accounts</small>
+                    <div class="mt-2">
+                        <a href="{{ url_for('accounting_routes.general_ledger') }}" class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-arrow-right"></i> View GL
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-secondary">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Inventory Value</h6>
+                    <h3 class="card-title text-secondary mb-0">${{ "{:,.2f}".format(inventory_value) }}</h3>
+                    <small class="text-muted">Current on-hand value</small>
+                    <div class="mt-2">
+                        <a href="{{ url_for('inventory_routes.inventory_list') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-right"></i> View Inventory
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-gradient text-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Revenue vs. Expenses Trend (Last 12 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueExpenseChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-gradient text-white">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> A/P Aging</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="apAgingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-gradient text-white">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Top 10 Vendors by Spend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="topVendorsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-gradient text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> Top 10 Work Orders by Cost</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="topWorkOrdersChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-gradient text-white">
+            <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <a href="{{ url_for('ap_routes.list_payables') }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-file-earmark-text"></i> Accounts Payable
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('accounting_routes.general_ledger') }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-journal-text"></i> General Ledger
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('accounting_routes.trial_balance') }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-calculator"></i> Trial Balance
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('accounting_routes.income_statement') }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-graph-up"></i> Income Statement
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const trendLabels = {{ trend_labels | tojson }};
+    const trendRevenue = {{ trend_revenue | tojson }};
+    const trendExpenses = {{ trend_expenses | tojson }};
+    
+    const revenueExpenseCtx = document.getElementById('revenueExpenseChart').getContext('2d');
+    new Chart(revenueExpenseCtx, {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: 'Revenue',
+                data: trendRevenue,
+                borderColor: 'rgb(74, 144, 226)',
+                backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                tension: 0.1,
+                fill: true
+            }, {
+                label: 'Expenses',
+                data: trendExpenses,
+                borderColor: 'rgb(220, 53, 69)',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '$' + context.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2});
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const apAgingLabels = {{ ap_aging_labels | tojson }};
+    const apAgingAmounts = {{ ap_aging_amounts | tojson }};
+    
+    const apAgingCtx = document.getElementById('apAgingChart').getContext('2d');
+    new Chart(apAgingCtx, {
+        type: 'doughnut',
+        data: {
+            labels: apAgingLabels,
+            datasets: [{
+                data: apAgingAmounts,
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(255, 152, 0, 0.8)',
+                    'rgba(244, 67, 54, 0.8)',
+                    'rgba(139, 0, 0, 0.8)'
+                ],
+                borderColor: [
+                    'rgb(40, 167, 69)',
+                    'rgb(255, 193, 7)',
+                    'rgb(255, 152, 0)',
+                    'rgb(244, 67, 54)',
+                    'rgb(139, 0, 0)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '$' + context.parsed.toLocaleString('en-US', {minimumFractionDigits: 2});
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const vendorLabels = {{ vendor_labels | tojson }};
+    const vendorAmounts = {{ vendor_amounts | tojson }};
+    
+    const topVendorsCtx = document.getElementById('topVendorsChart').getContext('2d');
+    new Chart(topVendorsCtx, {
+        type: 'bar',
+        data: {
+            labels: vendorLabels,
+            datasets: [{
+                label: 'Total Spend',
+                data: vendorAmounts,
+                backgroundColor: 'rgba(74, 144, 226, 0.8)',
+                borderColor: 'rgb(74, 144, 226)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '$' + context.parsed.x.toLocaleString('en-US', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const woLabels = {{ wo_labels | tojson }};
+    const woAmounts = {{ wo_amounts | tojson }};
+    
+    const topWorkOrdersCtx = document.getElementById('topWorkOrdersChart').getContext('2d');
+    new Chart(topWorkOrdersCtx, {
+        type: 'bar',
+        data: {
+            labels: woLabels,
+            datasets: [{
+                label: 'Total Cost',
+                data: woAmounts,
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                borderColor: 'rgb(16, 185, 129)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '$' + context.parsed.x.toLocaleString('en-US', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+<style>
+.bg-gradient {
+    background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);
+}
+</style>
+{% endblock %}
