@@ -60,7 +60,7 @@ def create_purchaseorder():
                     po_number,
                     int(request.form['supplier_id']),
                     int(request.form['product_id']),
-                    float(request.form['quantity']),
+                    int(request.form['quantity']),
                     float(request.form['unit_price']),
                     request.form['status'],
                     request.form.get('order_date'),

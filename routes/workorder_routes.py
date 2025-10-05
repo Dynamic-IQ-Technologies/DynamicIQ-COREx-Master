@@ -177,7 +177,7 @@ def add_material_requirement(wo_id):
     
     try:
         product_id = int(request.form['product_id'])
-        required_quantity = float(request.form['required_quantity'])
+        required_quantity = int(request.form['required_quantity'])
         
         # Check if this material requirement already exists
         existing = conn.execute('''
@@ -223,7 +223,7 @@ def edit_material_requirement(wo_id, req_id):
     conn = db.get_connection()
     
     try:
-        required_quantity = float(request.form['required_quantity'])
+        required_quantity = int(request.form['required_quantity'])
         
         # Get current material requirement
         req = conn.execute('''
