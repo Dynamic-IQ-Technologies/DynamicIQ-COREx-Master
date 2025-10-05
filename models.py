@@ -1060,3 +1060,93 @@ class CompanySettings:
             conn.close()
             settings = CompanySettings.get()
         return settings
+
+
+class GLAutoPost:
+    """Helper class for automatic GL posting from inventory transactions"""
+    
+    @staticmethod
+    def create_auto_journal_entry(conn, entry_date, description, transaction_source, 
+                                   reference_type, reference_id, lines, created_by):
+        """
+        Create and automatically post a journal entry.
+        
+        Args:
+            conn: Database connection
+            entry_date: Date of the entry
+            description: Entry description
+            transaction_source: Source of transaction (e.g., 'Material Receiving')
+            reference_type: Type of source record (e.g., 'receiving_transaction')
+            reference_id: ID of source record
+            lines: List of dicts with keys: account_code, debit, credit, description
+            created_by: User ID creating the entry
+        
+        Returns:
+            entry_id: ID of created journal entry, or None if failed
+        """
+        try:
+            cursor = conn.cursor()
+            
+            # Generate entry number
+            last_entry = conn.execute('''
+                SELECT entry_number FROM gl_entries 
+                WHERE entry_number LIKE 'JE-%'
+                ORDER BY CAST(SUBSTR(entry_number, 4) AS INTEGER) DESC 
+                LIMIT 1
+            ''').fetchone()
+            
+            if last_entry:
+                try:
+                    last_number = int(last_entry['entry_number'].split('-')[1])
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            
+            entry_number = f'JE-{next_number:06d}'
+            
+            # Validate debits = credits
+            total_debit = sum(line.get('debit', 0) for line in lines)
+            total_credit = sum(line.get('credit', 0) for line in lines)
+            
+            if abs(total_debit - total_credit) > 0.01:
+                raise ValueError(f'Debits ({total_debit}) must equal credits ({total_credit})')
+            
+            # Insert journal entry header - automatically posted
+            cursor.execute('''
+                INSERT INTO gl_entries (
+                    entry_number, entry_date, description, transaction_source,
+                    reference_type, reference_id, status, created_by, created_at,
+                    posted_by, posted_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 'Posted', ?, datetime('now'), ?, datetime('now'))
+            ''', (entry_number, entry_date, description, transaction_source,
+                  reference_type, reference_id, created_by, created_by))
+            
+            entry_id = cursor.lastrowid
+            
+            # Insert journal entry lines
+            for line in lines:
+                # Get account_id from account_code
+                account = conn.execute('''
+                    SELECT id FROM chart_of_accounts WHERE account_code = ?
+                ''', (line['account_code'],)).fetchone()
+                
+                if not account:
+                    raise ValueError(f"Account code {line['account_code']} not found")
+                
+                cursor.execute('''
+                    INSERT INTO gl_entry_lines (
+                        gl_entry_id, account_id, debit, credit, description
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (entry_id, account['id'], line.get('debit', 0), 
+                      line.get('credit', 0), line.get('description', '')))
+            
+            return entry_id
+            
+        except Exception as e:
+            # Log error but don't fail the transaction
+            print(f"GL Auto-posting error: {str(e)}")
+            return None

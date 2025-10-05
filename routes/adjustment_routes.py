@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models import Database
+from models import Database, GLAutoPost
 from auth import login_required, role_required
 from datetime import datetime
 
@@ -97,7 +97,8 @@ def create_adjustment():
             adjustment_number = f'ADJ-{next_number:06d}'
             
             # Create inventory adjustment with cost tracking
-            conn.execute('''
+            cursor = conn.cursor()
+            cursor.execute('''
                 INSERT INTO inventory_adjustments 
                 (adjustment_number, product_id, adjustment_type, quantity_adjusted, 
                  quantity_before, quantity_after, adjustment_date, reason, reference, remarks, adjusted_by,
@@ -106,6 +107,8 @@ def create_adjustment():
             ''', (adjustment_number, product_id, adjustment_type, quantity_adjusted,
                   current_qty, new_qty, adjustment_date, reason, reference, remarks, session['user_id'],
                   unit_cost, cost_impact))
+            
+            adjustment_id = cursor.lastrowid
             
             # Update inventory
             inventory = conn.execute('SELECT * FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
@@ -127,6 +130,56 @@ def create_adjustment():
                     (product_id, quantity, status)
                     VALUES (?, ?, 'Available')
                 ''', (product_id, new_qty))
+            
+            # Auto-post GL entry for inventory adjustment (only if cost_impact != 0)
+            if cost_impact != 0:
+                if adjustment_type == 'Increase':
+                    # Inventory increased
+                    # Debit: Inventory (increase asset)
+                    # Credit: Other Income (increase revenue/income)
+                    gl_lines = [
+                        {
+                            'account_code': '1130',  # Inventory
+                            'debit': abs(cost_impact),
+                            'credit': 0,
+                            'description': f'Inventory increase - {product["name"]} ({adjustment_number})'
+                        },
+                        {
+                            'account_code': '4300',  # Other Income
+                            'debit': 0,
+                            'credit': abs(cost_impact),
+                            'description': f'Inventory adjustment gain - {product["name"]} ({adjustment_number})'
+                        }
+                    ]
+                else:  # Decrease
+                    # Inventory decreased
+                    # Debit: Material Cost (increase expense)
+                    # Credit: Inventory (decrease asset)
+                    gl_lines = [
+                        {
+                            'account_code': '5100',  # Material Cost
+                            'debit': abs(cost_impact),
+                            'credit': 0,
+                            'description': f'Inventory adjustment loss - {product["name"]} ({adjustment_number})'
+                        },
+                        {
+                            'account_code': '1130',  # Inventory
+                            'debit': 0,
+                            'credit': abs(cost_impact),
+                            'description': f'Inventory decrease - {product["name"]} ({adjustment_number})'
+                        }
+                    ]
+                
+                GLAutoPost.create_auto_journal_entry(
+                    conn=conn,
+                    entry_date=adjustment_date,
+                    description=f'Inventory Adjustment - {adjustment_number}',
+                    transaction_source='Inventory Adjustment',
+                    reference_type='inventory_adjustment',
+                    reference_id=adjustment_id,
+                    lines=gl_lines,
+                    created_by=session['user_id']
+                )
             
             conn.commit()
             flash(f'Inventory adjusted successfully! Adjustment Number: {adjustment_number}', 'success')

@@ -1,0 +1,99 @@
+Update the app to automatically create an Accounts Payable (A/P) record for any received transaction (e.g., Purchase Order Receipt, Repair Order Receipt, or Service Receipt) that requires supplier or vendor payment.
+
+Functional Requirements:
+
+Trigger Point:
+
+Automatically generate an A/P record when:
+
+A Purchase Order or Repair Order is marked as Received or Partially Received.
+
+The receipt includes billable material, labor, or service costs.
+
+Exclude customer-supplied or non-billable items.
+
+Accounts Payable Record Structure:
+
+Create a new A/P record with the following key fields populated automatically:
+
+Vendor Name / Supplier (from the original PO or RO)
+
+Vendor Invoice Number (blank or system-generated placeholder until invoice entry)
+
+Purchase Order / Repair Order Reference
+
+Receipt Number (auto-linked to the transaction)
+
+Receipt Date
+
+Amount Due (based on received quantities × unit price)
+
+Tax, Freight, or Additional Charges (if applicable)
+
+Payment Due Date (based on vendor terms)
+
+GL Account Codes (linked automatically to material or expense accounts)
+
+Status: “Pending Invoice” or “Awaiting Payment”
+
+Automatic Numbering:
+
+Generate a unique A/P Transaction ID for each payable created (e.g., “AP-0001234”).
+
+UI Integration:
+
+Add an Accounts Payable section or sub-tab under the related Purchase Order / Repair Order / Receipt.
+
+Include fields for quick visibility of:
+
+Amount Due
+
+Due Date
+
+Payment Status
+
+Linked Receipt # and PO #
+
+Accounting Integration:
+
+Automatically post journal entries upon A/P creation:
+
+Debit: Inventory or Expense Account
+
+Credit: Accounts Payable Liability Account
+
+Ensure all GL entries are tracked with transaction references for traceability.
+
+If invoice reconciliation occurs later, allow update of the A/P amount but log all changes in an Audit Trail.
+
+Validation & Controls:
+
+Validate that the supplier has valid payment terms and is active.
+
+Prevent duplicate A/P creation for the same receipt.
+
+Display a warning or block creation if the vendor invoice already exists for the PO/receipt.
+
+Workflow & Notifications:
+
+Send a system notification or email to the Accounting Department or A/P Clerk when a new payable is generated.
+
+Optionally, queue A/P entries for approval before posting to the ledger.
+
+Reporting & Dashboards:
+
+Add a dashboard or report view to monitor:
+
+Open Payables
+
+Payables Aging Summary (by vendor, due date, or amount)
+
+Payment Status and Reconciliation Progress
+
+Expected Outcome:
+
+Upon material or service receipt, an A/P record is automatically created and linked to the supplier and original transaction.
+
+The system captures all required financial details, ensuring accounting accuracy and timely vendor payments.
+
+The A/P record is fully integrated with the ledger, audit trail, and reporting modules.

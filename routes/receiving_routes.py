@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models import Database
+from models import Database, GLAutoPost
 from auth import login_required, role_required
 from datetime import datetime
 
@@ -110,7 +110,8 @@ def create_receiving():
             receipt_number = f'RCV-{next_number:06d}'
             
             # Create receiving transaction
-            conn.execute('''
+            cursor = conn.cursor()
+            cursor.execute('''
                 INSERT INTO receiving_transactions 
                 (receipt_number, po_id, product_id, quantity_received, receipt_date, 
                  packing_slip_number, shipment_tracking, warehouse_location, bin_location, 
@@ -118,6 +119,8 @@ def create_receiving():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (receipt_number, po_id, product_id, quantity_received, receipt_date,
                   packing_slip, tracking, warehouse, bin_location, receiver, condition, remarks, session['user_id']))
+            
+            receipt_id = cursor.lastrowid
             
             # Update PO received quantity
             new_received = received_so_far + quantity_received
@@ -150,6 +153,36 @@ def create_receiving():
                     (product_id, quantity, condition, warehouse_location, bin_location, last_received_date, status)
                     VALUES (?, ?, ?, ?, ?, ?, 'Available')
                 ''', (product_id, quantity_received, condition, warehouse, bin_location, receipt_date))
+            
+            # Auto-post GL entry for receiving
+            # Debit: Inventory (increase asset)
+            # Credit: Accounts Payable (increase liability)
+            total_value = quantity_received * po['unit_price']
+            gl_lines = [
+                {
+                    'account_code': '1130',  # Inventory
+                    'debit': total_value,
+                    'credit': 0,
+                    'description': f'Material received - {po["product_name"]} ({receipt_number})'
+                },
+                {
+                    'account_code': '2110',  # Accounts Payable
+                    'debit': 0,
+                    'credit': total_value,
+                    'description': f'AP for material received - {po["product_name"]} ({receipt_number})'
+                }
+            ]
+            
+            GLAutoPost.create_auto_journal_entry(
+                conn=conn,
+                entry_date=receipt_date,
+                description=f'Material Receiving - {receipt_number}',
+                transaction_source='Material Receiving',
+                reference_type='receiving_transaction',
+                reference_id=receipt_id,
+                lines=gl_lines,
+                created_by=session['user_id']
+            )
             
             conn.commit()
             flash(f'Material received successfully! Receipt Number: {receipt_number}', 'success')

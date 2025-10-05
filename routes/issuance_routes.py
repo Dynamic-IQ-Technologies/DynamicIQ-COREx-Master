@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models import Database
+from models import Database, GLAutoPost
 from auth import login_required, role_required
 from datetime import datetime
 
@@ -159,7 +159,8 @@ def create_issue():
             issue_number = f'ISS-{next_number:06d}'
             
             # Create material issue
-            conn.execute('''
+            cursor = conn.cursor()
+            cursor.execute('''
                 INSERT INTO material_issues 
                 (issue_number, work_order_id, product_id, quantity_issued, issue_date, 
                  warehouse_location, bin_location, issued_to, task_reference, 
@@ -167,6 +168,8 @@ def create_issue():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (issue_number, wo_id, product_id, quantity_issued, issue_date,
                   warehouse, bin_location, issued_to, task_ref, unit_cost, total_cost, remarks, session['user_id']))
+            
+            issue_id = cursor.lastrowid
             
             # Update inventory - deduct quantity
             new_qty = inventory['quantity'] - quantity_issued
@@ -192,6 +195,39 @@ def create_issue():
             
             # Update material requirement status
             update_material_requirement_status(conn, wo_id, product_id)
+            
+            # Auto-post GL entry for material issuance
+            # Debit: WIP - Work in Process (increase WIP asset)
+            # Credit: Inventory (decrease inventory asset)
+            product_info = conn.execute('''
+                SELECT name FROM products WHERE id = ?
+            ''', (product_id,)).fetchone()
+            
+            gl_lines = [
+                {
+                    'account_code': '1140',  # WIP - Work in Process
+                    'debit': total_cost,
+                    'credit': 0,
+                    'description': f'Material issued to WO {wo["wo_number"]} - {product_info["name"]} ({issue_number})'
+                },
+                {
+                    'account_code': '1130',  # Inventory
+                    'debit': 0,
+                    'credit': total_cost,
+                    'description': f'Material issued from inventory - {product_info["name"]} ({issue_number})'
+                }
+            ]
+            
+            GLAutoPost.create_auto_journal_entry(
+                conn=conn,
+                entry_date=issue_date,
+                description=f'Material Issuance - {issue_number}',
+                transaction_source='Material Issuance',
+                reference_type='material_issue',
+                reference_id=issue_id,
+                lines=gl_lines,
+                created_by=session['user_id']
+            )
             
             conn.commit()
             flash(f'Material issued successfully! Issue Number: {issue_number}', 'success')
