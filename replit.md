@@ -6,7 +6,7 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, and Material Requirements Report features added
+**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, Material Requirements Report, and Industry-Standard BOM System features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
@@ -43,6 +43,20 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
   - CSV export functionality for external analysis
   - Ordered by planned start date and shortage priority
   - Accessible from Reports menu in sidebar navigation
+- Upgraded BOM System to Full Industry Standards (Aviation/Manufacturing/MRO)
+  - **Multi-Level BOM Hierarchy**: Automatic level numbering (1.0, 1.1, 1.1.1) with recursive tree structure
+  - **Find Number Designation**: Auto-generated sequential find numbers per assembly with manual override capability
+  - **Category Management**: Predefined categories (Electrical, Mechanical, Hardware, Consumable, Subassembly, Other)
+  - **Revision Control**: Revision tracking, effectivity dates, and status (Active, Obsolete, Pending)
+  - **Reference Designators**: Support for component position identifiers (R1, C2, U3)
+  - **Document Links**: Attach drawings, specs, and manuals to BOM items
+  - **Tree View UI**: Interactive expand/collapse visualization with color-coded icons for assemblies vs components
+  - **Advanced Filtering**: Filter by parent product, category, and status with real-time updates
+  - **Clone BOM**: Copy entire BOM structures to new products as templates
+  - **Mass Update**: Bulk update status, revision, or category for all items in an assembly
+  - **Roll-up Summaries**: Category-based cost and quantity aggregation with summary dashboards
+  - **Validation**: Duplicate part prevention, auto-calculated extended costs, visual status indicators
+  - **Enhanced Data**: Unit cost, extended cost, notes, scrap percentage tracking
 - UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
@@ -113,7 +127,19 @@ Preferred communication style: Simple, everyday language.
 - **Products**: Managed with code, type (Raw Material/Component/Finished Good), unit of measure, and cost
   - CSV Import/Export: Bulk import/export with template download, auto-creates inventory for new products
   - Format: Code, Name, Description, Unit of Measure, Product Type, Cost
-- **Bill of Materials (BOM)**: Parent-child relationships with quantity and scrap percentage
+- **Bill of Materials (BOM)**: Industry-standard multi-level BOM system with comprehensive features
+  - **Hierarchy Support**: Multi-level parent-child relationships with automatic level calculation and tree visualization
+  - **Find Numbers**: Auto-generated sequential find numbers (1, 2, 3...) per assembly with manual override
+  - **Categories**: Electrical, Mechanical, Hardware, Consumable, Subassembly, Other
+  - **Revision Control**: Revision tracking (A, B, C...), effectivity dates, status (Active, Obsolete, Pending)
+  - **Reference Data**: Reference designators (R1, C2), document links, notes, quantity, scrap percentage
+  - **Cost Tracking**: Unit cost and extended cost auto-calculation
+  - **Tree View**: Interactive expand/collapse hierarchy with color-coded assembly/component icons
+  - **Filtering**: Real-time filter by parent product, category, and status
+  - **Clone Function**: Copy complete BOM structure to new products
+  - **Mass Update**: Bulk update status, revision, or category for entire assemblies
+  - **Roll-up Summaries**: Cost and quantity aggregation by category with dashboard metrics
+  - **Validation**: Duplicate prevention, required field checks, visual indicators for inactive parts
   - CSV Import/Export: Bulk import and export BOMs with validation and error handling
   - Format: Parent Code, Parent Name, Child Code, Child Name, Quantity, Scrap Percentage
 - **Inventory**: Tracks quantity, reorder points, and safety stock levels
