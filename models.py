@@ -406,24 +406,41 @@ class Database:
         po_columns = [row[1] for row in cursor.execute('PRAGMA table_info(purchase_orders)').fetchall()]
         if 'product_id' in po_columns:
             # Old structure exists, migrate data
-            old_pos = cursor.execute('''
-                SELECT id, product_id, quantity, unit_price, uom_id, received_quantity 
+            # Build SELECT query based on available columns
+            select_cols = ['id', 'product_id', 'quantity', 'unit_price']
+            if 'uom_id' in po_columns:
+                select_cols.append('uom_id')
+            if 'received_quantity' in po_columns:
+                select_cols.append('received_quantity')
+            
+            old_pos = cursor.execute(f'''
+                SELECT {', '.join(select_cols)}
                 FROM purchase_orders
+                WHERE product_id IS NOT NULL
             ''').fetchall()
             
-            for po in old_pos:
+            for row in old_pos:
+                # Convert Row to dict for safe access
+                po = dict(row)
+                
                 # Check if line already exists
                 existing = cursor.execute('''
                     SELECT id FROM purchase_order_lines WHERE po_id = ? AND line_number = 1
                 ''', (po['id'],)).fetchone()
                 
-                if not existing:
+                if not existing and po.get('product_id'):
+                    # Safely get optional columns using dict.get()
+                    uom_id = po.get('uom_id') if 'uom_id' in po_columns else None
+                    received_qty = po.get('received_quantity', 0) if 'received_quantity' in po_columns else 0
+                    
                     cursor.execute('''
                         INSERT INTO purchase_order_lines 
                         (po_id, line_number, product_id, quantity, unit_price, uom_id, received_quantity)
                         VALUES (?, 1, ?, ?, ?, ?, ?)
                     ''', (po['id'], po['product_id'], po['quantity'], po['unit_price'], 
-                          po['uom_id'], po['received_quantity'] if po['received_quantity'] else 0))
+                          uom_id, received_qty if received_qty else 0))
+            
+            conn.commit()
             
             # Remove old columns (SQLite doesn't support DROP COLUMN directly, so we'll keep them for backward compatibility)
             # They will be ignored in new code

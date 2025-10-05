@@ -280,31 +280,37 @@
     <table>
         <thead>
             <tr>
+                <th>#</th>
                 <th>Product Code</th>
                 <th>Description</th>
                 <th>UOM</th>
                 <th style="text-align: right;">Quantity</th>
                 <th style="text-align: right;">Unit Price</th>
-                <th style="text-align: right;">Total</th>
+                <th style="text-align: right;">Line Total</th>
             </tr>
         </thead>
         <tbody>
+            {% set grand_total = 0 %}
+            {% for line in lines %}
             <tr>
-                <td><strong>{{ po.product_code }}</strong></td>
+                <td>{{ line.line_number }}</td>
+                <td><strong>{{ line.product_code }}</strong></td>
                 <td>
-                    <strong>{{ po.product_name }}</strong>
-                    {% if po.description %}
-                    <br><small style="color: #666;">{{ po.description }}</small>
+                    <strong>{{ line.product_name }}</strong>
+                    {% if line.description %}
+                    <br><small style="color: #666;">{{ line.description }}</small>
                     {% endif %}
                 </td>
-                <td>{{ po.uom_code or po.unit_of_measure }}</td>
-                <td style="text-align: right;">{{ "%.2f"|format(po.quantity) if po.quantity != po.quantity|int else po.quantity|int }}</td>
-                <td style="text-align: right;">${{ "%.2f"|format(po.unit_price) }}</td>
-                <td style="text-align: right;">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+                <td>{{ line.uom_code or line.unit_of_measure }}</td>
+                <td style="text-align: right;">{{ "%.2f"|format(line.quantity) if line.quantity != line.quantity|int else line.quantity|int }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(line.unit_price) }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
             </tr>
+            {% set grand_total = grand_total + (line.quantity * line.unit_price) %}
+            {% endfor %}
             <tr class="total-row">
-                <td colspan="5" style="text-align: right;">Total Order Value:</td>
-                <td style="text-align: right;">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+                <td colspan="6" style="text-align: right;"><strong>Total Order Value:</strong></td>
+                <td style="text-align: right;"><strong>${{ "%.2f"|format(grand_total) }}</strong></td>
             </tr>
         </tbody>
     </table>

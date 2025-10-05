@@ -94,35 +94,57 @@
 
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-box"></i> Product Details</h5>
+        <h5 class="mb-0"><i class="bi bi-box"></i> Line Items</h5>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table">
+            <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th>Product Code</th>
                         <th>Product Name</th>
                         <th>UOM</th>
                         <th>Quantity</th>
+                        <th>Received</th>
                         <th>Unit Price</th>
-                        <th>Total Cost</th>
+                        <th>Line Total</th>
+                        <th>In Stock</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% set total = 0 %}
+                    {% for line in lines %}
                     <tr>
-                        <td>{{ po.product_code }}</td>
-                        <td>{{ po.product_name }}</td>
-                        <td>{{ po.uom_code or po.unit_of_measure }}</td>
-                        <td>{{ "%.2f"|format(po.quantity) if po.quantity != po.quantity|int else po.quantity|int }}</td>
-                        <td>${{ "%.2f"|format(po.unit_price) }}</td>
-                        <td class="fw-bold">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+                        <td>{{ line.line_number }}</td>
+                        <td>{{ line.product_code }}</td>
+                        <td>{{ line.product_name }}</td>
+                        <td>{{ line.uom_code or line.unit_of_measure }}</td>
+                        <td>{{ "%.2f"|format(line.quantity) if line.quantity != line.quantity|int else line.quantity|int }}</td>
+                        <td>
+                            {% if line.received_quantity > 0 %}
+                            <span class="badge bg-success">{{ "%.2f"|format(line.received_quantity) if line.received_quantity != line.received_quantity|int else line.received_quantity|int }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">0</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ "%.2f"|format(line.unit_price) }}</td>
+                        <td class="fw-bold">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
+                        <td>
+                            {% if line.inventory_quantity is not none %}
+                            {{ line.inventory_quantity|int }}
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                     </tr>
+                    {% set total = total + (line.quantity * line.unit_price) %}
+                    {% endfor %}
                 </tbody>
                 <tfoot>
-                    <tr>
-                        <td colspan="5" class="text-end"><strong>Total Order Value:</strong></td>
-                        <td class="fw-bold text-primary">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+                    <tr class="table-light">
+                        <td colspan="7" class="text-end"><strong>Total Order Value:</strong></td>
+                        <td colspan="2" class="fw-bold text-primary">${{ "%.2f"|format(total) }}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -130,35 +152,13 @@
     </div>
 </div>
 
-{% if po.inventory_quantity is not none %}
+{% if po.notes %}
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-stack"></i> Current Inventory Status</h5>
+        <h5 class="mb-0"><i class="bi bi-journal-text"></i> Notes</h5>
     </div>
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <div class="alert alert-info">
-                    <strong>Current Inventory Quantity:</strong> {{ po.inventory_quantity|int }} {{ po.unit_of_measure }}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-{% if session.role in ['Admin', 'Procurement'] and po.status != 'Received' %}
-<div class="card border-primary">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-check-circle"></i> Receive Purchase Order</h5>
-    </div>
-    <div class="card-body">
-        <p>Mark this purchase order as received and update inventory levels.</p>
-        <form method="POST" action="{{ url_for('po_routes.receive_purchaseorder', id=po.id) }}">
-            <button type="submit" class="btn btn-success btn-lg">
-                <i class="bi bi-check-circle"></i> Receive Purchase Order
-            </button>
-        </form>
+        <p class="mb-0">{{ po.notes }}</p>
     </div>
 </div>
 {% endif %}

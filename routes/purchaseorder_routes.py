@@ -11,15 +11,19 @@ po_bp = Blueprint('po_routes', __name__)
 def list_purchaseorders():
     db = Database()
     conn = db.get_connection()
+    
+    # Get PO headers with supplier info and line counts
     purchase_orders = conn.execute('''
-        SELECT po.*, s.name as supplier_name, p.code, p.name as product_name, p.unit_of_measure,
-               uom.uom_code, uom.uom_name
+        SELECT po.*, s.name as supplier_name,
+               COUNT(pol.id) as line_count,
+               SUM(pol.quantity * pol.unit_price) as total_amount
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
-        JOIN products p ON po.product_id = p.id
-        LEFT JOIN uom_master uom ON po.uom_id = uom.id
+        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+        GROUP BY po.id
         ORDER BY po.order_date DESC
     ''').fetchall()
+    
     conn.close()
     return render_template('purchaseorders/list.html', purchase_orders=purchase_orders)
 
@@ -157,26 +161,35 @@ def view_purchaseorder(id):
     db = Database()
     conn = db.get_connection()
     
+    # Get PO header with supplier info
     po = conn.execute('''
-        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone,
-               p.code as product_code, p.name as product_name, p.unit_of_measure,
-               i.quantity as inventory_quantity,
-               uom.uom_code, uom.uom_name
+        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
-        JOIN products p ON po.product_id = p.id
-        LEFT JOIN inventory i ON i.product_id = p.id
-        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         WHERE po.id = ?
     ''', (id,)).fetchone()
     
-    conn.close()
-    
     if not po:
+        conn.close()
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
-    return render_template('purchaseorders/view.html', po=po)
+    # Get line items with product and UOM info
+    lines = conn.execute('''
+        SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure,
+               uom.uom_code, uom.uom_name,
+               i.quantity as inventory_quantity
+        FROM purchase_order_lines pol
+        JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master uom ON pol.uom_id = uom.id
+        LEFT JOIN inventory i ON i.product_id = p.id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('purchaseorders/view.html', po=po, lines=lines)
 
 @po_bp.route('/purchaseorders/<int:id>/print')
 @login_required
@@ -184,26 +197,35 @@ def print_purchaseorder(id):
     db = Database()
     conn = db.get_connection()
     
+    # Get PO header
     po = conn.execute('''
-        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address,
-               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description,
-               uom.uom_code, uom.uom_name
+        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
-        JOIN products p ON po.product_id = p.id
-        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         WHERE po.id = ?
     ''', (id,)).fetchone()
     
-    conn.close()
-    
     if not po:
+        conn.close()
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
+    # Get line items
+    lines = conn.execute('''
+        SELECT pol.*, p.code as product_code, p.name as product_name, p.description, p.unit_of_measure,
+               uom.uom_code, uom.uom_name
+        FROM purchase_order_lines pol
+        JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master uom ON pol.uom_id = uom.id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    
     company_settings = CompanySettings.get_or_create_default()
     
-    return render_template('purchaseorders/print.html', po=po, company_settings=company_settings, current_date=datetime.now().strftime('%B %d, %Y'))
+    return render_template('purchaseorders/print.html', po=po, lines=lines, company_settings=company_settings, current_date=datetime.now().strftime('%B %d, %Y'))
 
 @po_bp.route('/purchaseorders/<int:id>/download')
 @login_required
@@ -211,26 +233,35 @@ def download_purchaseorder(id):
     db = Database()
     conn = db.get_connection()
     
+    # Get PO header
     po = conn.execute('''
-        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address,
-               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description,
-               uom.uom_code, uom.uom_name
+        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
-        JOIN products p ON po.product_id = p.id
-        LEFT JOIN uom_master uom ON po.uom_id = uom.id
         WHERE po.id = ?
     ''', (id,)).fetchone()
     
-    conn.close()
-    
     if not po:
+        conn.close()
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
+    # Get line items
+    lines = conn.execute('''
+        SELECT pol.*, p.code as product_code, p.name as product_name, p.description, p.unit_of_measure,
+               uom.uom_code, uom.uom_name
+        FROM purchase_order_lines pol
+        JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master uom ON pol.uom_id = uom.id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    
     company_settings = CompanySettings.get_or_create_default()
     
-    html_content = render_template('purchaseorders/print.html', po=po, company_settings=company_settings, current_date=datetime.now().strftime('%B %d, %Y'))
+    html_content = render_template('purchaseorders/print.html', po=po, lines=lines, company_settings=company_settings, current_date=datetime.now().strftime('%B %d, %Y'))
     
     response = make_response(html_content)
     response.headers['Content-Type'] = 'text/html'
