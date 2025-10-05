@@ -329,3 +329,64 @@ def delete_material_requirement(wo_id, req_id):
         conn.close()
     
     return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+@workorder_bp.route('/workorders/<int:id>/traveler')
+@login_required
+def work_order_traveler(id):
+    from models import CompanySettings
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get work order details
+    workorder = conn.execute('''
+        SELECT wo.*, p.code, p.name, p.unit_of_measure, p.description
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        WHERE wo.id=?
+    ''', (id,)).fetchone()
+    
+    if not workorder:
+        flash('Work Order not found.', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    # Get material requirements
+    requirements = conn.execute('''
+        SELECT 
+            mr.*, 
+            p.code, 
+            p.name, 
+            p.unit_of_measure,
+            COALESCE(
+                (SELECT SUM(mi.quantity_issued) 
+                 FROM material_issues mi 
+                 WHERE mi.work_order_id = mr.work_order_id 
+                   AND mi.product_id = mr.product_id), 0
+            ) as quantity_issued
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        WHERE mr.work_order_id=?
+        ORDER BY p.code
+    ''', (id,)).fetchall()
+    
+    # Get all tasks for this work order
+    tasks = conn.execute('''
+        SELECT 
+            wot.*,
+            lr.employee_name as assigned_resource_name
+        FROM work_order_tasks wot
+        LEFT JOIN labor_resources lr ON wot.assigned_resource_id = lr.id
+        WHERE wot.work_order_id = ?
+        ORDER BY wot.sequence_number, wot.id
+    ''', (id,)).fetchall()
+    
+    # Get company settings
+    company_settings = CompanySettings.get_or_create_default()
+    
+    conn.close()
+    
+    return render_template('workorders/traveler.html', 
+                         workorder=workorder, 
+                         requirements=requirements,
+                         tasks=tasks,
+                         company_settings=company_settings)
