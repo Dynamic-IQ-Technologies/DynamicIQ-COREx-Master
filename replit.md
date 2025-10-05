@@ -6,13 +6,18 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management and Permissions features added
+**October 5, 2025**: User Management, Permissions, and BOM Import/Export features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
 - Created User.get_permissions(), User.set_permission(), and User.get_all_with_permissions() model methods
 - Built permissions management UI with category-based checkboxes for fine-grained access control
 - Updated navigation menu with User Management and Permissions links (Admin only)
+- Added BOM Import/Export functionality with CSV support
+  - Export: Generates CSV with all BOM data (parent/child products, quantities, scrap percentages)
+  - Import: Supports CSV upload with robust error handling, per-row validation, and automatic scrap percentage defaulting to 0
+  - Error reporting: Shows specific errors for up to 10 failed rows to help users fix issues
+  - Security: Import restricted to Admin and Planner roles only
 - UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
@@ -82,6 +87,8 @@ Preferred communication style: Simple, everyday language.
 **Core Entities**:
 - **Products**: Managed with code, type (Raw Material/Component/Finished Good), unit of measure, and cost
 - **Bill of Materials (BOM)**: Parent-child relationships with quantity and scrap percentage
+  - CSV Import/Export: Bulk import and export BOMs with validation and error handling
+  - Format: Parent Code, Parent Name, Child Code, Child Name, Quantity, Scrap Percentage
 - **Inventory**: Tracks quantity, reorder points, and safety stock levels
 - **Work Orders**: Production orders with status tracking, cost allocation (material/labor/overhead)
 - **Purchase Orders**: Procurement tracking with supplier relationships
