@@ -1,0 +1,218 @@
+Upgrade the app’s Bill of Materials (BOM) module to allow complete management of BOM structures — including editing and updating BOM Master records, automatic cost roll-ups, total line tracking, and revision control with rollback functionality — in alignment with industry-standard MRO and manufacturing systems.
+
+1. BOM Master Record Management
+
+Enhance the BOM Master to serve as the central record for managing configuration, cost, and revision traceability.
+
+Required Master Record Fields
+
+BOM ID (auto-generated unique identifier)
+
+BOM Name / Assembly Name
+
+Part Number (linked to Part Master)
+
+Description
+
+Revision ID
+
+Revision Status (Active, In Review, Obsolete)
+
+Created By / Created Date
+
+Last Modified By / Last Modified Date
+
+Effective Date / Expiration Date
+
+Total Cost (auto-calculated)
+
+Total Lines (auto-calculated)
+
+Notes / Comments
+
+Editing Capabilities
+
+Allow authorized users to update elements of the BOM Master Record directly, including:
+
+Description
+
+Revision Notes
+
+Status
+
+Effective Dates
+
+Associated Engineering Document / Drawing Number
+
+Lead Time / Build Time
+
+Enable inline or form-based editing from the BOM detail page.
+
+Log all changes in an audit trail (who, what, and when).
+
+2. Automated Cost Roll-Up
+
+Automatically calculate total BOM cost as the sum of all component and subcomponent costs, multiplied by their respective quantities.
+
+Support multi-level roll-up so subassembly totals are included in parent assemblies.
+
+Display:
+
+Material Cost Total
+
+Labor Cost (optional)
+
+Overhead (optional)
+
+Total BOM Cost
+
+Add a “Recalculate Cost” button to manually trigger updates when costs change.
+
+Automatically refresh cost when a part’s cost in the Part Master is updated.
+
+3. Total Line Count
+
+Display Total Number of Lines/Components in the BOM, dynamically updated when items are added or removed.
+
+Option to filter line counts by category (e.g., Electrical = 12, Hardware = 8).
+
+Include a summary section:
+
+Total Lines
+
+Active Components
+
+Obsolete Components
+
+4. Revision Control System
+
+Implement a full BOM Revision Control system to ensure complete traceability and historical accuracy.
+
+Revision Functionality
+
+Add fields for:
+
+Revision ID (e.g., A, B, C or numeric)
+
+Revision Date
+
+Revision Notes
+
+Changed By
+
+Change Summary
+
+Each time a change is made to the BOM Master or its structure, system prompts:
+“Would you like to create a new BOM Revision?”
+
+If “Yes,” system duplicates the BOM structure and records as a new revision snapshot.
+
+The previous revision is marked as Archived.
+
+Revision Comparison
+
+Add a “Compare Revisions” feature to show differences between two revisions:
+
+Added, deleted, or modified parts.
+
+Cost or quantity changes.
+
+Highlight changes visually (e.g., green = added, red = removed, yellow = changed).
+
+Rollback Functionality
+
+Add “Restore Revision” option that allows reverting the BOM to a selected previous version.
+
+Confirmation required:
+
+“Are you sure you want to restore Revision X? The current BOM will be archived.”
+
+After rollback:
+
+The restored version becomes the new Active Revision.
+
+Current version is marked as Archived for traceability.
+
+5. Revision Workflow & Permissions
+
+Only users with Engineering or Admin roles can create or restore revisions.
+
+Optional workflow:
+
+Draft → In Review → Approved → Active → Obsolete
+
+Store all revision changes in a Revision History Log accessible from the BOM record.
+
+6. UI/UX Requirements
+
+Add “BOM Master Detail” page with tabs:
+
+Summary (master data)
+
+Components (multi-level BOM)
+
+Revision History
+
+Cost Summary
+
+Add visual indicators:
+
+🟢 Active Revision
+
+🔵 Archived Revision
+
+🟡 In Review Revision
+
+Add buttons:
+
+“Edit BOM Master”
+
+“Recalculate Cost”
+
+“Compare Revisions”
+
+“Restore Revision”
+
+“Create New Revision”
+
+Use collapsible tree view to display parent/child relationships.
+
+7. Automation & Integration
+
+Integrate with:
+
+Part Master for live part data (cost, category, status).
+
+Work Orders to ensure builds use the correct revision of the BOM.
+
+Engineering Change Orders (ECO) for formal revision tracking.
+
+Trigger auto-update on cost roll-up when related part or labor data changes.
+
+Optionally sync with Inventory for stock and availability checks.
+
+8. Validation & Data Integrity
+
+Prevent duplicate Part Numbers within the same BOM.
+
+Lock archived or obsolete revisions from editing.
+
+Automatically record:
+
+User who made the change
+
+Timestamp
+
+Revision note summary
+
+Expected Outcome
+
+After implementation, your app will:
+
+Support real-time BOM cost and line roll-ups.
+
+Maintain editable and auditable BOM Master records.
+
+Offer revision comparison, tracking, and rollback capabilities.
+
+Provide complete traceability, consistency, and control across engineering, production, and purchasing processes.
