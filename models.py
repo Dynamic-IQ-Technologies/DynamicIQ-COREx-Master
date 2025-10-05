@@ -103,16 +103,31 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 po_number TEXT UNIQUE NOT NULL,
                 supplier_id INTEGER NOT NULL,
-                product_id INTEGER NOT NULL,
-                quantity REAL NOT NULL,
-                unit_price REAL NOT NULL,
                 status TEXT NOT NULL,
                 order_date DATE,
                 expected_delivery_date DATE,
                 actual_delivery_date DATE,
+                notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-                FOREIGN KEY (product_id) REFERENCES products(id)
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS purchase_order_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                po_id INTEGER NOT NULL,
+                line_number INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity REAL NOT NULL,
+                unit_price REAL NOT NULL,
+                uom_id INTEGER,
+                received_quantity REAL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (uom_id) REFERENCES uom_master(id),
+                UNIQUE(po_id, line_number)
             )
         ''')
         
@@ -384,6 +399,39 @@ class Database:
         if 'bin_location' not in rt_columns:
             try:
                 cursor.execute('ALTER TABLE receiving_transactions ADD COLUMN bin_location TEXT')
+            except sqlite3.OperationalError:
+                pass
+        
+        # Migrate single-line POs to multi-line structure
+        po_columns = [row[1] for row in cursor.execute('PRAGMA table_info(purchase_orders)').fetchall()]
+        if 'product_id' in po_columns:
+            # Old structure exists, migrate data
+            old_pos = cursor.execute('''
+                SELECT id, product_id, quantity, unit_price, uom_id, received_quantity 
+                FROM purchase_orders
+            ''').fetchall()
+            
+            for po in old_pos:
+                # Check if line already exists
+                existing = cursor.execute('''
+                    SELECT id FROM purchase_order_lines WHERE po_id = ? AND line_number = 1
+                ''', (po['id'],)).fetchone()
+                
+                if not existing:
+                    cursor.execute('''
+                        INSERT INTO purchase_order_lines 
+                        (po_id, line_number, product_id, quantity, unit_price, uom_id, received_quantity)
+                        VALUES (?, 1, ?, ?, ?, ?, ?)
+                    ''', (po['id'], po['product_id'], po['quantity'], po['unit_price'], 
+                          po['uom_id'], po['received_quantity'] if po['received_quantity'] else 0))
+            
+            # Remove old columns (SQLite doesn't support DROP COLUMN directly, so we'll keep them for backward compatibility)
+            # They will be ignored in new code
+        
+        # Add notes column to purchase_orders if it doesn't exist
+        if 'notes' not in po_columns:
+            try:
+                cursor.execute('ALTER TABLE purchase_orders ADD COLUMN notes TEXT')
             except sqlite3.OperationalError:
                 pass
         
