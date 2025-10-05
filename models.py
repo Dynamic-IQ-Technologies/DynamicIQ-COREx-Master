@@ -378,6 +378,14 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Add bin_location column to receiving_transactions if it doesn't exist
+        rt_columns = [row[1] for row in cursor.execute('PRAGMA table_info(receiving_transactions)').fetchall()]
+        if 'bin_location' not in rt_columns:
+            try:
+                cursor.execute('ALTER TABLE receiving_transactions ADD COLUMN bin_location TEXT')
+            except sqlite3.OperationalError:
+                pass
+        
         # Create work_order_tasks table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS work_order_tasks (
