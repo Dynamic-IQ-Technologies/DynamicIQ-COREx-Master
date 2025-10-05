@@ -299,6 +299,30 @@
             </li>
         </ul>
         
+        {% if session.role in ['Admin', 'Accountant'] %}
+        <div class="sidebar-section-title">Accounting</div>
+        <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.list_accounts') }}">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Chart of Accounts</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('journal_routes.list_journals') }}">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Journal Entries</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.general_ledger') }}">
+                    <i class="bi bi-book"></i>
+                    <span>General Ledger</span>
+                </a>
+            </li>
+        </ul>
+        {% endif %}
+        
         <div class="sidebar-section-title">Reports</div>
         <ul class="sidebar-nav">
             <li class="sidebar-nav-item">

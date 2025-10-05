@@ -19,6 +19,8 @@ from routes.settings_routes import settings_bp
 from routes.task_routes import task_bp
 from routes.labor_routes import labor_bp
 from routes.labor_issuance_routes import labor_issuance_bp
+from routes.accounting_routes import accounting_bp
+from routes.journal_routes import journal_bp
 import os
 
 app = Flask(__name__)
@@ -43,6 +45,8 @@ app.register_blueprint(settings_bp)
 app.register_blueprint(task_bp)
 app.register_blueprint(labor_bp)
 app.register_blueprint(labor_issuance_bp)
+app.register_blueprint(accounting_bp)
+app.register_blueprint(journal_bp)
 
 @app.context_processor
 def inject_user():
@@ -55,6 +59,7 @@ def inject_user():
 def initialize_database():
     db = Database()
     db.init_db()
+    db.seed_chart_of_accounts()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

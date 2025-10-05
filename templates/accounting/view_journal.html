@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Journal Entry {{ entry.entry_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Journal Entry: {{ entry.entry_number }}</h2>
+    <div>
+        {% if entry.status == 'Draft' and session.role in ['Admin', 'Accountant'] %}
+        <form method="POST" action="{{ url_for('journal_routes.post_journal', id=entry.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Post</button>
+        </form>
+        {% elif entry.status == 'Posted' and session.role == 'Admin' %}
+        <form method="POST" action="{{ url_for('journal_routes.unpost_journal', id=entry.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-warning"><i class="bi bi-x-circle"></i> Unpost</button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('journal_routes.list_journals') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Entry Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Entry Number:</strong> {{ entry.entry_number }}</p>
+                        <p><strong>Entry Date:</strong> {{ entry.entry_date }}</p>
+                        <p><strong>Description:</strong> {{ entry.description }}</p>
+                        <p><strong>Source:</strong> <span class="badge bg-secondary">{{ entry.transaction_source }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong> 
+                            {% if entry.status == 'Posted' %}
+                            <span class="badge bg-success">Posted</span>
+                            {% else %}
+                            <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Created By:</strong> {{ entry.created_by_name }}</p>
+                        <p><strong>Created At:</strong> {{ entry.created_at }}</p>
+                        {% if entry.status == 'Posted' %}
+                        <p><strong>Posted At:</strong> {{ entry.posted_at }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Entry Summary</h5>
+            </div>
+            <div class="card-body">
+                {% set total_debit = lines|sum(attribute='debit') %}
+                {% set total_credit = lines|sum(attribute='credit') %}
+                <p><strong>Total Debit:</strong> ${{ "%.2f"|format(total_debit) }}</p>
+                <p><strong>Total Credit:</strong> ${{ "%.2f"|format(total_credit) }}</p>
+                <p><strong>Balance:</strong> 
+                    {% if (total_debit - total_credit)|abs < 0.01 %}
+                    <span class="text-success">Balanced</span>
+                    {% else %}
+                    <span class="text-danger">Out of Balance</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Journal Entry Lines</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Account Code</th>
+                        <th>Account Name</th>
+                        <th>Description</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr>
+                        <td><strong>{{ line.account_code }}</strong></td>
+                        <td>{{ line.account_name }}</td>
+                        <td>{{ line.description or '-' }}</td>
+                        <td class="text-end">{% if line.debit > 0 %}${{ "%.2f"|format(line.debit) }}{% endif %}</td>
+                        <td class="text-end">{% if line.credit > 0 %}${{ "%.2f"|format(line.credit) }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="table-active">
+                        <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                        <td class="text-end"><strong>${{ "%.2f"|format(total_debit) }}</strong></td>
+                        <td class="text-end"><strong>${{ "%.2f"|format(total_credit) }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

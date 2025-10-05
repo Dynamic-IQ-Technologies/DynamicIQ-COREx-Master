@@ -552,6 +552,80 @@ class Database:
         
         conn.commit()
         conn.close()
+    
+    def seed_chart_of_accounts(self):
+        conn = self.get_connection()
+        
+        existing = conn.execute('SELECT COUNT(*) as count FROM chart_of_accounts').fetchone()
+        if existing['count'] > 0:
+            conn.close()
+            return
+        
+        # Insert parent accounts first
+        parent_accounts = [
+            ('1000', 'Assets', 'Asset'),
+            ('2000', 'Liabilities', 'Liability'),
+            ('3000', 'Equity', 'Equity'),
+            ('4000', 'Revenue', 'Revenue'),
+            ('5000', 'Cost of Goods Sold', 'Expense'),
+            ('6000', 'Operating Expenses', 'Expense')
+        ]
+        
+        account_map = {}
+        for code, name, acc_type in parent_accounts:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO chart_of_accounts (account_code, account_name, account_type, parent_account_id, is_active)
+                VALUES (?, ?, ?, NULL, 1)
+            ''', (code, name, acc_type))
+            account_map[code] = cursor.lastrowid
+        
+        # Insert child accounts with proper parent references
+        child_accounts = [
+            ('1100', 'Current Assets', 'Asset', '1000'),
+            ('1110', 'Cash', 'Asset', '1100'),
+            ('1120', 'Accounts Receivable', 'Asset', '1100'),
+            ('1130', 'Inventory', 'Asset', '1100'),
+            ('1140', 'WIP - Work in Process', 'Asset', '1100'),
+            ('1200', 'Fixed Assets', 'Asset', '1000'),
+            ('1210', 'Equipment', 'Asset', '1200'),
+            ('1220', 'Accumulated Depreciation', 'Asset', '1200'),
+            
+            ('2100', 'Current Liabilities', 'Liability', '2000'),
+            ('2110', 'Accounts Payable', 'Liability', '2100'),
+            ('2120', 'Accrued Expenses', 'Liability', '2100'),
+            ('2130', 'Tax Payable', 'Liability', '2100'),
+            ('2200', 'Long-term Liabilities', 'Liability', '2000'),
+            ('2210', 'Notes Payable', 'Liability', '2200'),
+            
+            ('3100', 'Owner\'s Equity', 'Equity', '3000'),
+            ('3200', 'Retained Earnings', 'Equity', '3000'),
+            
+            ('4100', 'Sales Revenue', 'Revenue', '4000'),
+            ('4200', 'Service Revenue', 'Revenue', '4000'),
+            ('4300', 'Other Income', 'Revenue', '4000'),
+            
+            ('5100', 'Material Cost', 'Expense', '5000'),
+            ('5200', 'Direct Labor', 'Expense', '5000'),
+            ('5300', 'Manufacturing Overhead', 'Expense', '5000'),
+            
+            ('6100', 'Salaries & Wages', 'Expense', '6000'),
+            ('6200', 'Rent Expense', 'Expense', '6000'),
+            ('6300', 'Utilities Expense', 'Expense', '6000'),
+            ('6400', 'Depreciation Expense', 'Expense', '6000'),
+            ('6500', 'Administrative Expenses', 'Expense', '6000')
+        ]
+        
+        for code, name, acc_type, parent_code in child_accounts:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO chart_of_accounts (account_code, account_name, account_type, parent_account_id, is_active)
+                VALUES (?, ?, ?, ?, 1)
+            ''', (code, name, acc_type, account_map.get(parent_code)))
+            account_map[code] = cursor.lastrowid
+        
+        conn.commit()
+        conn.close()
 
 class User:
     @staticmethod

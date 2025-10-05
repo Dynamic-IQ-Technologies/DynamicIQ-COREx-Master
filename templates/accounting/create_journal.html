@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Create Journal Entry - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Create Journal Entry</h2>
+    <a href="{{ url_for('journal_routes.list_journals') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" id="journalForm">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="entry_date" class="form-label">Entry Date *</label>
+                    <input type="date" class="form-control" id="entry_date" name="entry_date" value="{{ today or '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="description" class="form-label">Description *</label>
+                    <input type="text" class="form-control" id="description" name="description" required>
+                </div>
+            </div>
+
+            <hr>
+
+            <h5 class="mb-3">Journal Entry Lines</h5>
+            
+            <div id="journalLines">
+                <div class="row mb-2 journal-line">
+                    <div class="col-md-5">
+                        <label class="form-label">Account</label>
+                        <select class="form-select" name="account_id[]" required>
+                            <option value="">Select Account</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.account_code }} - {{ account.account_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Debit</label>
+                        <input type="number" step="0.01" class="form-control debit-input" name="debit[]" value="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Credit</label>
+                        <input type="number" step="0.01" class="form-control credit-input" name="credit[]" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Line Description</label>
+                        <input type="text" class="form-control" name="line_description[]">
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addLine()"><i class="bi bi-plus"></i> Add Line</button>
+
+            <hr>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Total Debit:</strong> <span id="totalDebit">$0.00</span></p>
+                    <p><strong>Total Credit:</strong> <span id="totalCredit">$0.00</span></p>
+                    <p><strong>Difference:</strong> <span id="difference">$0.00</span></p>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Create Journal Entry</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function addLine() {
+    const lineHtml = `
+        <div class="row mb-2 journal-line">
+            <div class="col-md-5">
+                <select class="form-select" name="account_id[]" required>
+                    <option value="">Select Account</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}">{{ account.account_code }} - {{ account.account_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="0.01" class="form-control debit-input" name="debit[]" value="0">
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="0.01" class="form-control credit-input" name="credit[]" value="0">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" name="line_description[]">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeLine(this)"><i class="bi bi-trash"></i></button>
+            </div>
+        </div>
+    `;
+    document.getElementById('journalLines').insertAdjacentHTML('beforeend', lineHtml);
+    attachEventListeners();
+}
+
+function removeLine(button) {
+    button.closest('.journal-line').remove();
+    updateTotals();
+}
+
+function updateTotals() {
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    document.querySelectorAll('.debit-input').forEach(input => {
+        totalDebit += parseFloat(input.value) || 0;
+    });
+    
+    document.querySelectorAll('.credit-input').forEach(input => {
+        totalCredit += parseFloat(input.value) || 0;
+    });
+    
+    document.getElementById('totalDebit').textContent = '$' + totalDebit.toFixed(2);
+    document.getElementById('totalCredit').textContent = '$' + totalCredit.toFixed(2);
+    
+    const diff = Math.abs(totalDebit - totalCredit);
+    const diffElement = document.getElementById('difference');
+    diffElement.textContent = '$' + diff.toFixed(2);
+    diffElement.style.color = diff > 0.01 ? 'red' : 'green';
+}
+
+function attachEventListeners() {
+    document.querySelectorAll('.debit-input, .credit-input').forEach(input => {
+        input.removeEventListener('input', updateTotals);
+        input.addEventListener('input', updateTotals);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    attachEventListeners();
+    updateTotals();
+});
+</script>
+{% endblock %}

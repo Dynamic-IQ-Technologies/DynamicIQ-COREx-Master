@@ -1,0 +1,136 @@
+Create Clock In / Clock Out Page for Work Orders
+
+Objective:
+Develop a Clock In / Clock Out page in the app that allows employees to log their labor time directly against assigned Work Orders (WOs), enabling accurate labor tracking, cost calculation, and reporting.
+
+1. Page Overview
+
+Page Name: Work Order Time Tracking
+
+Functionality:
+
+Employees can select a Work Order and task (if applicable).
+
+Employees can clock in to start work.
+
+Employees can clock out to end work.
+
+System automatically calculates elapsed labor hours.
+
+Labor hours feed directly into the Work Order Labor Cost module.
+
+2. User Interface
+2.1 Fields / Controls
+
+Employee Name / ID (auto-populated for logged-in user)
+
+Work Order Selection (dropdown/search of active WOs assigned to the employee)
+
+Task Selection (optional, linked to Work Order Tasks)
+
+Clock In Button (records start time)
+
+Clock Out Button (records end time)
+
+Elapsed Time Display (real-time update if clocked in)
+
+Status Indicator (In Progress / Clocked Out / Paused)
+
+Optional: Notes field for employees to record work details or issues.
+
+2.2 Actions / Workflow
+
+Employee selects Work Order (and Task if enabled).
+
+Clicks Clock In:
+
+Records start timestamp.
+
+Updates task/work order status to “In Progress.”
+
+Clicks Clock Out:
+
+Records end timestamp.
+
+Calculates hours worked (difference between clock-in and clock-out).
+
+Updates Work Order Labor Ledger:
+
+Labor Hours
+
+Employee Cost = Hours × Hourly Rate
+
+Optional: Employee can add notes or comments about work performed.
+
+System prevents double clock-in or clock-out without a matching start or end time.
+
+3. Data Structure / Tables
+WorkOrderTimeTracking Table
+Field	Type	Description
+EntryID	AutoNumber	Unique identifier
+EmployeeID	Number	Linked to Employee Master
+WorkOrderID	Number	Linked to Work Order
+TaskID	Number	Optional, linked to Work Order Task
+ClockInTime	DateTime	Start time
+ClockOutTime	DateTime	End time
+HoursWorked	Number	Calculated elapsed hours
+LaborCost	Currency	Calculated from Employee Hourly Rate
+Notes	Text	Optional work notes
+Status	Enum	In Progress, Completed, Paused
+CreatedBy	Text	User who recorded
+CreatedDate	DateTime	Timestamp
+4. Automation & Validations
+
+Auto-calculate HoursWorked on Clock Out.
+
+Prevent employees from clocking into multiple tasks or WOs simultaneously.
+
+Flag missing clock-out or abnormal durations (e.g., >12 hours).
+
+Optional notify manager if employee has not clocked out by end of shift.
+
+Update Work Order Labor Summary:
+
+Total Hours Worked
+
+Total Labor Cost
+
+5. Permissions & Roles
+
+Employees can clock in/out only for assigned WOs.
+
+Supervisors / Managers can:
+
+View all employee time logs
+
+Edit clock-in/out for corrections (with audit trail)
+
+Audit log stores who clocked in/out, timestamps, and edits.
+
+6. Reporting & Dashboards
+
+Individual Employee Dashboard:
+
+Current active clock-ins
+
+Total hours worked by day/week/month
+
+Work Order Dashboard:
+
+Labor hours per WO
+
+Labor cost per WO
+
+Reports exportable to Excel/PDF for payroll and costing.
+
+7. Expected Outcome
+
+After implementation, your app will:
+
+Enable employees to clock in/out accurately against Work Orders.
+
+Track labor hours and costs in real-time.
+
+Integrate with Work Order cost accounting and reporting.
+
+Improve labor tracking accuracy, payroll, and operational insights.

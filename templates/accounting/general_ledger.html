@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}General Ledger - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>General Ledger</h2>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="account_id" class="form-label">Account</label>
+                    <select class="form-select" id="account_id" name="account_id">
+                        <option value="">All Accounts</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}" {% if account.id|string == account_id %}selected{% endif %}>
+                            {{ account.account_code }} - {{ account.account_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filter</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Entry #</th>
+                        <th>Account</th>
+                        <th>Description</th>
+                        <th>Source</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.entry_date }}</td>
+                        <td><strong>{{ entry.entry_number }}</strong></td>
+                        <td>{{ entry.account_code }} - {{ entry.account_name }}</td>
+                        <td>{{ entry.description }}</td>
+                        <td><span class="badge bg-secondary">{{ entry.transaction_source }}</span></td>
+                        <td class="text-end">{% if entry.debit > 0 %}${{ "%.2f"|format(entry.debit) }}{% endif %}</td>
+                        <td class="text-end">{% if entry.credit > 0 %}${{ "%.2f"|format(entry.credit) }}{% endif %}</td>
+                        <td>
+                            {% if entry.status == 'Posted' %}
+                            <span class="badge bg-success">Posted</span>
+                            {% else %}
+                            <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if not entries %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
+            <p class="mt-2">No entries found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
