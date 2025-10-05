@@ -13,17 +13,36 @@ bom_bp = Blueprint('bom_routes', __name__)
 def list_boms():
     db = Database()
     conn = db.get_connection()
-    boms = conn.execute('''
+    
+    # Get all BOM lines with parent and child product details
+    bom_lines = conn.execute('''
         SELECT b.*, 
-               p1.code as parent_code, p1.name as parent_name,
+               p1.id as parent_id, p1.code as parent_code, p1.name as parent_name,
                p2.code as child_code, p2.name as child_name
         FROM boms b
         JOIN products p1 ON b.parent_product_id = p1.id
         JOIN products p2 ON b.child_product_id = p2.id
-        ORDER BY p1.code, b.id
+        ORDER BY p1.code, b.find_number, b.id
     ''').fetchall()
+    
+    # Group BOM lines by parent product
+    grouped_boms = {}
+    for line in bom_lines:
+        parent_id = line['parent_id']
+        if parent_id not in grouped_boms:
+            grouped_boms[parent_id] = {
+                'parent_id': parent_id,
+                'parent_code': line['parent_code'],
+                'parent_name': line['parent_name'],
+                'children': []
+            }
+        grouped_boms[parent_id]['children'].append(line)
+    
+    # Convert to list and sort by parent code
+    boms_grouped = sorted(grouped_boms.values(), key=lambda x: x['parent_code'])
+    
     conn.close()
-    return render_template('boms/list.html', boms=boms)
+    return render_template('boms/list.html', boms_grouped=boms_grouped)
 
 @bom_bp.route('/boms/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
