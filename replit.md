@@ -6,7 +6,7 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, Material Requirements Report with Direct Procurement, Individual PO View, and Industry-Standard BOM System features added
+**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, Material Requirements Report with Direct Procurement, Individual PO View with Print/Download, and Industry-Standard BOM System features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
@@ -51,6 +51,12 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
     - **Clickable PO Links**: Success messages include direct links to created purchase orders
     - Streamlined procurement workflow from identification to viewing
   - Accessible from Reports menu in sidebar navigation
+- Added Purchase Order Print/Download Functionality
+  - Professional formatted PO document with company branding
+  - View/Print button opens PO in new tab for browser printing or PDF save
+  - Download button saves formatted PO as HTML file
+  - Includes comprehensive order details, supplier information, and product specifications
+  - Print-optimized styling with clean layout for physical documents
 - Upgraded BOM System to Full Industry Standards (Aviation/Manufacturing/MRO)
   - **Multi-Level BOM Hierarchy**: Automatic level numbering (1.0, 1.1, 1.1.1) with recursive tree structure
   - **Find Number Designation**: Auto-generated sequential find numbers per assembly with manual override capability
@@ -163,6 +169,11 @@ Preferred communication style: Simple, everyday language.
   - Individual PO view with detailed supplier info, product details, cost breakdown, and inventory status
   - Clickable PO numbers in list view for quick access
   - Direct receive functionality from PO detail page
+  - **Print/Download Capability**: Professional formatted PO documents with print and download options
+    - View/Print button opens formatted PO in new tab for printing
+    - Download button saves PO as HTML file (PO_XXXXXX.html)
+    - Professional layout with company branding, supplier details, and order information
+    - Print-optimized styling for clean paper/PDF output
 - **Suppliers**: Vendor management with contact information
   - CSV Import/Export: Bulk import/export with template download for supplier management
   - Format: Code, Name, Contact Person, Email, Phone, Address

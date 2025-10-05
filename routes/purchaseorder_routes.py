@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
 from models import Database
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
+from datetime import datetime
 
 po_bp = Blueprint('po_routes', __name__)
 
@@ -137,6 +138,58 @@ def view_purchaseorder(id):
         return redirect(url_for('po_routes.list_purchaseorders'))
     
     return render_template('purchaseorders/view.html', po=po)
+
+@po_bp.route('/purchaseorders/<int:id>/print')
+@login_required
+def print_purchaseorder(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    po = conn.execute('''
+        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address,
+               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        JOIN products p ON po.product_id = p.id
+        WHERE po.id = ?
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not po:
+        flash('Purchase order not found', 'danger')
+        return redirect(url_for('po_routes.list_purchaseorders'))
+    
+    return render_template('purchaseorders/print.html', po=po, current_date=datetime.now().strftime('%B %d, %Y'))
+
+@po_bp.route('/purchaseorders/<int:id>/download')
+@login_required
+def download_purchaseorder(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    po = conn.execute('''
+        SELECT po.*, s.name as supplier_name, s.contact_person, s.email, s.phone, s.address,
+               p.code as product_code, p.name as product_name, p.unit_of_measure, p.description
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        JOIN products p ON po.product_id = p.id
+        WHERE po.id = ?
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not po:
+        flash('Purchase order not found', 'danger')
+        return redirect(url_for('po_routes.list_purchaseorders'))
+    
+    html_content = render_template('purchaseorders/print.html', po=po, current_date=datetime.now().strftime('%B %d, %Y'))
+    
+    response = make_response(html_content)
+    response.headers['Content-Type'] = 'text/html'
+    response.headers['Content-Disposition'] = f'attachment; filename=PO_{po["po_number"]}.html'
+    
+    return response
 
 @po_bp.route('/purchaseorders/<int:id>/receive', methods=['POST'])
 @role_required('Admin', 'Procurement')

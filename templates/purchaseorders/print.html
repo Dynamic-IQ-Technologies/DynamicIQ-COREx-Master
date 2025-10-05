@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Order {{ po.po_number }}</title>
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                margin: 0;
+                padding: 20px;
+            }
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);
+            color: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        
+        .header .company-name {
+            color: #10b981;
+            font-weight: 700;
+        }
+        
+        .po-number {
+            font-size: 1.8rem;
+            margin-top: 10px;
+        }
+        
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 30px;
+        }
+        
+        .info-box {
+            flex: 1;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        
+        .info-box h3 {
+            margin-top: 0;
+            color: #1e3a8a;
+            border-bottom: 2px solid #4a90e2;
+            padding-bottom: 10px;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            width: 140px;
+            color: #555;
+        }
+        
+        .info-value {
+            flex: 1;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        table th {
+            background: #1e3a8a;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        
+        table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .total-row {
+            background: #e8f4f8;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .total-row td {
+            border-top: 2px solid #4a90e2;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .status-received {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-ordered {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .print-buttons {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="print-buttons no-print">
+        <button onclick="window.print()" class="btn btn-primary">🖨️ Print</button>
+        <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-secondary">← Back</a>
+    </div>
+    
+    <div class="header">
+        <h1><span class="company-name">Dynamic.IQ.MRP</span></h1>
+        <div style="opacity: 0.9; margin-top: 5px;">Manufacturing Resource Planning System</div>
+        <div class="po-number">Purchase Order: {{ po.po_number }}</div>
+    </div>
+    
+    <div class="info-section">
+        <div class="info-box">
+            <h3>📋 Order Information</h3>
+            <div class="info-row">
+                <div class="info-label">PO Number:</div>
+                <div class="info-value"><strong>{{ po.po_number }}</strong></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Order Date:</div>
+                <div class="info-value">{{ po.order_date }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Expected Delivery:</div>
+                <div class="info-value">{{ po.expected_delivery_date or 'Not specified' }}</div>
+            </div>
+            {% if po.actual_delivery_date %}
+            <div class="info-row">
+                <div class="info-label">Actual Delivery:</div>
+                <div class="info-value">{{ po.actual_delivery_date }}</div>
+            </div>
+            {% endif %}
+            <div class="info-row">
+                <div class="info-label">Status:</div>
+                <div class="info-value">
+                    <span class="status-badge status-{{ po.status.lower() }}">{{ po.status }}</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Print Date:</div>
+                <div class="info-value">{{ current_date }}</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>🏢 Supplier Information</h3>
+            <div class="info-row">
+                <div class="info-label">Supplier:</div>
+                <div class="info-value"><strong>{{ po.supplier_name }}</strong></div>
+            </div>
+            {% if po.contact_person %}
+            <div class="info-row">
+                <div class="info-label">Contact Person:</div>
+                <div class="info-value">{{ po.contact_person }}</div>
+            </div>
+            {% endif %}
+            {% if po.email %}
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{ po.email }}</div>
+            </div>
+            {% endif %}
+            {% if po.phone %}
+            <div class="info-row">
+                <div class="info-label">Phone:</div>
+                <div class="info-value">{{ po.phone }}</div>
+            </div>
+            {% endif %}
+            {% if po.address %}
+            <div class="info-row">
+                <div class="info-label">Address:</div>
+                <div class="info-value">{{ po.address }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <h3 style="color: #1e3a8a; margin-bottom: 15px;">📦 Order Details</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Product Code</th>
+                <th>Description</th>
+                <th>UOM</th>
+                <th style="text-align: right;">Quantity</th>
+                <th style="text-align: right;">Unit Price</th>
+                <th style="text-align: right;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>{{ po.product_code }}</strong></td>
+                <td>
+                    <strong>{{ po.product_name }}</strong>
+                    {% if po.description %}
+                    <br><small style="color: #666;">{{ po.description }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ po.unit_of_measure }}</td>
+                <td style="text-align: right;">{{ "%.2f"|format(po.quantity) }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(po.unit_price) }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="5" style="text-align: right;">Total Order Value:</td>
+                <td style="text-align: right;">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <p><strong>Dynamic.IQ.MRP</strong> - Manufacturing Resource Planning System</p>
+        <p>This is a computer-generated purchase order. No signature required.</p>
+    </div>
+</body>
+</html>
