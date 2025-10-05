@@ -78,6 +78,7 @@ def material_requirements_report():
         FROM material_requirements mr
         JOIN products p ON mr.product_id = p.id
         JOIN work_orders wo ON mr.work_order_id = wo.id
+        WHERE mr.status != 'Satisfied'
         ORDER BY wo.planned_start_date DESC, mr.shortage_quantity DESC
     ''').fetchall()
     
@@ -120,6 +121,7 @@ def export_material_requirements():
         FROM material_requirements mr
         JOIN products p ON mr.product_id = p.id
         JOIN work_orders wo ON mr.work_order_id = wo.id
+        WHERE mr.status != 'Satisfied'
         ORDER BY wo.planned_start_date DESC
     ''').fetchall()
     
