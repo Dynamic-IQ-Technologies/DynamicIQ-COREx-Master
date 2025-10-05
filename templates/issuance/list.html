@@ -14,7 +14,74 @@
     </div>
 </div>
 
+<!-- Available Materials Section -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Available Materials Ready to Issue</h5>
+    </div>
+    <div class="card-body">
+        {% if available_materials %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Inventory ID</th>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Available Qty</th>
+                        <th>Reserved</th>
+                        <th>Total Qty</th>
+                        <th>Warehouse</th>
+                        <th>Bin Location</th>
+                        <th>Condition</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in available_materials %}
+                    <tr>
+                        <td><span class="badge bg-secondary">INV-{{ "%06d"|format(item.id) }}</span></td>
+                        <td><strong>{{ item.product_code }}</strong></td>
+                        <td>{{ item.product_name }}</td>
+                        <td>
+                            <span class="badge bg-success" style="font-size: 1em;">
+                                {{ "%.2f"|format(item.available_quantity) }} {{ item.unit_of_measure }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.reserved_quantity > 0 %}
+                            <span class="badge bg-warning text-dark">{{ "%.2f"|format(item.reserved_quantity) }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(item.quantity) }} {{ item.unit_of_measure }}</td>
+                        <td>{{ item.warehouse_location or '-' }}</td>
+                        <td>{{ item.bin_location or '-' }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ item.condition or 'Serviceable' }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ item.status }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-triangle"></i> No materials currently available for issuance.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Material Issues History -->
 <div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Material Issue History</h5>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-striped">

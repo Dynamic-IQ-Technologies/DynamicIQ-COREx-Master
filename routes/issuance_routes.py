@@ -49,6 +49,28 @@ def list_issues():
     db = Database()
     conn = db.get_connection()
     
+    # Get available materials ready to be issued
+    available_materials = conn.execute('''
+        SELECT 
+            i.id,
+            p.id as product_id,
+            p.code as product_code,
+            p.name as product_name,
+            p.unit_of_measure,
+            i.quantity,
+            COALESCE(i.reserved_quantity, 0) as reserved_quantity,
+            (i.quantity - COALESCE(i.reserved_quantity, 0)) as available_quantity,
+            i.warehouse_location,
+            i.bin_location,
+            i.condition,
+            i.status
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0 
+          AND (i.quantity - COALESCE(i.reserved_quantity, 0)) > 0
+        ORDER BY p.code
+    ''').fetchall()
+    
     issues = conn.execute('''
         SELECT 
             mi.*,
@@ -65,7 +87,7 @@ def list_issues():
     ''').fetchall()
     
     conn.close()
-    return render_template('issuance/list.html', issues=issues)
+    return render_template('issuance/list.html', issues=issues, available_materials=available_materials)
 
 @issuance_bp.route('/issuance/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff', 'Planner')
