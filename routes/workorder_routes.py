@@ -136,6 +136,9 @@ def view_workorder(id):
         WHERE mr.work_order_id=?
     ''', (id,)).fetchall()
     
+    # Get all products for the Add Material dropdown
+    all_products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    
     cost_info = mrp.calculate_work_order_cost(id)
     
     conn.close()
@@ -143,7 +146,8 @@ def view_workorder(id):
     return render_template('workorders/view.html', 
                          workorder=workorder, 
                          requirements=requirements,
-                         cost_info=cost_info)
+                         cost_info=cost_info,
+                         all_products=all_products)
 
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')

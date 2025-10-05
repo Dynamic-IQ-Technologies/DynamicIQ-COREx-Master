@@ -74,8 +74,13 @@
 {% endif %}
 
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Material Requirements</h5>
+        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+            <i class="bi bi-plus-circle"></i> Add Material
+        </button>
+        {% endif %}
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -88,6 +93,9 @@
                         <th>Available Qty</th>
                         <th>Shortage Qty</th>
                         <th>Status</th>
+                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                        <th>Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -105,6 +113,18 @@
                             <span class="badge bg-danger">{{ req.status }}</span>
                             {% endif %}
                         </td>
+                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ req.id }}, '{{ req.code }} - {{ req.name }}', {{ req.required_quantity }})" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="POST" action="{{ url_for('workorder_routes.delete_material_requirement', wo_id=workorder.id, req_id=req.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to remove this material requirement?')" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -112,4 +132,78 @@
         </div>
     </div>
 </div>
+
+{% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+<!-- Add Material Modal -->
+<div class="modal fade" id="addMaterialModal" tabindex="-1" aria-labelledby="addMaterialModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMaterialModalLabel">Add Material Requirement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('workorder_routes.add_material_requirement', wo_id=workorder.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product *</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Select Product</option>
+                            {% for product in all_products %}
+                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="required_quantity" class="form-label">Required Quantity *</label>
+                        <input type="number" step="0.01" class="form-control" id="required_quantity" name="required_quantity" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Material Modal -->
+<div class="modal fade" id="editMaterialModal" tabindex="-1" aria-labelledby="editMaterialModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editMaterialModalLabel">Edit Material Requirement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" id="editMaterialForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <input type="text" class="form-control" id="edit_product_name" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_required_quantity" class="form-label">Required Quantity *</label>
+                        <input type="number" step="0.01" class="form-control" id="edit_required_quantity" name="required_quantity" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditModal(reqId, productName, requiredQty) {
+    document.getElementById('edit_product_name').value = productName;
+    document.getElementById('edit_required_quantity').value = requiredQty;
+    document.getElementById('editMaterialForm').action = '{{ url_for("workorder_routes.edit_material_requirement", wo_id=workorder.id, req_id=0) }}'.replace('/0/', '/' + reqId + '/');
+    
+    var modal = new bootstrap.Modal(document.getElementById('editMaterialModal'));
+    modal.show();
+}
+</script>
+{% endif %}
 {% endblock %}
