@@ -144,6 +144,10 @@ def create_purchaseorder():
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
     uoms = conn.execute('SELECT * FROM uom_master WHERE is_active = 1 ORDER BY uom_code').fetchall()
     
+    # Convert Row objects to dictionaries for JSON serialization
+    products_list = [dict(p) for p in products]
+    uoms_list = [dict(u) for u in uoms]
+    
     last_po = conn.execute('''
         SELECT po_number FROM purchase_orders 
         WHERE po_number LIKE 'PO-%'
@@ -164,7 +168,7 @@ def create_purchaseorder():
     
     conn.close()
     
-    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products, uoms=uoms, next_po_number=next_po_number)
+    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products_list, uoms=uoms_list, next_po_number=next_po_number)
 
 @po_bp.route('/purchaseorders/<int:id>')
 @login_required
