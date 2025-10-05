@@ -700,6 +700,29 @@ class Database:
             )
         ''')
         
+        # Create audit_trail table for change tracking
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audit_trail (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_type TEXT NOT NULL,
+                record_id TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                modified_by INTEGER NOT NULL,
+                modified_by_name TEXT,
+                modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                changed_fields TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                FOREIGN KEY (modified_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create index for faster audit trail queries
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_audit_record 
+            ON audit_trail(record_type, record_id, modified_at DESC)
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -1060,6 +1083,94 @@ class CompanySettings:
             conn.close()
             settings = CompanySettings.get()
         return settings
+
+
+class AuditLogger:
+    """Helper class for automatic audit trail logging"""
+    
+    @staticmethod
+    def log_change(conn, record_type, record_id, action_type, modified_by, changed_fields=None, ip_address=None, user_agent=None):
+        """
+        Log a change to the audit trail.
+        
+        Args:
+            conn: Database connection
+            record_type: Type of record (e.g., 'work_order', 'purchase_order')
+            record_id: ID of the record (as string)
+            action_type: 'Created', 'Updated', or 'Deleted'
+            modified_by: User ID who made the change
+            changed_fields: Dictionary of changed fields with old and new values
+            ip_address: IP address of the user (optional)
+            user_agent: User agent string (optional)
+        """
+        try:
+            import json
+            
+            # Get user name
+            user = conn.execute('SELECT username FROM users WHERE id = ?', (modified_by,)).fetchone()
+            user_name = user['username'] if user else 'Unknown'
+            
+            # Convert changed_fields dict to JSON string
+            changed_fields_json = json.dumps(changed_fields) if changed_fields else None
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO audit_trail (
+                    record_type, record_id, action_type, modified_by, modified_by_name,
+                    changed_fields, ip_address, user_agent
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (record_type, str(record_id), action_type, modified_by, user_name,
+                  changed_fields_json, ip_address, user_agent))
+            
+            return cursor.lastrowid
+            
+        except Exception as e:
+            # Log error but don't fail the transaction
+            print(f"Audit logging error: {str(e)}")
+            return None
+    
+    @staticmethod
+    def get_audit_trail(conn, record_type, record_id, limit=100):
+        """Get audit trail for a specific record"""
+        return conn.execute('''
+            SELECT * FROM audit_trail
+            WHERE record_type = ? AND record_id = ?
+            ORDER BY modified_at DESC
+            LIMIT ?
+        ''', (record_type, str(record_id), limit)).fetchall()
+    
+    @staticmethod
+    def compare_records(old_record, new_record, exclude_fields=None):
+        """
+        Compare two records and return changed fields.
+        
+        Args:
+            old_record: Dict of old values
+            new_record: Dict of new values
+            exclude_fields: List of fields to exclude from comparison
+        
+        Returns:
+            Dict of changed fields with old and new values
+        """
+        if exclude_fields is None:
+            exclude_fields = ['id', 'created_at', 'last_updated', 'modified_at']
+        
+        changes = {}
+        
+        if old_record and new_record:
+            for key in new_record.keys():
+                if key not in exclude_fields:
+                    old_val = old_record.get(key) if old_record else None
+                    new_val = new_record.get(key)
+                    
+                    if old_val != new_val:
+                        changes[key] = {
+                            'old': str(old_val) if old_val is not None else None,
+                            'new': str(new_val) if new_val is not None else None
+                        }
+        
+        return changes if changes else None
 
 
 class GLAutoPost:

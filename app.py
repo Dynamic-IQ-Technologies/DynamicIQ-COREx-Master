@@ -24,6 +24,7 @@ from routes.journal_routes import journal_bp
 from routes.financial_reports_routes import financial_reports_bp
 from routes.time_tracking_routes import time_tracking_bp
 from routes.uom_routes import uom_bp
+from routes.audit_routes import audit_bp
 import os
 
 app = Flask(__name__)
@@ -53,6 +54,7 @@ app.register_blueprint(journal_bp)
 app.register_blueprint(financial_reports_bp)
 app.register_blueprint(time_tracking_bp)
 app.register_blueprint(uom_bp)
+app.register_blueprint(audit_bp)
 
 @app.context_processor
 def inject_user():

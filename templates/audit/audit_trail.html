@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h4>Audit Trail - {{ record_type|title }} #{{ record_id }}</h4>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('audit_routes.export_audit_trail', record_type=record_type, record_id=record_id) }}" 
+               class="btn btn-sm btn-outline-success">
+                <i class="bi bi-download"></i> Export to CSV
+            </a>
+        </div>
+    </div>
+
+    {% if audit_entries %}
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 120px;">Action</th>
+                            <th style="width: 150px;">Modified By</th>
+                            <th style="width: 180px;">Date/Time</th>
+                            <th>Changed Fields</th>
+                            <th style="width: 150px;">IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in audit_entries %}
+                        <tr>
+                            <td>
+                                {% if entry.action_type == 'Created' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-plus-circle"></i> Created
+                                </span>
+                                {% elif entry.action_type == 'Updated' %}
+                                <span class="badge bg-primary">
+                                    <i class="bi bi-pencil"></i> Updated
+                                </span>
+                                {% elif entry.action_type == 'Deleted' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-trash"></i> Deleted
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.modified_by_name }}</td>
+                            <td>{{ entry.modified_at }}</td>
+                            <td>
+                                {% if entry.changes_parsed %}
+                                <button class="btn btn-sm btn-outline-info" type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#changes-{{ entry.id }}" 
+                                        aria-expanded="false">
+                                    <i class="bi bi-eye"></i> View Details
+                                </button>
+                                <div class="collapse mt-2" id="changes-{{ entry.id }}">
+                                    <div class="card card-body bg-light">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Field</th>
+                                                    <th>Old Value</th>
+                                                    <th>New Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for field, data in entry.changes_parsed.items() %}
+                                                <tr>
+                                                    <td><strong>{{ field|replace('_', ' ')|title }}</strong></td>
+                                                    <td>{{ data.old if data.old else '<em>empty</em>' }}</td>
+                                                    <td>{{ data.new if data.new else '<em>empty</em>' }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <em class="text-muted">No field changes recorded</em>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.ip_address if entry.ip_address else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No audit trail entries found for this record.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

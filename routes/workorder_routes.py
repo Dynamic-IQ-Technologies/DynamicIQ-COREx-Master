@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import Database
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from models import Database, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 
@@ -82,6 +82,18 @@ def create_workorder():
                 ))
                 
                 wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                
+                # Log audit trail
+                AuditLogger.log_change(
+                    conn=conn,
+                    record_type='work_order',
+                    record_id=wo_id,
+                    action_type='Created',
+                    modified_by=session.get('user_id'),
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
+                
                 conn.commit()
                 break
                 
@@ -206,6 +218,9 @@ def update_workorder_status(id):
     db = Database()
     conn = db.get_connection()
     
+    # Get old record for audit
+    old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+    
     new_status = request.form['status']
     conn.execute('UPDATE work_orders SET status=? WHERE id=?', (new_status, id))
     
@@ -213,6 +228,23 @@ def update_workorder_status(id):
         conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
     elif new_status == 'In Progress':
         conn.execute('UPDATE work_orders SET actual_start_date=CURRENT_DATE WHERE id=?', (id,))
+    
+    # Get new record for audit
+    new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+    
+    # Log audit trail
+    changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+    if changes:
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='work_order',
+            record_id=id,
+            action_type='Updated',
+            modified_by=session.get('user_id'),
+            changed_fields=changes,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
     
     conn.commit()
     conn.close()

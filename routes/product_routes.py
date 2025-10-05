@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify
-from models import Database
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify, session
+from models import Database, AuditLogger
 from auth import login_required, role_required
 import csv
 import io
@@ -50,6 +50,17 @@ def create_product():
             VALUES (?, 0, ?, ?)
         ''', (product_id, float(request.form.get('reorder_point', 0)), float(request.form.get('safety_stock', 0))))
         
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product',
+            record_id=product_id,
+            action_type='Created',
+            modified_by=session.get('user_id'),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
         conn.commit()
         conn.close()
         
@@ -65,6 +76,10 @@ def edit_product(id):
     conn = db.get_connection()
     
     if request.method == 'POST':
+        # Get old records for audit (product and inventory)
+        old_product = conn.execute('SELECT * FROM products WHERE id=?', (id,)).fetchone()
+        old_inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (id,)).fetchone()
+        
         conn.execute('''
             UPDATE products 
             SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, cost=?
@@ -85,6 +100,39 @@ def edit_product(id):
             WHERE product_id=?
         ''', (float(request.form.get('reorder_point', 0)), float(request.form.get('safety_stock', 0)), id))
         
+        # Get new records for audit
+        new_product = conn.execute('SELECT * FROM products WHERE id=?', (id,)).fetchone()
+        new_inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (id,)).fetchone()
+        
+        # Build combined changes dictionary
+        all_changes = {}
+        
+        # Product changes
+        product_changes = AuditLogger.compare_records(dict(old_product), dict(new_product))
+        if product_changes:
+            all_changes.update(product_changes)
+        
+        # Inventory changes (with prefixed field names for clarity)
+        if old_inventory and new_inventory:
+            inventory_changes = AuditLogger.compare_records(dict(old_inventory), dict(new_inventory))
+            if inventory_changes:
+                for key, value in inventory_changes.items():
+                    if key in ['reorder_point', 'safety_stock']:
+                        all_changes[key] = value
+        
+        # Log audit trail with all changes
+        if all_changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='product',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=all_changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
         conn.commit()
         conn.close()
         
@@ -102,6 +150,22 @@ def edit_product(id):
 def delete_product(id):
     db = Database()
     conn = db.get_connection()
+    
+    # Get product details for audit before deleting
+    product = conn.execute('SELECT * FROM products WHERE id=?', (id,)).fetchone()
+    
+    # Log audit trail before deletion
+    if product:
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product',
+            record_id=id,
+            action_type='Deleted',
+            modified_by=session.get('user_id'),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+    
     conn.execute('DELETE FROM products WHERE id=?', (id,))
     conn.commit()
     conn.close()

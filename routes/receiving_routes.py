@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models import Database, GLAutoPost
+from models import Database, GLAutoPost, AuditLogger
 from auth import login_required, role_required
 from datetime import datetime
 
@@ -122,6 +122,20 @@ def create_receiving():
             
             receipt_id = cursor.lastrowid
             
+            # Log audit trail for receiving transaction
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='receiving_transaction',
+                record_id=receipt_id,
+                action_type='Created',
+                modified_by=session.get('user_id'),
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+            
+            # Get old PO record for audit before update
+            old_po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+            
             # Update PO received quantity
             new_received = received_so_far + quantity_received
             conn.execute('''
@@ -131,6 +145,21 @@ def create_receiving():
                     status = CASE WHEN ? >= quantity THEN 'Received' ELSE status END
                 WHERE id = ?
             ''', (new_received, receipt_date, new_received, po_id))
+            
+            # Get new PO record for audit and log changes
+            new_po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+            po_changes = AuditLogger.compare_records(dict(old_po), dict(new_po))
+            if po_changes:
+                AuditLogger.log_change(
+                    conn=conn,
+                    record_type='purchase_order',
+                    record_id=po_id,
+                    action_type='Updated',
+                    modified_by=session.get('user_id'),
+                    changed_fields=po_changes,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
             
             # Update inventory
             inventory = conn.execute('''

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session
-from models import Database, CompanySettings
+from models import Database, CompanySettings, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime
@@ -106,6 +106,17 @@ def create_purchaseorder():
                         float(line_data['unit_price']),
                         int(line_data['uom_id']) if line_data.get('uom_id') else None
                     ))
+                
+                # Log audit trail
+                AuditLogger.log_change(
+                    conn=conn,
+                    record_type='purchase_order',
+                    record_id=po_id,
+                    action_type='Created',
+                    modified_by=session.get('user_id'),
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
                 
                 conn.commit()
                 break
