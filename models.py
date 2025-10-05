@@ -422,6 +422,134 @@ class Database:
             )
         ''')
         
+        # Create chart_of_accounts table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chart_of_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_code TEXT UNIQUE NOT NULL,
+                account_name TEXT NOT NULL,
+                account_type TEXT NOT NULL,
+                parent_account_id INTEGER,
+                is_active INTEGER DEFAULT 1,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (parent_account_id) REFERENCES chart_of_accounts(id)
+            )
+        ''')
+        
+        # Create fiscal_periods table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS fiscal_periods (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                period_name TEXT NOT NULL,
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                fiscal_year INTEGER NOT NULL,
+                status TEXT DEFAULT 'Open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create gl_entries table (journal entries header)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS gl_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_number TEXT UNIQUE NOT NULL,
+                entry_date DATE NOT NULL,
+                description TEXT NOT NULL,
+                transaction_source TEXT NOT NULL,
+                reference_type TEXT,
+                reference_id INTEGER,
+                status TEXT DEFAULT 'Draft',
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                posted_by INTEGER,
+                posted_at TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (posted_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create gl_entry_lines table (journal entry detail lines)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS gl_entry_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gl_entry_id INTEGER NOT NULL,
+                account_id INTEGER NOT NULL,
+                debit REAL DEFAULT 0,
+                credit REAL DEFAULT 0,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (gl_entry_id) REFERENCES gl_entries(id) ON DELETE CASCADE,
+                FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id)
+            )
+        ''')
+        
+        # Create vendor_invoices table (AP)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS vendor_invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_number TEXT UNIQUE NOT NULL,
+                vendor_id INTEGER NOT NULL,
+                po_id INTEGER,
+                invoice_date DATE NOT NULL,
+                due_date DATE NOT NULL,
+                amount REAL NOT NULL,
+                tax_amount REAL DEFAULT 0,
+                total_amount REAL NOT NULL,
+                amount_paid REAL DEFAULT 0,
+                status TEXT DEFAULT 'Open',
+                gl_entry_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (vendor_id) REFERENCES suppliers(id),
+                FOREIGN KEY (po_id) REFERENCES purchase_orders(id),
+                FOREIGN KEY (gl_entry_id) REFERENCES gl_entries(id)
+            )
+        ''')
+        
+        # Create customer_invoices table (AR)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_number TEXT UNIQUE NOT NULL,
+                customer_name TEXT NOT NULL,
+                customer_email TEXT,
+                wo_id INTEGER,
+                invoice_date DATE NOT NULL,
+                due_date DATE NOT NULL,
+                amount REAL NOT NULL,
+                tax_amount REAL DEFAULT 0,
+                total_amount REAL NOT NULL,
+                amount_paid REAL DEFAULT 0,
+                status TEXT DEFAULT 'Open',
+                gl_entry_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (wo_id) REFERENCES work_orders(id),
+                FOREIGN KEY (gl_entry_id) REFERENCES gl_entries(id)
+            )
+        ''')
+        
+        # Create payments table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payment_number TEXT UNIQUE NOT NULL,
+                payment_date DATE NOT NULL,
+                payment_type TEXT NOT NULL,
+                reference_type TEXT NOT NULL,
+                reference_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                payment_method TEXT NOT NULL,
+                check_number TEXT,
+                remarks TEXT,
+                gl_entry_id INTEGER,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (gl_entry_id) REFERENCES gl_entries(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
 
