@@ -8,9 +8,35 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-            <div class="alert alert-info">
-                <strong>Parent:</strong> {{ products|selectattr('id', 'equalto', bom.parent_product_id)|map(attribute='code')|first }} - {{ products|selectattr('id', 'equalto', bom.parent_product_id)|map(attribute='name')|first }}<br>
-                <strong>Child:</strong> {{ products|selectattr('id', 'equalto', bom.child_product_id)|map(attribute='code')|first }} - {{ products|selectattr('id', 'equalto', bom.child_product_id)|map(attribute='name')|first }}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="parent_product_id" class="form-label">Parent Product (Assembly) *</label>
+                        <select class="form-select" id="parent_product_id" name="parent_product_id" required>
+                            <option value="">Select Parent Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}" {% if product.id == bom.parent_product_id %}selected{% endif %}>
+                                {{ product.code }} - {{ product.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">The assembly this component belongs to</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="child_product_id" class="form-label">Child Product (Component) *</label>
+                        <select class="form-select" id="child_product_id" name="child_product_id" required>
+                            <option value="">Select Child Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}" {% if product.id == bom.child_product_id %}selected{% endif %}>
+                                {{ product.code }} - {{ product.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">The part/component being used</small>
+                    </div>
+                </div>
             </div>
 
             <div class="row">

@@ -281,17 +281,46 @@ def edit_bom(id):
         return redirect(url_for('bom_routes.list_boms'))
     
     if request.method == 'POST':
+        parent_id = int(request.form['parent_product_id'])
+        child_id = int(request.form['child_product_id'])
+        
+        parent_product = conn.execute('SELECT * FROM products WHERE id = ?', (parent_id,)).fetchone()
+        child_product = conn.execute('SELECT * FROM products WHERE id = ?', (child_id,)).fetchone()
+        
+        if not parent_product:
+            flash('Selected parent product does not exist.', 'danger')
+            products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+            return render_template('boms/edit.html', bom=bom, products=products)
+        
+        if not child_product:
+            flash('Selected child product does not exist.', 'danger')
+            products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+            return render_template('boms/edit.html', bom=bom, products=products)
+        
+        existing = conn.execute(
+            'SELECT id FROM boms WHERE parent_product_id = ? AND child_product_id = ? AND id != ?',
+            (parent_id, child_id, id)
+        ).fetchone()
+        
+        if existing:
+            flash('This BOM relationship already exists! Cannot update to duplicate parent-child combination.', 'danger')
+            products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+            return render_template('boms/edit.html', bom=bom, products=products)
+        
         quantity = float(request.form['quantity'])
-        child_cost = conn.execute('SELECT cost FROM products WHERE id = ?', (bom['child_product_id'],)).fetchone()['cost']
-        extended_cost = quantity * (child_cost if child_cost else 0)
+        child_cost = child_product['cost'] if child_product['cost'] else 0
+        extended_cost = quantity * child_cost
         
         conn.execute('''
             UPDATE boms SET 
+                parent_product_id = ?, child_product_id = ?,
                 quantity = ?, scrap_percentage = ?, find_number = ?, category = ?,
                 revision = ?, effectivity_date = ?, status = ?, reference_designator = ?,
-                document_link = ?, notes = ?, extended_cost = ?
+                document_link = ?, notes = ?, unit_cost = ?, extended_cost = ?
             WHERE id = ?
         ''', (
+            parent_id,
+            child_id,
             quantity,
             float(request.form.get('scrap_percentage', 0)),
             request.form.get('find_number'),
@@ -302,6 +331,7 @@ def edit_bom(id):
             request.form.get('reference_designator', ''),
             request.form.get('document_link', ''),
             request.form.get('notes', ''),
+            child_cost,
             extended_cost,
             id
         ))
