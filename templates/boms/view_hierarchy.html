@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}BOM Hierarchy - {{ product.code }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>BOM Hierarchy: {{ product.code }} - {{ product.name }}</h2>
+        <span class="badge bg-primary">{{ product.product_type }}</span>
+    </div>
+    <div>
+        <a href="{{ url_for('bom_routes.list_boms') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#cloneModal">
+            <i class="bi bi-files"></i> Clone BOM
+        </button>
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#massUpdateModal">
+            <i class="bi bi-pencil-square"></i> Mass Update
+        </button>
+        <a href="{{ url_for('bom_routes.create_bom', parent_id=product.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add Item
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Items</h6>
+                <h3 class="card-title">{{ summary.total_items }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Cost</h6>
+                <h3 class="card-title">${{ "%.2f"|format(summary.total_cost) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Active Items</h6>
+                <h3 class="card-title text-success">{{ summary.active_items }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Obsolete Items</h6>
+                <h3 class="card-title text-danger">{{ summary.obsolete_items }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if summary.categories %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Cost by Category</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for category, data in summary.categories.items() %}
+            <div class="col-md-4 mb-3">
+                <div class="border rounded p-3">
+                    <h6>{{ category }}</h6>
+                    <p class="mb-1"><strong>Items:</strong> {{ data.count }}</p>
+                    <p class="mb-0"><strong>Cost:</strong> ${{ "%.2f"|format(data.total_cost) }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">BOM Structure</h5>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-secondary" onclick="expandAll()">
+                <i class="bi bi-chevron-down"></i> Expand All
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="collapseAll()">
+                <i class="bi bi-chevron-up"></i> Collapse All
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Find #</th>
+                        <th>Part Code</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Scrap %</th>
+                        <th>Unit Cost</th>
+                        <th>Ext. Cost</th>
+                        <th>Rev</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bomTree">
+                    {% macro render_item(item, is_last=False) %}
+                    <tr class="bom-item level-{{ item.level }}" data-level="{{ item.level }}" {% if item.has_children %}data-expandable="true"{% endif %}>
+                        <td>
+                            {% if item.has_children %}
+                            <button class="btn btn-sm btn-link p-0 toggle-btn" onclick="toggleRow(this)">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                            {% else %}
+                            <span style="margin-left: {{ item.level * 20 }}px;"></span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="margin-left: {{ item.level * 20 }}px;">{{ item.item_number }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background-color: {% if item.bom.parent_type in ['Component', 'Subassembly'] %}#6c757d{% else %}#0d6efd{% endif %}">
+                                <i class="bi {% if item.has_children %}bi-box-seam{% else %}bi-gear{% endif %}"></i>
+                            </span>
+                            {{ item.bom.child_code }}
+                        </td>
+                        <td>{{ item.bom.child_name }}</td>
+                        <td><span class="badge bg-secondary">{{ item.bom.category or 'Other' }}</span></td>
+                        <td>{{ "%.2f"|format(item.bom.quantity) }}</td>
+                        <td>{{ "%.1f"|format(item.bom.scrap_percentage or 0) }}%</td>
+                        <td>${{ "%.2f"|format(item.bom.child_cost or 0) }}</td>
+                        <td>${{ "%.2f"|format(item.extended_cost) }}</td>
+                        <td>{{ item.bom.revision or 'A' }}</td>
+                        <td>
+                            {% if item.bom.status == 'Active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% elif item.bom.status == 'Obsolete' %}
+                            <span class="badge bg-danger">Obsolete</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ item.bom.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if session.role in ['Admin', 'Planner'] %}
+                            <a href="{{ url_for('bom_routes.edit_bom', id=item.bom.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% if item.bom.document_link %}
+                            <a href="{{ item.bom.document_link }}" target="_blank" class="btn btn-sm btn-outline-info" title="View Document">
+                                <i class="bi bi-file-earmark-text"></i>
+                            </a>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if item.children %}
+                        {% for child in item.children %}
+                            {{ render_item(child, loop.last) }}
+                        {% endfor %}
+                    {% endif %}
+                    {% endmacro %}
+                    
+                    {% for item in hierarchy %}
+                        {{ render_item(item, loop.last) }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if session.role in ['Admin', 'Planner'] %}
+<div class="modal fade" id="cloneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Clone BOM Structure</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('bom_routes.clone_bom') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="source_product_id" value="{{ product.id }}">
+                    <div class="alert alert-info">
+                        Clone BOM structure from <strong>{{ product.code }}</strong> to another product
+                    </div>
+                    <div class="mb-3">
+                        <label for="target_product_id" class="form-label">Target Product *</label>
+                        <select class="form-select" id="target_product_id" name="target_product_id" required>
+                            <option value="">Select Target Product</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Clone BOM</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="massUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mass Update BOM Items</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('bom_routes.mass_update') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="parent_product_id" value="{{ product.id }}">
+                    <div class="mb-3">
+                        <label for="update_type" class="form-label">Update Type *</label>
+                        <select class="form-select" id="update_type" name="update_type" required onchange="showUpdateFields(this.value)">
+                            <option value="">Select Update Type</option>
+                            <option value="status">Change Status</option>
+                            <option value="revision">Change Revision</option>
+                            <option value="category">Change Category</option>
+                        </select>
+                    </div>
+                    <div id="statusFields" style="display:none;">
+                        <div class="mb-3">
+                            <label for="new_status" class="form-label">New Status</label>
+                            <select class="form-select" name="new_status">
+                                <option value="Active">Active</option>
+                                <option value="Obsolete">Obsolete</option>
+                                <option value="Pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="revisionFields" style="display:none;">
+                        <div class="mb-3">
+                            <label for="new_revision" class="form-label">New Revision</label>
+                            <input type="text" class="form-control" name="new_revision" placeholder="e.g., B, C, Rev 2">
+                        </div>
+                    </div>
+                    <div id="categoryFields" style="display:none;">
+                        <div class="mb-3">
+                            <label for="old_category" class="form-label">From Category</label>
+                            <select class="form-select" name="old_category">
+                                {% for category in summary.categories.keys() %}
+                                <option value="{{ category }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_category" class="form-label">To Category</label>
+                            <select class="form-select" name="new_category">
+                                <option value="Electrical">Electrical</option>
+                                <option value="Mechanical">Mechanical</option>
+                                <option value="Hardware">Hardware</option>
+                                <option value="Consumable">Consumable</option>
+                                <option value="Subassembly">Subassembly</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update All</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function toggleRow(btn) {
+    const row = btn.closest('tr');
+    const level = parseInt(row.dataset.level);
+    const icon = btn.querySelector('i');
+    let nextRow = row.nextElementSibling;
+    
+    const isExpanded = icon.classList.contains('bi-chevron-down');
+    
+    icon.classList.toggle('bi-chevron-right');
+    icon.classList.toggle('bi-chevron-down');
+    
+    while (nextRow && parseInt(nextRow.dataset.level) > level) {
+        if (isExpanded) {
+            nextRow.style.display = 'none';
+        } else {
+            nextRow.style.display = '';
+        }
+        nextRow = nextRow.nextElementSibling;
+    }
+}
+
+function expandAll() {
+    document.querySelectorAll('.toggle-btn i').forEach(icon => {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-down');
+    });
+    document.querySelectorAll('.bom-item').forEach(row => {
+        row.style.display = '';
+    });
+}
+
+function collapseAll() {
+    document.querySelectorAll('.toggle-btn i').forEach(icon => {
+        icon.classList.remove('bi-chevron-down');
+        icon.classList.add('bi-chevron-right');
+    });
+    document.querySelectorAll('.bom-item[data-level]').forEach(row => {
+        if (parseInt(row.dataset.level) > 0) {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function showUpdateFields(type) {
+    document.getElementById('statusFields').style.display = type === 'status' ? 'block' : 'none';
+    document.getElementById('revisionFields').style.display = type === 'revision' ? 'block' : 'none';
+    document.getElementById('categoryFields').style.display = type === 'category' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/products/list-json')
+        .then(response => response.json())
+        .then(products => {
+            const select = document.getElementById('target_product_id');
+            products.forEach(p => {
+                if (p.id !== {{ product.id }}) {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.code} - ${p.name}`;
+                    select.appendChild(option);
+                }
+            });
+        })
+        .catch(error => console.error('Error loading products:', error));
+});
+</script>
+
+<style>
+.bom-item[data-level="0"] {
+    font-weight: 600;
+}
+.bom-item[data-level="1"] {
+    background-color: #f8f9fa;
+}
+.bom-item[data-level="2"] {
+    background-color: #e9ecef;
+}
+.toggle-btn {
+    text-decoration: none;
+    color: #495057;
+}
+.toggle-btn:hover {
+    color: #0d6efd;
+}
+</style>
+{% endblock %}

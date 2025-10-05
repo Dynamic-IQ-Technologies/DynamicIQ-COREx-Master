@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify
 from models import Database
 from auth import login_required, role_required
+from bom_utils import BOMHierarchy
 import csv
 import io
+from datetime import datetime
 
 bom_bp = Blueprint('bom_routes', __name__)
 
@@ -30,14 +32,45 @@ def create_bom():
     conn = db.get_connection()
     
     if request.method == 'POST':
+        parent_id = int(request.form['parent_product_id'])
+        child_id = int(request.form['child_product_id'])
+        
+        existing = conn.execute(
+            'SELECT id FROM boms WHERE parent_product_id = ? AND child_product_id = ?',
+            (parent_id, child_id)
+        ).fetchone()
+        
+        if existing:
+            flash('This BOM relationship already exists!', 'danger')
+            products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+            next_find_number = BOMHierarchy.get_next_find_number(parent_id)
+            return render_template('boms/create.html', products=products, next_find_number=next_find_number)
+        
+        find_number = request.form.get('find_number') or BOMHierarchy.get_next_find_number(parent_id)
+        quantity = float(request.form['quantity'])
+        child_cost = conn.execute('SELECT cost FROM products WHERE id = ?', (child_id,)).fetchone()['cost']
+        extended_cost = quantity * (child_cost if child_cost else 0)
+        
         conn.execute('''
-            INSERT INTO boms (parent_product_id, child_product_id, quantity, scrap_percentage)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO boms (parent_product_id, child_product_id, quantity, scrap_percentage,
+                            find_number, category, revision, effectivity_date, status,
+                            reference_designator, document_link, notes, unit_cost, extended_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            int(request.form['parent_product_id']),
-            int(request.form['child_product_id']),
-            float(request.form['quantity']),
-            float(request.form.get('scrap_percentage', 0))
+            parent_id,
+            child_id,
+            quantity,
+            float(request.form.get('scrap_percentage', 0)),
+            find_number,
+            request.form.get('category', 'Other'),
+            request.form.get('revision', 'A'),
+            request.form.get('effectivity_date') if request.form.get('effectivity_date') else None,
+            request.form.get('status', 'Active'),
+            request.form.get('reference_designator', ''),
+            request.form.get('document_link', ''),
+            request.form.get('notes', ''),
+            child_cost if child_cost else 0,
+            extended_cost
         ))
         
         conn.commit()
@@ -47,9 +80,12 @@ def create_bom():
         return redirect(url_for('bom_routes.list_boms'))
     
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    parent_id = request.args.get('parent_id')
+    next_find_number = BOMHierarchy.get_next_find_number(int(parent_id)) if parent_id else '1'
+    
     conn.close()
     
-    return render_template('boms/create.html', products=products)
+    return render_template('boms/create.html', products=products, next_find_number=next_find_number)
 
 @bom_bp.route('/boms/<int:id>/delete', methods=['POST'])
 @role_required('Admin', 'Planner')
@@ -211,3 +247,130 @@ def import_boms():
             conn.close()
     
     return redirect(url_for('bom_routes.list_boms'))
+
+@bom_bp.route('/boms/view/<int:product_id>')
+@login_required
+def view_bom_hierarchy(product_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+    if not product:
+        flash('Product not found', 'danger')
+        return redirect(url_for('bom_routes.list_boms'))
+    
+    hierarchy = BOMHierarchy.build_hierarchy_tree(product_id)
+    summary = BOMHierarchy.get_bom_summary(product_id)
+    
+    conn.close()
+    
+    return render_template('boms/view_hierarchy.html', 
+                         product=product, 
+                         hierarchy=hierarchy,
+                         summary=summary)
+
+@bom_bp.route('/boms/<int:id>/edit', methods=['GET', 'POST'])
+@role_required('Admin', 'Planner')
+def edit_bom(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    bom = conn.execute('SELECT * FROM boms WHERE id = ?', (id,)).fetchone()
+    if not bom:
+        flash('BOM not found', 'danger')
+        return redirect(url_for('bom_routes.list_boms'))
+    
+    if request.method == 'POST':
+        quantity = float(request.form['quantity'])
+        child_cost = conn.execute('SELECT cost FROM products WHERE id = ?', (bom['child_product_id'],)).fetchone()['cost']
+        extended_cost = quantity * (child_cost if child_cost else 0)
+        
+        conn.execute('''
+            UPDATE boms SET 
+                quantity = ?, scrap_percentage = ?, find_number = ?, category = ?,
+                revision = ?, effectivity_date = ?, status = ?, reference_designator = ?,
+                document_link = ?, notes = ?, extended_cost = ?
+            WHERE id = ?
+        ''', (
+            quantity,
+            float(request.form.get('scrap_percentage', 0)),
+            request.form.get('find_number'),
+            request.form.get('category', 'Other'),
+            request.form.get('revision', 'A'),
+            request.form.get('effectivity_date') if request.form.get('effectivity_date') else None,
+            request.form.get('status', 'Active'),
+            request.form.get('reference_designator', ''),
+            request.form.get('document_link', ''),
+            request.form.get('notes', ''),
+            extended_cost,
+            id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('BOM updated successfully!', 'success')
+        return redirect(url_for('bom_routes.list_boms'))
+    
+    products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    conn.close()
+    
+    return render_template('boms/edit.html', bom=bom, products=products)
+
+@bom_bp.route('/boms/clone', methods=['POST'])
+@role_required('Admin', 'Planner')
+def clone_bom():
+    source_id = int(request.form['source_product_id'])
+    target_id = int(request.form['target_product_id'])
+    
+    if source_id == target_id:
+        flash('Source and target products must be different', 'danger')
+        return redirect(url_for('bom_routes.list_boms'))
+    
+    count = BOMHierarchy.clone_bom(source_id, target_id)
+    flash(f'Successfully cloned {count} BOM items', 'success')
+    
+    return redirect(url_for('bom_routes.view_bom_hierarchy', product_id=target_id))
+
+@bom_bp.route('/boms/mass-update', methods=['POST'])
+@role_required('Admin', 'Planner')
+def mass_update():
+    db = Database()
+    conn = db.get_connection()
+    
+    update_type = request.form.get('update_type')
+    parent_id = request.form.get('parent_product_id')
+    
+    if not parent_id:
+        flash('Please select a parent product', 'danger')
+        return redirect(url_for('bom_routes.list_boms'))
+    
+    if update_type == 'status':
+        new_status = request.form.get('new_status')
+        conn.execute(
+            'UPDATE boms SET status = ? WHERE parent_product_id = ?',
+            (new_status, parent_id)
+        )
+        flash(f'Updated all BOM items to status: {new_status}', 'success')
+    
+    elif update_type == 'revision':
+        new_revision = request.form.get('new_revision')
+        conn.execute(
+            'UPDATE boms SET revision = ? WHERE parent_product_id = ?',
+            (new_revision, parent_id)
+        )
+        flash(f'Updated all BOM items to revision: {new_revision}', 'success')
+    
+    elif update_type == 'category':
+        old_category = request.form.get('old_category')
+        new_category = request.form.get('new_category')
+        conn.execute(
+            'UPDATE boms SET category = ? WHERE parent_product_id = ? AND category = ?',
+            (new_category, parent_id, old_category)
+        )
+        flash(f'Updated {old_category} items to {new_category}', 'success')
+    
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('bom_routes.view_bom_hierarchy', product_id=parent_id))

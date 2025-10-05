@@ -23,30 +23,109 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-funnel"></i> Filters
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="filterParent" class="form-label">Parent Product</label>
+                    <input type="text" class="form-control" id="filterParent" placeholder="Search by parent code or name">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="filterCategory" class="form-label">Category</label>
+                    <select class="form-select" id="filterCategory">
+                        <option value="">All Categories</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Mechanical">Mechanical</option>
+                        <option value="Hardware">Hardware</option>
+                        <option value="Consumable">Consumable</option>
+                        <option value="Subassembly">Subassembly</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="filterStatus" class="form-label">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Obsolete">Obsolete</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-secondary w-100" onclick="clearFilters()">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table table-striped" id="bomTable">
                 <thead>
                     <tr>
+                        <th>Find #</th>
                         <th>Parent Product</th>
                         <th>Child Product</th>
+                        <th>Category</th>
                         <th>Quantity</th>
                         <th>Scrap %</th>
+                        <th>Rev</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for bom in boms %}
-                    <tr>
-                        <td>{{ bom.parent_code }} - {{ bom.parent_name }}</td>
-                        <td>{{ bom.child_code }} - {{ bom.child_name }}</td>
-                        <td>{{ bom.quantity }}</td>
-                        <td>{{ bom.scrap_percentage }}%</td>
+                    <tr data-parent="{{ bom.parent_code }} {{ bom.parent_name }}" 
+                        data-category="{{ bom.category or 'Other' }}" 
+                        data-status="{{ bom.status or 'Active' }}">
+                        <td>{{ bom.find_number or '-' }}</td>
                         <td>
+                            <a href="{{ url_for('bom_routes.view_bom_hierarchy', product_id=bom.parent_product_id) }}" class="text-decoration-none">
+                                <strong>{{ bom.parent_code }}</strong> - {{ bom.parent_name }}
+                            </a>
+                        </td>
+                        <td>{{ bom.child_code }} - {{ bom.child_name }}</td>
+                        <td><span class="badge bg-secondary">{{ bom.category or 'Other' }}</span></td>
+                        <td>{{ bom.quantity }}</td>
+                        <td>{{ bom.scrap_percentage or 0 }}%</td>
+                        <td>{{ bom.revision or 'A' }}</td>
+                        <td>
+                            {% if bom.status == 'Active' or not bom.status %}
+                            <span class="badge bg-success">Active</span>
+                            {% elif bom.status == 'Obsolete' %}
+                            <span class="badge bg-danger">Obsolete</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ bom.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('bom_routes.view_bom_hierarchy', product_id=bom.parent_product_id) }}" class="btn btn-sm btn-outline-info" title="View Hierarchy">
+                                <i class="bi bi-diagram-3"></i>
+                            </a>
                             {% if session.role in ['Admin', 'Planner'] %}
+                            <a href="{{ url_for('bom_routes.edit_bom', id=bom.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
                             <form method="POST" action="{{ url_for('bom_routes.delete_bom', id=bom.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')"><i class="bi bi-trash"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </form>
                             {% endif %}
                         </td>
@@ -57,6 +136,49 @@
         </div>
     </div>
 </div>
+
+<script>
+function filterTable() {
+    const parentFilter = document.getElementById('filterParent').value.toLowerCase();
+    const categoryFilter = document.getElementById('filterCategory').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    const table = document.getElementById('bomTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    for (let row of rows) {
+        const parent = row.getAttribute('data-parent').toLowerCase();
+        const category = row.getAttribute('data-category');
+        const status = row.getAttribute('data-status');
+        
+        let showRow = true;
+        
+        if (parentFilter && !parent.includes(parentFilter)) {
+            showRow = false;
+        }
+        
+        if (categoryFilter && category !== categoryFilter) {
+            showRow = false;
+        }
+        
+        if (statusFilter && status !== statusFilter) {
+            showRow = false;
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    }
+}
+
+function clearFilters() {
+    document.getElementById('filterParent').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterStatus').value = '';
+    filterTable();
+}
+
+document.getElementById('filterParent').addEventListener('input', filterTable);
+document.getElementById('filterCategory').addEventListener('change', filterTable);
+document.getElementById('filterStatus').addEventListener('change', filterTable);
+</script>
 
 {% if session.role in ['Admin', 'Planner'] %}
 <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">

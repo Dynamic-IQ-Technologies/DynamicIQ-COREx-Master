@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify
 from models import Database
 from auth import login_required, role_required
 import csv
@@ -14,6 +14,15 @@ def list_products():
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
     conn.close()
     return render_template('products/list.html', products=products)
+
+@product_bp.route('/products/list-json')
+@login_required
+def list_products_json():
+    db = Database()
+    conn = db.get_connection()
+    products = conn.execute('SELECT id, code, name, product_type FROM products ORDER BY code').fetchall()
+    conn.close()
+    return jsonify([dict(p) for p in products])
 
 @product_bp.route('/products/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')

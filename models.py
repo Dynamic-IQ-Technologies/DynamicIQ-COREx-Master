@@ -143,6 +143,30 @@ class Database:
             )
         ''')
         
+        cursor.execute("PRAGMA table_info(boms)")
+        existing_columns = [col[1] for col in cursor.fetchall()]
+        
+        bom_columns = [
+            ('find_number', 'TEXT'),
+            ('category', 'TEXT DEFAULT "Other"'),
+            ('revision', 'TEXT DEFAULT "A"'),
+            ('effectivity_date', 'DATE'),
+            ('status', 'TEXT DEFAULT "Active"'),
+            ('reference_designator', 'TEXT'),
+            ('level', 'INTEGER DEFAULT 0'),
+            ('document_link', 'TEXT'),
+            ('notes', 'TEXT'),
+            ('unit_cost', 'REAL DEFAULT 0'),
+            ('extended_cost', 'REAL DEFAULT 0')
+        ]
+        
+        for col_name, col_type in bom_columns:
+            if col_name not in existing_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE boms ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
         conn.commit()
         conn.close()
 

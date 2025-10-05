@@ -8,46 +8,135 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-            <div class="mb-3">
-                <label for="parent_product_id" class="form-label">Parent Product (Assembly) *</label>
-                <select class="form-select" id="parent_product_id" name="parent_product_id" required>
-                    <option value="">Select Parent Product</option>
-                    {% for product in products %}
-                    <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <label for="child_product_id" class="form-label">Child Product (Component) *</label>
-                <select class="form-select" id="child_product_id" name="child_product_id" required>
-                    <option value="">Select Child Product</option>
-                    {% for product in products %}
-                    <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
-                    {% endfor %}
-                </select>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="parent_product_id" class="form-label">Parent Product (Assembly) *</label>
+                        <select class="form-select" id="parent_product_id" name="parent_product_id" required onchange="updateFindNumber(this.value)">
+                            <option value="">Select Parent Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="child_product_id" class="form-label">Child Product (Component) *</label>
+                        <select class="form-select" id="child_product_id" name="child_product_id" required>
+                            <option value="">Select Child Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="find_number" class="form-label">Find Number</label>
+                        <input type="text" class="form-control" id="find_number" name="find_number" value="{{ next_find_number }}" placeholder="Auto-generated">
+                        <small class="text-muted">Next: {{ next_find_number }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category *</label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="Other" selected>Other</option>
+                            <option value="Electrical">Electrical</option>
+                            <option value="Mechanical">Mechanical</option>
+                            <option value="Hardware">Hardware</option>
+                            <option value="Consumable">Consumable</option>
+                            <option value="Subassembly">Subassembly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="reference_designator" class="form-label">Reference Designator</label>
+                        <input type="text" class="form-control" id="reference_designator" name="reference_designator" placeholder="e.g., R1, C2, U3">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="quantity" class="form-label">Quantity Required *</label>
                         <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" required>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <div class="mb-3">
-                        <label for="scrap_percentage" class="form-label">Scrap Percentage</label>
+                        <label for="scrap_percentage" class="form-label">Scrap %</label>
                         <input type="number" step="0.01" class="form-control" id="scrap_percentage" name="scrap_percentage" value="0">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="revision" class="form-label">Revision *</label>
+                        <input type="text" class="form-control" id="revision" name="revision" value="A" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Active" selected>Active</option>
+                            <option value="Obsolete">Obsolete</option>
+                            <option value="Pending">Pending</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="effectivity_date" class="form-label">Effectivity Date</label>
+                        <input type="date" class="form-control" id="effectivity_date" name="effectivity_date">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="document_link" class="form-label">Document/Drawing Link</label>
+                        <input type="text" class="form-control" id="document_link" name="document_link" placeholder="URL to drawings, specs, or manuals">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional information, assembly instructions, or special requirements"></textarea>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('bom_routes.list_boms') }}" class="btn btn-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Create BOM</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Create BOM
+                </button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+function updateFindNumber(parentId) {
+    if (parentId) {
+        fetch(`/boms/create?parent_id=${parentId}`)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const findNumberField = doc.querySelector('#find_number');
+                if (findNumberField) {
+                    document.querySelector('#find_number').value = findNumberField.value;
+                }
+            });
+    }
+}
+</script>
 {% endblock %}

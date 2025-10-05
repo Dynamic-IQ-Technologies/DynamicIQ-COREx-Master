@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Edit BOM - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Edit Bill of Materials</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="alert alert-info">
+                <strong>Parent:</strong> {{ products|selectattr('id', 'equalto', bom.parent_product_id)|map(attribute='code')|first }} - {{ products|selectattr('id', 'equalto', bom.parent_product_id)|map(attribute='name')|first }}<br>
+                <strong>Child:</strong> {{ products|selectattr('id', 'equalto', bom.child_product_id)|map(attribute='code')|first }} - {{ products|selectattr('id', 'equalto', bom.child_product_id)|map(attribute='name')|first }}
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="find_number" class="form-label">Find Number</label>
+                        <input type="text" class="form-control" id="find_number" name="find_number" value="{{ bom.find_number or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category *</label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="Other" {% if bom.category == 'Other' %}selected{% endif %}>Other</option>
+                            <option value="Electrical" {% if bom.category == 'Electrical' %}selected{% endif %}>Electrical</option>
+                            <option value="Mechanical" {% if bom.category == 'Mechanical' %}selected{% endif %}>Mechanical</option>
+                            <option value="Hardware" {% if bom.category == 'Hardware' %}selected{% endif %}>Hardware</option>
+                            <option value="Consumable" {% if bom.category == 'Consumable' %}selected{% endif %}>Consumable</option>
+                            <option value="Subassembly" {% if bom.category == 'Subassembly' %}selected{% endif %}>Subassembly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="reference_designator" class="form-label">Reference Designator</label>
+                        <input type="text" class="form-control" id="reference_designator" name="reference_designator" value="{{ bom.reference_designator or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity Required *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" value="{{ bom.quantity }}" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="scrap_percentage" class="form-label">Scrap %</label>
+                        <input type="number" step="0.01" class="form-control" id="scrap_percentage" name="scrap_percentage" value="{{ bom.scrap_percentage or 0 }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="revision" class="form-label">Revision *</label>
+                        <input type="text" class="form-control" id="revision" name="revision" value="{{ bom.revision or 'A' }}" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Active" {% if bom.status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Obsolete" {% if bom.status == 'Obsolete' %}selected{% endif %}>Obsolete</option>
+                            <option value="Pending" {% if bom.status == 'Pending' %}selected{% endif %}>Pending</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="effectivity_date" class="form-label">Effectivity Date</label>
+                        <input type="date" class="form-control" id="effectivity_date" name="effectivity_date" value="{{ bom.effectivity_date or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="document_link" class="form-label">Document/Drawing Link</label>
+                        <input type="text" class="form-control" id="document_link" name="document_link" value="{{ bom.document_link or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3">{{ bom.notes or '' }}</textarea>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('bom_routes.list_boms') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Update BOM
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
