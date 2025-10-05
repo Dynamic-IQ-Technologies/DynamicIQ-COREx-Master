@@ -298,7 +298,7 @@
                     {% endif %}
                 </td>
                 <td>{{ po.unit_of_measure }}</td>
-                <td style="text-align: right;">{{ "%.2f"|format(po.quantity) }}</td>
+                <td style="text-align: right;">{{ po.quantity|int }}</td>
                 <td style="text-align: right;">${{ "%.2f"|format(po.unit_price) }}</td>
                 <td style="text-align: right;">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
             </tr>

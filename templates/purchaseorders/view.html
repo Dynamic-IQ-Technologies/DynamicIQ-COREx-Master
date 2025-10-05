@@ -114,7 +114,7 @@
                         <td>{{ po.product_code }}</td>
                         <td>{{ po.product_name }}</td>
                         <td>{{ po.unit_of_measure }}</td>
-                        <td>{{ "%.2f"|format(po.quantity) }}</td>
+                        <td>{{ po.quantity|int }}</td>
                         <td>${{ "%.2f"|format(po.unit_price) }}</td>
                         <td class="fw-bold">${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
                     </tr>
@@ -139,7 +139,7 @@
         <div class="row">
             <div class="col-md-6">
                 <div class="alert alert-info">
-                    <strong>Current Inventory Quantity:</strong> {{ "%.2f"|format(po.inventory_quantity) }} {{ po.unit_of_measure }}
+                    <strong>Current Inventory Quantity:</strong> {{ po.inventory_quantity|int }} {{ po.unit_of_measure }}
                 </div>
             </div>
         </div>

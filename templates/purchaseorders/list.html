@@ -38,7 +38,7 @@
                         <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
                         <td>{{ po.supplier_name }}</td>
                         <td>{{ po.code }} - {{ po.product_name }}</td>
-                        <td>{{ po.quantity }}</td>
+                        <td>{{ po.quantity|int }}</td>
                         <td>${{ "%.2f"|format(po.unit_price) }}</td>
                         <td>${{ "%.2f"|format(po.quantity * po.unit_price) }}</td>
                         <td>
