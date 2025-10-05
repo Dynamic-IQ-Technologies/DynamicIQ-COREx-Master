@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Employee {{ labor_resource.employee_code }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('labor_routes.list_labor_resources') }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Labor Resources</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>{{ labor_resource.first_name }} {{ labor_resource.last_name }}</h2>
+        <p class="text-muted mb-0">{{ labor_resource.employee_code }}</p>
+    </div>
+    {% if user.role in ['Admin', 'Planner'] %}
+    <a href="{{ url_for('labor_routes.edit_labor_resource', id=labor_resource.id) }}" class="btn btn-warning"><i class="bi bi-pencil"></i> Edit</a>
+    {% endif %}
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Employee Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="40%">Name:</th>
+                        <td>{{ labor_resource.first_name }} {{ labor_resource.last_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Employee Code:</th>
+                        <td>{{ labor_resource.employee_code }}</td>
+                    </tr>
+                    <tr>
+                        <th>Role:</th>
+                        <td>{{ labor_resource.role }}</td>
+                    </tr>
+                    <tr>
+                        <th>Skillset:</th>
+                        <td>{{ labor_resource.skillset or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Hourly Rate:</th>
+                        <td>${{ "%.2f"|format(labor_resource.hourly_rate) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Cost Center:</th>
+                        <td>{{ labor_resource.cost_center or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if labor_resource.status == 'Active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ labor_resource.email or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Phone:</th>
+                        <td>{{ labor_resource.phone or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Work Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="50%">Assigned Tasks:</th>
+                        <td>{{ tasks|length }}</td>
+                    </tr>
+                    <tr>
+                        <th>Total Labor Entries:</th>
+                        <td>{{ labor_entries|length }}</td>
+                    </tr>
+                    <tr>
+                        <th>Total Hours Worked:</th>
+                        <td>{{ "%.2f"|format(labor_entries|sum(attribute='hours_worked') or 0) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Total Labor Cost:</th>
+                        <td>${{ "%.2f"|format(labor_entries|sum(attribute='labor_cost') or 0) }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-list-task"></i> Assigned Tasks</h5>
+    </div>
+    <div class="card-body">
+        {% if tasks %}
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Task #</th>
+                        <th>WO #</th>
+                        <th>Product</th>
+                        <th>Task Name</th>
+                        <th>Status</th>
+                        <th>Planned Hours</th>
+                        <th>Actual Hours</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                    <tr>
+                        <td><a href="{{ url_for('task_routes.view_task', task_id=task.id) }}">{{ task.task_number }}</a></td>
+                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=task.work_order_id) }}">{{ task.wo_number }}</a></td>
+                        <td>{{ task.code }} - {{ task.name }}</td>
+                        <td>{{ task.task_name }}</td>
+                        <td><span class="badge bg-{% if task.status == 'Completed' %}success{% elif task.status == 'In Progress' %}info{% else %}secondary{% endif %}">{{ task.status }}</span></td>
+                        <td>{{ "%.2f"|format(task.planned_hours or 0) }}</td>
+                        <td>{{ "%.2f"|format(task.actual_hours or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">No tasks assigned</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Labor Entries (Last 50)</h5>
+    </div>
+    <div class="card-body">
+        {% if labor_entries %}
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Issuance #</th>
+                        <th>WO #</th>
+                        <th>Task</th>
+                        <th>Work Date</th>
+                        <th>Hours</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in labor_entries %}
+                    <tr>
+                        <td>{{ entry.issuance_number }}</td>
+                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=entry.work_order_id) }}">{{ entry.wo_number }}</a></td>
+                        <td>{{ entry.task_name }}</td>
+                        <td>{{ entry.work_date }}</td>
+                        <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
+                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">No labor entries found</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

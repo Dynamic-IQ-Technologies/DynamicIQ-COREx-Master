@@ -164,6 +164,20 @@ def view_workorder(id):
     # Get all products for the Add Material dropdown
     all_products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
     
+    # Get task summary for this work order
+    task_summary = conn.execute('''
+        SELECT 
+            COUNT(*) as total_tasks,
+            SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed_tasks,
+            SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_tasks,
+            SUM(planned_hours) as total_planned_hours,
+            SUM(actual_hours) as total_actual_hours,
+            SUM(planned_labor_cost) as total_planned_labor_cost,
+            SUM(actual_labor_cost) as total_actual_labor_cost
+        FROM work_order_tasks
+        WHERE work_order_id = ?
+    ''', (id,)).fetchone()
+    
     cost_info = mrp.calculate_work_order_cost(id)
     
     conn.close()
@@ -172,7 +186,8 @@ def view_workorder(id):
                          workorder=workorder, 
                          requirements=requirements,
                          cost_info=cost_info,
-                         all_products=all_products)
+                         all_products=all_products,
+                         task_summary=task_summary)
 
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')

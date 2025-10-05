@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Labor Entry - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('task_routes.view_task', task_id=labor_issuance.task_id) }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Task</a>
+</div>
+
+<h2>Edit Labor Entry {{ labor_issuance.issuance_number }}</h2>
+<p class="text-muted">Task {{ labor_issuance.task_name }}</p>
+<p class="text-muted mb-4">WO {{ labor_issuance.wo_number }}</p>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('labor_issuance_routes.edit_labor_issuance', id=labor_issuance.id) }}">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="resource_id" class="form-label">Labor Resource <span class="text-danger">*</span></label>
+                        <select class="form-select" id="resource_id" name="resource_id" required>
+                            {% for resource in labor_resources %}
+                            <option value="{{ resource.id }}" {% if labor_issuance.resource_id == resource.id %}selected{% endif %}>
+                                {{ resource.first_name }} {{ resource.last_name }} - {{ resource.role }} (${{ "%.2f"|format(resource.hourly_rate) }}/hr)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="work_date" class="form-label">Work Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="work_date" name="work_date" value="{{ labor_issuance.work_date }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="start_time" class="form-label">Start Time</label>
+                        <input type="time" class="form-control" id="start_time" name="start_time" value="{{ labor_issuance.start_time[11:16] if labor_issuance.start_time else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="end_time" class="form-label">End Time</label>
+                        <input type="time" class="form-control" id="end_time" name="end_time" value="{{ labor_issuance.end_time[11:16] if labor_issuance.end_time else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="hours_worked" class="form-label">Hours Worked <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="hours_worked" name="hours_worked" value="{{ labor_issuance.hours_worked }}" min="0.01" step="0.01" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="remarks" class="form-label">Remarks</label>
+                <textarea class="form-control" id="remarks" name="remarks" rows="3">{{ labor_issuance.remarks or '' }}</textarea>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> <strong>Note:</strong> Labor cost will be recalculated based on the selected employee's current hourly rate.
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('task_routes.view_task', task_id=labor_issuance.task_id) }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Update Labor Entry</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

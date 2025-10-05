@@ -3,7 +3,15 @@
 {% block title %}Work Order {{ workorder.wo_number }} - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Work Order: {{ workorder.wo_number }}</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Work Order: {{ workorder.wo_number }}</h2>
+    <div>
+        <a href="{{ url_for('task_routes.list_tasks', wo_id=workorder.id) }}" class="btn btn-primary"><i class="bi bi-list-task"></i> View Tasks</a>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('workorder_routes.edit_workorder', id=workorder.id) }}" class="btn btn-warning"><i class="bi bi-pencil"></i> Edit</a>
+        {% endif %}
+    </div>
+</div>
 
 <div class="row mb-4">
     <div class="col-md-8">
@@ -44,6 +52,47 @@
                 {% endif %}
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-task"></i> Task Summary</h5>
+        <a href="{{ url_for('task_routes.list_tasks', wo_id=workorder.id) }}" class="btn btn-light btn-sm"><i class="bi bi-eye"></i> View All Tasks</a>
+    </div>
+    <div class="card-body">
+        {% if task_summary and task_summary.total_tasks > 0 %}
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-2"><strong>Total Tasks:</strong> {{ task_summary.total_tasks or 0 }}</p>
+                <p class="mb-2"><strong>Completed:</strong> <span class="badge bg-success">{{ task_summary.completed_tasks or 0 }}</span></p>
+                <p class="mb-2"><strong>In Progress:</strong> <span class="badge bg-info">{{ task_summary.in_progress_tasks or 0 }}</span></p>
+                <p class="mb-0"><strong>Completion Rate:</strong> 
+                    {% if task_summary.total_tasks > 0 %}
+                    {{ "%.0f"|format((task_summary.completed_tasks or 0) * 100 / task_summary.total_tasks) }}%
+                    {% else %}
+                    0%
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-2"><strong>Planned Hours:</strong> {{ "%.2f"|format(task_summary.total_planned_hours or 0) }}</p>
+                <p class="mb-2"><strong>Actual Hours:</strong> {{ "%.2f"|format(task_summary.total_actual_hours or 0) }}</p>
+                <p class="mb-2"><strong>Hour Variance:</strong> 
+                    {% set hours_var = (task_summary.total_actual_hours or 0) - (task_summary.total_planned_hours or 0) %}
+                    <span class="{% if hours_var > 0 %}text-danger{% elif hours_var < 0 %}text-success{% endif %}">
+                        {{ "%.2f"|format(hours_var) }}
+                    </span>
+                </p>
+                <p class="mb-0"><strong>Labor Cost:</strong> ${{ "%.2f"|format(task_summary.total_actual_labor_cost or 0) }}</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">
+            <i class="bi bi-list-task" style="font-size: 2rem;"></i>
+            <p class="mt-2 mb-0">No tasks created yet</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 

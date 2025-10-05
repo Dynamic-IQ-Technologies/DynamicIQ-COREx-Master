@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Task {{ task.task_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('task_routes.list_tasks', wo_id=task.work_order_id) }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Tasks</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Task {{ task.task_number }}</h2>
+        <p class="text-muted mb-0">WO {{ task.wo_number }} - {{ task.code }} - {{ task.name }}</p>
+    </div>
+    <div>
+        {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+        <a href="{{ url_for('labor_issuance_routes.record_labor', task_id=task.id) }}" class="btn btn-success"><i class="bi bi-clock-history"></i> Record Labor</a>
+        <a href="{{ url_for('task_routes.edit_task', task_id=task.id) }}" class="btn btn-warning"><i class="bi bi-pencil"></i> Edit Task</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Task Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="40%">Task Name:</th>
+                        <td>{{ task.task_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Category:</th>
+                        <td>{{ task.category }}</td>
+                    </tr>
+                    <tr>
+                        <th>Priority:</th>
+                        <td><span class="badge bg-{% if task.priority == 'Critical' %}danger{% elif task.priority == 'High' %}warning{% else %}secondary{% endif %}">{{ task.priority }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if task.status == 'Completed' %}
+                            <span class="badge bg-success">{{ task.status }}</span>
+                            {% elif task.status == 'In Progress' %}
+                            <span class="badge bg-info">{{ task.status }}</span>
+                            {% elif task.status == 'On Hold' %}
+                            <span class="badge bg-warning">{{ task.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ task.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Assigned To:</th>
+                        <td>
+                            {% if task.first_name %}
+                            {{ task.first_name }} {{ task.last_name }} ({{ task.employee_code }})
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Sequence:</th>
+                        <td>{{ task.sequence_number }}</td>
+                    </tr>
+                    {% if task.description %}
+                    <tr>
+                        <th>Description:</th>
+                        <td>{{ task.description }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if task.remarks %}
+                    <tr>
+                        <th>Remarks:</th>
+                        <td>{{ task.remarks }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Labor Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="50%">Planned Hours:</th>
+                        <td>{{ "%.2f"|format(task.planned_hours or 0) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Actual Hours:</th>
+                        <td>{{ "%.2f"|format(task.actual_hours or 0) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Hour Variance:</th>
+                        <td>
+                            {% set hours_variance = (task.actual_hours or 0) - (task.planned_hours or 0) %}
+                            <span class="{% if hours_variance > 0 %}text-danger{% elif hours_variance < 0 %}text-success{% endif %}">
+                                {{ "%.2f"|format(hours_variance) }}
+                                {% if task.planned_hours and task.planned_hours > 0 %}
+                                ({{ "%.0f"|format((hours_variance / task.planned_hours) * 100) }}%)
+                                {% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Planned Labor Cost:</th>
+                        <td>${{ "%.2f"|format(task.planned_labor_cost or 0) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Actual Labor Cost:</th>
+                        <td>${{ "%.2f"|format(task.actual_labor_cost or 0) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Cost Variance:</th>
+                        <td>
+                            {% set cost_variance = (task.actual_labor_cost or 0) - (task.planned_labor_cost or 0) %}
+                            <span class="{% if cost_variance > 0 %}text-danger{% elif cost_variance < 0 %}text-success{% endif %}">
+                                ${{ "%.2f"|format(cost_variance) }}
+                                {% if task.planned_labor_cost and task.planned_labor_cost > 0 %}
+                                ({{ "%.0f"|format((cost_variance / task.planned_labor_cost) * 100) }}%)
+                                {% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Hourly Rate:</th>
+                        <td>${{ "%.2f"|format(task.hourly_rate or 0) }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar"></i> Timeline</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="50%">Planned Start:</th>
+                        <td>{{ task.planned_start_date or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Planned End:</th>
+                        <td>{{ task.planned_end_date or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Actual Start:</th>
+                        <td>{{ task.actual_start_date or 'Not started' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Actual End:</th>
+                        <td>{{ task.actual_end_date or 'Not completed' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Labor Entries</h5>
+        {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+        <a href="{{ url_for('labor_issuance_routes.record_labor', task_id=task.id) }}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle"></i> Record Labor</a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if labor_entries %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Issuance #</th>
+                        <th>Resource</th>
+                        <th>Work Date</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Hours</th>
+                        <th>Rate</th>
+                        <th>Cost</th>
+                        <th>Recorded By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in labor_entries %}
+                    <tr>
+                        <td>{{ entry.issuance_number }}</td>
+                        <td>{{ entry.first_name }} {{ entry.last_name }}</td>
+                        <td>{{ entry.work_date }}</td>
+                        <td>{{ entry.start_time or '-' }}</td>
+                        <td>{{ entry.end_time or '-' }}</td>
+                        <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
+                        <td>${{ "%.2f"|format(entry.hourly_rate) }}</td>
+                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                        <td>{{ entry.created_by_name or 'System' }}</td>
+                        <td>
+                            {% if user.role in ['Admin', 'Planner'] %}
+                            <a href="{{ url_for('labor_issuance_routes.edit_labor_issuance', id=entry.id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                            {% endif %}
+                            {% if user.role == 'Admin' %}
+                            <form method="POST" action="{{ url_for('labor_issuance_routes.delete_labor_issuance', id=entry.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this labor entry?');">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td colspan="5" class="text-end">Totals:</td>
+                        <td>{{ "%.2f"|format(labor_entries|sum(attribute='hours_worked')) }}</td>
+                        <td></td>
+                        <td>${{ "%.2f"|format(labor_entries|sum(attribute='labor_cost')) }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+            <p class="mt-2">No labor entries recorded yet</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

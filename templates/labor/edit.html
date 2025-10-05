@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Employee - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('labor_routes.list_labor_resources') }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Labor Resources</a>
+</div>
+
+<h2>Edit Employee {{ labor_resource.employee_code }}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('labor_routes.edit_labor_resource', id=labor_resource.id) }}">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ labor_resource.first_name }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ labor_resource.last_name }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="role" name="role" value="{{ labor_resource.role }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="skillset" class="form-label">Skillset</label>
+                        <input type="text" class="form-control" id="skillset" name="skillset" value="{{ labor_resource.skillset or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="hourly_rate" class="form-label">Hourly Rate ($)</label>
+                        <input type="number" class="form-control" id="hourly_rate" name="hourly_rate" value="{{ labor_resource.hourly_rate }}" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="cost_center" class="form-label">Cost Center</label>
+                        <input type="text" class="form-control" id="cost_center" name="cost_center" value="{{ labor_resource.cost_center or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="Active" {% if labor_resource.status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Inactive" {% if labor_resource.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ labor_resource.email or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ labor_resource.phone or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('labor_routes.list_labor_resources') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Update Employee</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

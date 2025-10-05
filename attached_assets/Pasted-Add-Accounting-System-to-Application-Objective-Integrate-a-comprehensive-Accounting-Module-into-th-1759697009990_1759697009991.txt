@@ -1,0 +1,158 @@
+Add Accounting System to Application
+
+Objective:
+Integrate a comprehensive Accounting Module into the current application to ensure proper financial management, reporting, and compliance with accounting standards. The system should automate entries from operational activities, maintain audit trails, and support real-time reporting.
+
+1. Core Accounting Structure
+Chart of Accounts (COA)
+
+Configurable COA with account types:
+
+Assets: Cash, Accounts Receivable, Inventory, Fixed Assets
+
+Liabilities: Accounts Payable, Accrued Expenses, Loans
+
+Equity: Retained Earnings, Owner’s Capital
+
+Revenue: Sales, Services, Miscellaneous Income
+
+Expenses: COGS, Labor, Overhead, Administrative Expenses
+
+Support hierarchical grouping for reporting.
+
+Allow adding, editing, or deactivating accounts with role-based permissions.
+
+2. General Ledger (GL)
+
+Maintain double-entry accounting for all transactions.
+
+Features:
+
+Automatic posting from operational modules (Purchasing, Sales, Work Orders)
+
+Manual journal entry creation for adjustments
+
+Posting/unposting control
+
+Audit trail with user, date/time, and transaction source
+
+3. Subledgers & Module Integration
+Accounts Payable (AP)
+
+Post vendor invoices automatically from POs.
+
+Track outstanding payables, due dates, and partial payments.
+
+Automatic postings:
+
+Dr. Inventory / Expense
+
+Cr. Accounts Payable
+
+Accounts Receivable (AR)
+
+Post customer invoices automatically from sales or work orders.
+
+Track payments, partial payments, and aging.
+
+Automatic postings:
+
+Dr. Accounts Receivable
+
+Cr. Revenue / Tax Liability
+
+Inventory Accounting
+
+Track inventory valuation (FIFO, LIFO, Average Cost).
+
+Post material receipts, issues, and work order consumption.
+
+Ensure inventory valuation integrates with GL.
+
+Work Order Accounting
+
+Track labor, material, and overhead costs per work order.
+
+Post WIP during work execution, and COGS upon completion or sale.
+
+4. Journal Entries
+
+Support manual and recurring journal entries.
+
+Ensure debit = credit validation.
+
+Approval workflow for high-value or adjusting entries.
+
+Attach supporting documents for audit purposes.
+
+5. Financial Reporting
+
+Provide real-time reports and dashboards:
+
+Standard Reports
+
+Trial Balance
+
+Balance Sheet
+
+Income Statement / P&L
+
+Cash Flow Statement
+
+AP & AR Aging
+
+Inventory Valuation
+
+GL Detail
+
+Dashboards
+
+Revenue vs Expenses
+
+Cash Position
+
+Top Vendors & Customers
+
+Work Order Cost Summary
+
+6. Internal Controls
+
+Role-based access (Admin, Accountant, Viewer).
+
+Segregation of duties for approvals.
+
+Lock periods after financial close.
+
+Maintain immutable audit logs.
+
+7. Compliance
+
+Comply with GAAP (or IFRS if applicable).
+
+Support fiscal calendar configuration.
+
+Standardized numbering for invoices, receipts, and journal entries.
+
+Maintain full audit-ready transaction history.
+
+8. Integration with Operational Modules
+
+Purchases → AP
+
+Sales → AR
+
+Inventory → GL and WIP/COGS
+
+Work Orders → Labor, Material, and Overhead costs
+
+9. Expected Outcome
+
+After implementation, the application will:
+
+Automate financial postings from operational activities.
+
+Maintain accurate, audit-ready financial records.
+
+Enable comprehensive financial reporting and analysis.
+
+Ensure compliance with proper accounting practices.

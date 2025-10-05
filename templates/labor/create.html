@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Add Employee - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('labor_routes.list_labor_resources') }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Labor Resources</a>
+</div>
+
+<h2>Add Employee</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('labor_routes.create_labor_resource') }}">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="role" name="role" placeholder="e.g., Technician, Engineer, Machinist" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="skillset" class="form-label">Skillset</label>
+                        <input type="text" class="form-control" id="skillset" name="skillset" placeholder="e.g., Welding, Electrical, CNC">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="hourly_rate" class="form-label">Hourly Rate ($)</label>
+                        <input type="number" class="form-control" id="hourly_rate" name="hourly_rate" value="0" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="cost_center" class="form-label">Cost Center</label>
+                        <input type="text" class="form-control" id="cost_center" name="cost_center">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="Active" selected>Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="phone" name="phone">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('labor_routes.list_labor_resources') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Employee</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
