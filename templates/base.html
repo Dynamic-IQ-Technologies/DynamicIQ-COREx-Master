@@ -284,12 +284,6 @@
                 </a>
             </li>
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('labor_routes.list_labor_resources') }}">
-                    <i class="bi bi-people"></i>
-                    <span>Labor Resources</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('time_tracking_routes.time_tracking_page') }}">
                     <i class="bi bi-clock-history"></i>
                     <span>Time Tracking</span>
@@ -317,12 +311,6 @@
                 <a class="sidebar-nav-link" href="{{ url_for('returns_routes.list_returns') }}">
                     <i class="bi bi-arrow-return-left"></i>
                     <span>Material Returns</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('adjustment_routes.list_adjustments') }}">
-                    <i class="bi bi-sliders"></i>
-                    <span>Inventory Adjustments</span>
                 </a>
             </li>
         </ul>
@@ -433,6 +421,18 @@
                 <a class="sidebar-nav-link" href="{{ url_for('uom_routes.list_uoms') }}">
                     <i class="bi bi-rulers"></i>
                     <span>Unit of Measure</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('labor_routes.list_labor_resources') }}">
+                    <i class="bi bi-people"></i>
+                    <span>Labor Resources</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('adjustment_routes.list_adjustments') }}">
+                    <i class="bi bi-sliders"></i>
+                    <span>Inventory Adjustments</span>
                 </a>
             </li>
         </ul>
