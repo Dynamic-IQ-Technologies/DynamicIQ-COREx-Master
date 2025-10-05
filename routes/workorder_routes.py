@@ -26,36 +26,94 @@ def create_workorder():
     conn = db.get_connection()
     
     if request.method == 'POST':
-        conn.execute('''
-            INSERT INTO work_orders 
-            (wo_number, product_id, quantity, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            request.form['wo_number'],
-            int(request.form['product_id']),
-            float(request.form['quantity']),
-            request.form['status'],
-            request.form.get('priority', 'Medium'),
-            request.form.get('planned_start_date'),
-            request.form.get('planned_end_date'),
-            float(request.form.get('labor_cost', 0)),
-            float(request.form.get('overhead_cost', 0))
-        ))
+        max_attempts = 5
+        wo_number = None
+        wo_id = None
         
-        wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        conn.commit()
+        for attempt in range(max_attempts):
+            try:
+                last_wo = conn.execute('''
+                    SELECT wo_number FROM work_orders 
+                    WHERE wo_number LIKE 'WO-%'
+                    ORDER BY CAST(SUBSTR(wo_number, 4) AS INTEGER) DESC 
+                    LIMIT 1
+                ''').fetchone()
+                
+                if last_wo:
+                    try:
+                        last_number = int(last_wo['wo_number'].split('-')[1])
+                        next_number = last_number + 1
+                    except (ValueError, IndexError):
+                        next_number = 1
+                else:
+                    next_number = 1
+                
+                wo_number = f'WO-{next_number:06d}'
+                
+                conn.execute('''
+                    INSERT INTO work_orders 
+                    (wo_number, product_id, quantity, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    wo_number,
+                    int(request.form['product_id']),
+                    float(request.form['quantity']),
+                    request.form['status'],
+                    request.form.get('priority', 'Medium'),
+                    request.form.get('planned_start_date'),
+                    request.form.get('planned_end_date'),
+                    float(request.form.get('labor_cost', 0)),
+                    float(request.form.get('overhead_cost', 0))
+                ))
+                
+                wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                conn.commit()
+                break
+                
+            except Exception as e:
+                if 'UNIQUE constraint failed' in str(e) and attempt < max_attempts - 1:
+                    conn.rollback()
+                    continue
+                else:
+                    conn.close()
+                    flash(f'Error creating work order: {str(e)}', 'danger')
+                    return redirect(url_for('workorder_routes.list_workorders'))
+        
         conn.close()
         
-        mrp = MRPEngine()
-        mrp.calculate_requirements(wo_id)
-        
-        flash('Work Order created successfully! Material requirements calculated.', 'success')
-        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        if wo_id:
+            mrp = MRPEngine()
+            mrp.calculate_requirements(wo_id)
+            
+            flash(f'Work Order {wo_number} created successfully! Material requirements calculated.', 'success')
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        else:
+            flash('Failed to create work order after multiple attempts', 'danger')
+            return redirect(url_for('workorder_routes.list_workorders'))
     
     products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
+    
+    last_wo = conn.execute('''
+        SELECT wo_number FROM work_orders 
+        WHERE wo_number LIKE 'WO-%'
+        ORDER BY CAST(SUBSTR(wo_number, 4) AS INTEGER) DESC 
+        LIMIT 1
+    ''').fetchone()
+    
+    if last_wo:
+        try:
+            last_number = int(last_wo['wo_number'].split('-')[1])
+            next_number = last_number + 1
+        except (ValueError, IndexError):
+            next_number = 1
+    else:
+        next_number = 1
+    
+    next_wo_number = f'WO-{next_number:06d}'
+    
     conn.close()
     
-    return render_template('workorders/create.html', products=products)
+    return render_template('workorders/create.html', products=products, next_wo_number=next_wo_number)
 
 @workorder_bp.route('/workorders/<int:id>')
 @login_required
