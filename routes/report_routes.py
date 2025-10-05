@@ -163,10 +163,19 @@ def procure_from_requirements():
         
         for i in range(num_items):
             try:
-                product_id = int(request.form.get(f'items[{i}][product_id]'))
-                supplier_id = int(request.form.get(f'items[{i}][supplier_id]'))
-                quantity = int(request.form.get(f'items[{i}][quantity]'))
-                unit_price = float(request.form.get(f'items[{i}][unit_price]'))
+                product_id_str = request.form.get(f'items[{i}][product_id]', '')
+                supplier_id_str = request.form.get(f'items[{i}][supplier_id]', '')
+                quantity_str = request.form.get(f'items[{i}][quantity]', '')
+                unit_price_str = request.form.get(f'items[{i}][unit_price]', '')
+                
+                if not all([product_id_str, supplier_id_str, quantity_str, unit_price_str]):
+                    errors.append(f"Missing data for item {i}")
+                    continue
+                
+                product_id = int(product_id_str)
+                supplier_id = int(supplier_id_str)
+                quantity = float(quantity_str)
+                unit_price = float(unit_price_str)
                 
                 existing_po_count = conn.execute(
                     "SELECT COUNT(*) as count FROM purchase_orders WHERE po_number LIKE 'PO-%'"
