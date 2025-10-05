@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, Response
 from models import Database
 from auth import login_required
+import csv
+import io
 
 report_bp = Blueprint('report_routes', __name__)
 
@@ -62,3 +64,82 @@ def material_usage_report():
     conn.close()
     
     return render_template('reports/material_usage.html', material_usage=material_usage)
+
+@report_bp.route('/reports/material-requirements')
+@login_required
+def material_requirements_report():
+    db = Database()
+    conn = db.get_connection()
+    
+    requirements = conn.execute('''
+        SELECT mr.*, p.code, p.name, p.unit_of_measure, p.cost, 
+               wo.wo_number, wo.status as wo_status, wo.planned_start_date,
+               (mr.required_quantity * p.cost) as total_cost
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        JOIN work_orders wo ON mr.work_order_id = wo.id
+        ORDER BY wo.planned_start_date DESC, mr.shortage_quantity DESC
+    ''').fetchall()
+    
+    total_requirements = len(requirements)
+    total_shortages = sum(1 for r in requirements if r['shortage_quantity'] > 0)
+    total_cost = sum(r['total_cost'] for r in requirements)
+    total_shortage_cost = sum(r['total_cost'] for r in requirements if r['shortage_quantity'] > 0)
+    
+    shortages_by_product = conn.execute('''
+        SELECT p.code, p.name, SUM(mr.shortage_quantity) as total_shortage,
+               SUM(mr.shortage_quantity * p.cost) as shortage_value
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        WHERE mr.shortage_quantity > 0
+        GROUP BY p.code, p.name
+        ORDER BY shortage_value DESC
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('reports/material_requirements.html', 
+                         requirements=requirements,
+                         total_requirements=total_requirements,
+                         total_shortages=total_shortages,
+                         total_cost=total_cost,
+                         total_shortage_cost=total_shortage_cost,
+                         shortages_by_product=shortages_by_product)
+
+@report_bp.route('/reports/material-requirements/export')
+@login_required
+def export_material_requirements():
+    db = Database()
+    conn = db.get_connection()
+    
+    requirements = conn.execute('''
+        SELECT wo.wo_number, wo.status as wo_status, wo.planned_start_date,
+               p.code, p.name, p.unit_of_measure,
+               mr.required_quantity, mr.available_quantity, mr.shortage_quantity,
+               mr.status, p.cost, (mr.required_quantity * p.cost) as total_cost
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        JOIN work_orders wo ON mr.work_order_id = wo.id
+        ORDER BY wo.planned_start_date DESC
+    ''').fetchall()
+    
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['WO Number', 'WO Status', 'Planned Start Date', 'Product Code', 'Product Name', 
+                    'Unit of Measure', 'Required Qty', 'Available Qty', 'Shortage Qty', 
+                    'Status', 'Unit Cost', 'Total Cost'])
+    
+    for req in requirements:
+        writer.writerow([req['wo_number'], req['wo_status'], req['planned_start_date'],
+                        req['code'], req['name'], req['unit_of_measure'],
+                        req['required_quantity'], req['available_quantity'], req['shortage_quantity'],
+                        req['status'], req['cost'], req['total_cost']])
+    
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=material_requirements_report.csv'}
+    )

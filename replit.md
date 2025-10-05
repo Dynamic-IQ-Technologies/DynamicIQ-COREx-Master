@@ -6,7 +6,7 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
 
 ## Recent Changes
 
-**October 5, 2025**: User Management, Permissions, Import/Export, and Work Order Auto-numbering features added
+**October 5, 2025**: User Management, Permissions, Import/Export, Auto-numbering, and Material Requirements Report features added
 - Created admin-only User Management interface to view all users and change roles
 - Implemented granular Permissions Management system with user_permissions table
 - Added permission categories: Products, BOM, Inventory, Work Orders, Purchase Orders, Suppliers, Reports, Users
@@ -35,6 +35,14 @@ This is a fully functional Manufacturing Resource Planning (MRP) system built wi
   - Create inventory records for products without existing inventory
   - Inventory ID displayed when creating or receiving inventory
   - Purchase order receiving now shows the inventory ID upon completion
+- Created comprehensive Material Requirements Report
+  - Summary dashboard with 4 key metrics: Total Requirements, Items with Shortages, Total Value, Shortage Value
+  - Material Shortages by Product section showing aggregated shortage quantities and values
+  - Detailed requirements table with work order links, product details, quantities, costs, and status
+  - Rows with shortages highlighted in yellow for quick identification
+  - CSV export functionality for external analysis
+  - Ordered by planned start date and shortage priority
+  - Accessible from Reports menu in sidebar navigation
 - UI improvements: Green "Dynamic.IQ.MRP" branding, animated diagonal lines on login background, fixed label overlapping
 - Test admin account created: username=admin, password=admin123
 
@@ -131,6 +139,7 @@ Preferred communication style: Simple, everyday language.
 **Reporting System**:
 - Inventory valuation reports
 - Work order cost analysis
+- Material requirements report with summary statistics and CSV export
 - Material usage tracking
 - Purchase order suggestions based on stock levels
 

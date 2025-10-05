@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Material Requirements Report - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Material Requirements Report</h2>
+    <a href="{{ url_for('report_routes.export_material_requirements') }}" class="btn btn-success">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Requirements</h6>
+                <h3 class="card-title">{{ total_requirements }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Items with Shortages</h6>
+                <h3 class="card-title text-danger">{{ total_shortages }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Value</h6>
+                <h3 class="card-title">${{ "%.2f"|format(total_cost) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Shortage Value</h6>
+                <h3 class="card-title text-danger">${{ "%.2f"|format(total_shortage_cost) }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if shortages_by_product %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Material Shortages by Product</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Total Shortage Qty</th>
+                        <th>Shortage Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in shortages_by_product %}
+                    <tr>
+                        <td>{{ item.code }}</td>
+                        <td>{{ item.name }}</td>
+                        <td class="text-danger">{{ "%.2f"|format(item.total_shortage) }}</td>
+                        <td class="text-danger">${{ "%.2f"|format(item.shortage_value) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">All Material Requirements</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>WO Number</th>
+                        <th>WO Status</th>
+                        <th>Planned Start</th>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>UOM</th>
+                        <th>Required Qty</th>
+                        <th>Available Qty</th>
+                        <th>Shortage Qty</th>
+                        <th>Unit Cost</th>
+                        <th>Total Cost</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requirements %}
+                    <tr {% if req.shortage_quantity > 0 %}class="table-warning"{% endif %}>
+                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=req.work_order_id) }}">{{ req.wo_number }}</a></td>
+                        <td><span class="badge bg-info">{{ req.wo_status }}</span></td>
+                        <td>{{ req.planned_start_date }}</td>
+                        <td>{{ req.code }}</td>
+                        <td>{{ req.name }}</td>
+                        <td>{{ req.unit_of_measure }}</td>
+                        <td>{{ "%.2f"|format(req.required_quantity) }}</td>
+                        <td>{{ "%.2f"|format(req.available_quantity) }}</td>
+                        <td>
+                            {% if req.shortage_quantity > 0 %}
+                            <span class="text-danger fw-bold">{{ "%.2f"|format(req.shortage_quantity) }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ "%.2f"|format(req.cost) }}</td>
+                        <td>${{ "%.2f"|format(req.total_cost) }}</td>
+                        <td>
+                            {% if req.status == 'Satisfied' %}
+                            <span class="badge bg-success">{{ req.status }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ req.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
