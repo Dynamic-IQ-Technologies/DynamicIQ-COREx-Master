@@ -308,7 +308,8 @@ class Database:
             ('received_quantity', 'REAL DEFAULT 0'),
             ('packing_slip_number', 'TEXT'),
             ('shipment_tracking', 'TEXT'),
-            ('receiver_name', 'TEXT')
+            ('receiver_name', 'TEXT'),
+            ('uom_id', 'INTEGER')
         ]
         
         for col_name, col_type in po_new_columns:
