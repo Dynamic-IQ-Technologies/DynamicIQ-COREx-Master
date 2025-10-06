@@ -27,7 +27,6 @@ from routes.uom_routes import uom_bp
 from routes.audit_routes import audit_bp
 from routes.ap_routes import ap_bp
 from routes.executive_routes import executive_routes
-from routes.operations_dashboard_routes import operations_dashboard_routes
 from routes.customer_routes import customer_bp
 from routes.salesorder_routes import salesorder_bp
 import os
@@ -62,7 +61,6 @@ app.register_blueprint(uom_bp)
 app.register_blueprint(audit_bp)
 app.register_blueprint(ap_bp)
 app.register_blueprint(executive_routes)
-app.register_blueprint(operations_dashboard_routes)
 app.register_blueprint(customer_bp)
 app.register_blueprint(salesorder_bp)
 
