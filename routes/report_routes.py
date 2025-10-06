@@ -273,13 +273,21 @@ def procure_from_requirements():
                 for attempt in range(5):
                     try:
                         cursor = conn.cursor()
+                        # Create PO header
                         cursor.execute('''
-                            INSERT INTO purchase_orders (po_number, supplier_id, product_id, quantity, 
-                                                        unit_price, status, order_date)
-                            VALUES (?, ?, ?, ?, ?, ?, DATE('now'))
-                        ''', (next_po_number, supplier_id, product_id, quantity, unit_price, 'Ordered'))
+                            INSERT INTO purchase_orders (po_number, supplier_id, status, order_date, expected_delivery_date)
+                            VALUES (?, ?, ?, DATE('now'), DATE('now', '+7 days'))
+                        ''', (next_po_number, supplier_id, 'Ordered'))
                         
                         po_id = cursor.lastrowid
+                        
+                        # Create PO line with product details
+                        cursor.execute('''
+                            INSERT INTO purchase_order_lines 
+                            (po_id, line_number, product_id, quantity, unit_price, received_quantity)
+                            VALUES (?, 1, ?, ?, ?, 0)
+                        ''', (po_id, product_id, quantity, unit_price))
+                        
                         conn.commit()
                         created_pos.append({'number': next_po_number, 'id': po_id})
                         created_po_ids.append(po_id)
