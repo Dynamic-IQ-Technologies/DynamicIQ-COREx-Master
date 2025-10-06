@@ -87,11 +87,11 @@ def dashboard():
     # KPI 4: Resource Utilization (Active Labor)
     active_labor = conn.execute('''
         SELECT COUNT(*) as active_count
-        FROM time_tracking
+        FROM work_order_time_tracking
         WHERE clock_out_time IS NULL
     ''').fetchone()['active_count']
     
-    total_labor = conn.execute('SELECT COUNT(*) FROM labor_resources WHERE is_active = 1').fetchone()[0]
+    total_labor = conn.execute("SELECT COUNT(*) FROM labor_resources WHERE status = 'Active'").fetchone()[0]
     labor_utilization = (active_labor / total_labor * 100) if total_labor > 0 else 0
     
     # KPI 5: Inventory Health

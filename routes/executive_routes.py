@@ -63,7 +63,7 @@ def dashboard():
     
     # KPI 2: Total Expenses (from GL expense accounts)
     expense_query = '''
-        SELECT COALESCE(SUM(ABS(gll.debit_amount - gll.credit_amount)), 0) as total_expenses
+        SELECT COALESCE(SUM(ABS(gll.debit - gll.credit)), 0) as total_expenses
         FROM gl_entry_lines gll
         JOIN gl_entries ge ON gll.gl_entry_id = ge.id
         JOIN chart_of_accounts coa ON gll.account_id = coa.id
@@ -105,7 +105,7 @@ def dashboard():
     
     # KPI 5: Cash on Hand (from GL cash accounts)
     cash_query = '''
-        SELECT COALESCE(SUM(gll.debit_amount - gll.credit_amount), 0) as cash_balance
+        SELECT COALESCE(SUM(gll.debit - gll.credit), 0) as cash_balance
         FROM gl_entry_lines gll
         JOIN chart_of_accounts coa ON gll.account_id = coa.id
         JOIN gl_entries ge ON gll.gl_entry_id = ge.id
@@ -142,7 +142,7 @@ def dashboard():
             m.month,
             COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as revenue,
             COALESCE((
-                SELECT SUM(ABS(gll.debit_amount - gll.credit_amount))
+                SELECT SUM(ABS(gll.debit - gll.credit))
                 FROM gl_entry_lines gll
                 JOIN gl_entries ge ON gll.gl_entry_id = ge.id
                 JOIN chart_of_accounts coa ON gll.account_id = coa.id
@@ -302,7 +302,7 @@ def export_dashboard():
     ''', (start_date, end_date)).fetchone()['total_revenue']
     
     expenses = conn.execute('''
-        SELECT COALESCE(SUM(ABS(gll.debit_amount - gll.credit_amount)), 0) as total_expenses
+        SELECT COALESCE(SUM(ABS(gll.debit - gll.credit)), 0) as total_expenses
         FROM gl_entry_lines gll
         JOIN gl_entries ge ON gll.gl_entry_id = ge.id
         JOIN chart_of_accounts coa ON gll.account_id = coa.id
