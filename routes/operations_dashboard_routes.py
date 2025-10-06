@@ -99,7 +99,7 @@ def dashboard():
         SELECT COUNT(*) as low_stock_count
         FROM inventory i
         JOIN products p ON i.product_id = p.id
-        WHERE i.quantity <= p.reorder_point
+        WHERE i.quantity <= i.reorder_point
     ''').fetchone()['low_stock_count']
     
     total_inventory_items = conn.execute('SELECT COUNT(*) FROM inventory WHERE quantity > 0').fetchone()[0]
