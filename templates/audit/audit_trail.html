@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 
+{% block title %}Audit Trail - {{ record_type|title }} #{{ record_id }}{% endblock %}
+
 {% block content %}
+<style>
+    /* Hide sidebar for audit trail pages */
+    .sidebar {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+    
+    .mobile-toggle {
+        display: none !important;
+    }
+</style>
 <div class="container-fluid mt-4">
     <div class="row mb-3">
         <div class="col">
