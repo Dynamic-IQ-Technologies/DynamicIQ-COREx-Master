@@ -120,7 +120,7 @@ def dashboard():
     
     # KPI 7: Inventory Value
     inventory_value_query = '''
-        SELECT COALESCE(SUM(i.quantity * p.unit_cost), 0) as inventory_value
+        SELECT COALESCE(SUM(i.quantity * p.cost), 0) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0
