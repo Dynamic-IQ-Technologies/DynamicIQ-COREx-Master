@@ -28,6 +28,7 @@ from routes.audit_routes import audit_bp
 from routes.ap_routes import ap_bp
 from routes.executive_routes import executive_routes
 from routes.operations_dashboard_routes import operations_dashboard_routes
+from routes.customer_routes import customer_bp
 import os
 
 app = Flask(__name__)
@@ -61,6 +62,7 @@ app.register_blueprint(audit_bp)
 app.register_blueprint(ap_bp)
 app.register_blueprint(executive_routes)
 app.register_blueprint(operations_dashboard_routes)
+app.register_blueprint(customer_bp)
 
 @app.context_processor
 def inject_user():

@@ -24,11 +24,16 @@ def list_customers():
 @customer_bp.route('/customers/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
 def create_customer():
-    db = Database()
-    conn = db.get_connection()
-    
     if request.method == 'POST':
+        db = Database()
+        conn = db.get_connection()
         try:
+            payment_terms = request.form.get('payment_terms', '30').strip()
+            payment_terms = int(payment_terms) if payment_terms else 30
+            
+            credit_limit = request.form.get('credit_limit', '0').strip()
+            credit_limit = float(credit_limit) if credit_limit else 0.0
+            
             # Generate customer number
             last_customer = conn.execute(
                 'SELECT customer_number FROM customers ORDER BY id DESC LIMIT 1'
@@ -55,8 +60,8 @@ def create_customer():
                 request.form.get('phone', ''),
                 request.form.get('billing_address', ''),
                 request.form.get('shipping_address', ''),
-                int(request.form.get('payment_terms', 30)),
-                float(request.form.get('credit_limit', 0)),
+                payment_terms,
+                credit_limit,
                 1 if request.form.get('tax_exempt') else 0,
                 request.form.get('notes', ''),
                 request.form.get('status', 'Active')
@@ -66,9 +71,12 @@ def create_customer():
             flash(f'Customer created successfully! Customer #: {customer_number}', 'success')
             return redirect(url_for('customer_routes.list_customers'))
             
+        except ValueError:
+            conn.rollback()
+            flash('Please enter valid numbers for payment terms and credit limit.', 'danger')
         except Exception as e:
             conn.rollback()
-            flash(f'Error creating customer: {str(e)}', 'danger')
+            flash('An error occurred while creating the customer. Please try again.', 'danger')
         finally:
             conn.close()
     
@@ -108,6 +116,12 @@ def edit_customer(id):
     
     if request.method == 'POST':
         try:
+            payment_terms = request.form.get('payment_terms', '30').strip()
+            payment_terms = int(payment_terms) if payment_terms else 30
+            
+            credit_limit = request.form.get('credit_limit', '0').strip()
+            credit_limit = float(credit_limit) if credit_limit else 0.0
+            
             conn.execute('''
                 UPDATE customers SET
                     name = ?, contact_person = ?, email = ?, phone = ?,
@@ -121,8 +135,8 @@ def edit_customer(id):
                 request.form.get('phone', ''),
                 request.form.get('billing_address', ''),
                 request.form.get('shipping_address', ''),
-                int(request.form.get('payment_terms', 30)),
-                float(request.form.get('credit_limit', 0)),
+                payment_terms,
+                credit_limit,
                 1 if request.form.get('tax_exempt') else 0,
                 request.form.get('notes', ''),
                 request.form.get('status', 'Active'),
@@ -133,11 +147,15 @@ def edit_customer(id):
             flash('Customer updated successfully!', 'success')
             return redirect(url_for('customer_routes.view_customer', id=id))
             
+        except ValueError:
+            conn.rollback()
+            flash('Please enter valid numbers for payment terms and credit limit.', 'danger')
         except Exception as e:
             conn.rollback()
-            flash(f'Error updating customer: {str(e)}', 'danger')
+            flash('An error occurred while updating the customer. Please try again.', 'danger')
         finally:
             conn.close()
+            return redirect(url_for('customer_routes.edit_customer', id=id))
     
     customer = conn.execute('SELECT * FROM customers WHERE id = ?', (id,)).fetchone()
     conn.close()
