@@ -125,52 +125,116 @@
             <h5>Line Items</h5>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Product</th>
-                            <th>Description</th>
-                            <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Discount</th>
-                            <th>Line Total</th>
-                            <th>Type</th>
-                            <th>Serial #</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if lines %}
-                            {% for line in lines %}
-                            <tr>
-                                <td>{{ line.line_number }}</td>
-                                <td>{{ line.code }}</td>
-                                <td>{{ line.description or line.product_name }}</td>
-                                <td>{{ line.quantity }} {{ line.unit_of_measure }}</td>
-                                <td>${{ "{:,.2f}".format(line.unit_price) }}</td>
-                                <td>{{ line.discount_percent }}%</td>
-                                <td>${{ "{:,.2f}".format(line.line_total) }}</td>
-                                <td>
-                                    {% if line.is_core %}
-                                        <span class="badge bg-warning">Core</span>
-                                    {% elif line.is_replacement %}
-                                        <span class="badge bg-success">Replacement</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Standard</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ line.serial_number or '-' }}</td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="9" class="text-center">No line items</td>
-                            </tr>
+            {% if lines %}
+                {% for line in lines %}
+                <div class="card mb-3 border-start border-3 {% if line.line_type == 'Exchange' %}border-primary{% elif line.line_type == 'Managed Repair' %}border-info{% else %}border-secondary{% endif %}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>
+                                    Line #{{ line.line_number }}: {{ line.code }} - {{ line.product_name }}
+                                    <span class="badge {% if line.line_type == 'Exchange' %}bg-primary{% elif line.line_type == 'Managed Repair' %}bg-info{% else %}bg-secondary{% endif %} ms-2">
+                                        {{ line.line_type or 'Outright' }}
+                                    </span>
+                                    <span class="badge {% if line.line_status == 'Confirmed' %}bg-success{% elif line.line_status == 'Shipped' %}bg-primary{% elif line.line_status == 'Closed' %}bg-dark{% else %}bg-warning{% endif %} ms-1">
+                                        {{ line.line_status or 'Draft' }}
+                                    </span>
+                                </h6>
+                                {% if line.description %}
+                                <p class="text-muted mb-1">{{ line.description }}</p>
+                                {% endif %}
+                                {% if line.serial_number %}
+                                <p class="mb-1"><strong>Serial #:</strong> {{ line.serial_number }}</p>
+                                {% endif %}
+                                {% if line.line_notes %}
+                                <p class="mb-1"><i class="bi bi-chat-left-text"></i> {{ line.line_notes }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <p class="mb-1">Qty: <strong>{{ line.quantity }} {{ line.unit_of_measure }}</strong></p>
+                                <p class="mb-1">Unit Price: ${{ "{:,.2f}".format(line.unit_price) }}</p>
+                                {% if line.discount_percent > 0 %}
+                                <p class="mb-1 text-success">Discount: {{ line.discount_percent }}%</p>
+                                {% endif %}
+                                <p class="mb-0 fs-5"><strong>Line Total: ${{ "{:,.2f}".format(line.line_total) }}</strong></p>
+                            </div>
+                        </div>
+                        
+                        <!-- Exchange-Specific Details -->
+                        {% if line.line_type == 'Exchange' and line.core_charge %}
+                        <div class="mt-2 p-2 bg-primary bg-opacity-10 rounded">
+                            <strong class="text-primary"><i class="bi bi-arrow-left-right"></i> Exchange Details:</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <small class="text-muted">Core Charge:</small><br>
+                                    <strong>${{ "{:,.2f}".format(line.core_charge) }}</strong>
+                                </div>
+                                {% if line.core_due_days %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Core Due:</small><br>
+                                    <strong>{{ line.core_due_days }} days</strong>
+                                </div>
+                                {% endif %}
+                                {% if line.expected_core_condition %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Expected Condition:</small><br>
+                                    <strong>{{ line.expected_core_condition }}</strong>
+                                </div>
+                                {% endif %}
+                                {% if line.core_disposition %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Core Disposition:</small><br>
+                                    <strong>{{ line.core_disposition }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                         {% endif %}
-                    </tbody>
-                </table>
-            </div>
+                        
+                        <!-- Managed Repair-Specific Details -->
+                        {% if line.line_type == 'Managed Repair' %}
+                        <div class="mt-2 p-2 bg-info bg-opacity-10 rounded">
+                            <strong class="text-info"><i class="bi bi-tools"></i> Repair Details:</strong>
+                            <div class="row mt-2">
+                                {% if line.quoted_tat %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Quoted TAT:</small><br>
+                                    <strong>{{ line.quoted_tat }} days</strong>
+                                </div>
+                                {% endif %}
+                                {% if line.repair_nte %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Repair NTE:</small><br>
+                                    <strong>${{ "{:,.2f}".format(line.repair_nte) }}</strong>
+                                </div>
+                                {% endif %}
+                                {% if line.vendor_repair_source %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Repair Vendor:</small><br>
+                                    <strong>{{ line.vendor_repair_source }}</strong>
+                                </div>
+                                {% endif %}
+                                {% if line.repair_status %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Repair Status:</small><br>
+                                    <strong>{{ line.repair_status }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% if line.return_to_address %}
+                            <div class="mt-2">
+                                <small class="text-muted">Return To:</small><br>
+                                <strong>{{ line.return_to_address }}</strong>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center">No line items</p>
+            {% endif %}
         </div>
     </div>
 

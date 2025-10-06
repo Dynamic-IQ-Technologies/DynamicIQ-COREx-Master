@@ -247,6 +247,9 @@ def add_line(id):
     conn = db.get_connection()
     
     try:
+        # Basic fields
+        line_type = request.form.get('line_type', 'Outright')
+        line_status = request.form.get('line_status', 'Draft')
         product_id = int(request.form['product_id'])
         
         quantity_str = request.form.get('quantity', '0').strip()
@@ -258,11 +261,24 @@ def add_line(id):
         discount_str = request.form.get('discount_percent', '0').strip()
         discount_percent = float(discount_str) if discount_str else 0.0
         
-        is_core = 1 if request.form.get('is_core') else 0
-        is_replacement = 1 if request.form.get('is_replacement') else 0
-        
         # Calculate line total
         line_total = (quantity * unit_price) * (1 - discount_percent / 100)
+        
+        # Exchange-specific fields
+        core_charge_str = request.form.get('core_charge', '0').strip()
+        core_charge = float(core_charge_str) if core_charge_str else 0.0
+        core_due_days = request.form.get('core_due_days')
+        expected_core_condition = request.form.get('expected_core_condition')
+        core_disposition = request.form.get('core_disposition')
+        stock_disposition = request.form.get('stock_disposition')
+        
+        # Managed Repair-specific fields
+        quoted_tat = request.form.get('quoted_tat')
+        repair_nte_str = request.form.get('repair_nte', '0').strip()
+        repair_nte = float(repair_nte_str) if repair_nte_str else 0.0
+        vendor_repair_source = request.form.get('vendor_repair_source')
+        repair_status = request.form.get('repair_status', 'Pending')
+        return_to_address = request.form.get('return_to_address')
         
         # Get next line number
         last_line = conn.execute(
@@ -270,31 +286,68 @@ def add_line(id):
         ).fetchone()
         line_number = (last_line['max_line'] or 0) + 1
         
-        # Insert line
-        conn.execute('''
+        # Insert line with all new fields
+        cursor = conn.cursor()
+        cursor.execute('''
             INSERT INTO sales_order_lines (
                 so_id, line_number, product_id, description, quantity, unit_price,
-                discount_percent, line_total, is_core, is_replacement,
-                serial_number, line_notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                discount_percent, line_total, serial_number, line_notes,
+                line_type, line_status,
+                core_charge, core_due_days, expected_core_condition, core_disposition, stock_disposition,
+                quoted_tat, repair_nte, vendor_repair_source, repair_status, return_to_address,
+                created_by, modified_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             id, line_number, product_id, request.form.get('description', ''),
-            quantity, unit_price, discount_percent, line_total, is_core, is_replacement,
-            request.form.get('serial_number', ''), request.form.get('line_notes', '')
+            quantity, unit_price, discount_percent, line_total,
+            request.form.get('serial_number', ''), request.form.get('line_notes', ''),
+            line_type, line_status,
+            core_charge if line_type == 'Exchange' else None,
+            int(core_due_days) if core_due_days else None,
+            expected_core_condition if line_type == 'Exchange' else None,
+            core_disposition if line_type == 'Exchange' else None,
+            stock_disposition if line_type == 'Exchange' else None,
+            int(quoted_tat) if quoted_tat else None,
+            repair_nte if line_type == 'Managed Repair' else None,
+            vendor_repair_source if line_type == 'Managed Repair' else None,
+            repair_status if line_type == 'Managed Repair' else None,
+            return_to_address if line_type == 'Managed Repair' else None,
+            session['user_id'], session['user_id']
         ))
+        
+        line_id = cursor.lastrowid
+        
+        # For Exchange transactions, create core_due_tracking record
+        if line_type == 'Exchange' and core_charge > 0:
+            from datetime import datetime, timedelta
+            
+            # Calculate core due date
+            core_due_date = None
+            if core_due_days:
+                core_due_date = (datetime.now() + timedelta(days=int(core_due_days))).strftime('%Y-%m-%d')
+            
+            conn.execute('''
+                INSERT INTO core_due_tracking (
+                    so_line_id, so_id, product_id, core_charge, expected_condition,
+                    core_due_date, core_disposition, stock_disposition
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                line_id, id, product_id, core_charge, expected_core_condition,
+                core_due_date, core_disposition, stock_disposition
+            ))
         
         # Recalculate totals
         recalculate_totals(conn, id)
         
         conn.commit()
-        flash('Line item added successfully!', 'success')
+        flash(f'{line_type} line item added successfully!', 'success')
         
-    except ValueError:
+    except ValueError as e:
         conn.rollback()
         flash('Please enter valid numeric values.', 'danger')
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while adding the line item. Please try again.', 'danger')
+        flash(f'An error occurred while adding the line item: {str(e)}', 'danger')
     finally:
         conn.close()
     
@@ -436,10 +489,11 @@ def complete_order(id):
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
 def recalculate_totals(conn, so_id, tax_rate=None):
-    # Calculate totals from line items
+    # Calculate totals from line items including core charges
     totals = conn.execute('''
         SELECT 
-            COALESCE(SUM(line_total), 0) as subtotal
+            COALESCE(SUM(line_total), 0) as subtotal,
+            COALESCE(SUM(CASE WHEN line_type = 'Exchange' THEN core_charge ELSE 0 END), 0) as total_core_charges
         FROM sales_order_lines
         WHERE so_id = ?
     ''', (so_id,)).fetchone()
@@ -453,8 +507,9 @@ def recalculate_totals(conn, so_id, tax_rate=None):
     if tax_rate is None:
         tax_rate = so['tax_rate'] or 0.0
     
-    # Calculate subtotal including core/repair charges
-    subtotal = totals['subtotal'] + (so['core_charge'] or 0) + (so['repair_charge'] or 0)
+    # Calculate subtotal including legacy core/repair charges from SO header AND line-level core charges
+    total_core_charges = totals['total_core_charges']
+    subtotal = totals['subtotal'] + total_core_charges + (so['core_charge'] or 0) + (so['repair_charge'] or 0)
     
     # Calculate tax based on rate
     tax_amount = subtotal * (tax_rate / 100) if tax_rate else 0

@@ -96,12 +96,11 @@
                         <tr>
                             <th>#</th>
                             <th>Product</th>
-                            <th>Description</th>
                             <th>Qty</th>
                             <th>Unit Price</th>
-                            <th>Discount %</th>
                             <th>Line Total</th>
                             <th>Type</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -110,20 +109,27 @@
                             {% for line in lines %}
                             <tr>
                                 <td>{{ line.line_number }}</td>
-                                <td>{{ line.code }}</td>
-                                <td>{{ line.description or line.product_name }}</td>
+                                <td>
+                                    {{ line.code }}<br>
+                                    <small class="text-muted">{{ line.description or line.product_name }}</small>
+                                </td>
                                 <td>{{ line.quantity }}</td>
                                 <td>${{ "{:,.2f}".format(line.unit_price) }}</td>
-                                <td>{{ line.discount_percent }}%</td>
-                                <td>${{ "{:,.2f}".format(line.line_total) }}</td>
                                 <td>
-                                    {% if line.is_core %}
-                                        <span class="badge bg-warning">Core</span>
-                                    {% elif line.is_replacement %}
-                                        <span class="badge bg-success">Replacement</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Standard</span>
+                                    ${{ "{:,.2f}".format(line.line_total) }}
+                                    {% if line.line_type == 'Exchange' and line.core_charge %}
+                                        <br><small class="text-primary">+${{ "{:,.2f}".format(line.core_charge) }} core</small>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if line.line_type == 'Exchange' %}bg-primary{% elif line.line_type == 'Managed Repair' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ line.line_type or 'Outright' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {% if line.line_status == 'Confirmed' %}bg-success{% else %}bg-warning{% endif %}">
+                                        {{ line.line_status or 'Draft' }}
+                                    </span>
                                 </td>
                                 <td>
                                     <form method="POST" action="{{ url_for('salesorder_routes.delete_line', id=sales_order.id, line_id=line.id) }}" style="display: inline;">
@@ -136,7 +142,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="text-center">No line items added yet</td>
+                                <td colspan="8" class="text-center">No line items added yet</td>
                             </tr>
                         {% endif %}
                     </tbody>
@@ -144,11 +150,22 @@
             </div>
 
             <h6 class="mt-4">Add Line Item</h6>
-            <form method="POST" action="{{ url_for('salesorder_routes.add_line', id=sales_order.id) }}">
+            <form method="POST" action="{{ url_for('salesorder_routes.add_line', id=sales_order.id) }}" id="lineItemForm">
+                <!-- Basic Line Info -->
                 <div class="row">
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">Line Type <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" name="line_type" id="line_type" required>
+                                <option value="Outright">Outright Sale</option>
+                                <option value="Exchange">Exchange</option>
+                                <option value="Managed Repair">Managed Repair</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="col-md-3">
                         <div class="mb-3">
-                            <label class="form-label">Product</label>
+                            <label class="form-label">Product <span class="text-danger">*</span></label>
                             <select class="form-select form-select-sm" name="product_id" required>
                                 <option value="">Select Product</option>
                                 {% for product in products %}
@@ -159,13 +176,13 @@
                     </div>
                     <div class="col-md-2">
                         <div class="mb-3">
-                            <label class="form-label">Quantity</label>
+                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control form-control-sm" name="quantity" required>
                         </div>
                     </div>
                     <div class="col-md-2">
                         <div class="mb-3">
-                            <label class="form-label">Unit Price</label>
+                            <label class="form-label">Unit Price <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control form-control-sm" name="unit_price" required>
                         </div>
                     </div>
@@ -175,39 +192,135 @@
                             <input type="number" step="0.01" class="form-control form-control-sm" name="discount_percent" value="0">
                         </div>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <div class="mb-3 w-100">
-                            <div class="form-check form-check-inline">
-                                <input type="checkbox" class="form-check-input" name="is_core" id="is_core">
-                                <label class="form-check-label" for="is_core">Core</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input type="checkbox" class="form-check-input" name="is_replacement" id="is_replacement">
-                                <label class="form-check-label" for="is_replacement">Replacement</label>
-                            </div>
+                    <div class="col-md-1">
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select form-select-sm" name="line_status">
+                                <option value="Draft">Draft</option>
+                                <option value="Confirmed">Confirmed</option>
+                            </select>
                         </div>
                     </div>
                 </div>
+
+                <!-- Common Fields -->
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label">Description (Optional)</label>
+                            <label class="form-label">Description</label>
                             <input type="text" class="form-control form-control-sm" name="description">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label">Serial Number (Optional)</label>
+                            <label class="form-label">Serial Number</label>
                             <input type="text" class="form-control form-control-sm" name="serial_number">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label">Line Notes (Optional)</label>
-                            <input type="text" class="form-control form-control-sm" name="line_notes" placeholder="Comments for this line">
+                            <label class="form-label">Line Notes</label>
+                            <input type="text" class="form-control form-control-sm" name="line_notes">
                         </div>
                     </div>
                 </div>
+
+                <!-- Exchange-Specific Fields -->
+                <div id="exchange_fields" style="display: none;">
+                    <h6 class="text-primary mt-3"><i class="bi bi-arrow-left-right"></i> Exchange Details</h6>
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">Core Charge <span class="text-danger">*</span></label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="core_charge" id="core_charge">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">Core Due (Days)</label>
+                                <input type="number" class="form-control form-control-sm" name="core_due_days" placeholder="e.g., 30">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Expected Core Condition</label>
+                                <select class="form-select form-select-sm" name="expected_core_condition">
+                                    <option value="">Select Condition</option>
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                    <option value="Core Only">Core Only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Core Disposition</label>
+                                <select class="form-select form-select-sm" name="core_disposition">
+                                    <option value="">Select Disposition</option>
+                                    <option value="Return to Vendor">Return to Vendor</option>
+                                    <option value="Scrap">Scrap</option>
+                                    <option value="Repair">Repair</option>
+                                    <option value="Restock">Restock</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">Stock Disposition</label>
+                                <select class="form-select form-select-sm" name="stock_disposition">
+                                    <option value="">Select</option>
+                                    <option value="New">New</option>
+                                    <option value="Refurbished">Refurbished</option>
+                                    <option value="Used">Used</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Managed Repair-Specific Fields -->
+                <div id="repair_fields" style="display: none;">
+                    <h6 class="text-info mt-3"><i class="bi bi-tools"></i> Managed Repair Details</h6>
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">Quoted TAT (Days)</label>
+                                <input type="number" class="form-control form-control-sm" name="quoted_tat" placeholder="e.g., 15">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">Repair NTE <span class="text-danger">*</span></label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="repair_nte" id="repair_nte" placeholder="Not To Exceed">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Vendor Repair Source</label>
+                                <input type="text" class="form-control form-control-sm" name="vendor_repair_source" placeholder="Vendor Name">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">Repair Status</label>
+                                <select class="form-select form-select-sm" name="repair_status">
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Return To Address</label>
+                                <textarea class="form-control form-control-sm" name="return_to_address" rows="1" placeholder="After repair return address"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-sm btn-success">
                     <i class="bi bi-plus-circle"></i> Add Line
                 </button>
@@ -215,4 +328,41 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const lineTypeSelect = document.getElementById('line_type');
+    const exchangeFields = document.getElementById('exchange_fields');
+    const repairFields = document.getElementById('repair_fields');
+    const coreChargeInput = document.getElementById('core_charge');
+    const repairNTEInput = document.getElementById('repair_nte');
+    
+    function updateFieldsVisibility() {
+        const lineType = lineTypeSelect.value;
+        
+        // Hide all type-specific sections first
+        exchangeFields.style.display = 'none';
+        repairFields.style.display = 'none';
+        
+        // Remove required attribute from all conditional fields
+        coreChargeInput.removeAttribute('required');
+        repairNTEInput.removeAttribute('required');
+        
+        // Show relevant section and set required fields
+        if (lineType === 'Exchange') {
+            exchangeFields.style.display = 'block';
+            coreChargeInput.setAttribute('required', 'required');
+        } else if (lineType === 'Managed Repair') {
+            repairFields.style.display = 'block';
+            repairNTEInput.setAttribute('required', 'required');
+        }
+    }
+    
+    // Initial setup
+    updateFieldsVisibility();
+    
+    // Listen for changes
+    lineTypeSelect.addEventListener('change', updateFieldsVisibility);
+});
+</script>
 {% endblock %}
