@@ -56,7 +56,6 @@ The system utilizes Bootstrap 5 for a responsive and modern user interface, comp
 
 - **Inventory Management**: Real-time stock level tracking, low stock alerts, and automatic updates.
 - **Reporting System**: Includes inventory valuation, work order cost analysis, material requirements reports (with procurement capability), material usage, and active labor reports.
-- **Executive Operations Dashboard**: Provides high-level operational insights with real-time KPIs including production efficiency, on-time delivery %, work order status distribution, backlog metrics, resource utilization, and inventory health. Features critical alerts for delayed work orders and low stock items, interactive Chart.js visualizations (WO trend, status distribution, top products, material usage), drill-down links to detailed views, period filtering (7/30/90 days), and PDF export capability. Accessible to Admin, Planner, and Accountant roles.
 - **Accounting System**:
     - **Chart of Accounts (COA)**: Hierarchical structure with standard accounts.
     - **General Ledger (GL)**: View all posted journal entries with filters.
