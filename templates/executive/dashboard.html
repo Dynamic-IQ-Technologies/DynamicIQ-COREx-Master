@@ -94,7 +94,7 @@
                     <h3 class="card-title text-warning mb-0">${{ "{:,.2f}".format(ap_open) }}</h3>
                     <small class="text-muted">Due Now: ${{ "{:,.2f}".format(ap_due) }}</small>
                     <div class="mt-2">
-                        <a href="{{ url_for('ap_routes.list_payables') }}" class="btn btn-sm btn-outline-warning">
+                        <a href="{{ url_for('ap_routes.list_ap') }}" class="btn btn-sm btn-outline-warning">
                             <i class="bi bi-arrow-right"></i> View Details
                         </a>
                     </div>
@@ -184,7 +184,7 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-3">
-                    <a href="{{ url_for('ap_routes.list_payables') }}" class="btn btn-outline-primary w-100 mb-2">
+                    <a href="{{ url_for('ap_routes.list_ap') }}" class="btn btn-outline-primary w-100 mb-2">
                         <i class="bi bi-file-earmark-text"></i> Accounts Payable
                     </a>
                 </div>

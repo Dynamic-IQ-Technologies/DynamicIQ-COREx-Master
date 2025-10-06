@@ -77,11 +77,12 @@ def material_requirements_report():
         SELECT mr.product_id
         FROM material_requirements mr
         LEFT JOIN (
-            SELECT product_id, 
-                   SUM(quantity - COALESCE(received_quantity, 0)) as qty_on_order
-            FROM purchase_orders
-            WHERE status IN ('Ordered', 'Partially Received')
-            GROUP BY product_id
+            SELECT pol.product_id, 
+                   SUM(pol.quantity - COALESCE(pol.received_quantity, 0)) as qty_on_order
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            WHERE po.status IN ('Ordered', 'Partially Received')
+            GROUP BY pol.product_id
         ) po_summary ON mr.product_id = po_summary.product_id
         WHERE mr.status != 'Satisfied'
         GROUP BY mr.product_id
