@@ -34,10 +34,9 @@ def list_receiving():
 @receiving_bp.route('/receiving/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement', 'Production Staff')
 def create_receiving():
-    db = Database()
-    conn = db.get_connection()
-    
     if request.method == 'POST':
+        db = Database()
+        conn = db.get_connection()
         try:
             po_line_id = int(request.form['po_line_id'])
             quantity_received = float(request.form['quantity_received'])
@@ -318,8 +317,13 @@ def create_receiving():
             flash(f'Error receiving material: {str(e)}', 'danger')
         finally:
             conn.close()
+        
+        return redirect(url_for('receiving_routes.create_receiving'))
     
     # GET request - show form
+    db = Database()
+    conn = db.get_connection()
+    
     today = datetime.now().strftime('%Y-%m-%d')
     
     # Get pending/ordered PO lines with remaining quantities to receive
