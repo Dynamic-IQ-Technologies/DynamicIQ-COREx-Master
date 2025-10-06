@@ -172,6 +172,28 @@ def edit_inventory(id):
                 conn.close()
                 return redirect(url_for('inventory_routes.edit_inventory', id=id))
             
+            # Get serialization fields
+            is_serialized = 1 if request.form.get('is_serialized') else 0
+            serial_number = request.form.get('serial_number', '').strip()
+            
+            # Validate serial number for serialized items
+            if is_serialized:
+                if not serial_number:
+                    flash('Serial number is required for serialized products.', 'danger')
+                    conn.close()
+                    return redirect(url_for('inventory_routes.edit_inventory', id=id))
+                
+                # Check if serial number already exists (excluding current record)
+                existing_serial = conn.execute(
+                    'SELECT id FROM inventory WHERE serial_number = ? AND id != ?', 
+                    (serial_number, id)
+                ).fetchone()
+                
+                if existing_serial:
+                    flash(f'Serial number "{serial_number}" is already in use. Please use a unique serial number.', 'danger')
+                    conn.close()
+                    return redirect(url_for('inventory_routes.edit_inventory', id=id))
+            
             # Update inventory
             conn.execute('''
                 UPDATE inventory 
@@ -182,10 +204,12 @@ def edit_inventory(id):
                     bin_location=?,
                     condition=?,
                     status=?,
+                    is_serialized=?,
+                    serial_number=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, warehouse_location, bin_location, 
-                  condition, status, id))
+                  condition, status, is_serialized, serial_number if serial_number else None, id))
             
             conn.commit()
             flash('Inventory updated successfully!', 'success')
