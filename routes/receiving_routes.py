@@ -371,12 +371,14 @@ def view_receiving(receipt_number):
             s.contact_person,
             s.phone,
             s.email,
-            u.username as received_by_name
+            u.username as received_by_name,
+            pol.unit_price
         FROM receiving_transactions rt
         JOIN purchase_orders po ON rt.po_id = po.id
         JOIN products p ON rt.product_id = p.id
         JOIN suppliers s ON po.supplier_id = s.id
         LEFT JOIN users u ON rt.received_by = u.id
+        LEFT JOIN purchase_order_lines pol ON pol.po_id = rt.po_id AND pol.product_id = rt.product_id
         WHERE rt.receipt_number = ?
     ''', (receipt_number,)).fetchone()
     
