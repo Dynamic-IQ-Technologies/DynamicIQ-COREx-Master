@@ -12,14 +12,40 @@ inventory_bp = Blueprint('inventory_routes', __name__)
 def list_inventory():
     db = Database()
     conn = db.get_connection()
-    inventory = conn.execute('''
+    
+    # Get filter parameters
+    filter_serialized = request.args.get('filter_serialized', 'all')
+    search_serial = request.args.get('search_serial', '').strip()
+    
+    # Build query with filters
+    query = '''
         SELECT i.*, p.code, p.name, p.unit_of_measure
         FROM inventory i
         JOIN products p ON i.product_id = p.id
-        ORDER BY p.code
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    # Apply serialization filter
+    if filter_serialized == 'serialized':
+        query += ' AND i.is_serialized = 1'
+    elif filter_serialized == 'non_serialized':
+        query += ' AND (i.is_serialized = 0 OR i.is_serialized IS NULL)'
+    
+    # Apply serial number search
+    if search_serial:
+        query += ' AND i.serial_number LIKE ?'
+        params.append(f'%{search_serial}%')
+    
+    query += ' ORDER BY p.code'
+    
+    inventory = conn.execute(query, params).fetchall()
     conn.close()
-    return render_template('inventory/list.html', inventory=inventory)
+    
+    return render_template('inventory/list.html', 
+                         inventory=inventory,
+                         filter_serialized=filter_serialized,
+                         search_serial=search_serial)
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
