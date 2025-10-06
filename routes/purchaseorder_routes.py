@@ -16,7 +16,7 @@ def list_purchaseorders():
     purchase_orders = conn.execute('''
         SELECT po.*, s.name as supplier_name,
                COUNT(pol.id) as line_count,
-               SUM(pol.quantity * pol.unit_price) as total_amount
+               COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
