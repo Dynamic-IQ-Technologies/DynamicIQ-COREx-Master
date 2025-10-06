@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 
-The system utilizes Bootstrap 5 for a responsive and modern user interface, complemented by Bootstrap Icons. A consistent layout is maintained through a base template (`base.html`) with dynamic navigation based on user roles. Data is presented using a card-based UI, and an accordion-style grouped display is used for BOMs. The system features two executive dashboards: a financial accounting dashboard and an operations dashboard, both with interactive Chart.js visualizations and color-coded KPI indicators.
+The system utilizes Bootstrap 5 for a responsive and modern user interface, complemented by Bootstrap Icons. A consistent layout is maintained through a base template (`base.html`) with dynamic navigation based on user roles. Data is presented using a card-based UI, and an accordion-style grouped display is used for BOMs. The system features an executive financial accounting dashboard with interactive Chart.js visualizations and color-coded KPI indicators.
 
 ### Technical Implementations
 
