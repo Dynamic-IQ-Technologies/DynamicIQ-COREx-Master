@@ -703,6 +703,83 @@ class Database:
             )
         ''')
         
+        # Create customers table for sales module
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_number TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                contact_person TEXT,
+                email TEXT,
+                phone TEXT,
+                billing_address TEXT,
+                shipping_address TEXT,
+                payment_terms INTEGER DEFAULT 30,
+                credit_limit REAL DEFAULT 0,
+                tax_exempt INTEGER DEFAULT 0,
+                notes TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create sales_orders table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sales_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                so_number TEXT UNIQUE NOT NULL,
+                customer_id INTEGER NOT NULL,
+                sales_type TEXT NOT NULL,
+                order_date DATE NOT NULL,
+                expected_ship_date DATE,
+                actual_ship_date DATE,
+                status TEXT DEFAULT 'Draft',
+                subtotal REAL DEFAULT 0,
+                discount_amount REAL DEFAULT 0,
+                tax_amount REAL DEFAULT 0,
+                total_amount REAL DEFAULT 0,
+                amount_paid REAL DEFAULT 0,
+                balance_due REAL DEFAULT 0,
+                shipping_method TEXT,
+                tracking_number TEXT,
+                notes TEXT,
+                core_charge REAL DEFAULT 0,
+                repair_charge REAL DEFAULT 0,
+                expected_return_date DATE,
+                service_notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create sales_order_lines table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sales_order_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                so_id INTEGER NOT NULL,
+                line_number INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                description TEXT,
+                quantity REAL NOT NULL,
+                unit_price REAL NOT NULL,
+                discount_percent REAL DEFAULT 0,
+                line_total REAL NOT NULL,
+                is_core INTEGER DEFAULT 0,
+                is_replacement INTEGER DEFAULT 0,
+                serial_number TEXT,
+                expected_return_date DATE,
+                returned INTEGER DEFAULT 0,
+                returned_date DATE,
+                line_notes TEXT,
+                attachment_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (so_id) REFERENCES sales_orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
         # Create audit_trail table for change tracking
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS audit_trail (
