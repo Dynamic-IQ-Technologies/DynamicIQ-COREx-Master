@@ -118,7 +118,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% set total = 0 %}
+                    {% set ns = namespace(total=0) %}
                     {% for line in lines %}
                     {% set line_qty = line.quantity or 0 %}
                     {% set line_price = line.unit_price or 0 %}
@@ -146,13 +146,13 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% set total = total + line_total %}
+                    {% set ns.total = ns.total + line_total %}
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr class="table-light">
                         <td colspan="7" class="text-end"><strong>Total Order Value:</strong></td>
-                        <td colspan="2" class="fw-bold text-primary">${{ "%.2f"|format(total) }}</td>
+                        <td colspan="2" class="fw-bold text-primary">${{ "%.2f"|format(ns.total) }}</td>
                     </tr>
                 </tfoot>
             </table>
