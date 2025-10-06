@@ -307,7 +307,9 @@ class Database:
             ('bin_location', 'TEXT'),
             ('status', 'TEXT DEFAULT "Available"'),
             ('reserved_quantity', 'REAL DEFAULT 0'),
-            ('last_received_date', 'DATE')
+            ('last_received_date', 'DATE'),
+            ('is_serialized', 'INTEGER DEFAULT 0'),
+            ('serial_number', 'TEXT')
         ]
         
         for col_name, col_type in inventory_new_columns:

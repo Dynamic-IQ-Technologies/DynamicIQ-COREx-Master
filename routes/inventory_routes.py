@@ -37,10 +37,33 @@ def create_inventory():
             flash('Inventory already exists for this product. Use adjust instead.', 'warning')
             return redirect(url_for('inventory_routes.list_inventory'))
         
+        # Get serialization fields
+        is_serialized = 1 if request.form.get('is_serialized') else 0
+        serial_number = request.form.get('serial_number', '').strip()
+        
+        # Validate serial number for serialized items
+        if is_serialized:
+            if not serial_number:
+                conn.close()
+                flash('Serial number is required for serialized products.', 'danger')
+                return redirect(url_for('inventory_routes.create_inventory'))
+            
+            # Check if serial number already exists
+            existing_serial = conn.execute(
+                'SELECT id FROM inventory WHERE serial_number = ?', 
+                (serial_number,)
+            ).fetchone()
+            
+            if existing_serial:
+                conn.close()
+                flash(f'Serial number "{serial_number}" is already in use. Please use a unique serial number.', 'danger')
+                return redirect(url_for('inventory_routes.create_inventory'))
+        
         conn.execute('''
             INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock, 
-                                   warehouse_location, bin_location, condition, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available')
+                                   warehouse_location, bin_location, condition, status,
+                                   is_serialized, serial_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?)
         ''', (
             product_id,
             float(request.form.get('quantity', 0)),
@@ -48,14 +71,17 @@ def create_inventory():
             float(request.form.get('safety_stock', 0)),
             request.form.get('warehouse_location', 'Main'),
             request.form.get('bin_location', ''),
-            request.form.get('condition', 'Serviceable')
+            request.form.get('condition', 'Serviceable'),
+            is_serialized,
+            serial_number if serial_number else None
         ))
         
         inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         conn.commit()
         conn.close()
         
-        flash(f'Inventory created successfully! Inventory ID: INV-{inventory_id:06d}', 'success')
+        serial_msg = f' (S/N: {serial_number})' if serial_number else ''
+        flash(f'Inventory created successfully! Inventory ID: INV-{inventory_id:06d}{serial_msg}', 'success')
         return redirect(url_for('inventory_routes.list_inventory'))
     
     products = conn.execute('''
