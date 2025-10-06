@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import Database, GLAutoPost, AuditLogger
 from auth import login_required, role_required
-from datetime import datetime
+from datetime import datetime, timedelta
 
 receiving_bp = Blueprint('receiving_routes', __name__)
 
@@ -240,7 +240,6 @@ def create_receiving():
             payment_terms_days = supplier['payment_terms'] if supplier and supplier['payment_terms'] else 30
             
             # Calculate due date based on payment terms
-            from datetime import datetime, timedelta
             receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
             due_date = (receipt_dt + timedelta(days=payment_terms_days)).strftime('%Y-%m-%d')
             
