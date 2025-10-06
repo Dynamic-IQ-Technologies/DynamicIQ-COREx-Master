@@ -41,10 +41,11 @@ def list_ap():
     payables = conn.execute(query, params).fetchall()
     
     # Calculate summary statistics
+    today_date = datetime.now().strftime('%Y-%m-%d')
     total_open = sum(p['balance_due'] for p in payables if p['status'] in ['Open', 'Pending Invoice'])
     total_overdue = sum(
         p['balance_due'] for p in payables 
-        if p['status'] in ['Open', 'Pending Invoice'] and p['due_date'] < datetime.now().strftime('%Y-%m-%d')
+        if p['status'] in ['Open', 'Pending Invoice'] and p['due_date'] < today_date
     )
     
     conn.close()
@@ -53,7 +54,8 @@ def list_ap():
                          payables=payables,
                          status_filter=status_filter,
                          total_open=total_open,
-                         total_overdue=total_overdue)
+                         total_overdue=total_overdue,
+                         today_date=today_date)
 
 @ap_bp.route('/accounts-payable/<int:id>')
 @login_required
