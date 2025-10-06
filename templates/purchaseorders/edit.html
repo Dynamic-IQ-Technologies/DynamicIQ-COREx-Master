@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Purchase Order {{ po.po_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Edit Purchase Order {{ po.po_number }}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" id="poForm">
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle"></i> <strong>PO Number:</strong> {{ po.po_number }}
+            </div>
+            
+            <h5 class="mb-3">PO Header Information</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="supplier_id" class="form-label">Supplier *</label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                            <option value="">Select Supplier</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if supplier.id == po.supplier_id %}selected{% endif %}>{{ supplier.code }} - {{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Draft" {% if po.status == 'Draft' %}selected{% endif %}>Draft</option>
+                            <option value="Ordered" {% if po.status == 'Ordered' %}selected{% endif %}>Ordered</option>
+                            <option value="Partially Received" {% if po.status == 'Partially Received' %}selected{% endif %}>Partially Received</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="order_date" class="form-label">Order Date</label>
+                        <input type="date" class="form-control" id="order_date" name="order_date" value="{{ po.order_date or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="expected_delivery_date" class="form-label">Expected Delivery</label>
+                        <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date" value="{{ po.expected_delivery_date or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="2">{{ po.notes or '' }}</textarea>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Line Items</h5>
+                <button type="button" class="btn btn-success btn-sm" id="addLineBtn">
+                    <i class="bi bi-plus-circle"></i> Add Line
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered" id="lineItemsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="30%">Product *</th>
+                            <th width="15%">UOM *</th>
+                            <th width="15%">Quantity *</th>
+                            <th width="15%">Unit Price *</th>
+                            <th width="15%">Total</th>
+                            <th width="5%">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsBody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="5" class="text-end"><strong>Grand Total:</strong></td>
+                            <td colspan="2"><strong id="grandTotal">$0.00</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Update Purchase Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let lineCounter = 0;
+const products = {{ products|tojson }};
+const uoms = {{ uoms|tojson }};
+const existingLines = {{ lines|tojson }};
+
+function addLine(existingData = null) {
+    lineCounter++;
+    const tbody = document.getElementById('lineItemsBody');
+    const row = document.createElement('tr');
+    row.id = `line-${lineCounter}`;
+    
+    const productId = existingData ? existingData.product_id : '';
+    const uomId = existingData ? existingData.uom_id : '';
+    const quantity = existingData ? existingData.quantity : '';
+    const unitPrice = existingData ? existingData.unit_price : '';
+    
+    row.innerHTML = `
+        <td>${lineCounter}</td>
+        <td>
+            <select class="form-select form-select-sm" name="lines[${lineCounter}][product_id]" required>
+                <option value="">Select Product</option>
+                ${products.map(p => `<option value="${p.id}" ${p.id == productId ? 'selected' : ''}>${p.code} - ${p.name}</option>`).join('')}
+            </select>
+        </td>
+        <td>
+            <select class="form-select form-select-sm" name="lines[${lineCounter}][uom_id]" required>
+                <option value="">Select UOM</option>
+                ${uoms.map(u => `<option value="${u.id}" ${u.id == uomId ? 'selected' : ''}>${u.uom_code} - ${u.uom_name}</option>`).join('')}
+            </select>
+        </td>
+        <td>
+            <input type="number" step="0.01" class="form-control form-control-sm line-qty" name="lines[${lineCounter}][quantity]" required min="0.01" data-line="${lineCounter}" value="${quantity}">
+        </td>
+        <td>
+            <input type="number" step="0.01" class="form-control form-control-sm line-price" name="lines[${lineCounter}][unit_price]" required min="0" data-line="${lineCounter}" value="${unitPrice}">
+        </td>
+        <td>
+            <span class="line-total" id="total-${lineCounter}">$0.00</span>
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeLine(${lineCounter})">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    tbody.appendChild(row);
+    
+    // Add event listeners for calculation
+    row.querySelector('.line-qty').addEventListener('input', calculateLineTotal);
+    row.querySelector('.line-price').addEventListener('input', calculateLineTotal);
+    
+    // Calculate initial total if existing data
+    if (existingData && quantity && unitPrice) {
+        const total = parseFloat(quantity) * parseFloat(unitPrice);
+        document.getElementById(`total-${lineCounter}`).textContent = '$' + total.toFixed(2);
+    }
+    updateGrandTotal();
+}
+
+function removeLine(lineNum) {
+    const row = document.getElementById(`line-${lineNum}`);
+    if (row) {
+        row.remove();
+        updateGrandTotal();
+    }
+}
+
+function calculateLineTotal(e) {
+    const lineNum = e.target.dataset.line;
+    const row = document.getElementById(`line-${lineNum}`);
+    const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.line-price').value) || 0;
+    const total = qty * price;
+    
+    document.getElementById(`total-${lineNum}`).textContent = '$' + total.toFixed(2);
+    updateGrandTotal();
+}
+
+function updateGrandTotal() {
+    const totals = document.querySelectorAll('.line-total');
+    let grand = 0;
+    totals.forEach(total => {
+        const value = parseFloat(total.textContent.replace('$', '')) || 0;
+        grand += value;
+    });
+    document.getElementById('grandTotal').textContent = '$' + grand.toFixed(2);
+}
+
+document.getElementById('addLineBtn').addEventListener('click', () => addLine());
+
+// Add validation to ensure at least one line
+document.getElementById('poForm').addEventListener('submit', function(e) {
+    const rows = document.getElementById('lineItemsBody').getElementsByTagName('tr');
+    if (rows.length === 0) {
+        e.preventDefault();
+        alert('Please add at least one line item to the purchase order.');
+        return false;
+    }
+});
+
+// Load existing lines
+existingLines.forEach((line, index) => {
+    addLine(line);
+});
+
+// If no existing lines, add one blank line
+if (existingLines.length === 0) {
+    addLine();
+}
+</script>
+{% endblock %}

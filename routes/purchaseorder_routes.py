@@ -214,6 +214,142 @@ def view_purchaseorder(id):
     
     return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records)
 
+@po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
+@role_required('Admin', 'Procurement')
+def edit_purchaseorder(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get PO header
+    po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+    
+    if not po:
+        conn.close()
+        flash('Purchase order not found', 'danger')
+        return redirect(url_for('po_routes.list_purchaseorders'))
+    
+    # Check if PO can be edited (not fully received)
+    if po['status'] == 'Received':
+        conn.close()
+        flash('Cannot edit a fully received purchase order', 'warning')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+    
+    if request.method == 'POST':
+        try:
+            # Get header data
+            supplier_id = int(request.form['supplier_id'])
+            status = request.form['status']
+            order_date = request.form.get('order_date') or None
+            expected_delivery_date = request.form.get('expected_delivery_date') or None
+            notes = request.form.get('notes', '').strip()
+            
+            # Extract line items from form data
+            lines = {}
+            for key in request.form.keys():
+                if key.startswith('lines['):
+                    parts = key.replace('lines[', '').replace(']', '').split('[')
+                    line_num = parts[0]
+                    field_name = parts[1]
+                    
+                    if line_num not in lines:
+                        lines[line_num] = {}
+                    lines[line_num][field_name] = request.form[key]
+            
+            if not lines:
+                flash('Please add at least one line item to the purchase order.', 'danger')
+                conn.close()
+                return redirect(url_for('po_routes.edit_purchaseorder', id=id))
+            
+            # Get old PO data for audit trail
+            old_po_data = {
+                'supplier_id': po['supplier_id'],
+                'status': po['status'],
+                'order_date': po['order_date'],
+                'expected_delivery_date': po['expected_delivery_date'],
+                'notes': po['notes']
+            }
+            
+            # Update PO header
+            conn.execute('''
+                UPDATE purchase_orders
+                SET supplier_id = ?, status = ?, order_date = ?, expected_delivery_date = ?, notes = ?,
+                    modified_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (supplier_id, status, order_date, expected_delivery_date, notes, id))
+            
+            # Delete existing line items
+            conn.execute('DELETE FROM purchase_order_lines WHERE po_id = ?', (id,))
+            
+            # Insert new line items
+            for line_num, line_data in sorted(lines.items(), key=lambda x: int(x[0])):
+                product_id = int(line_data['product_id'])
+                uom_id = int(line_data['uom_id']) if line_data.get('uom_id') else None
+                quantity = float(line_data['quantity'])
+                unit_price = float(line_data['unit_price'])
+                
+                conn.execute('''
+                    INSERT INTO purchase_order_lines 
+                    (po_id, line_number, product_id, uom_id, quantity, unit_price, received_quantity)
+                    VALUES (?, ?, ?, ?, ?, ?, 0)
+                ''', (id, int(line_num), product_id, uom_id, quantity, unit_price))
+            
+            # Create audit log
+            new_po_data = {
+                'supplier_id': supplier_id,
+                'status': status,
+                'order_date': order_date,
+                'expected_delivery_date': expected_delivery_date,
+                'notes': notes
+            }
+            
+            audit_logger = AuditLogger(conn)
+            audit_logger.log_update(
+                record_type='purchase_order',
+                record_id=id,
+                old_data=old_po_data,
+                new_data=new_po_data,
+                user_id=session['user_id']
+            )
+            
+            conn.commit()
+            conn.close()
+            
+            flash(f'Purchase Order {po["po_number"]} updated successfully!', 'success')
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            flash(f'Error updating purchase order: {str(e)}', 'danger')
+            return redirect(url_for('po_routes.edit_purchaseorder', id=id))
+    
+    # GET request - load edit form
+    lines = conn.execute('''
+        SELECT pol.*, p.code as product_code, p.name as product_name
+        FROM purchase_order_lines pol
+        JOIN products p ON pol.product_id = p.id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (id,)).fetchall()
+    
+    suppliers = conn.execute('SELECT * FROM suppliers ORDER BY code').fetchall()
+    products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    uoms = conn.execute('SELECT * FROM uom_master WHERE is_active = 1 ORDER BY uom_code').fetchall()
+    
+    # Convert Row objects to dictionaries for JSON serialization
+    products_list = [dict(p) for p in products]
+    uoms_list = [dict(u) for u in uoms]
+    lines_list = [dict(l) for l in lines]
+    
+    conn.close()
+    
+    return render_template('purchaseorders/edit.html', 
+                         po=po, 
+                         lines=lines_list,
+                         suppliers=suppliers, 
+                         products=products_list, 
+                         uoms=uoms_list)
+
 @po_bp.route('/purchaseorders/<int:id>/print')
 @login_required
 def print_purchaseorder(id):
