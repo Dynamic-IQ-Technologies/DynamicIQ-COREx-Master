@@ -171,15 +171,21 @@ def edit_sales_order(id):
             repair_charge_str = request.form.get('repair_charge', '0').strip()
             repair_charge = float(repair_charge_str) if repair_charge_str else 0.0
             
+            tax_rate_str = request.form.get('tax_rate', '0').strip()
+            tax_rate = float(tax_rate_str) if tax_rate_str else 0.0
+            
             conn.execute('''
                 UPDATE sales_orders SET
                     expected_ship_date = ?, core_charge = ?, repair_charge = ?,
-                    expected_return_date = ?, service_notes = ?, notes = ?
+                    expected_return_date = ?, service_notes = ?, notes = ?, tax_rate = ?
                 WHERE id = ?
             ''', (
                 expected_ship_date, core_charge, repair_charge, expected_return_date,
-                request.form.get('service_notes', ''), request.form.get('notes', ''), id
+                request.form.get('service_notes', ''), request.form.get('notes', ''), tax_rate, id
             ))
+            
+            # Recalculate totals with tax rate
+            recalculate_totals(conn, id, tax_rate)
             
             conn.commit()
             flash('Sales Order updated successfully!', 'success')
@@ -313,7 +319,7 @@ def delete_line(id, line_id):
     
     return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
 
-def recalculate_totals(conn, so_id):
+def recalculate_totals(conn, so_id, tax_rate=None):
     # Calculate totals from line items
     totals = conn.execute('''
         SELECT 
@@ -322,13 +328,20 @@ def recalculate_totals(conn, so_id):
         WHERE so_id = ?
     ''', (so_id,)).fetchone()
     
-    # Get current SO for core/repair charges and tax
+    # Get current SO for core/repair charges and tax rate
     so = conn.execute(
-        'SELECT core_charge, repair_charge, tax_amount FROM sales_orders WHERE id = ?', (so_id,)
+        'SELECT core_charge, repair_charge, tax_rate FROM sales_orders WHERE id = ?', (so_id,)
     ).fetchone()
     
+    # Use provided tax_rate or fall back to saved tax_rate
+    if tax_rate is None:
+        tax_rate = so['tax_rate'] or 0.0
+    
+    # Calculate subtotal including core/repair charges
     subtotal = totals['subtotal'] + (so['core_charge'] or 0) + (so['repair_charge'] or 0)
-    tax_amount = so['tax_amount'] or 0
+    
+    # Calculate tax based on rate
+    tax_amount = subtotal * (tax_rate / 100) if tax_rate else 0
     total_amount = subtotal + tax_amount
     
     # Get amount paid
@@ -340,9 +353,9 @@ def recalculate_totals(conn, so_id):
     
     balance_due = total_amount - amount_paid
     
-    # Update sales order
+    # Update sales order with calculated values
     conn.execute('''
         UPDATE sales_orders SET
-            subtotal = ?, total_amount = ?, balance_due = ?
+            subtotal = ?, tax_amount = ?, total_amount = ?, balance_due = ?
         WHERE id = ?
-    ''', (subtotal, total_amount, balance_due, so_id))
+    ''', (subtotal, tax_amount, total_amount, balance_due, so_id))

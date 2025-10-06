@@ -62,6 +62,13 @@
                 {% endif %}
 
                 <div class="mb-3">
+                    <label class="form-label">Tax Rate (%)</label>
+                    <input type="number" step="0.01" class="form-control" name="tax_rate" id="tax_rate" 
+                           value="{{ sales_order.tax_rate or 0 }}">
+                    <small class="text-muted">Current tax amount: ${{ "{:,.2f}".format(sales_order.tax_amount or 0) }}</small>
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label">Notes</label>
                     <textarea class="form-control" name="notes" rows="3">{{ sales_order.notes or '' }}</textarea>
                 </div>
@@ -182,16 +189,22 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Description (Optional)</label>
                             <input type="text" class="form-control form-control-sm" name="description">
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Serial Number (Optional)</label>
                             <input type="text" class="form-control form-control-sm" name="serial_number">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Line Notes (Optional)</label>
+                            <input type="text" class="form-control form-control-sm" name="line_notes" placeholder="Comments for this line">
                         </div>
                     </div>
                 </div>
