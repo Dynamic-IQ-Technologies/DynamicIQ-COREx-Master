@@ -372,7 +372,9 @@ def view_receiving(receipt_number):
             s.phone,
             s.email,
             u.username as received_by_name,
-            pol.unit_price
+            pol.unit_price,
+            pol.quantity as po_quantity,
+            COALESCE(pol.received_quantity, 0) as po_received_quantity
         FROM receiving_transactions rt
         JOIN purchase_orders po ON rt.po_id = po.id
         JOIN products p ON rt.product_id = p.id
