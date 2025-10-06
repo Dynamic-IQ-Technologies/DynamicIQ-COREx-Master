@@ -244,12 +244,8 @@ def create_receiving():
                 flash(f'Material received successfully! Receipt: {receipt_number}, Linked to existing A/P: {existing_ap["invoice_number"]}', 'success')
                 return redirect(url_for('receiving_routes.view_receiving', receipt_number=receipt_number))
             
-            # Get supplier payment terms
-            supplier = conn.execute('''
-                SELECT payment_terms FROM suppliers WHERE id = ?
-            ''', (po_line['supplier_id'],)).fetchone()
-            
-            payment_terms_days = supplier['payment_terms'] if supplier and supplier['payment_terms'] else 30
+            # Use default payment terms (30 days Net)
+            payment_terms_days = 30
             
             # Calculate due date based on payment terms
             receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
