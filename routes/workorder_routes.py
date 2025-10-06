@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
+from datetime import datetime
 
 workorder_bp = Blueprint('workorder_routes', __name__)
 
@@ -421,4 +422,5 @@ def work_order_traveler(id):
                          workorder=workorder, 
                          requirements=requirements,
                          tasks=tasks,
-                         company_settings=company_settings)
+                         company_settings=company_settings,
+                         now=datetime.now)
