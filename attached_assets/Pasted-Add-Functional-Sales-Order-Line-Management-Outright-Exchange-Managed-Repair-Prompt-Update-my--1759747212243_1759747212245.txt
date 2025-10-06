@@ -1,0 +1,69 @@
+Add Functional Sales Order Line Management (Outright, Exchange, Managed Repair)
+
+Prompt:
+
+Update my app’s Sales Module to include a fully functional Sales Order Line feature that can be added to each Sales Order record.
+
+Each Sales Order Line should support the following transaction types:
+
+Outright Sale – Standard sales transaction where ownership transfers to the customer.
+
+Exchange – Transaction that includes an Outright Price, Core Charge, Core Due (Days), Expected Core Condition, Core Disposition, and Stock Disposition fields. The system should track both the outgoing exchange unit and the expected returned core.
+
+Managed Repair – Transaction where the customer’s part is sent in for repair. The Sales Order Line must include fields for Quoted TAT, Repair NTE, Expected Core Condition, Vendor Repair Source, Repair Status, and Return to After Repair Address.
+
+Functional Requirements:
+
+Allow multiple Sales Order Lines per Sales Order record.
+
+Each line must automatically calculate and display:
+
+Extended Price (Qty × Unit Price)
+
+Applicable Core Charges (if Exchange)
+
+Total Line Value (sum of above)
+
+Include the following standard fields per line:
+
+Line Type (Outright / Exchange / Managed Repair)
+
+Part Number
+
+Serial Number (if serialized item)
+
+Description
+
+Quantity
+
+Unit Price
+
+Extended Price
+
+Line Status (Draft, Confirmed, Shipped, Closed)
+
+Automatically trigger accounting logic:
+
+For Outright: Create revenue recognition record.
+
+For Exchange: Record both revenue and pending core liability.
+
+For Managed Repair: Link to repair cost tracking and customer billing.
+
+Enable real-time validation to ensure that required fields (e.g., Expected Core Condition for Exchange, Repair Vendor for Managed Repair) are completed based on the selected transaction type.
+
+Integrate with Inventory Management so that:
+
+Outright Sales reduce available stock.
+
+Exchanges reserve the outgoing unit and create a “Core Due” placeholder record.
+
+Managed Repairs link to the repair order module for part and cost tracking.
+
+Include a sub-tab or related list under each Sales Order record named Sales Order Lines to view, add, and edit all associated lines.
+
+Each line entry should have audit trail tracking (created by, created date, last modified by, last modified date).
+
+Allow PDF or digital quote generation that includes line-level transaction types and total pricing summaries.
+
+Make sure all financial transactions integrate into the Accounts Receivable module for billing, and link to Account Payables for any related supplier/repair vendor costs.

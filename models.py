@@ -803,8 +803,70 @@ class Database:
             ON audit_trail(record_type, record_id, modified_at DESC)
         ''')
         
+        # Create core_due_tracking table for exchange transactions
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS core_due_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                so_line_id INTEGER NOT NULL,
+                so_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                core_charge REAL NOT NULL,
+                expected_condition TEXT,
+                core_due_date DATE,
+                core_received INTEGER DEFAULT 0,
+                core_received_date DATE,
+                actual_condition TEXT,
+                core_disposition TEXT,
+                stock_disposition TEXT,
+                refund_issued INTEGER DEFAULT 0,
+                refund_amount REAL,
+                refund_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (so_line_id) REFERENCES sales_order_lines(id),
+                FOREIGN KEY (so_id) REFERENCES sales_orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
+        # Migrate sales_order_lines table - add new columns if they don't exist
+        self._migrate_sales_order_lines(cursor)
+        
         conn.commit()
         conn.close()
+    
+    def _migrate_sales_order_lines(self, cursor):
+        """Add new columns to sales_order_lines table for enhanced functionality"""
+        
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(sales_order_lines)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Define new columns to add
+        new_columns = {
+            'line_type': "ALTER TABLE sales_order_lines ADD COLUMN line_type TEXT DEFAULT 'Outright'",
+            'line_status': "ALTER TABLE sales_order_lines ADD COLUMN line_status TEXT DEFAULT 'Draft'",
+            # Exchange-specific fields
+            'core_charge': "ALTER TABLE sales_order_lines ADD COLUMN core_charge REAL DEFAULT 0",
+            'core_due_days': "ALTER TABLE sales_order_lines ADD COLUMN core_due_days INTEGER",
+            'expected_core_condition': "ALTER TABLE sales_order_lines ADD COLUMN expected_core_condition TEXT",
+            'core_disposition': "ALTER TABLE sales_order_lines ADD COLUMN core_disposition TEXT",
+            'stock_disposition': "ALTER TABLE sales_order_lines ADD COLUMN stock_disposition TEXT",
+            # Managed Repair fields
+            'quoted_tat': "ALTER TABLE sales_order_lines ADD COLUMN quoted_tat INTEGER",
+            'repair_nte': "ALTER TABLE sales_order_lines ADD COLUMN repair_nte REAL",
+            'vendor_repair_source': "ALTER TABLE sales_order_lines ADD COLUMN vendor_repair_source TEXT",
+            'repair_status': "ALTER TABLE sales_order_lines ADD COLUMN repair_status TEXT",
+            'return_to_address': "ALTER TABLE sales_order_lines ADD COLUMN return_to_address TEXT",
+            # Audit trail fields
+            'created_by': "ALTER TABLE sales_order_lines ADD COLUMN created_by INTEGER",
+            'modified_by': "ALTER TABLE sales_order_lines ADD COLUMN modified_by INTEGER",
+            'modified_at': "ALTER TABLE sales_order_lines ADD COLUMN modified_at TIMESTAMP"
+        }
+        
+        # Add missing columns
+        for column_name, alter_sql in new_columns.items():
+            if column_name not in existing_columns:
+                cursor.execute(alter_sql)
     
     def seed_chart_of_accounts(self):
         conn = self.get_connection()
