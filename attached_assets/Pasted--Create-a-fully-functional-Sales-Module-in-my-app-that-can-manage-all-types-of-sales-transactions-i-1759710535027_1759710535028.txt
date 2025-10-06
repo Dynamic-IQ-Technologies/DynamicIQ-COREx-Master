@@ -1,0 +1,63 @@
+"Create a fully functional Sales Module in my app that can manage all types of sales transactions, including outright sales, exchanges, and managed repairs. The module should include the following functionality:
+
+Sales Types & Transactions
+
+Support for outright sales, exchanges, and managed repair sales.
+
+Ability to select the sales type when creating a sales order.
+
+Automatically track inventory impact based on sales type.
+
+Customer Management
+
+Link each sales order to a customer account.
+
+Store customer billing and shipping addresses.
+
+Maintain a history of all sales transactions per customer.
+
+Inventory Integration
+
+Deduct sold items from inventory automatically.
+
+For exchanges and managed repairs, track cores, replacements, and returned items.
+
+Include serialized product support if applicable.
+
+Order Details
+
+Include line items with part numbers, descriptions, quantities, prices, discounts, and tax.
+
+Allow attachments and comments per line item.
+
+Capture expected repair details for managed repair sales, including return dates and service notes.
+
+Pricing & Payments
+
+Support multiple pricing types, including customer-specific pricing, core charges, and repair charges.
+
+Track partial payments, deposits, and final invoicing.
+
+Automatically generate invoices upon order completion.
+
+Workflow & Status Tracking
+
+Track sales order status (e.g., Draft, Pending, Shipped, Completed, Returned).
+
+For managed repairs, track repair progress, return to stock, or return to vendor status.
+
+Reporting & Dashboards
+
+Provide dashboards for sales performance, outstanding orders, inventory impact, and revenue by sales type.
+
+Include export options for accounting and operational review.
+
+Validation & Error Handling
+
+Ensure required fields are completed before saving a sales order.
+
+Prevent overselling inventory.
+
+Validate data integrity for managed repair and exchange transactions.
+
+The goal is to create a comprehensive Sales module that integrates seamlessly with inventory, customer management, and accounting, supporting all standard MRO sales operations."

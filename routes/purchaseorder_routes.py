@@ -260,7 +260,7 @@ def edit_purchaseorder(id):
                 conn.close()
                 return redirect(url_for('po_routes.edit_purchaseorder', id=id))
             
-            # Get old PO data for audit trail
+            # Get old PO data for audit trail (header + lines)
             old_po_data = {
                 'supplier_id': po['supplier_id'],
                 'status': po['status'],
@@ -268,6 +268,24 @@ def edit_purchaseorder(id):
                 'expected_delivery_date': po['expected_delivery_date'],
                 'notes': po['notes']
             }
+            
+            # Get existing lines from database for comparison and validation
+            existing_lines = conn.execute('''
+                SELECT * FROM purchase_order_lines WHERE po_id = ?
+            ''', (id,)).fetchall()
+            
+            # Map existing lines by ID for lookup
+            existing_lines_map = {line['id']: dict(line) for line in existing_lines}
+            
+            # Store old lines for audit
+            old_lines_data = [{
+                'id': line['id'],
+                'line_number': line['line_number'],
+                'product_id': line['product_id'],
+                'quantity': line['quantity'],
+                'unit_price': line['unit_price'],
+                'received_quantity': line['received_quantity']
+            } for line in existing_lines]
             
             # Update PO header
             conn.execute('''
@@ -277,23 +295,82 @@ def edit_purchaseorder(id):
                 WHERE id = ?
             ''', (supplier_id, status, order_date, expected_delivery_date, notes, id))
             
-            # Delete existing line items
-            conn.execute('DELETE FROM purchase_order_lines WHERE po_id = ?', (id,))
+            # Track which line IDs are in the submission
+            submitted_line_ids = set()
+            new_lines_data = []
             
-            # Insert new line items
+            # Process each submitted line
             for line_num, line_data in sorted(lines.items(), key=lambda x: int(x[0])):
                 product_id = int(line_data['product_id'])
                 uom_id = int(line_data['uom_id']) if line_data.get('uom_id') else None
                 quantity = float(line_data['quantity'])
                 unit_price = float(line_data['unit_price'])
+                line_id_str = line_data.get('line_id', '').strip()
                 
-                conn.execute('''
-                    INSERT INTO purchase_order_lines 
-                    (po_id, line_number, product_id, uom_id, quantity, unit_price, received_quantity)
-                    VALUES (?, ?, ?, ?, ?, ?, 0)
-                ''', (id, int(line_num), product_id, uom_id, quantity, unit_price))
+                if line_id_str and line_id_str.isdigit():
+                    # Existing line - UPDATE it
+                    line_id = int(line_id_str)
+                    
+                    # Validate: line_id must belong to this PO (prevent tampering)
+                    if line_id not in existing_lines_map:
+                        raise ValueError(f'Invalid line_id {line_id}: does not belong to this purchase order')
+                    
+                    submitted_line_ids.add(line_id)
+                    existing_line = existing_lines_map[line_id]
+                    received_qty = existing_line['received_quantity'] or 0
+                    
+                    # Validate: cannot change product on lines with receipts (prevents inventory corruption)
+                    if received_qty > 0 and existing_line['product_id'] != product_id:
+                        raise ValueError(f'Line {line_num}: Cannot change product on a line that has been partially or fully received')
+                    
+                    # Validate: ordered quantity must be >= received quantity
+                    if quantity < received_qty:
+                        raise ValueError(f'Line {line_num}: Ordered quantity ({quantity}) cannot be less than received quantity ({received_qty})')
+                    
+                    # Update existing line
+                    conn.execute('''
+                        UPDATE purchase_order_lines
+                        SET line_number = ?, product_id = ?, uom_id = ?, quantity = ?, unit_price = ?
+                        WHERE id = ?
+                    ''', (int(line_num), product_id, uom_id, quantity, unit_price, line_id))
+                    
+                    new_lines_data.append({
+                        'id': line_id,
+                        'line_number': int(line_num),
+                        'product_id': product_id,
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                        'received_quantity': received_qty
+                    })
+                else:
+                    # New line - INSERT it
+                    cursor = conn.execute('''
+                        INSERT INTO purchase_order_lines 
+                        (po_id, line_number, product_id, uom_id, quantity, unit_price, received_quantity)
+                        VALUES (?, ?, ?, ?, ?, ?, 0)
+                    ''', (id, int(line_num), product_id, uom_id, quantity, unit_price))
+                    
+                    new_line_id = cursor.lastrowid
+                    submitted_line_ids.add(new_line_id)
+                    
+                    new_lines_data.append({
+                        'id': new_line_id,
+                        'line_number': int(line_num),
+                        'product_id': product_id,
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                        'received_quantity': 0
+                    })
             
-            # Create audit log
+            # Delete lines that were removed (only if not received)
+            for line_id, existing_line in existing_lines_map.items():
+                if line_id not in submitted_line_ids:
+                    received_qty = existing_line['received_quantity'] or 0
+                    if received_qty > 0:
+                        raise ValueError(f'Cannot delete line {existing_line["line_number"]}: {received_qty} units have been received')
+                    conn.execute('DELETE FROM purchase_order_lines WHERE id = ?', (line_id,))
+            
+            # Create audit log with header and line items
             new_po_data = {
                 'supplier_id': supplier_id,
                 'status': status,
@@ -303,6 +380,8 @@ def edit_purchaseorder(id):
             }
             
             audit_logger = AuditLogger(conn)
+            
+            # Log header changes
             audit_logger.log_update(
                 record_type='purchase_order',
                 record_id=id,
@@ -310,6 +389,16 @@ def edit_purchaseorder(id):
                 new_data=new_po_data,
                 user_id=session['user_id']
             )
+            
+            # Log line item changes if different
+            if old_lines_data != new_lines_data:
+                audit_logger.log_update(
+                    record_type='purchase_order_lines',
+                    record_id=id,
+                    old_data={'lines': old_lines_data},
+                    new_data={'lines': new_lines_data},
+                    user_id=session['user_id']
+                )
             
             conn.commit()
             conn.close()

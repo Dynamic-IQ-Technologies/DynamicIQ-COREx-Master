@@ -110,18 +110,23 @@ function addLine(existingData = null) {
     const row = document.createElement('tr');
     row.id = `line-${lineCounter}`;
     
+    const lineId = existingData ? existingData.id : '';
     const productId = existingData ? existingData.product_id : '';
     const uomId = existingData ? existingData.uom_id : '';
     const quantity = existingData ? existingData.quantity : '';
     const unitPrice = existingData ? existingData.unit_price : '';
+    const receivedQty = existingData ? (existingData.received_quantity || 0) : 0;
     
     row.innerHTML = `
         <td>${lineCounter}</td>
         <td>
-            <select class="form-select form-select-sm" name="lines[${lineCounter}][product_id]" required>
+            <input type="hidden" name="lines[${lineCounter}][line_id]" value="${lineId}">
+            <input type="hidden" name="lines[${lineCounter}][received_quantity]" value="${receivedQty}">
+            <select class="form-select form-select-sm" name="lines[${lineCounter}][product_id]" required ${receivedQty > 0 ? 'disabled title="Cannot change product on received line"' : ''}>
                 <option value="">Select Product</option>
                 ${products.map(p => `<option value="${p.id}" ${p.id == productId ? 'selected' : ''}>${p.code} - ${p.name}</option>`).join('')}
             </select>
+            ${receivedQty > 0 ? `<input type="hidden" name="lines[${lineCounter}][product_id]" value="${productId}">` : ''}
         </td>
         <td>
             <select class="form-select form-select-sm" name="lines[${lineCounter}][uom_id]" required>
@@ -130,7 +135,8 @@ function addLine(existingData = null) {
             </select>
         </td>
         <td>
-            <input type="number" step="0.01" class="form-control form-control-sm line-qty" name="lines[${lineCounter}][quantity]" required min="0.01" data-line="${lineCounter}" value="${quantity}">
+            <input type="number" step="0.01" class="form-control form-control-sm line-qty" name="lines[${lineCounter}][quantity]" required min="${receivedQty > 0 ? receivedQty : 0.01}" data-line="${lineCounter}" data-received="${receivedQty}" value="${quantity}">
+            ${receivedQty > 0 ? `<small class="text-muted">Received: ${receivedQty}</small>` : ''}
         </td>
         <td>
             <input type="number" step="0.01" class="form-control form-control-sm line-price" name="lines[${lineCounter}][unit_price]" required min="0" data-line="${lineCounter}" value="${unitPrice}">
@@ -139,7 +145,7 @@ function addLine(existingData = null) {
             <span class="line-total" id="total-${lineCounter}">$0.00</span>
         </td>
         <td>
-            <button type="button" class="btn btn-danger btn-sm" onclick="removeLine(${lineCounter})">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeLine(${lineCounter}, ${receivedQty})" ${receivedQty > 0 ? 'disabled title="Cannot delete received line"' : ''}>
                 <i class="bi bi-trash"></i>
             </button>
         </td>
@@ -148,8 +154,22 @@ function addLine(existingData = null) {
     tbody.appendChild(row);
     
     // Add event listeners for calculation
-    row.querySelector('.line-qty').addEventListener('input', calculateLineTotal);
-    row.querySelector('.line-price').addEventListener('input', calculateLineTotal);
+    const qtyInput = row.querySelector('.line-qty');
+    const priceInput = row.querySelector('.line-price');
+    
+    qtyInput.addEventListener('input', calculateLineTotal);
+    priceInput.addEventListener('input', calculateLineTotal);
+    
+    // Validate quantity isn't below received quantity
+    qtyInput.addEventListener('change', function() {
+        const receivedQty = parseFloat(this.dataset.received) || 0;
+        const currentQty = parseFloat(this.value) || 0;
+        if (receivedQty > 0 && currentQty < receivedQty) {
+            alert(`Quantity cannot be less than received quantity (${receivedQty})`);
+            this.value = receivedQty;
+            calculateLineTotal({target: this});
+        }
+    });
     
     // Calculate initial total if existing data
     if (existingData && quantity && unitPrice) {
@@ -159,7 +179,11 @@ function addLine(existingData = null) {
     updateGrandTotal();
 }
 
-function removeLine(lineNum) {
+function removeLine(lineNum, receivedQty = 0) {
+    if (receivedQty > 0) {
+        alert('Cannot delete a line that has been partially or fully received');
+        return;
+    }
     const row = document.getElementById(`line-${lineNum}`);
     if (row) {
         row.remove();
