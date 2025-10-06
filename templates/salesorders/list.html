@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Sales Orders{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-receipt"></i> Sales Orders</h2>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('salesorder_routes.create_sales_order') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New Sales Order
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="Draft" {% if status_filter == 'Draft' %}selected{% endif %}>Draft</option>
+                        <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="Shipped" {% if status_filter == 'Shipped' %}selected{% endif %}>Shipped</option>
+                        <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Returned" {% if status_filter == 'Returned' %}selected{% endif %}>Returned</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Sales Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="Outright Sale" {% if type_filter == 'Outright Sale' %}selected{% endif %}>Outright Sale</option>
+                        <option value="Exchange" {% if type_filter == 'Exchange' %}selected{% endif %}>Exchange</option>
+                        <option value="Managed Repair" {% if type_filter == 'Managed Repair' %}selected{% endif %}>Managed Repair</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-secondary me-2">Filter</button>
+                    <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>SO Number</th>
+                            <th>Customer</th>
+                            <th>Type</th>
+                            <th>Order Date</th>
+                            <th>Status</th>
+                            <th>Total Amount</th>
+                            <th>Balance Due</th>
+                            <th>Lines</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sales_orders %}
+                            {% for so in sales_orders %}
+                            <tr>
+                                <td>{{ so.so_number }}</td>
+                                <td>{{ so.customer_number }} - {{ so.customer_name }}</td>
+                                <td><span class="badge bg-info">{{ so.sales_type }}</span></td>
+                                <td>{{ so.order_date }}</td>
+                                <td>
+                                    {% if so.status == 'Completed' %}
+                                        <span class="badge bg-success">{{ so.status }}</span>
+                                    {% elif so.status == 'Shipped' %}
+                                        <span class="badge bg-primary">{{ so.status }}</span>
+                                    {% elif so.status == 'Pending' %}
+                                        <span class="badge bg-warning">{{ so.status }}</span>
+                                    {% elif so.status == 'Draft' %}
+                                        <span class="badge bg-secondary">{{ so.status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-dark">{{ so.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>${{ "{:,.2f}".format(so.total_amount) }}</td>
+                                <td>${{ "{:,.2f}".format(so.balance_due) }}</td>
+                                <td>{{ so.line_count }}</td>
+                                <td>
+                                    <a href="{{ url_for('salesorder_routes.view_sales_order', id=so.id) }}" 
+                                       class="btn btn-sm btn-info" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if session.role in ['Admin', 'Planner'] and so.status == 'Draft' %}
+                                    <a href="{{ url_for('salesorder_routes.edit_sales_order', id=so.id) }}" 
+                                       class="btn btn-sm btn-warning" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center">No sales orders found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
