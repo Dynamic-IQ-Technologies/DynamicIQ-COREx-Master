@@ -111,7 +111,7 @@ def view_uom(id):
         JOIN products p ON puc.product_id = p.id
         WHERE puc.uom_id = ?
         ORDER BY p.code
-    ''').fetchall()
+    ''', (id,)).fetchall()
     
     conn.close()
     return render_template('uom/view.html', uom=uom, products=products)
