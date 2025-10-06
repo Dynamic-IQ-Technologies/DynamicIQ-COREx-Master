@@ -290,8 +290,7 @@ def edit_purchaseorder(id):
             # Update PO header
             conn.execute('''
                 UPDATE purchase_orders
-                SET supplier_id = ?, status = ?, order_date = ?, expected_delivery_date = ?, notes = ?,
-                    modified_at = CURRENT_TIMESTAMP
+                SET supplier_id = ?, status = ?, order_date = ?, expected_delivery_date = ?, notes = ?
                 WHERE id = ?
             ''', (supplier_id, status, order_date, expected_delivery_date, notes, id))
             
