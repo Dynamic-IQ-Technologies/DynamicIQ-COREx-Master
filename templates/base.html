@@ -249,14 +249,6 @@
                     <span>Dashboard</span>
                 </a>
             </li>
-            {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('operations_dashboard_routes.dashboard') }}">
-                    <i class="bi bi-graph-up-arrow"></i>
-                    <span>Operations Dashboard</span>
-                </a>
-            </li>
-            {% endif %}
         </ul>
         
         <div class="sidebar-section-title">Operations</div>
