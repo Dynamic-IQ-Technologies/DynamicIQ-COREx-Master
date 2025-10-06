@@ -378,25 +378,32 @@ def edit_purchaseorder(id):
                 'notes': notes
             }
             
-            audit_logger = AuditLogger(conn)
+            # Build changed fields for header
+            changed_fields = {}
+            for key in old_po_data.keys():
+                if old_po_data.get(key) != new_po_data.get(key):
+                    changed_fields[key] = {'old': old_po_data.get(key), 'new': new_po_data.get(key)}
             
             # Log header changes
-            audit_logger.log_update(
-                record_type='purchase_order',
-                record_id=id,
-                old_data=old_po_data,
-                new_data=new_po_data,
-                user_id=session['user_id']
-            )
+            if changed_fields:
+                AuditLogger.log_change(
+                    conn=conn,
+                    record_type='purchase_order',
+                    record_id=str(id),
+                    action_type='Updated',
+                    modified_by=session['user_id'],
+                    changed_fields=changed_fields
+                )
             
             # Log line item changes if different
             if old_lines_data != new_lines_data:
-                audit_logger.log_update(
+                AuditLogger.log_change(
+                    conn=conn,
                     record_type='purchase_order_lines',
-                    record_id=id,
-                    old_data={'lines': old_lines_data},
-                    new_data={'lines': new_lines_data},
-                    user_id=session['user_id']
+                    record_id=str(id),
+                    action_type='Updated',
+                    modified_by=session['user_id'],
+                    changed_fields={'old_lines': old_lines_data, 'new_lines': new_lines_data}
                 )
             
             conn.commit()
