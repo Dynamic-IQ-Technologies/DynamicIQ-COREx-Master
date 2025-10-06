@@ -17,15 +17,20 @@ def view_audit_trail(record_type, record_id):
     conn = db.get_connection()
     
     # Get audit trail entries
-    audit_entries = AuditLogger.get_audit_trail(conn, record_type, record_id, limit=500)
+    audit_entries_raw = AuditLogger.get_audit_trail(conn, record_type, record_id, limit=500)
     
-    # Parse changed fields JSON
-    for entry in audit_entries:
-        if entry['changed_fields']:
+    # Convert Row objects to dictionaries and parse changed fields JSON
+    audit_entries = []
+    for entry in audit_entries_raw:
+        entry_dict = dict(entry)
+        if entry_dict['changed_fields']:
             try:
-                entry['changes_parsed'] = json.loads(entry['changed_fields'])
+                entry_dict['changes_parsed'] = json.loads(entry_dict['changed_fields'])
             except:
-                entry['changes_parsed'] = None
+                entry_dict['changes_parsed'] = None
+        else:
+            entry_dict['changes_parsed'] = None
+        audit_entries.append(entry_dict)
     
     conn.close()
     
