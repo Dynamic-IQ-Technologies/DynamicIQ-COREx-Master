@@ -319,6 +319,122 @@ def delete_line(id, line_id):
     
     return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
 
+@salesorder_bp.route('/sales-orders/<int:id>/mark-pending', methods=['POST'])
+@role_required('Admin', 'Planner')
+def mark_pending(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('''
+            UPDATE sales_orders 
+            SET status = 'Pending'
+            WHERE id = ? AND status = 'Draft'
+        ''', (id,))
+        
+        conn.commit()
+        flash('Sales Order marked as Pending!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash('An error occurred while updating the order status.', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
+@salesorder_bp.route('/sales-orders/<int:id>/fulfill', methods=['POST'])
+@role_required('Admin', 'Planner')
+def fulfill_order(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get sales order details
+        so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not so:
+            flash('Sales Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        if so['status'] != 'Pending':
+            flash('Only Pending orders can be fulfilled. Please mark as Pending first.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Get line items
+        lines = conn.execute('''
+            SELECT * FROM sales_order_lines WHERE so_id = ?
+        ''', (id,)).fetchall()
+        
+        # Check inventory availability
+        for line in lines:
+            if not line['is_core']:
+                inventory = conn.execute('''
+                    SELECT quantity FROM inventory WHERE product_id = ?
+                ''', (line['product_id'],)).fetchone()
+                
+                available = inventory['quantity'] if inventory else 0
+                if available < line['quantity']:
+                    product = conn.execute(
+                        'SELECT code FROM products WHERE id = ?', (line['product_id'],)
+                    ).fetchone()
+                    flash(f'Insufficient inventory for product {product["code"]}. Available: {available}, Required: {line["quantity"]}', 'danger')
+                    conn.close()
+                    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Deduct inventory
+        for line in lines:
+            if not line['is_core']:
+                conn.execute('''
+                    UPDATE inventory 
+                    SET quantity = quantity - ?
+                    WHERE product_id = ?
+                ''', (line['quantity'], line['product_id']))
+        
+        # Update sales order status
+        conn.execute('''
+            UPDATE sales_orders 
+            SET status = 'Shipped', actual_ship_date = CURRENT_DATE
+            WHERE id = ?
+        ''', (id,))
+        
+        conn.commit()
+        flash('Sales Order fulfilled successfully! Inventory has been deducted.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash('An error occurred while fulfilling the order. Please try again.', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
+@salesorder_bp.route('/sales-orders/<int:id>/complete', methods=['POST'])
+@role_required('Admin', 'Planner')
+def complete_order(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('''
+            UPDATE sales_orders 
+            SET status = 'Completed'
+            WHERE id = ?
+        ''', (id,))
+        
+        conn.commit()
+        flash('Sales Order marked as completed!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash('An error occurred while completing the order.', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
 def recalculate_totals(conn, so_id, tax_rate=None):
     # Calculate totals from line items
     totals = conn.execute('''

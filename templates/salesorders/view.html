@@ -9,10 +9,29 @@
             <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Back to List
             </a>
-            {% if session.role in ['Admin', 'Planner'] and sales_order.status == 'Draft' %}
-            <a href="{{ url_for('salesorder_routes.edit_sales_order', id=sales_order.id) }}" class="btn btn-warning">
-                <i class="bi bi-pencil"></i> Edit
-            </a>
+            {% if session.role in ['Admin', 'Planner'] %}
+                {% if sales_order.status == 'Draft' %}
+                <a href="{{ url_for('salesorder_routes.edit_sales_order', id=sales_order.id) }}" class="btn btn-warning">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                <form method="POST" action="{{ url_for('salesorder_routes.mark_pending', id=sales_order.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-info">
+                        <i class="bi bi-clock"></i> Mark as Pending
+                    </button>
+                </form>
+                {% elif sales_order.status == 'Pending' %}
+                <form method="POST" action="{{ url_for('salesorder_routes.fulfill_order', id=sales_order.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Fulfill this order? Inventory will be deducted.')">
+                        <i class="bi bi-truck"></i> Fulfill Order
+                    </button>
+                </form>
+                {% elif sales_order.status == 'Shipped' %}
+                <form method="POST" action="{{ url_for('salesorder_routes.complete_order', id=sales_order.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Complete Order
+                    </button>
+                </form>
+                {% endif %}
             {% endif %}
         </div>
     </div>

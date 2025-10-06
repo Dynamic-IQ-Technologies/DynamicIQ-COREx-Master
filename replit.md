@@ -36,6 +36,15 @@ The system utilizes Bootstrap 5 for a responsive and modern user interface, comp
 - **Work Order Tasks & Labor Planning**: Manages tasks, labor resources, time tracking, and cost calculations for work orders.
 - **Time Tracking**: Employee clock-in/clock-out system with real-time tracking, cost calculation, and history views.
 - **Active Labor Report**: Real-time report on clocked-in employees, accessible to Admin and Planner roles.
+- **Sales Module**: Comprehensive sales order management system supporting multiple transaction types:
+    - **Customer Management**: Full CRUD operations for customer records with contact information, billing/shipping addresses, payment terms, credit limits, and tax-exempt status. Features CSV import/export capability.
+    - **Sales Order Types**: Supports Outright Sales, Exchanges, and Managed Repair transactions with type-specific fields (core charges, repair charges, expected return dates, service notes).
+    - **Multi-Line Orders**: Dynamic line item management with product selection, pricing, discounts, quantity tracking, and line-specific notes. Supports core items, replacement items, and standard sales items.
+    - **Tax Calculation**: Configurable tax rate with automatic calculation and persistence across order modifications. Tax is computed on subtotal including core/repair charges.
+    - **Inventory Integration**: Automatic inventory validation and deduction during order fulfillment. Prevents overselling with real-time availability checks. Supports serialized product tracking with serial number capture per line item.
+    - **Order Workflow**: Status tracking (Draft → Pending → Shipped → Completed) with role-based actions. Fulfillment process validates inventory, deducts quantities, and updates order status automatically.
+    - **Payment Tracking**: Infrastructure for deposits, partial payments, and balance due tracking using existing payments table with flexible reference system.
+    - **Line Item Features**: Supports descriptions, serial numbers, line notes for comments, and attachment_path field for future file upload integration.
 
 ### System Design Choices
 
