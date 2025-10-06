@@ -39,8 +39,7 @@ def create_receiving():
     
     if request.method == 'POST':
         try:
-            po_id = int(request.form['po_id'])
-            product_id = int(request.form['product_id'])
+            po_line_id = int(request.form['po_line_id'])
             quantity_received = float(request.form['quantity_received'])
             receipt_date = request.form['receipt_date']
             packing_slip = request.form.get('packing_slip_number', '')
@@ -62,33 +61,32 @@ def create_receiving():
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
             
-            # Get PO details
-            po = conn.execute('''
-                SELECT po.*, p.name as product_name
-                FROM purchase_orders po
-                JOIN products p ON po.product_id = p.id
-                WHERE po.id = ?
-            ''', (po_id,)).fetchone()
+            # Get PO Line details with PO header and product info
+            po_line = conn.execute('''
+                SELECT pol.*, po.po_number, po.supplier_id, po.order_date,
+                       p.name as product_name, p.code as product_code
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.po_id = po.id
+                JOIN products p ON pol.product_id = p.id
+                WHERE pol.id = ?
+            ''', (po_line_id,)).fetchone()
             
-            if not po:
-                flash('Purchase Order not found.', 'danger')
-                conn.close()
-                return redirect(url_for('receiving_routes.create_receiving'))
-            
-            # Validate product_id matches the PO
-            if po['product_id'] != product_id:
-                flash('Product does not match the selected Purchase Order.', 'danger')
+            if not po_line:
+                flash('Purchase Order Line not found.', 'danger')
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
             
             # Validate quantity
-            received_so_far = po['received_quantity'] if po['received_quantity'] else 0
-            remaining = po['quantity'] - received_so_far
+            received_so_far = po_line['received_quantity'] if po_line['received_quantity'] else 0
+            remaining = po_line['quantity'] - received_so_far
             
             if quantity_received > remaining:
-                flash(f'Cannot receive {quantity_received} units. Only {remaining} units remaining on PO.', 'danger')
+                flash(f'Cannot receive {quantity_received} units. Only {remaining} units remaining on this line.', 'danger')
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
+            
+            po_id = po_line['po_id']
+            product_id = po_line['product_id']
             
             # Generate receipt number
             last_receipt = conn.execute('''
@@ -133,33 +131,48 @@ def create_receiving():
                 user_agent=request.headers.get('User-Agent')
             )
             
-            # Get old PO record for audit before update
-            old_po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+            # Get old PO line record for audit before update
+            old_po_line = conn.execute('SELECT * FROM purchase_order_lines WHERE id = ?', (po_line_id,)).fetchone()
             
-            # Update PO received quantity
-            new_received = received_so_far + quantity_received
+            # Update PO line received quantity
+            new_line_received = received_so_far + quantity_received
             conn.execute('''
-                UPDATE purchase_orders 
-                SET received_quantity = ?,
-                    actual_delivery_date = CASE WHEN actual_delivery_date IS NULL THEN ? ELSE actual_delivery_date END,
-                    status = CASE WHEN ? >= quantity THEN 'Received' ELSE status END
+                UPDATE purchase_order_lines 
+                SET received_quantity = ?
                 WHERE id = ?
-            ''', (new_received, receipt_date, new_received, po_id))
+            ''', (new_line_received, po_line_id))
             
-            # Get new PO record for audit and log changes
-            new_po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
-            po_changes = AuditLogger.compare_records(dict(old_po), dict(new_po))
-            if po_changes:
+            # Get new PO line record for audit and log changes
+            new_po_line = conn.execute('SELECT * FROM purchase_order_lines WHERE id = ?', (po_line_id,)).fetchone()
+            po_line_changes = AuditLogger.compare_records(dict(old_po_line), dict(new_po_line))
+            if po_line_changes:
                 AuditLogger.log_change(
                     conn=conn,
-                    record_type='purchase_order',
-                    record_id=po_id,
+                    record_type='purchase_order_line',
+                    record_id=po_line_id,
                     action_type='Updated',
                     modified_by=session.get('user_id'),
-                    changed_fields=po_changes,
+                    changed_fields=po_line_changes,
                     ip_address=request.remote_addr,
                     user_agent=request.headers.get('User-Agent')
                 )
+            
+            # Update PO header delivery date and status based on all lines
+            conn.execute('''
+                UPDATE purchase_orders 
+                SET actual_delivery_date = CASE WHEN actual_delivery_date IS NULL THEN ? ELSE actual_delivery_date END
+                WHERE id = ?
+            ''', (receipt_date, po_id))
+            
+            # Check if all lines are fully received to update PO status
+            all_lines_received = conn.execute('''
+                SELECT COUNT(*) as incomplete_count
+                FROM purchase_order_lines
+                WHERE po_id = ? AND (received_quantity IS NULL OR received_quantity < quantity)
+            ''', (po_id,)).fetchone()['incomplete_count']
+            
+            if all_lines_received == 0:
+                conn.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', ('Received', po_id))
             
             # Update inventory
             inventory = conn.execute('''
@@ -186,19 +199,19 @@ def create_receiving():
             # Auto-post GL entry for receiving
             # Debit: Inventory (increase asset)
             # Credit: Accounts Payable (increase liability)
-            total_value = quantity_received * po['unit_price']
+            total_value = quantity_received * po_line['unit_price']
             gl_lines = [
                 {
                     'account_code': '1130',  # Inventory
                     'debit': total_value,
                     'credit': 0,
-                    'description': f'Material received - {po["product_name"]} ({receipt_number})'
+                    'description': f'Material received - {po_line["product_name"]} ({receipt_number})'
                 },
                 {
                     'account_code': '2110',  # Accounts Payable
                     'debit': 0,
                     'credit': total_value,
-                    'description': f'AP for material received - {po["product_name"]} ({receipt_number})'
+                    'description': f'AP for material received - {po_line["product_name"]} ({receipt_number})'
                 }
             ]
             
@@ -235,7 +248,7 @@ def create_receiving():
             # Get supplier payment terms
             supplier = conn.execute('''
                 SELECT payment_terms FROM suppliers WHERE id = ?
-            ''', (po['supplier_id'],)).fetchone()
+            ''', (po_line['supplier_id'],)).fetchone()
             
             payment_terms_days = supplier['payment_terms'] if supplier and supplier['payment_terms'] else 30
             
@@ -271,7 +284,7 @@ def create_receiving():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ap_number,
-                po['supplier_id'],
+                po_line['supplier_id'],
                 po_id,
                 receipt_date,
                 due_date,
@@ -309,22 +322,32 @@ def create_receiving():
     # GET request - show form
     today = datetime.now().strftime('%Y-%m-%d')
     
-    # Get pending/ordered POs
+    # Get pending/ordered PO lines with remaining quantities to receive
     pos = conn.execute('''
         SELECT 
-            po.*,
+            pol.id as line_id,
+            pol.po_id,
+            pol.product_id,
+            pol.quantity,
+            pol.unit_price,
+            pol.line_number,
+            COALESCE(pol.received_quantity, 0) as received_so_far,
+            (pol.quantity - COALESCE(pol.received_quantity, 0)) as remaining_quantity,
+            po.po_number,
+            po.order_date,
+            po.expected_delivery_date,
+            po.status,
             s.name as supplier_name,
             p.code as product_code,
             p.name as product_name,
-            p.unit_of_measure,
-            COALESCE(po.received_quantity, 0) as received_so_far,
-            (po.quantity - COALESCE(po.received_quantity, 0)) as remaining_quantity
-        FROM purchase_orders po
+            p.unit_of_measure
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
         JOIN suppliers s ON po.supplier_id = s.id
-        JOIN products p ON po.product_id = p.id
+        JOIN products p ON pol.product_id = p.id
         WHERE po.status IN ('Ordered', 'Partially Received')
-            AND (po.received_quantity IS NULL OR po.received_quantity < po.quantity)
-        ORDER BY po.expected_delivery_date, po.order_date DESC
+            AND (pol.received_quantity IS NULL OR pol.received_quantity < pol.quantity)
+        ORDER BY po.expected_delivery_date, po.order_date DESC, pol.line_number
     ''').fetchall()
     
     conn.close()
@@ -341,9 +364,6 @@ def view_receiving(receipt_number):
             rt.*,
             po.po_number,
             po.order_date,
-            po.unit_price,
-            po.quantity as po_quantity,
-            po.received_quantity as po_received_quantity,
             p.code as product_code,
             p.name as product_name,
             p.unit_of_measure,

@@ -11,12 +11,11 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="po_id" class="form-label">Purchase Order *</label>
-                        <select class="form-select" id="po_id" name="po_id" required onchange="updatePODetails()">
-                            <option value="">Select Purchase Order</option>
+                        <label for="po_line_id" class="form-label">Purchase Order Line *</label>
+                        <select class="form-select" id="po_line_id" name="po_line_id" required onchange="updatePODetails()">
+                            <option value="">Select Purchase Order Line</option>
                             {% for po in pos %}
-                            <option value="{{ po.id }}" 
-                                    data-product-id="{{ po.product_id }}"
+                            <option value="{{ po.line_id }}" 
                                     data-product-code="{{ po.product_code }}"
                                     data-product-name="{{ po.product_name }}"
                                     data-supplier="{{ po.supplier_name }}"
@@ -24,7 +23,7 @@
                                     data-received="{{ '%.2f'|format(po.received_so_far) }}"
                                     data-remaining="{{ '%.2f'|format(po.remaining_quantity) }}"
                                     data-uom="{{ po.unit_of_measure }}">
-                                {{ po.po_number }} - {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining
+                                {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining
                             </option>
                             {% endfor %}
                         </select>
@@ -62,8 +61,6 @@
                     </div>
                 </div>
             </div>
-
-            <input type="hidden" id="product_id" name="product_id">
 
             <div class="row">
                 <div class="col-md-3">
@@ -133,11 +130,10 @@
 
 <script>
 function updatePODetails() {
-    const select = document.getElementById('po_id');
+    const select = document.getElementById('po_line_id');
     const option = select.options[select.selectedIndex];
     
     if (option.value) {
-        document.getElementById('product_id').value = option.dataset.productId;
         document.getElementById('detail_product').textContent = option.dataset.productCode + ' - ' + option.dataset.productName;
         document.getElementById('detail_supplier').textContent = option.dataset.supplier;
         document.getElementById('detail_ordered').textContent = option.dataset.ordered + ' ' + option.dataset.uom;
