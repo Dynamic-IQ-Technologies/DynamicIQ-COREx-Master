@@ -1,9 +1,14 @@
-from flask import Blueprint, render_template, session
+from flask import Blueprint, render_template, session, jsonify
 from models import Database
 from mrp_logic import MRPEngine
 from auth import login_required
 
 main_bp = Blueprint('main_routes', __name__)
+
+@main_bp.route('/health')
+def health_check():
+    """Lightweight health check endpoint for deployment"""
+    return jsonify({"status": "healthy"}), 200
 
 @main_bp.route('/')
 @login_required
