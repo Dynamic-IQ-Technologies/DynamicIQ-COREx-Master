@@ -261,8 +261,85 @@ def add_line(id):
         discount_str = request.form.get('discount_percent', '0').strip()
         discount_percent = float(discount_str) if discount_str else 0.0
         
+        # VALIDATION 1: Pricing validation
+        if unit_price < 0:
+            flash('Unit price cannot be negative.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        if quantity <= 0:
+            flash('Quantity must be greater than zero.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # VALIDATION 2: Discount limits (max 50% unless admin override)
+        MAX_DISCOUNT = 50.0
+        if discount_percent > MAX_DISCOUNT and session.get('role') not in ['Admin']:
+            flash(f'Discount cannot exceed {MAX_DISCOUNT}%. Please contact administrator for approval.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        if discount_percent > 100:
+            flash('Discount cannot exceed 100%.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # VALIDATION 3: Stock availability check for non-core items (aggregate quantities)
+        if not request.form.get('is_core'):
+            # Get existing quantity for this product on this order
+            existing_qty = conn.execute('''
+                SELECT COALESCE(SUM(quantity), 0) as total_qty
+                FROM sales_order_lines
+                WHERE so_id = ? AND product_id = ? AND (is_core IS NULL OR is_core = 0)
+            ''', (id, product_id)).fetchone()['total_qty']
+            
+            # Total quantity will be existing + new line
+            total_qty_needed = existing_qty + quantity
+            
+            # Get available inventory
+            inventory = conn.execute('''
+                SELECT 
+                    COALESCE(quantity, 0) as available,
+                    COALESCE(reserved_quantity, 0) as reserved
+                FROM inventory 
+                WHERE product_id = ?
+            ''', (product_id,)).fetchone()
+            
+            available_qty = 0
+            if inventory:
+                available_qty = inventory['available'] - inventory['reserved']
+            
+            if available_qty < total_qty_needed:
+                product = conn.execute(
+                    'SELECT code, name FROM products WHERE id = ?', (product_id,)
+                ).fetchone()
+                flash(f'Insufficient stock for {product["code"]} - {product["name"]}. Available: {available_qty}, Already on order: {existing_qty}, Requested: {quantity}, Total needed: {total_qty_needed}', 'warning')
+                conn.close()
+                return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
         # Calculate line total
         line_total = (quantity * unit_price) * (1 - discount_percent / 100)
+        
+        # VALIDATION 4: Credit limit check before adding line
+        so = conn.execute('SELECT customer_id, total_amount FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        customer = conn.execute('''
+            SELECT credit_limit, customer_number, name FROM customers WHERE id = ?
+        ''', (so['customer_id'],)).fetchone()
+        
+        # Calculate customer's current outstanding balance
+        outstanding = conn.execute('''
+            SELECT COALESCE(SUM(balance_due), 0) as total_outstanding
+            FROM sales_orders
+            WHERE customer_id = ? AND status NOT IN ('Closed', 'Completed') AND id != ?
+        ''', (so['customer_id'], id)).fetchone()['total_outstanding']
+        
+        # Project new total after adding this line
+        projected_total = outstanding + so['total_amount'] + line_total
+        
+        if customer['credit_limit'] > 0 and projected_total > customer['credit_limit']:
+            flash(f'Credit limit exceeded for {customer["customer_number"]} - {customer["name"]}. Credit Limit: ${customer["credit_limit"]:,.2f}, Current Outstanding: ${outstanding:,.2f}, Projected: ${projected_total:,.2f}', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
         
         # Exchange-specific fields
         core_charge_str = request.form.get('core_charge', '0').strip()
@@ -387,6 +464,60 @@ def confirm_order(id):
         
         if line_count == 0:
             flash('Cannot confirm order without line items. Please add at least one line item.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # VALIDATION: Check stock availability for all non-core line items (aggregated per product)
+        product_totals = conn.execute('''
+            SELECT 
+                sol.product_id,
+                p.code,
+                p.name,
+                SUM(sol.quantity) as total_qty
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ? AND (sol.is_core IS NULL OR sol.is_core = 0)
+            GROUP BY sol.product_id, p.code, p.name
+        ''', (id,)).fetchall()
+        
+        stock_issues = []
+        for product in product_totals:
+            inventory = conn.execute('''
+                SELECT 
+                    COALESCE(quantity, 0) as available,
+                    COALESCE(reserved_quantity, 0) as reserved
+                FROM inventory 
+                WHERE product_id = ?
+            ''', (product['product_id'],)).fetchone()
+            
+            available_qty = 0
+            if inventory:
+                available_qty = inventory['available'] - inventory['reserved']
+            
+            if available_qty < product['total_qty']:
+                stock_issues.append(f"{product['code']}: Need {product['total_qty']}, Available {available_qty}")
+        
+        if stock_issues:
+            flash('Cannot confirm order - Insufficient stock: ' + '; '.join(stock_issues), 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # VALIDATION: Check credit limit
+        so = conn.execute('SELECT customer_id, total_amount FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        customer = conn.execute('''
+            SELECT credit_limit, customer_number, name FROM customers WHERE id = ?
+        ''', (so['customer_id'],)).fetchone()
+        
+        # Calculate customer's current outstanding balance (excluding this order)
+        outstanding = conn.execute('''
+            SELECT COALESCE(SUM(balance_due), 0) as total_outstanding
+            FROM sales_orders
+            WHERE customer_id = ? AND status NOT IN ('Closed', 'Completed') AND id != ?
+        ''', (so['customer_id'], id)).fetchone()['total_outstanding']
+        
+        # Check if confirming this order would exceed credit limit
+        if customer['credit_limit'] > 0 and (outstanding + so['total_amount']) > customer['credit_limit']:
+            flash(f'Cannot confirm - Credit limit exceeded for {customer["customer_number"]}. Limit: ${customer["credit_limit"]:,.2f}, Outstanding: ${outstanding:,.2f}, This Order: ${so["total_amount"]:,.2f}', 'danger')
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
