@@ -73,7 +73,6 @@ def view_ap(id):
             s.contact_person,
             s.email,
             s.phone,
-            s.payment_terms,
             po.po_number,
             ge.entry_number as gl_entry_number
         FROM vendor_invoices vi
