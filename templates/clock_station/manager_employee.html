@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Time Detail - {{ employee.first_name }} {{ employee.last_name }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-person-badge"></i> {{ employee.first_name }} {{ employee.last_name }}</h2>
+        <p class="text-muted mb-0">{{ employee.employee_code }} | {{ employee.role }} | ${{ "%.2f"|format(employee.hourly_rate) }}/hr</p>
+    </div>
+    <div>
+        <a href="{{ url_for('clock_station_routes.manager_dashboard', period=period) }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+</div>
+
+<!-- Period Selection -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('clock_station_routes.manager_employee_detail', employee_id=employee.id, period='week') }}" 
+               class="btn btn-{{ 'primary' if period == 'week' else 'outline-primary' }}">
+                <i class="bi bi-calendar-week"></i> Week
+            </a>
+            <a href="{{ url_for('clock_station_routes.manager_employee_detail', employee_id=employee.id, period='month') }}" 
+               class="btn btn-{{ 'primary' if period == 'month' else 'outline-primary' }}">
+                <i class="bi bi-calendar-month"></i> Month
+            </a>
+        </div>
+        <span class="text-muted ms-3">{{ start_date }} to {{ end_date }}</span>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-hourglass-split"></i> Total Hours</h6>
+                <h2>{{ "%.2f"|format(total_hours) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-currency-dollar"></i> Labor Cost</h6>
+                <h2>${{ "%.2f"|format(total_hours * employee.hourly_rate) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-calendar-check"></i> Total Punches</h6>
+                <h2>{{ punches|length }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Summary -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Daily Breakdown</h5>
+    </div>
+    <div class="card-body">
+        {% if daily_summary %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Punches</th>
+                        <th>Hours</th>
+                        <th>Labor Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in daily_summary %}
+                    <tr>
+                        <td><strong>{{ day.date }}</strong></td>
+                        <td>{{ day.punch_count }}</td>
+                        <td>{{ "%.2f"|format(day.hours) }}</td>
+                        <td>${{ "%.2f"|format(day.hours * employee.hourly_rate) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <th>Total</th>
+                        <th>{{ punches|length }}</th>
+                        <th>{{ "%.2f"|format(total_hours) }}</th>
+                        <th>${{ "%.2f"|format(total_hours * employee.hourly_rate) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No time logged for this period</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detailed Punch History -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Detailed Punch History</h5>
+    </div>
+    <div class="card-body">
+        {% if punches %}
+        <div class="table-responsive">
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Punch #</th>
+                        <th>Type</th>
+                        <th>Date & Time</th>
+                        <th>Location</th>
+                        <th>Project</th>
+                        <th>Notes</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for punch in punches %}
+                    <tr>
+                        <td><small>{{ punch.punch_number }}</small></td>
+                        <td>
+                            {% if punch.punch_type == 'Clock In' %}
+                            <span class="badge bg-success"><i class="bi bi-box-arrow-in-right"></i> In</span>
+                            {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-box-arrow-left"></i> Out</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ punch.punch_time }}</td>
+                        <td>{{ punch.location or '-' }}</td>
+                        <td>{{ punch.project_name or '-' }}</td>
+                        <td>{{ punch.notes or '-' }}</td>
+                        <td><small class="text-muted">{{ punch.ip_address or '-' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No punches recorded for this period</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

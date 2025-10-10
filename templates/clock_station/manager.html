@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Time Clock Dashboard - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people-fill"></i> Time Clock Manager Dashboard</h2>
+    <div>
+        <a href="{{ url_for('clock_station_routes.export_timesheet_csv', period=period) }}" class="btn btn-success">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+        </a>
+        <a href="{{ url_for('clock_station_routes.clock_login') }}" class="btn btn-primary">
+            <i class="bi bi-clock"></i> Clock Station
+        </a>
+    </div>
+</div>
+
+<!-- Period Selection -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('clock_station_routes.manager_dashboard', period='today') }}" 
+               class="btn btn-{{ 'primary' if period == 'today' else 'outline-primary' }}">
+                <i class="bi bi-calendar-day"></i> Today
+            </a>
+            <a href="{{ url_for('clock_station_routes.manager_dashboard', period='week') }}" 
+               class="btn btn-{{ 'primary' if period == 'week' else 'outline-primary' }}">
+                <i class="bi bi-calendar-week"></i> Week
+            </a>
+            <a href="{{ url_for('clock_station_routes.manager_dashboard', period='month') }}" 
+               class="btn btn-{{ 'primary' if period == 'month' else 'outline-primary' }}">
+                <i class="bi bi-calendar-month"></i> Month
+            </a>
+        </div>
+        <span class="text-muted ms-3">{{ start_date }} to {{ end_date }}</span>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-people"></i> Total Employees</h6>
+                <h2>{{ employees|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-clock"></i> Clocked In Now</h6>
+                <h2>{{ clocked_in|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-hourglass-split"></i> Total Hours</h6>
+                <h2>{{ "%.2f"|format(total_hours) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h6><i class="bi bi-currency-dollar"></i> Labor Cost</h6>
+                <h2>${{ "%.2f"|format(total_labor_cost) }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Currently Clocked In -->
+{% if clocked_in %}
+<div class="card border-success mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-clock-fill"></i> Currently Clocked In</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Clock In Time</th>
+                        <th>Elapsed</th>
+                        <th>Location</th>
+                        <th>Project</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in clocked_in %}
+                    <tr>
+                        <td>
+                            <strong>{{ emp.employee_code }}</strong><br>
+                            {{ emp.name }}
+                        </td>
+                        <td>{{ emp.punch_time }}</td>
+                        <td class="elapsed-time" data-clock-in="{{ emp.punch_time }}">-</td>
+                        <td>{{ emp.location or '-' }}</td>
+                        <td>{{ emp.project_name or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Employee Time Summary -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Employee Time Summary</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Punches</th>
+                        <th>Hours</th>
+                        <th>Labor Cost</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td><strong>{{ emp.code }}</strong></td>
+                        <td>{{ emp.name }}</td>
+                        <td>{{ emp.role }}</td>
+                        <td>
+                            {% if emp.is_clocked_in %}
+                            <span class="badge bg-success"><i class="bi bi-clock-fill"></i> In</span>
+                            {% else %}
+                            <span class="badge bg-secondary"><i class="bi bi-clock"></i> Out</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ emp.punch_count }}</td>
+                        <td><strong>{{ "%.2f"|format(emp.hours) }}</strong></td>
+                        <td>${{ "%.2f"|format(emp.labor_cost) }}</td>
+                        <td>
+                            <a href="{{ url_for('clock_station_routes.manager_employee_detail', employee_id=emp.id, period=period) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateElapsedTimes() {
+        document.querySelectorAll('.elapsed-time').forEach(function(el) {
+            const clockInTime = new Date(el.dataset.clockIn);
+            const now = new Date();
+            const elapsed = Math.floor((now - clockInTime) / 1000);
+            
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            
+            el.textContent = `${hours}h ${minutes}m`;
+        });
+    }
+    
+    updateElapsedTimes();
+    setInterval(updateElapsedTimes, 60000); // Update every minute
+</script>
+
+{% endblock %}

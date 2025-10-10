@@ -256,3 +256,233 @@ def calculate_daily_hours(punches):
         })
     
     return summary
+
+# Manager Routes
+@clock_station_bp.route('/clock/manager')
+def manager_dashboard():
+    """Manager dashboard for viewing all employee time"""
+    from auth import login_required, role_required
+    from functools import wraps
+    
+    # Check if user is logged in and has manager role
+    if 'user_id' not in session:
+        flash('Please login to access manager dashboard.', 'warning')
+        return redirect(url_for('auth_routes.login'))
+    
+    if session.get('role') not in ['Admin', 'Planner']:
+        flash('Access denied. Manager privileges required.', 'danger')
+        return redirect(url_for('main_routes.index'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get date range
+    period = request.args.get('period', 'today')
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == 'week':
+        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        end_date = today
+    else:
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = today
+    
+    # Get all employees with their time stats
+    employees = conn.execute('''
+        SELECT 
+            lr.id,
+            lr.employee_code,
+            lr.first_name,
+            lr.last_name,
+            lr.role,
+            lr.hourly_rate,
+            (SELECT COUNT(*) FROM time_clock_punches 
+             WHERE employee_id = lr.id 
+             AND DATE(punch_time) >= ? 
+             AND DATE(punch_time) <= ?) as punch_count
+        FROM labor_resources lr
+        WHERE lr.status = 'Active'
+        ORDER BY lr.employee_code
+    ''', (start_date, end_date)).fetchall()
+    
+    # Calculate hours for each employee
+    employee_stats = []
+    for emp in employees:
+        punches = conn.execute('''
+            SELECT punch_type, punch_time
+            FROM time_clock_punches
+            WHERE employee_id = ? AND DATE(punch_time) >= ? AND DATE(punch_time) <= ?
+            ORDER BY punch_time ASC
+        ''', (emp['id'], start_date, end_date)).fetchall()
+        
+        hours = calculate_hours_from_punches(punches)
+        
+        # Check if currently clocked in
+        last_punch = conn.execute('''
+            SELECT punch_type FROM time_clock_punches
+            WHERE employee_id = ?
+            ORDER BY punch_time DESC LIMIT 1
+        ''', (emp['id'],)).fetchone()
+        
+        is_clocked_in = last_punch and last_punch['punch_type'] == 'Clock In'
+        
+        employee_stats.append({
+            'id': emp['id'],
+            'code': emp['employee_code'],
+            'name': f"{emp['first_name']} {emp['last_name']}",
+            'role': emp['role'],
+            'hours': hours,
+            'labor_cost': hours * emp['hourly_rate'],
+            'punch_count': emp['punch_count'],
+            'is_clocked_in': is_clocked_in
+        })
+    
+    # Get currently clocked in employees
+    clocked_in = conn.execute('''
+        SELECT 
+            lr.employee_code,
+            lr.first_name || ' ' || lr.last_name as name,
+            tcp.punch_time,
+            tcp.location,
+            tcp.project_name
+        FROM time_clock_punches tcp
+        JOIN labor_resources lr ON tcp.employee_id = lr.id
+        WHERE tcp.id IN (
+            SELECT MAX(id) FROM time_clock_punches GROUP BY employee_id
+        ) AND tcp.punch_type = 'Clock In'
+        ORDER BY tcp.punch_time DESC
+    ''').fetchall()
+    
+    total_hours = sum(emp['hours'] for emp in employee_stats)
+    total_labor_cost = sum(emp['labor_cost'] for emp in employee_stats)
+    
+    conn.close()
+    
+    return render_template('clock_station/manager.html',
+                         employees=employee_stats,
+                         clocked_in=clocked_in,
+                         total_hours=total_hours,
+                         total_labor_cost=total_labor_cost,
+                         period=period,
+                         start_date=start_date,
+                         end_date=end_date)
+
+@clock_station_bp.route('/clock/manager/employee/<int:employee_id>')
+def manager_employee_detail(employee_id):
+    """View detailed time report for a specific employee"""
+    from auth import login_required, role_required
+    
+    if 'user_id' not in session or session.get('role') not in ['Admin', 'Planner']:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('main_routes.index'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    employee = conn.execute('''
+        SELECT id, employee_code, first_name, last_name, role, hourly_rate
+        FROM labor_resources WHERE id = ?
+    ''', (employee_id,)).fetchone()
+    
+    if not employee:
+        flash('Employee not found.', 'danger')
+        conn.close()
+        return redirect(url_for('clock_station_routes.manager_dashboard'))
+    
+    # Get date range
+    period = request.args.get('period', 'week')
+    end_date = datetime.now()
+    
+    if period == 'week':
+        start_date = end_date - timedelta(days=7)
+    else:
+        start_date = end_date - timedelta(days=30)
+    
+    # Get all punches
+    punches = conn.execute('''
+        SELECT punch_number, punch_type, punch_time, location, project_name, notes, ip_address
+        FROM time_clock_punches
+        WHERE employee_id = ? AND punch_time BETWEEN ? AND ?
+        ORDER BY punch_time DESC
+    ''', (employee_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d %H:%M:%S'))).fetchall()
+    
+    daily_summary = calculate_daily_hours(punches)
+    total_hours = sum(day['hours'] for day in daily_summary)
+    
+    conn.close()
+    
+    return render_template('clock_station/manager_employee.html',
+                         employee=employee,
+                         punches=punches,
+                         daily_summary=daily_summary,
+                         total_hours=total_hours,
+                         period=period,
+                         start_date=start_date.strftime('%Y-%m-%d'),
+                         end_date=end_date.strftime('%Y-%m-%d'))
+
+@clock_station_bp.route('/clock/manager/export-csv')
+def export_timesheet_csv():
+    """Export timesheet data as CSV"""
+    from auth import login_required, role_required
+    import csv
+    from io import StringIO
+    from flask import make_response
+    
+    if 'user_id' not in session or session.get('role') not in ['Admin', 'Planner']:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('main_routes.index'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    period = request.args.get('period', 'week')
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if period == 'week':
+        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+    else:
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    
+    # Get all punches for period
+    punches = conn.execute('''
+        SELECT 
+            lr.employee_code,
+            lr.first_name || ' ' || lr.last_name as name,
+            tcp.punch_type,
+            tcp.punch_time,
+            tcp.location,
+            tcp.project_name,
+            tcp.notes
+        FROM time_clock_punches tcp
+        JOIN labor_resources lr ON tcp.employee_id = lr.id
+        WHERE DATE(tcp.punch_time) >= ?
+        ORDER BY tcp.punch_time DESC
+    ''', (start_date,)).fetchall()
+    
+    conn.close()
+    
+    # Create CSV
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Employee Code', 'Name', 'Punch Type', 'Date', 'Time', 'Location', 'Project', 'Notes'])
+    
+    for punch in punches:
+        writer.writerow([
+            punch['employee_code'],
+            punch['name'],
+            punch['punch_type'],
+            punch['punch_time'][:10],
+            punch['punch_time'][11:19],
+            punch['location'] or '',
+            punch['project_name'] or '',
+            punch['notes'] or ''
+        ])
+    
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=timesheet_{start_date}_to_{today}.csv"
+    output.headers["Content-type"] = "text/csv"
+    
+    return output
