@@ -50,6 +50,7 @@
                             <a href="{{ url_for('labor_routes.view_labor_resource', id=resource.id) }}" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>
                             {% if user.role in ['Admin', 'Planner'] %}
                             <a href="{{ url_for('labor_routes.edit_labor_resource', id=resource.id) }}" class="btn btn-sm btn-warning" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <a href="{{ url_for('clock_station_routes.set_employee_pin', employee_id=resource.id) }}" class="btn btn-sm btn-primary" title="Set Clock PIN"><i class="bi bi-lock"></i></a>
                             {% endif %}
                             {% if user.role == 'Admin' %}
                             <form method="POST" action="{{ url_for('labor_routes.delete_labor_resource', id=resource.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this employee?');">

@@ -580,6 +580,17 @@ class Database:
             )
         ''')
         
+        # Create clock_login_attempts table for server-side brute-force protection
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS clock_login_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_code TEXT NOT NULL,
+                ip_address TEXT NOT NULL,
+                attempt_time TIMESTAMP NOT NULL,
+                success INTEGER DEFAULT 0
+            )
+        ''')
+        
         # Create uom_master table (UOM Master)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS uom_master (

@@ -36,6 +36,21 @@ The system utilizes Bootstrap 5 for a responsive and modern user interface, comp
 - **Work Order Tasks & Labor Planning**: Manages tasks, labor resources, time tracking, and cost calculations for work orders.
 - **Time Tracking**: Employee clock-in/clock-out system with real-time tracking, cost calculation, and history views.
 - **Active Labor Report**: Real-time report on clocked-in employees, accessible to Admin and Planner roles.
+- **Clock Station**: Standalone web-accessible time clock system with mobile-responsive design for easy employee clock-in/out:
+    - **Simple PIN Authentication**: Secure 4-digit PIN system with bcrypt hashing for employee verification
+    - **Mobile-Friendly Interface**: Clean, intuitive clock-in/out pages optimized for tablets and smartphones
+    - **Session Tracking**: Real-time elapsed time display, hours worked today, and current status (clocked in/out)
+    - **Optional Data Capture**: Location, project/task name, and work notes can be captured with each punch
+    - **Employee Reports**: Daily, weekly, and monthly time reports with hours breakdown and estimated pay
+    - **Manager Dashboard**: Real-time overview of all employees, currently clocked-in staff, and labor costs
+    - **Detailed Employee View**: Manager access to individual employee punch history with full audit trail
+    - **CSV Export**: Export timesheet data for payroll integration and record keeping
+    - **Security Features**: 
+        - Hashed PIN storage (no plaintext credentials)
+        - Server-side brute-force protection (5 failed attempts = 15-minute lockout)
+        - IP address tracking for audit and security
+        - Manager-only PIN setup and reset capability
+    - **Audit Trail**: Complete logging of all clock punches with timestamps, IP addresses, and device information
 - **Sales Module**: Comprehensive sales order management system supporting multiple transaction types:
     - **Customer Management**: Full CRUD operations for customer records with contact information, billing/shipping addresses, payment terms, credit limits, and tax-exempt status. Features CSV import/export capability.
     - **Sales Order Types**: Supports Outright Sales, Exchanges, and Managed Repair transactions with type-specific fields (core charges, repair charges, expected return dates, service notes).
