@@ -48,7 +48,12 @@ The system utilizes Bootstrap 5 for a responsive and modern user interface, comp
         - **Dynamic UI**: JavaScript-driven conditional field display based on line type selection
     - **Tax Calculation**: Configurable tax rate with automatic calculation and persistence across order modifications. Tax computed on subtotal including line-level core charges and header core/repair charges.
     - **Inventory Integration**: Automatic inventory validation and deduction during order fulfillment. Prevents overselling with real-time availability checks. Supports serialized product tracking with serial number capture per line item.
-    - **Order Workflow**: Status tracking (Draft → Pending → Shipped → Completed) with role-based actions. Fulfillment process validates inventory, deducts quantities, and updates order status automatically.
+    - **Order Workflow**: Enhanced 5-state workflow (Draft → Confirmed → Shipped → Invoiced → Closed) with backward compatibility for legacy Pending/Completed orders. Fulfillment process validates inventory, deducts quantities, and updates order status automatically. Includes shipping tracking modal for carrier/tracking number capture.
+    - **Comprehensive Validation**:
+        - **Stock Availability**: Multi-line aggregation per product prevents over-committing inventory. Validates during line addition and order confirmation with detailed availability messages.
+        - **Pricing Validation**: Ensures unit prices are non-negative and quantities are positive.
+        - **Discount Limits**: Maximum 50% discount for non-admin users; admins can approve up to 100% with validation.
+        - **Credit Limit Enforcement**: Real-time checks during line addition and order confirmation, calculating total outstanding balance across all open orders with detailed breakdown messages.
     - **Payment Tracking**: Infrastructure for deposits, partial payments, and balance due tracking using existing payments table with flexible reference system.
     - **Core Due Tracking**: Dedicated table (core_due_tracking) for monitoring expected core returns on Exchange transactions with disposition management and refund processing.
 
