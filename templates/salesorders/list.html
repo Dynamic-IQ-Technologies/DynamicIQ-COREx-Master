@@ -20,10 +20,12 @@
                     <select name="status" class="form-select">
                         <option value="">All Statuses</option>
                         <option value="Draft" {% if status_filter == 'Draft' %}selected{% endif %}>Draft</option>
-                        <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="Confirmed" {% if status_filter == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                        <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending (Legacy)</option>
                         <option value="Shipped" {% if status_filter == 'Shipped' %}selected{% endif %}>Shipped</option>
-                        <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
-                        <option value="Returned" {% if status_filter == 'Returned' %}selected{% endif %}>Returned</option>
+                        <option value="Invoiced" {% if status_filter == 'Invoiced' %}selected{% endif %}>Invoiced</option>
+                        <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed (Legacy)</option>
+                        <option value="Closed" {% if status_filter == 'Closed' %}selected{% endif %}>Closed</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -69,16 +71,18 @@
                                 <td><span class="badge bg-info">{{ so.sales_type }}</span></td>
                                 <td>{{ so.order_date }}</td>
                                 <td>
-                                    {% if so.status == 'Completed' %}
+                                    {% if so.status == 'Closed' %}
+                                        <span class="badge bg-dark">{{ so.status }}</span>
+                                    {% elif so.status in ['Invoiced', 'Completed'] %}
                                         <span class="badge bg-success">{{ so.status }}</span>
                                     {% elif so.status == 'Shipped' %}
                                         <span class="badge bg-primary">{{ so.status }}</span>
-                                    {% elif so.status == 'Pending' %}
-                                        <span class="badge bg-warning">{{ so.status }}</span>
+                                    {% elif so.status in ['Confirmed', 'Pending'] %}
+                                        <span class="badge bg-info">{{ so.status }}</span>
                                     {% elif so.status == 'Draft' %}
                                         <span class="badge bg-secondary">{{ so.status }}</span>
                                     {% else %}
-                                        <span class="badge bg-dark">{{ so.status }}</span>
+                                        <span class="badge bg-warning">{{ so.status }}</span>
                                     {% endif %}
                                 </td>
                                 <td>${{ "{:,.2f}".format(so.total_amount) }}</td>

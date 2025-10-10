@@ -372,33 +372,46 @@ def delete_line(id, line_id):
     
     return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
 
-@salesorder_bp.route('/sales-orders/<int:id>/mark-pending', methods=['POST'])
+@salesorder_bp.route('/sales-orders/<int:id>/confirm', methods=['POST'])
 @role_required('Admin', 'Planner')
-def mark_pending(id):
+def confirm_order(id):
+    """Transition from Draft/Pending to Confirmed (supports legacy Pending orders)"""
     db = Database()
     conn = db.get_connection()
     
     try:
+        # Check if order has line items
+        line_count = conn.execute('''
+            SELECT COUNT(*) as count FROM sales_order_lines WHERE so_id = ?
+        ''', (id,)).fetchone()['count']
+        
+        if line_count == 0:
+            flash('Cannot confirm order without line items. Please add at least one line item.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Support both Draft (new) and Pending (legacy migration)
         conn.execute('''
             UPDATE sales_orders 
-            SET status = 'Pending'
-            WHERE id = ? AND status = 'Draft'
+            SET status = 'Confirmed'
+            WHERE id = ? AND status IN ('Draft', 'Pending')
         ''', (id,))
         
         conn.commit()
-        flash('Sales Order marked as Pending!', 'success')
+        flash('Sales Order confirmed successfully!', 'success')
         
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while updating the order status.', 'danger')
+        flash('An error occurred while confirming the order.', 'danger')
     finally:
         conn.close()
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
-@salesorder_bp.route('/sales-orders/<int:id>/fulfill', methods=['POST'])
+@salesorder_bp.route('/sales-orders/<int:id>/ship', methods=['POST'])
 @role_required('Admin', 'Planner')
-def fulfill_order(id):
+def ship_order(id):
+    """Transition from Confirmed/Pending to Shipped with inventory deduction"""
     db = Database()
     conn = db.get_connection()
     
@@ -411,8 +424,9 @@ def fulfill_order(id):
             conn.close()
             return redirect(url_for('salesorder_routes.list_sales_orders'))
         
-        if so['status'] != 'Pending':
-            flash('Only Pending orders can be fulfilled. Please mark as Pending first.', 'warning')
+        # Support both new workflow (Confirmed) and legacy workflow (Pending)
+        if so['status'] not in ['Confirmed', 'Pending']:
+            flash('Only Confirmed or Pending orders can be shipped.', 'warning')
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
@@ -446,43 +460,108 @@ def fulfill_order(id):
                     WHERE product_id = ?
                 ''', (line['quantity'], line['product_id']))
         
-        # Update sales order status
+        # Update sales order status and tracking info
+        tracking_number = request.form.get('tracking_number', '')
+        shipping_method = request.form.get('shipping_method', '')
+        
         conn.execute('''
             UPDATE sales_orders 
-            SET status = 'Shipped', actual_ship_date = CURRENT_DATE
+            SET status = 'Shipped', 
+                actual_ship_date = CURRENT_DATE,
+                tracking_number = ?,
+                shipping_method = ?
             WHERE id = ?
-        ''', (id,))
+        ''', (tracking_number, shipping_method, id))
         
         conn.commit()
-        flash('Sales Order fulfilled successfully! Inventory has been deducted.', 'success')
+        flash('Sales Order shipped successfully! Inventory has been deducted.', 'success')
         
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while fulfilling the order. Please try again.', 'danger')
+        flash(f'An error occurred while shipping the order: {str(e)}', 'danger')
     finally:
         conn.close()
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
-@salesorder_bp.route('/sales-orders/<int:id>/complete', methods=['POST'])
-@role_required('Admin', 'Planner')
-def complete_order(id):
+@salesorder_bp.route('/sales-orders/<int:id>/invoice', methods=['POST'])
+@role_required('Admin', 'Planner', 'Accountant')
+def invoice_order(id):
+    """Transition from Shipped to Invoiced"""
     db = Database()
     conn = db.get_connection()
     
     try:
+        so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not so:
+            flash('Sales Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        if so['status'] != 'Shipped':
+            flash('Only Shipped orders can be invoiced.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Update status to Invoiced
         conn.execute('''
             UPDATE sales_orders 
-            SET status = 'Completed'
+            SET status = 'Invoiced'
             WHERE id = ?
         ''', (id,))
         
         conn.commit()
-        flash('Sales Order marked as completed!', 'success')
+        flash('Sales Order invoiced successfully!', 'success')
         
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while completing the order.', 'danger')
+        flash('An error occurred while invoicing the order.', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
+@salesorder_bp.route('/sales-orders/<int:id>/close', methods=['POST'])
+@role_required('Admin', 'Planner', 'Accountant')
+def close_order(id):
+    """Transition from Invoiced/Completed to Closed (supports legacy Completed orders)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not so:
+            flash('Sales Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        # Support both Invoiced (new) and Completed (legacy migration)
+        if so['status'] not in ['Invoiced', 'Completed']:
+            flash('Only Invoiced or Completed orders can be closed.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Check if payment is complete
+        if so['balance_due'] > 0:
+            flash('Cannot close order with outstanding balance. Please process payment first.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Update status to Closed
+        conn.execute('''
+            UPDATE sales_orders 
+            SET status = 'Closed'
+            WHERE id = ?
+        ''', (id,))
+        
+        conn.commit()
+        flash('Sales Order closed successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash('An error occurred while closing the order.', 'danger')
     finally:
         conn.close()
     
