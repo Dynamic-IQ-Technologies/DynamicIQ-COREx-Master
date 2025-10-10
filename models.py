@@ -397,6 +397,13 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Add clock_pin column to labor_resources for simple clock station authentication
+        if 'clock_pin' not in lr_columns:
+            try:
+                cursor.execute('ALTER TABLE labor_resources ADD COLUMN clock_pin TEXT')
+            except sqlite3.OperationalError:
+                pass
+        
         # Add bin_location column to receiving_transactions if it doesn't exist
         rt_columns = [row[1] for row in cursor.execute('PRAGMA table_info(receiving_transactions)').fetchall()]
         if 'bin_location' not in rt_columns:
@@ -531,6 +538,45 @@ class Database:
                 FOREIGN KEY (task_id) REFERENCES work_order_tasks(id),
                 FOREIGN KEY (created_by) REFERENCES users(id),
                 FOREIGN KEY (modified_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create simplified time_clock_punches table for standalone clock station
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS time_clock_punches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                punch_number TEXT UNIQUE NOT NULL,
+                employee_id INTEGER NOT NULL,
+                punch_type TEXT NOT NULL,
+                punch_time TIMESTAMP NOT NULL,
+                location TEXT,
+                ip_address TEXT,
+                device_info TEXT,
+                project_name TEXT,
+                notes TEXT,
+                status TEXT DEFAULT 'Approved',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (employee_id) REFERENCES labor_resources(id)
+            )
+        ''')
+        
+        # Create timesheet_approvals table for manager approvals
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS timesheet_approvals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_id INTEGER NOT NULL,
+                period_start DATE NOT NULL,
+                period_end DATE NOT NULL,
+                total_hours REAL DEFAULT 0,
+                status TEXT DEFAULT 'Pending',
+                submitted_at TIMESTAMP,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                rejection_reason TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (employee_id) REFERENCES labor_resources(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
             )
         ''')
         

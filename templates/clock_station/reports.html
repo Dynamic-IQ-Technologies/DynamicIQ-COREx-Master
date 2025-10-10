@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Time Reports - Dynamic.IQ.MRP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);
+            min-height: 100vh;
+            padding-bottom: 80px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .header-bar {
+            background: rgba(255,255,255,0.95);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .clock-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .total-hours {
+            font-size: 3rem;
+            font-weight: 600;
+            color: #4a90e2;
+            text-align: center;
+        }
+        .day-summary {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .day-summary:last-child {
+            border-bottom: none;
+        }
+        .day-date {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .day-hours {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #4a90e2;
+        }
+        .period-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .period-tab {
+            flex: 1;
+            padding: 0.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+            text-decoration: none;
+            color: #64748b;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .period-tab.active {
+            border-color: #4a90e2;
+            background: #eff6ff;
+            color: #4a90e2;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-btn {
+            flex: 1;
+            border: none;
+            background: none;
+            color: #64748b;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            text-decoration: none;
+        }
+        .nav-btn.active {
+            color: #4a90e2;
+        }
+        .nav-btn i {
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">Time Reports</h5>
+                <small class="text-muted">{{ employee.first_name }} {{ employee.last_name }}</small>
+            </div>
+            <a href="{{ url_for('clock_station_routes.clock_dashboard') }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-clock"></i> Clock
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Period Selection -->
+        <div class="clock-card">
+            <div class="period-tabs">
+                <a href="{{ url_for('clock_station_routes.clock_reports', period='week') }}" 
+                   class="period-tab {{ 'active' if period == 'week' else '' }}">
+                    Week
+                </a>
+                <a href="{{ url_for('clock_station_routes.clock_reports', period='month') }}" 
+                   class="period-tab {{ 'active' if period == 'month' else '' }}">
+                    Month
+                </a>
+            </div>
+            <div class="text-center text-muted small">
+                {{ start_date }} to {{ end_date }}
+            </div>
+        </div>
+
+        <!-- Total Hours -->
+        <div class="clock-card text-center">
+            <small class="text-muted">Total Hours</small>
+            <div class="total-hours">{{ "%.2f"|format(total_hours) }}</div>
+            <small class="text-muted">Estimated Pay: ${{ "%.2f"|format(total_hours * employee.hourly_rate) }}</small>
+        </div>
+
+        <!-- Daily Summary -->
+        <div class="clock-card">
+            <h6 class="mb-3">Daily Breakdown</h6>
+            {% if daily_summary %}
+            <div>
+                {% for day in daily_summary %}
+                <div class="day-summary">
+                    <div>
+                        <div class="day-date">{{ day.date }}</div>
+                        <small class="text-muted">{{ day.punch_count }} punches</small>
+                    </div>
+                    <div class="day-hours">{{ "%.2f"|format(day.hours) }}h</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted text-center mb-0">No time logged for this period</p>
+            {% endif %}
+        </div>
+
+        <!-- Export Options -->
+        <div class="clock-card">
+            <h6 class="mb-3">Export Options</h6>
+            <button class="btn btn-outline-primary w-100 mb-2" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print Report
+            </button>
+            <small class="text-muted">For detailed reports, contact your manager</small>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="{{ url_for('clock_station_routes.clock_dashboard') }}" class="nav-btn">
+            <i class="bi bi-clock"></i>
+            <small>Clock</small>
+        </a>
+        <a href="{{ url_for('clock_station_routes.clock_reports') }}" class="nav-btn active">
+            <i class="bi bi-calendar3-fill"></i>
+            <small>Reports</small>
+        </a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
