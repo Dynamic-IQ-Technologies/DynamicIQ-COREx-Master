@@ -353,6 +353,14 @@
                     <span>Sales Orders</span>
                 </a>
             </li>
+            {% if session.role in ['Admin', 'Accountant', 'Planner'] %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('invoice_routes.list_invoices') }}">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Invoices</span>
+                </a>
+            </li>
+            {% endif %}
         </ul>
         
         {% if session.role in ['Admin', 'Accountant'] %}

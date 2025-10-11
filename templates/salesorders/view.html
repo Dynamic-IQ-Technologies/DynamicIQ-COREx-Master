@@ -31,6 +31,13 @@
                 </form>
                 {% endif %}
             {% endif %}
+            {% if session.role in ['Admin', 'Accountant'] %}
+                {% if sales_order.status not in ['Draft', 'Closed'] %}
+                <a href="{{ url_for('invoice_routes.create_from_sales_order', so_id=sales_order.id) }}" class="btn btn-success">
+                    <i class="bi bi-receipt-cutoff"></i> Create Invoice
+                </a>
+                {% endif %}
+            {% endif %}
             {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
                 {% if sales_order.status in ['Invoiced', 'Completed'] %}
                 <form method="POST" action="{{ url_for('salesorder_routes.close_order', id=sales_order.id) }}" style="display: inline;">
