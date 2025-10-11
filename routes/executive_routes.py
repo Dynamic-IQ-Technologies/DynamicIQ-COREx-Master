@@ -66,11 +66,11 @@ def dashboard():
     
     # KPI 2: Total Expenses (from GL expense accounts)
     expense_query = '''
-        SELECT COALESCE(SUM(ABS(gll.debit - gll.credit)), 0) as total_expenses
+        SELECT COALESCE(SUM(gll.debit - gll.credit), 0) as total_expenses
         FROM gl_entry_lines gll
         JOIN gl_entries ge ON gll.gl_entry_id = ge.id
         JOIN chart_of_accounts coa ON gll.account_id = coa.id
-        WHERE coa.account_type IN ('Operating Expense', 'Cost of Goods Sold')
+        WHERE coa.account_type = 'Expense'
         AND ge.entry_date BETWEEN ? AND ?
         AND ge.status = 'Posted'
     '''
@@ -149,11 +149,11 @@ def dashboard():
                 AND ge.status = 'Posted'
             ), 0) as revenue,
             COALESCE((
-                SELECT SUM(ABS(gll.debit - gll.credit))
+                SELECT SUM(gll.debit - gll.credit)
                 FROM gl_entry_lines gll
                 JOIN gl_entries ge ON gll.gl_entry_id = ge.id
                 JOIN chart_of_accounts coa ON gll.account_id = coa.id
-                WHERE coa.account_type IN ('Operating Expense', 'Cost of Goods Sold')
+                WHERE coa.account_type = 'Expense'
                 AND strftime('%Y-%m', ge.entry_date) = m.month
                 AND ge.status = 'Posted'
             ), 0) as expenses
@@ -310,11 +310,11 @@ def export_dashboard():
     ''', (start_date, end_date)).fetchone()['total_revenue']
     
     expenses = conn.execute('''
-        SELECT COALESCE(SUM(ABS(gll.debit - gll.credit)), 0) as total_expenses
+        SELECT COALESCE(SUM(gll.debit - gll.credit), 0) as total_expenses
         FROM gl_entry_lines gll
         JOIN gl_entries ge ON gll.gl_entry_id = ge.id
         JOIN chart_of_accounts coa ON gll.account_id = coa.id
-        WHERE coa.account_type IN ('Operating Expense', 'Cost of Goods Sold')
+        WHERE coa.account_type = 'Expense'
         AND ge.entry_date BETWEEN ? AND ?
         AND ge.status = 'Posted'
     ''', (start_date, end_date)).fetchone()['total_expenses']
