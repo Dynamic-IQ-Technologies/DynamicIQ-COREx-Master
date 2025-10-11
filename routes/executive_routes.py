@@ -51,13 +51,16 @@ def dashboard():
         end_date = today.strftime('%Y-%m-%d')
         period_label = "Year to Date"
     
-    # KPI 1: Total Revenue (from sales/production completions)
-    # Revenue = Finished goods value from completed work orders
+    # KPI 1: Total Revenue (from sales revenue in GL)
+    # Revenue = Credits to Sales Revenue accounts (4100, 4200, 4300)
     revenue_query = '''
-        SELECT COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as total_revenue
-        FROM work_orders wo
-        WHERE wo.status = 'Completed'
-        AND wo.actual_end_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(gll.credit - gll.debit), 0) as total_revenue
+        FROM gl_entry_lines gll
+        JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+        JOIN chart_of_accounts coa ON gll.account_id = coa.id
+        WHERE coa.account_type = 'Revenue'
+        AND ge.entry_date BETWEEN ? AND ?
+        AND ge.status = 'Posted'
     '''
     revenue = conn.execute(revenue_query, (start_date, end_date)).fetchone()['total_revenue']
     
@@ -130,17 +133,21 @@ def dashboard():
     # Chart Data: Revenue vs Expense Trend (Last 12 months)
     trend_query = '''
         WITH months AS (
-            SELECT DISTINCT strftime('%Y-%m', wo.actual_end_date) as month
-            FROM work_orders wo
-            WHERE wo.actual_end_date >= date('now', '-12 months')
-            UNION
             SELECT DISTINCT strftime('%Y-%m', ge.entry_date) as month
             FROM gl_entries ge
             WHERE ge.entry_date >= date('now', '-12 months')
         )
         SELECT 
             m.month,
-            COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as revenue,
+            COALESCE((
+                SELECT SUM(gll.credit - gll.debit)
+                FROM gl_entry_lines gll
+                JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+                JOIN chart_of_accounts coa ON gll.account_id = coa.id
+                WHERE coa.account_type = 'Revenue'
+                AND strftime('%Y-%m', ge.entry_date) = m.month
+                AND ge.status = 'Posted'
+            ), 0) as revenue,
             COALESCE((
                 SELECT SUM(ABS(gll.debit - gll.credit))
                 FROM gl_entry_lines gll
@@ -151,8 +158,6 @@ def dashboard():
                 AND ge.status = 'Posted'
             ), 0) as expenses
         FROM months m
-        LEFT JOIN work_orders wo ON strftime('%Y-%m', wo.actual_end_date) = m.month
-            AND wo.status = 'Completed'
         GROUP BY m.month
         ORDER BY m.month
     '''
@@ -295,10 +300,13 @@ def export_dashboard():
     
     # Get summary data
     revenue = conn.execute('''
-        SELECT COALESCE(SUM(wo.material_cost + wo.labor_cost + wo.overhead_cost), 0) as total_revenue
-        FROM work_orders wo
-        WHERE wo.status = 'Completed'
-        AND wo.actual_end_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(gll.credit - gll.debit), 0) as total_revenue
+        FROM gl_entry_lines gll
+        JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+        JOIN chart_of_accounts coa ON gll.account_id = coa.id
+        WHERE coa.account_type = 'Revenue'
+        AND ge.entry_date BETWEEN ? AND ?
+        AND ge.status = 'Posted'
     ''', (start_date, end_date)).fetchone()['total_revenue']
     
     expenses = conn.execute('''
