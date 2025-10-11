@@ -101,7 +101,7 @@ def view_ap(id):
     
     conn.close()
     
-    return render_template('ap/view.html', ap=ap, receipts=receipts)
+    return render_template('ap/view.html', ap=ap, receipts=receipts, today_date=datetime.now().strftime('%Y-%m-%d'))
 
 @ap_bp.route('/accounts-payable/<int:id>/update-status', methods=['POST'])
 @login_required
