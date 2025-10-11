@@ -739,6 +739,66 @@ class Database:
             )
         ''')
         
+        # Create comprehensive invoices table for Invoice Management Module
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_number TEXT UNIQUE NOT NULL,
+                invoice_type TEXT NOT NULL,
+                customer_id INTEGER NOT NULL,
+                so_id INTEGER,
+                wo_id INTEGER,
+                invoice_date DATE NOT NULL,
+                due_date DATE NOT NULL,
+                payment_terms INTEGER DEFAULT 30,
+                status TEXT DEFAULT 'Draft',
+                subtotal REAL DEFAULT 0,
+                tax_rate REAL DEFAULT 0,
+                tax_amount REAL DEFAULT 0,
+                discount_amount REAL DEFAULT 0,
+                total_amount REAL NOT NULL,
+                amount_paid REAL DEFAULT 0,
+                balance_due REAL DEFAULT 0,
+                notes TEXT,
+                terms_conditions TEXT,
+                gl_entry_id INTEGER,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                posted_by INTEGER,
+                posted_at TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id),
+                FOREIGN KEY (so_id) REFERENCES sales_orders(id),
+                FOREIGN KEY (wo_id) REFERENCES work_orders(id),
+                FOREIGN KEY (gl_entry_id) REFERENCES gl_entries(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id),
+                FOREIGN KEY (posted_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create invoice_lines table for line item details
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS invoice_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_id INTEGER NOT NULL,
+                line_number INTEGER NOT NULL,
+                product_id INTEGER,
+                description TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                unit_price REAL NOT NULL,
+                discount_percent REAL DEFAULT 0,
+                tax_rate REAL DEFAULT 0,
+                line_total REAL NOT NULL,
+                reference_type TEXT,
+                reference_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
         # Create payments table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS payments (
