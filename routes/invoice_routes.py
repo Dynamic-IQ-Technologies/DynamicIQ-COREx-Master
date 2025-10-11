@@ -90,6 +90,7 @@ def list_invoices():
 
 @invoice_bp.route('/invoices/<int:id>')
 @login_required
+@role_required('Admin', 'Accountant', 'Planner')
 def view_invoice(id):
     """View invoice details"""
     db = Database()
@@ -147,6 +148,7 @@ def view_invoice(id):
                          payments=payments)
 
 @invoice_bp.route('/invoices/create-from-so/<int:so_id>', methods=['GET', 'POST'])
+@login_required
 @role_required('Admin', 'Accountant')
 def create_from_sales_order(so_id):
     """Create invoice from Sales Order"""
