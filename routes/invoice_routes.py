@@ -261,3 +261,177 @@ def create_from_sales_order(so_id):
                          sales_order=so,
                          lines=lines,
                          today=datetime.now().strftime('%Y-%m-%d'))
+
+@invoice_bp.route('/invoices/<int:id>/approve', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def approve_invoice(id):
+    """Approve an invoice"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (id,)).fetchone()
+        
+        if not invoice:
+            flash('Invoice not found', 'danger')
+            return redirect(url_for('invoice_routes.list_invoices'))
+        
+        if invoice['status'] != 'Draft':
+            flash('Only Draft invoices can be approved', 'warning')
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        # Update invoice status
+        conn.execute('''
+            UPDATE invoices 
+            SET status = 'Approved', 
+                approved_by = ?, 
+                approved_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (session['user_id'], id))
+        
+        conn.commit()
+        flash(f'Invoice {invoice["invoice_number"]} approved successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error approving invoice: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('invoice_routes.view_invoice', id=id))
+
+@invoice_bp.route('/invoices/<int:id>/post', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def post_invoice(id):
+    """Post an invoice to GL - Records Revenue"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (id,)).fetchone()
+        
+        if not invoice:
+            flash('Invoice not found', 'danger')
+            return redirect(url_for('invoice_routes.list_invoices'))
+        
+        if invoice['status'] != 'Approved':
+            flash('Only Approved invoices can be posted to GL', 'warning')
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        if invoice['gl_entry_id']:
+            flash('Invoice already posted to GL', 'warning')
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        # Get Accounts Receivable and Sales Revenue account IDs
+        ar_account = conn.execute(
+            "SELECT id FROM chart_of_accounts WHERE account_code = '1120'"
+        ).fetchone()
+        
+        revenue_account = conn.execute(
+            "SELECT id FROM chart_of_accounts WHERE account_code = '4100'"
+        ).fetchone()
+        
+        if not ar_account or not revenue_account:
+            flash('Required GL accounts not found. Please contact administrator.', 'danger')
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        # Generate GL entry number
+        last_entry = conn.execute(
+            'SELECT entry_number FROM gl_entries ORDER BY id DESC LIMIT 1'
+        ).fetchone()
+        
+        if last_entry:
+            last_num = int(last_entry['entry_number'].split('-')[1])
+            entry_number = f'JE-{last_num + 1:06d}'
+        else:
+            entry_number = 'JE-000001'
+        
+        # Create GL Entry
+        cursor = conn.execute('''
+            INSERT INTO gl_entries (
+                entry_number, entry_date, description, 
+                transaction_source, created_by, status
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            entry_number,
+            invoice['invoice_date'],
+            f"Revenue Recognition - Invoice {invoice['invoice_number']}",
+            'Invoice',
+            session['user_id'],
+            'Posted'
+        ))
+        
+        gl_entry_id = cursor.lastrowid
+        
+        # Debit Accounts Receivable
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit)
+            VALUES (?, ?, ?, 0)
+        ''', (gl_entry_id, ar_account['id'], invoice['total_amount']))
+        
+        # Credit Sales Revenue
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit)
+            VALUES (?, ?, 0, ?)
+        ''', (gl_entry_id, revenue_account['id'], invoice['total_amount']))
+        
+        # Update invoice with GL entry reference
+        conn.execute('''
+            UPDATE invoices 
+            SET status = 'Posted', 
+                gl_entry_id = ?,
+                posted_by = ?, 
+                posted_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (gl_entry_id, session['user_id'], id))
+        
+        # Update balance due
+        conn.execute('''
+            UPDATE invoices SET balance_due = total_amount - amount_paid WHERE id = ?
+        ''', (id,))
+        
+        conn.commit()
+        flash(f'Invoice {invoice["invoice_number"]} posted to GL! Revenue recorded (Entry: {entry_number})', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error posting invoice: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('invoice_routes.view_invoice', id=id))
+
+@invoice_bp.route('/invoices/<int:id>/void', methods=['POST'])
+@login_required
+@role_required('Admin')
+def void_invoice(id):
+    """Void an invoice (Admin only)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (id,)).fetchone()
+        
+        if not invoice:
+            flash('Invoice not found', 'danger')
+            return redirect(url_for('invoice_routes.list_invoices'))
+        
+        if invoice['status'] == 'Void':
+            flash('Invoice is already voided', 'warning')
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        # Update invoice status
+        conn.execute('UPDATE invoices SET status = \'Void\' WHERE id = ?', (id,))
+        
+        conn.commit()
+        flash(f'Invoice {invoice["invoice_number"]} has been voided', 'info')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error voiding invoice: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('invoice_routes.view_invoice', id=id))

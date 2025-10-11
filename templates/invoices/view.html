@@ -26,20 +26,50 @@
         </div>
     </div>
 
-    <!-- Status Badge -->
+    <!-- Status Badge and Actions -->
     <div class="row mb-4">
         <div class="col-md-12">
-            {% if invoice.status == 'Draft' %}
-            <span class="badge bg-secondary fs-6">Draft</span>
-            {% elif invoice.status == 'Approved' %}
-            <span class="badge bg-primary fs-6">Approved</span>
-            {% elif invoice.status == 'Posted' %}
-            <span class="badge bg-success fs-6">Posted</span>
-            {% elif invoice.status == 'Paid' %}
-            <span class="badge bg-success fs-6">Paid</span>
-            {% elif invoice.status == 'Void' %}
-            <span class="badge bg-dark fs-6">Void</span>
-            {% endif %}
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    {% if invoice.status == 'Draft' %}
+                    <span class="badge bg-secondary fs-6">Draft</span>
+                    {% elif invoice.status == 'Approved' %}
+                    <span class="badge bg-primary fs-6">Approved</span>
+                    {% elif invoice.status == 'Posted' %}
+                    <span class="badge bg-success fs-6">Posted</span>
+                    {% elif invoice.status == 'Paid' %}
+                    <span class="badge bg-success fs-6">Paid</span>
+                    {% elif invoice.status == 'Void' %}
+                    <span class="badge bg-dark fs-6">Void</span>
+                    {% endif %}
+                </div>
+                
+                {% if user and user.role in ['Admin', 'Accountant'] %}
+                <div class="btn-group">
+                    {% if invoice.status == 'Draft' %}
+                    <form method="POST" action="{{ url_for('invoice_routes.approve_invoice', id=invoice.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Approve
+                        </button>
+                    </form>
+                    {% elif invoice.status == 'Approved' %}
+                    <form method="POST" action="{{ url_for('invoice_routes.post_invoice', id=invoice.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-success" onclick="return confirm('Post this invoice to GL and record revenue?')">
+                            <i class="bi bi-journal-check"></i> Post to GL
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% if user.role == 'Admin' and invoice.status != 'Void' %}
+                    <form method="POST" action="{{ url_for('invoice_routes.void_invoice', id=invoice.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Void this invoice? This action cannot be undone.')">
+                            <i class="bi bi-x-circle"></i> Void
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
