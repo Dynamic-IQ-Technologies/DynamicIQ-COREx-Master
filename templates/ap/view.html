@@ -68,7 +68,7 @@
                         <div class="col-4"><strong>GL Entry:</strong></div>
                         <div class="col-8">
                             {% if ap.gl_entry_number %}
-                            <a href="{{ url_for('journal_routes.view_journal_entry', id=ap.gl_entry_id) }}">{{ ap.gl_entry_number }}</a>
+                            <a href="{{ url_for('journal_routes.view_journal', id=ap.gl_entry_id) }}">{{ ap.gl_entry_number }}</a>
                             {% else %}
                             -
                             {% endif %}
