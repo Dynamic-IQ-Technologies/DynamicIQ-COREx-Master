@@ -173,7 +173,7 @@
                         <td>{{ receipt.quantity_received }}</td>
                         <td>{{ receipt.receipt_date }}</td>
                         <td>
-                            <a href="{{ url_for('receiving_routes.view_receipt', receipt_number=receipt.receipt_number) }}" class="btn btn-sm btn-info">
+                            <a href="{{ url_for('receiving_routes.view_receiving', receipt_number=receipt.receipt_number) }}" class="btn btn-sm btn-info">
                                 <i class="bi bi-eye"></i> View
                             </a>
                         </td>
