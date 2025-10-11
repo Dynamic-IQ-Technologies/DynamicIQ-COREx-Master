@@ -26,7 +26,7 @@ The backend is developed with Flask using Blueprints and a SQLite database (`mrp
 -   **Time Tracking**: Employee clock-in/out system with real-time tracking, cost calculation, and a dedicated mobile-friendly Clock Station with PIN authentication and security features.
 -   **Sales Module**: Comprehensive sales order management including customer CRUD, various order types (Outright Sales, Exchanges, Managed Repair), advanced line management with workflow, tax calculation, inventory integration (including serialized products), a 5-state order workflow, and robust validation (stock, pricing, discounts, credit limits). Includes Core Due Tracking for exchanges.
 -   **Shipping & Receiving Module**: Manages shipment lifecycle for Sales and Work Orders with multi-line support, tracking information, and status workflows. Includes package details and inventory integration.
--   **Invoice Management Module**: Comprehensive billing and A/R system generating invoices from Sales/Work Orders, supporting a full invoice lifecycle, multi-line items, and an Invoice Dashboard with advanced filtering and KPIs.
+-   **Invoice Management Module**: Comprehensive billing and A/R system generating invoices from Sales/Work Orders, supporting a full invoice lifecycle (Draft → Approved → Posted → Paid), multi-line items, and an Invoice Dashboard with advanced filtering and KPIs. **Automatic Revenue Recognition**: When invoices are Posted, the system automatically creates GL entries (DR: Accounts Receivable 1120, CR: Sales Revenue 4100) ensuring accurate financial reporting.
 
 ### System Design Choices
 
