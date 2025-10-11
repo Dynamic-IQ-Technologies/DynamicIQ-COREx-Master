@@ -310,12 +310,6 @@
                 </a>
             </li>
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Material Issues</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('returns_routes.list_returns') }}">
                     <i class="bi bi-arrow-return-left"></i>
                     <span>Material Returns</span>
@@ -335,6 +329,12 @@
                 <a class="sidebar-nav-link" href="{{ url_for('shipping_routes.list_shipments') }}">
                     <i class="bi bi-truck"></i>
                     <span>Shipments</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Material Issues</span>
                 </a>
             </li>
         </ul>
