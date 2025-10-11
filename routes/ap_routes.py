@@ -103,6 +103,105 @@ def view_ap(id):
     
     return render_template('ap/view.html', ap=ap, receipts=receipts, today_date=datetime.now().strftime('%Y-%m-%d'))
 
+@ap_bp.route('/accounts-payable/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def edit_ap(id):
+    """Edit A/P record"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get the A/P record
+    ap = conn.execute('''
+        SELECT vi.*, s.name as vendor_name
+        FROM vendor_invoices vi
+        JOIN suppliers s ON vi.vendor_id = s.id
+        WHERE vi.id = ?
+    ''', (id,)).fetchone()
+    
+    if not ap:
+        flash('A/P record not found.', 'danger')
+        conn.close()
+        return redirect(url_for('ap_routes.list_ap'))
+    
+    # Don't allow editing if already paid
+    if ap['status'] == 'Paid':
+        flash('Cannot edit paid invoices.', 'warning')
+        conn.close()
+        return redirect(url_for('ap_routes.view_ap', id=id))
+    
+    if request.method == 'POST':
+        try:
+            # Get old record for audit
+            old_ap = dict(ap)
+            
+            # Get form data
+            invoice_number = request.form['invoice_number']
+            invoice_date = request.form['invoice_date']
+            due_date = request.form['due_date']
+            total_amount = float(request.form['total_amount'])
+            description = request.form.get('description', '')
+            
+            # Validate (before any DB writes)
+            if total_amount <= 0:
+                flash('Total amount must be greater than zero', 'danger')
+                return render_template('ap/edit.html', ap=ap)
+            
+            if invoice_date > due_date:
+                flash('Due date cannot be before invoice date', 'danger')
+                return render_template('ap/edit.html', ap=ap)
+            
+            # Critical: Ensure total amount is not less than amount already paid
+            amount_paid = ap['amount_paid'] or 0
+            if total_amount < amount_paid:
+                flash(f'Total amount cannot be less than amount already paid (${amount_paid:.2f})', 'danger')
+                return render_template('ap/edit.html', ap=ap)
+            
+            # Update the record
+            conn.execute('''
+                UPDATE vendor_invoices 
+                SET invoice_number = ?,
+                    invoice_date = ?,
+                    due_date = ?,
+                    total_amount = ?,
+                    description = ?
+                WHERE id = ?
+            ''', (invoice_number, invoice_date, due_date, total_amount, description, id))
+            
+            # Get new record for audit
+            new_ap = conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()
+            
+            # Log audit trail
+            changes = AuditLogger.compare_records(old_ap, dict(new_ap))
+            if changes:
+                AuditLogger.log_change(
+                    conn=conn,
+                    record_type='accounts_payable',
+                    record_id=id,
+                    action_type='Updated',
+                    modified_by=session.get('user_id'),
+                    changed_fields=changes,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
+            
+            conn.commit()
+            flash('A/P record updated successfully!', 'success')
+            return redirect(url_for('ap_routes.view_ap', id=id))
+            
+        except Exception as e:
+            try:
+                conn.rollback()
+            except:
+                pass  # No transaction to rollback
+            flash(f'Error updating A/P record: {str(e)}', 'danger')
+            return render_template('ap/edit.html', ap=ap)
+        finally:
+            conn.close()
+    
+    conn.close()
+    return render_template('ap/edit.html', ap=ap)
+
 @ap_bp.route('/accounts-payable/<int:id>/update-status', methods=['POST'])
 @login_required
 @role_required('Admin', 'Accountant')
