@@ -1,8 +1,6 @@
-# Dynamic.IQ.MRP
-
 ## Overview
 
-Dynamic.IQ.MRP is a comprehensive Manufacturing Resource Planning (MRP) system built with Flask. It is designed to streamline production processes, inventory management, Bill of Materials (BOM), work orders, and purchase orders. The system supports multiple user roles with robust role-based access control, enabling efficient material tracking, production planning, supplier management, and report generation. Its core purpose is to provide a scalable, user-friendly solution for manufacturing resource planning, aiming to enhance operational efficiency and provide critical business insights.
+Dynamic.IQ.MRP is a comprehensive Manufacturing Resource Planning (MRP) system built with Flask, designed to optimize production processes, inventory, Bill of Materials (BOM), work orders, and purchase orders. It offers robust role-based access control, efficient material tracking, production planning, supplier management, and report generation. The system aims to provide a scalable, user-friendly solution to enhance operational efficiency and deliver critical business insights.
 
 ## User Preferences
 
@@ -12,93 +10,33 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 
-The system utilizes Bootstrap 5 for a responsive and modern user interface, complemented by Bootstrap Icons. A consistent layout is maintained through a base template (`base.html`) with dynamic navigation based on user roles. Data is presented using a card-based UI, and an accordion-style grouped display is used for BOMs. The system features an executive financial accounting dashboard with interactive Chart.js visualizations and color-coded KPI indicators.
+The system features a responsive and modern user interface built with Bootstrap 5 and Bootstrap Icons, ensuring a consistent layout via a base template. It utilizes card-based and accordion-style displays, including an executive financial accounting dashboard with interactive Chart.js visualizations and color-coded KPI indicators.
 
 ### Technical Implementations
 
-**Backend**: Developed with Flask, using a modular design with Blueprints. It employs a SQLite database (`mrp.db`) for data storage, managed through a `Database` class with raw SQL. Session-based authentication with Flask sessions and Werkzeug secures user access, while a comprehensive role-based access control system (Admin, Planner, Production Staff, Procurement, Accountant) with granular permissions governs functionality. The `MRPEngine` class handles core MRP logic, including recursive BOM explosion and automatic sequential numbering for key entities (Work Orders, Purchase Orders, Receiving Transactions, Inventory IDs). An Audit Trail System automatically logs all create, update, and delete operations with detailed change tracking.
+The backend is developed with Flask using Blueprints and a SQLite database (`mrp.db`). It features session-based authentication, comprehensive role-based access control (Admin, Planner, Production Staff, Procurement, Accountant), and an `MRPEngine` for core MRP logic like recursive BOM explosion and automatic sequential numbering. An Audit Trail System logs all CUD operations. The frontend uses Jinja2 for templating.
 
-**Frontend**: Leverages Jinja2 for server-side templating.
-
-**Data Management**:
-- **Products**: Manages product codes, types (Raw Material/Component/Finished Good), units, and costs, with CSV import/export.
-- **Bill of Materials (BOM)**: Supports multi-level BOMs with hierarchy, revision control, cost tracking, an interactive tree view, and advanced filtering. Includes quick component addition and mass update functionalities.
-- **Inventory**: Tracks quantity, reorder points, safety stock, condition, location, and reserved quantities. Features manual adjustments, auto-generated IDs, and CSV import/export. **Serialized Product Support**: Includes checkbox to mark products as serialized, unique serial number tracking with validation, filtering by serialized/non-serialized products, serial number search functionality, and serial number display across all inventory views and reports.
-- **Work Orders**: Manages production orders with status tracking, cost allocation, and dynamic material requirements based on BOMs. Includes integrated task lists with labor planning and cost tracking.
-- **Purchase Orders**: Supports multi-line procurement with supplier relationships, dynamic line item management, UOM selection, partial/full receiving, and professional print functionality. Features **secure edit capability** with receipt history preservation: uses UPDATE logic with validated line IDs, prevents product changes on received lines, enforces ordered quantity >= received quantity, blocks deletion of received lines, and maintains audit trail integrity.
-- **Material Receiving**: Comprehensive system for receiving against purchase orders, including partial receipts, condition tracking, automatic inventory updates, and **automatic GL posting**.
-- **Material Issuance**: Manages issuing materials from inventory to work orders, with quantity validation, cost tracking, automatic inventory deduction, and **batch issuance** capability. Features **automatic GL posting**.
-- **Material Returns**: Handles returns of materials from work orders to inventory, reversing costs and replenishing stock.
-- **Inventory Adjustments**: Allows manual adjustments with reason tracking, cost impact calculation, and an audit trail. Features **automatic GL posting**.
-- **Suppliers**: Manages vendor contact information with CSV import/export.
-- **Unit of Measure (UOM) Master**: Centralized system for managing standard units, integrated with Purchase Orders.
-- **Company Settings**: Configurable business information for document generation.
-- **Work Order Tasks & Labor Planning**: Manages tasks, labor resources, time tracking, and cost calculations for work orders.
-- **Time Tracking**: Employee clock-in/clock-out system with real-time tracking, cost calculation, and history views.
-- **Active Labor Report**: Real-time report on clocked-in employees, accessible to Admin and Planner roles.
-- **Clock Station**: Standalone web-accessible time clock system with mobile-responsive design for easy employee clock-in/out:
-    - **Simple PIN Authentication**: Secure 4-digit PIN system with bcrypt hashing for employee verification
-    - **Mobile-Friendly Interface**: Clean, intuitive clock-in/out pages optimized for tablets and smartphones
-    - **Session Tracking**: Real-time elapsed time display, hours worked today, and current status (clocked in/out)
-    - **Optional Data Capture**: Location, project/task name, and work notes can be captured with each punch
-    - **Employee Reports**: Daily, weekly, and monthly time reports with hours breakdown and estimated pay
-    - **Manager Dashboard**: Real-time overview of all employees, currently clocked-in staff, and labor costs
-    - **Detailed Employee View**: Manager access to individual employee punch history with full audit trail
-    - **CSV Export**: Export timesheet data for payroll integration and record keeping
-    - **Security Features**: 
-        - Hashed PIN storage (no plaintext credentials)
-        - Server-side brute-force protection (5 failed attempts = 15-minute lockout)
-        - IP address tracking for audit and security
-        - Manager-only PIN setup and reset capability
-    - **Audit Trail**: Complete logging of all clock punches with timestamps, IP addresses, and device information
-- **Sales Module**: Comprehensive sales order management system supporting multiple transaction types:
-    - **Customer Management**: Full CRUD operations for customer records with contact information, billing/shipping addresses, payment terms, credit limits, and tax-exempt status. Features CSV import/export capability.
-    - **Sales Order Types**: Supports Outright Sales, Exchanges, and Managed Repair transactions with type-specific fields (core charges, repair charges, expected return dates, service notes).
-    - **Enhanced Line Management**: Advanced line-level transaction support:
-        - **Line Types**: Outright Sale, Exchange, and Managed Repair with dynamic field visibility based on type
-        - **Line Status Workflow**: Draft, Confirmed, Shipped, Closed tracking per line item
-        - **Exchange Lines**: Core charge, core due days, expected core condition, core/stock disposition tracking. Automatic core_due_tracking record creation with calculated due dates.
-        - **Managed Repair Lines**: Quoted TAT, Repair NTE (Not To Exceed), vendor repair source, repair status, return-to address management
-        - **Audit Trail**: Created_by, modified_by, created_at, modified_at tracking on all line items
-        - **Dynamic UI**: JavaScript-driven conditional field display based on line type selection
-    - **Tax Calculation**: Configurable tax rate with automatic calculation and persistence across order modifications. Tax computed on subtotal including line-level core charges and header core/repair charges.
-    - **Inventory Integration**: Automatic inventory validation and deduction during order fulfillment. Prevents overselling with real-time availability checks. Supports serialized product tracking with serial number capture per line item.
-    - **Order Workflow**: Enhanced 5-state workflow (Draft → Confirmed → Shipped → Invoiced → Closed) with backward compatibility for legacy Pending/Completed orders. Fulfillment process validates inventory, deducts quantities, and updates order status automatically. Includes shipping tracking modal for carrier/tracking number capture.
-    - **Comprehensive Validation**:
-        - **Stock Availability**: Multi-line aggregation per product prevents over-committing inventory. Validates during line addition and order confirmation with detailed availability messages.
-        - **Pricing Validation**: Ensures unit prices are non-negative and quantities are positive.
-        - **Discount Limits**: Maximum 50% discount for non-admin users; admins can approve up to 100% with validation.
-        - **Credit Limit Enforcement**: Real-time checks during line addition and order confirmation, calculating total outstanding balance across all open orders with detailed breakdown messages.
-    - **Payment Tracking**: Infrastructure for deposits, partial payments, and balance due tracking using existing payments table with flexible reference system.
-    - **Core Due Tracking**: Dedicated table (core_due_tracking) for monitoring expected core returns on Exchange transactions with disposition management and refund processing.
-- **Shipping & Receiving Module**: Comprehensive logistics management system for tracking shipments and material receipts:
-    - **Shipment Management**: Full lifecycle tracking for Sales Order and Work Order shipments with multi-line support, carrier/tracking information, and status workflow (Pending → Shipped → Delivered).
-    - **Enhanced Features**: Package details (weight, dimensions, freight cost, insurance), full address management, special instructions, serial/lot number tracking per line item.
-    - **Dashboard**: Real-time visibility with pending shipments count, in-transit tracking, delivered today metrics, and recent receipts overview.
-    - **Inventory Integration**: Automatic inventory deduction on shipment, Sales Order status updates, quality inspection support for receiving.
-    - **Security**: Parameterized SQL queries prevent injection attacks, role-based access control enforced.
-    - **Database Schema**: 
-        - `shipments` table: Comprehensive shipment tracking with reference types (Sales Order/Work Order/Transfer)
-        - `shipment_lines` table: Line item details with serial/lot tracking
-        - Enhanced `receiving_transactions`: Quality inspection, returns, and transfer support
+**Key Modules and Features:**
+-   **Products & BOM**: Manages product data, multi-level BOMs with revision control, cost tracking, and interactive views.
+-   **Inventory**: Tracks stock levels, supports serialized products with unique serial number tracking, and allows manual adjustments.
+-   **Work Orders**: Manages production orders, status tracking, cost allocation, and integrated task/labor planning.
+-   **Purchase Orders**: Supports multi-line procurement, supplier relationships, dynamic line item management, partial/full receiving, and secure edit capabilities with audit trails.
+-   **Material Management**: Comprehensive systems for Receiving, Issuance, and Returns, all with automatic GL posting.
+-   **Suppliers & UOM**: Manages supplier information and a centralized Unit of Measure master.
+-   **Time Tracking**: Employee clock-in/out system with real-time tracking, cost calculation, and a dedicated mobile-friendly Clock Station with PIN authentication and security features.
+-   **Sales Module**: Comprehensive sales order management including customer CRUD, various order types (Outright Sales, Exchanges, Managed Repair), advanced line management with workflow, tax calculation, inventory integration (including serialized products), a 5-state order workflow, and robust validation (stock, pricing, discounts, credit limits). Includes Core Due Tracking for exchanges.
+-   **Shipping & Receiving Module**: Manages shipment lifecycle for Sales and Work Orders with multi-line support, tracking information, and status workflows. Includes package details and inventory integration.
+-   **Invoice Management Module**: Comprehensive billing and A/R system generating invoices from Sales/Work Orders, supporting a full invoice lifecycle, multi-line items, and an Invoice Dashboard with advanced filtering and KPIs.
 
 ### System Design Choices
 
-- **Inventory Management**: Real-time stock level tracking, low stock alerts, and automatic updates.
-- **Reporting System**: Includes inventory valuation, work order cost analysis, material requirements reports (with procurement capability), material usage, and active labor reports.
-- **Accounting System**:
-    - **Chart of Accounts (COA)**: Hierarchical structure with standard accounts.
-    - **General Ledger (GL)**: View all posted journal entries with filters.
-    - **Manual Journal Entries**: Create and manage journal entries with balance validation and post/unpost workflow.
-    - **Automatic GL Posting**: Automates journal entry creation and posting for all inventory transactions.
-    - **Financial Reports**: Trial Balance, Balance Sheet, Income Statement (P&L).
-    - **Accounts Payable (A/P)**: Automated vendor invoice creation upon material receiving. Auto-generates unique AP numbers (AP-0000001), calculates payment due dates based on supplier terms (default Net 30), creates GL entries (DR: Inventory, CR: AP), and prevents orphaned records with GL validation. Features A/P dashboard with aging reports (Current, 1-30, 31-60, 61-90, 90+ days), top vendor analysis, status management, and CSV export. Integrated audit trail tracks all A/P changes. Each receiving transaction creates its own A/P record for proper accounting of partial deliveries.
-    - **Executive Accounting Dashboard**: Real-time financial performance dashboard providing leadership with comprehensive visibility into organizational finances. Features KPIs (Revenue, Expenses, Profit Margin, A/P, Cash on Hand, Net Income, Inventory Value), interactive Chart.js visualizations (Revenue vs Expense Trend, A/P Aging, Top Vendors by Spend, Top Work Orders by Cost), period filtering (MTD/QTD/YTD), vendor filtering, drill-down quick links to detailed reports, and CSV export functionality. Color-coded indicators highlight positive trends (green), declines (red), and warnings (yellow).
-    - **Role-based Access**: Limited to Admin and Accountant roles (with Procurement having view-only access to A/P).
+-   **Inventory Management**: Real-time stock level tracking, low stock alerts, and automatic updates.
+-   **Reporting System**: Provides various reports including inventory valuation, work order cost analysis, material requirements, material usage, and active labor.
+-   **Accounting System**: Features a Chart of Accounts (COA), General Ledger (GL), Manual Journal Entries, and automatic GL posting for inventory transactions. It includes financial reports (Trial Balance, Balance Sheet, Income Statement) and an Accounts Payable (A/P) module with automated vendor invoice creation, aging reports, and an Executive Accounting Dashboard providing real-time financial KPIs and interactive visualizations. Access is role-based, primarily for Admin and Accountant roles.
 
 ## External Dependencies
 
--   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `sqlite3` (standard library).
--   **Frontend Libraries**: Bootstrap 5.3.0, Bootstrap Icons 1.11.0.
--   **Database**: SQLite file-based database (`mrp.db`).
--   **Environment Variables**: `SESSION_SECRET` for Flask session encryption.
+-   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `sqlite3`.
+-   **Frontend Libraries**: Bootstrap 5.3.0, Bootstrap Icons 1.11.0, Chart.js.
+-   **Database**: SQLite (`mrp.db`).
+-   **Environment Variables**: `SESSION_SECRET`.
