@@ -71,6 +71,16 @@ The system utilizes Bootstrap 5 for a responsive and modern user interface, comp
         - **Credit Limit Enforcement**: Real-time checks during line addition and order confirmation, calculating total outstanding balance across all open orders with detailed breakdown messages.
     - **Payment Tracking**: Infrastructure for deposits, partial payments, and balance due tracking using existing payments table with flexible reference system.
     - **Core Due Tracking**: Dedicated table (core_due_tracking) for monitoring expected core returns on Exchange transactions with disposition management and refund processing.
+- **Shipping & Receiving Module**: Comprehensive logistics management system for tracking shipments and material receipts:
+    - **Shipment Management**: Full lifecycle tracking for Sales Order and Work Order shipments with multi-line support, carrier/tracking information, and status workflow (Pending → Shipped → Delivered).
+    - **Enhanced Features**: Package details (weight, dimensions, freight cost, insurance), full address management, special instructions, serial/lot number tracking per line item.
+    - **Dashboard**: Real-time visibility with pending shipments count, in-transit tracking, delivered today metrics, and recent receipts overview.
+    - **Inventory Integration**: Automatic inventory deduction on shipment, Sales Order status updates, quality inspection support for receiving.
+    - **Security**: Parameterized SQL queries prevent injection attacks, role-based access control enforced.
+    - **Database Schema**: 
+        - `shipments` table: Comprehensive shipment tracking with reference types (Sales Order/Work Order/Transfer)
+        - `shipment_lines` table: Line item details with serial/lot tracking
+        - Enhanced `receiving_transactions`: Quality inspection, returns, and transfer support
 
 ### System Design Choices
 
