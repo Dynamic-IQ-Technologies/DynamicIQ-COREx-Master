@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Shipment {{ shipment.shipment_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-truck"></i> Shipment {{ shipment.shipment_number }}</h2>
+    <div>
+        {% if shipment.status == 'Pending' %}
+        <a href="{{ url_for('shipping_routes.edit_shipment', id=shipment.id) }}" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <form method="POST" action="{{ url_for('shipping_routes.ship_shipment', id=shipment.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-success" onclick="return confirm('Mark this shipment as shipped?')">
+                <i class="bi bi-truck"></i> Ship Now
+            </button>
+        </form>
+        {% elif shipment.status == 'Shipped' %}
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#deliverModal">
+            <i class="bi bi-check-circle"></i> Mark Delivered
+        </button>
+        {% endif %}
+        <a href="{{ url_for('shipping_routes.list_shipments') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Status Alert -->
+<div class="alert {% if shipment.status == 'Pending' %}alert-warning{% elif shipment.status == 'Shipped' %}alert-info{% elif shipment.status == 'Delivered' %}alert-success{% endif %} mb-4">
+    <strong>Status:</strong> {{ shipment.status }}
+    {% if shipment.status == 'Shipped' and shipment.tracking_number %}
+    | <strong>Tracking:</strong> {{ shipment.tracking_number }}
+    {% endif %}
+</div>
+
+<div class="row">
+    <!-- Shipment Details -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Shipment Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Shipment Number:</strong><br>
+                        {{ shipment.shipment_number }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Type:</strong><br>
+                        <span class="badge bg-secondary">{{ shipment.shipment_type }}</span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Carrier:</strong><br>
+                        {{ shipment.carrier or '-' }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Shipping Method:</strong><br>
+                        {{ shipment.shipping_method or '-' }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Ship Date:</strong><br>
+                        {{ shipment.ship_date or 'Not shipped' }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Expected Delivery:</strong><br>
+                        {{ shipment.expected_delivery_date or '-' }}
+                    </div>
+                </div>
+                
+                {% if shipment.actual_delivery_date %}
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <strong>Actual Delivery Date:</strong><br>
+                        {{ shipment.actual_delivery_date }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Line Items</h5>
+            </div>
+            <div class="card-body">
+                {% if lines %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Line</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Condition</th>
+                                <th>Serial/Lot</th>
+                                <th>Package #</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in lines %}
+                            <tr>
+                                <td>{{ line.line_number }}</td>
+                                <td>{{ line.code }} - {{ line.product_name }}</td>
+                                <td>{{ line.quantity_shipped }} {{ line.unit_of_measure }}</td>
+                                <td>{{ line.condition }}</td>
+                                <td>
+                                    {% if line.serial_number %}S/N: {{ line.serial_number }}{% endif %}
+                                    {% if line.lot_number %}Lot: {{ line.lot_number }}{% endif %}
+                                    {% if not line.serial_number and not line.lot_number %}-{% endif %}
+                                </td>
+                                <td>{{ line.package_number or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No line items added yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Shipping Address & Package Info -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Ship To Address</h5>
+            </div>
+            <div class="card-body">
+                <strong>{{ shipment.ship_to_name or 'Not specified' }}</strong><br>
+                {{ shipment.ship_to_address }}<br>
+                {% if shipment.ship_to_city %}
+                {{ shipment.ship_to_city }}, {{ shipment.ship_to_state }} {{ shipment.ship_to_postal_code }}<br>
+                {% endif %}
+                {{ shipment.ship_to_country or 'USA' }}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Package Details</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Weight:</strong> {{ shipment.weight or '0' }} {{ shipment.weight_unit }}</p>
+                <p class="mb-2"><strong>Dimensions:</strong> {{ shipment.dimensions or '-' }}</p>
+                <p class="mb-2"><strong>Freight Cost:</strong> ${{ "%.2f"|format(shipment.freight_cost or 0) }}</p>
+                <p class="mb-0"><strong>Insurance:</strong> ${{ "%.2f"|format(shipment.insurance_value or 0) }}</p>
+            </div>
+        </div>
+
+        {% if shipment.special_instructions %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Special Instructions</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ shipment.special_instructions }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Deliver Modal -->
+<div class="modal fade" id="deliverModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('shipping_routes.deliver_shipment', id=shipment.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mark as Delivered</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Actual Delivery Date</label>
+                        <input type="date" class="form-control" name="actual_delivery_date" 
+                               value="{{ today }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Confirm Delivery</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

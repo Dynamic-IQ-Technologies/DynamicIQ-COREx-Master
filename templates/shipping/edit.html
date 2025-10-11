@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Shipment {{ shipment.shipment_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-pencil"></i> Edit Shipment {{ shipment.shipment_number }}</h2>
+    <a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to View
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Shipment Details Form -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('shipping_routes.edit_shipment', id=shipment.id) }}">
+                    <h5 class="mb-3">Shipment Details</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Carrier</label>
+                            <input type="text" class="form-control" name="carrier" value="{{ shipment.carrier or '' }}">
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Tracking Number</label>
+                            <input type="text" class="form-control" name="tracking_number" value="{{ shipment.tracking_number or '' }}">
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Shipping Method</label>
+                            <select class="form-select" name="shipping_method">
+                                <option value="">Select Method</option>
+                                <option value="Ground" {% if shipment.shipping_method == 'Ground' %}selected{% endif %}>Ground</option>
+                                <option value="2-Day" {% if shipment.shipping_method == '2-Day' %}selected{% endif %}>2-Day</option>
+                                <option value="Overnight" {% if shipment.shipping_method == 'Overnight' %}selected{% endif %}>Overnight</option>
+                                <option value="Freight" {% if shipment.shipping_method == 'Freight' %}selected{% endif %}>Freight</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ship Date</label>
+                            <input type="date" class="form-control" name="ship_date" value="{{ shipment.ship_date or '' }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Expected Delivery Date</label>
+                            <input type="date" class="form-control" name="expected_delivery_date" value="{{ shipment.expected_delivery_date or '' }}">
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Ship To Address</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="ship_to_name" value="{{ shipment.ship_to_name or '' }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Address</label>
+                            <input type="text" class="form-control" name="ship_to_address" value="{{ shipment.ship_to_address or '' }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" name="ship_to_city" value="{{ shipment.ship_to_city or '' }}">
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">State</label>
+                            <input type="text" class="form-control" name="ship_to_state" value="{{ shipment.ship_to_state or '' }}">
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Postal Code</label>
+                            <input type="text" class="form-control" name="ship_to_postal_code" value="{{ shipment.ship_to_postal_code or '' }}">
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Package Details</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Weight</label>
+                            <input type="number" step="0.01" class="form-control" name="weight" value="{{ shipment.weight or '0' }}">
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Weight Unit</label>
+                            <select class="form-select" name="weight_unit">
+                                <option value="lbs" {% if shipment.weight_unit == 'lbs' %}selected{% endif %}>lbs</option>
+                                <option value="kg" {% if shipment.weight_unit == 'kg' %}selected{% endif %}>kg</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Freight Cost</label>
+                            <input type="number" step="0.01" class="form-control" name="freight_cost" value="{{ shipment.freight_cost or '0' }}">
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Insurance Value</label>
+                            <input type="number" step="0.01" class="form-control" name="insurance_value" value="{{ shipment.insurance_value or '0' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Dimensions (L x W x H)</label>
+                        <input type="text" class="form-control" name="dimensions" value="{{ shipment.dimensions or '' }}" placeholder="e.g., 12 x 8 x 6 in">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Special Instructions</label>
+                        <textarea class="form-control" name="special_instructions" rows="3">{{ shipment.special_instructions or '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Line Items</h5>
+            </div>
+            <div class="card-body">
+                {% if lines %}
+                <div class="table-responsive mb-3">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Line</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Serial/Lot</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in lines %}
+                            <tr>
+                                <td>{{ line.line_number }}</td>
+                                <td>{{ line.code }} - {{ line.product_name }}</td>
+                                <td>{{ line.quantity_shipped }} {{ line.unit_of_measure }}</td>
+                                <td>
+                                    {% if line.serial_number %}S/N: {{ line.serial_number }}{% endif %}
+                                    {% if line.lot_number %}Lot: {{ line.lot_number }}{% endif %}
+                                    {% if not line.serial_number and not line.lot_number %}-{% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('shipping_routes.delete_shipment_line', shipment_id=shipment.id, line_id=line.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this line?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No line items yet</p>
+                {% endif %}
+
+                <!-- Add Line Form -->
+                <form method="POST" action="{{ url_for('shipping_routes.add_shipment_line', id=shipment.id) }}" class="border-top pt-3">
+                    <h6 class="mb-3">Add Line Item</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Product</label>
+                            <select class="form-select" name="product_id" required>
+                                <option value="">Select Product</option>
+                                {% for product in products %}
+                                <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" step="0.01" class="form-control" name="quantity_shipped" required>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Serial #</label>
+                            <input type="text" class="form-control" name="serial_number">
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Lot #</label>
+                            <input type="text" class="form-control" name="lot_number">
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Info Panel -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">Shipment Info</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Number:</strong> {{ shipment.shipment_number }}</p>
+                <p class="mb-2"><strong>Type:</strong> <span class="badge bg-secondary">{{ shipment.shipment_type }}</span></p>
+                <p class="mb-2"><strong>Status:</strong> <span class="badge bg-warning">{{ shipment.status }}</span></p>
+                <p class="mb-0"><strong>Created:</strong> {{ shipment.created_at[:10] }}</p>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> 
+            <strong>Note:</strong> Add all line items before shipping. Once shipped, items cannot be modified.
+        </div>
+    </div>
+</div>
+{% endblock %}

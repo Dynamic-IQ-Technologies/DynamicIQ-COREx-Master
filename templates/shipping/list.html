@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Shipments - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-truck"></i> Shipments</h2>
+    <a href="{{ url_for('shipping_routes.create_shipment') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> New Shipment
+    </a>
+</div>
+
+<!-- Status Filter Tabs -->
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+           href="{{ url_for('shipping_routes.list_shipments', status='all') }}">
+            All ({{ status_counts.get('all', 0) }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'Pending' %}active{% endif %}" 
+           href="{{ url_for('shipping_routes.list_shipments', status='Pending') }}">
+            Pending ({{ status_counts.get('Pending', 0) }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'Shipped' %}active{% endif %}" 
+           href="{{ url_for('shipping_routes.list_shipments', status='Shipped') }}">
+            Shipped ({{ status_counts.get('Shipped', 0) }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'Delivered' %}active{% endif %}" 
+           href="{{ url_for('shipping_routes.list_shipments', status='Delivered') }}">
+            Delivered ({{ status_counts.get('Delivered', 0) }})
+        </a>
+    </li>
+</ul>
+
+<!-- Shipments Table -->
+<div class="card">
+    <div class="card-body">
+        {% if shipments %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Shipment #</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Ship To</th>
+                        <th>Carrier</th>
+                        <th>Tracking</th>
+                        <th>Ship Date</th>
+                        <th>Items</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in shipments %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}">
+                                {{ shipment.shipment_number }}
+                            </a>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ shipment.shipment_type }}</span></td>
+                        <td>
+                            {% if shipment.status == 'Pending' %}
+                            <span class="badge bg-warning text-dark">{{ shipment.status }}</span>
+                            {% elif shipment.status == 'Shipped' %}
+                            <span class="badge bg-info">{{ shipment.status }}</span>
+                            {% elif shipment.status == 'Delivered' %}
+                            <span class="badge bg-success">{{ shipment.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ shipment.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ shipment.ship_to_name or 'TBD' }}</td>
+                        <td>{{ shipment.carrier or '-' }}</td>
+                        <td>
+                            {% if shipment.tracking_number %}
+                            <code class="small">{{ shipment.tracking_number }}</code>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ shipment.ship_date or '-' }}</td>
+                        <td>{{ shipment.line_count }} items</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}" 
+                                   class="btn btn-info" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if shipment.status == 'Pending' %}
+                                <a href="{{ url_for('shipping_routes.edit_shipment', id=shipment.id) }}" 
+                                   class="btn btn-primary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <p class="text-muted mt-3">No shipments found</p>
+            <a href="{{ url_for('shipping_routes.create_shipment') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Create First Shipment
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

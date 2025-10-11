@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Shipping & Receiving Dashboard - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-truck"></i> Shipping & Receiving Dashboard</h2>
+    <div>
+        <a href="{{ url_for('shipping_routes.create_shipment') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New Shipment
+        </a>
+        <a href="{{ url_for('receiving_routes.create_receiving') }}" class="btn btn-success">
+            <i class="bi bi-inbox"></i> New Receipt
+        </a>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h3>{{ stats.pending_shipments }}</h3>
+                <p class="mb-0"><i class="bi bi-box-seam"></i> Pending Shipments</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h3>{{ stats.intransit }}</h3>
+                <p class="mb-0"><i class="bi bi-truck"></i> In Transit</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h3>{{ stats.delivered_today }}</h3>
+                <p class="mb-0"><i class="bi bi-check-circle"></i> Delivered Today</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h3>{{ stats.receipts_today }}</h3>
+                <p class="mb-0"><i class="bi bi-inbox-fill"></i> Receipts Today</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Shipments -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Pending Shipments</h5>
+    </div>
+    <div class="card-body">
+        {% if pending_shipments %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Shipment #</th>
+                        <th>Type</th>
+                        <th>Ship To</th>
+                        <th>Items</th>
+                        <th>Carrier</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in pending_shipments %}
+                    <tr>
+                        <td><a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}">{{ shipment.shipment_number }}</a></td>
+                        <td><span class="badge bg-secondary">{{ shipment.shipment_type }}</span></td>
+                        <td>{{ shipment.ship_to_name }}</td>
+                        <td>{{ shipment.item_count }} items</td>
+                        <td>{{ shipment.carrier or 'TBD' }}</td>
+                        <td>{{ shipment.created_at[:10] }}</td>
+                        <td>
+                            <a href="{{ url_for('shipping_routes.edit_shipment', id=shipment.id) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No pending shipments</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- In-Transit Shipments -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-truck"></i> In-Transit Shipments</h5>
+    </div>
+    <div class="card-body">
+        {% if intransit_shipments %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Shipment #</th>
+                        <th>Ship To</th>
+                        <th>Tracking</th>
+                        <th>Ship Date</th>
+                        <th>Expected Delivery</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in intransit_shipments %}
+                    <tr>
+                        <td><a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}">{{ shipment.shipment_number }}</a></td>
+                        <td>{{ shipment.ship_to_name }}</td>
+                        <td>
+                            {% if shipment.tracking_number %}
+                            <code>{{ shipment.tracking_number }}</code>
+                            {% else %}
+                            <span class="text-muted">No tracking</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ shipment.ship_date }}</td>
+                        <td>{{ shipment.expected_delivery_date or 'TBD' }}</td>
+                        <td>
+                            <a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No shipments in transit</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Receipts -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-inbox-fill"></i> Recent Receipts</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_receipts %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Receipt #</th>
+                        <th>PO #</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for receipt in recent_receipts %}
+                    <tr>
+                        <td>{{ receipt.receipt_number }}</td>
+                        <td><a href="{{ url_for('po_routes.view_purchaseorder', id=receipt.po_id) }}">{{ receipt.po_number }}</a></td>
+                        <td>{{ receipt.code }} - {{ receipt.product_name }}</td>
+                        <td>{{ receipt.quantity_received }}</td>
+                        <td>{{ receipt.receipt_date }}</td>
+                        <td>
+                            <a href="{{ url_for('receiving_routes.view_receipt', receipt_number=receipt.receipt_number) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No recent receipts</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
