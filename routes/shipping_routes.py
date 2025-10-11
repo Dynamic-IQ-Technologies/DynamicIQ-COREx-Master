@@ -278,7 +278,7 @@ def edit_shipment(id):
     products = conn.execute('''
         SELECT id, code, name, unit_of_measure
         FROM products
-        WHERE type IN ('Component', 'Finished Good')
+        WHERE product_type IN ('Component', 'Finished Good')
         ORDER BY code
     ''').fetchall()
     
