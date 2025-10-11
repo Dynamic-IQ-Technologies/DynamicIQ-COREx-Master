@@ -255,7 +255,62 @@ def record_payment(id):
         # Determine new status
         new_status = 'Paid' if new_amount_paid >= total_amount else 'Open'
         
-        # Update the record
+        # Generate GL entry number for payment
+        last_payment_entry = conn.execute('''
+            SELECT entry_number FROM gl_entries 
+            WHERE entry_number LIKE 'AP-PAY-%'
+            ORDER BY CAST(SUBSTR(entry_number, 8) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_payment_entry:
+            try:
+                last_number = int(last_payment_entry['entry_number'].split('-')[2])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        payment_entry_number = f'AP-PAY-{next_number:06d}'
+        
+        # Create GL entry for payment (DR: A/P, CR: Cash)
+        gl_description = f'Payment for {ap["invoice_number"]} - {payment_method}'
+        if payment_reference:
+            gl_description += f' ({payment_reference})'
+        
+        gl_entry_id = conn.execute('''
+            INSERT INTO gl_entries (
+                entry_number, entry_date, description, 
+                transaction_source, reference_type, reference_id, 
+                status, created_by, posted_by, posted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            payment_entry_number, payment_date, gl_description,
+            'AP Payment', 'vendor_invoice', id,
+            'Posted', session.get('user_id'), session.get('user_id'), datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        )).lastrowid
+        
+        # Get account IDs
+        ap_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '2110'").fetchone()
+        cash_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1110'").fetchone()
+        
+        if not ap_account or not cash_account:
+            raise ValueError('Required GL accounts not found (A/P: 2110, Cash: 1110)')
+        
+        # DR: Accounts Payable (reduces liability)
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (gl_entry_id, ap_account['id'], payment_amount, 0, f'Payment for {ap["invoice_number"]}'))
+        
+        # CR: Cash (reduces asset)
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (gl_entry_id, cash_account['id'], 0, payment_amount, f'Payment for {ap["invoice_number"]}'))
+        
+        # Update the vendor invoice record (payment GL entry is linked via reference_type/reference_id)
         conn.execute('''
             UPDATE vendor_invoices 
             SET amount_paid = ?,
