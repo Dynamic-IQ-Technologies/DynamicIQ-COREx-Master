@@ -202,6 +202,107 @@ def edit_ap(id):
     conn.close()
     return render_template('ap/edit.html', ap=ap)
 
+@ap_bp.route('/accounts-payable/<int:id>/record-payment', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def record_payment(id):
+    """Record payment for A/P"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get the A/P record
+        ap = conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()
+        
+        if not ap:
+            flash('A/P record not found.', 'danger')
+            conn.close()
+            return redirect(url_for('ap_routes.list_ap'))
+        
+        if ap['status'] == 'Paid':
+            flash('This invoice is already fully paid.', 'warning')
+            conn.close()
+            return redirect(url_for('ap_routes.view_ap', id=id))
+        
+        # Get old record for audit
+        old_ap = dict(ap)
+        
+        # Get payment details
+        payment_amount = float(request.form['payment_amount'])
+        payment_date = request.form['payment_date']
+        payment_method = request.form.get('payment_method', 'Check')
+        payment_reference = request.form.get('payment_reference', '')
+        
+        # Calculate current balance
+        current_paid = ap['amount_paid'] or 0
+        total_amount = ap['total_amount']
+        balance_due = total_amount - current_paid
+        
+        # Validate payment amount
+        if payment_amount <= 0:
+            flash('Payment amount must be greater than zero', 'danger')
+            conn.close()
+            return redirect(url_for('ap_routes.view_ap', id=id))
+        
+        if payment_amount > balance_due:
+            flash(f'Payment amount (${payment_amount:.2f}) cannot exceed balance due (${balance_due:.2f})', 'danger')
+            conn.close()
+            return redirect(url_for('ap_routes.view_ap', id=id))
+        
+        # Calculate new total paid
+        new_amount_paid = current_paid + payment_amount
+        
+        # Determine new status
+        new_status = 'Paid' if new_amount_paid >= total_amount else 'Open'
+        
+        # Update the record
+        conn.execute('''
+            UPDATE vendor_invoices 
+            SET amount_paid = ?,
+                status = ?,
+                payment_date = ?,
+                payment_method = ?,
+                payment_reference = ?
+            WHERE id = ?
+        ''', (new_amount_paid, new_status, payment_date, payment_method, payment_reference, id))
+        
+        # Get new record for audit
+        new_ap = conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()
+        
+        # Log audit trail
+        changes = AuditLogger.compare_records(old_ap, dict(new_ap))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='accounts_payable',
+                record_id=id,
+                action_type='Payment Recorded',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        conn.commit()
+        
+        if new_status == 'Paid':
+            flash(f'Payment of ${payment_amount:.2f} recorded. Invoice is now fully paid!', 'success')
+        else:
+            remaining = total_amount - new_amount_paid
+            flash(f'Payment of ${payment_amount:.2f} recorded. Remaining balance: ${remaining:.2f}', 'success')
+        
+        return redirect(url_for('ap_routes.view_ap', id=id))
+        
+    except Exception as e:
+        try:
+            conn.rollback()
+        except:
+            pass
+        flash(f'Error recording payment: {str(e)}', 'danger')
+        return redirect(url_for('ap_routes.view_ap', id=id))
+    finally:
+        conn.close()
+
 @ap_bp.route('/accounts-payable/<int:id>/update-status', methods=['POST'])
 @login_required
 @role_required('Admin', 'Accountant')
