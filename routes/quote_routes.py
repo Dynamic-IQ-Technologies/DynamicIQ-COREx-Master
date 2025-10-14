@@ -88,15 +88,18 @@ def generate_quote(wo_id):
             
             quote_number = f'QT-{next_number:06d}'
             
-            # Create quote header
+            # Get markup percentage from form
+            markup_percent = float(request.form.get('markup_percent', 0))
+            
+            # Create quote header with markup_percent
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO work_order_quotes (
                     quote_number, work_order_id, customer_name, customer_account,
                     description, scope_of_work, estimated_turnaround_days,
                     assigned_to, department, status, subtotal, tax_rate, tax_amount, 
-                    total_amount, notes, prepared_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    total_amount, markup_percent, notes, prepared_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 quote_number,
                 wo_id,
@@ -108,18 +111,16 @@ def generate_quote(wo_id):
                 request.form.get('assigned_to', ''),
                 request.form.get('department', ''),
                 'Draft',
-                float(request.form.get('subtotal', 0)),
-                float(request.form.get('tax_rate', 0)),
-                float(request.form.get('tax_amount', 0)),
-                float(request.form.get('total_amount', 0)),
+                0,  # subtotal - will be calculated from lines
+                0,  # tax_rate - from form
+                0,  # tax_amount - will be calculated
+                0,  # total_amount - will be calculated
+                markup_percent,
                 request.form.get('notes', ''),
                 session['user_id']
             ))
             
             quote_id = cursor.lastrowid
-            
-            # Get markup percentage from form
-            markup_percent = float(request.form.get('markup_percent', 0))
             
             # Create quote lines from form data and calculate totals server-side
             line_types = request.form.getlist('line_type[]')
