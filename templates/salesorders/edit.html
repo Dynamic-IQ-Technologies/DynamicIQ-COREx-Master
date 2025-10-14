@@ -166,10 +166,10 @@
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Product <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" name="product_id" required>
+                            <select class="form-select form-select-sm" name="product_id" id="product_select" required>
                                 <option value="">Select Product</option>
                                 {% for product in products %}
-                                <option value="{{ product.id }}">{{ product.code }} (Avail: {{ product.available_qty }})</option>
+                                <option value="{{ product.id }}" data-product-name="{{ product.name }}">{{ product.code }} (Avail: {{ product.available_qty }})</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -208,7 +208,7 @@
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Description</label>
-                            <input type="text" class="form-control form-control-sm" name="description">
+                            <input type="text" class="form-control form-control-sm" name="description" id="description_field">
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -336,6 +336,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const repairFields = document.getElementById('repair_fields');
     const coreChargeInput = document.getElementById('core_charge');
     const repairNTEInput = document.getElementById('repair_nte');
+    const productSelect = document.getElementById('product_select');
+    const descriptionField = document.getElementById('description_field');
     
     function updateFieldsVisibility() {
         const lineType = lineTypeSelect.value;
@@ -357,6 +359,17 @@ document.addEventListener('DOMContentLoaded', function() {
             repairNTEInput.setAttribute('required', 'required');
         }
     }
+    
+    // Auto-populate description when product is selected
+    productSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const productName = selectedOption.getAttribute('data-product-name');
+        
+        // Only populate if description field is empty
+        if (productName && !descriptionField.value) {
+            descriptionField.value = productName;
+        }
+    });
     
     // Initial setup
     updateFieldsVisibility();
