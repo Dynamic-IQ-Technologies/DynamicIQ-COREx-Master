@@ -138,7 +138,13 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="subtotal" class="form-label">Subtotal</label>
+                        <label for="markup_percent" class="form-label">Markup (%)</label>
+                        <input type="number" step="0.01" class="form-control" id="markup_percent" name="markup_percent" value="0" onchange="calculateTotals()">
+                        <small class="text-muted">Applied to all line items</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="subtotal" class="form-label">Subtotal (with Markup)</label>
                         <input type="number" step="0.01" class="form-control" id="subtotal" name="subtotal" readonly>
                     </div>
                     
@@ -201,15 +207,30 @@ function calculateLine(input) {
     const row = input.closest('tr');
     const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
     const price = parseFloat(row.querySelector('.line-price').value) || 0;
-    const total = qty * price;
+    const markupPercent = parseFloat(document.getElementById('markup_percent').value) || 0;
+    
+    const baseAmount = qty * price;
+    const markupAmount = baseAmount * (markupPercent / 100);
+    const total = baseAmount + markupAmount;
+    
     row.querySelector('.line-total').value = total.toFixed(2);
     calculateTotals();
 }
 
 function calculateTotals() {
+    const markupPercent = parseFloat(document.getElementById('markup_percent').value) || 0;
     let subtotal = 0;
-    document.querySelectorAll('.line-total').forEach(input => {
-        subtotal += parseFloat(input.value) || 0;
+    
+    document.querySelectorAll('.line-qty').forEach(qtyInput => {
+        const row = qtyInput.closest('tr');
+        const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
+        const price = parseFloat(row.querySelector('.line-price').value) || 0;
+        const baseAmount = qty * price;
+        const markupAmount = baseAmount * (markupPercent / 100);
+        const lineTotal = baseAmount + markupAmount;
+        
+        row.querySelector('.line-total').value = lineTotal.toFixed(2);
+        subtotal += lineTotal;
     });
     
     const taxRate = parseFloat(document.getElementById('tax_rate').value) || 0;

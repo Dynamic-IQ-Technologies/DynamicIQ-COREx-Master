@@ -482,11 +482,17 @@ def generate_pdf(id):
     story.append(Spacer(1, 0.2*inch))
     
     # Totals
-    totals_data = [
+    totals_data = []
+    
+    # Add markup note if applicable
+    if quote['markup_percent'] and quote['markup_percent'] > 0:
+        totals_data.append(['', '', '', f"Markup ({quote['markup_percent']}%) Applied:", ''])
+    
+    totals_data.extend([
         ['', '', '', 'Subtotal:', f"${quote['subtotal']:,.2f}"],
         ['', '', '', f"Tax ({quote['tax_rate']}%):", f"${quote['tax_amount']:,.2f}"],
         ['', '', '', 'Total:', f"${quote['total_amount']:,.2f}"],
-    ]
+    ])
     
     totals_table = Table(totals_data, colWidths=[1*inch, 3.5*inch, 0.7*inch, 1.2*inch, 1.2*inch])
     totals_table.setStyle(TableStyle([
