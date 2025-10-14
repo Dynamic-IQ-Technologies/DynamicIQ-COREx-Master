@@ -81,6 +81,8 @@
                                     <span class="badge bg-success">{{ sales_order.status }}</span>
                                 {% elif sales_order.status == 'Shipped' %}
                                     <span class="badge bg-primary">{{ sales_order.status }}</span>
+                                {% elif sales_order.status == 'Released to Shipping' %}
+                                    <span class="badge bg-warning text-dark">{{ sales_order.status }}</span>
                                 {% elif sales_order.status in ['Confirmed', 'Pending'] %}
                                     <span class="badge bg-info">{{ sales_order.status }}</span>
                                 {% elif sales_order.status == 'Draft' %}

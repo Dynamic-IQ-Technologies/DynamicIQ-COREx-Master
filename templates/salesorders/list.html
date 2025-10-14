@@ -22,6 +22,7 @@
                         <option value="Draft" {% if status_filter == 'Draft' %}selected{% endif %}>Draft</option>
                         <option value="Confirmed" {% if status_filter == 'Confirmed' %}selected{% endif %}>Confirmed</option>
                         <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending (Legacy)</option>
+                        <option value="Released to Shipping" {% if status_filter == 'Released to Shipping' %}selected{% endif %}>Released to Shipping</option>
                         <option value="Shipped" {% if status_filter == 'Shipped' %}selected{% endif %}>Shipped</option>
                         <option value="Invoiced" {% if status_filter == 'Invoiced' %}selected{% endif %}>Invoiced</option>
                         <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed (Legacy)</option>
@@ -77,6 +78,8 @@
                                         <span class="badge bg-success">{{ so.status }}</span>
                                     {% elif so.status == 'Shipped' %}
                                         <span class="badge bg-primary">{{ so.status }}</span>
+                                    {% elif so.status == 'Released to Shipping' %}
+                                        <span class="badge bg-warning text-dark">{{ so.status }}</span>
                                     {% elif so.status in ['Confirmed', 'Pending'] %}
                                         <span class="badge bg-info">{{ so.status }}</span>
                                     {% elif so.status == 'Draft' %}

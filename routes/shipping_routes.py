@@ -608,7 +608,7 @@ def view_pending_shipment(id):
                          lines=lines)
 
 @shipping_bp.route('/pending-shipments/<int:id>/confirm', methods=['POST'])
-@role_required('Admin', 'Production Staff')
+@role_required('Admin', 'Production Staff', 'Planner')
 def confirm_shipment(id):
     """Confirm and finalize a pending shipment"""
     db = Database()
