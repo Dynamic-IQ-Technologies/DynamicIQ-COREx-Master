@@ -22,7 +22,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="customer_name" class="form-label">Customer Name *</label>
-                                <input type="text" class="form-control" id="customer_name" name="customer_name" required>
+                                <input type="text" class="form-control" id="customer_name" name="customer_name" value="{{ work_order.customer_name or '' }}" required>
                             </div>
                         </div>
                         <div class="col-md-6">

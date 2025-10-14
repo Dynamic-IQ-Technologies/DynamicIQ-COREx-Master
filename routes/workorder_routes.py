@@ -68,8 +68,8 @@ def create_workorder():
                 
                 conn.execute('''
                     INSERT INTO work_orders 
-                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     wo_number,
                     int(request.form['product_id']),
@@ -80,7 +80,8 @@ def create_workorder():
                     request.form.get('planned_start_date'),
                     request.form.get('planned_end_date'),
                     float(request.form.get('labor_cost', 0)),
-                    float(request.form.get('overhead_cost', 0))
+                    float(request.form.get('overhead_cost', 0)),
+                    request.form.get('customer_name', '')
                 ))
                 
                 wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
