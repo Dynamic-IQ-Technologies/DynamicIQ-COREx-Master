@@ -118,6 +118,9 @@ def generate_quote(wo_id):
             
             quote_id = cursor.lastrowid
             
+            # Get markup percentage from form
+            markup_percent = float(request.form.get('markup_percent', 0))
+            
             # Create quote lines from form data and calculate totals server-side
             line_types = request.form.getlist('line_type[]')
             descriptions = request.form.getlist('line_description[]')
@@ -129,7 +132,11 @@ def generate_quote(wo_id):
                 if descriptions[i]:  # Only add lines with descriptions
                     quantity = float(quantities[i]) if quantities[i] else 1
                     unit_price = float(prices[i]) if prices[i] else 0
-                    line_total = quantity * unit_price
+                    base_amount = quantity * unit_price
+                    
+                    # Apply markup to get line total
+                    markup_amount = base_amount * (markup_percent / 100)
+                    line_total = base_amount + markup_amount
                     subtotal += line_total
                     
                     cursor.execute('''
@@ -144,12 +151,12 @@ def generate_quote(wo_id):
             tax_amount = subtotal * (tax_rate / 100)
             total_amount = subtotal + tax_amount
             
-            # Update quote with calculated values
+            # Update quote with calculated values including markup
             cursor.execute('''
                 UPDATE work_order_quotes 
-                SET subtotal = ?, tax_rate = ?, tax_amount = ?, total_amount = ?
+                SET subtotal = ?, tax_rate = ?, tax_amount = ?, total_amount = ?, markup_percent = ?
                 WHERE id = ?
-            ''', (subtotal, tax_rate, tax_amount, total_amount, quote_id))
+            ''', (subtotal, tax_rate, tax_amount, total_amount, markup_percent, quote_id))
             
             # Log activity
             AuditLogger.log_change(
@@ -224,6 +231,9 @@ def edit_quote(id):
             # Delete existing lines and recreate
             conn.execute('DELETE FROM work_order_quote_lines WHERE quote_id = ?', (id,))
             
+            # Get markup percentage from form
+            markup_percent = float(request.form.get('markup_percent', 0))
+            
             # Create new lines and calculate totals server-side
             line_types = request.form.getlist('line_type[]')
             descriptions = request.form.getlist('line_description[]')
@@ -236,7 +246,11 @@ def edit_quote(id):
                 if descriptions[i]:
                     quantity = float(quantities[i]) if quantities[i] else 1
                     unit_price = float(prices[i]) if prices[i] else 0
-                    line_total = quantity * unit_price
+                    base_amount = quantity * unit_price
+                    
+                    # Apply markup to get line total
+                    markup_amount = base_amount * (markup_percent / 100)
+                    line_total = base_amount + markup_amount
                     subtotal += line_total
                     
                     cursor.execute('''
@@ -251,14 +265,14 @@ def edit_quote(id):
             tax_amount = subtotal * (tax_rate / 100)
             total_amount = subtotal + tax_amount
             
-            # Update quote header with calculated values
+            # Update quote header with calculated values including markup
             conn.execute('''
                 UPDATE work_order_quotes 
                 SET customer_name = ?, customer_account = ?, description = ?,
                     scope_of_work = ?, estimated_turnaround_days = ?,
                     assigned_to = ?, department = ?, subtotal = ?, 
                     tax_rate = ?, tax_amount = ?, total_amount = ?,
-                    notes = ?, updated_at = CURRENT_TIMESTAMP
+                    markup_percent = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (
                 request.form.get('customer_name', ''),
@@ -272,6 +286,7 @@ def edit_quote(id):
                 tax_rate,
                 tax_amount,
                 total_amount,
+                markup_percent,
                 request.form.get('notes', ''),
                 id
             ))
