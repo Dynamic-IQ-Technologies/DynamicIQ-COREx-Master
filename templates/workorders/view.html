@@ -36,7 +36,17 @@
                     <div class="col-md-6">
                         <p><strong>Product:</strong> {{ workorder.code }} - {{ workorder.name }}</p>
                         <p><strong>Quantity:</strong> {{ workorder.quantity }} {{ workorder.unit_of_measure }}</p>
-                        {% if workorder.customer_name %}
+                        {% if workorder.customer_number %}
+                        <p><strong>Customer:</strong> {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
+                            {% if workorder.customer_email or workorder.customer_phone %}
+                            <br><small class="text-muted">
+                                {% if workorder.customer_email %}{{ workorder.customer_email }}{% endif %}
+                                {% if workorder.customer_email and workorder.customer_phone %} | {% endif %}
+                                {% if workorder.customer_phone %}{{ workorder.customer_phone }}{% endif %}
+                            </small>
+                            {% endif %}
+                        </p>
+                        {% elif workorder.customer_name %}
                         <p><strong>Customer:</strong> {{ workorder.customer_name }}</p>
                         {% endif %}
                         <p><strong>Disposition:</strong> <span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></p>

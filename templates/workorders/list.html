@@ -18,6 +18,7 @@
                     <tr>
                         <th>WO Number</th>
                         <th>Product</th>
+                        <th>Customer</th>
                         <th>Quantity</th>
                         <th>Disposition</th>
                         <th>Status</th>
@@ -31,6 +32,15 @@
                     <tr>
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                         <td>{{ wo.code }} - {{ wo.name }}</td>
+                        <td>
+                            {% if wo.customer_number %}
+                            {{ wo.customer_number }} - {{ wo.customer_full_name }}
+                            {% elif wo.customer_name %}
+                            {{ wo.customer_name }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>{{ wo.quantity }}</td>
                         <td><span class="badge bg-primary">{{ wo.disposition or 'Manufacture' }}</span></td>
                         <td>

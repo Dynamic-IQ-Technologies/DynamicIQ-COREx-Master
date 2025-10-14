@@ -12,9 +12,10 @@ def list_workorders():
     db = Database()
     conn = db.get_connection()
     workorders = conn.execute('''
-        SELECT wo.*, p.code, p.name
+        SELECT wo.*, p.code, p.name, c.customer_number, c.name as customer_full_name
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
         ORDER BY wo.planned_start_date DESC
     ''').fetchall()
     conn.close()
@@ -66,10 +67,21 @@ def create_workorder():
                 
                 wo_number = f'WO-{next_number:06d}'
                 
+                # Get customer_id and populate customer_name from customer record
+                customer_id = request.form.get('customer_id')
+                customer_name = None
+                if customer_id:
+                    customer_id = int(customer_id)
+                    customer = conn.execute('SELECT name FROM customers WHERE id = ?', (customer_id,)).fetchone()
+                    if customer:
+                        customer_name = customer['name']
+                else:
+                    customer_id = None
+                
                 conn.execute('''
                     INSERT INTO work_orders 
-                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     wo_number,
                     int(request.form['product_id']),
@@ -81,7 +93,8 @@ def create_workorder():
                     request.form.get('planned_end_date'),
                     float(request.form.get('labor_cost', 0)),
                     float(request.form.get('overhead_cost', 0)),
-                    request.form.get('customer_name', '')
+                    customer_id,
+                    customer_name
                 ))
                 
                 wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -122,6 +135,7 @@ def create_workorder():
             return redirect(url_for('workorder_routes.list_workorders'))
     
     products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
+    customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     
     last_wo = conn.execute('''
         SELECT wo_number FROM work_orders 
@@ -143,7 +157,7 @@ def create_workorder():
     
     conn.close()
     
-    return render_template('workorders/create.html', products=products, next_wo_number=next_wo_number)
+    return render_template('workorders/create.html', products=products, customers=customers, next_wo_number=next_wo_number)
 
 @workorder_bp.route('/workorders/<int:id>')
 @login_required
@@ -153,9 +167,11 @@ def view_workorder(id):
     mrp = MRPEngine()
     
     workorder = conn.execute('''
-        SELECT wo.*, p.code, p.name, p.unit_of_measure
+        SELECT wo.*, p.code, p.name, p.unit_of_measure, 
+               c.customer_number, c.name as customer_full_name, c.email as customer_email, c.phone as customer_phone
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
         WHERE wo.id=?
     ''', (id,)).fetchone()
     
@@ -232,6 +248,17 @@ def edit_workorder(id):
                 conn.close()
                 return redirect(url_for('workorder_routes.view_workorder', id=id))
             
+            # Get customer_id and populate customer_name from customer record
+            customer_id = request.form.get('customer_id')
+            customer_name = None
+            if customer_id:
+                customer_id = int(customer_id)
+                customer = conn.execute('SELECT name FROM customers WHERE id = ?', (customer_id,)).fetchone()
+                if customer:
+                    customer_name = customer['name']
+            else:
+                customer_id = None
+            
             # Update work order
             conn.execute('''
                 UPDATE work_orders 
@@ -243,7 +270,9 @@ def edit_workorder(id):
                     planned_start_date = ?,
                     planned_end_date = ?,
                     labor_cost = ?,
-                    overhead_cost = ?
+                    overhead_cost = ?,
+                    customer_id = ?,
+                    customer_name = ?
                 WHERE id = ?
             ''', (
                 int(request.form['product_id']),
@@ -255,6 +284,8 @@ def edit_workorder(id):
                 request.form.get('planned_end_date') or None,
                 float(request.form.get('labor_cost', 0)),
                 float(request.form.get('overhead_cost', 0)),
+                customer_id,
+                customer_name,
                 id
             ))
             
@@ -324,10 +355,11 @@ def edit_workorder(id):
         return redirect(url_for('workorder_routes.view_workorder', id=id))
     
     products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
+    customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     
     conn.close()
     
-    return render_template('workorders/edit.html', workorder=workorder, products=products)
+    return render_template('workorders/edit.html', workorder=workorder, products=products, customers=customers)
 
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')

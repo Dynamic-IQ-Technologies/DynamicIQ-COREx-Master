@@ -26,8 +26,14 @@
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="customer_name" class="form-label">Customer Name</label>
-                        <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Optional">
+                        <label for="customer_id" class="form-label">Customer</label>
+                        <select class="form-select" id="customer_id" name="customer_id">
+                            <option value="">Select Customer (Optional)</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.customer_number }} - {{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Select from customer database or leave blank</small>
                     </div>
                 </div>
             </div>
