@@ -214,6 +214,120 @@ def view_workorder(id):
                          task_summary=task_summary,
                          tasks=tasks)
 
+@workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def edit_workorder(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        try:
+            # Get old record for audit
+            old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+            
+            # Check if work order is completed
+            if old_record['status'] == 'Completed':
+                flash('Cannot edit a completed work order.', 'danger')
+                conn.close()
+                return redirect(url_for('workorder_routes.view_workorder', id=id))
+            
+            # Update work order
+            conn.execute('''
+                UPDATE work_orders 
+                SET product_id = ?,
+                    quantity = ?,
+                    disposition = ?,
+                    status = ?,
+                    priority = ?,
+                    planned_start_date = ?,
+                    planned_end_date = ?,
+                    labor_cost = ?,
+                    overhead_cost = ?
+                WHERE id = ?
+            ''', (
+                int(request.form['product_id']),
+                float(request.form['quantity']),
+                request.form.get('disposition', 'Manufacture'),
+                request.form['status'],
+                request.form.get('priority', 'Medium'),
+                request.form.get('planned_start_date') or None,
+                request.form.get('planned_end_date') or None,
+                float(request.form.get('labor_cost', 0)),
+                float(request.form.get('overhead_cost', 0)),
+                id
+            ))
+            
+            # Get new record for audit
+            new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+            
+            # Log audit trail
+            changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+            if changes:
+                AuditLogger.log_change(
+                    conn=conn,
+                    record_type='work_order',
+                    record_id=id,
+                    action_type='Updated',
+                    modified_by=session.get('user_id'),
+                    changed_fields=changes,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
+            
+            # Check if product changed (before committing)
+            product_changed = old_record['product_id'] != int(request.form['product_id'])
+            
+            # Commit the work order changes first
+            conn.commit()
+            
+            # Recalculate material requirements AFTER commit if product changed
+            if product_changed:
+                # Delete old requirements
+                conn.execute('DELETE FROM material_requirements WHERE work_order_id = ?', (id,))
+                conn.commit()
+                
+                # Calculate new requirements (MRPEngine uses its own connection)
+                mrp = MRPEngine()
+                mrp.calculate_requirements(id)
+                
+                flash('Work Order updated successfully! Material requirements recalculated.', 'success')
+            else:
+                flash('Work Order updated successfully!', 'success')
+            
+            conn.close()
+            
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            flash(f'Error updating work order: {str(e)}', 'danger')
+            return redirect(url_for('workorder_routes.edit_workorder', id=id))
+    
+    # GET request - show edit form
+    workorder = conn.execute('''
+        SELECT wo.*, p.code, p.name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        WHERE wo.id=?
+    ''', (id,)).fetchone()
+    
+    if not workorder:
+        flash('Work Order not found.', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if workorder['status'] == 'Completed':
+        flash('Cannot edit a completed work order.', 'warning')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
+    
+    conn.close()
+    
+    return render_template('workorders/edit.html', workorder=workorder, products=products)
+
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')
 def update_workorder_status(id):

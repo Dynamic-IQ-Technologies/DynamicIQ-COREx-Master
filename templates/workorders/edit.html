@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Work Order {{ workorder.wo_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Edit Work Order: {{ workorder.wo_number }}</h2>
+    <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Details
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle"></i> <strong>Work Order Number:</strong> {{ workorder.wo_number }} (cannot be changed)
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Product *</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Select Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}" {% if product.id == workorder.product_id %}selected{% endif %}>
+                                {{ product.code }} - {{ product.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" 
+                               value="{{ workorder.quantity }}" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="disposition" class="form-label">Disposition *</label>
+                        <select class="form-select" id="disposition" name="disposition" required>
+                            <option value="Manufacture" {% if workorder.disposition == 'Manufacture' %}selected{% endif %}>Manufacture</option>
+                            <option value="Repair" {% if workorder.disposition == 'Repair' %}selected{% endif %}>Repair</option>
+                            <option value="Overhaul" {% if workorder.disposition == 'Overhaul' %}selected{% endif %}>Overhaul</option>
+                            <option value="Teardown" {% if workorder.disposition == 'Teardown' %}selected{% endif %}>Teardown</option>
+                            <option value="Inspect" {% if workorder.disposition == 'Inspect' %}selected{% endif %}>Inspect</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status *</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
+                            <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
+                            <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                            <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priority</label>
+                        <select class="form-select" id="priority" name="priority">
+                            <option value="Low" {% if workorder.priority == 'Low' %}selected{% endif %}>Low</option>
+                            <option value="Medium" {% if workorder.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="High" {% if workorder.priority == 'High' %}selected{% endif %}>High</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="planned_start_date" class="form-label">Planned Start Date</label>
+                        <input type="date" class="form-control" id="planned_start_date" name="planned_start_date" 
+                               value="{{ workorder.planned_start_date or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="planned_end_date" class="form-label">Planned End Date</label>
+                        <input type="date" class="form-control" id="planned_end_date" name="planned_end_date" 
+                               value="{{ workorder.planned_end_date or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="labor_cost" class="form-label">Labor Cost</label>
+                        <input type="number" step="0.01" class="form-control" id="labor_cost" name="labor_cost" 
+                               value="{{ workorder.labor_cost or 0 }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="overhead_cost" class="form-label">Overhead Cost</label>
+                        <input type="number" step="0.01" class="form-control" id="overhead_cost" name="overhead_cost" 
+                               value="{{ workorder.overhead_cost or 0 }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Note:</strong> Material costs are calculated from material issuances and cannot be edited directly.
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
