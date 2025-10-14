@@ -118,17 +118,19 @@ def generate_quote(wo_id):
             
             quote_id = cursor.lastrowid
             
-            # Create quote lines from form data
+            # Create quote lines from form data and calculate totals server-side
             line_types = request.form.getlist('line_type[]')
             descriptions = request.form.getlist('line_description[]')
             quantities = request.form.getlist('line_quantity[]')
             prices = request.form.getlist('line_price[]')
             
+            subtotal = 0
             for i, line_type in enumerate(line_types):
                 if descriptions[i]:  # Only add lines with descriptions
                     quantity = float(quantities[i]) if quantities[i] else 1
                     unit_price = float(prices[i]) if prices[i] else 0
                     line_total = quantity * unit_price
+                    subtotal += line_total
                     
                     cursor.execute('''
                         INSERT INTO work_order_quote_lines (
@@ -136,6 +138,18 @@ def generate_quote(wo_id):
                             unit_price, line_total, sequence_number
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (quote_id, line_type, descriptions[i], quantity, unit_price, line_total, i))
+            
+            # Calculate tax and total server-side (don't trust client values)
+            tax_rate = float(request.form.get('tax_rate', 0))
+            tax_amount = subtotal * (tax_rate / 100)
+            total_amount = subtotal + tax_amount
+            
+            # Update quote with calculated values
+            cursor.execute('''
+                UPDATE work_order_quotes 
+                SET subtotal = ?, tax_rate = ?, tax_amount = ?, total_amount = ?
+                WHERE id = ?
+            ''', (subtotal, tax_rate, tax_amount, total_amount, quote_id))
             
             # Log activity
             AuditLogger.log_change(
@@ -207,7 +221,37 @@ def edit_quote(id):
             # Get old record for audit
             old_record = conn.execute('SELECT * FROM work_order_quotes WHERE id=?', (id,)).fetchone()
             
-            # Update quote header
+            # Delete existing lines and recreate
+            conn.execute('DELETE FROM work_order_quote_lines WHERE quote_id = ?', (id,))
+            
+            # Create new lines and calculate totals server-side
+            line_types = request.form.getlist('line_type[]')
+            descriptions = request.form.getlist('line_description[]')
+            quantities = request.form.getlist('line_quantity[]')
+            prices = request.form.getlist('line_price[]')
+            
+            subtotal = 0
+            cursor = conn.cursor()
+            for i, line_type in enumerate(line_types):
+                if descriptions[i]:
+                    quantity = float(quantities[i]) if quantities[i] else 1
+                    unit_price = float(prices[i]) if prices[i] else 0
+                    line_total = quantity * unit_price
+                    subtotal += line_total
+                    
+                    cursor.execute('''
+                        INSERT INTO work_order_quote_lines (
+                            quote_id, line_type, description, quantity, 
+                            unit_price, line_total, sequence_number
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (id, line_type, descriptions[i], quantity, unit_price, line_total, i))
+            
+            # Calculate tax and total server-side (don't trust client values)
+            tax_rate = float(request.form.get('tax_rate', 0))
+            tax_amount = subtotal * (tax_rate / 100)
+            total_amount = subtotal + tax_amount
+            
+            # Update quote header with calculated values
             conn.execute('''
                 UPDATE work_order_quotes 
                 SET customer_name = ?, customer_account = ?, description = ?,
@@ -224,36 +268,13 @@ def edit_quote(id):
                 int(request.form.get('estimated_turnaround_days', 0)) if request.form.get('estimated_turnaround_days') else None,
                 request.form.get('assigned_to', ''),
                 request.form.get('department', ''),
-                float(request.form.get('subtotal', 0)),
-                float(request.form.get('tax_rate', 0)),
-                float(request.form.get('tax_amount', 0)),
-                float(request.form.get('total_amount', 0)),
+                subtotal,
+                tax_rate,
+                tax_amount,
+                total_amount,
                 request.form.get('notes', ''),
                 id
             ))
-            
-            # Delete existing lines and recreate
-            conn.execute('DELETE FROM work_order_quote_lines WHERE quote_id = ?', (id,))
-            
-            # Create new lines
-            line_types = request.form.getlist('line_type[]')
-            descriptions = request.form.getlist('line_description[]')
-            quantities = request.form.getlist('line_quantity[]')
-            prices = request.form.getlist('line_price[]')
-            
-            cursor = conn.cursor()
-            for i, line_type in enumerate(line_types):
-                if descriptions[i]:
-                    quantity = float(quantities[i]) if quantities[i] else 1
-                    unit_price = float(prices[i]) if prices[i] else 0
-                    line_total = quantity * unit_price
-                    
-                    cursor.execute('''
-                        INSERT INTO work_order_quote_lines (
-                            quote_id, line_type, description, quantity, 
-                            unit_price, line_total, sequence_number
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (id, line_type, descriptions[i], quantity, unit_price, line_total, i))
             
             # Log audit
             new_record = conn.execute('SELECT * FROM work_order_quotes WHERE id=?', (id,)).fetchone()
