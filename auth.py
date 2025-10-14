@@ -6,7 +6,6 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            flash('Please log in to access this page.', 'warning')
             return redirect(url_for('auth_routes.login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -16,7 +15,6 @@ def role_required(*roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
-                flash('Please log in to access this page.', 'warning')
                 return redirect(url_for('auth_routes.login'))
             
             user = User.get_by_id(session['user_id'])
