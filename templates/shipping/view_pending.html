@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Shipment - {{ shipment.shipment_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-box-seam"></i> Pending Shipment - {{ shipment.shipment_number }}</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('shipping_routes.list_pending_shipments') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Pending
+            </a>
+            {% if session.role in ['Admin', 'Production Staff'] and shipment.shipment_stage == 'Pending' %}
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmShipmentModal">
+                <i class="bi bi-check-circle"></i> Confirm Shipment
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Shipment Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless table-sm">
+                        <tr>
+                            <th width="40%">Shipment Number:</th>
+                            <td>{{ shipment.shipment_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Type:</th>
+                            <td><span class="badge bg-secondary">{{ shipment.shipment_type }}</span></td>
+                        </tr>
+                        <tr>
+                            <th>Stage:</th>
+                            <td>
+                                {% if shipment.shipment_stage == 'Pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif shipment.shipment_stage == 'Confirmed' %}
+                                <span class="badge bg-success">Confirmed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ shipment.shipment_stage }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if shipment.status == 'Pending' %}
+                                <span class="badge bg-warning text-dark">{{ shipment.status }}</span>
+                                {% elif shipment.status == 'Shipped' %}
+                                <span class="badge bg-primary">{{ shipment.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ shipment.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Reference:</th>
+                            <td>
+                                {% if shipment.so_number %}
+                                <a href="{{ url_for('salesorder_routes.view_sales_order', id=shipment.reference_id) }}">
+                                    {{ shipment.so_number }}
+                                </a>
+                                {% elif shipment.wo_number %}
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=shipment.reference_id) }}">
+                                    {{ shipment.wo_number }}
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Released By:</th>
+                            <td>{{ shipment.released_by_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Released Date:</th>
+                            <td>{{ shipment.released_at[:16] if shipment.released_at else '-' }}</td>
+                        </tr>
+                        {% if shipment.confirmed_by_name %}
+                        <tr>
+                            <th>Confirmed By:</th>
+                            <td>{{ shipment.confirmed_by_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Confirmed Date:</th>
+                            <td>{{ shipment.confirmed_at[:16] if shipment.confirmed_at else '-' }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Customer & Shipping Address</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless table-sm">
+                        <tr>
+                            <th width="40%">Customer:</th>
+                            <td>
+                                {% if shipment.customer_number %}
+                                {{ shipment.customer_number }} - {{ shipment.customer_name }}
+                                {% else %}
+                                {{ shipment.customer_name or '-' }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if shipment.email %}
+                        <tr>
+                            <th>Email:</th>
+                            <td>{{ shipment.email }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if shipment.phone %}
+                        <tr>
+                            <th>Phone:</th>
+                            <td>{{ shipment.phone }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Ship To Name:</th>
+                            <td>{{ shipment.ship_to_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Address:</th>
+                            <td>{{ shipment.ship_to_address }}</td>
+                        </tr>
+                        <tr>
+                            <th>City:</th>
+                            <td>{{ shipment.ship_to_city }}</td>
+                        </tr>
+                        <tr>
+                            <th>State/Province:</th>
+                            <td>{{ shipment.ship_to_state }}</td>
+                        </tr>
+                        <tr>
+                            <th>Postal Code:</th>
+                            <td>{{ shipment.ship_to_postal_code }}</td>
+                        </tr>
+                        <tr>
+                            <th>Country:</th>
+                            <td>{{ shipment.ship_to_country }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5>Items to Ship</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th class="text-end">Quantity</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in lines %}
+                        <tr>
+                            <td>{{ line.code }}</td>
+                            <td>{{ line.name }}</td>
+                            <td class="text-end">{{ line.quantity }}</td>
+                            <td class="text-end">${{ "%.2f"|format(line.unit_price) }}</td>
+                            <td class="text-end">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if shipment.carrier or shipment.tracking_number %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5>Shipping Details</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-borderless table-sm">
+                {% if shipment.carrier %}
+                <tr>
+                    <th width="25%">Carrier:</th>
+                    <td>{{ shipment.carrier }}</td>
+                </tr>
+                {% endif %}
+                {% if shipment.tracking_number %}
+                <tr>
+                    <th>Tracking Number:</th>
+                    <td><code>{{ shipment.tracking_number }}</code></td>
+                </tr>
+                {% endif %}
+                {% if shipment.shipping_method %}
+                <tr>
+                    <th>Shipping Method:</th>
+                    <td>{{ shipment.shipping_method }}</td>
+                </tr>
+                {% endif %}
+                {% if shipment.ship_date %}
+                <tr>
+                    <th>Ship Date:</th>
+                    <td>{{ shipment.ship_date }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="confirmShipmentModal" tabindex="-1" aria-labelledby="confirmShipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('shipping_routes.confirm_shipment', id=shipment.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmShipmentModalLabel">Confirm Shipment - {{ shipment.shipment_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Important:</strong> Confirming this shipment will:
+                        <ul class="mb-0 mt-2">
+                            <li>Deduct inventory quantities for all line items</li>
+                            <li>Update the Sales Order status to "Shipped"</li>
+                            <li>Finalize this shipment record</li>
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Carrier</label>
+                        <input type="text" class="form-control" name="carrier" placeholder="e.g., FedEx, UPS, USPS" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tracking Number</label>
+                        <input type="text" class="form-control" name="tracking_number" placeholder="Enter tracking number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Shipping Method</label>
+                        <input type="text" class="form-control" name="shipping_method" placeholder="e.g., Ground, Express, Overnight">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Confirm & Ship
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Shipments - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clock-history"></i> Pending Shipments</h2>
+    <a href="{{ url_for('shipping_routes.list_shipments') }}" class="btn btn-secondary">
+        <i class="bi bi-truck"></i> All Shipments
+    </a>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if stage_filter == 'Pending' %}active{% endif %}" 
+           href="{{ url_for('shipping_routes.list_pending_shipments', stage='Pending') }}">
+            Pending ({{ stage_counts.get('Pending', 0) }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if stage_filter == 'Confirmed' %}active{% endif %}" 
+           href="{{ url_for('shipping_routes.list_pending_shipments', stage='Confirmed') }}">
+            Confirmed ({{ stage_counts.get('Confirmed', 0) }})
+        </a>
+    </li>
+</ul>
+
+<div class="card">
+    <div class="card-body">
+        {% if shipments %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Shipment #</th>
+                        <th>Sales Order / Work Order</th>
+                        <th>Customer</th>
+                        <th>Ship-To Location</th>
+                        <th>Items</th>
+                        <th>Stage</th>
+                        <th>Released By</th>
+                        <th>Released Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in shipments %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('shipping_routes.view_pending_shipment', id=shipment.id) }}">
+                                {{ shipment.shipment_number }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if shipment.so_number %}
+                            <span class="badge bg-primary">SO</span> {{ shipment.so_number }}
+                            {% elif shipment.wo_number %}
+                            <span class="badge bg-info">WO</span> {{ shipment.wo_number }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if shipment.customer_number %}
+                            {{ shipment.customer_number }} - {{ shipment.customer_name }}
+                            {% else %}
+                            {{ shipment.customer_name or '-' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ shipment.ship_to_city }}{% if shipment.ship_to_city and shipment.ship_to_state %}, {% endif %}{{ shipment.ship_to_state }}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ shipment.item_count or 0 }} items</span>
+                        </td>
+                        <td>
+                            {% if shipment.shipment_stage == 'Pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                            {% elif shipment.shipment_stage == 'Confirmed' %}
+                            <span class="badge bg-success">Confirmed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ shipment.shipment_stage }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ shipment.released_by_name or '-' }}</td>
+                        <td>{{ shipment.released_at[:10] if shipment.released_at else '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('shipping_routes.view_pending_shipment', id=shipment.id) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No pending shipments found.
+            {% if stage_filter == 'Pending' %}
+            Sales orders will appear here after being released to shipping.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

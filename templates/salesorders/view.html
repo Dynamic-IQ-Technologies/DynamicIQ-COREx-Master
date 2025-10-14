@@ -19,10 +19,16 @@
                         <i class="bi bi-check2-circle"></i> Confirm Order
                     </button>
                 </form>
-                {% elif sales_order.status in ['Confirmed', 'Pending'] %}
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#shipModal">
-                    <i class="bi bi-truck"></i> Ship Order
-                </button>
+                {% elif sales_order.status == 'Confirmed' %}
+                <form method="POST" action="{{ url_for('salesorder_routes.release_to_shipping', id=sales_order.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Release this order to shipping? This will create a pending shipment for warehouse processing.')">
+                        <i class="bi bi-box-seam"></i> Release to Shipping
+                    </button>
+                </form>
+                {% elif sales_order.status == 'Released to Shipping' %}
+                <a href="{{ url_for('shipping_routes.list_pending_shipments') }}" class="btn btn-info">
+                    <i class="bi bi-clock-history"></i> View in Pending Shipments
+                </a>
                 {% elif sales_order.status == 'Shipped' %}
                 <form method="POST" action="{{ url_for('salesorder_routes.invoice_order', id=sales_order.id) }}" style="display: inline;">
                     <button type="submit" class="btn btn-success">
