@@ -88,18 +88,22 @@ def generate_quote(wo_id):
             
             quote_number = f'QT-{next_number:06d}'
             
-            # Get markup percentage from form
+            # Get markup percentage and additional amounts from form
             markup_percent = float(request.form.get('markup_percent', 0))
+            labor_amount = float(request.form.get('labor_amount', 0))
+            consumables_amount = float(request.form.get('consumables_amount', 0))
+            other_fees_amount = float(request.form.get('other_fees_amount', 0))
             
-            # Create quote header with markup_percent
+            # Create quote header with all fields
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO work_order_quotes (
                     quote_number, work_order_id, customer_name, customer_account,
                     description, scope_of_work, estimated_turnaround_days,
                     assigned_to, department, status, subtotal, tax_rate, tax_amount, 
-                    total_amount, markup_percent, notes, prepared_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    total_amount, markup_percent, labor_amount, consumables_amount, 
+                    other_fees_amount, notes, prepared_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 quote_number,
                 wo_id,
@@ -116,6 +120,9 @@ def generate_quote(wo_id):
                 0,  # tax_amount - will be calculated
                 0,  # total_amount - will be calculated
                 markup_percent,
+                labor_amount,
+                consumables_amount,
+                other_fees_amount,
                 request.form.get('notes', ''),
                 session['user_id']
             ))
@@ -148,16 +155,20 @@ def generate_quote(wo_id):
                     ''', (quote_id, line_type, descriptions[i], quantity, unit_price, line_total, i))
             
             # Calculate tax and total server-side (don't trust client values)
+            # Total = Parts Subtotal + Labor + Consumables + Other Fees + Tax
             tax_rate = float(request.form.get('tax_rate', 0))
-            tax_amount = subtotal * (tax_rate / 100)
-            total_amount = subtotal + tax_amount
+            pre_tax_total = subtotal + labor_amount + consumables_amount + other_fees_amount
+            tax_amount = pre_tax_total * (tax_rate / 100)
+            total_amount = pre_tax_total + tax_amount
             
-            # Update quote with calculated values including markup
+            # Update quote with calculated values
             cursor.execute('''
                 UPDATE work_order_quotes 
-                SET subtotal = ?, tax_rate = ?, tax_amount = ?, total_amount = ?, markup_percent = ?
+                SET subtotal = ?, tax_rate = ?, tax_amount = ?, total_amount = ?, 
+                    markup_percent = ?, labor_amount = ?, consumables_amount = ?, other_fees_amount = ?
                 WHERE id = ?
-            ''', (subtotal, tax_rate, tax_amount, total_amount, markup_percent, quote_id))
+            ''', (subtotal, tax_rate, tax_amount, total_amount, markup_percent, 
+                  labor_amount, consumables_amount, other_fees_amount, quote_id))
             
             # Log activity
             AuditLogger.log_change(
@@ -204,19 +215,11 @@ def generate_quote(wo_id):
         ORDER BY p.code
     ''', (wo_id,)).fetchall()
     
-    # Get labor tasks
-    tasks = conn.execute('''
-        SELECT * FROM work_order_tasks
-        WHERE work_order_id = ?
-        ORDER BY sequence_number
-    ''', (wo_id,)).fetchall()
-    
     conn.close()
     
     return render_template('quotes/generate.html', 
                          work_order=work_order, 
-                         materials=materials,
-                         tasks=tasks)
+                         materials=materials)
 
 @quote_bp.route('/quotes/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
@@ -232,8 +235,11 @@ def edit_quote(id):
             # Delete existing lines and recreate
             conn.execute('DELETE FROM work_order_quote_lines WHERE quote_id = ?', (id,))
             
-            # Get markup percentage from form
+            # Get markup percentage and additional amounts from form
             markup_percent = float(request.form.get('markup_percent', 0))
+            labor_amount = float(request.form.get('labor_amount', 0))
+            consumables_amount = float(request.form.get('consumables_amount', 0))
+            other_fees_amount = float(request.form.get('other_fees_amount', 0))
             
             # Create new lines and calculate totals server-side
             line_types = request.form.getlist('line_type[]')
@@ -262,18 +268,21 @@ def edit_quote(id):
                     ''', (id, line_type, descriptions[i], quantity, unit_price, line_total, i))
             
             # Calculate tax and total server-side (don't trust client values)
+            # Total = Parts Subtotal + Labor + Consumables + Other Fees + Tax
             tax_rate = float(request.form.get('tax_rate', 0))
-            tax_amount = subtotal * (tax_rate / 100)
-            total_amount = subtotal + tax_amount
+            pre_tax_total = subtotal + labor_amount + consumables_amount + other_fees_amount
+            tax_amount = pre_tax_total * (tax_rate / 100)
+            total_amount = pre_tax_total + tax_amount
             
-            # Update quote header with calculated values including markup
+            # Update quote header with calculated values
             conn.execute('''
                 UPDATE work_order_quotes 
                 SET customer_name = ?, customer_account = ?, description = ?,
                     scope_of_work = ?, estimated_turnaround_days = ?,
                     assigned_to = ?, department = ?, subtotal = ?, 
                     tax_rate = ?, tax_amount = ?, total_amount = ?,
-                    markup_percent = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+                    markup_percent = ?, labor_amount = ?, consumables_amount = ?, 
+                    other_fees_amount = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (
                 request.form.get('customer_name', ''),
@@ -288,6 +297,9 @@ def edit_quote(id):
                 tax_amount,
                 total_amount,
                 markup_percent,
+                labor_amount,
+                consumables_amount,
+                other_fees_amount,
                 request.form.get('notes', ''),
                 id
             ))
@@ -487,10 +499,21 @@ def generate_pdf(id):
     
     # Add markup note if applicable
     if quote['markup_percent'] and quote['markup_percent'] > 0:
-        totals_data.append(['', '', '', f"Markup ({quote['markup_percent']}%) Applied:", ''])
+        totals_data.append(['', '', '', f"Markup ({quote['markup_percent']}%) Applied to Parts:", ''])
+    
+    totals_data.append(['', '', '', 'Parts Subtotal:', f"${quote['subtotal']:,.2f}"])
+    
+    # Add labor, consumables, other fees if present
+    if quote['labor_amount'] and quote['labor_amount'] > 0:
+        totals_data.append(['', '', '', 'Labor:', f"${quote['labor_amount']:,.2f}"])
+    
+    if quote['consumables_amount'] and quote['consumables_amount'] > 0:
+        totals_data.append(['', '', '', 'Consumables:', f"${quote['consumables_amount']:,.2f}"])
+    
+    if quote['other_fees_amount'] and quote['other_fees_amount'] > 0:
+        totals_data.append(['', '', '', 'Other Fees:', f"${quote['other_fees_amount']:,.2f}"])
     
     totals_data.extend([
-        ['', '', '', 'Subtotal:', f"${quote['subtotal']:,.2f}"],
         ['', '', '', f"Tax ({quote['tax_rate']}%):", f"${quote['tax_amount']:,.2f}"],
         ['', '', '', 'Total:', f"${quote['total_amount']:,.2f}"],
     ])

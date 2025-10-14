@@ -105,9 +105,27 @@
                             </tr>
                             {% endif %}
                             <tr>
-                                <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                <td colspan="4" class="text-end"><strong>Parts Subtotal:</strong></td>
                                 <td><strong>${{ "%.2f"|format(quote.subtotal) }}</strong></td>
                             </tr>
+                            {% if quote.labor_amount and quote.labor_amount > 0 %}
+                            <tr>
+                                <td colspan="4" class="text-end">Labor:</td>
+                                <td>${{ "%.2f"|format(quote.labor_amount) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if quote.consumables_amount and quote.consumables_amount > 0 %}
+                            <tr>
+                                <td colspan="4" class="text-end">Consumables:</td>
+                                <td>${{ "%.2f"|format(quote.consumables_amount) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if quote.other_fees_amount and quote.other_fees_amount > 0 %}
+                            <tr>
+                                <td colspan="4" class="text-end">Other Fees:</td>
+                                <td>${{ "%.2f"|format(quote.other_fees_amount) }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="4" class="text-end">Tax ({{ quote.tax_rate }}%):</td>
                                 <td>${{ "%.2f"|format(quote.tax_amount) }}</td>
