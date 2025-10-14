@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Work Order Quotes - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Work Order Quotes</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Quote Number</th>
+                        <th>Work Order</th>
+                        <th>Customer</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Created Date</th>
+                        <th>Prepared By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for quote in quotes %}
+                    <tr>
+                        <td><a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}">{{ quote.quote_number }}</a></td>
+                        <td>{{ quote.wo_number }}</td>
+                        <td>{{ quote.customer_name or 'N/A' }}</td>
+                        <td>${{ "%.2f"|format(quote.total_amount) }}</td>
+                        <td>
+                            {% if quote.status == 'Approved' %}
+                            <span class="badge bg-success">{{ quote.status }}</span>
+                            {% elif quote.status == 'Rejected' %}
+                            <span class="badge bg-danger">{{ quote.status }}</span>
+                            {% elif quote.status == 'Submitted' %}
+                            <span class="badge bg-info">{{ quote.status }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ quote.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ quote.created_at[:10] }}</td>
+                        <td>{{ quote.prepared_by_name or 'N/A' }}</td>
+                        <td>
+                            <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('quote_routes.generate_pdf', id=quote.id) }}" class="btn btn-sm btn-danger"><i class="bi bi-file-pdf"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

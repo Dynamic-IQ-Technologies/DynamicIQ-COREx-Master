@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Quote {{ quote.quote_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Quote: {{ quote.quote_number }}</h2>
+    <div>
+        {% if session.role in ['Admin', 'Planner', 'Production Staff'] and quote.status == 'Draft' %}
+        <a href="{{ url_for('quote_routes.edit_quote', id=quote.id) }}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        {% endif %}
+        <a href="{{ url_for('quote_routes.generate_pdf', id=quote.id) }}" class="btn btn-danger">
+            <i class="bi bi-file-pdf"></i> Download PDF
+        </a>
+        <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to WO
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Quote Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Work Order:</strong> {{ quote.wo_number }}</p>
+                        <p><strong>Customer:</strong> {{ quote.customer_name or 'N/A' }}</p>
+                        <p><strong>Account:</strong> {{ quote.customer_account or 'N/A' }}</p>
+                        <p><strong>Status:</strong> 
+                            {% if quote.status == 'Approved' %}
+                            <span class="badge bg-success">{{ quote.status }}</span>
+                            {% elif quote.status == 'Rejected' %}
+                            <span class="badge bg-danger">{{ quote.status }}</span>
+                            {% elif quote.status == 'Submitted' %}
+                            <span class="badge bg-info">{{ quote.status }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ quote.status }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ quote.created_at[:10] }}</p>
+                        <p><strong>Prepared By:</strong> {{ quote.prepared_by_name or 'N/A' }}</p>
+                        <p><strong>Approved By:</strong> {{ quote.approved_by_name or 'N/A' }}</p>
+                        <p><strong>Turnaround:</strong> {{ quote.estimated_turnaround_days or 'N/A' }} days</p>
+                    </div>
+                </div>
+                
+                {% if quote.description %}
+                <hr>
+                <p><strong>Description:</strong> {{ quote.description }}</p>
+                {% endif %}
+                
+                {% if quote.scope_of_work %}
+                <p><strong>Scope of Work:</strong> {{ quote.scope_of_work }}</p>
+                {% endif %}
+                
+                {% if quote.department or quote.assigned_to %}
+                <p>
+                    {% if quote.department %}<strong>Department:</strong> {{ quote.department }}<br>{% endif %}
+                    {% if quote.assigned_to %}<strong>Assigned To:</strong> {{ quote.assigned_to }}{% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Line Items</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in quote_lines %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ line.line_type }}</span></td>
+                                <td>{{ line.description }}</td>
+                                <td>{{ line.quantity }}</td>
+                                <td>${{ "%.2f"|format(line.unit_price) }}</td>
+                                <td>${{ "%.2f"|format(line.line_total) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                <td><strong>${{ "%.2f"|format(quote.subtotal) }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td colspan="4" class="text-end">Tax ({{ quote.tax_rate }}%):</td>
+                                <td>${{ "%.2f"|format(quote.tax_amount) }}</td>
+                            </tr>
+                            <tr class="table-primary">
+                                <td colspan="4" class="text-end"><strong>Total:</strong></td>
+                                <td><strong>${{ "%.2f"|format(quote.total_amount) }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        {% if quote.notes %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Notes</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ quote.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        {% if session.role in ['Admin', 'Planner'] %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Update Status</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('quote_routes.update_quote_status', id=quote.id) }}">
+                    <div class="mb-3">
+                        <select class="form-select" name="status">
+                            <option value="Draft" {% if quote.status == 'Draft' %}selected{% endif %}>Draft</option>
+                            <option value="Submitted" {% if quote.status == 'Submitted' %}selected{% endif %}>Submitted</option>
+                            <option value="Approved" {% if quote.status == 'Approved' %}selected{% endif %}>Approved</option>
+                            <option value="Rejected" {% if quote.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                            <option value="Converted" {% if quote.status == 'Converted' %}selected{% endif %}>Converted to WO</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update Status</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a href="{{ url_for('quote_routes.generate_pdf', id=quote.id) }}" class="btn btn-danger">
+                    <i class="bi bi-file-pdf"></i> Download PDF
+                </a>
+                <a href="{{ url_for('quote_routes.list_quotes') }}" class="btn btn-secondary">
+                    <i class="bi bi-list"></i> All Quotes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
