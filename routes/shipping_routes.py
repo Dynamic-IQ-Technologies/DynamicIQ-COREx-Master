@@ -499,3 +499,216 @@ def dashboard():
                          intransit_shipments=intransit_shipments,
                          recent_receipts=recent_receipts,
                          stats=stats)
+
+@shipping_bp.route('/pending-shipments')
+@login_required
+def list_pending_shipments():
+    """List all pending shipments awaiting confirmation"""
+    db = Database()
+    conn = db.get_connection()
+    
+    stage_filter = request.args.get('stage', 'Pending')
+    
+    # Get pending shipments with related data
+    query = '''
+        SELECT 
+            s.*,
+            u.username as released_by_name,
+            u2.username as confirmed_by_name,
+            so.so_number,
+            wo.wo_number,
+            c.name as customer_name,
+            c.customer_number,
+            COUNT(sol.id) as item_count
+        FROM shipments s
+        LEFT JOIN users u ON s.released_by = u.id
+        LEFT JOIN users u2 ON s.confirmed_by = u2.id
+        LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+        LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
+        LEFT JOIN customers c ON (so.customer_id = c.id OR wo.customer_id = c.id)
+        LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+        WHERE s.shipment_stage = ?
+        GROUP BY s.id
+        ORDER BY s.released_at DESC
+    '''
+    
+    shipments = conn.execute(query, (stage_filter,)).fetchall()
+    
+    # Get stage counts
+    stage_counts = conn.execute('''
+        SELECT shipment_stage, COUNT(*) as count
+        FROM shipments
+        WHERE shipment_stage IS NOT NULL
+        GROUP BY shipment_stage
+    ''').fetchall()
+    
+    counts = {row['shipment_stage']: row['count'] for row in stage_counts}
+    counts['Pending'] = counts.get('Pending', 0)
+    counts['Confirmed'] = counts.get('Confirmed', 0)
+    
+    conn.close()
+    return render_template('shipping/pending_shipments.html', 
+                         shipments=shipments, 
+                         stage_filter=stage_filter,
+                         stage_counts=counts)
+
+@shipping_bp.route('/pending-shipments/<int:id>')
+@login_required
+def view_pending_shipment(id):
+    """View pending shipment details"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get shipment with related data
+    shipment = conn.execute('''
+        SELECT 
+            s.*,
+            u.username as released_by_name,
+            u2.username as confirmed_by_name,
+            so.so_number, so.customer_id, so.status as so_status,
+            wo.wo_number, wo.status as wo_status,
+            c.name as customer_name,
+            c.customer_number,
+            c.email, c.phone
+        FROM shipments s
+        LEFT JOIN users u ON s.released_by = u.id
+        LEFT JOIN users u2 ON s.confirmed_by = u2.id
+        LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+        LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
+        LEFT JOIN customers c ON (so.customer_id = c.id OR wo.customer_id = c.id)
+        WHERE s.id = ?
+    ''', (id,)).fetchone()
+    
+    if not shipment:
+        flash('Pending shipment not found', 'danger')
+        conn.close()
+        return redirect(url_for('shipping_routes.list_pending_shipments'))
+    
+    # Get line items based on reference type
+    if shipment['reference_type'] == 'Sales Order':
+        lines = conn.execute('''
+            SELECT sol.*, p.code, p.name
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ?
+        ''', (shipment['reference_id'],)).fetchall()
+    elif shipment['reference_type'] == 'Work Order':
+        lines = conn.execute('''
+            SELECT p.id as product_id, p.code, p.name, 1 as quantity, 0 as unit_price
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            WHERE wo.id = ?
+        ''', (shipment['reference_id'],)).fetchall()
+    else:
+        lines = []
+    
+    conn.close()
+    return render_template('shipping/view_pending.html', 
+                         shipment=shipment, 
+                         lines=lines)
+
+@shipping_bp.route('/pending-shipments/<int:id>/confirm', methods=['POST'])
+@role_required('Admin', 'Production Staff')
+def confirm_shipment(id):
+    """Confirm and finalize a pending shipment"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get shipment details
+        shipment = conn.execute('''
+            SELECT s.*, so.id as so_id, so.status as so_status
+            FROM shipments s
+            LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+            WHERE s.id = ?
+        ''', (id,)).fetchone()
+        
+        if not shipment:
+            flash('Shipment not found', 'danger')
+            conn.close()
+            return redirect(url_for('shipping_routes.list_pending_shipments'))
+        
+        if shipment['shipment_stage'] != 'Pending':
+            flash('This shipment has already been processed.', 'warning')
+            conn.close()
+            return redirect(url_for('shipping_routes.view_pending_shipment', id=id))
+        
+        # Get form data
+        carrier = request.form.get('carrier', '').strip()
+        tracking_number = request.form.get('tracking_number', '').strip()
+        shipping_method = request.form.get('shipping_method', '').strip()
+        
+        # For Sales Orders, deduct inventory
+        if shipment['reference_type'] == 'Sales Order' and shipment['so_id']:
+            lines = conn.execute('''
+                SELECT * FROM sales_order_lines WHERE so_id = ?
+            ''', (shipment['so_id'],)).fetchall()
+            
+            # Check inventory availability
+            for line in lines:
+                if not line['is_core']:
+                    inventory = conn.execute('''
+                        SELECT quantity FROM inventory WHERE product_id = ?
+                    ''', (line['product_id'],)).fetchone()
+                    
+                    available = inventory['quantity'] if inventory else 0
+                    if available < line['quantity']:
+                        product = conn.execute(
+                            'SELECT code FROM products WHERE id = ?', (line['product_id'],)
+                        ).fetchone()
+                        flash(f'Insufficient inventory for product {product["code"]}. Available: {available}, Required: {line["quantity"]}', 'danger')
+                        conn.close()
+                        return redirect(url_for('shipping_routes.view_pending_shipment', id=id))
+            
+            # Deduct inventory
+            for line in lines:
+                if not line['is_core']:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = quantity - ?
+                        WHERE product_id = ?
+                    ''', (line['quantity'], line['product_id']))
+            
+            # Update Sales Order status to Shipped
+            conn.execute('''
+                UPDATE sales_orders 
+                SET status = 'Shipped', 
+                    actual_ship_date = CURRENT_DATE,
+                    tracking_number = ?,
+                    shipping_method = ?
+                WHERE id = ?
+            ''', (tracking_number, shipping_method, shipment['so_id']))
+        
+        # Update shipment record
+        conn.execute('''
+            UPDATE shipments 
+            SET shipment_stage = 'Confirmed',
+                status = 'Shipped',
+                ship_date = CURRENT_DATE,
+                carrier = ?,
+                tracking_number = ?,
+                shipping_method = ?,
+                confirmed_by = ?,
+                confirmed_at = CURRENT_TIMESTAMP,
+                shipped_by = ?
+            WHERE id = ?
+        ''', (carrier, tracking_number, shipping_method, 
+              session.get('user_id'), session.get('user_id'), id))
+        
+        # Log activity
+        conn.execute('''
+            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        ''', ('shipments', id, 'UPDATE', session.get('user_id'),
+              f'Shipment confirmed and finalized - {shipment["shipment_number"]}'))
+        
+        conn.commit()
+        flash(f'Shipment {shipment["shipment_number"]} confirmed successfully! Inventory deducted and order updated to Shipped status.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred while confirming shipment: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('shipping_routes.list_pending_shipments'))

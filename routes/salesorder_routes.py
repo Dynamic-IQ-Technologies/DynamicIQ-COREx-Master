@@ -539,77 +539,97 @@ def confirm_order(id):
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
-@salesorder_bp.route('/sales-orders/<int:id>/ship', methods=['POST'])
+@salesorder_bp.route('/sales-orders/<int:id>/release-to-shipping', methods=['POST'])
 @role_required('Admin', 'Planner')
-def ship_order(id):
-    """Transition from Confirmed/Pending to Shipped with inventory deduction"""
+def release_to_shipping(id):
+    """Release Sales Order to Pending Shipments"""
     db = Database()
     conn = db.get_connection()
     
     try:
-        # Get sales order details
-        so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        # Get sales order details with customer info
+        so = conn.execute('''
+            SELECT so.*, c.name as customer_name, c.customer_number,
+                   c.email, c.phone, c.address, c.city, c.state, c.postal_code, c.country
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            WHERE so.id = ?
+        ''', (id,)).fetchone()
         
         if not so:
             flash('Sales Order not found', 'danger')
             conn.close()
             return redirect(url_for('salesorder_routes.list_sales_orders'))
         
-        # Support both new workflow (Confirmed) and legacy workflow (Pending)
-        if so['status'] not in ['Confirmed', 'Pending']:
-            flash('Only Confirmed or Pending orders can be shipped.', 'warning')
+        # Only Confirmed orders can be released
+        if so['status'] != 'Confirmed':
+            flash('Only Confirmed orders can be released to shipping.', 'warning')
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
-        # Get line items
-        lines = conn.execute('''
-            SELECT * FROM sales_order_lines WHERE so_id = ?
-        ''', (id,)).fetchall()
+        # Check if already released
+        existing = conn.execute('''
+            SELECT id FROM shipments 
+            WHERE reference_type = 'Sales Order' AND reference_id = ? AND shipment_stage = 'Pending'
+        ''', (id,)).fetchone()
         
-        # Check inventory availability
-        for line in lines:
-            if not line['is_core']:
-                inventory = conn.execute('''
-                    SELECT quantity FROM inventory WHERE product_id = ?
-                ''', (line['product_id'],)).fetchone()
-                
-                available = inventory['quantity'] if inventory else 0
-                if available < line['quantity']:
-                    product = conn.execute(
-                        'SELECT code FROM products WHERE id = ?', (line['product_id'],)
-                    ).fetchone()
-                    flash(f'Insufficient inventory for product {product["code"]}. Available: {available}, Required: {line["quantity"]}', 'danger')
-                    conn.close()
-                    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        if existing:
+            flash('This order has already been released to shipping.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
-        # Deduct inventory
-        for line in lines:
-            if not line['is_core']:
-                conn.execute('''
-                    UPDATE inventory 
-                    SET quantity = quantity - ?
-                    WHERE product_id = ?
-                ''', (line['quantity'], line['product_id']))
+        # Get line items count
+        line_count = conn.execute('''
+            SELECT COUNT(*) as count FROM sales_order_lines WHERE so_id = ?
+        ''', (id,)).fetchone()['count']
         
-        # Update sales order status and tracking info
-        tracking_number = request.form.get('tracking_number', '')
-        shipping_method = request.form.get('shipping_method', '')
+        # Generate shipment number
+        last_shipment = conn.execute(
+            'SELECT shipment_number FROM shipments ORDER BY id DESC LIMIT 1'
+        ).fetchone()
         
+        if last_shipment and last_shipment['shipment_number']:
+            last_num = int(last_shipment['shipment_number'].split('-')[1])
+            shipment_number = f'SHIP-{last_num + 1:05d}'
+        else:
+            shipment_number = 'SHIP-00001'
+        
+        # Create pending shipment record
+        conn.execute('''
+            INSERT INTO shipments (
+                shipment_number, shipment_type, reference_type, reference_id,
+                status, shipment_stage, ship_to_name, ship_to_address, ship_to_city,
+                ship_to_state, ship_to_postal_code, ship_to_country,
+                released_by, released_at, created_by, created_at
+            ) VALUES (?, 'Outbound', 'Sales Order', ?, 'Pending', 'Pending',
+                      ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+        ''', (
+            shipment_number, id,
+            so['customer_name'], so['address'], so['city'],
+            so['state'], so['postal_code'], so['country'],
+            session.get('user_id'), session.get('user_id')
+        ))
+        
+        # Update sales order status to Released to Shipping
         conn.execute('''
             UPDATE sales_orders 
-            SET status = 'Shipped', 
-                actual_ship_date = CURRENT_DATE,
-                tracking_number = ?,
-                shipping_method = ?
+            SET status = 'Released to Shipping'
             WHERE id = ?
-        ''', (tracking_number, shipping_method, id))
+        ''', (id,))
+        
+        # Log activity
+        conn.execute('''
+            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        ''', ('sales_orders', id, 'UPDATE', session.get('user_id'),
+              f'Released to shipping as {shipment_number}'))
         
         conn.commit()
-        flash('Sales Order shipped successfully! Inventory has been deducted.', 'success')
+        flash(f'Sales Order released to Pending Shipments ({shipment_number}). Shipping personnel can now process this shipment.', 'success')
         
     except Exception as e:
         conn.rollback()
-        flash(f'An error occurred while shipping the order: {str(e)}', 'danger')
+        flash(f'An error occurred while releasing to shipping: {str(e)}', 'danger')
     finally:
         conn.close()
     
