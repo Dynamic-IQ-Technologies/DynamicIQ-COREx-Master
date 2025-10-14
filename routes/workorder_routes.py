@@ -219,38 +219,133 @@ def update_workorder_status(id):
     db = Database()
     conn = db.get_connection()
     
-    # Get old record for audit
-    old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+    try:
+        # Get old record for audit
+        old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        new_status = request.form['status']
+        conn.execute('UPDATE work_orders SET status=? WHERE id=?', (new_status, id))
+        
+        if new_status == 'Completed':
+            conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
+            
+            # Get work order details for GL posting
+            wo = conn.execute('''
+                SELECT wo.*, p.name as product_name, p.code as product_code
+                FROM work_orders wo
+                JOIN products p ON wo.product_id = p.id
+                WHERE wo.id = ?
+            ''', (id,)).fetchone()
+            
+            # Calculate total WIP cost (Material + Labor + Overhead)
+            material_cost = wo['material_cost'] or 0
+            labor_cost = wo['labor_cost'] or 0
+            overhead_cost = wo['overhead_cost'] or 0
+            total_wip_cost = material_cost + labor_cost + overhead_cost
+            
+            # Only post GL entry if there are accumulated costs
+            if total_wip_cost > 0:
+                # Create GL entry: Transfer WIP to Finished Goods
+                # DR: Finished Goods Inventory (1150)
+                # CR: WIP - Work in Process (1140)
+                gl_lines = [
+                    {
+                        'account_code': '1150',  # Finished Goods Inventory
+                        'debit': total_wip_cost,
+                        'credit': 0,
+                        'description': f'Completed production - {wo["product_code"]} {wo["product_name"]} ({wo["wo_number"]})'
+                    },
+                    {
+                        'account_code': '1140',  # WIP - Work in Process
+                        'debit': 0,
+                        'credit': total_wip_cost,
+                        'description': f'WIP transferred to FG - {wo["wo_number"]}'
+                    }
+                ]
+                
+                from models import GLAutoPost
+                from datetime import datetime
+                
+                GLAutoPost.create_auto_journal_entry(
+                    conn=conn,
+                    entry_date=datetime.now().strftime('%Y-%m-%d'),
+                    description=f'Work Order Completion - {wo["wo_number"]}',
+                    transaction_source='Work Order Completion',
+                    reference_type='work_order',
+                    reference_id=id,
+                    lines=gl_lines,
+                    created_by=session['user_id']
+                )
+                
+                # Update finished goods inventory
+                inventory = conn.execute('''
+                    SELECT * FROM inventory WHERE product_id = ?
+                ''', (wo['product_id'],)).fetchone()
+                
+                if inventory:
+                    # Update existing inventory
+                    new_quantity = inventory['quantity'] + wo['quantity']
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE product_id = ?
+                    ''', (new_quantity, wo['product_id']))
+                else:
+                    # Create new inventory record
+                    product = conn.execute('''
+                        SELECT unit_of_measure FROM products WHERE id = ?
+                    ''', (wo['product_id'],)).fetchone()
+                    
+                    conn.execute('''
+                        INSERT INTO inventory (product_id, quantity, unit_of_measure, location)
+                        VALUES (?, ?, ?, ?)
+                    ''', (wo['product_id'], wo['quantity'], 
+                          product['unit_of_measure'], 'Finished Goods'))
+                
+                # Update product cost based on actual production cost
+                unit_cost = total_wip_cost / wo['quantity'] if wo['quantity'] > 0 else 0
+                conn.execute('''
+                    UPDATE products 
+                    SET cost = ?
+                    WHERE id = ?
+                ''', (unit_cost, wo['product_id']))
+                
+                flash(f'Work Order completed! Transferred ${total_wip_cost:,.2f} from WIP to Finished Goods.', 'success')
+            else:
+                flash(f'Work Order status updated to {new_status}!', 'success')
+                
+        elif new_status == 'In Progress':
+            conn.execute('UPDATE work_orders SET actual_start_date=CURRENT_DATE WHERE id=?', (id,))
+            flash(f'Work Order status updated to {new_status}!', 'success')
+        else:
+            flash(f'Work Order status updated to {new_status}!', 'success')
+        
+        # Get new record for audit
+        new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        # Log audit trail
+        changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='work_order',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating work order: {str(e)}', 'danger')
+    finally:
+        conn.close()
     
-    new_status = request.form['status']
-    conn.execute('UPDATE work_orders SET status=? WHERE id=?', (new_status, id))
-    
-    if new_status == 'Completed':
-        conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
-    elif new_status == 'In Progress':
-        conn.execute('UPDATE work_orders SET actual_start_date=CURRENT_DATE WHERE id=?', (id,))
-    
-    # Get new record for audit
-    new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
-    
-    # Log audit trail
-    changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
-    if changes:
-        AuditLogger.log_change(
-            conn=conn,
-            record_type='work_order',
-            record_id=id,
-            action_type='Updated',
-            modified_by=session.get('user_id'),
-            changed_fields=changes,
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent')
-        )
-    
-    conn.commit()
-    conn.close()
-    
-    flash(f'Work Order status updated to {new_status}!', 'success')
     return redirect(url_for('workorder_routes.view_workorder', id=id))
 
 @workorder_bp.route('/workorders/<int:wo_id>/materials/add', methods=['POST'])
