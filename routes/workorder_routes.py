@@ -68,12 +68,13 @@ def create_workorder():
                 
                 conn.execute('''
                     INSERT INTO work_orders 
-                    (wo_number, product_id, quantity, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     wo_number,
                     int(request.form['product_id']),
                     float(request.form['quantity']),
+                    request.form.get('disposition', 'Manufacture'),
                     request.form['status'],
                     request.form.get('priority', 'Medium'),
                     request.form.get('planned_start_date'),

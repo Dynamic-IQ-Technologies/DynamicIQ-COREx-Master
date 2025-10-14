@@ -27,13 +27,25 @@
             </div>
 
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="quantity" class="form-label">Quantity *</label>
                         <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" required>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="disposition" class="form-label">Disposition *</label>
+                        <select class="form-select" id="disposition" name="disposition" required>
+                            <option value="Manufacture" selected>Manufacture</option>
+                            <option value="Repair">Repair</option>
+                            <option value="Overhaul">Overhaul</option>
+                            <option value="Teardown">Teardown</option>
+                            <option value="Inspect">Inspect</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="status" class="form-label">Status *</label>
                         <select class="form-select" id="status" name="status" required>
@@ -44,7 +56,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="priority" class="form-label">Priority</label>
                         <select class="form-select" id="priority" name="priority">

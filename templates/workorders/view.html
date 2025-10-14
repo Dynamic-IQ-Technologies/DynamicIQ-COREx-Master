@@ -26,6 +26,7 @@
                     <div class="col-md-6">
                         <p><strong>Product:</strong> {{ workorder.code }} - {{ workorder.name }}</p>
                         <p><strong>Quantity:</strong> {{ workorder.quantity }} {{ workorder.unit_of_measure }}</p>
+                        <p><strong>Disposition:</strong> <span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></p>
                         <p><strong>Status:</strong> <span class="badge bg-info">{{ workorder.status }}</span></p>
                         <p><strong>Priority:</strong> {{ workorder.priority }}</p>
                     </div>

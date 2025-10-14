@@ -19,10 +19,10 @@
                         <th>WO Number</th>
                         <th>Product</th>
                         <th>Quantity</th>
+                        <th>Disposition</th>
                         <th>Status</th>
                         <th>Priority</th>
                         <th>Planned Start</th>
-                        <th>Planned End</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -32,6 +32,7 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                         <td>{{ wo.code }} - {{ wo.name }}</td>
                         <td>{{ wo.quantity }}</td>
+                        <td><span class="badge bg-primary">{{ wo.disposition or 'Manufacture' }}</span></td>
                         <td>
                             {% if wo.status == 'Completed' %}
                             <span class="badge bg-success">{{ wo.status }}</span>
@@ -43,7 +44,6 @@
                         </td>
                         <td>{{ wo.priority }}</td>
                         <td>{{ wo.planned_start_date }}</td>
-                        <td>{{ wo.planned_end_date }}</td>
                         <td>
                             <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
                         </td>

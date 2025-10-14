@@ -19,7 +19,7 @@ The backend is developed with Flask using Blueprints and a SQLite database (`mrp
 **Key Modules and Features:**
 -   **Products & BOM**: Manages product data, multi-level BOMs with revision control, cost tracking, and interactive views.
 -   **Inventory**: Tracks stock levels, supports serialized products with unique serial number tracking, and allows manual adjustments.
--   **Work Orders**: Manages production orders, status tracking, cost allocation, and integrated task/labor planning.
+-   **Work Orders**: Manages production orders with disposition types (Manufacture, Repair, Overhaul, Teardown, Inspect), status tracking, cost allocation, and integrated task/labor planning. **WIP → Finished Goods Transfer**: Automatic GL posting when work orders complete, transferring accumulated costs (Material + Labor + Overhead) from WIP (1140) to Finished Goods Inventory (1150), with inventory quantity updates and product cost recalculation.
 -   **Purchase Orders**: Supports multi-line procurement, supplier relationships, dynamic line item management, partial/full receiving, and secure edit capabilities with audit trails.
 -   **Material Management**: Comprehensive systems for Receiving, Issuance, and Returns, all with automatic GL posting.
 -   **Suppliers & UOM**: Manages supplier information and a centralized Unit of Measure master.
@@ -32,7 +32,7 @@ The backend is developed with Flask using Blueprints and a SQLite database (`mrp
 
 -   **Inventory Management**: Real-time stock level tracking, low stock alerts, and automatic updates.
 -   **Reporting System**: Provides various reports including inventory valuation, work order cost analysis, material requirements, material usage, and active labor.
--   **Accounting System**: Features a Chart of Accounts (COA), General Ledger (GL), Manual Journal Entries, and automatic GL posting for inventory transactions. It includes financial reports (Trial Balance, Balance Sheet, Income Statement) and an Accounts Payable (A/P) module with automated vendor invoice creation, aging reports, and an Executive Accounting Dashboard providing real-time financial KPIs and interactive visualizations. Access is role-based, primarily for Admin and Accountant roles.
+-   **Accounting System**: Features a Chart of Accounts (COA), General Ledger (GL), Manual Journal Entries, and automatic GL posting for inventory transactions. It includes financial reports (Trial Balance, Balance Sheet, Income Statement) and an Accounts Payable (A/P) module with automated vendor invoice creation, payment tracking with GL posting, aging reports, and an Executive Accounting Dashboard providing real-time financial KPIs and interactive visualizations. **Manufacturing Cost Flow**: Automated GL entries for Material Receiving (DR: Inventory, CR: A/P), Work Order Completion (DR: Finished Goods, CR: WIP), and A/P Payments (DR: A/P, CR: Cash). Access is role-based, primarily for Admin and Accountant roles.
 
 ## External Dependencies
 
