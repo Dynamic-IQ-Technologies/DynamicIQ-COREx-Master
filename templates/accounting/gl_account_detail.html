@@ -121,7 +121,10 @@
                 <thead class="table-light">
                     <tr>
                         <th>
-                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=entry_date').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                            <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code, 
+                                               start_date=filters.start_date, end_date=filters.end_date, 
+                                               transaction_type=filters.transaction_type, search_ref=filters.search_ref,
+                                               sort_by='entry_date', sort_dir='ASC' if filters.sort_by == 'entry_date' and filters.sort_dir == 'DESC' else 'DESC') }}">
                                 Date 
                                 {% if filters.sort_by == 'entry_date' %}
                                     <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
@@ -129,7 +132,10 @@
                             </a>
                         </th>
                         <th>
-                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=entry_number').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                            <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code, 
+                                               start_date=filters.start_date, end_date=filters.end_date, 
+                                               transaction_type=filters.transaction_type, search_ref=filters.search_ref,
+                                               sort_by='entry_number', sort_dir='ASC' if filters.sort_by == 'entry_number' and filters.sort_dir == 'DESC' else 'DESC') }}">
                                 Entry #
                                 {% if filters.sort_by == 'entry_number' %}
                                     <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
@@ -137,7 +143,10 @@
                             </a>
                         </th>
                         <th>
-                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=transaction_source').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                            <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code, 
+                                               start_date=filters.start_date, end_date=filters.end_date, 
+                                               transaction_type=filters.transaction_type, search_ref=filters.search_ref,
+                                               sort_by='transaction_source', sort_dir='ASC' if filters.sort_by == 'transaction_source' and filters.sort_dir == 'DESC' else 'DESC') }}">
                                 Type
                                 {% if filters.sort_by == 'transaction_source' %}
                                     <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
@@ -147,7 +156,10 @@
                         <th>Reference</th>
                         <th>Description</th>
                         <th class="text-end">
-                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=debit').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                            <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code, 
+                                               start_date=filters.start_date, end_date=filters.end_date, 
+                                               transaction_type=filters.transaction_type, search_ref=filters.search_ref,
+                                               sort_by='debit', sort_dir='ASC' if filters.sort_by == 'debit' and filters.sort_dir == 'DESC' else 'DESC') }}">
                                 Debit
                                 {% if filters.sort_by == 'debit' %}
                                     <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
@@ -155,7 +167,10 @@
                             </a>
                         </th>
                         <th class="text-end">
-                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=credit').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                            <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code, 
+                                               start_date=filters.start_date, end_date=filters.end_date, 
+                                               transaction_type=filters.transaction_type, search_ref=filters.search_ref,
+                                               sort_by='credit', sort_dir='ASC' if filters.sort_by == 'credit' and filters.sort_dir == 'DESC' else 'DESC') }}">
                                 Credit
                                 {% if filters.sort_by == 'credit' %}
                                     <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>

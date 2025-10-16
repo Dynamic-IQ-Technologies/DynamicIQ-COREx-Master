@@ -235,6 +235,10 @@ def gl_account_detail(account_code):
     sort_by = request.args.get('sort_by', 'entry_date')
     sort_dir = request.args.get('sort_dir', 'DESC')
     
+    # Validate sort_dir to prevent SQL injection
+    if sort_dir not in ['ASC', 'DESC']:
+        sort_dir = 'DESC'
+    
     # Build query for transactions
     query = '''
         SELECT 
@@ -278,10 +282,17 @@ def gl_account_detail(account_code):
         search_pattern = f'%{search_ref}%'
         params.extend([search_pattern, search_pattern, search_pattern])
     
-    # Add sorting
-    valid_sort_columns = ['entry_date', 'entry_number', 'debit', 'credit', 'transaction_source']
+    # Add sorting with proper table aliases
+    valid_sort_columns = {
+        'entry_date': 'ge.entry_date',
+        'entry_number': 'ge.entry_number',
+        'debit': 'gel.debit',
+        'credit': 'gel.credit',
+        'transaction_source': 'ge.transaction_source'
+    }
+    
     if sort_by in valid_sort_columns:
-        query += f' ORDER BY ge.{sort_by} {sort_dir}, gel.id {sort_dir}'
+        query += f' ORDER BY {valid_sort_columns[sort_by]} {sort_dir}, gel.id {sort_dir}'
     else:
         query += ' ORDER BY ge.entry_date DESC, gel.id DESC'
     
