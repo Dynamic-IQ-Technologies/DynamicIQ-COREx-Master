@@ -69,20 +69,21 @@
                 <table class="table table-bordered" id="lineItemsTable">
                     <thead class="table-light">
                         <tr>
-                            <th width="5%">#</th>
-                            <th width="30%">Product *</th>
-                            <th width="15%">UOM *</th>
-                            <th width="15%">Quantity *</th>
-                            <th width="15%">Unit Price *</th>
-                            <th width="15%">Total</th>
-                            <th width="5%">Action</th>
+                            <th width="4%">#</th>
+                            <th width="25%">Product *</th>
+                            <th width="12%">UOM *</th>
+                            <th width="12%">Quantity *</th>
+                            <th width="15%">Base Qty (Base UOM)</th>
+                            <th width="12%">Unit Price *</th>
+                            <th width="12%">Total</th>
+                            <th width="4%">Action</th>
                         </tr>
                     </thead>
                     <tbody id="lineItemsBody">
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="5" class="text-end"><strong>Grand Total:</strong></td>
+                            <td colspan="6" class="text-end"><strong>Grand Total:</strong></td>
                             <td colspan="2"><strong id="grandTotal">$0.00</strong></td>
                         </tr>
                     </tfoot>
@@ -111,19 +112,25 @@ function addLine() {
     row.innerHTML = `
         <td>${lineCounter}</td>
         <td>
-            <select class="form-select form-select-sm" name="lines[${lineCounter}][product_id]" required>
+            <select class="form-select form-select-sm line-product" name="lines[${lineCounter}][product_id]" required data-line="${lineCounter}">
                 <option value="">Select Product</option>
                 ${products.map(p => `<option value="${p.id}">${p.code} - ${p.name}</option>`).join('')}
             </select>
         </td>
         <td>
-            <select class="form-select form-select-sm" name="lines[${lineCounter}][uom_id]" required>
+            <select class="form-select form-select-sm line-uom" name="lines[${lineCounter}][uom_id]" required data-line="${lineCounter}">
                 <option value="">Select UOM</option>
                 ${uoms.map(u => `<option value="${u.id}">${u.uom_code} - ${u.uom_name}</option>`).join('')}
             </select>
         </td>
         <td>
             <input type="number" step="0.01" class="form-control form-control-sm line-qty" name="lines[${lineCounter}][quantity]" required min="0.01" data-line="${lineCounter}">
+        </td>
+        <td>
+            <div class="text-primary small" id="conversion-${lineCounter}">
+                <strong><span id="base-qty-${lineCounter}">-</span></strong>
+                <div class="text-muted" style="font-size: 0.75rem;" id="base-uom-${lineCounter}">-</div>
+            </div>
         </td>
         <td>
             <input type="number" step="0.01" class="form-control form-control-sm line-price" name="lines[${lineCounter}][unit_price]" required min="0" data-line="${lineCounter}">
@@ -140,9 +147,85 @@ function addLine() {
     
     tbody.appendChild(row);
     
-    // Add event listeners for calculation
-    row.querySelector('.line-qty').addEventListener('input', calculateLineTotal);
+    // Add event listeners for calculation and conversion
+    row.querySelector('.line-product').addEventListener('change', handleProductChange);
+    row.querySelector('.line-uom').addEventListener('change', handleUOMChange);
+    row.querySelector('.line-qty').addEventListener('input', handleQuantityChange);
     row.querySelector('.line-price').addEventListener('input', calculateLineTotal);
+}
+
+async function handleProductChange(e) {
+    const lineNum = e.target.dataset.line;
+    const productId = e.target.value;
+    
+    if (!productId) return;
+    
+    // Fetch product-specific UOM conversions
+    try {
+        const response = await fetch(`/api/product-uom-conversions/${productId}`);
+        const uomList = await response.json();
+        
+        const uomSelect = document.querySelector(`select[data-line="${lineNum}"].line-uom`);
+        uomSelect.innerHTML = '<option value="">Select UOM</option>';
+        uomList.forEach(uom => {
+            const option = document.createElement('option');
+            option.value = uom.uom_id;
+            option.textContent = `${uom.uom_code} - ${uom.uom_name}`;
+            if (uom.is_purchase_uom) {
+                option.textContent += ' (Purchase UOM)';
+                option.selected = true;
+            }
+            uomSelect.appendChild(option);
+        });
+        
+        // Trigger UOM change to calculate conversion
+        if (uomSelect.value) {
+            handleUOMChange({ target: uomSelect });
+        }
+    } catch (error) {
+        console.error('Error fetching UOM conversions:', error);
+    }
+}
+
+async function handleUOMChange(e) {
+    const lineNum = e.target.dataset.line;
+    await calculateConversion(lineNum);
+}
+
+async function handleQuantityChange(e) {
+    const lineNum = e.target.dataset.line;
+    calculateLineTotal(e);
+    await calculateConversion(lineNum);
+}
+
+async function calculateConversion(lineNum) {
+    const row = document.getElementById(`line-${lineNum}`);
+    const productId = row.querySelector('.line-product').value;
+    const uomId = row.querySelector('.line-uom').value;
+    const quantity = parseFloat(row.querySelector('.line-qty').value) || 0;
+    
+    if (!productId || !uomId || quantity === 0) {
+        document.getElementById(`base-qty-${lineNum}`).textContent = '-';
+        document.getElementById(`base-uom-${lineNum}`).textContent = '-';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/calculate-conversion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_id: productId, uom_id: uomId, quantity: quantity })
+        });
+        
+        const data = await response.json();
+        
+        if (data.base_quantity !== undefined) {
+            document.getElementById(`base-qty-${lineNum}`).textContent = data.base_quantity.toFixed(2);
+            document.getElementById(`base-uom-${lineNum}`).textContent = `(${data.base_uom_code || 'Base UOM'})`;
+        }
+    } catch (error) {
+        console.error('Error calculating conversion:', error);
+    }
 }
 
 function removeLine(lineNum) {
