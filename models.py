@@ -337,6 +337,24 @@ class Database:
                 except sqlite3.OperationalError:
                     pass
         
+        # Add UOM conversion tracking to purchase_order_lines
+        cursor.execute("PRAGMA table_info(purchase_order_lines)")
+        pol_columns = [col[1] for col in cursor.fetchall()]
+        
+        pol_conversion_columns = [
+            ('base_quantity', 'REAL DEFAULT 0'),
+            ('base_uom_id', 'INTEGER'),
+            ('conversion_factor_used', 'REAL DEFAULT 1.0'),
+            ('base_received_quantity', 'REAL DEFAULT 0')
+        ]
+        
+        for col_name, col_type in pol_conversion_columns:
+            if col_name not in pol_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE purchase_order_lines ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
         # Add cost tracking to material_returns
         cursor.execute("PRAGMA table_info(material_returns)")
         mr_columns = [col[1] for col in cursor.fetchall()]
