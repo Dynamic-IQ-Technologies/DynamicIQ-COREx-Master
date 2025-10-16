@@ -175,7 +175,11 @@
                                 <p class="text-muted mb-1">{{ line.description }}</p>
                                 {% endif %}
                                 {% if line.serial_number %}
-                                <p class="mb-1"><strong>Serial #:</strong> {{ line.serial_number }}</p>
+                                <p class="mb-1">
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-hash"></i> S/N: {{ line.serial_number }}
+                                    </span>
+                                </p>
                                 {% endif %}
                                 {% if line.line_notes %}
                                 <p class="mb-1"><i class="bi bi-chat-left-text"></i> {{ line.line_notes }}</p>

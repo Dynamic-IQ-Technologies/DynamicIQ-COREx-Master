@@ -827,13 +827,20 @@ def allocate_line(line_id):
         
         # Log activity
         from models import AuditTrail
+        changed_fields = {
+            'allocated_quantity': allocated_qty, 
+            'allocation_status': allocation_status
+        }
+        if serial_number:
+            changed_fields['serial_number'] = serial_number
+        
         AuditTrail.log_change(
             conn=conn,
             record_type='sales_order_lines',
             record_id=line_id,
             action_type='UPDATE',
             modified_by=session.get('user_id'),
-            changed_fields={'allocated_quantity': allocated_qty, 'allocation_status': allocation_status}
+            changed_fields=changed_fields
         )
         
         conn.commit()
