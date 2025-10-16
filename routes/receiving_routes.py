@@ -60,13 +60,17 @@ def create_receiving():
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
             
-            # Get PO Line details with PO header and product info
+            # Get PO Line details with PO header, product, and UOM conversion info
             po_line = conn.execute('''
                 SELECT pol.*, po.po_number, po.supplier_id, po.order_date,
-                       p.name as product_name, p.code as product_code
+                       p.name as product_name, p.code as product_code,
+                       uom.uom_code as order_uom_code, uom.uom_name as order_uom_name,
+                       base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name
                 FROM purchase_order_lines pol
                 JOIN purchase_orders po ON pol.po_id = po.id
                 JOIN products p ON pol.product_id = p.id
+                LEFT JOIN uom_master uom ON pol.uom_id = uom.id
+                LEFT JOIN uom_master base_uom ON pol.base_uom_id = base_uom.id
                 WHERE pol.id = ?
             ''', (po_line_id,)).fetchone()
             
@@ -173,13 +177,17 @@ def create_receiving():
             if all_lines_received == 0:
                 conn.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', ('Received', po_id))
             
-            # Update inventory
+            # Calculate base quantity for inventory using conversion factor
+            conversion_factor = po_line['conversion_factor_used'] if po_line['conversion_factor_used'] else 1.0
+            base_quantity_received = quantity_received * conversion_factor
+            
+            # Update inventory with base quantity
             inventory = conn.execute('''
                 SELECT * FROM inventory WHERE product_id = ?
             ''', (product_id,)).fetchone()
             
             if inventory:
-                new_qty = inventory['quantity'] + quantity_received
+                new_qty = inventory['quantity'] + base_quantity_received
                 conn.execute('''
                     UPDATE inventory 
                     SET quantity = ?,
@@ -188,12 +196,21 @@ def create_receiving():
                     WHERE product_id = ?
                 ''', (new_qty, receipt_date, product_id))
             else:
-                # Create inventory record with location info
+                # Create inventory record with location info using base quantity
                 conn.execute('''
                     INSERT INTO inventory 
                     (product_id, quantity, condition, warehouse_location, bin_location, last_received_date, status)
                     VALUES (?, ?, ?, ?, ?, ?, 'Available')
-                ''', (product_id, quantity_received, condition, warehouse, bin_location, receipt_date))
+                ''', (product_id, base_quantity_received, condition, warehouse, bin_location, receipt_date))
+            
+            # Update base received quantity on PO line
+            base_received_so_far = po_line['base_received_quantity'] if po_line['base_received_quantity'] else 0
+            new_base_received = base_received_so_far + base_quantity_received
+            conn.execute('''
+                UPDATE purchase_order_lines 
+                SET base_received_quantity = ?
+                WHERE id = ?
+            ''', (new_base_received, po_line_id))
             
             # Auto-post GL entry for receiving
             # Debit: Inventory (increase asset)
