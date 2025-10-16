@@ -618,11 +618,15 @@ def release_to_shipping(id):
         ''', (id,))
         
         # Log activity
-        conn.execute('''
-            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-        ''', ('sales_orders', id, 'UPDATE', session.get('user_id'),
-              f'Released to shipping as {shipment_number}'))
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='sales_orders',
+            record_id=id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'status': 'Released to Shipping', 'shipment_number': shipment_number}
+        )
         
         conn.commit()
         flash(f'Sales Order released to Pending Shipments ({shipment_number}). Shipping personnel can now process this shipment.', 'success')
@@ -796,11 +800,15 @@ def allocate_line(line_id):
         ''', (allocation_status, line_id))
         
         # Log activity
-        conn.execute('''
-            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-        ''', ('sales_order_lines', line_id, 'UPDATE', session.get('user_id'),
-              f'Allocated {allocated_qty} units - Status: {allocation_status}'))
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='sales_order_lines',
+            record_id=line_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'allocated_quantity': allocated_qty, 'allocation_status': allocation_status}
+        )
         
         conn.commit()
         
@@ -861,11 +869,15 @@ def release_line_to_shipping(line_id):
         ''', (session.get('user_id'), session.get('user_id'), line_id))
         
         # Log activity
-        conn.execute('''
-            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-        ''', ('sales_order_lines', line_id, 'UPDATE', session.get('user_id'),
-              f'Released to shipping - Line {line["line_number"]} ({line["code"]})'))
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='sales_order_lines',
+            record_id=line_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'line_status': 'Released to Shipping', 'released_to_shipping_at': 'CURRENT_TIMESTAMP'}
+        )
         
         # Check if all lines are released - if so, update SO status
         remaining_lines = conn.execute('''
@@ -950,11 +962,15 @@ def allocate_all_lines(id):
             ''', (allocated_qty, allocation_status, allocation_status, session.get('user_id'), line['id']))
         
         # Log activity
-        conn.execute('''
-            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-        ''', ('sales_orders', id, 'UPDATE', session.get('user_id'),
-              f'Bulk allocation: {allocated_count} allocated, {partial_count} partial, {backorder_count} backordered'))
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='sales_orders',
+            record_id=id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'bulk_allocation': f'{allocated_count} allocated, {partial_count} partial, {backorder_count} backordered'}
+        )
         
         conn.commit()
         

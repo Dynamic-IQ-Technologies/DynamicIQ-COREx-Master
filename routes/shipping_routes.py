@@ -696,11 +696,15 @@ def confirm_shipment(id):
               session.get('user_id'), session.get('user_id'), id))
         
         # Log activity
-        conn.execute('''
-            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-        ''', ('shipments', id, 'UPDATE', session.get('user_id'),
-              f'Shipment confirmed and finalized - {shipment["shipment_number"]}'))
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='shipments',
+            record_id=id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'shipment_stage': 'Confirmed', 'status': 'Shipped'}
+        )
         
         conn.commit()
         flash(f'Shipment {shipment["shipment_number"]} confirmed successfully! Inventory deducted and order updated to Shipped status.', 'success')
