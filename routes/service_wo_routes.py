@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import Database
-from decorators import login_required, role_required
+from auth import login_required, role_required
 from datetime import datetime
 
 service_wo_bp = Blueprint('service_wo_routes', __name__)
@@ -575,6 +575,40 @@ def delete_expense(id, expense_id):
         flash(f'Error deleting expense entry: {str(e)}', 'danger')
     
     return redirect(url_for('service_wo_routes.view_service_work_order', id=id))
+
+@service_wo_bp.route('/api/labor-resources')
+@login_required
+def api_labor_resources():
+    """API endpoint to get active employees for labor modals"""
+    db = Database()
+    conn = db.get_connection()
+    employees = conn.execute('''
+        SELECT id, employee_code, first_name, last_name, hourly_rate
+        FROM labor_resources
+        WHERE status = 'Active'
+        ORDER BY last_name, first_name
+    ''').fetchall()
+    conn.close()
+    
+    from flask import jsonify
+    return jsonify([dict(emp) for emp in employees])
+
+@service_wo_bp.route('/api/products')
+@login_required
+def api_products():
+    """API endpoint to get products for material modals"""
+    db = Database()
+    conn = db.get_connection()
+    products = conn.execute('''
+        SELECT id, code, name
+        FROM products
+        WHERE status = 'Active'
+        ORDER BY code
+    ''').fetchall()
+    conn.close()
+    
+    from flask import jsonify
+    return jsonify([dict(product) for product in products])
 
 @service_wo_bp.route('/service-work-orders/<int:id>/generate-invoice', methods=['POST'])
 @role_required('Admin', 'Planner')

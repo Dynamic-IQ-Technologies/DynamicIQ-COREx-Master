@@ -369,6 +369,16 @@
             {% endif %}
         </ul>
         
+        <div class="sidebar-section-title">Service Management</div>
+        <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('service_wo_routes.list_service_work_orders') }}">
+                    <i class="bi bi-wrench-adjustable"></i>
+                    <span>Service Work Orders</span>
+                </a>
+            </li>
+        </ul>
+        
         {% if session.role in ['Admin', 'Accountant'] %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('accounting')">
             <span>Accounting</span>

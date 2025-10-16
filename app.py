@@ -33,6 +33,7 @@ from routes.clock_station_routes import clock_station_bp
 from routes.shipping_routes import shipping_bp
 from routes.invoice_routes import invoice_bp
 from routes.quote_routes import quote_bp
+from routes.service_wo_routes import service_wo_bp
 import os
 
 app = Flask(__name__)
@@ -71,6 +72,7 @@ app.register_blueprint(clock_station_bp)
 app.register_blueprint(shipping_bp)
 app.register_blueprint(invoice_bp)
 app.register_blueprint(quote_bp)
+app.register_blueprint(service_wo_bp)
 
 @app.context_processor
 def inject_user():

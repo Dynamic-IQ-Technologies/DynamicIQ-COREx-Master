@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}New Service Work Order - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="mb-4">
+        <h2><i class="bi bi-wrench-adjustable"></i> New Service Work Order</h2>
+    </div>
+
+    <form method="POST">
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>Service Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Service Type <span class="text-danger">*</span></label>
+                            <select name="service_type" class="form-select" required>
+                                <option value="">Select Type</option>
+                                <option value="Service">Service</option>
+                                <option value="NDT">NDT (Non-Destructive Testing)</option>
+                                <option value="Repair">Repair</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Inspection">Inspection</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Priority</label>
+                            <select name="priority" class="form-select">
+                                <option value="Low">Low</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Due Date</label>
+                            <input type="date" name="due_date" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Assigned To</label>
+                            <select name="assigned_to" class="form-select">
+                                <option value="">Unassigned</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.first_name }} {{ emp.last_name }} ({{ emp.employee_code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <input type="text" name="location" class="form-control" placeholder="Service location">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>Customer Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Customer</label>
+                            <select name="customer_id" class="form-select">
+                                <option value="">Select Customer</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.customer_number }} - {{ customer.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>Equipment Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Equipment Description</label>
+                            <textarea name="equipment_description" class="form-control" rows="2" 
+                                      placeholder="Description of equipment to be serviced"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Equipment Serial Number</label>
+                            <input type="text" name="equipment_serial" class="form-control" placeholder="Serial number">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Equipment Model</label>
+                            <input type="text" name="equipment_model" class="form-control" placeholder="Model number">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>Service Description</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="4" 
+                                      placeholder="Describe the service work to be performed"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mb-4">
+            <a href="{{ url_for('service_wo_routes.list_service_work_orders') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle"></i> Create Service Work Order
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

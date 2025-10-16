@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Service Work Order {{ swo.swo_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-wrench-adjustable"></i> Service Work Order: {{ swo.swo_number }}</h2>
+        <div>
+            <a href="{{ url_for('service_wo_routes.list_service_work_orders') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </a>
+            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+            <a href="{{ url_for('service_wo_routes.edit_service_work_order', id=swo.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status and Summary Row -->
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <small class="text-muted">Service Type</small>
+                            <p class="mb-0">
+                                <span class="badge {% if swo.service_type == 'NDT' %}bg-info{% else %}bg-secondary{% endif %} fs-6">
+                                    {{ swo.service_type }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">Status</small>
+                            <p class="mb-0">
+                                <span class="badge 
+                                    {% if swo.status == 'Open' %}bg-secondary
+                                    {% elif swo.status == 'In Progress' %}bg-primary
+                                    {% elif swo.status == 'Completed' %}bg-success
+                                    {% else %}bg-dark{% endif %} fs-6">
+                                    {{ swo.status }}
+                                </span>
+                                {% if swo.invoiced %}
+                                <span class="badge bg-info fs-6">Invoiced</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">Priority</small>
+                            <p class="mb-0">
+                                <span class="badge 
+                                    {% if swo.priority == 'High' %}bg-danger
+                                    {% elif swo.priority == 'Medium' %}bg-warning
+                                    {% else %}bg-success{% endif %} fs-6">
+                                    {{ swo.priority }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">Due Date</small>
+                            <p class="mb-0"><strong>{{ swo.due_date or 'Not set' }}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <small>Total Cost</small>
+                    <h2 class="mb-0">${{ "{:,.2f}".format(swo.total_cost) }}</h2>
+                    <small>Labor: ${{ "{:,.2f}".format(swo.labor_subtotal) }} | Materials: ${{ "{:,.2f}".format(swo.materials_subtotal) }} | Expenses: ${{ "{:,.2f}".format(swo.expenses_subtotal) }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-6">
+            <!-- Customer Information -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-person"></i> Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if swo.customer_number %}
+                    <p class="mb-1"><strong>Customer:</strong> {{ swo.customer_number }} - {{ swo.customer_company }}</p>
+                    {% if swo.contact_person %}
+                    <p class="mb-1"><strong>Contact:</strong> {{ swo.contact_person }}</p>
+                    {% endif %}
+                    {% if swo.customer_email %}
+                    <p class="mb-1"><strong>Email:</strong> {{ swo.customer_email }}</p>
+                    {% endif %}
+                    {% if swo.customer_phone %}
+                    <p class="mb-1"><strong>Phone:</strong> {{ swo.customer_phone }}</p>
+                    {% endif %}
+                    {% if swo.billing_address %}
+                    <p class="mb-0"><strong>Address:</strong> {{ swo.billing_address }}</p>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted">No customer assigned</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Equipment Details -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-gear"></i> Equipment Details</h5>
+                </div>
+                <div class="card-body">
+                    {% if swo.equipment_description %}
+                    <p class="mb-1"><strong>Description:</strong> {{ swo.equipment_description }}</p>
+                    {% endif %}
+                    {% if swo.equipment_serial %}
+                    <p class="mb-1"><strong>Serial Number:</strong> {{ swo.equipment_serial }}</p>
+                    {% endif %}
+                    {% if swo.equipment_model %}
+                    <p class="mb-1"><strong>Model:</strong> {{ swo.equipment_model }}</p>
+                    {% endif %}
+                    {% if swo.location %}
+                    <p class="mb-0"><strong>Location:</strong> {{ swo.location }}</p>
+                    {% endif %}
+                    {% if not swo.equipment_description and not swo.equipment_serial and not swo.equipment_model %}
+                    <p class="text-muted">No equipment details provided</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-file-text"></i> Service Description</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">{{ swo.description or 'No description provided' }}</p>
+                    {% if swo.service_notes %}
+                    <hr>
+                    <strong>Notes:</strong>
+                    <p class="mb-0">{{ swo.service_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-6">
+            <!-- Assignment & Status -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-clipboard-check"></i> Assignment & Status</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Assigned To:</strong> {{ swo.assigned_name or 'Unassigned' }}</p>
+                    <p class="mb-1"><strong>Created:</strong> {{ swo.created_at }}</p>
+                    {% if swo.completed_at %}
+                    <p class="mb-1"><strong>Completed:</strong> {{ swo.completed_at }}</p>
+                    {% endif %}
+                    {% if swo.approved_at %}
+                    <p class="mb-0"><strong>Approved:</strong> {{ swo.approved_at }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Status Update Form -->
+            {% if session.role in ['Admin', 'Planner', 'Production Staff'] and not swo.invoiced %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-arrow-repeat"></i> Update Status</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('service_wo_routes.update_status', id=swo.id) }}">
+                        <div class="row g-2">
+                            <div class="col-md-8">
+                                <select name="status" class="form-select">
+                                    <option value="Open" {% if swo.status == 'Open' %}selected{% endif %}>Open</option>
+                                    <option value="In Progress" {% if swo.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Completed" {% if swo.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                    <option value="Cancelled" {% if swo.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100">Update</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Approval & Invoicing -->
+            {% if session.role in ['Admin', 'Planner'] %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-file-earmark-check"></i> Approval & Invoicing</h5>
+                </div>
+                <div class="card-body">
+                    {% if swo.invoiced %}
+                        <p class="text-success mb-0">
+                            <i class="bi bi-check-circle-fill"></i> This service work order has been invoiced.
+                            {% if swo.invoice_id %}
+                            <a href="{{ url_for('invoice_routes.view_invoice', id=swo.invoice_id) }}">View Invoice</a>
+                            {% endif %}
+                        </p>
+                    {% elif swo.approved_at %}
+                        <p class="text-success mb-2"><i class="bi bi-check-circle-fill"></i> Approved on {{ swo.approved_at }}</p>
+                        <form method="POST" action="{{ url_for('service_wo_routes.generate_invoice', id=swo.id) }}">
+                            <button type="submit" class="btn btn-success" onclick="return confirm('Generate invoice for this service work order?')">
+                                <i class="bi bi-file-earmark-text"></i> Generate Invoice
+                            </button>
+                        </form>
+                    {% elif swo.status == 'Completed' %}
+                        <p class="mb-2">Service work order is completed. Click below to approve for invoicing.</p>
+                        <form method="POST" action="{{ url_for('service_wo_routes.approve_service_work_order', id=swo.id) }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Approve for Invoicing
+                            </button>
+                        </form>
+                    {% else %}
+                        <p class="text-muted mb-0">Complete and approve this work order to generate an invoice.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Labor Entries -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="bi bi-clock-history"></i> Labor Entries</h5>
+            {% if session.role in ['Admin', 'Planner', 'Production Staff'] and not swo.invoiced %}
+            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addLaborModal">
+                <i class="bi bi-plus-circle"></i> Add Labor
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if labor_entries %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Employee</th>
+                            <th>Labor Type</th>
+                            <th>Hours</th>
+                            <th>Rate</th>
+                            <th>Cost</th>
+                            <th>Description</th>
+                            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                            <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for labor in labor_entries %}
+                        <tr>
+                            <td>{{ labor.work_date }}</td>
+                            <td>{{ labor.employee_name }}<br><small class="text-muted">{{ labor.employee_code }}</small></td>
+                            <td><span class="badge {% if labor.labor_type == 'NDT' %}bg-info{% elif labor.labor_type == 'Overtime' %}bg-warning{% else %}bg-secondary{% endif %}">{{ labor.labor_type }}</span></td>
+                            <td>{{ labor.hours_worked }}</td>
+                            <td>${{ "{:,.2f}".format(labor.hourly_rate) }}/hr</td>
+                            <td><strong>${{ "{:,.2f}".format(labor.labor_cost) }}</strong></td>
+                            <td>{{ labor.description or '-' }}</td>
+                            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                            <td>
+                                <form method="POST" action="{{ url_for('service_wo_routes.delete_labor', id=swo.id, labor_id=labor.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this labor entry?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-primary">
+                            <td colspan="5" class="text-end"><strong>Labor Subtotal:</strong></td>
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}3{% else %}2{% endif %}"><strong>${{ "{:,.2f}".format(swo.labor_subtotal) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center mb-0">No labor entries recorded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Materials -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="bi bi-box"></i> Materials</h5>
+            {% if session.role in ['Admin', 'Planner', 'Production Staff'] and not swo.invoiced %}
+            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+                <i class="bi bi-plus-circle"></i> Add Material
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if materials %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total Cost</th>
+                            <th>Inventory</th>
+                            <th>Description</th>
+                            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                            <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for material in materials %}
+                        <tr>
+                            <td>{{ material.product_code }}<br><small class="text-muted">{{ material.product_name }}</small></td>
+                            <td>{{ material.quantity }}</td>
+                            <td>${{ "{:,.2f}".format(material.unit_price) }}</td>
+                            <td><strong>${{ "{:,.2f}".format(material.total_cost) }}</strong></td>
+                            <td>
+                                {% if material.allocated_from_inventory %}
+                                <span class="badge bg-success">Allocated</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Manual</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ material.description or '-' }}</td>
+                            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                            <td>
+                                <form method="POST" action="{{ url_for('service_wo_routes.delete_material', id=swo.id, material_id=material.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this material?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-primary">
+                            <td colspan="3" class="text-end"><strong>Materials Subtotal:</strong></td>
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}4{% else %}3{% endif %}"><strong>${{ "{:,.2f}".format(swo.materials_subtotal) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center mb-0">No materials recorded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Expenses -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="bi bi-receipt"></i> Other Expenses</h5>
+            {% if session.role in ['Admin', 'Planner', 'Production Staff'] and not swo.invoiced %}
+            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+                <i class="bi bi-plus-circle"></i> Add Expense
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if expenses %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Vendor</th>
+                            <th>Reference</th>
+                            <th>Amount</th>
+                            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                            <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expense in expenses %}
+                        <tr>
+                            <td>{{ expense.expense_date }}</td>
+                            <td><span class="badge bg-secondary">{{ expense.expense_type }}</span></td>
+                            <td>{{ expense.description or '-' }}</td>
+                            <td>{{ expense.vendor_name or '-' }}</td>
+                            <td>{{ expense.receipt_reference or '-' }}</td>
+                            <td><strong>${{ "{:,.2f}".format(expense.amount) }}</strong></td>
+                            {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                            <td>
+                                <form method="POST" action="{{ url_for('service_wo_routes.delete_expense', id=swo.id, expense_id=expense.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this expense?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-primary">
+                            <td colspan="5" class="text-end"><strong>Expenses Subtotal:</strong></td>
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}2{% else %}1{% endif %}"><strong>${{ "{:,.2f}".format(swo.expenses_subtotal) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center mb-0">No expenses recorded</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Labor Modal -->
+{% if session.role in ['Admin', 'Planner', 'Production Staff'] and not swo.invoiced %}
+<div class="modal fade" id="addLaborModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('service_wo_routes.add_labor', id=swo.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Labor Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Employee <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-select" required>
+                            <option value="">Select Employee</option>
+                            {% for emp in [{'id': 1, 'employee_code': 'EMP001', 'first_name': 'John', 'last_name': 'Doe'}] %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Labor Type <span class="text-danger">*</span></label>
+                        <select name="labor_type" class="form-select" required>
+                            <option value="Regular">Regular</option>
+                            <option value="Overtime">Overtime (1.5x)</option>
+                            <option value="NDT">NDT (1.3x)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hours Worked <span class="text-danger">*</span></label>
+                        <input type="number" name="hours_worked" class="form-control" step="0.25" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Work Date</label>
+                        <input type="date" name="work_date" class="form-control" value="{{ swo.created_at[:10] }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Labor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Material Modal -->
+<div class="modal fade" id="addMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('service_wo_routes.add_material', id=swo.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Material</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Product <span class="text-danger">*</span></label>
+                        <select name="product_id" class="form-select" required>
+                            <option value="">Select Product</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Unit Price <span class="text-danger">*</span></label>
+                        <input type="number" name="unit_price" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="allocate_inventory" class="form-check-input" id="allocateInventory">
+                            <label class="form-check-label" for="allocateInventory">
+                                Allocate from Inventory (deduct stock)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('service_wo_routes.add_expense', id=swo.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Expense</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Expense Type <span class="text-danger">*</span></label>
+                        <select name="expense_type" class="form-select" required>
+                            <option value="Travel">Travel</option>
+                            <option value="Subcontractor">Subcontractor</option>
+                            <option value="Consumables">Consumables</option>
+                            <option value="Equipment Rental">Equipment Rental</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vendor Name</label>
+                        <input type="text" name="vendor_name" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Receipt/Reference #</label>
+                        <input type="text" name="receipt_reference" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Expense Date</label>
+                        <input type="date" name="expense_date" class="form-control" value="{{ swo.created_at[:10] }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Fetch employees for labor modal
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/labor-resources')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.querySelector('#addLaborModal select[name="employee_id"]');
+            data.forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.id;
+                option.textContent = `${emp.first_name} ${emp.last_name} (${emp.employee_code}) - $${emp.hourly_rate}/hr`;
+                select.appendChild(option);
+            });
+        });
+    
+    // Fetch products for material modal
+    fetch('/api/products')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.querySelector('#addMaterialModal select[name="product_id"]');
+            data.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = `${product.code} - ${product.name}`;
+                select.appendChild(option);
+            });
+        });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Service Work Orders - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-wrench-adjustable"></i> Service Work Orders</h2>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('service_wo_routes.create_service_work_order') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New Service Work Order
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open</option>
+                        <option value="In Progress" {% if status_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Invoiced" {% if status_filter == 'Invoiced' %}selected{% endif %}>Invoiced</option>
+                        <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Service Type</label>
+                    <select name="service_type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="Service" {% if service_type_filter == 'Service' %}selected{% endif %}>Service</option>
+                        <option value="NDT" {% if service_type_filter == 'NDT' %}selected{% endif %}>NDT</option>
+                        <option value="Repair" {% if service_type_filter == 'Repair' %}selected{% endif %}>Repair</option>
+                        <option value="Maintenance" {% if service_type_filter == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                        <option value="Inspection" {% if service_type_filter == 'Inspection' %}selected{% endif %}>Inspection</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                    <a href="{{ url_for('service_wo_routes.list_service_work_orders') }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Service Work Orders Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if service_work_orders %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>SWO Number</th>
+                            <th>Service Type</th>
+                            <th>Customer</th>
+                            <th>Equipment</th>
+                            <th>Assigned To</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Total Cost</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for swo in service_work_orders %}
+                        <tr>
+                            <td><a href="{{ url_for('service_wo_routes.view_service_work_order', id=swo.id) }}">{{ swo.swo_number }}</a></td>
+                            <td>
+                                <span class="badge {% if swo.service_type == 'NDT' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ swo.service_type }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if swo.customer_number %}
+                                    {{ swo.customer_number }}<br>
+                                    <small class="text-muted">{{ swo.customer_company }}</small>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if swo.equipment_description %}
+                                    {{ swo.equipment_description[:30] }}{% if swo.equipment_description|length > 30 %}...{% endif %}
+                                    {% if swo.equipment_serial %}
+                                        <br><small class="text-muted">S/N: {{ swo.equipment_serial }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ swo.assigned_name or '-' }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if swo.priority == 'High' %}bg-danger
+                                    {% elif swo.priority == 'Medium' %}bg-warning
+                                    {% else %}bg-success{% endif %}">
+                                    {{ swo.priority }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if swo.status == 'Open' %}bg-secondary
+                                    {% elif swo.status == 'In Progress' %}bg-primary
+                                    {% elif swo.status == 'Completed' %}bg-success
+                                    {% elif swo.invoiced %}bg-info
+                                    {% else %}bg-dark{% endif %}">
+                                    {% if swo.invoiced %}Invoiced{% else %}{{ swo.status }}{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ swo.due_date or '-' }}</td>
+                            <td>${{ "{:,.2f}".format(swo.total_cost) }}</td>
+                            <td>
+                                <a href="{{ url_for('service_wo_routes.view_service_work_order', id=swo.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
+                                <a href="{{ url_for('service_wo_routes.edit_service_work_order', id=swo.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center">No service work orders found. 
+                {% if session.role in ['Admin', 'Planner'] %}
+                <a href="{{ url_for('service_wo_routes.create_service_work_order') }}">Create one now</a>.
+                {% endif %}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
