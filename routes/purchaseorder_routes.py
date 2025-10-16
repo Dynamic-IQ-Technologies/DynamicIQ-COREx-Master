@@ -6,6 +6,59 @@ from datetime import datetime
 
 po_bp = Blueprint('po_routes', __name__)
 
+# UOM Conversion Helper Functions
+def get_product_uom_conversion(conn, product_id, uom_id):
+    """
+    Get the conversion factor for a specific product-UOM combination.
+    Returns: (conversion_factor, base_uom_id, base_uom_code) or (None, None, None) if not found
+    """
+    # First check if there's a product-specific conversion
+    product_conversion = conn.execute('''
+        SELECT puc.conversion_factor, puc.is_base_uom, u.id as uom_id, u.uom_code,
+               bu.id as base_uom_id, bu.uom_code as base_uom_code
+        FROM product_uom_conversions puc
+        JOIN uom_master u ON puc.uom_id = u.id
+        LEFT JOIN uom_master bu ON u.base_uom_id = bu.id
+        WHERE puc.product_id = ? AND puc.uom_id = ?
+    ''', (product_id, uom_id)).fetchone()
+    
+    if product_conversion:
+        if product_conversion['is_base_uom']:
+            # This is the base UOM for the product
+            return (1.0, product_conversion['uom_id'], product_conversion['uom_code'])
+        else:
+            # Use product-specific conversion factor
+            base_uom_id = product_conversion['base_uom_id'] if product_conversion['base_uom_id'] else product_conversion['uom_id']
+            base_uom_code = product_conversion['base_uom_code'] if product_conversion['base_uom_code'] else product_conversion['uom_code']
+            return (product_conversion['conversion_factor'], base_uom_id, base_uom_code)
+    
+    # Fall back to standard UOM conversion if no product-specific conversion exists
+    uom_info = conn.execute('''
+        SELECT u.id, u.uom_code, u.conversion_factor, u.base_uom_id,
+               bu.id as base_id, bu.uom_code as base_code
+        FROM uom_master u
+        LEFT JOIN uom_master bu ON u.base_uom_id = bu.id
+        WHERE u.id = ?
+    ''', (uom_id,)).fetchone()
+    
+    if uom_info:
+        if uom_info['base_uom_id']:
+            return (uom_info['conversion_factor'], uom_info['base_id'], uom_info['base_code'])
+        else:
+            # This UOM is itself a base unit
+            return (1.0, uom_info['id'], uom_info['uom_code'])
+    
+    return (None, None, None)
+
+def calculate_base_quantity(order_quantity, conversion_factor):
+    """
+    Calculate base quantity from order quantity and conversion factor.
+    Formula: base_quantity = order_quantity * conversion_factor
+    """
+    if conversion_factor is None or conversion_factor == 0:
+        return order_quantity
+    return order_quantity * conversion_factor
+
 @po_bp.route('/purchaseorders')
 @login_required
 def list_purchaseorders():
@@ -92,19 +145,40 @@ def create_purchaseorder():
                 
                 po_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
                 
-                # Insert line items
+                # Insert line items with UOM conversion
                 for line_num, line_data in sorted(lines.items()):
+                    product_id = int(line_data['product_id'])
+                    quantity = float(line_data['quantity'])
+                    unit_price = float(line_data['unit_price'])
+                    uom_id = int(line_data['uom_id']) if line_data.get('uom_id') else None
+                    
+                    # Calculate base quantity and get conversion info
+                    base_quantity = quantity
+                    base_uom_id = uom_id
+                    conversion_factor = 1.0
+                    
+                    if uom_id:
+                        conv_factor, base_uom, base_code = get_product_uom_conversion(conn, product_id, uom_id)
+                        if conv_factor is not None:
+                            conversion_factor = conv_factor
+                            base_uom_id = base_uom
+                            base_quantity = calculate_base_quantity(quantity, conversion_factor)
+                    
                     conn.execute('''
                         INSERT INTO purchase_order_lines
-                        (po_id, line_number, product_id, quantity, unit_price, uom_id)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        (po_id, line_number, product_id, quantity, unit_price, uom_id,
+                         base_quantity, base_uom_id, conversion_factor_used)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         po_id,
                         int(line_num),
-                        int(line_data['product_id']),
-                        float(line_data['quantity']),
-                        float(line_data['unit_price']),
-                        int(line_data['uom_id']) if line_data.get('uom_id') else None
+                        product_id,
+                        quantity,
+                        unit_price,
+                        uom_id,
+                        base_quantity,
+                        base_uom_id,
+                        conversion_factor
                     ))
                 
                 # Log audit trail
