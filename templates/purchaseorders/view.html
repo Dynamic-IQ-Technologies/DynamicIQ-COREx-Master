@@ -111,6 +111,7 @@
                         <th>Product Name</th>
                         <th>UOM</th>
                         <th>Quantity</th>
+                        <th>Base Qty (Base UOM)</th>
                         <th>Received</th>
                         <th>Unit Price</th>
                         <th>Line Total</th>
@@ -129,6 +130,14 @@
                         <td>{{ line.product_name }}</td>
                         <td>{{ line.uom_code or line.unit_of_measure }}</td>
                         <td>{{ "%.2f"|format(line_qty) if line_qty != line_qty|int else line_qty|int }}</td>
+                        <td>
+                            {% if line.base_quantity %}
+                            <span class="text-primary">{{ "%.2f"|format(line.base_quantity) if line.base_quantity != line.base_quantity|int else line.base_quantity|int }}</span>
+                            <div class="text-muted small">({{ line.base_uom_code or 'Base UOM' }})</div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if line.received_quantity and line.received_quantity > 0 %}
                             <span class="badge bg-success">{{ "%.2f"|format(line.received_quantity) if line.received_quantity != line.received_quantity|int else line.received_quantity|int }}</span>
@@ -151,7 +160,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="table-light">
-                        <td colspan="7" class="text-end"><strong>Total Order Value:</strong></td>
+                        <td colspan="8" class="text-end"><strong>Total Order Value:</strong></td>
                         <td colspan="2" class="fw-bold text-primary">${{ "%.2f"|format(ns.total) }}</td>
                     </tr>
                 </tfoot>

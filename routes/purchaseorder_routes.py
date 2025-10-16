@@ -263,14 +263,16 @@ def view_purchaseorder(id):
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
-    # Get line items with product and UOM info
+    # Get line items with product, UOM, and base UOM info
     lines = conn.execute('''
         SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure,
                uom.uom_code, uom.uom_name,
+               base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name,
                i.quantity as inventory_quantity
         FROM purchase_order_lines pol
         JOIN products p ON pol.product_id = p.id
         LEFT JOIN uom_master uom ON pol.uom_id = uom.id
+        LEFT JOIN uom_master base_uom ON pol.base_uom_id = base_uom.id
         LEFT JOIN inventory i ON i.product_id = p.id
         WHERE pol.po_id = ?
         ORDER BY pol.line_number
