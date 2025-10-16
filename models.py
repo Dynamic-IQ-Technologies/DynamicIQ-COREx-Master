@@ -974,6 +974,11 @@ class Database:
             'vendor_repair_source': "ALTER TABLE sales_order_lines ADD COLUMN vendor_repair_source TEXT",
             'repair_status': "ALTER TABLE sales_order_lines ADD COLUMN repair_status TEXT",
             'return_to_address': "ALTER TABLE sales_order_lines ADD COLUMN return_to_address TEXT",
+            # Inventory allocation fields
+            'allocated_quantity': "ALTER TABLE sales_order_lines ADD COLUMN allocated_quantity REAL DEFAULT 0",
+            'allocation_status': "ALTER TABLE sales_order_lines ADD COLUMN allocation_status TEXT DEFAULT 'Pending'",
+            'released_to_shipping_at': "ALTER TABLE sales_order_lines ADD COLUMN released_to_shipping_at TIMESTAMP",
+            'shipped_quantity': "ALTER TABLE sales_order_lines ADD COLUMN shipped_quantity REAL DEFAULT 0",
             # Audit trail fields
             'created_by': "ALTER TABLE sales_order_lines ADD COLUMN created_by INTEGER",
             'modified_by': "ALTER TABLE sales_order_lines ADD COLUMN modified_by INTEGER",
