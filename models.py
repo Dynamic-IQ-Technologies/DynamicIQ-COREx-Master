@@ -945,6 +945,97 @@ class Database:
             )
         ''')
         
+        # Create Service Work Orders tables for service management
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS service_work_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                swo_number TEXT UNIQUE NOT NULL,
+                service_type TEXT NOT NULL,
+                customer_id INTEGER,
+                customer_name TEXT,
+                equipment_description TEXT,
+                equipment_serial TEXT,
+                equipment_model TEXT,
+                priority TEXT DEFAULT 'Medium',
+                status TEXT DEFAULT 'Open',
+                due_date DATE,
+                assigned_to INTEGER,
+                location TEXT,
+                description TEXT,
+                service_notes TEXT,
+                labor_subtotal REAL DEFAULT 0,
+                materials_subtotal REAL DEFAULT 0,
+                expenses_subtotal REAL DEFAULT 0,
+                total_cost REAL DEFAULT 0,
+                invoiced INTEGER DEFAULT 0,
+                invoice_id INTEGER,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_by INTEGER,
+                modified_at TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id),
+                FOREIGN KEY (assigned_to) REFERENCES labor_resources(id),
+                FOREIGN KEY (invoice_id) REFERENCES invoices(id)
+            )
+        ''')
+        
+        # Create service work order labor tracking table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS service_wo_labor (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                swo_id INTEGER NOT NULL,
+                employee_id INTEGER NOT NULL,
+                labor_type TEXT NOT NULL,
+                hours_worked REAL NOT NULL,
+                hourly_rate REAL NOT NULL,
+                labor_cost REAL NOT NULL,
+                work_date DATE,
+                description TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (swo_id) REFERENCES service_work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (employee_id) REFERENCES labor_resources(id)
+            )
+        ''')
+        
+        # Create service work order materials tracking table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS service_wo_materials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                swo_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity REAL NOT NULL,
+                unit_price REAL NOT NULL,
+                total_cost REAL NOT NULL,
+                allocated_from_inventory INTEGER DEFAULT 0,
+                description TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (swo_id) REFERENCES service_work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
+        # Create service work order expenses tracking table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS service_wo_expenses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                swo_id INTEGER NOT NULL,
+                expense_type TEXT NOT NULL,
+                description TEXT,
+                amount REAL NOT NULL,
+                vendor_name TEXT,
+                receipt_reference TEXT,
+                expense_date DATE,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (swo_id) REFERENCES service_work_orders(id) ON DELETE CASCADE
+            )
+        ''')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         
