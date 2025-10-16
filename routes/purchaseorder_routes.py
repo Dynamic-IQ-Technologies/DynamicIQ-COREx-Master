@@ -400,12 +400,26 @@ def edit_purchaseorder(id):
                     if quantity < received_qty:
                         raise ValueError(f'Line {line_num}: Ordered quantity ({quantity}) cannot be less than received quantity ({received_qty})')
                     
-                    # Update existing line
+                    # Calculate base quantity and conversion info for update
+                    base_quantity = quantity
+                    base_uom_id = uom_id
+                    conversion_factor = 1.0
+                    
+                    if uom_id:
+                        conv_factor, base_uom, base_code = get_product_uom_conversion(conn, product_id, uom_id)
+                        if conv_factor is not None:
+                            conversion_factor = conv_factor
+                            base_uom_id = base_uom
+                            base_quantity = calculate_base_quantity(quantity, conversion_factor)
+                    
+                    # Update existing line with conversion info
                     conn.execute('''
                         UPDATE purchase_order_lines
-                        SET line_number = ?, product_id = ?, uom_id = ?, quantity = ?, unit_price = ?
+                        SET line_number = ?, product_id = ?, uom_id = ?, quantity = ?, unit_price = ?,
+                            base_quantity = ?, base_uom_id = ?, conversion_factor_used = ?
                         WHERE id = ?
-                    ''', (int(line_num), product_id, uom_id, quantity, unit_price, line_id))
+                    ''', (int(line_num), product_id, uom_id, quantity, unit_price, 
+                          base_quantity, base_uom_id, conversion_factor, line_id))
                     
                     new_lines_data.append({
                         'id': line_id,
@@ -416,12 +430,26 @@ def edit_purchaseorder(id):
                         'received_quantity': received_qty
                     })
                 else:
-                    # New line - INSERT it
+                    # Calculate base quantity and conversion info for new line
+                    base_quantity = quantity
+                    base_uom_id = uom_id
+                    conversion_factor = 1.0
+                    
+                    if uom_id:
+                        conv_factor, base_uom, base_code = get_product_uom_conversion(conn, product_id, uom_id)
+                        if conv_factor is not None:
+                            conversion_factor = conv_factor
+                            base_uom_id = base_uom
+                            base_quantity = calculate_base_quantity(quantity, conversion_factor)
+                    
+                    # New line - INSERT it with conversion info
                     cursor = conn.execute('''
                         INSERT INTO purchase_order_lines 
-                        (po_id, line_number, product_id, uom_id, quantity, unit_price, received_quantity)
-                        VALUES (?, ?, ?, ?, ?, ?, 0)
-                    ''', (id, int(line_num), product_id, uom_id, quantity, unit_price))
+                        (po_id, line_number, product_id, uom_id, quantity, unit_price, received_quantity,
+                         base_quantity, base_uom_id, conversion_factor_used)
+                        VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                    ''', (id, int(line_num), product_id, uom_id, quantity, unit_price,
+                          base_quantity, base_uom_id, conversion_factor))
                     
                     new_line_id = cursor.lastrowid
                     submitted_line_ids.add(new_line_id)
@@ -746,3 +774,81 @@ def purchase_suggestions():
     return render_template('purchaseorders/suggestions.html', 
                          suggestions=suggestions,
                          suppliers=suppliers)
+
+@po_bp.route('/api/product-uom-conversions/<int:product_id>')
+@login_required
+def api_product_uom_conversions(product_id):
+    """API endpoint to get available UOM conversions for a specific product"""
+    from flask import jsonify
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get product-specific UOM conversions
+    product_uoms = conn.execute('''
+        SELECT puc.*, u.uom_code, u.uom_name, u.uom_type,
+               bu.id as base_uom_id, bu.uom_code as base_uom_code, bu.uom_name as base_uom_name
+        FROM product_uom_conversions puc
+        JOIN uom_master u ON puc.uom_id = u.id
+        LEFT JOIN uom_master bu ON u.base_uom_id = bu.id
+        WHERE puc.product_id = ? AND u.is_active = 1
+        ORDER BY puc.is_purchase_uom DESC, u.uom_code
+    ''', (product_id,)).fetchall()
+    
+    # If no product-specific UOMs, get all active UOMs
+    if not product_uoms:
+        all_uoms = conn.execute('''
+            SELECT u.id as uom_id, u.uom_code, u.uom_name, u.uom_type, u.conversion_factor,
+                   u.base_uom_id, bu.uom_code as base_uom_code, bu.uom_name as base_uom_name,
+                   0 as is_base_uom, 0 as is_purchase_uom, 0 as is_issue_uom
+            FROM uom_master u
+            LEFT JOIN uom_master bu ON u.base_uom_id = bu.id
+            WHERE u.is_active = 1
+            ORDER BY u.uom_type, u.uom_code
+        ''').fetchall()
+        
+        conn.close()
+        return jsonify([dict(row) for row in all_uoms])
+    
+    conn.close()
+    return jsonify([dict(row) for row in product_uoms])
+
+@po_bp.route('/api/calculate-conversion', methods=['POST'])
+@login_required
+def api_calculate_conversion():
+    """API endpoint to calculate base quantity from order quantity and UOM"""
+    from flask import jsonify
+    
+    data = request.get_json()
+    product_id = data.get('product_id')
+    uom_id = data.get('uom_id')
+    quantity = float(data.get('quantity', 0))
+    
+    if not product_id or not uom_id:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conv_factor, base_uom_id, base_uom_code = get_product_uom_conversion(conn, product_id, uom_id)
+        
+        if conv_factor is None:
+            conn.close()
+            return jsonify({'error': 'No conversion found'}), 404
+        
+        base_quantity = calculate_base_quantity(quantity, conv_factor)
+        
+        conn.close()
+        
+        return jsonify({
+            'conversion_factor': conv_factor,
+            'base_uom_id': base_uom_id,
+            'base_uom_code': base_uom_code,
+            'base_quantity': round(base_quantity, 4),
+            'order_quantity': quantity
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
