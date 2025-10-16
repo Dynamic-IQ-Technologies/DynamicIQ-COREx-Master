@@ -753,19 +753,43 @@ def allocate_line(line_id):
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
         
-        # Get available inventory
+        # Get available inventory with serialization info
         inventory = conn.execute('''
-            SELECT quantity FROM inventory WHERE product_id = ?
+            SELECT i.*, p.is_serialized 
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.product_id = ?
         ''', (line['product_id'],)).fetchone()
         
         available_qty = inventory['quantity'] if inventory else 0
         requested_qty = line['quantity']
+        serial_number = None
+        
+        # For serialized products, get the serial number
+        if inventory and inventory['is_serialized']:
+            serial_number = inventory['serial_number']
+            
+            # Check if this serial number is already allocated to another sales order line
+            existing_allocation = conn.execute('''
+                SELECT sol.id, so.so_number, sol.line_number
+                FROM sales_order_lines sol
+                JOIN sales_orders so ON sol.so_id = so.id
+                WHERE sol.serial_number = ? 
+                AND sol.id != ?
+                AND sol.allocation_status IN ('Allocated', 'Partially Allocated')
+            ''', (serial_number, line_id)).fetchone()
+            
+            if existing_allocation:
+                flash(f'Serial number {serial_number} is already allocated to SO {existing_allocation["so_number"]}, Line {existing_allocation["line_number"]}. Please deallocate it first.', 'danger')
+                conn.close()
+                return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
         
         # Determine allocation status and quantity
         if available_qty >= requested_qty:
             allocated_qty = requested_qty
             allocation_status = 'Allocated'
-            flash(f'Successfully allocated {allocated_qty} units of {line["code"]} to line {line["line_number"]}', 'success')
+            serial_msg = f' (S/N: {serial_number})' if serial_number else ''
+            flash(f'Successfully allocated {allocated_qty} units of {line["code"]} to line {line["line_number"]}{serial_msg}', 'success')
         elif available_qty > 0:
             allocated_qty = available_qty
             allocation_status = 'Partially Allocated'
@@ -775,12 +799,13 @@ def allocate_line(line_id):
             allocation_status = 'Backordered'
             flash(f'No inventory available for {line["code"]}. Line is backordered.', 'warning')
         
-        # Update line with allocation
+        # Update line with allocation including serial number
         conn.execute('''
             UPDATE sales_order_lines
             SET allocated_quantity = ?,
                 allocation_status = ?,
                 allocation_notes = ?,
+                serial_number = ?,
                 modified_by = ?,
                 modified_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -788,6 +813,7 @@ def allocate_line(line_id):
             allocated_qty,
             allocation_status,
             f'Allocated from available inventory: {available_qty} units',
+            serial_number,
             session.get('user_id'),
             line_id
         ))
