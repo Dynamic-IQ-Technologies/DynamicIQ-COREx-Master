@@ -52,8 +52,15 @@
                             {% endif %}
                         </td>
                         <td>
+                            <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code) }}" 
+                               class="btn btn-sm btn-outline-info me-1" title="View Transactions">
+                                <i class="bi bi-list-ul"></i> Details
+                            </a>
                             {% if session.role == 'Admin' %}
-                            <a href="{{ url_for('accounting_routes.edit_account', id=account.id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                            <a href="{{ url_for('accounting_routes.edit_account', id=account.id) }}" 
+                               class="btn btn-sm btn-warning" title="Edit Account">
+                                <i class="bi bi-pencil"></i>
+                            </a>
                             {% endif %}
                         </td>
                     </tr>

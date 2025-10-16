@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}GL Account Detail - {{ account.account_code }} {{ account.account_name }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>GL Account Detail</h2>
+        <p class="text-muted mb-0">
+            <strong>{{ account.account_code }}</strong> - {{ account.account_name }}
+            <span class="badge bg-secondary ms-2">{{ account.account_type }}</span>
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('journal_routes.export_gl_account_detail', account_code=account.account_code, 
+                            start_date=filters.start_date, end_date=filters.end_date, 
+                            transaction_type=filters.transaction_type, search_ref=filters.search_ref) }}" 
+           class="btn btn-success me-2">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+        <a href="{{ url_for('accounting_routes.chart_of_accounts') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to COA
+        </a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Debits</h6>
+                <h4 class="card-title text-primary">${{ "{:,.2f}".format(summary.total_debits) }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Credits</h6>
+                <h4 class="card-title text-warning">${{ "{:,.2f}".format(summary.total_credits) }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Net Change</h6>
+                <h4 class="card-title {% if summary.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    ${{ "{:,.2f}".format(summary.net_change) }}
+                </h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Transactions</h6>
+                <h4 class="card-title text-info">{{ summary.transaction_count }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-funnel"></i> Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code) }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ filters.start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ filters.end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Transaction Type</label>
+                    <select class="form-select" name="transaction_type">
+                        <option value="">All Types</option>
+                        {% for source in transaction_sources %}
+                        <option value="{{ source.transaction_source }}" 
+                                {% if filters.transaction_type == source.transaction_source %}selected{% endif %}>
+                            {{ source.transaction_source }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Search Reference</label>
+                    <input type="text" class="form-control" name="search_ref" 
+                           value="{{ filters.search_ref }}" placeholder="Entry #, Description...">
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('journal_routes.gl_account_detail', account_code=account.account_code) }}" 
+                   class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Transaction Details</h5>
+    </div>
+    <div class="card-body">
+        {% if transactions %}
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>
+                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=entry_date').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                                Date 
+                                {% if filters.sort_by == 'entry_date' %}
+                                    <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=entry_number').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                                Entry #
+                                {% if filters.sort_by == 'entry_number' %}
+                                    <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=transaction_source').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                                Type
+                                {% if filters.sort_by == 'transaction_source' %}
+                                    <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                        <th class="text-end">
+                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=debit').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                                Debit
+                                {% if filters.sort_by == 'debit' %}
+                                    <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th class="text-end">
+                            <a href="?{{ request.query_string.decode().replace('sort_by=' + filters.sort_by, 'sort_by=credit').replace('sort_dir=' + filters.sort_dir, 'sort_dir=' + ('ASC' if filters.sort_dir == 'DESC' else 'DESC')) }}">
+                                Credit
+                                {% if filters.sort_by == 'credit' %}
+                                    <i class="bi bi-arrow-{{ 'down' if filters.sort_dir == 'DESC' else 'up' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th class="text-end">Balance</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trans in transactions %}
+                    <tr>
+                        <td>{{ trans.entry_date }}</td>
+                        <td>
+                            <a href="{{ url_for('journal_routes.view_journal', id=trans.entry_id) }}" class="text-decoration-none">
+                                {{ trans.entry_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ trans.transaction_source }}</span>
+                        </td>
+                        <td>
+                            {% if trans.reference_type and trans.reference_id %}
+                                {% if trans.reference_type == 'receiving_transaction' %}
+                                    <a href="{{ url_for('receiving_routes.receiving_transactions') }}" class="text-decoration-none">
+                                        <i class="bi bi-box-arrow-in-down"></i> Receiving #{{ trans.reference_id }}
+                                    </a>
+                                {% elif trans.reference_type == 'work_order' %}
+                                    <a href="{{ url_for('workorder_routes.view_workorder', id=trans.reference_id) }}" class="text-decoration-none">
+                                        <i class="bi bi-hammer"></i> WO #{{ trans.reference_id }}
+                                    </a>
+                                {% elif trans.reference_type == 'vendor_invoice' %}
+                                    <a href="{{ url_for('ap_routes.view_vendor_invoice', id=trans.reference_id) }}" class="text-decoration-none">
+                                        <i class="bi bi-file-earmark-text"></i> AP #{{ trans.reference_id }}
+                                    </a>
+                                {% elif trans.reference_type == 'invoice' %}
+                                    <a href="{{ url_for('invoice_routes.view_invoice', id=trans.reference_id) }}" class="text-decoration-none">
+                                        <i class="bi bi-file-earmark-text"></i> INV #{{ trans.reference_id }}
+                                    </a>
+                                {% else %}
+                                    {{ trans.reference_type }} #{{ trans.reference_id }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ trans.entry_description }}</small><br>
+                            <small>{{ trans.line_description }}</small>
+                        </td>
+                        <td class="text-end">
+                            {% if trans.debit > 0 %}
+                                <strong class="text-primary">${{ "{:,.2f}".format(trans.debit) }}</strong>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if trans.credit > 0 %}
+                                <strong class="text-warning">${{ "{:,.2f}".format(trans.credit) }}</strong>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <strong {% if trans.running_balance >= 0 %}class="text-success"{% else %}class="text-danger"{% endif %}>
+                                ${{ "{:,.2f}".format(trans.running_balance) }}
+                            </strong>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('journal_routes.view_journal', id=trans.entry_id) }}" 
+                               class="btn btn-sm btn-outline-primary" title="View Entry">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="5" class="text-end">Totals:</td>
+                        <td class="text-end text-primary">${{ "{:,.2f}".format(summary.total_debits) }}</td>
+                        <td class="text-end text-warning">${{ "{:,.2f}".format(summary.total_credits) }}</td>
+                        <td class="text-end {% if summary.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ "{:,.2f}".format(summary.net_change) }}
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No transactions found for this account with the selected filters.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="alert alert-secondary">
+        <h6><i class="bi bi-info-circle"></i> Understanding the Balance</h6>
+        <p class="mb-0">
+            {% if account.account_type in ['Asset', 'Expense'] %}
+                For <strong>{{ account.account_type }}</strong> accounts: Debits <span class="text-success">increase</span> and Credits <span class="text-danger">decrease</span> the balance.
+            {% else %}
+                For <strong>{{ account.account_type }}</strong> accounts: Credits <span class="text-success">increase</span> and Debits <span class="text-danger">decrease</span> the balance.
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}

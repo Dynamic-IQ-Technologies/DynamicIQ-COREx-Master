@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, Response
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime
 import math
+import csv
+import io
 
 journal_bp = Blueprint('journal_routes', __name__)
 
@@ -205,3 +207,245 @@ def unpost_journal(id):
         conn.close()
     
     return redirect(url_for('journal_routes.view_journal', id=id))
+
+# GL Account Detail View Routes
+@journal_bp.route('/gl-account-detail/<account_code>')
+@login_required
+@role_required('Admin', 'Accountant', 'Planner')
+def gl_account_detail(account_code):
+    """Display detailed transaction list for a specific GL account"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get account details
+    account = conn.execute('''
+        SELECT * FROM chart_of_accounts WHERE account_code = ?
+    ''', (account_code,)).fetchone()
+    
+    if not account:
+        flash('GL Account not found', 'danger')
+        conn.close()
+        return redirect(url_for('journal_routes.list_journals'))
+    
+    # Get filter parameters
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    transaction_type = request.args.get('transaction_type', '')
+    search_ref = request.args.get('search_ref', '')
+    sort_by = request.args.get('sort_by', 'entry_date')
+    sort_dir = request.args.get('sort_dir', 'DESC')
+    
+    # Build query for transactions
+    query = '''
+        SELECT 
+            gel.id as line_id,
+            gel.debit,
+            gel.credit,
+            gel.description as line_description,
+            ge.id as entry_id,
+            ge.entry_number,
+            ge.entry_date,
+            ge.description as entry_description,
+            ge.transaction_source,
+            ge.reference_type,
+            ge.reference_id,
+            ge.status,
+            coa.account_code,
+            coa.account_name,
+            coa.account_type
+        FROM gl_entry_lines gel
+        JOIN gl_entries ge ON gel.gl_entry_id = ge.id
+        JOIN chart_of_accounts coa ON gel.account_id = coa.id
+        WHERE coa.account_code = ? AND ge.status = 'Posted'
+    '''
+    params = [account_code]
+    
+    # Apply filters
+    if start_date:
+        query += ' AND ge.entry_date >= ?'
+        params.append(start_date)
+    
+    if end_date:
+        query += ' AND ge.entry_date <= ?'
+        params.append(end_date)
+    
+    if transaction_type:
+        query += ' AND ge.transaction_source = ?'
+        params.append(transaction_type)
+    
+    if search_ref:
+        query += ' AND (ge.entry_number LIKE ? OR ge.description LIKE ? OR gel.description LIKE ?)'
+        search_pattern = f'%{search_ref}%'
+        params.extend([search_pattern, search_pattern, search_pattern])
+    
+    # Add sorting
+    valid_sort_columns = ['entry_date', 'entry_number', 'debit', 'credit', 'transaction_source']
+    if sort_by in valid_sort_columns:
+        query += f' ORDER BY ge.{sort_by} {sort_dir}, gel.id {sort_dir}'
+    else:
+        query += ' ORDER BY ge.entry_date DESC, gel.id DESC'
+    
+    transactions = conn.execute(query, params).fetchall()
+    
+    # Calculate running balance
+    transactions_with_balance = []
+    running_balance = 0.0
+    
+    for trans in transactions:
+        # For Asset, Expense accounts: Debit increases, Credit decreases
+        # For Liability, Equity, Revenue accounts: Credit increases, Debit decreases
+        if account['account_type'] in ['Asset', 'Expense']:
+            running_balance += (trans['debit'] - trans['credit'])
+        else:
+            running_balance += (trans['credit'] - trans['debit'])
+        
+        trans_dict = dict(trans)
+        trans_dict['running_balance'] = running_balance
+        transactions_with_balance.append(trans_dict)
+    
+    # Get unique transaction sources for filter dropdown
+    transaction_sources = conn.execute('''
+        SELECT DISTINCT transaction_source 
+        FROM gl_entries
+        WHERE id IN (
+            SELECT DISTINCT gl_entry_id FROM gl_entry_lines 
+            WHERE account_id = (SELECT id FROM chart_of_accounts WHERE account_code = ?)
+        )
+        ORDER BY transaction_source
+    ''', (account_code,)).fetchall()
+    
+    # Calculate summary statistics
+    summary = {
+        'total_debits': sum(t['debit'] for t in transactions),
+        'total_credits': sum(t['credit'] for t in transactions),
+        'net_change': running_balance,
+        'transaction_count': len(transactions)
+    }
+    
+    conn.close()
+    
+    return render_template('accounting/gl_account_detail.html',
+                         account=account,
+                         transactions=transactions_with_balance,
+                         transaction_sources=transaction_sources,
+                         summary=summary,
+                         filters={
+                             'start_date': start_date,
+                             'end_date': end_date,
+                             'transaction_type': transaction_type,
+                             'search_ref': search_ref,
+                             'sort_by': sort_by,
+                             'sort_dir': sort_dir
+                         })
+
+@journal_bp.route('/gl-account-detail/<account_code>/export')
+@login_required
+@role_required('Admin', 'Accountant', 'Planner')
+def export_gl_account_detail(account_code):
+    """Export GL account transactions to CSV"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get account details
+    account = conn.execute('''
+        SELECT * FROM chart_of_accounts WHERE account_code = ?
+    ''', (account_code,)).fetchone()
+    
+    if not account:
+        flash('GL Account not found', 'danger')
+        conn.close()
+        return redirect(url_for('journal_routes.list_journals'))
+    
+    # Get filter parameters (same as detail view)
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    transaction_type = request.args.get('transaction_type', '')
+    search_ref = request.args.get('search_ref', '')
+    
+    # Build query
+    query = '''
+        SELECT 
+            ge.entry_number,
+            ge.entry_date,
+            ge.transaction_source,
+            ge.reference_type,
+            ge.reference_id,
+            gel.debit,
+            gel.credit,
+            ge.description as entry_description,
+            gel.description as line_description
+        FROM gl_entry_lines gel
+        JOIN gl_entries ge ON gel.gl_entry_id = ge.id
+        JOIN chart_of_accounts coa ON gel.account_id = coa.id
+        WHERE coa.account_code = ? AND ge.status = 'Posted'
+    '''
+    params = [account_code]
+    
+    # Apply same filters
+    if start_date:
+        query += ' AND ge.entry_date >= ?'
+        params.append(start_date)
+    
+    if end_date:
+        query += ' AND ge.entry_date <= ?'
+        params.append(end_date)
+    
+    if transaction_type:
+        query += ' AND ge.transaction_source = ?'
+        params.append(transaction_type)
+    
+    if search_ref:
+        query += ' AND (ge.entry_number LIKE ? OR ge.description LIKE ? OR gel.description LIKE ?)'
+        search_pattern = f'%{search_ref}%'
+        params.extend([search_pattern, search_pattern, search_pattern])
+    
+    query += ' ORDER BY ge.entry_date, gel.id'
+    
+    transactions = conn.execute(query, params).fetchall()
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write headers
+    writer.writerow([
+        'Entry Number', 'Date', 'Transaction Type', 'Reference Type', 
+        'Reference ID', 'Debit', 'Credit', 'Entry Description', 'Line Description'
+    ])
+    
+    # Write data rows with running balance
+    running_balance = 0.0
+    for trans in transactions:
+        if account['account_type'] in ['Asset', 'Expense']:
+            running_balance += (trans['debit'] - trans['credit'])
+        else:
+            running_balance += (trans['credit'] - trans['debit'])
+        
+        writer.writerow([
+            trans['entry_number'],
+            trans['entry_date'],
+            trans['transaction_source'],
+            trans['reference_type'] or '',
+            trans['reference_id'] or '',
+            f"{trans['debit']:.2f}",
+            f"{trans['credit']:.2f}",
+            trans['entry_description'],
+            trans['line_description']
+        ])
+    
+    # Add summary row
+    writer.writerow([])
+    writer.writerow(['Summary', '', '', '', '', 
+                    f"{sum(t['debit'] for t in transactions):.2f}",
+                    f"{sum(t['credit'] for t in transactions):.2f}",
+                    f"Net Change: {running_balance:.2f}"])
+    
+    conn.close()
+    
+    # Create response
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=GL_{account_code}_{datetime.now().strftime("%Y%m%d")}.csv'}
+    )
