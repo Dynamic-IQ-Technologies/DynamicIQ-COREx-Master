@@ -21,7 +21,7 @@ def list_service_work_orders():
         SELECT 
             swo.*,
             c.customer_number,
-            c.company_name as customer_company,
+            c.name as customer_company,
             lr.first_name || ' ' || lr.last_name as assigned_name
         FROM service_work_orders swo
         LEFT JOIN customers c ON swo.customer_id = c.id
@@ -72,9 +72,9 @@ def create_service_work_order():
             # Get customer name if customer selected
             customer_name = None
             if customer_id:
-                customer = conn.execute('SELECT company_name FROM customers WHERE id = ?', (customer_id,)).fetchone()
+                customer = conn.execute('SELECT name FROM customers WHERE id = ?', (customer_id,)).fetchone()
                 if customer:
-                    customer_name = customer['company_name']
+                    customer_name = customer['name']
             
             # Generate SWO number
             last_swo = conn.execute('SELECT swo_number FROM service_work_orders ORDER BY id DESC LIMIT 1').fetchone()
@@ -112,7 +112,7 @@ def create_service_work_order():
             return redirect(url_for('service_wo_routes.create_service_work_order'))
     
     # GET request - show form
-    customers = conn.execute('SELECT * FROM customers ORDER BY company_name').fetchall()
+    customers = conn.execute('SELECT * FROM customers ORDER BY name').fetchall()
     employees = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY last_name, first_name').fetchall()
     conn.close()
     
@@ -130,7 +130,7 @@ def view_service_work_order(id):
         SELECT 
             swo.*,
             c.customer_number,
-            c.company_name as customer_company,
+            c.name as customer_company,
             c.billing_address,
             c.contact_person,
             c.email as customer_email,
@@ -225,9 +225,9 @@ def edit_service_work_order(id):
             # Get customer name if customer selected
             customer_name = None
             if customer_id:
-                customer = conn.execute('SELECT company_name FROM customers WHERE id = ?', (customer_id,)).fetchone()
+                customer = conn.execute('SELECT name FROM customers WHERE id = ?', (customer_id,)).fetchone()
                 if customer:
-                    customer_name = customer['company_name']
+                    customer_name = customer['name']
             
             # Update service work order
             conn.execute('''
@@ -255,7 +255,7 @@ def edit_service_work_order(id):
             return redirect(url_for('service_wo_routes.edit_service_work_order', id=id))
     
     # GET request - show form
-    customers = conn.execute('SELECT * FROM customers ORDER BY company_name').fetchall()
+    customers = conn.execute('SELECT * FROM customers ORDER BY name').fetchall()
     employees = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY last_name, first_name').fetchall()
     conn.close()
     
