@@ -718,6 +718,263 @@ def close_order(id):
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
+@salesorder_bp.route('/sales-orders/lines/<int:line_id>/allocate', methods=['POST'])
+@role_required('Admin', 'Planner')
+def allocate_line(line_id):
+    """Allocate inventory to a sales order line"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get line details
+        line = conn.execute('''
+            SELECT sol.*, p.code, p.name, so.so_number
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            flash('Sales order line not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        so_id = line['so_id']
+        
+        # Check if line is a core (don't allocate cores)
+        if line['is_core']:
+            flash('Core items do not require inventory allocation.', 'info')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        # Get available inventory
+        inventory = conn.execute('''
+            SELECT quantity FROM inventory WHERE product_id = ?
+        ''', (line['product_id'],)).fetchone()
+        
+        available_qty = inventory['quantity'] if inventory else 0
+        requested_qty = line['quantity']
+        
+        # Determine allocation status and quantity
+        if available_qty >= requested_qty:
+            allocated_qty = requested_qty
+            allocation_status = 'Allocated'
+            flash(f'Successfully allocated {allocated_qty} units of {line["code"]} to line {line["line_number"]}', 'success')
+        elif available_qty > 0:
+            allocated_qty = available_qty
+            allocation_status = 'Partially Allocated'
+            flash(f'Partially allocated {allocated_qty} of {requested_qty} units for {line["code"]}. {requested_qty - allocated_qty} units backordered.', 'warning')
+        else:
+            allocated_qty = 0
+            allocation_status = 'Backordered'
+            flash(f'No inventory available for {line["code"]}. Line is backordered.', 'warning')
+        
+        # Update line with allocation
+        conn.execute('''
+            UPDATE sales_order_lines
+            SET allocated_quantity = ?,
+                allocation_status = ?,
+                allocation_notes = ?,
+                modified_by = ?,
+                modified_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            allocated_qty,
+            allocation_status,
+            f'Allocated from available inventory: {available_qty} units',
+            session.get('user_id'),
+            line_id
+        ))
+        
+        # Update line status
+        conn.execute('''
+            UPDATE sales_order_lines
+            SET line_status = ?
+            WHERE id = ?
+        ''', (allocation_status, line_id))
+        
+        # Log activity
+        conn.execute('''
+            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        ''', ('sales_order_lines', line_id, 'UPDATE', session.get('user_id'),
+              f'Allocated {allocated_qty} units - Status: {allocation_status}'))
+        
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred during allocation: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+
+@salesorder_bp.route('/sales-orders/lines/<int:line_id>/release-to-shipping', methods=['POST'])
+@role_required('Admin', 'Planner')
+def release_line_to_shipping(line_id):
+    """Release an individual line to shipping"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get line details
+        line = conn.execute('''
+            SELECT sol.*, p.code, p.name, so.so_number, so.id as so_id
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            flash('Sales order line not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        so_id = line['so_id']
+        
+        # Validation: Check if line is allocated
+        if line['allocation_status'] not in ['Allocated', 'Partially Allocated'] and not line['is_core']:
+            flash(f'Cannot release line {line["line_number"]} - inventory not allocated. Please allocate inventory first.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        # Validation: Check if already released
+        if line['released_to_shipping_at']:
+            flash(f'Line {line["line_number"]} has already been released to shipping.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        # Release the line
+        conn.execute('''
+            UPDATE sales_order_lines
+            SET released_to_shipping_at = CURRENT_TIMESTAMP,
+                released_by = ?,
+                line_status = 'Released to Shipping',
+                modified_by = ?,
+                modified_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (session.get('user_id'), session.get('user_id'), line_id))
+        
+        # Log activity
+        conn.execute('''
+            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        ''', ('sales_order_lines', line_id, 'UPDATE', session.get('user_id'),
+              f'Released to shipping - Line {line["line_number"]} ({line["code"]})'))
+        
+        # Check if all lines are released - if so, update SO status
+        remaining_lines = conn.execute('''
+            SELECT COUNT(*) as count
+            FROM sales_order_lines
+            WHERE so_id = ? AND released_to_shipping_at IS NULL
+        ''', (line['so_id'],)).fetchone()
+        
+        if remaining_lines['count'] == 0:
+            # All lines released - update SO status
+            conn.execute('''
+                UPDATE sales_orders
+                SET status = 'Released to Shipping'
+                WHERE id = ?
+            ''', (line['so_id'],))
+            flash(f'Line {line["line_number"]} released to shipping. All lines now released - Sales Order status updated.', 'success')
+        else:
+            flash(f'Line {line["line_number"]} released to shipping. {remaining_lines["count"]} lines remaining.', 'success')
+        
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred while releasing line: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+
+@salesorder_bp.route('/sales-orders/<int:id>/allocate-all', methods=['POST'])
+@role_required('Admin', 'Planner')
+def allocate_all_lines(id):
+    """Allocate inventory to all lines in a sales order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get all non-core lines
+        lines = conn.execute('''
+            SELECT sol.*, p.code
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ? AND sol.is_core = 0
+        ''', (id,)).fetchall()
+        
+        allocated_count = 0
+        partial_count = 0
+        backorder_count = 0
+        
+        for line in lines:
+            # Get available inventory
+            inventory = conn.execute('''
+                SELECT quantity FROM inventory WHERE product_id = ?
+            ''', (line['product_id'],)).fetchone()
+            
+            available_qty = inventory['quantity'] if inventory else 0
+            requested_qty = line['quantity']
+            
+            # Determine allocation
+            if available_qty >= requested_qty:
+                allocated_qty = requested_qty
+                allocation_status = 'Allocated'
+                allocated_count += 1
+            elif available_qty > 0:
+                allocated_qty = available_qty
+                allocation_status = 'Partially Allocated'
+                partial_count += 1
+            else:
+                allocated_qty = 0
+                allocation_status = 'Backordered'
+                backorder_count += 1
+            
+            # Update line
+            conn.execute('''
+                UPDATE sales_order_lines
+                SET allocated_quantity = ?,
+                    allocation_status = ?,
+                    line_status = ?,
+                    modified_by = ?,
+                    modified_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (allocated_qty, allocation_status, allocation_status, session.get('user_id'), line['id']))
+        
+        # Log activity
+        conn.execute('''
+            INSERT INTO audit_trail (table_name, record_id, action, user_id, timestamp, details)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        ''', ('sales_orders', id, 'UPDATE', session.get('user_id'),
+              f'Bulk allocation: {allocated_count} allocated, {partial_count} partial, {backorder_count} backordered'))
+        
+        conn.commit()
+        
+        # Build feedback message
+        messages = []
+        if allocated_count > 0:
+            messages.append(f'{allocated_count} lines fully allocated')
+        if partial_count > 0:
+            messages.append(f'{partial_count} lines partially allocated')
+        if backorder_count > 0:
+            messages.append(f'{backorder_count} lines backordered')
+        
+        flash(f'Allocation complete: {", ".join(messages)}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred during bulk allocation: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
 def recalculate_totals(conn, so_id, tax_rate=None):
     # Calculate totals from line items including core charges
     totals = conn.execute('''
