@@ -724,6 +724,7 @@ def allocate_line(line_id):
     """Allocate inventory to a sales order line"""
     db = Database()
     conn = db.get_connection()
+    so_id = None
     
     try:
         # Get line details
@@ -817,6 +818,7 @@ def release_line_to_shipping(line_id):
     """Release an individual line to shipping"""
     db = Database()
     conn = db.get_connection()
+    so_id = None
     
     try:
         # Get line details

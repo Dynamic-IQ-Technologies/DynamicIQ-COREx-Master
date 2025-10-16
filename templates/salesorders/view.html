@@ -145,8 +145,15 @@
     </div>
 
     <div class="card mb-3">
-        <div class="card-header">
-            <h5>Line Items</h5>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Line Items</h5>
+            {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
+            <form method="POST" action="{{ url_for('salesorder_routes.allocate_all_lines', id=sales_order.id) }}" style="display: inline;">
+                <button type="submit" class="btn btn-sm btn-success" title="Allocate inventory to all lines">
+                    <i class="bi bi-box-seam"></i> Allocate All Lines
+                </button>
+            </form>
+            {% endif %}
         </div>
         <div class="card-body">
             {% if lines %}
@@ -154,7 +161,7 @@
                 <div class="card mb-3 border-start border-3 {% if line.line_type == 'Exchange' %}border-primary{% elif line.line_type == 'Managed Repair' %}border-info{% else %}border-secondary{% endif %}">
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <h6>
                                     Line #{{ line.line_number }}: {{ line.code }} - {{ line.product_name }}
                                     <span class="badge {% if line.line_type == 'Exchange' %}bg-primary{% elif line.line_type == 'Managed Repair' %}bg-info{% else %}bg-secondary{% endif %} ms-2">
@@ -173,14 +180,66 @@
                                 {% if line.line_notes %}
                                 <p class="mb-1"><i class="bi bi-chat-left-text"></i> {{ line.line_notes }}</p>
                                 {% endif %}
+                                
+                                <!-- Inventory Allocation Status -->
+                                {% if not line.is_core %}
+                                <div class="mt-2">
+                                    <strong>Inventory Status:</strong>
+                                    {% if line.allocation_status == 'Allocated' %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Allocated ({{ line.allocated_quantity or 0 }} / {{ line.quantity }})
+                                    </span>
+                                    {% elif line.allocation_status == 'Partially Allocated' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-exclamation-circle"></i> Partial ({{ line.allocated_quantity or 0 }} / {{ line.quantity }})
+                                    </span>
+                                    {% elif line.allocation_status == 'Backordered' %}
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-x-circle"></i> Backordered
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-clock-history"></i> Pending Allocation
+                                    </span>
+                                    {% endif %}
+                                    
+                                    {% if line.released_to_shipping_at %}
+                                    <span class="badge bg-primary ms-1">
+                                        <i class="bi bi-truck"></i> Released to Shipping
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="col-md-4 text-end">
+                            <div class="col-md-3 text-end">
                                 <p class="mb-1">Qty: <strong>{{ line.quantity }} {{ line.unit_of_measure }}</strong></p>
                                 <p class="mb-1">Unit Price: ${{ "{:,.2f}".format(line.unit_price) }}</p>
                                 {% if line.discount_percent > 0 %}
                                 <p class="mb-1 text-success">Discount: {{ line.discount_percent }}%</p>
                                 {% endif %}
                                 <p class="mb-0 fs-5"><strong>Line Total: ${{ "{:,.2f}".format(line.line_total) }}</strong></p>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
+                                    <!-- Allocate Button -->
+                                    {% if not line.is_core and not line.allocation_status in ['Allocated', 'Partially Allocated'] %}
+                                    <form method="POST" action="{{ url_for('salesorder_routes.allocate_line', line_id=line.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-success mb-1" title="Allocate inventory">
+                                            <i class="bi bi-box-seam"></i> Allocate
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <!-- Release to Shipping Button -->
+                                    {% if not line.released_to_shipping_at and (line.allocation_status in ['Allocated', 'Partially Allocated'] or line.is_core) %}
+                                    <form method="POST" action="{{ url_for('salesorder_routes.release_line_to_shipping', line_id=line.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-primary mb-1" title="Release to shipping" 
+                                                onclick="return confirm('Release this line to shipping?')">
+                                            <i class="bi bi-truck"></i> Release
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
                             </div>
                         </div>
                         
