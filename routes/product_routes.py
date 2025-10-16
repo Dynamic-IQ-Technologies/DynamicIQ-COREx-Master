@@ -141,9 +141,13 @@ def edit_product(id):
     
     product = conn.execute('SELECT * FROM products WHERE id=?', (id,)).fetchone()
     inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (id,)).fetchone()
+    
+    # Get all active UOMs for dropdown
+    uoms = conn.execute('SELECT * FROM uom_master WHERE is_active = 1 ORDER BY uom_type, uom_code').fetchall()
+    
     conn.close()
     
-    return render_template('products/edit.html', product=product, inventory=inventory)
+    return render_template('products/edit.html', product=product, inventory=inventory, uoms=uoms)
 
 @product_bp.route('/products/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
@@ -306,3 +310,144 @@ def import_products():
             conn.close()
     
     return redirect(url_for('product_routes.list_products'))
+
+# UOM Conversion Management Routes
+@product_bp.route('/products/<int:product_id>/uom-conversions')
+@login_required
+def get_product_uom_conversions(product_id):
+    """Get all UOM conversions for a product"""
+    db = Database()
+    conn = db.get_connection()
+    
+    conversions = conn.execute('''
+        SELECT puc.*, u.uom_code, u.uom_name, u.uom_type
+        FROM product_uom_conversions puc
+        JOIN uom_master u ON puc.uom_id = u.id
+        WHERE puc.product_id = ?
+        ORDER BY puc.is_base_uom DESC, u.uom_code
+    ''', (product_id,)).fetchall()
+    
+    conn.close()
+    return jsonify([dict(row) for row in conversions])
+
+@product_bp.route('/products/<int:product_id>/uom-conversions/add', methods=['POST'])
+@role_required('Admin', 'Planner')
+def add_product_uom_conversion(product_id):
+    """Add a new UOM conversion for a product"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        data = request.get_json()
+        uom_id = int(data.get('uom_id'))
+        conversion_factor = float(data.get('conversion_factor', 1.0))
+        is_base_uom = int(data.get('is_base_uom', 0))
+        is_purchase_uom = int(data.get('is_purchase_uom', 0))
+        is_issue_uom = int(data.get('is_issue_uom', 0))
+        
+        # Validate UOM exists
+        uom = conn.execute('SELECT * FROM uom_master WHERE id = ?', (uom_id,)).fetchone()
+        if not uom:
+            conn.close()
+            return jsonify({'error': 'Invalid UOM'}), 400
+        
+        # If this is being set as base UOM, unset any existing base UOM
+        if is_base_uom:
+            conn.execute('''
+                UPDATE product_uom_conversions 
+                SET is_base_uom = 0 
+                WHERE product_id = ? AND is_base_uom = 1
+            ''', (product_id,))
+            # Base UOM should always have conversion factor of 1.0
+            conversion_factor = 1.0
+        
+        # Check if conversion already exists
+        existing = conn.execute('''
+            SELECT * FROM product_uom_conversions 
+            WHERE product_id = ? AND uom_id = ?
+        ''', (product_id, uom_id)).fetchone()
+        
+        if existing:
+            # Update existing
+            conn.execute('''
+                UPDATE product_uom_conversions
+                SET conversion_factor = ?, is_base_uom = ?, is_purchase_uom = ?, is_issue_uom = ?
+                WHERE product_id = ? AND uom_id = ?
+            ''', (conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, product_id, uom_id))
+        else:
+            # Insert new
+            conn.execute('''
+                INSERT INTO product_uom_conversions 
+                (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, session.get('user_id')))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product_uom_conversion',
+            record_id=product_id,
+            action_type='Updated' if existing else 'Created',
+            modified_by=session.get('user_id'),
+            changed_fields={'uom_id': uom_id, 'conversion_factor': conversion_factor, 'is_base_uom': is_base_uom},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'UOM conversion saved successfully'})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@product_bp.route('/products/<int:product_id>/uom-conversions/<int:uom_id>/delete', methods=['POST'])
+@role_required('Admin', 'Planner')
+def delete_product_uom_conversion(product_id, uom_id):
+    """Delete a UOM conversion for a product"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Check if this is the base UOM
+        conversion = conn.execute('''
+            SELECT * FROM product_uom_conversions 
+            WHERE product_id = ? AND uom_id = ?
+        ''', (product_id, uom_id)).fetchone()
+        
+        if not conversion:
+            conn.close()
+            return jsonify({'error': 'Conversion not found'}), 404
+        
+        if conversion['is_base_uom']:
+            conn.close()
+            return jsonify({'error': 'Cannot delete base UOM. Set another UOM as base first.'}), 400
+        
+        # Delete the conversion
+        conn.execute('''
+            DELETE FROM product_uom_conversions 
+            WHERE product_id = ? AND uom_id = ?
+        ''', (product_id, uom_id))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product_uom_conversion',
+            record_id=product_id,
+            action_type='Deleted',
+            modified_by=session.get('user_id'),
+            changed_fields={'uom_id': uom_id},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'UOM conversion deleted successfully'})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
