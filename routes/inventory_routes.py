@@ -54,6 +54,31 @@ def list_inventory():
                          search_serial=search_serial,
                          total_value=total_value)
 
+@inventory_bp.route('/inventory/<int:id>/view')
+@login_required
+def view_inventory(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get inventory details with product information and cost
+    inventory = conn.execute('''
+        SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, 
+               COALESCE(p.cost, 0) as cost,
+               (i.quantity * COALESCE(p.cost, 0)) as inventory_value,
+               p.category
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.id = ?
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not inventory:
+        flash('Inventory record not found', 'danger')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    return render_template('inventory/view.html', inventory=inventory)
+
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
 def create_inventory():
