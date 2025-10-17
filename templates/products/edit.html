@@ -365,15 +365,20 @@ async function saveUOMConversion() {
             uomConversionModal.hide();
             await loadUOMConversions();
             
-            // Show success message
+            // Show success message in the UOM conversions card
             const action = editingUomId ? 'updated' : 'added';
             const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
             alertDiv.innerHTML = `
                 <i class="bi bi-check-circle"></i> UOM conversion ${action} successfully!
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            document.querySelector('.card-body').prepend(alertDiv);
+            // Find the UOM conversions card body and prepend the alert
+            const uomCardBody = document.querySelector('#uomConversionsBody').closest('.card-body');
+            if (uomCardBody) {
+                const firstChild = uomCardBody.firstChild;
+                uomCardBody.insertBefore(alertDiv, firstChild);
+            }
             setTimeout(() => alertDiv.remove(), 3000);
             
             // Reset editing mode
@@ -401,14 +406,18 @@ async function deleteUOMConversion(uomId) {
         if (response.ok) {
             await loadUOMConversions();
             
-            // Show success message
+            // Show success message in the UOM conversions card
             const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
             alertDiv.innerHTML = `
-                <i class="bi bi-check-circle"></i> ${result.message}
+                <i class="bi bi-check-circle"></i> UOM conversion deleted successfully!
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            document.querySelector('.card-body').prepend(alertDiv);
+            const uomCardBody = document.querySelector('#uomConversionsBody').closest('.card-body');
+            if (uomCardBody) {
+                const firstChild = uomCardBody.firstChild;
+                uomCardBody.insertBefore(alertDiv, firstChild);
+            }
             setTimeout(() => alertDiv.remove(), 3000);
         } else {
             alert('Error: ' + result.error);
