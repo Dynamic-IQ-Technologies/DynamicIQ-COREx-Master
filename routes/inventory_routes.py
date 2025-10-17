@@ -19,8 +19,9 @@ def list_inventory():
     
     # Build query with filters
     query = '''
-        SELECT i.*, p.code, p.name, p.unit_of_measure, p.cost,
-               (i.quantity * p.cost) as inventory_value
+        SELECT i.*, p.code, p.name, p.unit_of_measure, 
+               COALESCE(p.cost, 0) as cost,
+               (i.quantity * COALESCE(p.cost, 0)) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE 1=1
@@ -42,8 +43,8 @@ def list_inventory():
     
     inventory = conn.execute(query, params).fetchall()
     
-    # Calculate total inventory value
-    total_value = sum(item['inventory_value'] for item in inventory)
+    # Calculate total inventory value (defensive against any potential NULLs)
+    total_value = sum(item['inventory_value'] or 0 for item in inventory)
     
     conn.close()
     
