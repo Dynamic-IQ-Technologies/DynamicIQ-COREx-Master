@@ -19,7 +19,8 @@ def list_inventory():
     
     # Build query with filters
     query = '''
-        SELECT i.*, p.code, p.name, p.unit_of_measure
+        SELECT i.*, p.code, p.name, p.unit_of_measure, p.cost,
+               (i.quantity * p.cost) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE 1=1
@@ -40,12 +41,17 @@ def list_inventory():
     query += ' ORDER BY p.code'
     
     inventory = conn.execute(query, params).fetchall()
+    
+    # Calculate total inventory value
+    total_value = sum(item['inventory_value'] for item in inventory)
+    
     conn.close()
     
     return render_template('inventory/list.html', 
                          inventory=inventory,
                          filter_serialized=filter_serialized,
-                         search_serial=search_serial)
+                         search_serial=search_serial,
+                         total_value=total_value)
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
