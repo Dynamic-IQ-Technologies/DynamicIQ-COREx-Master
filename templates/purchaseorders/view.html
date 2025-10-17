@@ -132,8 +132,12 @@
                         <td>{{ "%.2f"|format(line_qty) if line_qty != line_qty|int else line_qty|int }}</td>
                         <td>
                             {% if line.base_quantity %}
-                            <span class="text-primary">{{ "%.2f"|format(line.base_quantity) if line.base_quantity != line.base_quantity|int else line.base_quantity|int }}</span>
-                            <div class="text-muted small">({{ line.base_uom_code or 'Base UOM' }})</div>
+                            <span class="text-primary fw-bold">{{ "%.2f"|format(line.base_quantity) if line.base_quantity != line.base_quantity|int else line.base_quantity|int }} {{ line.base_uom_code or 'Base UOM' }}</span>
+                            {% if line.uom_code != line.base_uom_code %}
+                            <div class="text-muted small">
+                                <i class="bi bi-arrow-left-right"></i> {{ "%.2f"|format(line.quantity) if line.quantity != line.quantity|int else line.quantity|int }} {{ line.uom_code }} = {{ "%.2f"|format(line.base_quantity) if line.base_quantity != line.base_quantity|int else line.base_quantity|int }} {{ line.base_uom_code }}
+                            </div>
+                            {% endif %}
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
