@@ -118,6 +118,21 @@
             </div>
         </div>
 
+        <!-- Parts/Materials Section -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-box"></i> Parts/Materials</h5>
+                <button type="button" class="btn btn-sm btn-success" onclick="addPartRow()">
+                    <i class="bi bi-plus-circle"></i> Add Part
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="partsContainer">
+                    <p class="text-muted text-center">No parts added. Click "Add Part" to include materials.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="d-flex justify-content-between mb-4">
             <a href="{{ url_for('service_wo_routes.list_service_work_orders') }}" class="btn btn-secondary">
@@ -129,4 +144,116 @@
         </div>
     </form>
 </div>
+
+<script>
+let partRowIndex = 0;
+let productsData = [];
+
+// Fetch products data on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        const response = await fetch('/api/products');
+        const data = await response.json();
+        productsData = data;
+    } catch (error) {
+        console.error('Error fetching products:', error);
+    }
+});
+
+function addPartRow() {
+    const container = document.getElementById('partsContainer');
+    
+    // Remove the "no parts" message if it exists
+    if (container.querySelector('p.text-muted')) {
+        container.innerHTML = '';
+    }
+    
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'border rounded p-3 mb-3 position-relative';
+    rowDiv.id = `partRow${partRowIndex}`;
+    
+    rowDiv.innerHTML = `
+        <button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2" 
+                onclick="removePartRow(${partRowIndex})">
+            <i class="bi bi-trash"></i>
+        </button>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <label class="form-label">Product <span class="text-danger">*</span></label>
+                <select name="parts[${partRowIndex}][product_id]" class="form-select" onchange="handleProductChange(${partRowIndex})" required>
+                    <option value="">Select Product</option>
+                    ${productsData.map(p => `<option value="${p.id}" data-code="${p.code}" data-description="${p.description || ''}" data-serialized="${p.is_serialized}">${p.code} - ${p.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                <input type="number" name="parts[${partRowIndex}][quantity]" class="form-control" step="0.01" min="0.01" value="1" required>
+            </div>
+            <div class="col-md-3 mb-2">
+                <label class="form-label">Description</label>
+                <input type="text" name="parts[${partRowIndex}][description]" class="form-control" placeholder="Optional description">
+            </div>
+            <div class="col-md-3 mb-2" id="serialContainer${partRowIndex}" style="display:none;">
+                <label class="form-label">Serial Number</label>
+                <select name="parts[${partRowIndex}][serial_number]" class="form-select">
+                    <option value="">Select Serial Number</option>
+                </select>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(rowDiv);
+    partRowIndex++;
+}
+
+async function handleProductChange(index) {
+    const select = document.querySelector(`select[name="parts[${index}][product_id]"]`);
+    const selectedOption = select.options[select.selectedIndex];
+    const isSerialized = selectedOption.dataset.serialized === '1';
+    const productId = selectedOption.value;
+    const serialContainer = document.getElementById(`serialContainer${index}`);
+    const descriptionInput = document.querySelector(`input[name="parts[${index}][description]"]`);
+    
+    // Auto-fill description if available
+    if (selectedOption.dataset.description) {
+        descriptionInput.value = selectedOption.dataset.description;
+    }
+    
+    // Show/hide serial number field based on product serialization
+    if (isSerialized && productId) {
+        serialContainer.style.display = 'block';
+        
+        // Fetch available serial numbers for this product
+        try {
+            const response = await fetch(`/api/inventory-serials/${productId}`);
+            const serials = await response.json();
+            
+            const serialSelect = serialContainer.querySelector('select');
+            serialSelect.innerHTML = '<option value="">Select Serial Number</option>';
+            
+            serials.forEach(serial => {
+                const option = document.createElement('option');
+                option.value = serial.serial_number;
+                option.textContent = serial.serial_number;
+                serialSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching serial numbers:', error);
+        }
+    } else {
+        serialContainer.style.display = 'none';
+    }
+}
+
+function removePartRow(index) {
+    const row = document.getElementById(`partRow${index}`);
+    row.remove();
+    
+    // If no parts remain, show the message again
+    const container = document.getElementById('partsContainer');
+    if (container.children.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No parts added. Click "Add Part" to include materials.</p>';
+    }
+}
+</script>
 {% endblock %}

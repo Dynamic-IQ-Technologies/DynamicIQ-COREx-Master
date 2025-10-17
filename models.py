@@ -1057,6 +1057,9 @@ class Database:
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         
+        # Migrate service_wo_materials table - add serial_number column if it doesn't exist
+        self._migrate_service_wo_materials(cursor)
+        
         conn.commit()
         conn.close()
     
@@ -1098,6 +1101,17 @@ class Database:
         for column_name, alter_sql in new_columns.items():
             if column_name not in existing_columns:
                 cursor.execute(alter_sql)
+    
+    def _migrate_service_wo_materials(self, cursor):
+        """Add serial_number column to service_wo_materials table if it doesn't exist"""
+        
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(service_wo_materials)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add serial_number column if it doesn't exist
+        if 'serial_number' not in existing_columns:
+            cursor.execute("ALTER TABLE service_wo_materials ADD COLUMN serial_number TEXT")
     
     def seed_chart_of_accounts(self):
         conn = self.get_connection()

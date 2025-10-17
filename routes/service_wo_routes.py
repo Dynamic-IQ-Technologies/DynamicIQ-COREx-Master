@@ -99,10 +99,58 @@ def create_service_work_order():
                   session.get('user_id')))
             
             swo_id = cursor.lastrowid
+            
+            # Process parts/materials if any
+            parts_data = {}
+            for key in request.form.keys():
+                if key.startswith('parts['):
+                    # Extract index and field name from key like "parts[0][product_id]"
+                    import re
+                    match = re.match(r'parts\[(\d+)\]\[(\w+)\]', key)
+                    if match:
+                        index = match.group(1)
+                        field = match.group(2)
+                        if index not in parts_data:
+                            parts_data[index] = {}
+                        parts_data[index][field] = request.form.get(key)
+            
+            # Insert materials
+            materials_subtotal = 0
+            for index, part in parts_data.items():
+                if part.get('product_id'):
+                    product_id = part['product_id']
+                    quantity = float(part.get('quantity', 1))
+                    description = part.get('description', '').strip()
+                    serial_number = part.get('serial_number', '').strip() or None
+                    
+                    # Get product cost as unit price
+                    product = conn.execute('SELECT cost FROM products WHERE id = ?', (product_id,)).fetchone()
+                    unit_price = product['cost'] if product and product['cost'] else 0
+                    total_cost = quantity * unit_price
+                    materials_subtotal += total_cost
+                    
+                    # Insert material
+                    conn.execute('''
+                        INSERT INTO service_wo_materials (
+                            swo_id, product_id, quantity, unit_price, total_cost,
+                            allocated_from_inventory, description, serial_number, created_by
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (swo_id, product_id, quantity, unit_price, total_cost,
+                          0, description, serial_number, session.get('user_id')))
+            
+            # Update materials subtotal and total cost
+            if materials_subtotal > 0:
+                conn.execute('''
+                    UPDATE service_work_orders 
+                    SET materials_subtotal = ?, total_cost = ?
+                    WHERE id = ?
+                ''', (materials_subtotal, materials_subtotal, swo_id))
+            
             conn.commit()
             conn.close()
             
-            flash(f'Service Work Order {swo_number} created successfully!', 'success')
+            parts_count = len(parts_data) if parts_data else 0
+            flash(f'Service Work Order {swo_number} created successfully! ({parts_count} parts added)', 'success')
             return redirect(url_for('service_wo_routes.view_service_work_order', id=swo_id))
             
         except Exception as e:
@@ -600,7 +648,7 @@ def api_products():
     db = Database()
     conn = db.get_connection()
     products = conn.execute('''
-        SELECT id, code, name
+        SELECT id, code, name, description, is_serialized
         FROM products
         ORDER BY code
     ''').fetchall()
@@ -608,6 +656,25 @@ def api_products():
     
     from flask import jsonify
     return jsonify([dict(product) for product in products])
+
+@service_wo_bp.route('/api/inventory-serials/<int:product_id>')
+@login_required
+def api_inventory_serials(product_id):
+    """API endpoint to get available serial numbers for a product"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get available serial numbers from inventory (quantity > 0)
+    serials = conn.execute('''
+        SELECT DISTINCT serial_number
+        FROM inventory
+        WHERE product_id = ? AND serial_number IS NOT NULL AND quantity > 0
+        ORDER BY serial_number
+    ''', (product_id,)).fetchall()
+    conn.close()
+    
+    from flask import jsonify
+    return jsonify([dict(serial) for serial in serials])
 
 @service_wo_bp.route('/service-work-orders/<int:id>/generate-invoice', methods=['POST'])
 @role_required('Admin', 'Planner')

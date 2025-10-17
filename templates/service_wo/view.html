@@ -311,6 +311,7 @@
                             <th>Quantity</th>
                             <th>Unit Price</th>
                             <th>Total Cost</th>
+                            <th>Serial Number</th>
                             <th>Inventory</th>
                             <th>Description</th>
                             {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
@@ -325,6 +326,13 @@
                             <td>{{ material.quantity }}</td>
                             <td>${{ "{:,.2f}".format(material.unit_price) }}</td>
                             <td><strong>${{ "{:,.2f}".format(material.total_cost) }}</strong></td>
+                            <td>
+                                {% if material.serial_number %}
+                                <span class="badge bg-info">{{ material.serial_number }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if material.allocated_from_inventory %}
                                 <span class="badge bg-success">Allocated</span>
