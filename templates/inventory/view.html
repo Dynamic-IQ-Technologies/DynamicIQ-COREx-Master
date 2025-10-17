@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory {{ inventory.code }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Inventory: {{ inventory.code }} - {{ inventory.name }}</h2>
+    <div>
+        {% if session.role in ['Admin', 'Production Staff'] %}
+        <a href="{{ url_for('inventory_routes.edit_inventory', id=inventory.id) }}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a href="{{ url_for('inventory_routes.adjust_inventory', id=inventory.id) }}" class="btn btn-primary">
+            <i class="bi bi-arrow-left-right"></i> Adjust
+        </a>
+        {% endif %}
+        <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Product Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Product Code:</strong> {{ inventory.code }}</p>
+                        <p><strong>Product Name:</strong> {{ inventory.name }}</p>
+                        {% if inventory.description %}
+                        <p><strong>Description:</strong> {{ inventory.description }}</p>
+                        {% endif %}
+                        {% if inventory.category %}
+                        <p><strong>Category:</strong> <span class="badge bg-secondary">{{ inventory.category }}</span></p>
+                        {% endif %}
+                        <p><strong>Unit of Measure:</strong> {{ inventory.unit_of_measure }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Serialization:</strong> 
+                            {% if inventory.is_serialized %}
+                            <span class="badge bg-info">SERIALIZED</span>
+                            {% else %}
+                            <span class="badge bg-secondary">NON-SERIALIZED</span>
+                            {% endif %}
+                        </p>
+                        {% if inventory.is_serialized and inventory.serial_number %}
+                        <p><strong>Serial Number:</strong> <span class="badge bg-info">{{ inventory.serial_number }}</span></p>
+                        {% endif %}
+                        <p><strong>Condition:</strong> <span class="badge bg-primary">{{ inventory.condition or 'Serviceable' }}</span></p>
+                        <p><strong>Status:</strong> 
+                            {% if inventory.status == 'Available' %}
+                            <span class="badge bg-success">{{ inventory.status }}</span>
+                            {% elif inventory.status == 'Reserved' %}
+                            <span class="badge bg-warning">{{ inventory.status }}</span>
+                            {% elif inventory.status == 'Out of Stock' %}
+                            <span class="badge bg-danger">{{ inventory.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ inventory.status or 'Available' }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Cost & Value</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Unit Cost:</strong> ${{ "{:,.2f}".format(inventory.cost) }}</p>
+                <p><strong>Current Quantity:</strong> {{ inventory.quantity }}</p>
+                <hr>
+                <p><strong>Total Inventory Value:</strong> <br>
+                    <span class="text-success fs-4">${{ "{:,.2f}".format(inventory.inventory_value) }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Stock Levels</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Current Quantity:</strong> {{ inventory.quantity }} {{ inventory.unit_of_measure }}</p>
+                <p><strong>Reorder Point:</strong> {{ inventory.reorder_point }} {{ inventory.unit_of_measure }}</p>
+                <p><strong>Safety Stock:</strong> {{ inventory.safety_stock }} {{ inventory.unit_of_measure }}</p>
+                <p><strong>Stock Status:</strong> 
+                    {% if inventory.quantity <= 0 %}
+                    <span class="badge bg-danger">OUT OF STOCK</span>
+                    {% elif inventory.quantity <= inventory.reorder_point %}
+                    <span class="badge bg-warning text-dark">LOW STOCK - REORDER NEEDED</span>
+                    {% elif inventory.quantity <= inventory.safety_stock %}
+                    <span class="badge bg-info">BELOW SAFETY STOCK</span>
+                    {% else %}
+                    <span class="badge bg-success">ADEQUATE STOCK</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Location Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Warehouse Location:</strong> {{ inventory.warehouse_location or 'Main' }}</p>
+                <p><strong>Bin Location:</strong> {{ inventory.bin_location or 'Not specified' }}</p>
+                <p><strong>Last Updated:</strong> {{ inventory.last_updated or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Inventory Record Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Inventory ID:</strong> <span class="badge bg-secondary">INV-{{ "%06d"|format(inventory.id) }}</span></p>
+                <p><strong>Product ID:</strong> {{ inventory.product_id }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Created:</strong> {{ inventory.created_at or 'N/A' }}</p>
+                <p><strong>Last Updated:</strong> {{ inventory.last_updated or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
