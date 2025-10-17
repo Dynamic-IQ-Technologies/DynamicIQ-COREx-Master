@@ -93,6 +93,8 @@
                         <th>Type</th>
                         <th>Conversion Factor</th>
                         <th>Example</th>
+                        <th>Version</th>
+                        <th>Effective Date</th>
                         <th>Base UOM</th>
                         <th>Purchase UOM</th>
                         <th>Issue UOM</th>
@@ -101,7 +103,7 @@
                 </thead>
                 <tbody id="uomConversionsBody">
                     <tr>
-                        <td colspan="9" class="text-center text-muted">Loading...</td>
+                        <td colspan="11" class="text-center text-muted">Loading...</td>
                     </tr>
                 </tbody>
             </table>
@@ -159,11 +161,32 @@
                     </label>
                 </div>
                 
-                <div class="form-check">
+                <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="modalIsIssueUom">
                     <label class="form-check-label" for="modalIsIssueUom">
                         Default Issue UOM (Auto-select for Material Issuance)
                     </label>
+                </div>
+                
+                <hr>
+                
+                <div class="form-check mb-3" id="createVersionSection" style="display:none;">
+                    <input class="form-check-input" type="checkbox" id="modalCreateVersion">
+                    <label class="form-check-label" for="modalCreateVersion">
+                        <strong class="text-primary">Create New Version</strong> (Keep version history instead of updating existing)
+                    </label>
+                </div>
+                
+                <div id="versionFieldsSection" style="display:none;">
+                    <div class="mb-3">
+                        <label class="form-label">Effective Date</label>
+                        <input type="date" class="form-control" id="modalEffectiveDate">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Version Notes</label>
+                        <textarea class="form-control" id="modalVersionNotes" rows="2" placeholder="Document the reason for this version change..."></textarea>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -198,6 +221,11 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modalConversionFactor').disabled = false;
         }
     });
+    
+    // Toggle version fields when create version checkbox is checked
+    document.getElementById('modalCreateVersion').addEventListener('change', function() {
+        document.getElementById('versionFieldsSection').style.display = this.checked ? 'block' : 'none';
+    });
 });
 
 async function loadUOMConversions() {
@@ -216,7 +244,7 @@ function renderUOMConversions() {
     const tbody = document.getElementById('uomConversionsBody');
     
     if (uomConversions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No UOM conversions defined. Click "Add UOM" to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No UOM conversions defined. Click "Add UOM" to get started.</td></tr>';
         return;
     }
     
@@ -233,6 +261,10 @@ function renderUOMConversions() {
             `1 ${conv.uom_code} = 1 ${conv.uom_code}` :
             `1 ${conv.uom_code} = ${conv.conversion_factor} ${conv.is_base_uom ? conv.uom_code : 'base units'}`;
         
+        // Version display
+        const versionText = `<span class="badge bg-primary">v${conv.version_number || 1}</span>`;
+        const effectiveDate = conv.effective_date ? new Date(conv.effective_date).toLocaleDateString() : '-';
+        
         return `
             <tr>
                 <td><strong>${conv.uom_code}</strong></td>
@@ -240,10 +272,16 @@ function renderUOMConversions() {
                 <td><span class="badge bg-secondary">${conv.uom_type}</span></td>
                 <td>${conv.conversion_factor.toFixed(4)}</td>
                 <td class="text-primary">${example}</td>
+                <td>${versionText}</td>
+                <td>${effectiveDate}</td>
                 <td>${baseUomText}</td>
                 <td>${purchaseText}</td>
                 <td>${issueText}</td>
                 <td>
+                    <button class="btn btn-sm btn-info me-1" onclick="viewVersionHistory(${conv.uom_id}, '${conv.uom_code}')" 
+                            title="View version history">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
                     <button class="btn btn-sm btn-primary me-1" onclick="editUOMConversion(${conv.uom_id})" 
                             title="Edit UOM conversion">
                         <i class="bi bi-pencil"></i>
@@ -270,6 +308,13 @@ function showAddUOMModal() {
     document.getElementById('modalIsIssueUom').checked = false;
     document.getElementById('previewText').textContent = 'Select UOM and enter conversion factor';
     
+    // Hide version fields for new conversions
+    document.getElementById('createVersionSection').style.display = 'none';
+    document.getElementById('versionFieldsSection').style.display = 'none';
+    document.getElementById('modalCreateVersion').checked = false;
+    document.getElementById('modalEffectiveDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modalVersionNotes').value = '';
+    
     // Update modal title
     document.querySelector('#uomConversionModal .modal-title').textContent = 'Add UOM Conversion';
     
@@ -292,6 +337,13 @@ function editUOMConversion(uomId) {
     document.getElementById('modalIsBaseUom').checked = conv.is_base_uom ? true : false;
     document.getElementById('modalIsPurchaseUom').checked = conv.is_purchase_uom ? true : false;
     document.getElementById('modalIsIssueUom').checked = conv.is_issue_uom ? true : false;
+    
+    // Show version creation option for existing conversions
+    document.getElementById('createVersionSection').style.display = 'block';
+    document.getElementById('modalCreateVersion').checked = false;
+    document.getElementById('versionFieldsSection').style.display = 'none';
+    document.getElementById('modalEffectiveDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modalVersionNotes').value = '';
     
     // Update preview
     updateConversionPreview();
@@ -329,6 +381,9 @@ async function saveUOMConversion() {
     const isBaseUom = document.getElementById('modalIsBaseUom').checked ? 1 : 0;
     const isPurchaseUom = document.getElementById('modalIsPurchaseUom').checked ? 1 : 0;
     const isIssueUom = document.getElementById('modalIsIssueUom').checked ? 1 : 0;
+    const createVersion = document.getElementById('modalCreateVersion').checked;
+    const effectiveDate = document.getElementById('modalEffectiveDate').value;
+    const versionNotes = document.getElementById('modalVersionNotes').value;
     
     if (!uomId) {
         alert('Please select a UOM');
@@ -337,6 +392,11 @@ async function saveUOMConversion() {
     
     if (!conversionFactor || conversionFactor <= 0) {
         alert('Please enter a valid conversion factor');
+        return;
+    }
+    
+    if (createVersion && !versionNotes) {
+        alert('Please enter version notes when creating a new version');
         return;
     }
     
@@ -349,7 +409,10 @@ async function saveUOMConversion() {
                 conversion_factor: conversionFactor,
                 is_base_uom: isBaseUom,
                 is_purchase_uom: isPurchaseUom,
-                is_issue_uom: isIssueUom
+                is_issue_uom: isIssueUom,
+                create_version: createVersion,
+                effective_date: effectiveDate,
+                version_notes: versionNotes
             })
         });
         
@@ -360,7 +423,7 @@ async function saveUOMConversion() {
             await loadUOMConversions();
             
             // Show success message in the UOM conversions card
-            const action = editingUomId ? 'updated' : 'added';
+            const action = createVersion ? 'version created' : (editingUomId ? 'updated' : 'added');
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
             alertDiv.innerHTML = `
@@ -382,6 +445,133 @@ async function saveUOMConversion() {
         }
     } catch (error) {
         alert('Error saving UOM conversion: ' + error.message);
+    }
+}
+
+async function viewVersionHistory(uomId, uomCode) {
+    try {
+        const response = await fetch(`/products/${productId}/uom-conversions/${uomId}/versions`);
+        const versions = await response.json();
+        
+        if (versions.length === 0) {
+            alert('No version history available for this UOM conversion');
+            return;
+        }
+        
+        // Build version history table
+        let historyHTML = `
+            <div class="modal fade" id="versionHistoryModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Version History - ${uomCode}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Version</th>
+                                        <th>Conv. Factor</th>
+                                        <th>Effective Date</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                        <th>Created By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+        `;
+        
+        versions.forEach(ver => {
+            const activeLabel = ver.is_active ? 
+                '<span class="badge bg-success">Active</span>' : 
+                '<span class="badge bg-secondary">Inactive</span>';
+            const activateBtn = ver.is_active ? '' : 
+                `<button class="btn btn-sm btn-outline-primary" onclick="activateVersion(${ver.id}, ${uomId})">Activate</button>`;
+            const effectiveDate = ver.effective_date ? new Date(ver.effective_date).toLocaleDateString() : '-';
+            
+            historyHTML += `
+                <tr>
+                    <td><span class="badge bg-primary">v${ver.version_number}</span></td>
+                    <td>${ver.conversion_factor.toFixed(4)}</td>
+                    <td>${effectiveDate}</td>
+                    <td>${activeLabel}</td>
+                    <td>${ver.version_notes || '-'}</td>
+                    <td>${ver.created_by_name || '-'}</td>
+                    <td>${activateBtn}</td>
+                </tr>
+            `;
+        });
+        
+        historyHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing version history modal
+        const existingModal = document.getElementById('versionHistoryModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add new modal to body
+        document.body.insertAdjacentHTML('beforeend', historyHTML);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('versionHistoryModal'));
+        modal.show();
+        
+    } catch (error) {
+        alert('Error loading version history: ' + error.message);
+    }
+}
+
+async function activateVersion(versionId, uomId) {
+    if (!confirm('Are you sure you want to activate this version? This will deactivate the current active version.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/products/${productId}/uom-conversions/${uomId}/activate/${versionId}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Close version history modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('versionHistoryModal'));
+            modal.hide();
+            
+            // Reload conversions
+            await loadUOMConversions();
+            
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
+            alertDiv.innerHTML = `
+                <i class="bi bi-check-circle"></i> Version activated successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            const uomCardBody = document.querySelector('#uomConversionsBody').closest('.card-body');
+            if (uomCardBody) {
+                const firstChild = uomCardBody.firstChild;
+                uomCardBody.insertBefore(alertDiv, firstChild);
+            }
+            setTimeout(() => alertDiv.remove(), 3000);
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error activating version: ' + error.message);
     }
 }
 
