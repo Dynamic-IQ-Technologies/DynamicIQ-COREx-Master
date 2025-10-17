@@ -602,7 +602,6 @@ def api_products():
     products = conn.execute('''
         SELECT id, code, name
         FROM products
-        WHERE status = 'Active'
         ORDER BY code
     ''').fetchall()
     conn.close()
