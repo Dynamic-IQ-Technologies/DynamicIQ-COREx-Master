@@ -70,7 +70,7 @@
                             <select name="customer_id" class="form-select">
                                 <option value="">Select Customer</option>
                                 {% for customer in customers %}
-                                <option value="{{ customer.id }}">{{ customer.customer_number }} - {{ customer.company_name }}</option>
+                                <option value="{{ customer.id }}">{{ customer.customer_number }} - {{ customer.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>

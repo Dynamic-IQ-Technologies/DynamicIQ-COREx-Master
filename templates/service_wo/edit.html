@@ -74,7 +74,7 @@
                                 <option value="">Select Customer</option>
                                 {% for customer in customers %}
                                 <option value="{{ customer.id }}" {% if swo.customer_id == customer.id %}selected{% endif %}>
-                                    {{ customer.customer_number }} - {{ customer.company_name }}
+                                    {{ customer.customer_number }} - {{ customer.name }}
                                 </option>
                                 {% endfor %}
                             </select>
