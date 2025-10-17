@@ -314,17 +314,30 @@ def import_products():
 @product_bp.route('/products/<int:product_id>/uom-conversions')
 @login_required
 def get_product_uom_conversions(product_id):
-    """Get all UOM conversions for a product"""
+    """Get active UOM conversions for a product"""
     db = Database()
     conn = db.get_connection()
     
-    conversions = conn.execute('''
-        SELECT puc.*, u.uom_code, u.uom_name, u.uom_type
-        FROM product_uom_conversions puc
-        JOIN uom_master u ON puc.uom_id = u.id
-        WHERE puc.product_id = ?
-        ORDER BY puc.is_base_uom DESC, u.uom_code
-    ''', (product_id,)).fetchall()
+    show_all = request.args.get('show_all', 'false').lower() == 'true'
+    
+    if show_all:
+        # Get all versions
+        conversions = conn.execute('''
+            SELECT puc.*, u.uom_code, u.uom_name, u.uom_type
+            FROM product_uom_conversions puc
+            JOIN uom_master u ON puc.uom_id = u.id
+            WHERE puc.product_id = ?
+            ORDER BY u.uom_code, puc.version_number DESC
+        ''', (product_id,)).fetchall()
+    else:
+        # Get only active versions
+        conversions = conn.execute('''
+            SELECT puc.*, u.uom_code, u.uom_name, u.uom_type
+            FROM product_uom_conversions puc
+            JOIN uom_master u ON puc.uom_id = u.id
+            WHERE puc.product_id = ? AND puc.is_active = 1
+            ORDER BY puc.is_base_uom DESC, u.uom_code
+        ''', (product_id,)).fetchall()
     
     conn.close()
     return jsonify([dict(row) for row in conversions])
@@ -332,17 +345,21 @@ def get_product_uom_conversions(product_id):
 @product_bp.route('/products/<int:product_id>/uom-conversions/add', methods=['POST'])
 @role_required('Admin', 'Planner')
 def add_product_uom_conversion(product_id):
-    """Add a new UOM conversion for a product"""
+    """Add a new UOM conversion for a product or create a new version"""
     db = Database()
     conn = db.get_connection()
     
     try:
+        from datetime import datetime
         data = request.get_json()
         uom_id = int(data.get('uom_id'))
         conversion_factor = float(data.get('conversion_factor', 1.0))
         is_base_uom = int(data.get('is_base_uom', 0))
         is_purchase_uom = int(data.get('is_purchase_uom', 0))
         is_issue_uom = int(data.get('is_issue_uom', 0))
+        create_version = data.get('create_version', False)
+        effective_date = data.get('effective_date', datetime.now().strftime('%Y-%m-%d'))
+        version_notes = data.get('version_notes', '')
         
         # Validate UOM exists
         uom = conn.execute('SELECT * FROM uom_master WHERE id = ?', (uom_id,)).fetchone()
@@ -355,40 +372,75 @@ def add_product_uom_conversion(product_id):
             conn.execute('''
                 UPDATE product_uom_conversions 
                 SET is_base_uom = 0 
-                WHERE product_id = ? AND is_base_uom = 1
+                WHERE product_id = ? AND is_base_uom = 1 AND is_active = 1
             ''', (product_id,))
             # Base UOM should always have conversion factor of 1.0
             conversion_factor = 1.0
         
-        # Check if conversion already exists
-        existing = conn.execute('''
+        # Check if active conversion already exists for this product-UOM combination
+        existing_active = conn.execute('''
             SELECT * FROM product_uom_conversions 
-            WHERE product_id = ? AND uom_id = ?
+            WHERE product_id = ? AND uom_id = ? AND is_active = 1
         ''', (product_id, uom_id)).fetchone()
         
-        if existing:
-            # Update existing
+        if existing_active and create_version:
+            # Create a new version
+            # Get the latest version number
+            max_version = conn.execute('''
+                SELECT COALESCE(MAX(version_number), 0) 
+                FROM product_uom_conversions 
+                WHERE product_id = ? AND uom_id = ?
+            ''', (product_id, uom_id)).fetchone()[0]
+            
+            new_version = max_version + 1
+            
+            # Deactivate all existing versions
+            conn.execute('''
+                UPDATE product_uom_conversions
+                SET is_active = 0
+                WHERE product_id = ? AND uom_id = ?
+            ''', (product_id, uom_id))
+            
+            # Insert new version
+            conn.execute('''
+                INSERT INTO product_uom_conversions 
+                (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, 
+                 version_number, effective_date, is_active, version_notes, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ''', (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, 
+                  new_version, effective_date, version_notes, session.get('user_id')))
+            
+            action_type = 'Created Version ' + str(new_version)
+            
+        elif existing_active:
+            # Update existing active version
             conn.execute('''
                 UPDATE product_uom_conversions
                 SET conversion_factor = ?, is_base_uom = ?, is_purchase_uom = ?, is_issue_uom = ?
-                WHERE product_id = ? AND uom_id = ?
+                WHERE product_id = ? AND uom_id = ? AND is_active = 1
             ''', (conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, product_id, uom_id))
+            
+            action_type = 'Updated'
         else:
-            # Insert new
+            # Insert new (first version)
             conn.execute('''
                 INSERT INTO product_uom_conversions 
-                (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, session.get('user_id')))
+                (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, 
+                 version_number, effective_date, is_active, version_notes, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, ?, ?)
+            ''', (product_id, uom_id, conversion_factor, is_base_uom, is_purchase_uom, is_issue_uom, 
+                  effective_date, version_notes, session.get('user_id')))
+            
+            action_type = 'Created'
         
         # Log audit trail
         AuditLogger.log_change(
             conn=conn,
             record_type='product_uom_conversion',
             record_id=product_id,
-            action_type='Updated' if existing else 'Created',
+            action_type=action_type,
             modified_by=session.get('user_id'),
-            changed_fields={'uom_id': uom_id, 'conversion_factor': conversion_factor, 'is_base_uom': is_base_uom},
+            changed_fields={'uom_id': uom_id, 'conversion_factor': conversion_factor, 'is_base_uom': is_base_uom, 'version_notes': version_notes},
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent')
         )
@@ -398,6 +450,69 @@ def add_product_uom_conversion(product_id):
         
         return jsonify({'success': True, 'message': 'UOM conversion saved successfully'})
         
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@product_bp.route('/products/<int:product_id>/uom-conversions/<int:uom_id>/versions')
+@login_required
+def get_uom_conversion_versions(product_id, uom_id):
+    """Get version history for a specific product-UOM conversion"""
+    db = Database()
+    conn = db.get_connection()
+    
+    versions = conn.execute('''
+        SELECT puc.*, u.uom_code, u.uom_name, u.uom_type,
+               usr.username as created_by_name
+        FROM product_uom_conversions puc
+        JOIN uom_master u ON puc.uom_id = u.id
+        LEFT JOIN users usr ON puc.created_by = usr.id
+        WHERE puc.product_id = ? AND puc.uom_id = ?
+        ORDER BY puc.version_number DESC
+    ''', (product_id, uom_id)).fetchall()
+    
+    conn.close()
+    return jsonify([dict(row) for row in versions])
+
+@product_bp.route('/products/<int:product_id>/uom-conversions/<int:uom_id>/activate/<int:version_id>', methods=['POST'])
+@role_required('Admin', 'Planner')
+def activate_uom_conversion_version(product_id, uom_id, version_id):
+    """Activate a specific version of a UOM conversion"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Deactivate all versions for this product-UOM combination
+        conn.execute('''
+            UPDATE product_uom_conversions
+            SET is_active = 0
+            WHERE product_id = ? AND uom_id = ?
+        ''', (product_id, uom_id))
+        
+        # Activate the selected version
+        conn.execute('''
+            UPDATE product_uom_conversions
+            SET is_active = 1
+            WHERE id = ? AND product_id = ? AND uom_id = ?
+        ''', (version_id, product_id, uom_id))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product_uom_conversion',
+            record_id=product_id,
+            action_type='Version Activated',
+            modified_by=session.get('user_id'),
+            changed_fields={'version_id': version_id, 'uom_id': uom_id},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Version activated successfully'})
+    
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
