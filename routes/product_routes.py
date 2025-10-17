@@ -40,7 +40,7 @@ def create_product():
             request.form['description'],
             request.form['unit_of_measure'],
             request.form['product_type'],
-            float(request.form['cost'])
+            0.0
         ))
         
         product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -82,7 +82,7 @@ def edit_product(id):
         
         conn.execute('''
             UPDATE products 
-            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, cost=?
+            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?
             WHERE id=?
         ''', (
             request.form['code'],
@@ -90,7 +90,6 @@ def edit_product(id):
             request.form['description'],
             request.form['unit_of_measure'],
             request.form['product_type'],
-            float(request.form['cost']),
             id
         ))
         
