@@ -181,6 +181,17 @@ def create_receiving():
             conversion_factor = po_line['conversion_factor_used'] if po_line['conversion_factor_used'] else 1.0
             base_quantity_received = quantity_received * conversion_factor
             
+            # Calculate unit cost based on PO line price and conversion factor
+            # This ensures inventory cost reflects actual purchase cost, not product master cost
+            unit_cost_in_base_uom = po_line['unit_price'] / conversion_factor if conversion_factor > 0 else po_line['unit_price']
+            
+            # Update product cost to reflect actual purchase cost
+            conn.execute('''
+                UPDATE products
+                SET cost = ?
+                WHERE id = ?
+            ''', (unit_cost_in_base_uom, product_id))
+            
             # Update inventory with base quantity
             inventory = conn.execute('''
                 SELECT * FROM inventory WHERE product_id = ?

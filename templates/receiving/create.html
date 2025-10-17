@@ -22,8 +22,9 @@
                                     data-ordered="{{ '%.2f'|format(po.quantity) }}"
                                     data-received="{{ '%.2f'|format(po.received_so_far) }}"
                                     data-remaining="{{ '%.2f'|format(po.remaining_quantity) }}"
-                                    data-uom="{{ po.unit_of_measure }}">
-                                {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining
+                                    data-uom="{{ po.unit_of_measure }}"
+                                    data-unitprice="{{ '%.2f'|format(po.unit_price) }}">
+                                {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining @ ${{ "%.2f"|format(po.unit_price) }}
                             </option>
                             {% endfor %}
                         </select>
@@ -58,6 +59,21 @@
                         <div class="col-md-4">
                             <strong>Remaining:</strong> <span id="detail_remaining" class="text-primary"></span>
                         </div>
+                        <div class="col-md-4">
+                            <strong>Unit Cost:</strong> <span id="detail_unitcost" class="text-info fw-bold"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receiving Cost Summary -->
+            <div class="alert alert-info mb-3" id="cost_summary" style="display:none;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Receiving Quantity:</strong> <span id="summary_quantity">0</span> <span id="summary_uom"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Total Receiving Value:</strong> <span id="summary_total" class="fs-5 fw-bold">$0.00</span>
                     </div>
                 </div>
             </div>
@@ -129,23 +145,55 @@
 </div>
 
 <script>
+let currentUnitPrice = 0;
+let currentUOM = '';
+
 function updatePODetails() {
     const select = document.getElementById('po_line_id');
     const option = select.options[select.selectedIndex];
     
     if (option.value) {
+        currentUnitPrice = parseFloat(option.dataset.unitprice);
+        currentUOM = option.dataset.uom;
+        
         document.getElementById('detail_product').textContent = option.dataset.productCode + ' - ' + option.dataset.productName;
         document.getElementById('detail_supplier').textContent = option.dataset.supplier;
-        document.getElementById('detail_ordered').textContent = option.dataset.ordered + ' ' + option.dataset.uom;
-        document.getElementById('detail_received').textContent = option.dataset.received + ' ' + option.dataset.uom;
-        document.getElementById('detail_remaining').textContent = option.dataset.remaining + ' ' + option.dataset.uom;
+        document.getElementById('detail_ordered').textContent = option.dataset.ordered + ' ' + currentUOM;
+        document.getElementById('detail_received').textContent = option.dataset.received + ' ' + currentUOM;
+        document.getElementById('detail_remaining').textContent = option.dataset.remaining + ' ' + currentUOM;
+        document.getElementById('detail_unitcost').textContent = '$' + currentUnitPrice.toFixed(2) + ' per ' + currentUOM;
         document.getElementById('po_details').style.display = 'block';
         
         // Set max quantity to remaining
         document.getElementById('quantity_received').max = option.dataset.remaining;
+        
+        // Calculate initial cost
+        calculateReceivingCost();
     } else {
         document.getElementById('po_details').style.display = 'none';
+        document.getElementById('cost_summary').style.display = 'none';
     }
 }
+
+function calculateReceivingCost() {
+    const qtyInput = document.getElementById('quantity_received');
+    const quantity = parseFloat(qtyInput.value) || 0;
+    
+    if (quantity > 0 && currentUnitPrice > 0) {
+        const totalValue = quantity * currentUnitPrice;
+        
+        document.getElementById('summary_quantity').textContent = quantity.toFixed(2);
+        document.getElementById('summary_uom').textContent = currentUOM;
+        document.getElementById('summary_total').textContent = '$' + totalValue.toFixed(2);
+        document.getElementById('cost_summary').style.display = 'block';
+    } else {
+        document.getElementById('cost_summary').style.display = 'none';
+    }
+}
+
+// Listen for quantity changes
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('quantity_received').addEventListener('input', calculateReceivingCost);
+});
 </script>
 {% endblock %}
