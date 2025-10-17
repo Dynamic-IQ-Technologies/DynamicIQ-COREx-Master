@@ -103,6 +103,7 @@
                             {% endif %}
                         </td>
                         <td>
+                            <a href="{{ url_for('inventory_routes.view_inventory', id=item.id) }}" class="btn btn-sm btn-info me-1"><i class="bi bi-eye"></i> View</a>
                             {% if session.role in ['Admin', 'Production Staff'] %}
                             <a href="{{ url_for('inventory_routes.edit_inventory', id=item.id) }}" class="btn btn-sm btn-warning me-1"><i class="bi bi-pencil"></i> Edit</a>
                             <a href="{{ url_for('inventory_routes.adjust_inventory', id=item.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-arrow-left-right"></i> Adjust</a>
