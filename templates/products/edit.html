@@ -184,6 +184,7 @@
 const productId = {{ product.id }};
 let uomConversions = [];
 let uomConversionModal;
+let editingUomId = null; // Track which UOM we're editing
 
 document.addEventListener('DOMContentLoaded', function() {
     uomConversionModal = new bootstrap.Modal(document.getElementById('uomConversionModal'));
@@ -249,6 +250,10 @@ function renderUOMConversions() {
                 <td>${purchaseText}</td>
                 <td>${issueText}</td>
                 <td>
+                    <button class="btn btn-sm btn-primary me-1" onclick="editUOMConversion(${conv.uom_id})" 
+                            title="Edit UOM conversion">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button class="btn btn-sm btn-danger" onclick="deleteUOMConversion(${conv.uom_id})" 
                             ${conv.is_base_uom ? 'disabled title="Cannot delete base UOM"' : ''}>
                         <i class="bi bi-trash"></i>
@@ -260,14 +265,45 @@ function renderUOMConversions() {
 }
 
 function showAddUOMModal() {
-    // Reset form
+    // Reset form for adding
+    editingUomId = null;
     document.getElementById('modalUomId').value = '';
+    document.getElementById('modalUomId').disabled = false;
     document.getElementById('modalConversionFactor').value = '';
     document.getElementById('modalConversionFactor').disabled = false;
     document.getElementById('modalIsBaseUom').checked = false;
     document.getElementById('modalIsPurchaseUom').checked = false;
     document.getElementById('modalIsIssueUom').checked = false;
     document.getElementById('previewText').textContent = 'Select UOM and enter conversion factor';
+    
+    // Update modal title
+    document.querySelector('#uomConversionModal .modal-title').textContent = 'Add UOM Conversion';
+    
+    uomConversionModal.show();
+}
+
+function editUOMConversion(uomId) {
+    // Find the conversion data
+    const conv = uomConversions.find(c => c.uom_id === uomId);
+    if (!conv) return;
+    
+    // Set editing mode
+    editingUomId = uomId;
+    
+    // Populate form
+    document.getElementById('modalUomId').value = conv.uom_id;
+    document.getElementById('modalUomId').disabled = true; // Can't change UOM when editing
+    document.getElementById('modalConversionFactor').value = conv.conversion_factor;
+    document.getElementById('modalConversionFactor').disabled = conv.is_base_uom ? true : false;
+    document.getElementById('modalIsBaseUom').checked = conv.is_base_uom ? true : false;
+    document.getElementById('modalIsPurchaseUom').checked = conv.is_purchase_uom ? true : false;
+    document.getElementById('modalIsIssueUom').checked = conv.is_issue_uom ? true : false;
+    
+    // Update preview
+    updateConversionPreview();
+    
+    // Update modal title
+    document.querySelector('#uomConversionModal .modal-title').textContent = 'Edit UOM Conversion';
     
     uomConversionModal.show();
 }
@@ -330,14 +366,18 @@ async function saveUOMConversion() {
             await loadUOMConversions();
             
             // Show success message
+            const action = editingUomId ? 'updated' : 'added';
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-success alert-dismissible fade show';
             alertDiv.innerHTML = `
-                <i class="bi bi-check-circle"></i> ${result.message}
+                <i class="bi bi-check-circle"></i> UOM conversion ${action} successfully!
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
             document.querySelector('.card-body').prepend(alertDiv);
             setTimeout(() => alertDiv.remove(), 3000);
+            
+            // Reset editing mode
+            editingUomId = null;
         } else {
             alert('Error: ' + result.error);
         }
