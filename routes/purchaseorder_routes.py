@@ -288,7 +288,11 @@ def view_purchaseorder(id):
     
     conn.close()
     
-    return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records)
+    # Get current date for overdue badge
+    from datetime import date
+    today = date.today().strftime('%Y-%m-%d')
+    
+    return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records, today=today)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
