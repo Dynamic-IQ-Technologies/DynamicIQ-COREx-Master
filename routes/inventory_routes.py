@@ -64,8 +64,7 @@ def view_inventory(id):
     inventory = conn.execute('''
         SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, 
                COALESCE(p.cost, 0) as cost,
-               (i.quantity * COALESCE(p.cost, 0)) as inventory_value,
-               p.category
+               (i.quantity * COALESCE(p.cost, 0)) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.id = ?
