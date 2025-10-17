@@ -389,6 +389,24 @@ class Database:
                 except sqlite3.OperationalError:
                     pass
         
+        # Add versioning to product_uom_conversions
+        cursor.execute("PRAGMA table_info(product_uom_conversions)")
+        puc_columns = [col[1] for col in cursor.fetchall()]
+        
+        puc_version_columns = [
+            ('version_number', 'INTEGER DEFAULT 1'),
+            ('effective_date', 'DATE'),
+            ('is_active', 'INTEGER DEFAULT 1'),
+            ('version_notes', 'TEXT')
+        ]
+        
+        for col_name, col_type in puc_version_columns:
+            if col_name not in puc_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE product_uom_conversions ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
         # Create labor_resources table for employees/technicians
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS labor_resources (
@@ -631,7 +649,7 @@ class Database:
             )
         ''')
         
-        # Create product_uom_conversions table (Part-UOM associations)
+        # Create product_uom_conversions table (Part-UOM associations with versioning)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS product_uom_conversions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -641,12 +659,15 @@ class Database:
                 is_base_uom INTEGER DEFAULT 0,
                 is_purchase_uom INTEGER DEFAULT 0,
                 is_issue_uom INTEGER DEFAULT 0,
+                version_number INTEGER DEFAULT 1,
+                effective_date DATE,
+                is_active INTEGER DEFAULT 1,
+                version_notes TEXT,
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products(id),
                 FOREIGN KEY (uom_id) REFERENCES uom_master(id),
-                FOREIGN KEY (created_by) REFERENCES users(id),
-                UNIQUE(product_id, uom_id)
+                FOREIGN KEY (created_by) REFERENCES users(id)
             )
         ''')
         
