@@ -11,15 +11,114 @@ workorder_bp = Blueprint('workorder_routes', __name__)
 def list_workorders():
     db = Database()
     conn = db.get_connection()
-    workorders = conn.execute('''
+    
+    # Get filter parameters
+    status_filter = request.args.get('status', '')
+    disposition_filter = request.args.get('disposition', '')
+    priority_filter = request.args.get('priority', '')
+    operational_status_filter = request.args.get('operational_status', '')
+    customer_filter = request.args.get('customer', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    search = request.args.get('search', '')
+    
+    # Get sort parameters
+    sort_by = request.args.get('sort_by', 'planned_start_date')
+    sort_order = request.args.get('sort_order', 'DESC')
+    
+    # Build dynamic query
+    query = '''
         SELECT wo.*, p.code, p.name, c.customer_number, c.name as customer_full_name
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
-        ORDER BY wo.planned_start_date DESC
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    # Apply filters
+    if status_filter:
+        query += ' AND wo.status = ?'
+        params.append(status_filter)
+    
+    if disposition_filter:
+        query += ' AND wo.disposition = ?'
+        params.append(disposition_filter)
+    
+    if priority_filter:
+        query += ' AND wo.priority = ?'
+        params.append(priority_filter)
+    
+    if operational_status_filter:
+        query += ' AND wo.operational_status = ?'
+        params.append(operational_status_filter)
+    
+    if customer_filter:
+        query += ' AND wo.customer_id = ?'
+        params.append(int(customer_filter))
+    
+    if date_from:
+        query += ' AND wo.planned_start_date >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND wo.planned_start_date <= ?'
+        params.append(date_to)
+    
+    if search:
+        query += ''' AND (wo.wo_number LIKE ? OR p.code LIKE ? OR p.name LIKE ? 
+                     OR c.customer_number LIKE ? OR c.name LIKE ?)'''
+        search_param = f'%{search}%'
+        params.extend([search_param] * 5)
+    
+    # Validate and apply sorting
+    valid_sort_columns = {
+        'wo_number': 'wo.wo_number',
+        'product': 'p.code',
+        'customer': 'c.customer_number',
+        'quantity': 'wo.quantity',
+        'disposition': 'wo.disposition',
+        'status': 'wo.status',
+        'operational_status': 'wo.operational_status',
+        'priority': 'wo.priority',
+        'planned_start_date': 'wo.planned_start_date',
+        'planned_end_date': 'wo.planned_end_date'
+    }
+    
+    sort_column = valid_sort_columns.get(sort_by, 'wo.planned_start_date')
+    sort_direction = 'ASC' if sort_order.upper() == 'ASC' else 'DESC'
+    query += f' ORDER BY {sort_column} {sort_direction}'
+    
+    workorders = conn.execute(query, params).fetchall()
+    
+    # Get distinct values for filter dropdowns
+    customers = conn.execute('SELECT id, customer_number, name FROM customers ORDER BY customer_number').fetchall()
+    statuses = conn.execute('SELECT DISTINCT status FROM work_orders WHERE status IS NOT NULL ORDER BY status').fetchall()
+    dispositions = conn.execute('SELECT DISTINCT disposition FROM work_orders WHERE disposition IS NOT NULL ORDER BY disposition').fetchall()
+    priorities = conn.execute('SELECT DISTINCT priority FROM work_orders WHERE priority IS NOT NULL ORDER BY priority').fetchall()
+    operational_statuses = conn.execute('SELECT DISTINCT operational_status FROM work_orders WHERE operational_status IS NOT NULL ORDER BY operational_status').fetchall()
+    
     conn.close()
-    return render_template('workorders/list.html', workorders=workorders)
+    
+    return render_template('workorders/list.html', 
+                         workorders=workorders,
+                         customers=customers,
+                         statuses=statuses,
+                         dispositions=dispositions,
+                         priorities=priorities,
+                         operational_statuses=operational_statuses,
+                         filters={
+                             'status': status_filter,
+                             'disposition': disposition_filter,
+                             'priority': priority_filter,
+                             'operational_status': operational_status_filter,
+                             'customer': customer_filter,
+                             'date_from': date_from,
+                             'date_to': date_to,
+                             'search': search,
+                             'sort_by': sort_by,
+                             'sort_order': sort_order
+                         })
 
 @workorder_bp.route('/workorders/list-json')
 @login_required
