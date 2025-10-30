@@ -609,6 +609,405 @@ def delete_material_requirement(wo_id, req_id):
     
     return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
 
+@workorder_bp.route('/workorders/<int:wo_id>/allocate-material/<int:requirement_id>', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def allocate_material(wo_id, requirement_id):
+    """Allocate material to work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        quantity_to_allocate = float(request.form.get('quantity', 0))
+        
+        # Get requirement details
+        requirement = conn.execute('''
+            SELECT mr.*, p.code, p.name
+            FROM material_requirements mr
+            JOIN products p ON mr.product_id = p.id
+            WHERE mr.id = ? AND mr.work_order_id = ?
+        ''', (requirement_id, wo_id)).fetchone()
+        
+        if not requirement:
+            flash('Material requirement not found.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Check available inventory
+        inventory = conn.execute('''
+            SELECT quantity FROM inventory WHERE product_id = ?
+        ''', (requirement['product_id'],)).fetchone()
+        
+        available_qty = inventory['quantity'] if inventory else 0
+        current_allocated = requirement['allocated_quantity'] or 0
+        
+        # Validate allocation
+        if quantity_to_allocate <= 0:
+            flash('Allocation quantity must be greater than zero.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        if current_allocated + quantity_to_allocate > requirement['required_quantity']:
+            flash(f'Cannot allocate more than required quantity ({requirement["required_quantity"]}).', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        if quantity_to_allocate > available_qty:
+            flash(f'Insufficient inventory. Available: {available_qty}, Requested: {quantity_to_allocate}', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Update allocated quantity
+        new_allocated_qty = current_allocated + quantity_to_allocate
+        
+        # Determine allocation status
+        if new_allocated_qty >= requirement['required_quantity']:
+            allocation_status = 'Fully Allocated'
+        elif new_allocated_qty > 0:
+            allocation_status = 'Partially Allocated'
+        else:
+            allocation_status = 'Not Allocated'
+        
+        # Update material requirement
+        conn.execute('''
+            UPDATE material_requirements
+            SET allocated_quantity = ?,
+                allocation_status = ?,
+                allocated_by = ?,
+                allocated_at = ?
+            WHERE id = ?
+        ''', (new_allocated_qty, allocation_status, session.get('user_id'), datetime.now(), requirement_id))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='material_allocation',
+            record_id=requirement_id,
+            action_type='Allocated',
+            modified_by=session.get('user_id'),
+            changed_fields=f'Allocated {quantity_to_allocate} units of {requirement["code"]} to WO',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Successfully allocated {quantity_to_allocate} units of {requirement["code"]}. Total allocated: {new_allocated_qty}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error allocating material: {str(e)}', 'danger')
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+@workorder_bp.route('/workorders/<int:wo_id>/deallocate-material/<int:requirement_id>', methods=['POST'])
+@role_required('Admin', 'Planner')
+def deallocate_material(wo_id, requirement_id):
+    """Deallocate material from work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        quantity_to_deallocate = float(request.form.get('quantity', 0))
+        
+        # Get requirement details
+        requirement = conn.execute('''
+            SELECT mr.*, p.code
+            FROM material_requirements mr
+            JOIN products p ON mr.product_id = p.id
+            WHERE mr.id = ? AND mr.work_order_id = ?
+        ''', (requirement_id, wo_id)).fetchone()
+        
+        if not requirement:
+            flash('Material requirement not found.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        current_allocated = requirement['allocated_quantity'] or 0
+        issued_qty = requirement['issued_quantity'] or 0
+        
+        # Validate deallocation
+        if quantity_to_deallocate <= 0:
+            flash('Deallocation quantity must be greater than zero.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        if quantity_to_deallocate > (current_allocated - issued_qty):
+            flash(f'Cannot deallocate more than allocated but not issued quantity ({current_allocated - issued_qty}).', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Update allocated quantity
+        new_allocated_qty = current_allocated - quantity_to_deallocate
+        
+        # Determine allocation status
+        if issued_qty > 0:
+            allocation_status = 'Partially Issued'
+        elif new_allocated_qty >= requirement['required_quantity']:
+            allocation_status = 'Fully Allocated'
+        elif new_allocated_qty > 0:
+            allocation_status = 'Partially Allocated'
+        else:
+            allocation_status = 'Not Allocated'
+        
+        # Update material requirement
+        conn.execute('''
+            UPDATE material_requirements
+            SET allocated_quantity = ?,
+                allocation_status = ?
+            WHERE id = ?
+        ''', (new_allocated_qty, allocation_status, requirement_id))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='material_allocation',
+            record_id=requirement_id,
+            action_type='Deallocated',
+            modified_by=session.get('user_id'),
+            changed_fields=f'Deallocated {quantity_to_deallocate} units of {requirement["code"]} from WO',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Successfully deallocated {quantity_to_deallocate} units of {requirement["code"]}.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error deallocating material: {str(e)}', 'danger')
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+@workorder_bp.route('/workorders/<int:wo_id>/issue-material/<int:requirement_id>', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def issue_material(wo_id, requirement_id):
+    """Issue allocated material to work order floor"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        quantity_to_issue = float(request.form.get('quantity', 0))
+        
+        # Get requirement details
+        requirement = conn.execute('''
+            SELECT mr.*, p.code, p.name, p.cost
+            FROM material_requirements mr
+            JOIN products p ON mr.product_id = p.id
+            WHERE mr.id = ? AND mr.work_order_id = ?
+        ''', (requirement_id, wo_id)).fetchone()
+        
+        if not requirement:
+            flash('Material requirement not found.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        current_allocated = requirement['allocated_quantity'] or 0
+        current_issued = requirement['issued_quantity'] or 0
+        
+        # Validate issuance
+        if quantity_to_issue <= 0:
+            flash('Issue quantity must be greater than zero.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        if quantity_to_issue > (current_allocated - current_issued):
+            flash(f'Cannot issue more than allocated quantity. Allocated: {current_allocated}, Already Issued: {current_issued}', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Check inventory
+        inventory = conn.execute('SELECT quantity FROM inventory WHERE product_id = ?', (requirement['product_id'],)).fetchone()
+        available_qty = inventory['quantity'] if inventory else 0
+        
+        if quantity_to_issue > available_qty:
+            flash(f'Insufficient inventory. Available: {available_qty}', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Update issued quantity
+        new_issued_qty = current_issued + quantity_to_issue
+        
+        # Determine allocation status
+        if new_issued_qty >= requirement['required_quantity']:
+            allocation_status = 'Fully Issued'
+        elif new_issued_qty > 0:
+            allocation_status = 'Partially Issued'
+        else:
+            allocation_status = current_allocated >= requirement['required_quantity'] if current_allocated else 'Not Allocated'
+        
+        # Update material requirement
+        conn.execute('''
+            UPDATE material_requirements
+            SET issued_quantity = ?,
+                allocation_status = ?,
+                issued_by = ?,
+                issued_at = ?
+            WHERE id = ?
+        ''', (new_issued_qty, allocation_status, session.get('user_id'), datetime.now(), requirement_id))
+        
+        # Deduct from inventory
+        conn.execute('''
+            UPDATE inventory
+            SET quantity = quantity - ?
+            WHERE product_id = ?
+        ''', (quantity_to_issue, requirement['product_id']))
+        
+        # Post to GL: DR WIP, CR Inventory
+        material_cost = quantity_to_issue * (requirement['cost'] or 0)
+        
+        # DR: WIP (1140)
+        conn.execute('''
+            INSERT INTO general_ledger (account_id, entry_date, description, debit, credit, reference_type, reference_id, created_by)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+        ''', (11, datetime.now().strftime('%Y-%m-%d'), 
+              f'Material issued to WO-{wo_id}: {requirement["code"]}',
+              material_cost, 'work_order', wo_id, session.get('user_id')))
+        
+        # CR: Inventory (1100)
+        conn.execute('''
+            INSERT INTO general_ledger (account_id, entry_date, description, debit, credit, reference_type, reference_id, created_by)
+            VALUES (?, ?, ?, 0, ?, ?, ?, ?)
+        ''', (1, datetime.now().strftime('%Y-%m-%d'),
+              f'Material issued to WO-{wo_id}: {requirement["code"]}',
+              material_cost, 'work_order', wo_id, session.get('user_id')))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='material_issuance',
+            record_id=requirement_id,
+            action_type='Issued',
+            modified_by=session.get('user_id'),
+            changed_fields=f'Issued {quantity_to_issue} units of {requirement["code"]} to WO',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Successfully issued {quantity_to_issue} units of {requirement["code"]} to work order floor.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error issuing material: {str(e)}', 'danger')
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+@workorder_bp.route('/workorders/<int:wo_id>/return-material/<int:requirement_id>', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def return_material(wo_id, requirement_id):
+    """Return issued material from work order floor back to inventory"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        quantity_to_return = float(request.form.get('quantity', 0))
+        
+        # Get requirement details
+        requirement = conn.execute('''
+            SELECT mr.*, p.code, p.name, p.cost
+            FROM material_requirements mr
+            JOIN products p ON mr.product_id = p.id
+            WHERE mr.id = ? AND mr.work_order_id = ?
+        ''', (requirement_id, wo_id)).fetchone()
+        
+        if not requirement:
+            flash('Material requirement not found.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        current_issued = requirement['issued_quantity'] or 0
+        
+        # Validate return
+        if quantity_to_return <= 0:
+            flash('Return quantity must be greater than zero.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        if quantity_to_return > current_issued:
+            flash(f'Cannot return more than issued quantity ({current_issued}).', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        # Update issued quantity
+        new_issued_qty = current_issued - quantity_to_return
+        current_allocated = requirement['allocated_quantity'] or 0
+        
+        # Determine allocation status
+        if new_issued_qty > 0:
+            allocation_status = 'Partially Issued'
+        elif current_allocated >= requirement['required_quantity']:
+            allocation_status = 'Fully Allocated'
+        elif current_allocated > 0:
+            allocation_status = 'Partially Allocated'
+        else:
+            allocation_status = 'Not Allocated'
+        
+        # Update material requirement
+        conn.execute('''
+            UPDATE material_requirements
+            SET issued_quantity = ?,
+                allocation_status = ?
+            WHERE id = ?
+        ''', (new_issued_qty, allocation_status, requirement_id))
+        
+        # Add back to inventory
+        conn.execute('''
+            UPDATE inventory
+            SET quantity = quantity + ?
+            WHERE product_id = ?
+        ''', (quantity_to_return, requirement['product_id']))
+        
+        # Reverse GL posting: DR Inventory, CR WIP
+        material_cost = quantity_to_return * (requirement['cost'] or 0)
+        
+        # DR: Inventory (1100)
+        conn.execute('''
+            INSERT INTO general_ledger (account_id, entry_date, description, debit, credit, reference_type, reference_id, created_by)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+        ''', (1, datetime.now().strftime('%Y-%m-%d'),
+              f'Material returned from WO-{wo_id}: {requirement["code"]}',
+              material_cost, 'work_order', wo_id, session.get('user_id')))
+        
+        # CR: WIP (1140)
+        conn.execute('''
+            INSERT INTO general_ledger (account_id, entry_date, description, debit, credit, reference_type, reference_id, created_by)
+            VALUES (?, ?, ?, 0, ?, ?, ?, ?)
+        ''', (11, datetime.now().strftime('%Y-%m-%d'),
+              f'Material returned from WO-{wo_id}: {requirement["code"]}',
+              material_cost, 'work_order', wo_id, session.get('user_id')))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='material_return',
+            record_id=requirement_id,
+            action_type='Returned',
+            modified_by=session.get('user_id'),
+            changed_fields=f'Returned {quantity_to_return} units of {requirement["code"]} from WO',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Successfully returned {quantity_to_return} units of {requirement["code"]} to inventory.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error returning material: {str(e)}', 'danger')
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
 @workorder_bp.route('/workorders/<int:id>/traveler')
 @login_required
 def work_order_traveler(id):
