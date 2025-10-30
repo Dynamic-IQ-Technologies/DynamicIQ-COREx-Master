@@ -782,11 +782,11 @@ def generate_invoice(id):
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO invoices (
-                invoice_number, customer_id, invoice_date, due_date, status,
+                invoice_number, invoice_type, customer_id, invoice_date, due_date, status,
                 subtotal, tax_amount, total_amount, source_type, source_id,
                 notes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (invoice_number, swo['customer_id'], datetime.now().strftime('%Y-%m-%d'),
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (invoice_number, 'Service', swo['customer_id'], datetime.now().strftime('%Y-%m-%d'),
               None, 'Draft', swo['total_cost'], 0, swo['total_cost'],
               'Service Work Order', id, f"Invoice for Service Work Order {swo['swo_number']}",
               session.get('user_id')))
