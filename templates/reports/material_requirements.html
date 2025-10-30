@@ -98,9 +98,10 @@
                             <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
                         </th>
                         {% endif %}
-                        <th>WO Number</th>
-                        <th>WO Status</th>
-                        <th>Planned Start</th>
+                        <th>Source</th>
+                        <th>Order Number</th>
+                        <th>Order Status</th>
+                        <th>Order Date</th>
                         <th>Product Code</th>
                         <th>Product Name</th>
                         <th>UOM</th>
@@ -128,9 +129,16 @@
                             {% endif %}
                         </td>
                         {% endif %}
-                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=req.work_order_id) }}">{{ req.wo_number }}</a></td>
-                        <td><span class="badge bg-info">{{ req.wo_status }}</span></td>
-                        <td>{{ req.planned_start_date }}</td>
+                        <td>
+                            {% if req.source_type == 'Production' %}
+                            <span class="badge bg-primary">Production</span>
+                            {% else %}
+                            <span class="badge bg-info">Service</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ req.order_number }}</td>
+                        <td><span class="badge bg-secondary">{{ req.order_status }}</span></td>
+                        <td>{{ req.order_date or '-' }}</td>
                         <td>{{ req.code }}</td>
                         <td>{{ req.name }}</td>
                         <td>{{ req.unit_of_measure }}</td>
@@ -143,10 +151,10 @@
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(req.cost) }}</td>
+                        <td>${{ "%.2f"|format(req.cost or 0) }}</td>
                         <td>${{ "%.2f"|format(req.total_cost) }}</td>
                         <td>
-                            {% if req.status == 'Satisfied' %}
+                            {% if req.status == 'Satisfied' or req.status == 'Available' %}
                             <span class="badge bg-success">{{ req.status }}</span>
                             {% else %}
                             <span class="badge bg-danger">{{ req.status }}</span>
