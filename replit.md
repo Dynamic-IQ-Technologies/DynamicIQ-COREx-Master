@@ -29,7 +29,7 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
 ### System Design Choices
 
 -   **Inventory Management**: Real-time stock level tracking, low stock alerts, and automatic updates.
--   **Reporting System**: Provides various reports including inventory valuation, work order cost analysis, material requirements, material usage, and active labor.
+-   **Reporting System**: Provides various reports including inventory valuation, work order cost analysis, material requirements (including both production and service work order materials with net inventory tracking), material usage, and active labor.
 -   **Accounting System**: Features a Chart of Accounts (COA), General Ledger (GL), Manual Journal Entries, and automatic GL posting for inventory and A/P transactions. Includes financial reports (Trial Balance, Balance Sheet, Income Statement) and an Accounts Payable (A/P) module with automated vendor invoice creation, payment tracking, aging reports, and an Executive Accounting Dashboard. Provides detailed GL account drill-down views with filtering, sorting, running balance calculation, and drill-down links to source transactions. Manufacturing cost flow includes automated GL entries for material receiving, work order completion, and A/P payments.
 
 ## External Dependencies

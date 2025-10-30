@@ -134,16 +134,25 @@ def material_requirements_report():
           AND swm.allocated_from_inventory = 0
     ''').fetchall()
     
+    # Track net available inventory per product as we process requirements
+    net_inventory = inventory_dict.copy()
+    
     # Combine and process all requirements
     all_requirements = []
     product_shortages = {}
     
-    # Process production requirements
+    # Process production requirements first (they use material_requirements which already calculated shortages)
     for req in production_requirements:
         req_dict = dict(req)
+        product_id = req['product_id']
+        
+        # Production requirements already have shortage calculated
+        # Deduct the required quantity from net inventory
+        required_qty = req['required_quantity']
+        net_inventory[product_id] = net_inventory.get(product_id, 0) - required_qty
+        
         all_requirements.append(req_dict)
         
-        product_id = req['product_id']
         shortage = req['shortage_quantity'] if req['shortage_quantity'] > 0 else 0
         
         if shortage > 0:
@@ -157,12 +166,17 @@ def material_requirements_report():
             product_shortages[product_id]['total_shortage'] += shortage
             product_shortages[product_id]['shortage_value'] += shortage * (req['cost'] or 0)
     
-    # Process service requirements - calculate shortage dynamically
+    # Process service requirements - calculate shortage based on net remaining inventory
     for req in service_requirements:
         product_id = req['product_id']
         required_qty = req['required_quantity']
-        available_qty = inventory_dict.get(product_id, 0)
+        
+        # Use net available inventory (after production requirements)
+        available_qty = max(0, net_inventory.get(product_id, 0))
         shortage_qty = max(0, required_qty - available_qty)
+        
+        # Deduct this requirement from net inventory
+        net_inventory[product_id] = net_inventory.get(product_id, 0) - required_qty
         
         req_dict = {
             'source_type': req['source_type'],
@@ -305,16 +319,24 @@ def export_material_requirements():
           AND swm.allocated_from_inventory = 0
     ''').fetchall()
     
+    # Track net available inventory per product as we process requirements
+    net_inventory = inventory_dict.copy()
+    
     # Combine and process all requirements
     all_requirements = []
     product_shortages = {}
     
-    # Process production requirements
+    # Process production requirements first
     for req in production_requirements:
         req_dict = dict(req)
+        product_id = req['product_id']
+        
+        # Deduct the required quantity from net inventory
+        required_qty = req['required_quantity']
+        net_inventory[product_id] = net_inventory.get(product_id, 0) - required_qty
+        
         all_requirements.append(req_dict)
         
-        product_id = req['product_id']
         shortage = req['shortage_quantity'] if req['shortage_quantity'] > 0 else 0
         
         if shortage > 0:
@@ -322,12 +344,17 @@ def export_material_requirements():
                 product_shortages[product_id] = 0
             product_shortages[product_id] += shortage
     
-    # Process service requirements - calculate shortage dynamically
+    # Process service requirements - calculate shortage based on net remaining inventory
     for req in service_requirements:
         product_id = req['product_id']
         required_qty = req['required_quantity']
-        available_qty = inventory_dict.get(product_id, 0)
+        
+        # Use net available inventory (after production requirements)
+        available_qty = max(0, net_inventory.get(product_id, 0))
         shortage_qty = max(0, required_qty - available_qty)
+        
+        # Deduct this requirement from net inventory
+        net_inventory[product_id] = net_inventory.get(product_id, 0) - required_qty
         
         req_dict = {
             'source_type': req['source_type'],
