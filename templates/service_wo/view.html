@@ -269,7 +269,14 @@
                             <td>{{ labor.description or '-' }}</td>
                             {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
                             <td>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editLabor({{ labor.id }}, {{ labor.employee_id }}, '{{ labor.labor_type }}', {{ labor.hours_worked }}, '{{ labor.work_date }}', {{ labor.description|tojson }})">
+                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                        data-labor-id="{{ labor.id }}"
+                                        data-employee-id="{{ labor.employee_id }}"
+                                        data-labor-type="{{ labor.labor_type }}"
+                                        data-hours-worked="{{ labor.hours_worked }}"
+                                        data-work-date="{{ labor.work_date }}"
+                                        data-description="{{ labor.description or '' }}"
+                                        onclick="editLabor(this)">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <form method="POST" action="{{ url_for('service_wo_routes.delete_labor', id=swo.id, labor_id=labor.id) }}" style="display:inline;">
@@ -664,7 +671,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Function to open edit labor modal and populate with existing data
-function editLabor(laborId, employeeId, laborType, hoursWorked, workDate, description) {
+function editLabor(button) {
+    // Get data from button attributes
+    const laborId = button.dataset.laborId;
+    const employeeId = button.dataset.employeeId;
+    const laborType = button.dataset.laborType;
+    const hoursWorked = button.dataset.hoursWorked;
+    const workDate = button.dataset.workDate;
+    const description = button.dataset.description;
+    
     // Set form action URL
     const form = document.getElementById('editLaborForm');
     form.action = `/service-work-orders/{{ swo.id }}/edit-labor/${laborId}`;
