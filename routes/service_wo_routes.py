@@ -322,6 +322,7 @@ def add_labor(id):
         hours_worked = float(request.form.get('hours_worked', 0))
         work_date = request.form.get('work_date') or datetime.now().strftime('%Y-%m-%d')
         description = request.form.get('description', '').strip()
+        service_rate = request.form.get('service_rate')
         
         # Get employee hourly rate
         employee = conn.execute('SELECT hourly_rate FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
@@ -332,8 +333,11 @@ def add_labor(id):
         
         hourly_rate = employee['hourly_rate']
         
-        # Apply multiplier for overtime/NDT
-        if labor_type == 'Overtime':
+        # Apply multiplier for overtime/NDT or use custom service rate
+        if labor_type == 'Service Rate':
+            if service_rate:
+                hourly_rate = float(service_rate)
+        elif labor_type == 'Overtime':
             hourly_rate = hourly_rate * 1.5
         elif labor_type == 'NDT':
             hourly_rate = hourly_rate * 1.3  # 30% premium for NDT work
@@ -344,10 +348,10 @@ def add_labor(id):
         conn.execute('''
             INSERT INTO service_wo_labor (
                 swo_id, employee_id, labor_type, hours_worked, hourly_rate,
-                labor_cost, work_date, description, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                labor_cost, work_date, description, service_rate, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (id, employee_id, labor_type, hours_worked, hourly_rate,
-              labor_cost, work_date, description, session.get('user_id')))
+              labor_cost, work_date, description, float(service_rate) if service_rate else None, session.get('user_id')))
         
         # Update service work order labor subtotal
         update_service_wo_costs(conn, id)
@@ -377,6 +381,7 @@ def edit_labor(id, labor_id):
         hours_worked = float(request.form.get('hours_worked', 0))
         work_date = request.form.get('work_date')
         description = request.form.get('description', '').strip()
+        service_rate = request.form.get('service_rate')
         
         # Get employee hourly rate
         employee = conn.execute('SELECT hourly_rate FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
@@ -387,8 +392,11 @@ def edit_labor(id, labor_id):
         
         hourly_rate = employee['hourly_rate']
         
-        # Apply multiplier for overtime/NDT
-        if labor_type == 'Overtime':
+        # Apply multiplier for overtime/NDT or use custom service rate
+        if labor_type == 'Service Rate':
+            if service_rate:
+                hourly_rate = float(service_rate)
+        elif labor_type == 'Overtime':
             hourly_rate = hourly_rate * 1.5
         elif labor_type == 'NDT':
             hourly_rate = hourly_rate * 1.3
@@ -399,10 +407,10 @@ def edit_labor(id, labor_id):
         conn.execute('''
             UPDATE service_wo_labor
             SET employee_id = ?, labor_type = ?, hours_worked = ?, hourly_rate = ?,
-                labor_cost = ?, work_date = ?, description = ?
+                labor_cost = ?, work_date = ?, description = ?, service_rate = ?
             WHERE id = ? AND swo_id = ?
         ''', (employee_id, labor_type, hours_worked, hourly_rate,
-              labor_cost, work_date, description, labor_id, id))
+              labor_cost, work_date, description, float(service_rate) if service_rate else None, labor_id, id))
         
         # Update service work order labor subtotal
         update_service_wo_costs(conn, id)

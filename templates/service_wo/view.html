@@ -276,6 +276,7 @@
                                         data-hours-worked="{{ labor.hours_worked }}"
                                         data-work-date="{{ labor.work_date }}"
                                         data-description="{{ labor.description or '' }}"
+                                        data-service-rate="{{ labor.service_rate or '' }}"
                                         onclick="editLabor(this)">
                                     <i class="bi bi-pencil"></i>
                                 </button>
@@ -457,12 +458,17 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Labor Type <span class="text-danger">*</span></label>
-                        <select name="labor_type" class="form-select" required>
+                        <select name="labor_type" id="addLaborType" class="form-select" required onchange="toggleServiceRate('add')">
                             <option value="Regular">Regular</option>
                             <option value="Service Rate">Service Rate</option>
                             <option value="Overtime">Overtime (1.5x)</option>
                             <option value="NDT">NDT (1.3x)</option>
                         </select>
+                    </div>
+                    <div class="mb-3" id="addServiceRateField" style="display: none;">
+                        <label class="form-label">Service Rate ($/hr) <span class="text-danger">*</span></label>
+                        <input type="number" name="service_rate" id="addServiceRate" class="form-control" step="0.01" min="0">
+                        <small class="text-muted">Custom hourly rate for this service</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Hours Worked <span class="text-danger">*</span></label>
@@ -504,12 +510,17 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Labor Type <span class="text-danger">*</span></label>
-                        <select name="labor_type" id="editLaborType" class="form-select" required>
+                        <select name="labor_type" id="editLaborType" class="form-select" required onchange="toggleServiceRate('edit')">
                             <option value="Regular">Regular</option>
                             <option value="Service Rate">Service Rate</option>
                             <option value="Overtime">Overtime (1.5x)</option>
                             <option value="NDT">NDT (1.3x)</option>
                         </select>
+                    </div>
+                    <div class="mb-3" id="editServiceRateField" style="display: none;">
+                        <label class="form-label">Service Rate ($/hr) <span class="text-danger">*</span></label>
+                        <input type="number" name="service_rate" id="editServiceRate" class="form-control" step="0.01" min="0">
+                        <small class="text-muted">Custom hourly rate for this service</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Hours Worked <span class="text-danger">*</span></label>
@@ -672,6 +683,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
+// Function to toggle service rate field based on labor type
+function toggleServiceRate(modalType) {
+    const laborTypeSelect = document.getElementById(`${modalType}LaborType`);
+    const serviceRateField = document.getElementById(`${modalType}ServiceRateField`);
+    const serviceRateInput = document.getElementById(`${modalType}ServiceRate`);
+    
+    if (laborTypeSelect.value === 'Service Rate') {
+        serviceRateField.style.display = 'block';
+        serviceRateInput.required = true;
+    } else {
+        serviceRateField.style.display = 'none';
+        serviceRateInput.required = false;
+        serviceRateInput.value = '';
+    }
+}
+
 // Function to open edit labor modal and populate with existing data
 function editLabor(button) {
     // Get data from button attributes
@@ -681,6 +708,7 @@ function editLabor(button) {
     const hoursWorked = button.dataset.hoursWorked;
     const workDate = button.dataset.workDate;
     const description = button.dataset.description;
+    const serviceRate = button.dataset.serviceRate;
     
     // Set form action URL
     const form = document.getElementById('editLaborForm');
@@ -692,6 +720,10 @@ function editLabor(button) {
     document.getElementById('editHoursWorked').value = hoursWorked;
     document.getElementById('editWorkDate').value = workDate;
     document.getElementById('editDescription').value = description || '';
+    document.getElementById('editServiceRate').value = serviceRate || '';
+    
+    // Toggle service rate field
+    toggleServiceRate('edit');
     
     // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('editLaborModal'));
