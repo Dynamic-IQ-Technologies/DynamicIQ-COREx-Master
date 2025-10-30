@@ -71,88 +71,165 @@ def material_requirements_report():
     db = Database()
     conn = db.get_connection()
     
-    # First, calculate which products have their total shortage covered by POs
-    # Only count positive shortages to avoid edge cases with zero/negative values
-    products_covered = conn.execute('''
-        SELECT mr.product_id
+    # Get PO summary for all products
+    po_summary = conn.execute('''
+        SELECT pol.product_id, 
+               SUM(pol.quantity - COALESCE(pol.received_quantity, 0)) as qty_on_order
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.status IN ('Ordered', 'Partially Received')
+        GROUP BY pol.product_id
+    ''').fetchall()
+    po_dict = {row['product_id']: row['qty_on_order'] for row in po_summary}
+    
+    # Get current inventory levels
+    inventory = conn.execute('''
+        SELECT product_id, SUM(quantity) as total_qty
+        FROM inventory
+        GROUP BY product_id
+    ''').fetchall()
+    inventory_dict = {row['product_id']: row['total_qty'] for row in inventory}
+    
+    # Get production work order material requirements
+    production_requirements = conn.execute('''
+        SELECT 
+            'Production' as source_type,
+            wo.wo_number as order_number,
+            wo.status as order_status,
+            wo.planned_start_date as order_date,
+            mr.product_id,
+            p.code,
+            p.name,
+            p.unit_of_measure,
+            p.cost,
+            mr.required_quantity,
+            mr.available_quantity,
+            mr.shortage_quantity,
+            mr.status,
+            (mr.required_quantity * p.cost) as total_cost
         FROM material_requirements mr
-        LEFT JOIN (
-            SELECT pol.product_id, 
-                   SUM(pol.quantity - COALESCE(pol.received_quantity, 0)) as qty_on_order
-            FROM purchase_order_lines pol
-            JOIN purchase_orders po ON pol.po_id = po.id
-            WHERE po.status IN ('Ordered', 'Partially Received')
-            GROUP BY pol.product_id
-        ) po_summary ON mr.product_id = po_summary.product_id
+        JOIN products p ON mr.product_id = p.id
+        JOIN work_orders wo ON mr.work_order_id = wo.id
         WHERE mr.status != 'Satisfied'
-        GROUP BY mr.product_id
-        HAVING SUM(CASE WHEN mr.shortage_quantity > 0 THEN mr.shortage_quantity ELSE 0 END) <= COALESCE(MAX(po_summary.qty_on_order), 0)
     ''').fetchall()
     
-    # Extract product IDs that are fully covered
-    covered_product_ids = [row['product_id'] for row in products_covered]
+    # Get service work order material requirements
+    service_requirements = conn.execute('''
+        SELECT 
+            'Service' as source_type,
+            swo.swo_number as order_number,
+            swo.status as order_status,
+            swo.due_date as order_date,
+            swm.product_id,
+            p.code,
+            p.name,
+            p.unit_of_measure,
+            p.cost,
+            swm.quantity as required_quantity,
+            swm.allocated_from_inventory
+        FROM service_wo_materials swm
+        JOIN products p ON swm.product_id = p.id
+        JOIN service_work_orders swo ON swm.swo_id = swo.id
+        WHERE swo.status NOT IN ('Completed', 'Cancelled', 'Invoiced')
+          AND swm.allocated_from_inventory = 0
+    ''').fetchall()
     
-    # Now get all requirements, excluding products that are fully covered
-    if covered_product_ids:
-        placeholders = ','.join('?' * len(covered_product_ids))
-        requirements = conn.execute(f'''
-            SELECT mr.*, p.code, p.name, p.unit_of_measure, p.cost, 
-                   wo.wo_number, wo.status as wo_status, wo.planned_start_date,
-                   (mr.required_quantity * p.cost) as total_cost
-            FROM material_requirements mr
-            JOIN products p ON mr.product_id = p.id
-            JOIN work_orders wo ON mr.work_order_id = wo.id
-            WHERE mr.status != 'Satisfied'
-              AND mr.product_id NOT IN ({placeholders})
-            ORDER BY wo.planned_start_date DESC, mr.shortage_quantity DESC
-        ''', covered_product_ids).fetchall()
-    else:
-        requirements = conn.execute('''
-            SELECT mr.*, p.code, p.name, p.unit_of_measure, p.cost, 
-                   wo.wo_number, wo.status as wo_status, wo.planned_start_date,
-                   (mr.required_quantity * p.cost) as total_cost
-            FROM material_requirements mr
-            JOIN products p ON mr.product_id = p.id
-            JOIN work_orders wo ON mr.work_order_id = wo.id
-            WHERE mr.status != 'Satisfied'
-            ORDER BY wo.planned_start_date DESC, mr.shortage_quantity DESC
-        ''').fetchall()
+    # Combine and process all requirements
+    all_requirements = []
+    product_shortages = {}
     
-    total_requirements = len(requirements)
-    total_shortages = sum(1 for r in requirements if r['shortage_quantity'] > 0)
-    total_cost = sum(r['total_cost'] for r in requirements)
-    total_shortage_cost = sum(r['total_cost'] for r in requirements if r['shortage_quantity'] > 0)
+    # Process production requirements
+    for req in production_requirements:
+        req_dict = dict(req)
+        all_requirements.append(req_dict)
+        
+        product_id = req['product_id']
+        shortage = req['shortage_quantity'] if req['shortage_quantity'] > 0 else 0
+        
+        if shortage > 0:
+            if product_id not in product_shortages:
+                product_shortages[product_id] = {
+                    'code': req['code'],
+                    'name': req['name'],
+                    'total_shortage': 0,
+                    'shortage_value': 0
+                }
+            product_shortages[product_id]['total_shortage'] += shortage
+            product_shortages[product_id]['shortage_value'] += shortage * (req['cost'] or 0)
     
-    # Shortages by product - only show products not fully covered by POs
-    if covered_product_ids:
-        placeholders = ','.join('?' * len(covered_product_ids))
-        shortages_by_product = conn.execute(f'''
-            SELECT p.code, p.name, 
-                   SUM(mr.shortage_quantity) as total_shortage,
-                   SUM(mr.shortage_quantity * p.cost) as shortage_value
-            FROM material_requirements mr
-            JOIN products p ON mr.product_id = p.id
-            WHERE mr.shortage_quantity > 0
-              AND mr.product_id NOT IN ({placeholders})
-            GROUP BY p.code, p.name
-            ORDER BY shortage_value DESC
-        ''', covered_product_ids).fetchall()
-    else:
-        shortages_by_product = conn.execute('''
-            SELECT p.code, p.name, 
-                   SUM(mr.shortage_quantity) as total_shortage,
-                   SUM(mr.shortage_quantity * p.cost) as shortage_value
-            FROM material_requirements mr
-            JOIN products p ON mr.product_id = p.id
-            WHERE mr.shortage_quantity > 0
-            GROUP BY p.code, p.name
-            ORDER BY shortage_value DESC
-        ''').fetchall()
+    # Process service requirements - calculate shortage dynamically
+    for req in service_requirements:
+        product_id = req['product_id']
+        required_qty = req['required_quantity']
+        available_qty = inventory_dict.get(product_id, 0)
+        shortage_qty = max(0, required_qty - available_qty)
+        
+        req_dict = {
+            'source_type': req['source_type'],
+            'order_number': req['order_number'],
+            'order_status': req['order_status'],
+            'order_date': req['order_date'],
+            'product_id': product_id,
+            'code': req['code'],
+            'name': req['name'],
+            'unit_of_measure': req['unit_of_measure'],
+            'cost': req['cost'],
+            'required_quantity': required_qty,
+            'available_quantity': available_qty,
+            'shortage_quantity': shortage_qty,
+            'status': 'Shortage' if shortage_qty > 0 else 'Available',
+            'total_cost': required_qty * (req['cost'] or 0)
+        }
+        all_requirements.append(req_dict)
+        
+        if shortage_qty > 0:
+            if product_id not in product_shortages:
+                product_shortages[product_id] = {
+                    'code': req['code'],
+                    'name': req['name'],
+                    'total_shortage': 0,
+                    'shortage_value': 0
+                }
+            product_shortages[product_id]['total_shortage'] += shortage_qty
+            product_shortages[product_id]['shortage_value'] += shortage_qty * (req['cost'] or 0)
+    
+    # Filter out products fully covered by POs
+    filtered_requirements = []
+    filtered_product_shortages = {}
+    
+    for req in all_requirements:
+        product_id = req['product_id']
+        product_total_shortage = product_shortages.get(product_id, {}).get('total_shortage', 0)
+        qty_on_order = po_dict.get(product_id, 0)
+        
+        # Only include if shortage is not fully covered by POs
+        if product_total_shortage == 0 or product_total_shortage > qty_on_order:
+            filtered_requirements.append(req)
+            
+            if product_id in product_shortages and product_total_shortage > qty_on_order:
+                filtered_product_shortages[product_id] = product_shortages[product_id]
+    
+    # Sort requirements by date and shortage
+    filtered_requirements.sort(key=lambda x: (x['order_date'] or '9999-12-31', -x['shortage_quantity']), reverse=True)
+    
+    # Calculate totals
+    total_requirements = len(filtered_requirements)
+    total_shortages = sum(1 for r in filtered_requirements if r['shortage_quantity'] > 0)
+    total_cost = sum(r['total_cost'] for r in filtered_requirements)
+    total_shortage_cost = sum(r['shortage_quantity'] * (r['cost'] or 0) for r in filtered_requirements if r['shortage_quantity'] > 0)
+    
+    # Convert product shortages dict to list
+    shortages_by_product = sorted(
+        [{'code': v['code'], 'name': v['name'], 'total_shortage': v['total_shortage'], 'shortage_value': v['shortage_value']}
+         for v in filtered_product_shortages.values()],
+        key=lambda x: x['shortage_value'],
+        reverse=True
+    )
     
     conn.close()
     
     return render_template('reports/material_requirements.html', 
-                         requirements=requirements,
+                         requirements=filtered_requirements,
                          total_requirements=total_requirements,
                          total_shortages=total_shortages,
                          total_cost=total_cost,
@@ -165,63 +242,140 @@ def export_material_requirements():
     db = Database()
     conn = db.get_connection()
     
-    # Calculate which products have their total shortage covered by POs
-    # Only count positive shortages to avoid edge cases with zero/negative values
-    products_covered = conn.execute('''
-        SELECT mr.product_id
+    # Get PO summary for all products
+    po_summary = conn.execute('''
+        SELECT pol.product_id, 
+               SUM(pol.quantity - COALESCE(pol.received_quantity, 0)) as qty_on_order
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.status IN ('Ordered', 'Partially Received')
+        GROUP BY pol.product_id
+    ''').fetchall()
+    po_dict = {row['product_id']: row['qty_on_order'] for row in po_summary}
+    
+    # Get current inventory levels
+    inventory = conn.execute('''
+        SELECT product_id, SUM(quantity) as total_qty
+        FROM inventory
+        GROUP BY product_id
+    ''').fetchall()
+    inventory_dict = {row['product_id']: row['total_qty'] for row in inventory}
+    
+    # Get production work order material requirements
+    production_requirements = conn.execute('''
+        SELECT 
+            'Production' as source_type,
+            wo.wo_number as order_number,
+            wo.status as order_status,
+            wo.planned_start_date as order_date,
+            mr.product_id,
+            p.code,
+            p.name,
+            p.unit_of_measure,
+            p.cost,
+            mr.required_quantity,
+            mr.available_quantity,
+            mr.shortage_quantity,
+            mr.status,
+            (mr.required_quantity * p.cost) as total_cost
         FROM material_requirements mr
-        LEFT JOIN (
-            SELECT product_id, 
-                   SUM(quantity - COALESCE(received_quantity, 0)) as qty_on_order
-            FROM purchase_orders
-            WHERE status IN ('Ordered', 'Partially Received')
-            GROUP BY product_id
-        ) po_summary ON mr.product_id = po_summary.product_id
+        JOIN products p ON mr.product_id = p.id
+        JOIN work_orders wo ON mr.work_order_id = wo.id
         WHERE mr.status != 'Satisfied'
-        GROUP BY mr.product_id
-        HAVING SUM(CASE WHEN mr.shortage_quantity > 0 THEN mr.shortage_quantity ELSE 0 END) <= COALESCE(MAX(po_summary.qty_on_order), 0)
     ''').fetchall()
     
-    covered_product_ids = [row['product_id'] for row in products_covered]
+    # Get service work order material requirements
+    service_requirements = conn.execute('''
+        SELECT 
+            'Service' as source_type,
+            swo.swo_number as order_number,
+            swo.status as order_status,
+            swo.due_date as order_date,
+            swm.product_id,
+            p.code,
+            p.name,
+            p.unit_of_measure,
+            p.cost,
+            swm.quantity as required_quantity,
+            swm.allocated_from_inventory
+        FROM service_wo_materials swm
+        JOIN products p ON swm.product_id = p.id
+        JOIN service_work_orders swo ON swm.swo_id = swo.id
+        WHERE swo.status NOT IN ('Completed', 'Cancelled', 'Invoiced')
+          AND swm.allocated_from_inventory = 0
+    ''').fetchall()
     
-    # Get requirements excluding products fully covered by POs
-    if covered_product_ids:
-        placeholders = ','.join('?' * len(covered_product_ids))
-        requirements = conn.execute(f'''
-            SELECT wo.wo_number, wo.status as wo_status, wo.planned_start_date,
-                   p.code, p.name, p.unit_of_measure,
-                   mr.required_quantity, mr.available_quantity, mr.shortage_quantity,
-                   mr.status, p.cost, (mr.required_quantity * p.cost) as total_cost
-            FROM material_requirements mr
-            JOIN products p ON mr.product_id = p.id
-            JOIN work_orders wo ON mr.work_order_id = wo.id
-            WHERE mr.status != 'Satisfied'
-              AND mr.product_id NOT IN ({placeholders})
-            ORDER BY wo.planned_start_date DESC
-        ''', covered_product_ids).fetchall()
-    else:
-        requirements = conn.execute('''
-            SELECT wo.wo_number, wo.status as wo_status, wo.planned_start_date,
-                   p.code, p.name, p.unit_of_measure,
-                   mr.required_quantity, mr.available_quantity, mr.shortage_quantity,
-                   mr.status, p.cost, (mr.required_quantity * p.cost) as total_cost
-            FROM material_requirements mr
-            JOIN products p ON mr.product_id = p.id
-            JOIN work_orders wo ON mr.work_order_id = wo.id
-            WHERE mr.status != 'Satisfied'
-            ORDER BY wo.planned_start_date DESC
-        ''').fetchall()
+    # Combine and process all requirements
+    all_requirements = []
+    product_shortages = {}
+    
+    # Process production requirements
+    for req in production_requirements:
+        req_dict = dict(req)
+        all_requirements.append(req_dict)
+        
+        product_id = req['product_id']
+        shortage = req['shortage_quantity'] if req['shortage_quantity'] > 0 else 0
+        
+        if shortage > 0:
+            if product_id not in product_shortages:
+                product_shortages[product_id] = 0
+            product_shortages[product_id] += shortage
+    
+    # Process service requirements - calculate shortage dynamically
+    for req in service_requirements:
+        product_id = req['product_id']
+        required_qty = req['required_quantity']
+        available_qty = inventory_dict.get(product_id, 0)
+        shortage_qty = max(0, required_qty - available_qty)
+        
+        req_dict = {
+            'source_type': req['source_type'],
+            'order_number': req['order_number'],
+            'order_status': req['order_status'],
+            'order_date': req['order_date'],
+            'product_id': product_id,
+            'code': req['code'],
+            'name': req['name'],
+            'unit_of_measure': req['unit_of_measure'],
+            'cost': req['cost'],
+            'required_quantity': required_qty,
+            'available_quantity': available_qty,
+            'shortage_quantity': shortage_qty,
+            'status': 'Shortage' if shortage_qty > 0 else 'Available',
+            'total_cost': required_qty * (req['cost'] or 0)
+        }
+        all_requirements.append(req_dict)
+        
+        if shortage_qty > 0:
+            if product_id not in product_shortages:
+                product_shortages[product_id] = 0
+            product_shortages[product_id] += shortage_qty
+    
+    # Filter out products fully covered by POs
+    filtered_requirements = []
+    for req in all_requirements:
+        product_id = req['product_id']
+        product_total_shortage = product_shortages.get(product_id, 0)
+        qty_on_order = po_dict.get(product_id, 0)
+        
+        # Only include if shortage is not fully covered by POs
+        if product_total_shortage == 0 or product_total_shortage > qty_on_order:
+            filtered_requirements.append(req)
+    
+    # Sort requirements by date
+    filtered_requirements.sort(key=lambda x: (x['order_date'] or '9999-12-31', -x['shortage_quantity']), reverse=True)
     
     conn.close()
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['WO Number', 'WO Status', 'Planned Start Date', 'Product Code', 'Product Name', 
+    writer.writerow(['Source Type', 'Order Number', 'Order Status', 'Order Date', 'Product Code', 'Product Name', 
                     'Unit of Measure', 'Required Qty', 'Available Qty', 'Shortage Qty', 
                     'Status', 'Unit Cost', 'Total Cost'])
     
-    for req in requirements:
-        writer.writerow([req['wo_number'], req['wo_status'], req['planned_start_date'],
+    for req in filtered_requirements:
+        writer.writerow([req['source_type'], req['order_number'], req['order_status'], req['order_date'],
                         req['code'], req['name'], req['unit_of_measure'],
                         req['required_quantity'], req['available_quantity'], req['shortage_quantity'],
                         req['status'], req['cost'], req['total_cost']])
