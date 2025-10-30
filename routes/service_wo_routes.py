@@ -648,7 +648,7 @@ def api_products():
     db = Database()
     conn = db.get_connection()
     products = conn.execute('''
-        SELECT id, code, name, description, is_serialized
+        SELECT id, code, name, description, cost
         FROM products
         ORDER BY code
     ''').fetchall()
