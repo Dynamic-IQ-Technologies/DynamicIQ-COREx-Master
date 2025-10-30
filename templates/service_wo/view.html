@@ -262,7 +262,7 @@
                         <tr>
                             <td>{{ labor.work_date }}</td>
                             <td>{{ labor.employee_name }}<br><small class="text-muted">{{ labor.employee_code }}</small></td>
-                            <td><span class="badge {% if labor.labor_type == 'NDT' %}bg-info{% elif labor.labor_type == 'Overtime' %}bg-warning{% else %}bg-secondary{% endif %}">{{ labor.labor_type }}</span></td>
+                            <td><span class="badge {% if labor.labor_type == 'NDT' %}bg-info{% elif labor.labor_type == 'Overtime' %}bg-warning{% elif labor.labor_type == 'Service Rate' %}bg-success{% else %}bg-secondary{% endif %}">{{ labor.labor_type }}</span></td>
                             <td>{{ labor.hours_worked }}</td>
                             <td>${{ "{:,.2f}".format(labor.hourly_rate) }}/hr</td>
                             <td><strong>${{ "{:,.2f}".format(labor.labor_cost) }}</strong></td>
@@ -459,6 +459,7 @@
                         <label class="form-label">Labor Type <span class="text-danger">*</span></label>
                         <select name="labor_type" class="form-select" required>
                             <option value="Regular">Regular</option>
+                            <option value="Service Rate">Service Rate</option>
                             <option value="Overtime">Overtime (1.5x)</option>
                             <option value="NDT">NDT (1.3x)</option>
                         </select>
@@ -505,6 +506,7 @@
                         <label class="form-label">Labor Type <span class="text-danger">*</span></label>
                         <select name="labor_type" id="editLaborType" class="form-select" required>
                             <option value="Regular">Regular</option>
+                            <option value="Service Rate">Service Rate</option>
                             <option value="Overtime">Overtime (1.5x)</option>
                             <option value="NDT">NDT (1.3x)</option>
                         </select>
