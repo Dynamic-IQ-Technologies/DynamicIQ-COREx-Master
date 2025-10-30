@@ -269,6 +269,9 @@
                             <td>{{ labor.description or '-' }}</td>
                             {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
                             <td>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editLabor({{ labor.id }}, {{ labor.employee_id }}, '{{ labor.labor_type }}', {{ labor.hours_worked }}, '{{ labor.work_date }}', {{ labor.description|tojson }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                                 <form method="POST" action="{{ url_for('service_wo_routes.delete_labor', id=swo.id, labor_id=labor.id) }}" style="display:inline;">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this labor entry?')">
                                         <i class="bi bi-trash"></i>
@@ -475,6 +478,52 @@
     </div>
 </div>
 
+<!-- Edit Labor Modal -->
+<div class="modal fade" id="editLaborModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="editLaborForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Labor Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Employee <span class="text-danger">*</span></label>
+                        <select name="employee_id" id="editEmployeeId" class="form-select" required>
+                            <option value="">Select Employee</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Labor Type <span class="text-danger">*</span></label>
+                        <select name="labor_type" id="editLaborType" class="form-select" required>
+                            <option value="Regular">Regular</option>
+                            <option value="Overtime">Overtime (1.5x)</option>
+                            <option value="NDT">NDT (1.3x)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hours Worked <span class="text-danger">*</span></label>
+                        <input type="number" name="hours_worked" id="editHoursWorked" class="form-control" step="0.25" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Work Date</label>
+                        <input type="date" name="work_date" id="editWorkDate" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="editDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Labor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Add Material Modal -->
 <div class="modal fade" id="addMaterialModal" tabindex="-1">
     <div class="modal-dialog">
@@ -572,18 +621,32 @@
 </div>
 
 <script>
-// Fetch employees for labor modal
+// Fetch employees for labor modals
 document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/labor-resources')
         .then(response => response.json())
         .then(data => {
-            const select = document.querySelector('#addLaborModal select[name="employee_id"]');
-            data.forEach(emp => {
-                const option = document.createElement('option');
-                option.value = emp.id;
-                option.textContent = `${emp.first_name} ${emp.last_name} (${emp.employee_code}) - $${emp.hourly_rate}/hr`;
-                select.appendChild(option);
-            });
+            // Populate add labor modal
+            const addSelect = document.querySelector('#addLaborModal select[name="employee_id"]');
+            if (addSelect) {
+                data.forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = emp.id;
+                    option.textContent = `${emp.first_name} ${emp.last_name} (${emp.employee_code}) - $${emp.hourly_rate}/hr`;
+                    addSelect.appendChild(option);
+                });
+            }
+            
+            // Populate edit labor modal
+            const editSelect = document.querySelector('#editLaborModal select[name="employee_id"]');
+            if (editSelect) {
+                data.forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = emp.id;
+                    option.textContent = `${emp.first_name} ${emp.last_name} (${emp.employee_code}) - $${emp.hourly_rate}/hr`;
+                    editSelect.appendChild(option);
+                });
+            }
         });
     
     // Fetch products for material modal
@@ -599,6 +662,24 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 });
+
+// Function to open edit labor modal and populate with existing data
+function editLabor(laborId, employeeId, laborType, hoursWorked, workDate, description) {
+    // Set form action URL
+    const form = document.getElementById('editLaborForm');
+    form.action = `/service-work-orders/{{ swo.id }}/edit-labor/${laborId}`;
+    
+    // Populate form fields
+    document.getElementById('editEmployeeId').value = employeeId;
+    document.getElementById('editLaborType').value = laborType;
+    document.getElementById('editHoursWorked').value = hoursWorked;
+    document.getElementById('editWorkDate').value = workDate;
+    document.getElementById('editDescription').value = description || '';
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('editLaborModal'));
+    modal.show();
+}
 </script>
 {% endif %}
 {% endblock %}

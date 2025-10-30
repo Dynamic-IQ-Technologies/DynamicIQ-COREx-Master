@@ -364,6 +364,61 @@ def add_labor(id):
     
     return redirect(url_for('service_wo_routes.view_service_work_order', id=id))
 
+@service_wo_bp.route('/service-work-orders/<int:id>/edit-labor/<int:labor_id>', methods=['POST'])
+@role_required('Admin', 'Planner')
+def edit_labor(id, labor_id):
+    """Edit labor entry for service work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        employee_id = request.form.get('employee_id')
+        labor_type = request.form.get('labor_type')
+        hours_worked = float(request.form.get('hours_worked', 0))
+        work_date = request.form.get('work_date')
+        description = request.form.get('description', '').strip()
+        
+        # Get employee hourly rate
+        employee = conn.execute('SELECT hourly_rate FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
+        if not employee:
+            flash('Employee not found', 'danger')
+            conn.close()
+            return redirect(url_for('service_wo_routes.view_service_work_order', id=id))
+        
+        hourly_rate = employee['hourly_rate']
+        
+        # Apply multiplier for overtime/NDT
+        if labor_type == 'Overtime':
+            hourly_rate = hourly_rate * 1.5
+        elif labor_type == 'NDT':
+            hourly_rate = hourly_rate * 1.3
+        
+        labor_cost = hours_worked * hourly_rate
+        
+        # Update labor entry
+        conn.execute('''
+            UPDATE service_wo_labor
+            SET employee_id = ?, labor_type = ?, hours_worked = ?, hourly_rate = ?,
+                labor_cost = ?, work_date = ?, description = ?
+            WHERE id = ? AND swo_id = ?
+        ''', (employee_id, labor_type, hours_worked, hourly_rate,
+              labor_cost, work_date, description, labor_id, id))
+        
+        # Update service work order labor subtotal
+        update_service_wo_costs(conn, id)
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Labor entry updated successfully! ({hours_worked} hours @ ${hourly_rate:.2f}/hr = ${labor_cost:.2f})', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error updating labor entry: {str(e)}', 'danger')
+    
+    return redirect(url_for('service_wo_routes.view_service_work_order', id=id))
+
 @service_wo_bp.route('/service-work-orders/<int:id>/add-material', methods=['POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def add_material(id):
