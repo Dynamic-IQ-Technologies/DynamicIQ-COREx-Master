@@ -52,6 +52,9 @@
                         <p><strong>Disposition:</strong> <span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></p>
                         <p><strong>Status:</strong> <span class="badge bg-info">{{ workorder.status }}</span></p>
                         <p><strong>Priority:</strong> {{ workorder.priority }}</p>
+                        {% if workorder.operational_status %}
+                        <p><strong>Operational Status:</strong> <span class="badge bg-success">{{ workorder.operational_status }}</span></p>
+                        {% endif %}
                     </div>
                     <div class="col-md-6">
                         <p><strong>Planned Start:</strong> {{ workorder.planned_start_date or 'Not set' }}</p>

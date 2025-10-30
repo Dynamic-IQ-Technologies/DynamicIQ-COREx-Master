@@ -91,6 +91,31 @@
             </div>
 
             <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label for="operational_status" class="form-label">Operational Status</label>
+                        <select class="form-select" id="operational_status" name="operational_status">
+                            <option value="">Select Operational Status (Optional)</option>
+                            <option value="Receiving" {% if workorder.operational_status == 'Receiving' %}selected{% endif %}>Receiving</option>
+                            <option value="Incoming Inspection" {% if workorder.operational_status == 'Incoming Inspection' %}selected{% endif %}>Incoming Inspection</option>
+                            <option value="Clean & Disassembly" {% if workorder.operational_status == 'Clean & Disassembly' %}selected{% endif %}>Clean & Disassembly</option>
+                            <option value="Preliminary Inspection" {% if workorder.operational_status == 'Preliminary Inspection' %}selected{% endif %}>Preliminary Inspection</option>
+                            <option value="Requirements" {% if workorder.operational_status == 'Requirements' %}selected{% endif %}>Requirements</option>
+                            <option value="Pricing" {% if workorder.operational_status == 'Pricing' %}selected{% endif %}>Pricing</option>
+                            <option value="Quoting" {% if workorder.operational_status == 'Quoting' %}selected{% endif %}>Quoting</option>
+                            <option value="Awaiting Customer Approval" {% if workorder.operational_status == 'Awaiting Customer Approval' %}selected{% endif %}>Awaiting Customer Approval</option>
+                            <option value="Material Processing" {% if workorder.operational_status == 'Material Processing' %}selected{% endif %}>Material Processing</option>
+                            <option value="Production" {% if workorder.operational_status == 'Production' %}selected{% endif %}>Production</option>
+                            <option value="Final Inspection" {% if workorder.operational_status == 'Final Inspection' %}selected{% endif %}>Final Inspection</option>
+                            <option value="Accounting" {% if workorder.operational_status == 'Accounting' %}selected{% endif %}>Accounting</option>
+                            <option value="Shipping" {% if workorder.operational_status == 'Shipping' %}selected{% endif %}>Shipping</option>
+                            <option value="Stock" {% if workorder.operational_status == 'Stock' %}selected{% endif %}>Stock</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="planned_start_date" class="form-label">Planned Start Date</label>
