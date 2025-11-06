@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import Database
 from auth import login_required, role_required
-from datetime import datetime
+from datetime import datetime, timedelta
 
 service_wo_bp = Blueprint('service_wo_routes', __name__)
 
@@ -780,14 +780,17 @@ def generate_invoice(id):
         
         # Create invoice
         cursor = conn.cursor()
+        invoice_date = datetime.now().strftime('%Y-%m-%d')
+        due_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        
         cursor.execute('''
             INSERT INTO invoices (
                 invoice_number, invoice_type, customer_id, invoice_date, due_date, status,
                 subtotal, tax_amount, total_amount, source_type, source_id,
                 notes, created_by
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (invoice_number, 'Service', swo['customer_id'], datetime.now().strftime('%Y-%m-%d'),
-              None, 'Draft', swo['total_cost'], 0, swo['total_cost'],
+        ''', (invoice_number, 'Service', swo['customer_id'], invoice_date,
+              due_date, 'Draft', swo['total_cost'], 0, swo['total_cost'],
               'Service Work Order', id, f"Invoice for Service Work Order {swo['swo_number']}",
               session.get('user_id')))
         
