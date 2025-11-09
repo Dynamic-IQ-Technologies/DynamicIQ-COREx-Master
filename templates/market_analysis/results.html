@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Results - {{ source.source_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-graph-up me-2"></i>{{ source.source_name }}
+        </h2>
+        <div>
+            <a href="{{ url_for('market_analysis_routes.export_results', source_id=source.id) }}" 
+               class="btn btn-success">
+                <i class="bi bi-download me-1"></i>Export to Excel
+            </a>
+            <a href="{{ url_for('market_analysis_routes.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">Total</h6>
+                    <h3 class="mb-0">{{ stats.total }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center" style="border-left: 4px solid #28a745 !important;">
+                <div class="card-body">
+                    <h6 class="text-success small mb-2">High</h6>
+                    <h3 class="mb-0 text-success">{{ stats.high }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center" style="border-left: 4px solid #ffc107 !important;">
+                <div class="card-body">
+                    <h6 class="text-warning small mb-2">Medium</h6>
+                    <h3 class="mb-0 text-warning">{{ stats.medium }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center" style="border-left: 4px solid #17a2b8 !important;">
+                <div class="card-body">
+                    <h6 class="text-info small mb-2">Low</h6>
+                    <h3 class="mb-0 text-info">{{ stats.low }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center" style="border-left: 4px solid #6c757d !important;">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">No Match</h6>
+                    <h3 class="mb-0 text-muted">{{ stats.no_match }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualizations -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Match Score Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Top Airlines by High Matches</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="airlineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Results -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Filter Results</h5>
+                {% if filters.region or filters.airline or filters.aircraft_model or filters.match_score %}
+                <a href="{{ url_for('market_analysis_routes.view_results', source_id=source.id) }}" 
+                   class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Clear Filters
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Region</label>
+                    <select name="region" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Regions</option>
+                        {% for region in regions %}
+                        <option value="{{ region.region }}" {% if filters.region == region.region %}selected{% endif %}>
+                            {{ region.region }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Airline</label>
+                    <select name="airline" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Airlines</option>
+                        {% for airline in airlines %}
+                        <option value="{{ airline.airline_name }}" {% if filters.airline == airline.airline_name %}selected{% endif %}>
+                            {{ airline.airline_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Aircraft Model</label>
+                    <select name="aircraft_model" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Models</option>
+                        {% for model in models %}
+                        <option value="{{ model.aircraft_model }}" {% if filters.aircraft_model == model.aircraft_model %}selected{% endif %}>
+                            {{ model.aircraft_model }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Match Score</label>
+                    <select name="match_score" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Scores</option>
+                        <option value="High" {% if filters.match_score == 'High' %}selected{% endif %}>High</option>
+                        <option value="Medium" {% if filters.match_score == 'Medium' %}selected{% endif %}>Medium</option>
+                        <option value="Low" {% if filters.match_score == 'Low' %}selected{% endif %}>Low</option>
+                        <option value="No Match" {% if filters.match_score == 'No Match' %}selected{% endif %}>No Match</option>
+                    </select>
+                </div>
+            </form>
+
+            <!-- Results Table -->
+            {% if results %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Airline</th>
+                            <th>Region</th>
+                            <th>Aircraft</th>
+                            <th>Part Number</th>
+                            <th>Part Description</th>
+                            <th>Match Score</th>
+                            <th>Capability</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr>
+                            <td>{{ result.airline_name }}</td>
+                            <td>{{ result.region or '-' }}</td>
+                            <td>{{ result.aircraft_model }}</td>
+                            <td><strong>{{ result.part_number }}</strong></td>
+                            <td>{{ result.part_description or '-' }}</td>
+                            <td>
+                                {% if result.match_score == 'High' %}
+                                <span class="badge bg-success">High</span>
+                                {% elif result.match_score == 'Medium' %}
+                                <span class="badge bg-warning">Medium</span>
+                                {% elif result.match_score == 'Low' %}
+                                <span class="badge bg-info">Low</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No Match</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.capability_name %}
+                                <small>
+                                    <strong>{{ result.capability_code }}</strong><br>
+                                    {{ result.capability_name }}
+                                </small>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ result.recommended_action or '-' }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted mt-3">Showing {{ results|length }} result(s)</p>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3">No results found with current filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Fetch chart data
+fetch('{{ url_for("market_analysis_routes.chart_data", source_id=source.id) }}')
+    .then(response => response.json())
+    .then(data => {
+        // Score Distribution Pie Chart
+        const scoreLabels = data.score_distribution.map(item => item.match_score);
+        const scoreCounts = data.score_distribution.map(item => item.count);
+        
+        const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+        new Chart(scoreCtx, {
+            type: 'doughnut',
+            data: {
+                labels: scoreLabels,
+                datasets: [{
+                    data: scoreCounts,
+                    backgroundColor: [
+                        '#28a745',  // High - Green
+                        '#ffc107',  // Medium - Yellow
+                        '#17a2b8',  // Low - Teal
+                        '#6c757d'   // No Match - Gray
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Top Airlines Bar Chart
+        const airlineLabels = data.top_airlines.map(item => item.airline_name);
+        const airlineCounts = data.top_airlines.map(item => item.high_matches);
+        
+        const airlineCtx = document.getElementById('airlineChart').getContext('2d');
+        new Chart(airlineCtx, {
+            type: 'bar',
+            data: {
+                labels: airlineLabels,
+                datasets: [{
+                    label: 'High Matches',
+                    data: airlineCounts,
+                    backgroundColor: '#4a90e2'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Market & Capability Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-graph-up-arrow me-2"></i>Market & Capability Analysis
+        </h2>
+        <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-primary">
+            <i class="bi bi-upload me-1"></i>Upload Fleet Data
+        </a>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-airplane fs-1 text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Aircraft</h6>
+                            <h3 class="mb-0">{{ total_aircraft }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-gear fs-1 text-info"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Parts Tracked</h6>
+                            <h3 class="mb-0">{{ total_parts }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-check-circle fs-1 text-success"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total Matches</h6>
+                            <h3 class="mb-0">{{ total_matches }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-star-fill fs-1" style="color: #FFD700;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">High Matches</h6>
+                            <h3 class="mb-0">{{ high_matches }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fleet Data Sources -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">Fleet Data Sources</h5>
+        </div>
+        <div class="card-body">
+            {% if sources %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Source Name</th>
+                            <th>File Name</th>
+                            <th>Upload Date</th>
+                            <th>Records</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for source in sources %}
+                        <tr>
+                            <td>{{ source.source_name }}</td>
+                            <td>{{ source.file_name }}</td>
+                            <td>{{ source.upload_date }}</td>
+                            <td>{{ source.record_count }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if source.status == 'Active' else 'secondary' }}">
+                                    {{ source.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('market_analysis_routes.view_results', source_id=source.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('market_analysis_routes.run_analysis', source_id=source.id) }}" 
+                                   class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-arrow-repeat"></i> Re-run
+                                </a>
+                                <a href="{{ url_for('market_analysis_routes.export_results', source_id=source.id) }}" 
+                                   class="btn btn-sm btn-outline-info">
+                                    <i class="bi bi-download"></i> Export
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3">No fleet data sources uploaded yet.</p>
+                <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-primary">
+                    <i class="bi bi-upload me-1"></i>Upload Your First Dataset
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Analysis Runs -->
+    {% if recent_runs %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">Recent Analysis Runs</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Run Type</th>
+                            <th>Started</th>
+                            <th>Triggered By</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for run in recent_runs %}
+                        <tr>
+                            <td>{{ run.source_name or 'N/A' }}</td>
+                            <td><span class="badge bg-info">{{ run.run_type }}</span></td>
+                            <td>{{ run.started_at }}</td>
+                            <td>{{ run.triggered_by_name or 'System' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if run.status == 'Completed' else 'warning' }}">
+                                    {{ run.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
