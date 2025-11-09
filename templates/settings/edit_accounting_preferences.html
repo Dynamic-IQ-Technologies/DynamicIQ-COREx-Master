@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Accounting Preferences - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2><i class="bi bi-gear"></i> Edit Accounting Preferences</h2>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-journal-check"></i> General Ledger Posting Settings</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('settings_routes.edit_accounting_preferences') }}">
+                    <div class="mb-4">
+                        <label class="form-label"><strong>Invoice Posting Automation</strong></label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   role="switch" 
+                                   id="auto_post_invoice_gl" 
+                                   name="auto_post_invoice_gl"
+                                   {% if settings.auto_post_invoice_gl %}checked{% endif %}>
+                            <label class="form-check-label" for="auto_post_invoice_gl">
+                                Automatically post invoices to General Ledger when approved
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            When enabled, approving an invoice will automatically create GL entries for revenue recognition 
+                            and accounts receivable. When disabled, you must manually post invoices to the GL after approval.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Important:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Automated posting will only occur for invoices approved after this setting is enabled.</li>
+                            <li>Existing approved invoices will not be automatically posted.</li>
+                            <li>GL posting requires the following accounts to exist in your Chart of Accounts:
+                                <ul>
+                                    <li>1120 - Accounts Receivable</li>
+                                    <li>4100 - Sales Revenue</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('settings_routes.view_accounting_preferences') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Preferences
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Recommended for:</strong></p>
+                <ul>
+                    <li>Streamlined workflows</li>
+                    <li>Reducing manual steps</li>
+                    <li>Consistent GL posting</li>
+                </ul>
+                <hr>
+                <p><strong>Manual posting preferred for:</strong></p>
+                <ul>
+                    <li>Additional review requirements</li>
+                    <li>Complex approval processes</li>
+                    <li>Batch processing workflows</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
