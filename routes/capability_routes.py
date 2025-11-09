@@ -110,11 +110,29 @@ def capability_list():
 @login_required
 def capability_new():
     """Create a new capability"""
+    db = Database()
+    conn = db.get_connection()
+    
     if request.method == 'POST':
-        db = Database()
-        conn = db.get_connection()
+        # Auto-generate capability code
+        last_cap = conn.execute('''
+            SELECT capability_code FROM mro_capabilities 
+            WHERE capability_code LIKE 'CAP-%'
+            ORDER BY CAST(SUBSTR(capability_code, 5) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
         
-        capability_code = request.form.get('capability_code', '').strip()
+        if last_cap:
+            try:
+                last_number = int(last_cap['capability_code'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        capability_code = f'CAP-{next_number:04d}'
+        
         part_number = request.form.get('part_number', '').strip()
         product_id = request.form.get('product_id', '').strip()
         capability_name = request.form.get('capability_name', '').strip()
@@ -127,18 +145,8 @@ def capability_new():
         status = request.form.get('status', 'Active')
         notes = request.form.get('notes', '').strip()
         
-        if not capability_code or not part_number or not capability_name:
-            flash('Capability Code, Part Number, and Capability Name are required.', 'danger')
-            conn.close()
-            return redirect(url_for('capability_routes.capability_new'))
-        
-        existing = conn.execute(
-            'SELECT id FROM mro_capabilities WHERE capability_code = ?', 
-            (capability_code,)
-        ).fetchone()
-        
-        if existing:
-            flash(f'Capability code {capability_code} already exists.', 'danger')
+        if not part_number or not capability_name:
+            flash('Part Number and Capability Name are required.', 'danger')
             conn.close()
             return redirect(url_for('capability_routes.capability_new'))
         
@@ -201,8 +209,25 @@ def capability_new():
             conn.close()
             return redirect(url_for('capability_routes.capability_new'))
     
-    db = Database()
-    conn = db.get_connection()
+    # GET request - generate next capability code for display
+    last_cap = conn.execute('''
+        SELECT capability_code FROM mro_capabilities 
+        WHERE capability_code LIKE 'CAP-%'
+        ORDER BY CAST(SUBSTR(capability_code, 5) AS INTEGER) DESC 
+        LIMIT 1
+    ''').fetchone()
+    
+    if last_cap:
+        try:
+            last_number = int(last_cap['capability_code'].split('-')[1])
+            next_number = last_number + 1
+        except (ValueError, IndexError):
+            next_number = 1
+    else:
+        next_number = 1
+    
+    next_capability_code = f'CAP-{next_number:04d}'
+    
     products = conn.execute('SELECT id, code, name FROM products ORDER BY code').fetchall()
     conn.close()
     
@@ -210,6 +235,7 @@ def capability_new():
                          capability=None, 
                          specifications=[], 
                          products=products,
+                         next_capability_code=next_capability_code,
                          mode='new')
 
 @capability_bp.route('/capabilities/<int:capability_id>')

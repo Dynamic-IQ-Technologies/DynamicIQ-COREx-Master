@@ -25,10 +25,15 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Capability Code <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="capability_code" 
-                                       value="{{ capability.capability_code if capability else '' }}" 
-                                       {{ 'readonly' if mode == 'edit' else '' }} required>
-                                <small class="text-muted">Unique identifier for this capability</small>
+                                {% if mode == 'new' %}
+                                <input type="text" class="form-control bg-light" 
+                                       value="{{ next_capability_code }}" readonly>
+                                <small class="text-muted">Auto-generated code (CAP-####)</small>
+                                {% else %}
+                                <input type="text" class="form-control bg-light" name="capability_code" 
+                                       value="{{ capability.capability_code }}" readonly>
+                                <small class="text-muted">Capability code cannot be changed</small>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Part Number <span class="text-danger">*</span></label>
@@ -208,7 +213,7 @@
                     </div>
                     <div class="card-body">
                         <ul class="small">
-                            <li><strong>Capability Code:</strong> Use a unique code like CAP-001 or REPAIR-ABC123</li>
+                            <li><strong>Capability Code:</strong> Auto-generated in format CAP-0001, CAP-0002, etc.</li>
                             <li><strong>Part Number:</strong> The MRO part number this capability applies to</li>
                             <li><strong>Category:</strong> Group similar capabilities together</li>
                             <li><strong>Specifications:</strong> Add detailed technical specs with units and ranges</li>
