@@ -56,15 +56,28 @@
     <script>
     // Format AI insights with proper markdown-style rendering
     document.addEventListener('DOMContentLoaded', function() {
-        const reportContent = `{{ ai_insights | safe }}`;
+        // Use tojson filter to safely escape content and prevent XSS
+        const reportContent = {{ ai_insights | tojson }};
         const reportDiv = document.getElementById('aiReport');
         
-        // Convert markdown-style formatting to HTML
-        let formatted = reportContent
+        // Escape HTML to prevent XSS attacks
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+        
+        // Convert markdown-style formatting to HTML (after sanitization)
+        let formatted = escapeHtml(reportContent)
             // Headers
             .replace(/## (.*?)(\n|$)/g, '<h4 class="mt-4 mb-3 pb-2 border-bottom text-primary"><i class="bi bi-check-circle-fill me-2"></i>$1</h4>')
             .replace(/### (.*?)(\n|$)/g, '<h5 class="mt-3 mb-2 text-secondary">$1</h5>')
-            // Bold
+            // Bold (using escaped version)
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             // Bullet points with nice styling
             .replace(/^- (.*?)$/gm, '<div class="ps-3 mb-2"><i class="bi bi-arrow-right-circle-fill text-success me-2"></i>$1</div>')
