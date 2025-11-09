@@ -142,7 +142,6 @@ def capability_new():
         description = request.form.get('description', '').strip()
         category = request.form.get('category', '').strip()
         manufacturer = request.form.get('manufacturer', '').strip()
-        tolerance = request.form.get('tolerance', '').strip()
         compliance = request.form.get('compliance', '').strip()
         certification_required = 1 if request.form.get('certification_required') else 0
         status = request.form.get('status', 'Active')
@@ -160,13 +159,13 @@ def capability_new():
                 INSERT INTO mro_capabilities (
                     capability_code, part_number, product_id, capability_name,
                     applicability, part_class, description, category, manufacturer, 
-                    tolerance, compliance, certification_required, status, notes, 
+                    compliance, certification_required, status, notes, 
                     created_by, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
             ''', (
                 capability_code, part_number, product_id, capability_name,
                 applicability, part_class, description, category, manufacturer, 
-                tolerance, compliance, certification_required, status, notes, session['user_id']
+                compliance, certification_required, status, notes, session['user_id']
             ))
             
             capability_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -297,7 +296,6 @@ def capability_edit(capability_id):
         description = request.form.get('description', '').strip()
         category = request.form.get('category', '').strip()
         manufacturer = request.form.get('manufacturer', '').strip()
-        tolerance = request.form.get('tolerance', '').strip()
         compliance = request.form.get('compliance', '').strip()
         certification_required = 1 if request.form.get('certification_required') else 0
         status = request.form.get('status', 'Active')
@@ -315,12 +313,12 @@ def capability_edit(capability_id):
                 UPDATE mro_capabilities
                 SET part_number = ?, product_id = ?, capability_name = ?,
                     applicability = ?, part_class = ?, description = ?, category = ?, 
-                    manufacturer = ?, tolerance = ?, compliance = ?, certification_required = ?, 
+                    manufacturer = ?, compliance = ?, certification_required = ?, 
                     status = ?, notes = ?, updated_at = datetime('now'), modified_by = ?
                 WHERE id = ?
             ''', (
                 part_number, product_id, capability_name, applicability, part_class,
-                description, category, manufacturer, tolerance, compliance, 
+                description, category, manufacturer, compliance, 
                 certification_required, status, notes, session['user_id'], capability_id
             ))
             

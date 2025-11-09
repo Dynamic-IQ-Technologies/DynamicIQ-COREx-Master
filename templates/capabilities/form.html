@@ -141,18 +141,12 @@
                         </div>
 
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label">Manufacturer</label>
                                 <input type="text" class="form-control" name="manufacturer" 
                                        value="{{ capability.manufacturer if capability else '' }}">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Tolerance</label>
-                                <input type="text" class="form-control" name="tolerance" 
-                                       value="{{ capability.tolerance if capability else '' }}" 
-                                       placeholder="e.g., ±0.001">
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label">Compliance</label>
                                 <input type="text" class="form-control" name="compliance" 
                                        value="{{ capability.compliance if capability else '' }}" 
