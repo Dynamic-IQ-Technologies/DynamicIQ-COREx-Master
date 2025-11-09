@@ -313,33 +313,125 @@ def generate_ai_insights(source_id, run_id):
         # Prepare data summary for AI
         df = pd.DataFrame([dict(row) for row in matches_data])
         
-        # Build comprehensive prompt
-        prompt = f"""You are an expert aviation MRO (Maintenance, Repair, and Overhaul) market analyst. Analyze the following fleet data and capability matches to provide strategic insights.
+        # Aggregate data for better AI analysis
+        if not df.empty:
+            airline_summary = df.groupby(['airline_name', 'region', 'match_score']).size().reset_index(name='count')
+            regional_summary = df.groupby(['region', 'match_score']).size().reset_index(name='count')
+            aircraft_summary = df.groupby(['aircraft_model', 'match_score']).size().reset_index(name='count')
+        else:
+            airline_summary = pd.DataFrame()
+            regional_summary = pd.DataFrame()
+            aircraft_summary = pd.DataFrame()
+        
+        # Build comprehensive prompt for AI
+        prompt = f"""You are an expert aviation MRO (Maintenance, Repair, and Overhaul) market analyst. Analyze the following fleet data and capability matches to provide a COMPREHENSIVE strategic market analysis report.
 
-**Market Data Summary:**
-- Total Airlines: {stats['airline_count']}
-- Regions Covered: {stats['region_count']}
-- Aircraft Models: {stats['aircraft_count']}
-- High Match Opportunities: {stats['high_matches']}
-- Medium Match Opportunities: {stats['medium_matches']}
-- Capability Gaps: {stats['no_matches']}
+**MARKET DATA SUMMARY:**
+- Total Airlines Analyzed: {stats['airline_count']}
+- Geographic Regions: {stats['region_count']}
+- Aircraft Models Covered: {stats['aircraft_count']}
+- High-Priority Matches: {stats['high_matches']}
+- Medium-Priority Matches: {stats['medium_matches']}
+- Capability Gap Opportunities: {stats['no_matches']}
 
-**Sample Match Data:**
-{df.head(50).to_string() if not df.empty else 'No matches available'}
+**AIRLINE OPPORTUNITY BREAKDOWN:**
+{airline_summary.to_string() if not airline_summary.empty else 'Limited airline data'}
 
-**Please provide a comprehensive analysis with:**
+**REGIONAL DISTRIBUTION:**
+{regional_summary.to_string() if not regional_summary.empty else 'Limited regional data'}
 
-1. **Top 5 Priority Opportunities** - Which airlines/regions/aircraft should we target first and why?
+**AIRCRAFT MODEL INSIGHTS:**
+{aircraft_summary.to_string() if not aircraft_summary.empty else 'Limited aircraft data'}
 
-2. **Regional Market Insights** - What are the key opportunities and trends by region?
+**DETAILED MATCH SAMPLE:**
+{df.head(100).to_string() if not df.empty else 'No matches available'}
 
-3. **Capability Gaps** - What capabilities should we develop based on 'No Match' items?
+**GENERATE A COMPREHENSIVE MARKET ANALYSIS REPORT WITH THE FOLLOWING SECTIONS:**
 
-4. **Marketing Strategy** - Specific recommendations for promoting our capabilities to these airlines.
+## EXECUTIVE SUMMARY
+Provide a 3-4 paragraph executive summary that:
+- Highlights the most significant market opportunities
+- Identifies the total addressable market size
+- Summarizes key strategic recommendations
+- Notes critical action items
 
-5. **Risk Assessment** - Any concerns or competitive challenges to consider.
+## TOP 10 PRIORITY OPPORTUNITIES
+List the top 10 specific opportunities ranked by:
+- Revenue potential
+- Strategic fit
+- Competitive advantage
+- Implementation ease
 
-Please be specific and actionable. Format your response with clear headings and bullet points."""
+For each opportunity, provide:
+- Airline/Region/Aircraft combination
+- Estimated opportunity value (qualitative: High/Medium/Low)
+- Specific parts/capabilities involved
+- Recommended next steps
+- Timeline for engagement
+
+## REGIONAL MARKET ANALYSIS
+For each region, provide:
+- Market size and growth potential
+- Key airlines to target
+- Competitive landscape
+- Regulatory considerations
+- Entry barriers and opportunities
+- Recommended regional strategy
+
+## CAPABILITY GAP ANALYSIS
+Analyze parts with "No Match" to identify:
+- Which new capabilities would unlock the most value
+- Investment priority (High/Medium/Low)
+- Expected ROI and market demand
+- Development timeline estimates
+- Strategic partnerships needed
+
+## AIRLINE-SPECIFIC STRATEGIES
+For top 5 airlines, provide:
+- Current service readiness (what we can do now)
+- Relationship development strategy
+- Pricing and positioning approach
+- Key decision-makers to target
+- Competitive threats
+
+## MARKETING & SALES STRATEGY
+Provide actionable recommendations for:
+- Market positioning and messaging
+- Sales outreach priorities (ranked list)
+- Marketing channels and tactics
+- Key value propositions by segment
+- Timeline for campaign launch
+
+## COMPETITIVE INTELLIGENCE
+Assess:
+- Major competitors in this market space
+- Our competitive advantages
+- Threats and vulnerabilities
+- Differentiation strategies
+
+## RISK ASSESSMENT & MITIGATION
+Identify:
+- Market entry risks
+- Operational challenges
+- Financial considerations
+- Compliance and regulatory risks
+- Mitigation strategies for each
+
+## FINANCIAL PROJECTIONS
+Provide qualitative estimates of:
+- Revenue potential by region (High/Medium/Low)
+- Expected margins by service type
+- Investment requirements
+- Payback period estimates
+
+## IMPLEMENTATION ROADMAP
+Create a phased action plan:
+- Phase 1 (0-3 months): Quick wins
+- Phase 2 (3-6 months): Strategic initiatives
+- Phase 3 (6-12 months): Market expansion
+- Key milestones and success metrics
+
+Format your response with clear markdown headings, bullet points, and specific actionable recommendations. Be extremely detailed and data-driven in your analysis."""
 
         # Call OpenAI API
         client = get_openai_client()
