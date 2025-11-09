@@ -19,6 +19,29 @@
         </div>
     </div>
 
+    <!-- AI Insights Section -->
+    {% if ai_insights %}
+    <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #10b981 !important;">
+        <div class="card-header bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-stars me-2" style="color: #10b981;"></i>AI-Powered Market Insights
+                </h5>
+                <span class="badge bg-success">AI Generated</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="ai-insights-content" style="white-space: pre-wrap; line-height: 1.8;">{{ ai_insights }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-lightbulb me-2"></i>
+        <strong>No AI insights available yet.</strong> AI analysis is automatically generated after matching. 
+        If you don't see insights, they may still be processing.
+    </div>
+    {% endif %}
+
     <!-- Summary Statistics -->
     <div class="row mb-4">
         <div class="col-md-2">

@@ -6,10 +6,19 @@ import io
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
+from openai import OpenAI
 
 market_analysis_bp = Blueprint('market_analysis_routes', __name__)
 
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
+
+# Initialize OpenAI client with Replit AI Integrations
+def get_openai_client():
+    """Get OpenAI client configured with Replit AI Integrations"""
+    return OpenAI(
+        api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+        base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+    )
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -257,11 +266,116 @@ def run_analysis(source_id):
         conn.close()
         
         flash(f'Analysis complete! Found {match_count} total matches ({high_count} High, {medium_count} Medium, {low_count} Low)', 'success')
-        return redirect(url_for('market_analysis_routes.view_results', source_id=source_id))
+        return redirect(url_for('market_analysis_routes.generate_ai_insights', source_id=source_id, run_id=run_id))
         
     except Exception as e:
         flash(f'Error running analysis: {str(e)}', 'danger')
         return redirect(url_for('market_analysis_routes.dashboard'))
+
+@market_analysis_bp.route('/market-analysis/ai-insights/<int:source_id>/<int:run_id>')
+def generate_ai_insights(source_id, run_id):
+    """Generate AI-powered market insights"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    try:
+        db = Database()
+        conn = db.get_connection()
+        
+        # Get match data for AI analysis
+        matches_data = conn.execute('''
+            SELECT afa.airline_name, afa.region, afa.aircraft_model,
+                   fp.part_number, cm.match_score,
+                   mc.capability_name, mc.category
+            FROM capability_matches cm
+            JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
+            JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
+            LEFT JOIN mro_capabilities mc ON cm.capability_id = mc.id
+            WHERE afa.source_id = ? AND cm.is_active = 1
+            LIMIT 500
+        ''', (source_id,)).fetchall()
+        
+        # Get summary stats
+        stats = conn.execute('''
+            SELECT 
+                COUNT(DISTINCT afa.airline_name) as airline_count,
+                COUNT(DISTINCT afa.region) as region_count,
+                COUNT(DISTINCT afa.aircraft_model) as aircraft_count,
+                SUM(CASE WHEN cm.match_score = 'High' THEN 1 ELSE 0 END) as high_matches,
+                SUM(CASE WHEN cm.match_score = 'Medium' THEN 1 ELSE 0 END) as medium_matches,
+                SUM(CASE WHEN cm.match_score = 'No Match' THEN 1 ELSE 0 END) as no_matches
+            FROM capability_matches cm
+            JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
+            JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
+            WHERE afa.source_id = ? AND cm.is_active = 1
+        ''', (source_id,)).fetchone()
+        
+        # Prepare data summary for AI
+        df = pd.DataFrame([dict(row) for row in matches_data])
+        
+        # Build comprehensive prompt
+        prompt = f"""You are an expert aviation MRO (Maintenance, Repair, and Overhaul) market analyst. Analyze the following fleet data and capability matches to provide strategic insights.
+
+**Market Data Summary:**
+- Total Airlines: {stats['airline_count']}
+- Regions Covered: {stats['region_count']}
+- Aircraft Models: {stats['aircraft_count']}
+- High Match Opportunities: {stats['high_matches']}
+- Medium Match Opportunities: {stats['medium_matches']}
+- Capability Gaps: {stats['no_matches']}
+
+**Sample Match Data:**
+{df.head(50).to_string() if not df.empty else 'No matches available'}
+
+**Please provide a comprehensive analysis with:**
+
+1. **Top 5 Priority Opportunities** - Which airlines/regions/aircraft should we target first and why?
+
+2. **Regional Market Insights** - What are the key opportunities and trends by region?
+
+3. **Capability Gaps** - What capabilities should we develop based on 'No Match' items?
+
+4. **Marketing Strategy** - Specific recommendations for promoting our capabilities to these airlines.
+
+5. **Risk Assessment** - Any concerns or competitive challenges to consider.
+
+Please be specific and actionable. Format your response with clear headings and bullet points."""
+
+        # Call OpenAI API
+        client = get_openai_client()
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.7,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert aviation MRO market analyst providing strategic business insights."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
+        
+        ai_insights = response.choices[0].message.content
+        
+        # Store AI insights in match_runs
+        conn.execute('''
+            UPDATE match_runs
+            SET notes = ?
+            WHERE id = ?
+        ''', (ai_insights, run_id))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('AI insights generated successfully!', 'success')
+        return redirect(url_for('market_analysis_routes.view_results', source_id=source_id))
+        
+    except Exception as e:
+        flash(f'Error generating AI insights: {str(e)}', 'danger')
+        return redirect(url_for('market_analysis_routes.view_results', source_id=source_id))
 
 @market_analysis_bp.route('/market-analysis/results/<int:source_id>')
 def view_results(source_id):
@@ -348,6 +462,18 @@ def view_results(source_id):
         WHERE afa.source_id = ? AND cm.is_active = 1
     ''', (source_id,)).fetchone()
     
+    # Get AI insights from most recent match run
+    ai_insights = None
+    latest_run = conn.execute('''
+        SELECT notes FROM match_runs
+        WHERE source_id = ? AND status = 'Completed' AND notes IS NOT NULL AND notes != ''
+        ORDER BY completed_at DESC
+        LIMIT 1
+    ''', (source_id,)).fetchone()
+    
+    if latest_run and latest_run['notes']:
+        ai_insights = latest_run['notes']
+    
     conn.close()
     
     return render_template('market_analysis/results.html',
@@ -357,6 +483,7 @@ def view_results(source_id):
                          airlines=airlines,
                          models=models,
                          stats=stats,
+                         ai_insights=ai_insights,
                          filters={
                              'region': region_filter,
                              'airline': airline_filter,
