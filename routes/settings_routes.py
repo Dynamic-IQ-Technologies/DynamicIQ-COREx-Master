@@ -24,6 +24,59 @@ def view_company_settings():
     
     return render_template('settings/company.html', settings=settings, updated_by_user=updated_by_user)
 
+@settings_bp.route('/settings/accounting')
+@login_required
+def view_accounting_preferences():
+    """View accounting preferences"""
+    settings = CompanySettings.get_or_create_default()
+    
+    updated_by_user = None
+    if settings and settings['updated_by']:
+        updated_by_user = User.get_by_id(settings['updated_by'])
+    
+    return render_template('settings/accounting_preferences.html', 
+                         settings=settings, 
+                         updated_by_user=updated_by_user)
+
+@settings_bp.route('/settings/accounting/edit', methods=['GET', 'POST'])
+@role_required('Admin')
+def edit_accounting_preferences():
+    """Edit accounting preferences"""
+    if request.method == 'POST':
+        from flask import session
+        user_id = session.get('user_id')
+        
+        # Get current settings
+        current_settings = CompanySettings.get()
+        
+        # Build data dict with current values, only updating accounting preference
+        data = {
+            'company_name': current_settings['company_name'],
+            'dba': current_settings['dba'],
+            'address_line1': current_settings['address_line1'],
+            'address_line2': current_settings['address_line2'],
+            'city': current_settings['city'],
+            'state': current_settings['state'],
+            'postal_code': current_settings['postal_code'],
+            'country': current_settings['country'],
+            'phone': current_settings['phone'],
+            'email': current_settings['email'],
+            'website': current_settings['website'],
+            'tax_id': current_settings['tax_id'],
+            'duns_number': current_settings['duns_number'],
+            'cage_code': current_settings['cage_code'],
+            'logo_filename': current_settings['logo_filename'],
+            'auto_post_invoice_gl': 1 if request.form.get('auto_post_invoice_gl') == 'on' else 0
+        }
+        
+        CompanySettings.create_or_update(data, user_id)
+        
+        flash('Accounting preferences updated successfully.', 'success')
+        return redirect(url_for('settings_routes.view_accounting_preferences'))
+    
+    settings = CompanySettings.get_or_create_default()
+    return render_template('settings/edit_accounting_preferences.html', settings=settings)
+
 @settings_bp.route('/settings/company/edit', methods=['GET', 'POST'])
 @role_required('Admin')
 def edit_company_settings():
