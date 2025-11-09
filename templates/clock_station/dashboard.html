@@ -229,8 +229,26 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Project/Task (Optional)</label>
-                    <input type="text" class="form-control" name="project_name" placeholder="e.g., Assembly Line 1">
+                    <label class="form-label">Work Order (Optional)</label>
+                    <select class="form-select" id="work_order_id" name="work_order_id" onchange="loadWorkOrderTasks()">
+                        <option value="">No Work Order</option>
+                        {% for wo in work_orders %}
+                        <option value="{{ wo.id }}">{{ wo.wo_number }} - {{ wo.product_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Task (Optional)</label>
+                    <select class="form-select" id="task_id" name="task_id">
+                        <option value="">No Specific Task</option>
+                    </select>
+                    <small class="form-text text-muted">Select a work order first to see available tasks</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Additional Notes (Optional)</label>
+                    <textarea class="form-control" name="notes" rows="2" placeholder="Additional project or task information..."></textarea>
                 </div>
 
                 <button type="submit" class="btn btn-punch btn-punch-in text-white w-100">
@@ -254,11 +272,14 @@
                                 {{ punch.punch_type }}
                             </span>
                             <div class="punch-time">{{ punch.punch_time[:10] }} {{ punch.punch_time[11:19] }}</div>
-                            {% if punch.project_name %}
-                            <small class="text-muted"><i class="bi bi-briefcase"></i> {{ punch.project_name }}</small>
+                            {% if punch.wo_number %}
+                            <small class="text-muted d-block"><i class="bi bi-gear"></i> WO: {{ punch.wo_number }}</small>
+                            {% endif %}
+                            {% if punch.task_name %}
+                            <small class="text-muted d-block"><i class="bi bi-list-task"></i> Task: {{ punch.task_name }}</small>
                             {% endif %}
                             {% if punch.location %}
-                            <small class="text-muted"><i class="bi bi-geo-alt"></i> {{ punch.location }}</small>
+                            <small class="text-muted d-block"><i class="bi bi-geo-alt"></i> {{ punch.location }}</small>
                             {% endif %}
                         </div>
                     </div>
@@ -318,6 +339,33 @@
         updateElapsedTime();
         setInterval(updateTime, 1000);
         setInterval(updateElapsedTime, 1000);
+
+        // Load tasks when work order is selected
+        function loadWorkOrderTasks() {
+            const woSelect = document.getElementById('work_order_id');
+            const taskSelect = document.getElementById('task_id');
+            const woId = woSelect.value;
+            
+            // Reset task dropdown
+            taskSelect.innerHTML = '<option value="">No Specific Task</option>';
+            
+            if (woId) {
+                // Fetch tasks for selected work order
+                fetch(`/clock/api/tasks/${woId}`)
+                    .then(response => response.json())
+                    .then(tasks => {
+                        tasks.forEach(task => {
+                            const option = document.createElement('option');
+                            option.value = task.id;
+                            option.textContent = task.task_name;
+                            taskSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading tasks:', error);
+                    });
+            }
+        }
     </script>
 </body>
 </html>

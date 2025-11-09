@@ -144,15 +144,32 @@ def clock_dashboard():
     
     hours_today = calculate_hours_from_punches(todays_punches)
     
-    # Get recent punches (last 7 days)
+    # Get recent punches (last 7 days) with work order and task info
     week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     recent_punches = conn.execute('''
-        SELECT punch_number, punch_type, punch_time, location, project_name, notes
-        FROM time_clock_punches
-        WHERE employee_id = ? AND DATE(punch_time) >= ?
-        ORDER BY punch_time DESC
+        SELECT 
+            tcp.punch_number, tcp.punch_type, tcp.punch_time, tcp.location, 
+            tcp.project_name, tcp.notes,
+            wo.wo_number,
+            wot.task_name
+        FROM time_clock_punches tcp
+        LEFT JOIN work_orders wo ON tcp.work_order_id = wo.id
+        LEFT JOIN work_order_tasks wot ON tcp.task_id = wot.id
+        WHERE tcp.employee_id = ? AND DATE(tcp.punch_time) >= ?
+        ORDER BY tcp.punch_time DESC
         LIMIT 20
     ''', (employee_id, week_ago)).fetchall()
+    
+    # Get available work orders (not completed or cancelled)
+    work_orders = conn.execute('''
+        SELECT id, wo_number, product_id,
+               (SELECT name FROM products WHERE id = wo.product_id) as product_name,
+               status
+        FROM work_orders wo
+        WHERE status NOT IN ('Completed', 'Cancelled')
+        ORDER BY wo_number DESC
+        LIMIT 50
+    ''').fetchall()
     
     # Determine current status
     is_clocked_in = last_punch and last_punch['punch_type'] == 'Clock In'
@@ -164,7 +181,8 @@ def clock_dashboard():
                          last_punch=last_punch,
                          is_clocked_in=is_clocked_in,
                          hours_today=hours_today,
-                         recent_punches=recent_punches)
+                         recent_punches=recent_punches,
+                         work_orders=work_orders)
 
 @clock_station_bp.route('/clock/punch', methods=['POST'])
 @clock_auth_required
@@ -176,8 +194,52 @@ def clock_punch():
     employee_id = session['clock_employee_id']
     punch_type = request.form.get('punch_type')  # 'Clock In' or 'Clock Out'
     location = request.form.get('location', '')
-    project_name = request.form.get('project_name', '')
+    work_order_id_str = request.form.get('work_order_id', '').strip()
+    task_id_str = request.form.get('task_id', '').strip()
     notes = request.form.get('notes', '')
+    
+    # Validate and convert work_order_id
+    work_order_id = None
+    if work_order_id_str:
+        try:
+            work_order_id = int(work_order_id_str)
+            # Verify work order exists
+            wo_exists = conn.execute('SELECT id FROM work_orders WHERE id = ?', (work_order_id,)).fetchone()
+            if not wo_exists:
+                flash('Invalid work order selected. Please try again.', 'danger')
+                conn.close()
+                return redirect(url_for('clock_station_routes.clock_dashboard'))
+        except (ValueError, TypeError):
+            flash('Invalid work order format. Please try again.', 'danger')
+            conn.close()
+            return redirect(url_for('clock_station_routes.clock_dashboard'))
+    
+    # Validate and convert task_id
+    task_id = None
+    if task_id_str:
+        try:
+            task_id = int(task_id_str)
+            # Verify task exists and belongs to selected work order if work order is specified
+            if work_order_id:
+                task_check = conn.execute(
+                    'SELECT id FROM work_order_tasks WHERE id = ? AND work_order_id = ?', 
+                    (task_id, work_order_id)
+                ).fetchone()
+                if not task_check:
+                    flash('Invalid task selected or task does not belong to the selected work order.', 'danger')
+                    conn.close()
+                    return redirect(url_for('clock_station_routes.clock_dashboard'))
+            else:
+                # Task selected but no work order - verify task exists
+                task_exists = conn.execute('SELECT id FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+                if not task_exists:
+                    flash('Invalid task selected. Please try again.', 'danger')
+                    conn.close()
+                    return redirect(url_for('clock_station_routes.clock_dashboard'))
+        except (ValueError, TypeError):
+            flash('Invalid task format. Please try again.', 'danger')
+            conn.close()
+            return redirect(url_for('clock_station_routes.clock_dashboard'))
     
     # Get client info
     ip_address = request.remote_addr
@@ -187,15 +249,15 @@ def clock_punch():
     count = conn.execute('SELECT COUNT(*) as count FROM time_clock_punches').fetchone()['count']
     punch_number = f"PUNCH-{count + 1:07d}"
     
-    # Insert punch record
+    # Insert punch record with work order and task
     conn.execute('''
         INSERT INTO time_clock_punches (
             punch_number, employee_id, punch_type, punch_time,
-            location, ip_address, device_info, project_name, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            location, ip_address, device_info, work_order_id, task_id, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         punch_number, employee_id, punch_type, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        location, ip_address, device_info, project_name, notes
+        location, ip_address, device_info, work_order_id, task_id, notes
     ))
     
     conn.commit()
@@ -207,6 +269,27 @@ def clock_punch():
         flash('Successfully clocked out! Great work today.', 'success')
     
     return redirect(url_for('clock_station_routes.clock_dashboard'))
+
+@clock_station_bp.route('/clock/api/tasks/<int:work_order_id>')
+@clock_auth_required
+def get_work_order_tasks(work_order_id):
+    """API endpoint to get tasks for a specific work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    tasks = conn.execute('''
+        SELECT id, task_name, status
+        FROM work_order_tasks
+        WHERE work_order_id = ?
+        ORDER BY sequence_number, task_name
+    ''', (work_order_id,)).fetchall()
+    
+    conn.close()
+    
+    # Convert to list of dicts for JSON response
+    tasks_list = [{'id': t['id'], 'task_name': t['task_name'], 'status': t['status']} for t in tasks]
+    
+    return jsonify(tasks_list)
 
 @clock_station_bp.route('/clock/logout')
 def clock_logout():

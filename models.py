@@ -457,6 +457,19 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Add work_order_id and task_id columns to time_clock_punches if they don't exist
+        tcp_columns = [row[1] for row in cursor.execute('PRAGMA table_info(time_clock_punches)').fetchall()]
+        if 'work_order_id' not in tcp_columns:
+            try:
+                cursor.execute('ALTER TABLE time_clock_punches ADD COLUMN work_order_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        if 'task_id' not in tcp_columns:
+            try:
+                cursor.execute('ALTER TABLE time_clock_punches ADD COLUMN task_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        
         # Migrate single-line POs to multi-line structure
         po_columns = [row[1] for row in cursor.execute('PRAGMA table_info(purchase_orders)').fetchall()]
         if 'product_id' in po_columns:
@@ -598,10 +611,14 @@ class Database:
                 ip_address TEXT,
                 device_info TEXT,
                 project_name TEXT,
+                work_order_id INTEGER,
+                task_id INTEGER,
                 notes TEXT,
                 status TEXT DEFAULT 'Approved',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (employee_id) REFERENCES labor_resources(id)
+                FOREIGN KEY (employee_id) REFERENCES labor_resources(id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (task_id) REFERENCES work_order_tasks(id)
             )
         ''')
         
