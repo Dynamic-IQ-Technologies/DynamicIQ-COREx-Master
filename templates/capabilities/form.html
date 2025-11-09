@@ -43,9 +43,68 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Capability Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="capability_name" 
-                                   value="{{ capability.capability_name if capability else '' }}" required>
+                            <label class="form-label">Capability Name (Select All That Apply) <span class="text-danger">*</span></label>
+                            {% set selected_capabilities = capability.capability_name.split(', ') if capability and capability.capability_name else [] %}
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="capability_name[]" 
+                                               value="Maintenance" id="cap_maintenance"
+                                               {% if 'Maintenance' in selected_capabilities %}checked{% endif %}>
+                                        <label class="form-check-label" for="cap_maintenance">Maintenance</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="capability_name[]" 
+                                               value="Repair" id="cap_repair"
+                                               {% if 'Repair' in selected_capabilities %}checked{% endif %}>
+                                        <label class="form-check-label" for="cap_repair">Repair</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="capability_name[]" 
+                                               value="Overhaul" id="cap_overhaul"
+                                               {% if 'Overhaul' in selected_capabilities %}checked{% endif %}>
+                                        <label class="form-check-label" for="cap_overhaul">Overhaul</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="capability_name[]" 
+                                               value="Inspection" id="cap_inspection"
+                                               {% if 'Inspection' in selected_capabilities %}checked{% endif %}>
+                                        <label class="form-check-label" for="cap_inspection">Inspection</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="capability_name[]" 
+                                               value="Service" id="cap_service"
+                                               {% if 'Service' in selected_capabilities %}checked{% endif %}>
+                                        <label class="form-check-label" for="cap_service">Service</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted">Select at least one capability type</small>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Applicability</label>
+                                <input type="text" class="form-control" name="applicability" 
+                                       value="{{ capability.applicability if capability else '' }}" 
+                                       placeholder="e.g., Boeing 737, Airbus A320">
+                                <small class="text-muted">Aircraft or equipment types this capability applies to</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Part Class</label>
+                                <input type="text" class="form-control" name="part_class" 
+                                       value="{{ capability.part_class if capability else '' }}" 
+                                       placeholder="e.g., Hydraulic, Avionics, Structural">
+                                <small class="text-muted">Classification of the part type</small>
+                            </div>
                         </div>
 
                         <div class="mb-3">

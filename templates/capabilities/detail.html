@@ -56,8 +56,27 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-muted small">Capability Name</label>
-                        <div><strong>{{ capability.capability_name }}</strong></div>
+                        <label class="text-muted small">Capability Names</label>
+                        <div>
+                            {% if capability.capability_name %}
+                                {% for cap_name in capability.capability_name.split(', ') %}
+                                    <span class="badge bg-primary me-1">{{ cap_name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Applicability</label>
+                            <div>{{ capability.applicability or '-' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Part Class</label>
+                            <div>{{ capability.part_class or '-' }}</div>
+                        </div>
                     </div>
 
                     {% if capability.description %}

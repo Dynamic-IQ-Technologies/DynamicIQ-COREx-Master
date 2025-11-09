@@ -41,9 +41,9 @@ def capability_list():
     query = '''
         SELECT 
             mc.id, mc.capability_code, mc.part_number, mc.capability_name,
-            mc.description, mc.category, mc.manufacturer, mc.tolerance,
-            mc.compliance, mc.certification_required, mc.status, mc.notes,
-            mc.created_at, mc.updated_at,
+            mc.applicability, mc.part_class, mc.description, mc.category, 
+            mc.manufacturer, mc.tolerance, mc.compliance, mc.certification_required, 
+            mc.status, mc.notes, mc.created_at, mc.updated_at,
             p.name as product_name,
             u.username as created_by_username,
             (SELECT COUNT(*) FROM capability_specifications WHERE capability_id = mc.id) as spec_count
@@ -135,7 +135,10 @@ def capability_new():
         
         part_number = request.form.get('part_number', '').strip()
         product_id = request.form.get('product_id', '').strip()
-        capability_name = request.form.get('capability_name', '').strip()
+        capability_names = request.form.getlist('capability_name[]')
+        capability_name = ', '.join(capability_names) if capability_names else ''
+        applicability = request.form.get('applicability', '').strip()
+        part_class = request.form.get('part_class', '').strip()
         description = request.form.get('description', '').strip()
         category = request.form.get('category', '').strip()
         manufacturer = request.form.get('manufacturer', '').strip()
@@ -146,7 +149,7 @@ def capability_new():
         notes = request.form.get('notes', '').strip()
         
         if not part_number or not capability_name:
-            flash('Part Number and Capability Name are required.', 'danger')
+            flash('Part Number and at least one Capability Name are required.', 'danger')
             conn.close()
             return redirect(url_for('capability_routes.capability_new'))
         
@@ -156,13 +159,14 @@ def capability_new():
             conn.execute('''
                 INSERT INTO mro_capabilities (
                     capability_code, part_number, product_id, capability_name,
-                    description, category, manufacturer, tolerance, compliance,
-                    certification_required, status, notes, created_by, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    applicability, part_class, description, category, manufacturer, 
+                    tolerance, compliance, certification_required, status, notes, 
+                    created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
             ''', (
                 capability_code, part_number, product_id, capability_name,
-                description, category, manufacturer, tolerance, compliance,
-                certification_required, status, notes, session['user_id']
+                applicability, part_class, description, category, manufacturer, 
+                tolerance, compliance, certification_required, status, notes, session['user_id']
             ))
             
             capability_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -286,7 +290,10 @@ def capability_edit(capability_id):
     if request.method == 'POST':
         part_number = request.form.get('part_number', '').strip()
         product_id = request.form.get('product_id', '').strip()
-        capability_name = request.form.get('capability_name', '').strip()
+        capability_names = request.form.getlist('capability_name[]')
+        capability_name = ', '.join(capability_names) if capability_names else ''
+        applicability = request.form.get('applicability', '').strip()
+        part_class = request.form.get('part_class', '').strip()
         description = request.form.get('description', '').strip()
         category = request.form.get('category', '').strip()
         manufacturer = request.form.get('manufacturer', '').strip()
@@ -297,7 +304,7 @@ def capability_edit(capability_id):
         notes = request.form.get('notes', '').strip()
         
         if not part_number or not capability_name:
-            flash('Part Number and Capability Name are required.', 'danger')
+            flash('Part Number and at least one Capability Name are required.', 'danger')
             conn.close()
             return redirect(url_for('capability_routes.capability_edit', capability_id=capability_id))
         
@@ -307,14 +314,14 @@ def capability_edit(capability_id):
             conn.execute('''
                 UPDATE mro_capabilities
                 SET part_number = ?, product_id = ?, capability_name = ?,
-                    description = ?, category = ?, manufacturer = ?, tolerance = ?,
-                    compliance = ?, certification_required = ?, status = ?, notes = ?,
-                    updated_at = datetime('now'), modified_by = ?
+                    applicability = ?, part_class = ?, description = ?, category = ?, 
+                    manufacturer = ?, tolerance = ?, compliance = ?, certification_required = ?, 
+                    status = ?, notes = ?, updated_at = datetime('now'), modified_by = ?
                 WHERE id = ?
             ''', (
-                part_number, product_id, capability_name, description, category,
-                manufacturer, tolerance, compliance, certification_required, status,
-                notes, session['user_id'], capability_id
+                part_number, product_id, capability_name, applicability, part_class,
+                description, category, manufacturer, tolerance, compliance, 
+                certification_required, status, notes, session['user_id'], capability_id
             ))
             
             conn.execute('DELETE FROM capability_specifications WHERE capability_id = ?', (capability_id,))
@@ -427,8 +434,8 @@ def capability_export():
     query = '''
         SELECT 
             mc.capability_code, mc.part_number, mc.capability_name,
-            mc.description, mc.category, mc.manufacturer, mc.tolerance,
-            mc.compliance, 
+            mc.applicability, mc.part_class, mc.description, mc.category, 
+            mc.manufacturer, mc.tolerance, mc.compliance, 
             CASE WHEN mc.certification_required = 1 THEN 'Yes' ELSE 'No' END as certification_required,
             mc.status, mc.notes, mc.created_at, mc.updated_at,
             p.name as product_name

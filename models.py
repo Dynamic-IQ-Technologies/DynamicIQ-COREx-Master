@@ -1109,6 +1109,8 @@ class Database:
                 part_number TEXT NOT NULL,
                 product_id INTEGER,
                 capability_name TEXT NOT NULL,
+                applicability TEXT,
+                part_class TEXT,
                 description TEXT,
                 category TEXT,
                 manufacturer TEXT,
@@ -1154,6 +1156,9 @@ class Database:
         
         # Migrate service_wo_materials table - add serial_number column if it doesn't exist
         self._migrate_service_wo_materials(cursor)
+        
+        # Migrate mro_capabilities table - add applicability and part_class columns if they don't exist
+        self._migrate_mro_capabilities(cursor)
         
         conn.commit()
         conn.close()
@@ -1207,6 +1212,21 @@ class Database:
         # Add serial_number column if it doesn't exist
         if 'serial_number' not in existing_columns:
             cursor.execute("ALTER TABLE service_wo_materials ADD COLUMN serial_number TEXT")
+    
+    def _migrate_mro_capabilities(self, cursor):
+        """Add applicability and part_class columns to mro_capabilities table if they don't exist"""
+        
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(mro_capabilities)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add applicability column if it doesn't exist
+        if 'applicability' not in existing_columns:
+            cursor.execute("ALTER TABLE mro_capabilities ADD COLUMN applicability TEXT")
+        
+        # Add part_class column if it doesn't exist
+        if 'part_class' not in existing_columns:
+            cursor.execute("ALTER TABLE mro_capabilities ADD COLUMN part_class TEXT")
     
     def seed_chart_of_accounts(self):
         conn = self.get_connection()

@@ -115,12 +115,14 @@
                             </th>
                             <th>
                                 <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='capability_name', sort_order='DESC' if sort_by == 'capability_name' and sort_order == 'ASC' else 'ASC') }}">
-                                    Capability Name
+                                    Capability Names
                                     {% if sort_by == 'capability_name' %}
                                     <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
                                     {% endif %}
                                 </a>
                             </th>
+                            <th>Applicability</th>
+                            <th>Part Class</th>
                             <th>
                                 <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='category', sort_order='DESC' if sort_by == 'category' and sort_order == 'ASC' else 'ASC') }}">
                                     Category
@@ -154,7 +156,17 @@
                         <tr>
                             <td><strong>{{ cap.capability_code }}</strong></td>
                             <td>{{ cap.part_number }}</td>
-                            <td>{{ cap.capability_name }}</td>
+                            <td>
+                                {% if cap.capability_name %}
+                                    {% for cap_name in cap.capability_name.split(', ') %}
+                                        <span class="badge bg-primary me-1">{{ cap_name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ cap.applicability or '-' }}</td>
+                            <td>{{ cap.part_class or '-' }}</td>
                             <td>
                                 {% if cap.category %}
                                 <span class="badge bg-secondary">{{ cap.category }}</span>
