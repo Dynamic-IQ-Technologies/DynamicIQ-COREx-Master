@@ -1101,6 +1101,54 @@ class Database:
             )
         ''')
         
+        # Create MRO capabilities tracking table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS mro_capabilities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                capability_code TEXT UNIQUE NOT NULL,
+                part_number TEXT NOT NULL,
+                product_id INTEGER,
+                capability_name TEXT NOT NULL,
+                description TEXT,
+                category TEXT,
+                manufacturer TEXT,
+                tolerance TEXT,
+                compliance TEXT,
+                certification_required INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Active',
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_by INTEGER,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (modified_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create capability specifications table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS capability_specifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                capability_id INTEGER NOT NULL,
+                spec_name TEXT NOT NULL,
+                spec_value TEXT,
+                spec_type TEXT,
+                unit_of_measure TEXT,
+                min_value REAL,
+                max_value REAL,
+                is_critical INTEGER DEFAULT 0,
+                display_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_by INTEGER,
+                FOREIGN KEY (capability_id) REFERENCES mro_capabilities(id) ON DELETE CASCADE,
+                FOREIGN KEY (modified_by) REFERENCES users(id),
+                UNIQUE(capability_id, spec_name)
+            )
+        ''')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         

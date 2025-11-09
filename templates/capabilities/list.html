@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}MRO Capabilities{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-gear-wide-connected"></i> MRO Capabilities</h2>
+        <div>
+            <a href="{{ url_for('capability_routes.capability_export', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer) }}" 
+               class="btn btn-outline-success">
+                <i class="bi bi-download"></i> Export CSV
+            </a>
+            <a href="{{ url_for('capability_routes.capability_new') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Capability
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
+                <i class="bi bi-funnel"></i> Filters
+            </button>
+        </div>
+        <div class="collapse show" id="filterPanel">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('capability_routes.capability_list') }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Search</label>
+                        <input type="text" class="form-control" name="search" 
+                               value="{{ search_query }}" 
+                               placeholder="Code, Part Number, Name...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" name="category">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.category }}" {% if cat.category == filter_category %}selected{% endif %}>
+                                {{ cat.category }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status">
+                            <option value="">All Statuses</option>
+                            <option value="Active" {% if filter_status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Inactive" {% if filter_status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Manufacturer</label>
+                        <input type="text" class="form-control" name="manufacturer" 
+                               value="{{ filter_manufacturer }}" 
+                               placeholder="Manufacturer...">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                        <a href="{{ url_for('capability_routes.capability_list') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if search_query or filter_category or filter_status or filter_manufacturer %}
+    <div class="mb-3">
+        <span class="badge bg-info">
+            {{ capabilities|length }} result(s) found
+        </span>
+        {% if search_query %}
+        <span class="badge bg-secondary">Search: {{ search_query }}</span>
+        {% endif %}
+        {% if filter_category %}
+        <span class="badge bg-secondary">Category: {{ filter_category }}</span>
+        {% endif %}
+        {% if filter_status %}
+        <span class="badge bg-secondary">Status: {{ filter_status }}</span>
+        {% endif %}
+        {% if filter_manufacturer %}
+        <span class="badge bg-secondary">Manufacturer: {{ filter_manufacturer }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            {% if capabilities %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='capability_code', sort_order='DESC' if sort_by == 'capability_code' and sort_order == 'ASC' else 'ASC') }}">
+                                    Capability Code
+                                    {% if sort_by == 'capability_code' %}
+                                    <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='part_number', sort_order='DESC' if sort_by == 'part_number' and sort_order == 'ASC' else 'ASC') }}">
+                                    Part Number
+                                    {% if sort_by == 'part_number' %}
+                                    <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='capability_name', sort_order='DESC' if sort_by == 'capability_name' and sort_order == 'ASC' else 'ASC') }}">
+                                    Capability Name
+                                    {% if sort_by == 'capability_name' %}
+                                    <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='category', sort_order='DESC' if sort_by == 'category' and sort_order == 'ASC' else 'ASC') }}">
+                                    Category
+                                    {% if sort_by == 'category' %}
+                                    <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='manufacturer', sort_order='DESC' if sort_by == 'manufacturer' and sort_order == 'ASC' else 'ASC') }}">
+                                    Manufacturer
+                                    {% if sort_by == 'manufacturer' %}
+                                    <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>Specs</th>
+                            <th>
+                                <a href="{{ url_for('capability_routes.capability_list', search=search_query, category=filter_category, status=filter_status, manufacturer=filter_manufacturer, sort_by='status', sort_order='DESC' if sort_by == 'status' and sort_order == 'ASC' else 'ASC') }}">
+                                    Status
+                                    {% if sort_by == 'status' %}
+                                    <i class="bi bi-caret-{{ 'down' if sort_order == 'DESC' else 'up' }}-fill"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cap in capabilities %}
+                        <tr>
+                            <td><strong>{{ cap.capability_code }}</strong></td>
+                            <td>{{ cap.part_number }}</td>
+                            <td>{{ cap.capability_name }}</td>
+                            <td>
+                                {% if cap.category %}
+                                <span class="badge bg-secondary">{{ cap.category }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ cap.manufacturer or '-' }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ cap.spec_count }} spec(s)</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if cap.status == 'Active' else 'secondary' }}">
+                                    {{ cap.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('capability_routes.capability_detail', capability_id=cap.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('capability_routes.capability_edit', capability_id=cap.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                <p class="text-muted mt-3">No capabilities found. Create one to get started!</p>
+                <a href="{{ url_for('capability_routes.capability_new') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Create First Capability
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
