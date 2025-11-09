@@ -1,0 +1,67 @@
+"""
+Add a Market & Capability Analysis page to my MRO app.
+
+Functionality:
+
+1. Data Integration:
+   - Pull airline and fleet data from external APIs or CSV uploads.
+   - Example data fields: Airline Name, Region, Aircraft Models, Part Numbers.
+
+2. Capability Matching:
+   - Use the existing MRO Capability List (Part Number, Specs, Certifications).
+   - Match airline fleet parts with capabilities.
+   - Assign a match score: High, Medium, Low.
+
+3. UI Features:
+   - Filter by Region, Airline, Aircraft Model, Capability Match.
+   - Display results in:
+       * Tables with Airline, Aircraft Model, Part, Capability Match
+       * Interactive charts or maps for regional analysis
+   - Option to export results as CSV or Excel.
+
+4. Dynamic Recommendations:
+   - Highlight top opportunities based on match scores.
+   - Suggest capabilities to promote per airline or model.
+
+5. Backend/Database:
+   - Store airline data, capability matches, and analysis results.
+   - Enable updates and re-analysis when new capabilities or fleet data is added.
+
+6. Implementation Notes:
+   - Use Flask or FastAPI for backend routes.
+   - Use Pandas for data processing.
+   - Use Plotly or Chart.js for charts and maps.
+   - Ensure seamless integration with existing Replit app structure.
+
+Example Code Snippets:
+
+# 1. Load Capabilities
+import pandas as pd
+
+capabilities = pd.read_csv('capability_list.csv')  # Columns: PartNumber, Spec, Certification
+
+# 2. Load Airline Fleet Data
+fleet_data = pd.read_csv('fleet_data.csv')  # Columns: Airline, Region, AircraftModel, PartNumber
+
+# 3. Match Capabilities
+def match_capabilities(fleet_data, capabilities):
+    merged = fleet_data.merge(capabilities, on='PartNumber', how='left')
+    merged['MatchScore'] = merged.apply(lambda row: 'High' if pd.notna(row['Spec']) else 'Low', axis=1)
+    return merged
+
+matches = match_capabilities(fleet_data, capabilities)
+
+# 4. Display Results in a Table (Flask Example)
+from flask import Flask, render_template
+app = Flask(__name__)
+
+@app.route('/market-analysis')
+def market_analysis():
+    table_html = matches.to_html(classes='table table-striped')
+    return render_template('market_analysis.html', table_html=table_html)
+
+# 5. Optional Export
+matches.to_csv('market_analysis_results.csv', index=False)
+
+"""
+

@@ -1151,6 +1151,98 @@ class Database:
             )
         ''')
         
+        # Create airline fleet sources table (for tracking uploaded data sources)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS airline_fleet_sources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_name TEXT NOT NULL,
+                source_type TEXT DEFAULT 'CSV Upload',
+                file_name TEXT,
+                uploaded_by INTEGER,
+                upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                record_count INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Active',
+                notes TEXT,
+                FOREIGN KEY (uploaded_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create airline fleet aircraft table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS airline_fleet_aircraft (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER NOT NULL,
+                airline_name TEXT NOT NULL,
+                region TEXT,
+                tail_number TEXT,
+                aircraft_model TEXT NOT NULL,
+                aircraft_variant TEXT,
+                config_date TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (source_id) REFERENCES airline_fleet_sources(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        # Create airline fleet parts table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS airline_fleet_parts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                aircraft_id INTEGER NOT NULL,
+                ata_chapter TEXT,
+                part_number TEXT NOT NULL,
+                description TEXT,
+                quantity_in_service INTEGER DEFAULT 1,
+                criticality TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (aircraft_id) REFERENCES airline_fleet_aircraft(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        # Create capability matches table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS capability_matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fleet_part_id INTEGER NOT NULL,
+                capability_id INTEGER,
+                match_score TEXT,
+                score_breakdown TEXT,
+                match_reason TEXT,
+                recommended_action TEXT,
+                analyst_notes TEXT,
+                is_active INTEGER DEFAULT 1,
+                is_latest INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (fleet_part_id) REFERENCES airline_fleet_parts(id) ON DELETE CASCADE,
+                FOREIGN KEY (capability_id) REFERENCES mro_capabilities(id)
+            )
+        ''')
+        
+        # Create match runs table (for tracking analysis runs)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS match_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER,
+                triggered_by INTEGER,
+                run_type TEXT DEFAULT 'adhoc',
+                status TEXT DEFAULT 'Pending',
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                metrics TEXT,
+                notes TEXT,
+                FOREIGN KEY (source_id) REFERENCES airline_fleet_sources(id),
+                FOREIGN KEY (triggered_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create indexes for market analysis tables
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fleet_parts_part_number ON airline_fleet_parts(part_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fleet_aircraft_airline ON airline_fleet_aircraft(airline_name)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fleet_aircraft_region ON airline_fleet_aircraft(region)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_capability_matches_score ON capability_matches(match_score)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_capability_matches_active ON capability_matches(is_active, is_latest)')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         
