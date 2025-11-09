@@ -177,6 +177,7 @@ class Database:
                 duns_number TEXT,
                 cage_code TEXT,
                 logo_filename TEXT,
+                auto_post_invoice_gl INTEGER DEFAULT 0,
                 updated_by INTEGER,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (updated_by) REFERENCES users(id)
@@ -445,6 +446,14 @@ class Database:
         if 'bin_location' not in rt_columns:
             try:
                 cursor.execute('ALTER TABLE receiving_transactions ADD COLUMN bin_location TEXT')
+            except sqlite3.OperationalError:
+                pass
+        
+        # Add auto_post_invoice_gl column to company_settings if it doesn't exist
+        cs_columns = [row[1] for row in cursor.execute('PRAGMA table_info(company_settings)').fetchall()]
+        if 'auto_post_invoice_gl' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN auto_post_invoice_gl INTEGER DEFAULT 0')
             except sqlite3.OperationalError:
                 pass
         
@@ -1419,7 +1428,7 @@ class CompanySettings:
                     company_name = ?, dba = ?, address_line1 = ?, address_line2 = ?,
                     city = ?, state = ?, postal_code = ?, country = ?,
                     phone = ?, email = ?, website = ?, tax_id = ?,
-                    duns_number = ?, cage_code = ?, logo_filename = ?,
+                    duns_number = ?, cage_code = ?, logo_filename = ?, auto_post_invoice_gl = ?,
                     updated_by = ?, last_updated = CURRENT_TIMESTAMP
                 WHERE id = 1
             ''', (
@@ -1428,6 +1437,7 @@ class CompanySettings:
                 data.get('postal_code'), data.get('country'), data.get('phone'),
                 data.get('email'), data.get('website'), data.get('tax_id'),
                 data.get('duns_number'), data.get('cage_code'), data.get('logo_filename'),
+                data.get('auto_post_invoice_gl', 0),
                 user_id
             ))
         else:
@@ -1435,14 +1445,15 @@ class CompanySettings:
                 INSERT INTO company_settings (
                     id, company_name, dba, address_line1, address_line2,
                     city, state, postal_code, country, phone, email, website,
-                    tax_id, duns_number, cage_code, logo_filename, updated_by
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl, updated_by
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get('company_name'), data.get('dba'), data.get('address_line1'),
                 data.get('address_line2'), data.get('city'), data.get('state'),
                 data.get('postal_code'), data.get('country'), data.get('phone'),
                 data.get('email'), data.get('website'), data.get('tax_id'),
                 data.get('duns_number'), data.get('cage_code'), data.get('logo_filename'),
+                data.get('auto_post_invoice_gl', 0),
                 user_id
             ))
         
@@ -1469,7 +1480,8 @@ class CompanySettings:
                 'tax_id': '',
                 'duns_number': '',
                 'cage_code': '',
-                'logo_filename': None
+                'logo_filename': None,
+                'auto_post_invoice_gl': 0
             }
             db = Database()
             conn = db.get_connection()
@@ -1477,15 +1489,16 @@ class CompanySettings:
                 INSERT INTO company_settings (
                     id, company_name, dba, address_line1, address_line2,
                     city, state, postal_code, country, phone, email, website,
-                    tax_id, duns_number, cage_code, logo_filename
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 default_data['company_name'], default_data['dba'],
                 default_data['address_line1'], default_data['address_line2'],
                 default_data['city'], default_data['state'], default_data['postal_code'],
                 default_data['country'], default_data['phone'], default_data['email'],
                 default_data['website'], default_data['tax_id'], default_data['duns_number'],
-                default_data['cage_code'], default_data['logo_filename']
+                default_data['cage_code'], default_data['logo_filename'],
+                default_data['auto_post_invoice_gl']
             ))
             conn.commit()
             conn.close()
