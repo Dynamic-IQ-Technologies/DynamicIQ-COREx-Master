@@ -266,7 +266,7 @@ def create_from_sales_order(so_id):
 @login_required
 @role_required('Admin', 'Accountant')
 def approve_invoice(id):
-    """Approve an invoice"""
+    """Approve an invoice and optionally auto-post to GL based on preferences"""
     db = Database()
     conn = db.get_connection()
     
@@ -281,7 +281,11 @@ def approve_invoice(id):
             flash('Only Draft invoices can be approved', 'warning')
             return redirect(url_for('invoice_routes.view_invoice', id=id))
         
-        # Update invoice status
+        # Get accounting preferences
+        settings = conn.execute('SELECT auto_post_invoice_gl FROM company_settings WHERE id = 1').fetchone()
+        auto_post_gl = settings['auto_post_invoice_gl'] if settings else 0
+        
+        # Update invoice status to Approved
         conn.execute('''
             UPDATE invoices 
             SET status = 'Approved', 
@@ -290,8 +294,87 @@ def approve_invoice(id):
             WHERE id = ?
         ''', (session['user_id'], id))
         
-        conn.commit()
-        flash(f'Invoice {invoice["invoice_number"]} approved successfully!', 'success')
+        # If auto-posting is enabled, post to GL immediately
+        if auto_post_gl:
+            try:
+                # Get Accounts Receivable and Sales Revenue account IDs
+                ar_account = conn.execute(
+                    "SELECT id FROM chart_of_accounts WHERE account_code = '1120'"
+                ).fetchone()
+                
+                revenue_account = conn.execute(
+                    "SELECT id FROM chart_of_accounts WHERE account_code = '4100'"
+                ).fetchone()
+                
+                if ar_account and revenue_account:
+                    # Generate GL entry number
+                    last_entry = conn.execute(
+                        'SELECT entry_number FROM gl_entries ORDER BY id DESC LIMIT 1'
+                    ).fetchone()
+                    
+                    if last_entry:
+                        last_num = int(last_entry['entry_number'].split('-')[1])
+                        entry_number = f'JE-{last_num + 1:06d}'
+                    else:
+                        entry_number = 'JE-000001'
+                    
+                    # Create GL Entry
+                    cursor = conn.execute('''
+                        INSERT INTO gl_entries (
+                            entry_number, entry_date, description, 
+                            transaction_source, created_by, status
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        entry_number,
+                        invoice['invoice_date'],
+                        f"Revenue Recognition - Invoice {invoice['invoice_number']}",
+                        'Invoice',
+                        session['user_id'],
+                        'Posted'
+                    ))
+                    
+                    gl_entry_id = cursor.lastrowid
+                    
+                    # Debit Accounts Receivable
+                    conn.execute('''
+                        INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit)
+                        VALUES (?, ?, ?, 0)
+                    ''', (gl_entry_id, ar_account['id'], invoice['total_amount']))
+                    
+                    # Credit Sales Revenue
+                    conn.execute('''
+                        INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit)
+                        VALUES (?, ?, 0, ?)
+                    ''', (gl_entry_id, revenue_account['id'], invoice['total_amount']))
+                    
+                    # Update invoice with GL entry reference and status
+                    conn.execute('''
+                        UPDATE invoices 
+                        SET status = 'Posted', 
+                            gl_entry_id = ?,
+                            posted_by = ?, 
+                            posted_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (gl_entry_id, session['user_id'], id))
+                    
+                    # Update balance due
+                    conn.execute('''
+                        UPDATE invoices SET balance_due = total_amount - amount_paid WHERE id = ?
+                    ''', (id,))
+                    
+                    conn.commit()
+                    flash(f'Invoice {invoice["invoice_number"]} approved and automatically posted to GL! (Entry: {entry_number})', 'success')
+                else:
+                    # Accounts not found, just approve without posting
+                    conn.commit()
+                    flash(f'Invoice {invoice["invoice_number"]} approved successfully! (GL accounts not found - manual posting required)', 'warning')
+            except Exception as gl_error:
+                # If GL posting fails, invoice remains approved but not posted
+                conn.commit()
+                flash(f'Invoice {invoice["invoice_number"]} approved, but GL posting failed: {str(gl_error)}. Please post manually.', 'warning')
+        else:
+            conn.commit()
+            flash(f'Invoice {invoice["invoice_number"]} approved successfully!', 'success')
         
     except Exception as e:
         conn.rollback()
