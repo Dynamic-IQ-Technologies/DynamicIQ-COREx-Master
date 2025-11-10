@@ -474,15 +474,17 @@ def generate_ai_insights(source_id, run_id):
 
 ## EXECUTIVE SUMMARY
 Provide a 3-4 paragraph executive summary that:
-- **OVERALL MARKET WIN PROBABILITY (%)**: Calculate an aggregate probability of success in this market based on all analyzed factors
+- **OVERALL MARKET WIN PROBABILITY (0-100%)**: Calculate a specific percentage probability of success in this market
 - Highlights the most significant market opportunities
 - Identifies the total addressable market size
-- Key factors driving the overall probability score:
-  * Our capability match rates (High/Medium/Low matches)
-  * Current aviation industry conditions and sentiment
-  * Economic environment
-  * Competitive positioning
-  * Airline procurement patterns and requirements
+- **Probability calculation must be based on ALL these factors:**
+  1. **Industry need**: Current demand trends and market gaps
+  2. **Economy**: Current economic conditions and aviation market health
+  3. **Airline requirements**: Specific procurement patterns and service expectations
+  4. **Internal parts capabilities**: Our certification levels, capability match strength (High/Medium/Low matches), and service readiness
+  5. **Overall industry sentiment**: MRO consolidation trends, supplier preferences, regulatory environment
+  6. **Competitive landscape**: Our positioning vs. competitors
+- Provide brief factor-by-factor justification for the probability score
 - Summarizes key strategic recommendations
 - Notes critical action items
 
@@ -504,29 +506,35 @@ List the top 10 specific opportunities ranked by:
 
 For each opportunity, provide:
 - Airline/Region/Aircraft combination
-- **WIN PROBABILITY (%)**: Calculate a specific percentage (0-100%) based on:
-  * Industry need and demand trends
-  * Current economic conditions
-  * Airline's specific requirements and preferences
-  * Our internal parts capabilities and certification levels
-  * Overall aviation industry sentiment
-  * Competitive landscape
+- **WIN PROBABILITY (0-100%)**: Calculate a specific percentage probability
+- **Probability must be based on ALL these factors:**
+  1. **Industry need**: Demand trends and market gaps for this specific opportunity
+  2. **Economy**: Current economic conditions affecting this airline/region
+  3. **Airline requirements**: This airline's specific procurement patterns and service expectations
+  4. **Internal parts capabilities**: Our certification levels and capability match strength for required parts
+  5. **Overall industry sentiment**: Aviation MRO trends affecting this opportunity
+  6. **Competitive landscape**: Our competitive position for this specific opportunity
+- Provide factor-by-factor justification for the probability score
 - Estimated opportunity value (qualitative: High/Medium/Low)
 - Specific parts/capabilities involved
-- Key factors influencing the probability score
 - Recommended next steps
 - Timeline for engagement
 
 ## REGIONAL MARKET ANALYSIS
 For each region, provide:
-- **REGIONAL WIN PROBABILITY (%)**: Overall likelihood of market penetration in this region
+- **REGIONAL WIN PROBABILITY (0-100%)**: Calculate specific percentage likelihood of market penetration
+- **Probability must be based on ALL these factors:**
+  1. **Industry need**: Regional demand trends and service gaps
+  2. **Economy**: Regional economic conditions and aviation market growth
+  3. **Airline requirements**: Regional airline procurement patterns and service standards
+  4. **Internal parts capabilities**: Our certification coverage and capability strength in this region
+  5. **Overall industry sentiment**: Regional MRO trends, regulatory climate, supplier consolidation
+  6. **Competitive landscape**: Regional competition and market saturation
+- Provide factor-by-factor breakdown of what drives the regional probability
 - Market size and growth potential
-- Economic conditions and industry sentiment affecting probability
 - Key airlines to target
-- Competitive landscape
 - Regulatory considerations
 - Entry barriers and opportunities
-- Factors influencing regional probability score
 - Recommended regional strategy
 
 ## CAPABILITY GAP ANALYSIS
@@ -539,14 +547,16 @@ Analyze parts with "No Match" to identify:
 
 ## AIRLINE-SPECIFIC STRATEGIES
 For top 5 airlines, provide:
-- **WIN PROBABILITY (%)**: Calculate overall probability of securing this airline's business based on all factors
+- **WIN PROBABILITY (0-100%)**: Calculate specific percentage probability of securing this airline's business
+- **Probability must be based on ALL these factors:**
+  1. **Industry need**: This airline's specific service requirements and fleet maintenance demands
+  2. **Economy**: Economic health of this airline and its region
+  3. **Airline requirements**: Their procurement patterns, vendor preferences, and service standards
+  4. **Internal parts capabilities**: Our capability match strength for their specific fleet and parts
+  5. **Overall industry sentiment**: This airline's approach to MRO consolidation and supplier relationships
+  6. **Competitive positioning**: Our advantages/disadvantages vs. their current providers
+- Provide factor-by-factor justification for the probability score
 - Current service readiness (what we can do now)
-- Probability factors breakdown:
-  * Capability match strength
-  * Market timing and economic conditions
-  * Competitive positioning
-  * Industry sentiment toward MRO consolidation
-  * Airline's procurement patterns
 - Relationship development strategy
 - Pricing and positioning approach
 - Key decision-makers to target
