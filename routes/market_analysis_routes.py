@@ -153,6 +153,105 @@ def upload_fleet_data():
         flash(f'Error processing file: {str(e)}', 'danger')
         return redirect(url_for('market_analysis_routes.upload_fleet_data'))
 
+@market_analysis_bp.route('/market-analysis/auto-generate', methods=['POST'])
+def auto_generate_fleet_data():
+    """Auto-generate fleet data using AI"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    try:
+        # Get generation parameters
+        regions = request.form.getlist('regions') or ['North America', 'Europe', 'Asia Pacific']
+        num_airlines = int(request.form.get('num_airlines', 5))
+        num_aircraft_per_airline = int(request.form.get('num_aircraft', 10))
+        source_name = request.form.get('source_name', f"AI Generated - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+        # Use OpenAI to generate realistic fleet data
+        client = get_openai_client()
+        
+        prompt = f"""Generate realistic airline fleet data for market analysis. Create data for {num_airlines} airlines across these regions: {', '.join(regions)}.
+
+For each airline, generate {num_aircraft_per_airline} aircraft with the following details:
+- Airline name (realistic major airlines)
+- Region (from: {', '.join(regions)})
+- Aircraft model (Boeing, Airbus models like 737, A320, 777, A350, etc.)
+- Part numbers (realistic aviation part numbers like 65-12345-01, NAS1234, MS21234, etc.)
+- ATA chapter codes (realistic codes like 32, 71, 78, etc.)
+- Descriptions (realistic part descriptions)
+
+Return a JSON array with this exact structure:
+[
+  {{
+    "Airline": "United Airlines",
+    "Region": "North America",
+    "AircraftModel": "Boeing 737-800",
+    "PartNumber": "65-12345-01",
+    "ATAChapter": "32",
+    "Description": "Landing Gear Assembly",
+    "Criticality": "Critical"
+  }},
+  ...
+]
+
+Make it realistic with actual airline names, common aircraft types, and real aviation part numbering conventions. Generate exactly {num_airlines * num_aircraft_per_airline} records."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an aviation industry expert who generates realistic airline fleet data."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        
+        # Parse AI response
+        ai_content = response.choices[0].message.content.strip()
+        
+        # Extract JSON from response (handle markdown code blocks)
+        if '```json' in ai_content:
+            ai_content = ai_content.split('```json')[1].split('```')[0].strip()
+        elif '```' in ai_content:
+            ai_content = ai_content.split('```')[1].split('```')[0].strip()
+        
+        fleet_data = json.loads(ai_content)
+        
+        # Store in database
+        db = Database()
+        conn = db.get_connection()
+        
+        # Create source record
+        conn.execute('''
+            INSERT INTO airline_fleet_sources (source_name, source_type, file_name, uploaded_by, record_count)
+            VALUES (?, 'AI Generated', 'ai-generated.json', ?, ?)
+        ''', (source_name, session['user_id'], len(fleet_data)))
+        source_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        # Process each generated record
+        for record in fleet_data:
+            # Create aircraft record
+            conn.execute('''
+                INSERT INTO airline_fleet_aircraft (source_id, airline_name, region, aircraft_model)
+                VALUES (?, ?, ?, ?)
+            ''', (source_id, record['Airline'], record.get('Region', ''), record['AircraftModel']))
+            aircraft_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            
+            # Add part record
+            conn.execute('''
+                INSERT INTO airline_fleet_parts (aircraft_id, ata_chapter, part_number, description, criticality)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (aircraft_id, record.get('ATAChapter', ''), record['PartNumber'], 
+                  record.get('Description', ''), record.get('Criticality', 'Standard')))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Successfully generated {len(fleet_data)} fleet records using AI!', 'success')
+        return redirect(url_for('market_analysis_routes.run_analysis', source_id=source_id))
+        
+    except Exception as e:
+        flash(f'Error auto-generating fleet data: {str(e)}', 'danger')
+        return redirect(url_for('market_analysis_routes.upload_fleet_data'))
+
 @market_analysis_bp.route('/market-analysis/run/<int:source_id>')
 def run_analysis(source_id):
     """Run capability matching analysis"""
