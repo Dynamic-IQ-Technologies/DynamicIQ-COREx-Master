@@ -251,8 +251,11 @@
             </li>
         </ul>
         
-        <div class="sidebar-section-title">MRO Management</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('mro')">
+            <span>MRO Management</span>
+            <i class="bi bi-chevron-down toggle-icon" id="mro-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="mro-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('capability_routes.capability_list') }}">
                     <i class="bi bi-gear-wide-connected"></i>
@@ -279,8 +282,11 @@
             </li>
         </ul>
         
-        <div class="sidebar-section-title">Operations</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">
+            <span>Operations</span>
+            <i class="bi bi-chevron-down toggle-icon" id="operations-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="operations-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('supplier_routes.list_suppliers') }}">
                     <i class="bi bi-truck"></i>
@@ -339,8 +345,11 @@
             </li>
         </ul>
         
-        <div class="sidebar-section-title">Shipping & Receiving</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('shipping')">
+            <span>Shipping & Receiving</span>
+            <i class="bi bi-chevron-down toggle-icon" id="shipping-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="shipping-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('shipping_routes.dashboard') }}">
                     <i class="bi bi-speedometer"></i>
@@ -361,8 +370,11 @@
             </li>
         </ul>
         
-        <div class="sidebar-section-title">Sales</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('sales')">
+            <span>Sales</span>
+            <i class="bi bi-chevron-down toggle-icon" id="sales-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="sales-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('customer_routes.list_customers') }}">
                     <i class="bi bi-people"></i>
@@ -385,8 +397,11 @@
             {% endif %}
         </ul>
         
-        <div class="sidebar-section-title">Service Management</div>
-        <ul class="sidebar-nav">
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('service')">
+            <span>Service Management</span>
+            <i class="bi bi-chevron-down toggle-icon" id="service-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="service-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('service_wo_routes.list_service_work_orders') }}">
                     <i class="bi bi-wrench-adjustable"></i>
@@ -594,7 +609,7 @@
         
         // Restore collapsed state from localStorage on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const sections = ['accounting', 'reports', 'administration'];
+            const sections = ['mro', 'operations', 'shipping', 'sales', 'service', 'accounting', 'reports', 'administration'];
             sections.forEach(function(section) {
                 const content = document.getElementById(section + '-content');
                 const icon = document.getElementById(section + '-icon');
