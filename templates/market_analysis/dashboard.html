@@ -188,6 +188,11 @@
                                    class="btn btn-sm btn-outline-info">
                                     <i class="bi bi-download"></i> Export
                                 </a>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick="confirmDelete('{{ source.id }}', '{{ source.source_name }}')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -245,4 +250,20 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Hidden form for delete confirmation -->
+<form id="deleteForm" method="POST" style="display: none;">
+    <input type="hidden" name="source_id" id="deleteSourceId">
+</form>
+
+<script>
+function confirmDelete(sourceId, sourceName) {
+    if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\nThis will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n- AI-generated insights\n\nThis action cannot be undone.')) {
+        const form = document.getElementById('deleteForm');
+        form.action = '/market-analysis/delete/' + sourceId;
+        form.submit();
+    }
+}
+</script>
+
 {% endblock %}

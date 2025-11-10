@@ -847,3 +847,39 @@ def chart_data(source_id):
         'regional_distribution': [dict(row) for row in regional_dist],
         'top_airlines': [dict(row) for row in top_airlines]
     })
+
+@market_analysis_bp.route('/market-analysis/delete/<int:source_id>', methods=['POST'])
+def delete_analysis(source_id):
+    """Delete a market analysis and all associated data"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get source name for confirmation message
+        source = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+        
+        if not source:
+            flash('Market analysis not found', 'danger')
+            return redirect(url_for('market_analysis_routes.dashboard'))
+        
+        source_name = source[0]
+        
+        # Delete match runs associated with this source
+        conn.execute('DELETE FROM match_runs WHERE source_id = ?', (source_id,))
+        
+        # Delete the source (CASCADE will handle aircraft, parts, and matches)
+        conn.execute('DELETE FROM airline_fleet_sources WHERE id = ?', (source_id,))
+        
+        conn.commit()
+        flash(f'Successfully deleted market analysis: {source_name}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting market analysis: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('market_analysis_routes.dashboard'))
