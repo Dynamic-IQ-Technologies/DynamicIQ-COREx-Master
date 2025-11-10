@@ -190,7 +190,9 @@
                                 </a>
                                 <button type="button" 
                                         class="btn btn-sm btn-outline-danger"
-                                        onclick="confirmDelete('{{ source.id }}', '{{ source.source_name }}')">
+                                        data-source-id="{{ source.id }}"
+                                        data-source-name="{{ source.source_name }}"
+                                        onclick="confirmDelete(this)">
                                     <i class="bi bi-trash"></i> Delete
                                 </button>
                             </td>
@@ -257,7 +259,10 @@
 </form>
 
 <script>
-function confirmDelete(sourceId, sourceName) {
+function confirmDelete(button) {
+    const sourceId = button.getAttribute('data-source-id');
+    const sourceName = button.getAttribute('data-source-name');
+    
     if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\nThis will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n- AI-generated insights\n\nThis action cannot be undone.')) {
         const form = document.getElementById('deleteForm');
         form.action = '/market-analysis/delete/' + sourceId;
