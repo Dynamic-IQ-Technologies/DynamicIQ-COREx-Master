@@ -474,8 +474,15 @@ def generate_ai_insights(source_id, run_id):
 
 ## EXECUTIVE SUMMARY
 Provide a 3-4 paragraph executive summary that:
+- **OVERALL MARKET WIN PROBABILITY (%)**: Calculate an aggregate probability of success in this market based on all analyzed factors
 - Highlights the most significant market opportunities
 - Identifies the total addressable market size
+- Key factors driving the overall probability score:
+  * Our capability match rates (High/Medium/Low matches)
+  * Current aviation industry conditions and sentiment
+  * Economic environment
+  * Competitive positioning
+  * Airline procurement patterns and requirements
 - Summarizes key strategic recommendations
 - Notes critical action items
 
@@ -497,18 +504,29 @@ List the top 10 specific opportunities ranked by:
 
 For each opportunity, provide:
 - Airline/Region/Aircraft combination
+- **WIN PROBABILITY (%)**: Calculate a specific percentage (0-100%) based on:
+  * Industry need and demand trends
+  * Current economic conditions
+  * Airline's specific requirements and preferences
+  * Our internal parts capabilities and certification levels
+  * Overall aviation industry sentiment
+  * Competitive landscape
 - Estimated opportunity value (qualitative: High/Medium/Low)
 - Specific parts/capabilities involved
+- Key factors influencing the probability score
 - Recommended next steps
 - Timeline for engagement
 
 ## REGIONAL MARKET ANALYSIS
 For each region, provide:
+- **REGIONAL WIN PROBABILITY (%)**: Overall likelihood of market penetration in this region
 - Market size and growth potential
+- Economic conditions and industry sentiment affecting probability
 - Key airlines to target
 - Competitive landscape
 - Regulatory considerations
 - Entry barriers and opportunities
+- Factors influencing regional probability score
 - Recommended regional strategy
 
 ## CAPABILITY GAP ANALYSIS
@@ -521,11 +539,18 @@ Analyze parts with "No Match" to identify:
 
 ## AIRLINE-SPECIFIC STRATEGIES
 For top 5 airlines, provide:
+- **WIN PROBABILITY (%)**: Calculate overall probability of securing this airline's business based on all factors
 - Current service readiness (what we can do now)
+- Probability factors breakdown:
+  * Capability match strength
+  * Market timing and economic conditions
+  * Competitive positioning
+  * Industry sentiment toward MRO consolidation
+  * Airline's procurement patterns
 - Relationship development strategy
 - Pricing and positioning approach
 - Key decision-makers to target
-- Competitive threats
+- Competitive threats and mitigation strategies
 
 ## MARKETING & SALES STRATEGY
 Provide actionable recommendations for:
