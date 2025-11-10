@@ -13,6 +13,73 @@
         </a>
     </div>
 
+    <!-- AI Auto-Generate Quick Access -->
+    <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #10b981 !important;">
+        <div class="card-header py-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">
+                        <i class="bi bi-stars me-2"></i>AI Auto-Generate Fleet Data & Analysis
+                    </h5>
+                    <small class="d-block mt-1 opacity-75">
+                        <i class="bi bi-magic me-1"></i>Instantly create realistic fleet data and get comprehensive market insights - no upload required!
+                    </small>
+                </div>
+                <span class="badge bg-white text-success px-3 py-2">
+                    <i class="bi bi-robot me-1"></i>Powered by GPT-4o
+                </span>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('market_analysis_routes.auto_generate_fleet_data') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="quick_num_airlines" class="form-label fw-bold">Airlines</label>
+                    <select class="form-select" id="quick_num_airlines" name="num_airlines">
+                        <option value="5" selected>5 Airlines</option>
+                        <option value="10">10 Airlines</option>
+                        <option value="15">15 Airlines</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="quick_num_aircraft" class="form-label fw-bold">Aircraft Each</label>
+                    <select class="form-select" id="quick_num_aircraft" name="num_aircraft">
+                        <option value="10" selected>10 Aircraft</option>
+                        <option value="20">20 Aircraft</option>
+                        <option value="30">30 Aircraft</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Regions</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="regions" value="North America" id="quick_region1" checked>
+                            <label class="form-check-label" for="quick_region1">Americas</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="regions" value="Europe" id="quick_region2" checked>
+                            <label class="form-check-label" for="quick_region2">Europe</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="regions" value="Asia Pacific" id="quick_region3" checked>
+                            <label class="form-check-label" for="quick_region3">Asia</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-stars me-1"></i>Generate & Analyze
+                    </button>
+                </div>
+            </form>
+            <div class="alert alert-success mt-3 mb-0 py-2" role="alert">
+                <small>
+                    <i class="bi bi-lightning-charge-fill me-1"></i>
+                    <strong>Fully Automated:</strong> AI generates fleet data → Matches capabilities → Creates 10-section strategic report → All in seconds!
+                </small>
+            </div>
+        </div>
+    </div>
+
     <!-- Summary Statistics -->
     <div class="row mb-4">
         <div class="col-md-3">
