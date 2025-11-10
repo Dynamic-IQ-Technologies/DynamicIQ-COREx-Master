@@ -412,6 +412,16 @@ def generate_ai_insights(source_id, run_id):
         # Prepare data summary for AI
         df = pd.DataFrame([dict(row) for row in matches_data])
         
+        # Get fleet composition data (aircraft models and fleet size per airline)
+        fleet_composition = conn.execute('''
+            SELECT afa.airline_name, afa.region, afa.aircraft_model, 
+                   COUNT(DISTINCT afa.id) as fleet_size
+            FROM airline_fleet_aircraft afa
+            WHERE afa.source_id = ?
+            GROUP BY afa.airline_name, afa.region, afa.aircraft_model
+            ORDER BY afa.airline_name, fleet_size DESC
+        ''', (source_id,)).fetchall()
+        
         # Aggregate data for better AI analysis
         if not df.empty:
             airline_summary = df.groupby(['airline_name', 'region', 'match_score']).size().reset_index(name='count')
@@ -421,6 +431,18 @@ def generate_ai_insights(source_id, run_id):
             airline_summary = pd.DataFrame()
             regional_summary = pd.DataFrame()
             aircraft_summary = pd.DataFrame()
+        
+        # Format fleet composition for AI
+        fleet_comp_df = pd.DataFrame([dict(row) for row in fleet_composition])
+        fleet_by_airline = ""
+        if not fleet_comp_df.empty:
+            for airline in fleet_comp_df['airline_name'].unique():
+                airline_data = fleet_comp_df[fleet_comp_df['airline_name'] == airline]
+                region = airline_data.iloc[0]['region']
+                total_fleet = airline_data['fleet_size'].sum()
+                fleet_by_airline += f"\n{airline} ({region}) - Total Fleet: {total_fleet} aircraft\n"
+                for _, row in airline_data.iterrows():
+                    fleet_by_airline += f"  - {row['aircraft_model']}: {row['fleet_size']} aircraft\n"
         
         # Build comprehensive prompt for AI
         prompt = f"""You are an expert aviation MRO (Maintenance, Repair, and Overhaul) market analyst. Analyze the following fleet data and capability matches to provide a COMPREHENSIVE strategic market analysis report.
@@ -442,6 +464,9 @@ def generate_ai_insights(source_id, run_id):
 **AIRCRAFT MODEL INSIGHTS:**
 {aircraft_summary.to_string() if not aircraft_summary.empty else 'Limited aircraft data'}
 
+**FLEET COMPOSITION BY AIRLINE:**
+{fleet_by_airline if fleet_by_airline else 'Limited fleet data'}
+
 **DETAILED MATCH SAMPLE:**
 {df.head(100).to_string() if not df.empty else 'No matches available'}
 
@@ -453,6 +478,15 @@ Provide a 3-4 paragraph executive summary that:
 - Identifies the total addressable market size
 - Summarizes key strategic recommendations
 - Notes critical action items
+
+## FLEET COMPOSITION ANALYSIS
+For each airline in the data, provide:
+- Airline name and region
+- Complete list of aircraft models in their fleet
+- Fleet size per aircraft model
+- Total fleet size
+- Analysis of fleet diversity and MRO service opportunities
+- Which aircraft types represent the largest opportunities
 
 ## TOP 10 PRIORITY OPPORTUNITIES
 List the top 10 specific opportunities ranked by:
