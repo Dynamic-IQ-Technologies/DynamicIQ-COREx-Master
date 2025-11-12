@@ -9,6 +9,7 @@ class Database:
     def get_connection(self):
         conn = sqlite3.connect(self.db_name)
         conn.row_factory = sqlite3.Row
+        conn.execute('PRAGMA foreign_keys = ON')
         return conn
     
     def init_db(self):
@@ -440,6 +441,102 @@ class Database:
                 cursor.execute('ALTER TABLE labor_resources ADD COLUMN clock_pin TEXT')
             except sqlite3.OperationalError:
                 pass
+        
+        # Create skillsets table for defining available skillsets
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS skillsets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skillset_name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                category TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create labor_resource_skills junction table for multi-skillset assignment
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS labor_resource_skills (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                labor_resource_id INTEGER NOT NULL,
+                skillset_id INTEGER NOT NULL,
+                skill_level TEXT NOT NULL,
+                certified INTEGER DEFAULT 0,
+                last_verified_date TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (labor_resource_id) REFERENCES labor_resources(id) ON DELETE CASCADE,
+                FOREIGN KEY (skillset_id) REFERENCES skillsets(id) ON DELETE CASCADE,
+                UNIQUE(labor_resource_id, skillset_id)
+            )
+        ''')
+        
+        # Create indexes for performance
+        try:
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_lrs_labor_resource ON labor_resource_skills(labor_resource_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_lrs_skillset ON labor_resource_skills(skillset_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_skillsets_name ON skillsets(skillset_name)')
+        except sqlite3.OperationalError:
+            pass
+        
+        # Migrate existing skillset data to new structure (one-time migration)
+        migrate_existing_skillsets = cursor.execute('''
+            SELECT COUNT(*) FROM labor_resources WHERE skillset IS NOT NULL AND skillset != ''
+        ''').fetchone()[0]
+        
+        if migrate_existing_skillsets > 0:
+            # Check if migration already done
+            already_migrated = cursor.execute('SELECT COUNT(*) FROM labor_resource_skills').fetchone()[0]
+            
+            if already_migrated == 0:
+                # Get all unique non-empty skillsets from labor_resources
+                existing_skillsets = cursor.execute('''
+                    SELECT DISTINCT skillset FROM labor_resources 
+                    WHERE skillset IS NOT NULL AND skillset != ''
+                ''').fetchall()
+                
+                # Create skillset records for each unique skillset
+                for skillset_row in existing_skillsets:
+                    skillset_text = skillset_row[0].strip()
+                    if skillset_text:
+                        # Handle comma-separated skillsets
+                        skillset_parts = [s.strip() for s in skillset_text.split(',') if s.strip()]
+                        for skillset_name in skillset_parts:
+                            try:
+                                cursor.execute('''
+                                    INSERT OR IGNORE INTO skillsets (skillset_name, category, status)
+                                    VALUES (?, 'Migrated', 'Active')
+                                ''', (skillset_name,))
+                            except sqlite3.IntegrityError:
+                                pass
+                
+                # Now populate the junction table
+                labor_resources_with_skills = cursor.execute('''
+                    SELECT id, skillset FROM labor_resources 
+                    WHERE skillset IS NOT NULL AND skillset != ''
+                ''').fetchall()
+                
+                for lr in labor_resources_with_skills:
+                    lr_id = lr[0]
+                    skillset_text = lr[1].strip()
+                    if skillset_text:
+                        # Handle comma-separated skillsets
+                        skillset_parts = [s.strip() for s in skillset_text.split(',') if s.strip()]
+                        for skillset_name in skillset_parts:
+                            # Get skillset_id
+                            skillset_id = cursor.execute('''
+                                SELECT id FROM skillsets WHERE skillset_name = ?
+                            ''', (skillset_name,)).fetchone()
+                            
+                            if skillset_id:
+                                try:
+                                    # Default migrated skills to 'Intermediate' level
+                                    cursor.execute('''
+                                        INSERT OR IGNORE INTO labor_resource_skills 
+                                        (labor_resource_id, skillset_id, skill_level)
+                                        VALUES (?, ?, 'Intermediate')
+                                    ''', (lr_id, skillset_id[0]))
+                                except sqlite3.IntegrityError:
+                                    pass
         
         # Add bin_location column to receiving_transactions if it doesn't exist
         rt_columns = [row[1] for row in cursor.execute('PRAGMA table_info(receiving_transactions)').fetchall()]
