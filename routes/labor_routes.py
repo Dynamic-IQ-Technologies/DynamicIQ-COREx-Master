@@ -23,9 +23,62 @@ def generate_employee_code(conn):
 def list_labor_resources():
     db = Database()
     conn = db.get_connection()
-    labor_resources = conn.execute('SELECT * FROM labor_resources ORDER BY last_name, first_name').fetchall()
+    
+    skillset_filter = request.args.get('skillset_id')
+    skill_level_filter = request.args.get('skill_level')
+    status_filter = request.args.get('status')
+    
+    query = 'SELECT DISTINCT lr.* FROM labor_resources lr'
+    params = []
+    where_clauses = []
+    
+    if skillset_filter or skill_level_filter:
+        query += ' INNER JOIN labor_resource_skills lrs ON lr.id = lrs.labor_resource_id'
+        if skillset_filter:
+            query += ' INNER JOIN skillsets s ON lrs.skillset_id = s.id'
+    
+    if skillset_filter:
+        where_clauses.append('lrs.skillset_id = ?')
+        params.append(skillset_filter)
+    
+    if skill_level_filter:
+        where_clauses.append('lrs.skill_level = ?')
+        params.append(skill_level_filter)
+    
+    if status_filter:
+        where_clauses.append('lr.status = ?')
+        params.append(status_filter)
+    
+    if where_clauses:
+        query += ' WHERE ' + ' AND '.join(where_clauses)
+    
+    query += ' ORDER BY lr.last_name, lr.first_name'
+    
+    labor_resources = conn.execute(query, params).fetchall()
+    
+    labor_resources_with_skills = []
+    for resource in labor_resources:
+        resource_dict = dict(resource)
+        skills = conn.execute('''
+            SELECT lrs.skill_level, s.skillset_name
+            FROM labor_resource_skills lrs
+            JOIN skillsets s ON lrs.skillset_id = s.id
+            WHERE lrs.labor_resource_id = ?
+            ORDER BY s.skillset_name
+        ''', (resource['id'],)).fetchall()
+        resource_dict['skills'] = skills
+        labor_resources_with_skills.append(resource_dict)
+    
+    all_skillsets = conn.execute('SELECT * FROM skillsets WHERE status = "Active" ORDER BY skillset_name').fetchall()
+    
     conn.close()
-    return render_template('labor/list.html', labor_resources=labor_resources)
+    return render_template('labor/list.html', 
+                         labor_resources=labor_resources_with_skills,
+                         all_skillsets=all_skillsets,
+                         skill_levels=SKILL_LEVELS,
+                         skillset_filter=skillset_filter,
+                         skill_level_filter=skill_level_filter,
+                         status_filter=status_filter)
 
 @labor_bp.route('/labor-resources/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
@@ -371,20 +424,29 @@ def export_labor_resources():
     db = Database()
     conn = db.get_connection()
     labor_resources = conn.execute('SELECT * FROM labor_resources ORDER BY last_name, first_name').fetchall()
-    conn.close()
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Employee Code', 'First Name', 'Last Name', 'Role', 'Skillset', 
+    writer.writerow(['Employee Code', 'First Name', 'Last Name', 'Role', 'Skillsets (with Levels)', 
                      'Hourly Rate', 'Cost Center', 'Email', 'Phone', 'Status'])
     
     for resource in labor_resources:
+        skills = conn.execute('''
+            SELECT s.skillset_name, lrs.skill_level
+            FROM labor_resource_skills lrs
+            JOIN skillsets s ON lrs.skillset_id = s.id
+            WHERE lrs.labor_resource_id = ?
+            ORDER BY s.skillset_name
+        ''', (resource['id'],)).fetchall()
+        
+        skillsets_str = '; '.join([f"{skill['skillset_name']} ({skill['skill_level']})" for skill in skills]) if skills else ''
+        
         writer.writerow([
             resource['employee_code'],
             resource['first_name'],
             resource['last_name'],
             resource['role'],
-            resource['skillset'] or '',
+            skillsets_str,
             resource['hourly_rate'],
             resource['cost_center'] or '',
             resource['email'] or '',
@@ -392,6 +454,7 @@ def export_labor_resources():
             resource['status']
         ])
     
+    conn.close()
     output.seek(0)
     return Response(
         output,

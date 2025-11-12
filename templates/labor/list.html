@@ -13,6 +13,69 @@
     </div>
 </div>
 
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('labor_routes.list_labor_resources') }}" class="row g-3">
+            <div class="col-md-3">
+                <label for="skillset_id" class="form-label"><i class="bi bi-award"></i> Filter by Skillset</label>
+                <select class="form-select" id="skillset_id" name="skillset_id" onchange="this.form.submit()">
+                    <option value="">All Skillsets</option>
+                    {% for skillset in all_skillsets %}
+                    <option value="{{ skillset.id }}" {% if skillset_filter and skillset_filter|int == skillset.id %}selected{% endif %}>
+                        {{ skillset.skillset_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="skill_level" class="form-label"><i class="bi bi-bar-chart-steps"></i> Filter by Level</label>
+                <select class="form-select" id="skill_level" name="skill_level" onchange="this.form.submit()">
+                    <option value="">All Levels</option>
+                    {% for level in skill_levels %}
+                    <option value="{{ level }}" {% if skill_level_filter == level %}selected{% endif %}>{{ level }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label"><i class="bi bi-toggle-on"></i> Filter by Status</label>
+                <select class="form-select" id="status" name="status" onchange="this.form.submit()">
+                    <option value="">All Statuses</option>
+                    <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('labor_routes.list_labor_resources') }}" class="btn btn-secondary w-100">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+        {% if skillset_filter or skill_level_filter or status_filter %}
+        <div class="mt-3">
+            <span class="badge bg-info me-2">
+                <i class="bi bi-filter"></i> Filters Active
+                {% if skillset_filter %}
+                    {% for skillset in all_skillsets %}
+                        {% if skillset.id|string == skillset_filter %}
+                            • Skillset: {{ skillset.skillset_name }}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if skill_level_filter %}
+                    • Level: {{ skill_level_filter }}
+                {% endif %}
+                {% if status_filter %}
+                    • Status: {{ status_filter }}
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
         {% if labor_resources %}
@@ -23,7 +86,7 @@
                         <th>Employee Code</th>
                         <th>Name</th>
                         <th>Role</th>
-                        <th>Skillset</th>
+                        <th>Skillsets</th>
                         <th>Hourly Rate</th>
                         <th>Cost Center</th>
                         <th>Status</th>
@@ -36,7 +99,17 @@
                         <td><a href="{{ url_for('labor_routes.view_labor_resource', id=resource.id) }}">{{ resource.employee_code }}</a></td>
                         <td>{{ resource.first_name }} {{ resource.last_name }}</td>
                         <td>{{ resource.role }}</td>
-                        <td>{{ resource.skillset or '-' }}</td>
+                        <td>
+                            {% if resource.skills %}
+                                {% for skill in resource.skills %}
+                                <span class="badge bg-{% if skill.skill_level == 'Expert' %}danger{% elif skill.skill_level == 'Advanced' %}success{% elif skill.skill_level == 'Intermediate' %}primary{% else %}secondary{% endif %} me-1 mb-1" style="font-size: 0.75rem;">
+                                    {{ skill.skillset_name[:15] }}{% if skill.skillset_name|length > 15 %}...{% endif %} ({{ skill.skill_level[0] }})
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>${{ "%.2f"|format(resource.hourly_rate) }}</td>
                         <td>{{ resource.cost_center or '-' }}</td>
                         <td>

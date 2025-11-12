@@ -38,8 +38,22 @@
                         <td>{{ labor_resource.role }}</td>
                     </tr>
                     <tr>
-                        <th>Skillset:</th>
-                        <td>{{ labor_resource.skillset or '-' }}</td>
+                        <th>Skillsets:</th>
+                        <td>
+                            {% if assigned_skills %}
+                                {% for skill in assigned_skills %}
+                                <span class="badge bg-{% if skill.skill_level == 'Expert' %}danger{% elif skill.skill_level == 'Advanced' %}success{% elif skill.skill_level == 'Intermediate' %}primary{% else %}secondary{% endif %} me-2 mb-1">
+                                    {{ skill.skillset_name }} 
+                                    <span class="badge bg-light text-dark ms-1">{{ skill.skill_level }}</span>
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">No skillsets assigned</span>
+                            {% endif %}
+                            {% if labor_resource.skillset %}
+                            <br><small class="text-muted">(Legacy: {{ labor_resource.skillset }})</small>
+                            {% endif %}
+                        </td>
                     </tr>
                     <tr>
                         <th>Hourly Rate:</th>
