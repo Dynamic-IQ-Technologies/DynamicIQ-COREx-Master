@@ -750,6 +750,70 @@ class Database:
             )
         ''')
         
+        # Create task_material_requirements table for materials per task
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS task_material_requirements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                material_id INTEGER NOT NULL,
+                description TEXT,
+                quantity_required REAL NOT NULL,
+                quantity_reserved REAL DEFAULT 0,
+                quantity_issued REAL DEFAULT 0,
+                unit_of_measure TEXT,
+                status TEXT DEFAULT 'Pending' CHECK(status IN ('Pending', 'Partially Issued', 'Issued', 'Received')),
+                is_optional INTEGER DEFAULT 0,
+                issued_date TIMESTAMP,
+                last_issued_at TIMESTAMP,
+                issued_by INTEGER,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_by INTEGER,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES work_order_tasks(id) ON DELETE CASCADE,
+                FOREIGN KEY (material_id) REFERENCES products(id),
+                FOREIGN KEY (issued_by) REFERENCES users(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (updated_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create indexes for task_material_requirements
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_task_materials_task_status 
+            ON task_material_requirements(task_id, status)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_task_materials_material 
+            ON task_material_requirements(material_id)
+        ''')
+        
+        # Create task_required_skills table for skillsets per task
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS task_required_skills (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                skillset_id INTEGER NOT NULL,
+                skill_level TEXT NOT NULL CHECK(length(skill_level) > 0),
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES work_order_tasks(id) ON DELETE CASCADE,
+                FOREIGN KEY (skillset_id) REFERENCES skillsets(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                UNIQUE(task_id, skillset_id)
+            )
+        ''')
+        
+        # Create indexes for task_required_skills
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_task_skills_task 
+            ON task_required_skills(task_id)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_task_skills_skillset 
+            ON task_required_skills(skillset_id)
+        ''')
+        
         # Create uom_master table (UOM Master)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS uom_master (
