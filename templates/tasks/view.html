@@ -168,6 +168,104 @@
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Material Requirements</h5>
+                {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+                <button class="btn btn-dark btn-sm" onclick="showAddMaterialModal()"><i class="bi bi-plus-circle"></i> Add Material</button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if materials %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Qty Required</th>
+                                <th>Qty Issued</th>
+                                <th>UOM</th>
+                                <th>Status</th>
+                                <th>Optional</th>
+                                {% if user.role in ['Admin', 'Planner'] %}
+                                <th>Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="materials-table-body">
+                            {% for material in materials %}
+                            <tr>
+                                <td>
+                                    <strong>{{ material.material_code }}</strong><br>
+                                    <small class="text-muted">{{ material.material_name }}</small>
+                                </td>
+                                <td>{{ material.quantity_required }}</td>
+                                <td>{{ material.quantity_issued or 0 }}</td>
+                                <td>{{ material.unit_of_measure }}</td>
+                                <td>
+                                    <span class="badge bg-{% if material.status == 'Issued' %}success{% elif material.status == 'Partially Issued' %}warning{% else %}secondary{% endif %}">
+                                        {{ material.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if material.is_optional %}
+                                    <span class="badge bg-info">Optional</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Required</span>
+                                    {% endif %}
+                                </td>
+                                {% if user.role in ['Admin', 'Planner'] %}
+                                <td>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteMaterial({{ material.id }})"><i class="bi bi-trash"></i></button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No materials required for this task.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-award"></i> Required Skillsets</h5>
+                {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+                <button class="btn btn-light btn-sm" onclick="showAddSkillModal()"><i class="bi bi-plus-circle"></i> Add Skillset</button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if required_skills %}
+                <div id="skills-container">
+                    {% for skill in required_skills %}
+                    <span class="badge me-2 mb-2" style="font-size: 0.9rem; padding: 0.5rem 0.7rem;
+                        {% if skill.skill_level == 'Expert' %}background-color: #dc3545;
+                        {% elif skill.skill_level == 'Advanced' %}background-color: #28a745;
+                        {% elif skill.skill_level == 'Intermediate' %}background-color: #007bff;
+                        {% else %}background-color: #6c757d;
+                        {% endif %}">
+                        {{ skill.skillset_name }} - {{ skill.skill_level }}
+                        {% if user.role in ['Admin', 'Planner'] %}
+                        <i class="bi bi-x-circle ms-1" style="cursor: pointer;" onclick="deleteSkill({{ skill.id }})"></i>
+                        {% endif %}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No skillsets required for this task.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-clock-history"></i> Labor Entries</h5>
@@ -237,4 +335,191 @@
         {% endif %}
     </div>
 </div>
+
+<div class="modal fade" id="addMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Add Material Requirement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addMaterialForm">
+                    <div class="mb-3">
+                        <label for="material_id" class="form-label">Material/Product *</label>
+                        <select class="form-select" id="material_id" name="material_id" required>
+                            <option value="">Select material...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity_required" class="form-label">Quantity Required *</label>
+                        <input type="number" step="0.01" class="form-control" id="quantity_required" name="quantity_required" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_optional" name="is_optional" value="1">
+                            <label class="form-check-label" for="is_optional">
+                                This material is optional
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addMaterial()">Add Material</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addSkillModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-award"></i> Add Required Skillset</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addSkillForm">
+                    <div class="mb-3">
+                        <label for="skillset_id" class="form-label">Skillset *</label>
+                        <select class="form-select" id="skillset_id" name="skillset_id" required>
+                            <option value="">Select skillset...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="skill_level" class="form-label">Required Level *</label>
+                        <select class="form-select" id="skill_level" name="skill_level" required>
+                            <option value="">Select level...</option>
+                            {% for level in skill_levels %}
+                            <option value="{{ level }}">{{ level }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addSkill()">Add Skillset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const taskId = {{ task.id }};
+
+function showAddMaterialModal() {
+    fetch('/api/products')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('material_id');
+            select.innerHTML = '<option value="">Select material...</option>';
+            data.forEach(product => {
+                select.innerHTML += `<option value="${product.id}">${product.code} - ${product.name}</option>`;
+            });
+        });
+    new bootstrap.Modal(document.getElementById('addMaterialModal')).show();
+}
+
+function addMaterial() {
+    const form = document.getElementById('addMaterialForm');
+    const formData = new FormData(form);
+    
+    fetch(`/tasks/${taskId}/materials/add`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addMaterialModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error adding material: ' + error);
+    });
+}
+
+function deleteMaterial(materialId) {
+    if (!confirm('Are you sure you want to remove this material requirement?')) {
+        return;
+    }
+    
+    fetch(`/tasks/${taskId}/materials/${materialId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error deleting material: ' + error);
+    });
+}
+
+function showAddSkillModal() {
+    fetch('/api/skillsets')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('skillset_id');
+            select.innerHTML = '<option value="">Select skillset...</option>';
+            data.forEach(skillset => {
+                select.innerHTML += `<option value="${skillset.id}">${skillset.skillset_name}</option>`;
+            });
+        });
+    new bootstrap.Modal(document.getElementById('addSkillModal')).show();
+}
+
+function addSkill() {
+    const form = document.getElementById('addSkillForm');
+    const formData = new FormData(form);
+    
+    fetch(`/tasks/${taskId}/skills/add`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addSkillModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error adding skillset: ' + error);
+    });
+}
+
+function deleteSkill(skillId) {
+    if (!confirm('Are you sure you want to remove this skillset requirement?')) {
+        return;
+    }
+    
+    fetch(`/tasks/${taskId}/skills/${skillId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error deleting skillset: ' + error);
+    });
+}
+</script>
 {% endblock %}

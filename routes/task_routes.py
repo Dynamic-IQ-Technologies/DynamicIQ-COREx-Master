@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime
@@ -348,7 +348,7 @@ def add_task_material(task_id):
             (task_id, material_id, description, quantity_required, unit_of_measure, is_optional, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (task_id, material_id, product['name'], quantity_required, product['uom'], is_optional, 
-              request.user.get('id')))
+              session.get('user_id')))
         
         conn.commit()
         conn.close()
@@ -389,7 +389,7 @@ def edit_task_material(task_id, material_req_id):
             SET quantity_required = ?, status = ?, is_optional = ?, 
                 updated_by = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        ''', (quantity_required, status, is_optional, request.user.get('id'), material_req_id))
+        ''', (quantity_required, status, is_optional, session.get('user_id'), material_req_id))
         
         conn.commit()
         conn.close()
@@ -486,7 +486,7 @@ def add_task_skill(task_id):
         conn.execute('''
             INSERT INTO task_required_skills (task_id, skillset_id, skill_level, created_by)
             VALUES (?, ?, ?, ?)
-        ''', (task_id, skillset_id, skill_level, request.user.get('id')))
+        ''', (task_id, skillset_id, skill_level, session.get('user_id')))
         
         conn.commit()
         conn.close()
@@ -547,3 +547,35 @@ def get_product_details(product_id):
         'product': dict(product),
         'available_qty': inventory['total_qty'] if inventory and inventory['total_qty'] else 0
     })
+
+@task_bp.route('/api/products', methods=['GET'])
+@login_required
+def get_all_products():
+    db = Database()
+    conn = db.get_connection()
+    
+    products = conn.execute('''
+        SELECT id, code, name, uom 
+        FROM products 
+        WHERE status = 'Active'
+        ORDER BY code
+    ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(p) for p in products])
+
+@task_bp.route('/api/skillsets', methods=['GET'])
+@login_required
+def get_all_skillsets():
+    db = Database()
+    conn = db.get_connection()
+    
+    skillsets = conn.execute('''
+        SELECT id, skillset_name, category 
+        FROM skillsets 
+        WHERE status = 'Active'
+        ORDER BY skillset_name
+    ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(s) for s in skillsets])
