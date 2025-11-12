@@ -28,18 +28,77 @@
             </div>
 
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="mb-3">
                         <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="role" name="role" value="{{ labor_resource.role }}" required>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="skillset" class="form-label">Skillset</label>
-                        <input type="text" class="form-control" id="skillset" name="skillset" value="{{ labor_resource.skillset or '' }}">
-                    </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Skillsets & Proficiency Levels</label>
+                <div id="skillset-container">
+                    {% if existing_skills %}
+                        {% for skill in existing_skills %}
+                        <div class="skillset-row row mb-2">
+                            <div class="col-md-5">
+                                <select class="form-select" name="skillset_id[]">
+                                    <option value="">- Select Skillset -</option>
+                                    {% for skillset in skillsets %}
+                                    <option value="{{ skillset.id }}" {% if skillset.id == skill.skillset_id %}selected{% endif %}>{{ skillset.skillset_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" name="skill_level[]">
+                                    <option value="">- Select Level -</option>
+                                    {% for level in skill_levels %}
+                                    <option value="{{ level }}" {% if level == skill.skill_level %}selected{% endif %}>{{ level }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-danger btn-sm remove-skillset" onclick="removeSkillset(this)">
+                                    <i class="bi bi-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="skillset-row row mb-2">
+                            <div class="col-md-5">
+                                <select class="form-select" name="skillset_id[]">
+                                    <option value="">- Select Skillset -</option>
+                                    {% for skillset in skillsets %}
+                                    <option value="{{ skillset.id }}">{{ skillset.skillset_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" name="skill_level[]">
+                                    <option value="">- Select Level -</option>
+                                    {% for level in skill_levels %}
+                                    <option value="{{ level }}">{{ level }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-danger btn-sm remove-skillset" onclick="removeSkillset(this)">
+                                    <i class="bi bi-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addSkillsetRow()">
+                    <i class="bi bi-plus-circle"></i> Add Another Skillset
+                </button>
+                {% if labor_resource.skillset %}
+                <div class="mt-2">
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> Legacy skillset data: "{{ labor_resource.skillset }}" (use multi-select above)</small>
+                </div>
+                {% endif %}
             </div>
 
             <div class="row">
@@ -88,4 +147,56 @@
         </form>
     </div>
 </div>
+
+<script>
+const skillsetOptions = `
+    <option value="">- Select Skillset -</option>
+    {% for skillset in skillsets %}
+    <option value="{{ skillset.id }}">{{ skillset.skillset_name }}</option>
+    {% endfor %}
+`;
+
+const skillLevelOptions = `
+    <option value="">- Select Level -</option>
+    {% for level in skill_levels %}
+    <option value="{{ level }}">{{ level }}</option>
+    {% endfor %}
+`;
+
+function addSkillsetRow() {
+    const container = document.getElementById('skillset-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'skillset-row row mb-2';
+    newRow.innerHTML = `
+        <div class="col-md-5">
+            <select class="form-select" name="skillset_id[]">
+                ${skillsetOptions}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" name="skill_level[]">
+                ${skillLevelOptions}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="button" class="btn btn-danger btn-sm remove-skillset" onclick="removeSkillset(this)">
+                <i class="bi bi-trash"></i> Remove
+            </button>
+        </div>
+    `;
+    container.appendChild(newRow);
+}
+
+function removeSkillset(button) {
+    const container = document.getElementById('skillset-container');
+    const rows = container.getElementsByClassName('skillset-row');
+    
+    if (rows.length > 1) {
+        button.closest('.skillset-row').remove();
+    } else {
+        const selects = rows[0].querySelectorAll('select');
+        selects.forEach(select => select.value = '');
+    }
+}
+</script>
 {% endblock %}
