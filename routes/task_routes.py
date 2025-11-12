@@ -1,10 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime
 import math
 
 task_bp = Blueprint('task_routes', __name__)
+
+MATERIAL_STATUSES = ['Pending', 'Partially Issued', 'Issued', 'Received']
+SKILL_LEVELS = ['Apprentice', 'Intermediate', 'Advanced', 'Expert']
 
 def generate_task_number(conn):
     last_task = conn.execute('SELECT task_number FROM work_order_tasks ORDER BY id DESC LIMIT 1').fetchone()
@@ -267,5 +270,280 @@ def view_task(task_id):
         ORDER BY li.work_date DESC, li.start_time DESC
     ''', (task_id,)).fetchall()
     
+    materials = conn.execute('''
+        SELECT tmr.*, p.code as material_code, p.name as material_name,
+               u.username as issued_by_name
+        FROM task_material_requirements tmr
+        JOIN products p ON tmr.material_id = p.id
+        LEFT JOIN users u ON tmr.issued_by = u.id
+        WHERE tmr.task_id = ?
+        ORDER BY tmr.created_at
+    ''', (task_id,)).fetchall()
+    
+    required_skills = conn.execute('''
+        SELECT trs.*, s.skillset_name, s.category
+        FROM task_required_skills trs
+        JOIN skillsets s ON trs.skillset_id = s.id
+        WHERE trs.task_id = ?
+        ORDER BY s.skillset_name
+    ''', (task_id,)).fetchall()
+    
     conn.close()
-    return render_template('tasks/view.html', task=task, labor_entries=labor_entries)
+    return render_template('tasks/view.html', task=task, labor_entries=labor_entries, 
+                         materials=materials, required_skills=required_skills,
+                         material_statuses=MATERIAL_STATUSES, skill_levels=SKILL_LEVELS)
+
+@task_bp.route('/tasks/<int:task_id>/materials', methods=['GET'])
+@login_required
+def get_task_materials(task_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    task = conn.execute('SELECT id FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+    if not task:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Task not found'}), 404
+    
+    materials = conn.execute('''
+        SELECT tmr.*, p.code as material_code, p.name as material_name
+        FROM task_material_requirements tmr
+        JOIN products p ON tmr.material_id = p.id
+        WHERE tmr.task_id = ?
+        ORDER BY tmr.created_at
+    ''', (task_id,)).fetchall()
+    
+    conn.close()
+    return jsonify({
+        'success': True,
+        'materials': [dict(m) for m in materials]
+    })
+
+@task_bp.route('/tasks/<int:task_id>/materials/add', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def add_task_material(task_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        task = conn.execute('SELECT id FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+        if not task:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Task not found'}), 404
+        
+        material_id = request.form.get('material_id')
+        quantity_required = float(request.form.get('quantity_required', 0))
+        is_optional = int(request.form.get('is_optional', 0))
+        
+        if not material_id or quantity_required <= 0:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Material and quantity are required'}), 400
+        
+        product = conn.execute('SELECT code, name, uom FROM products WHERE id = ?', (material_id,)).fetchone()
+        if not product:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+        
+        conn.execute('''
+            INSERT INTO task_material_requirements 
+            (task_id, material_id, description, quantity_required, unit_of_measure, is_optional, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (task_id, material_id, product['name'], quantity_required, product['uom'], is_optional, 
+              request.user.get('id')))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Material added successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@task_bp.route('/tasks/<int:task_id>/materials/<int:material_req_id>/edit', methods=['PUT', 'POST'])
+@role_required('Admin', 'Planner')
+def edit_task_material(task_id, material_req_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        material_req = conn.execute('''
+            SELECT * FROM task_material_requirements 
+            WHERE id = ? AND task_id = ?
+        ''', (material_req_id, task_id)).fetchone()
+        
+        if not material_req:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Material requirement not found'}), 404
+        
+        data = request.get_json() if request.is_json else request.form
+        quantity_required = float(data.get('quantity_required', material_req['quantity_required']))
+        status = data.get('status', material_req['status'])
+        is_optional = int(data.get('is_optional', material_req['is_optional']))
+        
+        if status not in MATERIAL_STATUSES:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid status'}), 400
+        
+        conn.execute('''
+            UPDATE task_material_requirements 
+            SET quantity_required = ?, status = ?, is_optional = ?, 
+                updated_by = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (quantity_required, status, is_optional, request.user.get('id'), material_req_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Material updated successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@task_bp.route('/tasks/<int:task_id>/materials/<int:material_req_id>/delete', methods=['DELETE', 'POST'])
+@role_required('Admin', 'Planner')
+def delete_task_material(task_id, material_req_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        material_req = conn.execute('''
+            SELECT * FROM task_material_requirements 
+            WHERE id = ? AND task_id = ?
+        ''', (material_req_id, task_id)).fetchone()
+        
+        if not material_req:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Material requirement not found'}), 404
+        
+        conn.execute('DELETE FROM task_material_requirements WHERE id = ?', (material_req_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Material removed successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@task_bp.route('/tasks/<int:task_id>/skills', methods=['GET'])
+@login_required
+def get_task_skills(task_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    task = conn.execute('SELECT id FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+    if not task:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Task not found'}), 404
+    
+    skills = conn.execute('''
+        SELECT trs.*, s.skillset_name, s.category
+        FROM task_required_skills trs
+        JOIN skillsets s ON trs.skillset_id = s.id
+        WHERE trs.task_id = ?
+        ORDER BY s.skillset_name
+    ''', (task_id,)).fetchall()
+    
+    conn.close()
+    return jsonify({
+        'success': True,
+        'skills': [dict(s) for s in skills]
+    })
+
+@task_bp.route('/tasks/<int:task_id>/skills/add', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def add_task_skill(task_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        task = conn.execute('SELECT id FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+        if not task:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Task not found'}), 404
+        
+        skillset_id = request.form.get('skillset_id')
+        skill_level = request.form.get('skill_level')
+        
+        if not skillset_id or not skill_level:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Skillset and level are required'}), 400
+        
+        if skill_level not in SKILL_LEVELS:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid skill level'}), 400
+        
+        existing = conn.execute('''
+            SELECT id FROM task_required_skills 
+            WHERE task_id = ? AND skillset_id = ?
+        ''', (task_id, skillset_id)).fetchone()
+        
+        if existing:
+            conn.close()
+            return jsonify({'success': False, 'error': 'This skillset is already required for this task'}), 400
+        
+        conn.execute('''
+            INSERT INTO task_required_skills (task_id, skillset_id, skill_level, created_by)
+            VALUES (?, ?, ?, ?)
+        ''', (task_id, skillset_id, skill_level, request.user.get('id')))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Skillset requirement added successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@task_bp.route('/tasks/<int:task_id>/skills/<int:skill_req_id>/delete', methods=['DELETE', 'POST'])
+@role_required('Admin', 'Planner')
+def delete_task_skill(task_id, skill_req_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        skill_req = conn.execute('''
+            SELECT * FROM task_required_skills 
+            WHERE id = ? AND task_id = ?
+        ''', (skill_req_id, task_id)).fetchone()
+        
+        if not skill_req:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Skill requirement not found'}), 404
+        
+        conn.execute('DELETE FROM task_required_skills WHERE id = ?', (skill_req_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Skillset requirement removed successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@task_bp.route('/api/products/<int:product_id>/details', methods=['GET'])
+@login_required
+def get_product_details(product_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    product = conn.execute('SELECT id, code, name, uom FROM products WHERE id = ?', (product_id,)).fetchone()
+    
+    if not product:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Product not found'}), 404
+    
+    inventory = conn.execute('''
+        SELECT SUM(quantity_on_hand) as total_qty 
+        FROM inventory 
+        WHERE product_id = ?
+    ''', (product_id,)).fetchone()
+    
+    conn.close()
+    return jsonify({
+        'success': True,
+        'product': dict(product),
+        'available_qty': inventory['total_qty'] if inventory and inventory['total_qty'] else 0
+    })
