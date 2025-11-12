@@ -18,6 +18,7 @@ from routes.permission_routes import permission_bp
 from routes.settings_routes import settings_bp
 from routes.task_routes import task_bp
 from routes.labor_routes import labor_bp
+from routes.skillset_routes import skillset_bp
 from routes.labor_issuance_routes import labor_issuance_bp
 from routes.accounting_routes import accounting_bp
 from routes.journal_routes import journal_bp
@@ -59,6 +60,7 @@ app.register_blueprint(permission_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(task_bp)
 app.register_blueprint(labor_bp)
+app.register_blueprint(skillset_bp)
 app.register_blueprint(labor_issuance_bp)
 app.register_blueprint(accounting_bp)
 app.register_blueprint(journal_bp)

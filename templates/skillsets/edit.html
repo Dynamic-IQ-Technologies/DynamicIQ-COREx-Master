@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Skillset - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('skillset_routes.list_skillsets') }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Skillsets</a>
+</div>
+
+<h2>Edit Skillset</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('skillset_routes.edit_skillset', id=skillset.id) }}">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="skillset_name" class="form-label">Skillset Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="skillset_name" name="skillset_name" required value="{{ skillset.skillset_name }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">- Select Category -</option>
+                            <option value="Technical" {% if skillset.category == 'Technical' %}selected{% endif %}>Technical</option>
+                            <option value="Safety" {% if skillset.category == 'Safety' %}selected{% endif %}>Safety</option>
+                            <option value="Administrative" {% if skillset.category == 'Administrative' %}selected{% endif %}>Administrative</option>
+                            <option value="Quality" {% if skillset.category == 'Quality' %}selected{% endif %}>Quality</option>
+                            <option value="Leadership" {% if skillset.category == 'Leadership' %}selected{% endif %}>Leadership</option>
+                            <option value="Other" {% if skillset.category == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ skillset.description or '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="Active" {% if skillset.status == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if skillset.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('skillset_routes.list_skillsets') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Update Skillset</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
