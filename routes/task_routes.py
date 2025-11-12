@@ -175,6 +175,17 @@ def edit_task(task_id):
             else:
                 assigned_resource_id = None
             
+            if status not in ['Not Started', 'Cancelled'] and task['status'] == 'Not Started':
+                required_skills_count = conn.execute('''
+                    SELECT COUNT(*) as cnt FROM task_required_skills WHERE task_id = ?
+                ''', (task_id,)).fetchone()
+                
+                if not required_skills_count or required_skills_count['cnt'] == 0:
+                    flash('Cannot advance task status: At least one required skillset must be assigned before starting this task', 'danger')
+                    labor_resources = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY first_name').fetchall()
+                    conn.close()
+                    return render_template('tasks/edit.html', task=task, labor_resources=labor_resources)
+            
             planned_labor_cost = 0
             if assigned_resource_id and planned_hours > 0:
                 resource = conn.execute('SELECT hourly_rate FROM labor_resources WHERE id = ?', (assigned_resource_id,)).fetchone()
@@ -280,6 +291,21 @@ def view_task(task_id):
         ORDER BY tmr.created_at
     ''', (task_id,)).fetchall()
     
+    materials_with_availability = []
+    for material in materials:
+        material_dict = dict(material)
+        inventory = conn.execute('''
+            SELECT SUM(quantity) as available_qty
+            FROM inventory
+            WHERE product_id = ?
+        ''', (material['material_id'],)).fetchone()
+        
+        available_qty = inventory['available_qty'] if inventory and inventory['available_qty'] else 0
+        material_dict['available_qty'] = available_qty
+        material_dict['shortage'] = max(0, material['quantity_required'] - available_qty)
+        material_dict['has_shortage'] = available_qty < material['quantity_required']
+        materials_with_availability.append(material_dict)
+    
     required_skills = conn.execute('''
         SELECT trs.*, s.skillset_name, s.category
         FROM task_required_skills trs
@@ -288,10 +314,42 @@ def view_task(task_id):
         ORDER BY s.skillset_name
     ''', (task_id,)).fetchall()
     
+    skill_match_warnings = []
+    if task['assigned_resource_id']:
+        assigned_skills = conn.execute('''
+            SELECT lrs.skillset_id, lrs.skill_level, s.skillset_name
+            FROM labor_resource_skills lrs
+            JOIN skillsets s ON lrs.skillset_id = s.id
+            WHERE lrs.labor_resource_id = ?
+        ''', (task['assigned_resource_id'],)).fetchall()
+        
+        assigned_skill_map = {s['skillset_id']: s['skill_level'] for s in assigned_skills}
+        
+        for req_skill in required_skills:
+            if req_skill['skillset_id'] not in assigned_skill_map:
+                skill_match_warnings.append({
+                    'skillset_name': req_skill['skillset_name'],
+                    'required_level': req_skill['skill_level'],
+                    'assigned_level': None,
+                    'message': f"Missing required skill: {req_skill['skillset_name']}"
+                })
+            else:
+                assigned_level = assigned_skill_map[req_skill['skillset_id']]
+                level_order = {lv: i for i, lv in enumerate(SKILL_LEVELS)}
+                
+                if level_order.get(assigned_level, 0) < level_order.get(req_skill['skill_level'], 0):
+                    skill_match_warnings.append({
+                        'skillset_name': req_skill['skillset_name'],
+                        'required_level': req_skill['skill_level'],
+                        'assigned_level': assigned_level,
+                        'message': f"{req_skill['skillset_name']}: Required {req_skill['skill_level']}, but assigned resource only has {assigned_level}"
+                    })
+    
     conn.close()
     return render_template('tasks/view.html', task=task, labor_entries=labor_entries, 
-                         materials=materials, required_skills=required_skills,
-                         material_statuses=MATERIAL_STATUSES, skill_levels=SKILL_LEVELS)
+                         materials=materials_with_availability, required_skills=required_skills,
+                         material_statuses=MATERIAL_STATUSES, skill_levels=SKILL_LEVELS,
+                         skill_match_warnings=skill_match_warnings)
 
 @task_bp.route('/tasks/<int:task_id>/materials', methods=['GET'])
 @login_required
