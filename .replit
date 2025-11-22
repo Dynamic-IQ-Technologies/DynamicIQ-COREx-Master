@@ -17,10 +17,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Dynamic.IQ.MRP"
+args = "Dynamic.IQ-MRPx"
 
 [[workflows.workflow]]
-name = "Dynamic.IQ.MRP"
+name = "Dynamic.IQ-MRPx"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -34,10 +34,6 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 33399
-externalPort = 3001
 
 [[ports]]
 localPort = 33673

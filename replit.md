@@ -1,6 +1,6 @@
 ## Overview
 
-Dynamic.IQ.MRP is a comprehensive Flask-based Manufacturing Resource Planning (MRP) system designed to optimize production processes, inventory, Bill of Materials (BOM), work orders, and purchase orders. It offers robust role-based access control, efficient material tracking, production planning, supplier management, and report generation, aiming to provide a scalable, user-friendly solution to enhance operational efficiency and deliver critical business insights.
+Dynamic.IQ-MRPx is a comprehensive Flask-based Manufacturing Resource Planning (MRP) system designed to optimize production processes, inventory, Bill of Materials (BOM), work orders, and purchase orders. It offers robust role-based access control, efficient material tracking, production planning, supplier management, and report generation, aiming to provide a scalable, user-friendly solution to enhance operational efficiency and deliver critical business insights.
 
 ## User Preferences
 
