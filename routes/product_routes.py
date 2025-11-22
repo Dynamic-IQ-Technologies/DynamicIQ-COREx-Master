@@ -11,9 +11,66 @@ product_bp = Blueprint('product_routes', __name__)
 def list_products():
     db = Database()
     conn = db.get_connection()
-    products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
+    
+    # Get filter parameters
+    search = request.args.get('search', '').strip()
+    product_type = request.args.get('product_type', '').strip()
+    uom = request.args.get('uom', '').strip()
+    min_cost = request.args.get('min_cost', '').strip()
+    max_cost = request.args.get('max_cost', '').strip()
+    
+    # Build query with filters
+    query = 'SELECT * FROM products WHERE 1=1'
+    params = []
+    
+    if search:
+        query += ' AND (code LIKE ? OR name LIKE ? OR description LIKE ?)'
+        search_pattern = f'%{search}%'
+        params.extend([search_pattern, search_pattern, search_pattern])
+    
+    if product_type:
+        query += ' AND product_type = ?'
+        params.append(product_type)
+    
+    if uom:
+        query += ' AND unit_of_measure = ?'
+        params.append(uom)
+    
+    if min_cost:
+        try:
+            query += ' AND cost >= ?'
+            params.append(float(min_cost))
+        except ValueError:
+            pass
+    
+    if max_cost:
+        try:
+            query += ' AND cost <= ?'
+            params.append(float(max_cost))
+        except ValueError:
+            pass
+    
+    query += ' ORDER BY code'
+    
+    products = conn.execute(query, params).fetchall()
+    
+    # Get distinct values for filter dropdowns
+    product_types = conn.execute('SELECT DISTINCT product_type FROM products ORDER BY product_type').fetchall()
+    uoms = conn.execute('SELECT DISTINCT unit_of_measure FROM products ORDER BY unit_of_measure').fetchall()
+    
     conn.close()
-    return render_template('products/list.html', products=products)
+    
+    return render_template('products/list.html', 
+                         products=products,
+                         product_types=product_types,
+                         uoms=uoms,
+                         filters={
+                             'search': search,
+                             'product_type': product_type,
+                             'uom': uom,
+                             'min_cost': min_cost,
+                             'max_cost': max_cost
+                         })
 
 @product_bp.route('/products/list-json')
 @login_required
