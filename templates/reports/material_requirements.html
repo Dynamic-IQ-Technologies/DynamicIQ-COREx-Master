@@ -166,8 +166,12 @@
                         {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
                         <td>
                             {% if req.shortage_quantity > 0 %}
-                            <button type="button" class="btn btn-sm btn-outline-info" 
-                                    onclick="findSuppliers({{ req.product_id }}, {{ req.code|tojson }}, {{ req.name|tojson }}, {{ req.shortage_quantity }}, {{ req.unit_of_measure|tojson }})"
+                            <button type="button" class="btn btn-sm btn-outline-info find-suppliers-btn" 
+                                    data-product-id="{{ req.product_id }}"
+                                    data-code="{{ req.code or '' }}"
+                                    data-name="{{ req.name or '' }}"
+                                    data-shortage="{{ req.shortage_quantity }}"
+                                    data-uom="{{ req.unit_of_measure or 'EA' }}"
                                     title="Find potential suppliers using AI">
                                 <i class="bi bi-search"></i> Find Suppliers
                             </button>
@@ -269,6 +273,40 @@ document.addEventListener('DOMContentLoaded', function() {
             suppliers = data;
         })
         .catch(error => console.error('Error loading suppliers:', error));
+    
+    document.querySelectorAll('.find-suppliers-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const productCode = this.dataset.code;
+            const productName = this.dataset.name;
+            const shortageQty = parseFloat(this.dataset.shortage);
+            const uom = this.dataset.uom;
+            
+            currentMaterialData = {
+                product_id: productId,
+                part_number: productCode,
+                description: productName,
+                quantity: shortageQty,
+                uom: uom,
+                urgency: 'Normal',
+                industry: 'Aerospace/MRO'
+            };
+            currentDiscoveryRequestId = null;
+            
+            document.getElementById('discoveryMaterialName').textContent = productName;
+            document.getElementById('discoveryPartCode').textContent = productCode;
+            document.getElementById('discoveryQty').textContent = shortageQty;
+            document.getElementById('discoveryUom').textContent = uom;
+            
+            document.getElementById('discoveryStart').style.display = 'block';
+            document.getElementById('discoveryLoading').style.display = 'none';
+            document.getElementById('discoveryResults').style.display = 'none';
+            document.getElementById('discoveryError').style.display = 'none';
+            
+            const modal = new bootstrap.Modal(document.getElementById('supplierDiscoveryModal'));
+            modal.show();
+        });
+    });
 });
 
 function toggleSelectAll(checkbox) {
@@ -343,32 +381,6 @@ function procureSelected() {
     });
     
     const modal = new bootstrap.Modal(document.getElementById('procurementModal'));
-    modal.show();
-}
-
-function findSuppliers(productId, productCode, productName, shortageQty, uom) {
-    currentMaterialData = {
-        product_id: productId,
-        part_number: productCode,
-        description: productName,
-        quantity: shortageQty,
-        uom: uom,
-        urgency: 'Normal',
-        industry: 'Aerospace/MRO'
-    };
-    currentDiscoveryRequestId = null;
-    
-    document.getElementById('discoveryMaterialName').textContent = productName;
-    document.getElementById('discoveryPartCode').textContent = productCode;
-    document.getElementById('discoveryQty').textContent = shortageQty;
-    document.getElementById('discoveryUom').textContent = uom;
-    
-    document.getElementById('discoveryStart').style.display = 'block';
-    document.getElementById('discoveryLoading').style.display = 'none';
-    document.getElementById('discoveryResults').style.display = 'none';
-    document.getElementById('discoveryError').style.display = 'none';
-    
-    const modal = new bootstrap.Modal(document.getElementById('supplierDiscoveryModal'));
     modal.show();
 }
 
