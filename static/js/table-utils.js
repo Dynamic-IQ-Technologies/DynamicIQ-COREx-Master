@@ -59,6 +59,18 @@
                 });
             });
 
+            function parseNumericValue(value) {
+                if (!value || value === '-' || value === 'N/A' || value === 'TBD') return 0;
+                const cleaned = value.replace(/[^0-9.\-]/g, '');
+                return parseFloat(cleaned) || 0;
+            }
+
+            function parseDate(value) {
+                if (!value || value === '-' || value === 'N/A') return new Date(0);
+                const date = new Date(value);
+                return isNaN(date.getTime()) ? new Date(0) : date;
+            }
+
             function sortTable(tbody, column, direction, sortType) {
                 const rows = Array.from(tbody.querySelectorAll('tr'));
                 
@@ -75,19 +87,11 @@
                     
                     switch (sortType) {
                         case 'number':
-                            const numA = parseFloat(valueA.replace(/[^0-9.-]/g, '')) || 0;
-                            const numB = parseFloat(valueB.replace(/[^0-9.-]/g, '')) || 0;
-                            comparison = numA - numB;
+                        case 'currency':
+                            comparison = parseNumericValue(valueA) - parseNumericValue(valueB);
                             break;
                         case 'date':
-                            const dateA = new Date(valueA);
-                            const dateB = new Date(valueB);
-                            comparison = dateA - dateB;
-                            break;
-                        case 'currency':
-                            const currA = parseFloat(valueA.replace(/[$,]/g, '')) || 0;
-                            const currB = parseFloat(valueB.replace(/[$,]/g, '')) || 0;
-                            comparison = currA - currB;
+                            comparison = parseDate(valueA) - parseDate(valueB);
                             break;
                         default:
                             comparison = valueA.toLowerCase().localeCompare(valueB.toLowerCase());

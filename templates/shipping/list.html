@@ -43,18 +43,18 @@
     <div class="card-body">
         {% if shipments %}
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="shipmentsTable">
                 <thead>
                     <tr>
-                        <th>Shipment #</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Ship To</th>
-                        <th>Carrier</th>
-                        <th>Tracking</th>
-                        <th>Ship Date</th>
-                        <th>Items</th>
-                        <th>Actions</th>
+                        <th data-sort-type="string">Shipment #</th>
+                        <th data-sort-type="string">Type</th>
+                        <th data-sort-type="string">Status</th>
+                        <th data-sort-type="string">Ship To</th>
+                        <th data-sort-type="string">Carrier</th>
+                        <th data-sort-type="string">Tracking</th>
+                        <th data-sort-type="date">Ship Date</th>
+                        <th data-sort-type="number">Items</th>
+                        <th data-sortable="false">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -118,4 +118,12 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#shipmentsTable');
+    }
+});
+</script>
 {% endblock %}

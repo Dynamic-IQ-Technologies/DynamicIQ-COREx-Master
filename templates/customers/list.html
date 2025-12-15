@@ -12,21 +12,29 @@
         {% endif %}
     </div>
 
+    <!-- Quick Filter -->
+    <div class="mb-3">
+        <div class="input-group input-group-sm" style="max-width: 300px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="quickFilter" placeholder="Quick search...">
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="customersTable">
                     <thead>
                         <tr>
-                            <th>Customer #</th>
-                            <th>Name</th>
-                            <th>Contact</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Payment Terms</th>
-                            <th>Credit Limit</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th data-sort-type="string">Customer #</th>
+                            <th data-sort-type="string">Name</th>
+                            <th data-sort-type="string">Contact</th>
+                            <th data-sort-type="string">Email</th>
+                            <th data-sort-type="string">Phone</th>
+                            <th data-sort-type="string">Payment Terms</th>
+                            <th data-sort-type="currency">Credit Limit</th>
+                            <th data-sort-type="string">Status</th>
+                            <th data-sortable="false">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,4 +80,12 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.init('#customersTable', '#quickFilter');
+    }
+});
+</script>
 {% endblock %}

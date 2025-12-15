@@ -56,19 +56,19 @@
         <div class="card-body">
             {% if service_work_orders %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="serviceWOTable">
                     <thead>
                         <tr>
-                            <th>SWO Number</th>
-                            <th>Service Type</th>
-                            <th>Customer</th>
-                            <th>Equipment</th>
-                            <th>Assigned To</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>Due Date</th>
-                            <th>Total Cost</th>
-                            <th>Actions</th>
+                            <th data-sort-type="string">SWO Number</th>
+                            <th data-sort-type="string">Service Type</th>
+                            <th data-sort-type="string">Customer</th>
+                            <th data-sort-type="string">Equipment</th>
+                            <th data-sort-type="string">Assigned To</th>
+                            <th data-sort-type="string">Priority</th>
+                            <th data-sort-type="string">Status</th>
+                            <th data-sort-type="date">Due Date</th>
+                            <th data-sort-type="currency">Total Cost</th>
+                            <th data-sortable="false">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -146,4 +146,12 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#serviceWOTable');
+    }
+});
+</script>
 {% endblock %}

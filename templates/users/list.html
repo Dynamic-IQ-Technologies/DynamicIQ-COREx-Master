@@ -12,15 +12,15 @@
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover" id="usersTable">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Username</th>
-                                <th>Email</th>
-                                <th>Current Role</th>
-                                <th>Created At</th>
-                                <th>Actions</th>
+                                <th data-sort-type="number">ID</th>
+                                <th data-sort-type="string">Username</th>
+                                <th data-sort-type="string">Email</th>
+                                <th data-sort-type="string">Current Role</th>
+                                <th data-sort-type="date">Created At</th>
+                                <th data-sortable="false">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -76,4 +76,12 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#usersTable');
+    }
+});
+</script>
 {% endblock %}

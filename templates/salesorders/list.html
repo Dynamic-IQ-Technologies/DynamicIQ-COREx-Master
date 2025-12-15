@@ -49,18 +49,18 @@
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="salesOrdersTable">
                     <thead>
                         <tr>
-                            <th>SO Number</th>
-                            <th>Customer</th>
-                            <th>Type</th>
-                            <th>Order Date</th>
-                            <th>Status</th>
-                            <th>Total Amount</th>
-                            <th>Balance Due</th>
-                            <th>Lines</th>
-                            <th>Actions</th>
+                            <th data-sort-type="string">SO Number</th>
+                            <th data-sort-type="string">Customer</th>
+                            <th data-sort-type="string">Type</th>
+                            <th data-sort-type="date">Order Date</th>
+                            <th data-sort-type="string">Status</th>
+                            <th data-sort-type="currency">Total Amount</th>
+                            <th data-sort-type="currency">Balance Due</th>
+                            <th data-sort-type="number">Lines</th>
+                            <th data-sortable="false">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -116,4 +116,12 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#salesOrdersTable');
+    }
+});
+</script>
 {% endblock %}

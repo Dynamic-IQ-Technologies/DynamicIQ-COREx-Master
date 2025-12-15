@@ -80,17 +80,17 @@
     <div class="card-body">
         {% if labor_resources %}
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table table-striped" id="laborTable">
                 <thead>
                     <tr>
-                        <th>Employee Code</th>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Skillsets</th>
-                        <th>Hourly Rate</th>
-                        <th>Cost Center</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th data-sort-type="string">Employee Code</th>
+                        <th data-sort-type="string">Name</th>
+                        <th data-sort-type="string">Role</th>
+                        <th data-sortable="false">Skillsets</th>
+                        <th data-sort-type="currency">Hourly Rate</th>
+                        <th data-sort-type="string">Cost Center</th>
+                        <th data-sort-type="string">Status</th>
+                        <th data-sortable="false">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -147,4 +147,12 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#laborTable');
+    }
+});
+</script>
 {% endblock %}
