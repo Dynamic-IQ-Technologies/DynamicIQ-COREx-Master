@@ -101,7 +101,7 @@ def dashboard():
     
     capacity_data = []
     for wc in work_centers:
-        planned_load = conn.execute('''
+        operations_load = conn.execute('''
             SELECT COALESCE(SUM(woo.planned_hours + woo.setup_hours), 0) as total_planned
             FROM work_order_operations woo
             JOIN work_orders wo ON woo.work_order_id = wo.id
@@ -111,6 +111,19 @@ def dashboard():
             AND (woo.planned_start_date IS NULL OR woo.planned_start_date <= ?)
             AND (woo.planned_end_date IS NULL OR woo.planned_end_date >= ?)
         ''', (wc['id'], date_to, date_from)).fetchone()
+        
+        tasks_load = conn.execute('''
+            SELECT COALESCE(SUM(wot.planned_hours), 0) as total_planned
+            FROM work_order_tasks wot
+            JOIN work_orders wo ON wot.work_order_id = wo.id
+            WHERE wot.work_center_id = ?
+            AND wot.status IN ('Not Started', 'In Progress', 'On Hold')
+            AND wo.status IN ('Planned', 'In Progress', 'Released')
+            AND (COALESCE(wot.planned_start_date, wo.planned_start_date) IS NULL OR COALESCE(wot.planned_start_date, wo.planned_start_date) <= ?)
+            AND (COALESCE(wot.planned_end_date, wo.planned_end_date) IS NULL OR COALESCE(wot.planned_end_date, wo.planned_end_date) >= ?)
+        ''', (wc['id'], date_to, date_from)).fetchone()
+        
+        planned_load = {'total_planned': operations_load['total_planned'] + tasks_load['total_planned']}
         
         available_capacity = calculate_available_capacity(
             conn, wc['id'], date_from, date_to,
@@ -798,7 +811,7 @@ def api_utilization():
     
     data = []
     for wc in work_centers:
-        planned_load = conn.execute('''
+        operations_load = conn.execute('''
             SELECT COALESCE(SUM(woo.planned_hours + woo.setup_hours), 0) as total_planned
             FROM work_order_operations woo
             JOIN work_orders wo ON woo.work_order_id = wo.id
@@ -809,17 +822,30 @@ def api_utilization():
             AND (woo.planned_end_date IS NULL OR woo.planned_end_date >= ?)
         ''', (wc['id'], date_to, date_from)).fetchone()
         
+        tasks_load = conn.execute('''
+            SELECT COALESCE(SUM(wot.planned_hours), 0) as total_planned
+            FROM work_order_tasks wot
+            JOIN work_orders wo ON wot.work_order_id = wo.id
+            WHERE wot.work_center_id = ?
+            AND wot.status IN ('Not Started', 'In Progress', 'On Hold')
+            AND wo.status IN ('Planned', 'In Progress', 'Released')
+            AND (COALESCE(wot.planned_start_date, wo.planned_start_date) IS NULL OR COALESCE(wot.planned_start_date, wo.planned_start_date) <= ?)
+            AND (COALESCE(wot.planned_end_date, wo.planned_end_date) IS NULL OR COALESCE(wot.planned_end_date, wo.planned_end_date) >= ?)
+        ''', (wc['id'], date_to, date_from)).fetchone()
+        
+        total_planned = operations_load['total_planned'] + tasks_load['total_planned']
+        
         available = calculate_available_capacity(
             conn, wc['id'], date_from, date_to,
             wc['default_hours_per_day'], wc['default_days_per_week'], wc['efficiency_factor']
         )
-        utilization = (planned_load['total_planned'] / available * 100) if available > 0 else 0
+        utilization = (total_planned / available * 100) if available > 0 else 0
         
         data.append({
             'code': wc['code'],
             'name': wc['name'],
             'available': round(available, 1),
-            'planned': round(planned_load['total_planned'], 1),
+            'planned': round(total_planned, 1),
             'utilization': round(utilization, 1)
         })
     
@@ -859,7 +885,23 @@ def capacity_report():
             ORDER BY wo.priority DESC, woo.planned_start_date
         ''', (wc['id'], date_to, date_from)).fetchall()
         
-        total_planned = sum(op['planned_hours'] + op['setup_hours'] for op in operations)
+        tasks = conn.execute('''
+            SELECT wot.*, wo.wo_number, wo.priority, p.code as product_code
+            FROM work_order_tasks wot
+            JOIN work_orders wo ON wot.work_order_id = wo.id
+            JOIN products p ON wo.product_id = p.id
+            WHERE wot.work_center_id = ?
+            AND wot.status IN ('Not Started', 'In Progress', 'On Hold')
+            AND wo.status IN ('Planned', 'In Progress', 'Released')
+            AND (COALESCE(wot.planned_start_date, wo.planned_start_date) IS NULL OR COALESCE(wot.planned_start_date, wo.planned_start_date) <= ?)
+            AND (COALESCE(wot.planned_end_date, wo.planned_end_date) IS NULL OR COALESCE(wot.planned_end_date, wo.planned_end_date) >= ?)
+            ORDER BY wo.priority DESC, wot.planned_start_date
+        ''', (wc['id'], date_to, date_from)).fetchall()
+        
+        operations_planned = sum(op['planned_hours'] + op['setup_hours'] for op in operations)
+        tasks_planned = sum(t['planned_hours'] for t in tasks)
+        total_planned = operations_planned + tasks_planned
+        
         available = calculate_available_capacity(
             conn, wc['id'], date_from, date_to,
             wc['default_hours_per_day'], wc['default_days_per_week'], wc['efficiency_factor']
@@ -875,8 +917,11 @@ def capacity_report():
         report_data.append({
             'work_center': dict(wc),
             'operations': [dict(op) for op in operations],
+            'tasks': [dict(t) for t in tasks],
             'overrides': [dict(o) for o in overrides],
             'total_planned': total_planned,
+            'operations_planned': operations_planned,
+            'tasks_planned': tasks_planned,
             'available_capacity': available,
             'utilization': round(utilization, 1),
             'status': 'Critical' if utilization > 100 else 'Warning' if utilization > 85 else 'Normal'

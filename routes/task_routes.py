@@ -155,25 +155,33 @@ def edit_task(task_id):
             planned_end_date = request.form.get('planned_end_date')
             planned_hours = float(request.form.get('planned_hours', 0))
             assigned_resource_id = request.form.get('assigned_resource_id')
+            work_center_id = request.form.get('work_center_id')
             status = request.form.get('status', 'Not Started')
             remarks = request.form.get('remarks', '').strip()
             
             if not task_name:
                 flash('Task name is required', 'danger')
                 labor_resources = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY first_name').fetchall()
+                work_centers = conn.execute('SELECT id, code, name FROM work_centers WHERE status = "Active" ORDER BY code').fetchall()
                 conn.close()
-                return render_template('tasks/edit.html', task=task, labor_resources=labor_resources)
+                return render_template('tasks/edit.html', task=task, labor_resources=labor_resources, work_centers=work_centers)
             
             if not math.isfinite(planned_hours) or planned_hours < 0:
                 flash('Planned hours must be a valid non-negative number', 'danger')
                 labor_resources = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY first_name').fetchall()
+                work_centers = conn.execute('SELECT id, code, name FROM work_centers WHERE status = "Active" ORDER BY code').fetchall()
                 conn.close()
-                return render_template('tasks/edit.html', task=task, labor_resources=labor_resources)
+                return render_template('tasks/edit.html', task=task, labor_resources=labor_resources, work_centers=work_centers)
             
             if assigned_resource_id:
                 assigned_resource_id = int(assigned_resource_id)
             else:
                 assigned_resource_id = None
+            
+            if work_center_id:
+                work_center_id = int(work_center_id)
+            else:
+                work_center_id = None
             
             if status not in ['Not Started', 'Cancelled'] and task['status'] == 'Not Started':
                 required_skills_count = conn.execute('''
@@ -183,8 +191,9 @@ def edit_task(task_id):
                 if not required_skills_count or required_skills_count['cnt'] == 0:
                     flash('Cannot advance task status: At least one required skillset must be assigned before starting this task', 'danger')
                     labor_resources = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY first_name').fetchall()
+                    work_centers = conn.execute('SELECT id, code, name FROM work_centers WHERE status = "Active" ORDER BY code').fetchall()
                     conn.close()
-                    return render_template('tasks/edit.html', task=task, labor_resources=labor_resources)
+                    return render_template('tasks/edit.html', task=task, labor_resources=labor_resources, work_centers=work_centers)
             
             planned_labor_cost = 0
             if assigned_resource_id and planned_hours > 0:
@@ -196,11 +205,11 @@ def edit_task(task_id):
                 UPDATE work_order_tasks 
                 SET task_name = ?, description = ?, category = ?, sequence_number = ?,
                     priority = ?, planned_start_date = ?, planned_end_date = ?, planned_hours = ?,
-                    planned_labor_cost = ?, assigned_resource_id = ?, status = ?, remarks = ?
+                    planned_labor_cost = ?, assigned_resource_id = ?, work_center_id = ?, status = ?, remarks = ?
                 WHERE id = ?
             ''', (task_name, description, category, sequence_number, priority, 
                   planned_start_date, planned_end_date, planned_hours, planned_labor_cost,
-                  assigned_resource_id, status, remarks, task_id))
+                  assigned_resource_id, work_center_id, status, remarks, task_id))
             
             conn.commit()
             conn.close()
@@ -214,8 +223,9 @@ def edit_task(task_id):
             return redirect(url_for('task_routes.edit_task', task_id=task_id))
     
     labor_resources = conn.execute('SELECT * FROM labor_resources WHERE status = "Active" ORDER BY first_name').fetchall()
+    work_centers = conn.execute('SELECT id, code, name FROM work_centers WHERE status = "Active" ORDER BY code').fetchall()
     conn.close()
-    return render_template('tasks/edit.html', task=task, labor_resources=labor_resources)
+    return render_template('tasks/edit.html', task=task, labor_resources=labor_resources, work_centers=work_centers)
 
 @task_bp.route('/tasks/<int:task_id>/delete', methods=['POST'])
 @role_required('Admin', 'Planner')

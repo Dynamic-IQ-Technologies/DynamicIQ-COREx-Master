@@ -35,11 +35,12 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - Labor resource allocation with utilization percentages and effective date ranges
     - Capacity overrides for specific dates (holidays, maintenance, schedule changes)
     - Work order operations linked to work centers with planned hours and setup time
-    - Real-time utilization calculation incorporating overrides and resource factors
+    - Work order tasks can be assigned to work centers for capacity planning (tasks include planned hours)
+    - Real-time utilization calculation incorporating both operations AND tasks, overrides and resource factors
     - Interactive dashboard with Chart.js bar/doughnut charts for capacity visualization
     - Bottleneck detection with status indicators (Normal <85%, Warning 85-100%, Critical >100%)
-    - Printable capacity reports with operation details and override summaries
-    - Proper date overlap logic for accurate load calculations across date ranges
+    - Printable capacity reports with operation and task details plus override summaries
+    - Proper date overlap logic for accurate load calculations across date ranges (uses task-level dates with fallback to WO dates)
 
 ### System Design Choices
 

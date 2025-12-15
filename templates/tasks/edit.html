@@ -93,14 +93,30 @@
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label for="assigned_resource_id" class="form-label">Assign To</label>
-                <select class="form-select" id="assigned_resource_id" name="assigned_resource_id">
-                    <option value="">Unassigned</option>
-                    {% for resource in labor_resources %}
-                    <option value="{{ resource.id }}" {% if task.assigned_resource_id == resource.id %}selected{% endif %}>{{ resource.first_name }} {{ resource.last_name }} ({{ resource.role }})</option>
-                    {% endfor %}
-                </select>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="assigned_resource_id" class="form-label">Assign To</label>
+                        <select class="form-select" id="assigned_resource_id" name="assigned_resource_id">
+                            <option value="">Unassigned</option>
+                            {% for resource in labor_resources %}
+                            <option value="{{ resource.id }}" {% if task.assigned_resource_id == resource.id %}selected{% endif %}>{{ resource.first_name }} {{ resource.last_name }} ({{ resource.role }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="work_center_id" class="form-label">Work Center</label>
+                        <select class="form-select" id="work_center_id" name="work_center_id">
+                            <option value="">-- No Work Center --</option>
+                            {% for wc in work_centers %}
+                            <option value="{{ wc.id }}" {% if task.work_center_id == wc.id %}selected{% endif %}>{{ wc.code }} - {{ wc.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Assign to a work center for capacity planning</small>
+                    </div>
+                </div>
             </div>
 
             <div class="mb-3">

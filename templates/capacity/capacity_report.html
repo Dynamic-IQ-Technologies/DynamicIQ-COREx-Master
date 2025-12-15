@@ -83,7 +83,7 @@
 </div>
 
 {% for item in report_data %}
-{% if item.operations or item.overrides %}
+{% if item.operations or item.tasks or item.overrides %}
 <div class="card mb-3">
     <div class="card-header {% if item.status == 'Critical' %}bg-danger text-white{% elif item.status == 'Warning' %}bg-warning{% endif %}">
         <div class="d-flex justify-content-between align-items-center">
@@ -114,7 +114,8 @@
         </div>
         {% endif %}
         {% if item.operations %}
-        <div class="table-responsive">
+        <h6 class="text-muted mb-2"><i class="bi bi-gear me-1"></i>Operations ({{ "%.1f"|format(item.operations_planned) }} hrs)</h6>
+        <div class="table-responsive mb-3">
             <table class="table table-sm mb-0">
                 <thead>
                     <tr>
@@ -163,17 +164,67 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="table-light">
-                    <tr>
-                        <th colspan="5">Total</th>
-                        <th class="text-end">{{ "%.1f"|format(item.total_planned) }}</th>
-                        <th colspan="2"></th>
-                    </tr>
-                </tfoot>
             </table>
         </div>
-        {% else %}
-        <p class="text-muted mb-0">No scheduled operations for this work center.</p>
+        {% endif %}
+        {% if item.tasks %}
+        <h6 class="text-muted mb-2"><i class="bi bi-list-task me-1"></i>Tasks ({{ "%.1f"|format(item.tasks_planned) }} hrs)</h6>
+        <div class="table-responsive mb-3">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Work Order</th>
+                        <th>Priority</th>
+                        <th>Task</th>
+                        <th class="text-end">Planned Hrs</th>
+                        <th>Start Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in item.tasks %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=task.work_order_id) }}">
+                                {{ task.wo_number }}
+                            </a>
+                            <small class="text-muted d-block">{{ task.product_code }}</small>
+                        </td>
+                        <td>
+                            {% if task.priority == 'Critical' %}
+                            <span class="badge bg-dark">Critical</span>
+                            {% elif task.priority == 'High' %}
+                            <span class="badge bg-danger">High</span>
+                            {% elif task.priority == 'Medium' %}
+                            <span class="badge bg-warning text-dark">Medium</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Low</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ task.task_name }}</td>
+                        <td class="text-end"><strong>{{ "%.1f"|format(task.planned_hours) }}</strong></td>
+                        <td>{{ task.planned_start_date or '-' }}</td>
+                        <td>
+                            {% if task.status == 'In Progress' %}
+                            <span class="badge bg-primary">In Progress</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ task.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% if not item.operations and not item.tasks %}
+        <p class="text-muted mb-0">No scheduled operations or tasks for this work center.</p>
+        {% endif %}
+        {% if item.operations or item.tasks %}
+        <div class="alert alert-light mb-0 py-2">
+            <strong>Total Load:</strong> {{ "%.1f"|format(item.total_planned) }} hrs 
+            (Operations: {{ "%.1f"|format(item.operations_planned) }} hrs + Tasks: {{ "%.1f"|format(item.tasks_planned) }} hrs)
+        </div>
         {% endif %}
     </div>
 </div>

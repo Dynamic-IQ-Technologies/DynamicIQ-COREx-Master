@@ -645,6 +645,14 @@ class Database:
             )
         ''')
         
+        # Add work_center_id column to work_order_tasks for capacity planning
+        wot_columns = [row[1] for row in cursor.execute('PRAGMA table_info(work_order_tasks)').fetchall()]
+        if 'work_center_id' not in wot_columns:
+            try:
+                cursor.execute('ALTER TABLE work_order_tasks ADD COLUMN work_center_id INTEGER REFERENCES work_centers(id)')
+            except sqlite3.OperationalError:
+                pass
+        
         # Create labor_issuance table for time tracking
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS labor_issuance (
