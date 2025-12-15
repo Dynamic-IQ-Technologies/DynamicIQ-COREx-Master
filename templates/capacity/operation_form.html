@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{% if action == 'add' %}Add Operation{% else %}Edit Operation{% endif %} - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>
+            <i class="bi bi-list-task me-2"></i>
+            {% if action == 'add' %}Add Operation{% else %}Edit Operation{% endif %}
+        </h2>
+        {% if action == 'add' %}
+        <p class="text-muted mb-0">Work Order: {{ work_order.wo_number }} - {{ work_order.product_code }} {{ work_order.product_name }}</p>
+        {% else %}
+        <p class="text-muted mb-0">Work Order: {{ operation.wo_number }} - {{ operation.product_code }}</p>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('workorder_routes.view_workorder', id=work_order.id if action == 'add' else operation.work_order_id) }}" 
+       class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Work Order
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Operation Name <span class="text-danger">*</span></label>
+                        <input type="text" name="operation_name" class="form-control" required
+                               value="{{ operation.operation_name if action == 'edit' else '' }}"
+                               placeholder="e.g., Machining, Assembly, Inspection">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Sequence</label>
+                        <input type="number" name="operation_seq" class="form-control" 
+                               min="1" step="10"
+                               value="{{ operation.operation_seq if action == 'edit' else next_seq }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Work Center</label>
+                        <select name="work_center_id" class="form-select">
+                            <option value="">-- Not Assigned --</option>
+                            {% for wc in work_centers %}
+                            <option value="{{ wc.id }}" 
+                                {% if action == 'edit' and operation.work_center_id == wc.id %}selected{% endif %}>
+                                {{ wc.code }} - {{ wc.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Planned Hours <span class="text-danger">*</span></label>
+                        <input type="number" name="planned_hours" class="form-control" 
+                               step="0.25" min="0" required
+                               value="{{ operation.planned_hours if action == 'edit' else 0 }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Setup Hours</label>
+                        <input type="number" name="setup_hours" class="form-control" 
+                               step="0.25" min="0"
+                               value="{{ operation.setup_hours if action == 'edit' else 0 }}">
+                    </div>
+                </div>
+                {% if action == 'edit' %}
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Actual Hours</label>
+                        <input type="number" name="actual_hours" class="form-control" 
+                               step="0.25" min="0"
+                               value="{{ operation.actual_hours }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="Pending" {% if operation.status == 'Pending' %}selected{% endif %}>Pending</option>
+                            <option value="In Progress" {% if operation.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                            <option value="Completed" {% if operation.status == 'Completed' %}selected{% endif %}>Completed</option>
+                            <option value="Cancelled" {% if operation.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Planned Start Date</label>
+                        <input type="date" name="planned_start_date" class="form-control"
+                               value="{{ operation.planned_start_date if action == 'edit' else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Planned End Date</label>
+                        <input type="date" name="planned_end_date" class="form-control"
+                               value="{{ operation.planned_end_date if action == 'edit' else '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="3">{{ operation.notes if action == 'edit' else '' }}</textarea>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{{ url_for('workorder_routes.view_workorder', id=work_order.id if action == 'add' else operation.work_order_id) }}" 
+                   class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i>
+                    {% if action == 'add' %}Add Operation{% else %}Save Changes{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if action == 'edit' and session.role in ['Admin', 'Planner'] %}
+<div class="card border-danger mt-4">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('capacity_routes.delete_operation', id=operation.id) }}"
+              onsubmit="return confirm('Are you sure you want to delete this operation?');">
+            <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash me-1"></i>Delete Operation
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

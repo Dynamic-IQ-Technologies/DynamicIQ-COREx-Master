@@ -1458,6 +1458,84 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_suppliers_request ON discovered_suppliers(request_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_suppliers_score ON discovered_suppliers(confidence_score)')
         
+        # Capacity Planning Module Tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_centers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                default_hours_per_day REAL DEFAULT 8.0,
+                default_days_per_week INTEGER DEFAULT 5,
+                efficiency_factor REAL DEFAULT 1.0,
+                cost_per_hour REAL DEFAULT 0,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_center_resources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_center_id INTEGER NOT NULL,
+                labor_resource_id INTEGER NOT NULL,
+                effective_start_date DATE,
+                effective_end_date DATE,
+                utilization_percent REAL DEFAULT 100.0,
+                is_primary INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id) ON DELETE CASCADE,
+                FOREIGN KEY (labor_resource_id) REFERENCES labor_resources(id),
+                UNIQUE(work_center_id, labor_resource_id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_center_capacity (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_center_id INTEGER NOT NULL,
+                capacity_date DATE NOT NULL,
+                available_hours REAL NOT NULL,
+                override_reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id) ON DELETE CASCADE,
+                UNIQUE(work_center_id, capacity_date)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_operations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_order_id INTEGER NOT NULL,
+                operation_seq INTEGER DEFAULT 10,
+                work_center_id INTEGER,
+                operation_name TEXT NOT NULL,
+                planned_hours REAL NOT NULL DEFAULT 0,
+                setup_hours REAL DEFAULT 0,
+                planned_start_date DATE,
+                planned_end_date DATE,
+                actual_start_date DATE,
+                actual_end_date DATE,
+                actual_hours REAL DEFAULT 0,
+                status TEXT DEFAULT 'Pending',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id)
+            )
+        ''')
+        
+        # Create indexes for capacity planning tables
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_center_status ON work_centers(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_center_resources_wc ON work_center_resources(work_center_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_center_resources_lr ON work_center_resources(labor_resource_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_center_capacity_date ON work_center_capacity(capacity_date)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_order_operations_wo ON work_order_operations(work_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_order_operations_wc ON work_order_operations(work_center_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_order_operations_status ON work_order_operations(status)')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         

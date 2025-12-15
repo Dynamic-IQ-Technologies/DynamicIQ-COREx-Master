@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Capacity Report - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-bar-graph me-2"></i>Capacity Report</h2>
+    <div>
+        <a href="{{ url_for('capacity_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-primary">
+            <i class="bi bi-printer me-1"></i>Print Report
+        </button>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-filter me-1"></i>Generate Report
+                </button>
+                <a href="{{ url_for('capacity_routes.capacity_report') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Capacity Summary ({{ date_from }} to {{ date_to }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Work Center</th>
+                        <th class="text-end">Available Hours</th>
+                        <th class="text-end">Planned Load</th>
+                        <th class="text-end">Utilization</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data %}
+                    <tr class="{% if item.status == 'Critical' %}table-danger{% elif item.status == 'Warning' %}table-warning{% endif %}">
+                        <td>
+                            <strong>{{ item.work_center.code }}</strong> - {{ item.work_center.name }}
+                        </td>
+                        <td class="text-end">{{ "%.1f"|format(item.available_capacity) }}</td>
+                        <td class="text-end">{{ "%.1f"|format(item.total_planned) }}</td>
+                        <td class="text-end">{{ item.utilization }}%</td>
+                        <td>
+                            {% if item.status == 'Critical' %}
+                            <span class="badge bg-danger">Critical - Over Capacity</span>
+                            {% elif item.status == 'Warning' %}
+                            <span class="badge bg-warning text-dark">Warning - Near Capacity</span>
+                            {% else %}
+                            <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No work centers found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% for item in report_data %}
+{% if item.operations or item.overrides %}
+<div class="card mb-3">
+    <div class="card-header {% if item.status == 'Critical' %}bg-danger text-white{% elif item.status == 'Warning' %}bg-warning{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-building me-2"></i>
+                {{ item.work_center.code }} - {{ item.work_center.name }}
+                {% if item.overrides %}
+                <span class="badge bg-info ms-2">{{ item.overrides|length }} Override(s)</span>
+                {% endif %}
+            </h6>
+            <span>{{ item.utilization }}% Utilization | {{ "%.1f"|format(item.total_planned) }} / {{ "%.1f"|format(item.available_capacity) }} hrs</span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if item.overrides %}
+        <div class="mb-3">
+            <h6 class="text-muted"><i class="bi bi-calendar-event me-1"></i>Schedule Overrides in Date Range</h6>
+            <div class="row">
+                {% for override in item.overrides %}
+                <div class="col-auto mb-2">
+                    <span class="badge bg-secondary">
+                        {{ override.capacity_date }}: {{ override.available_hours }} hrs
+                        {% if override.override_reason %}({{ override.override_reason }}){% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if item.operations %}
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Work Order</th>
+                        <th>Priority</th>
+                        <th>Operation</th>
+                        <th class="text-end">Planned Hrs</th>
+                        <th class="text-end">Setup Hrs</th>
+                        <th class="text-end">Total Hrs</th>
+                        <th>Start Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in item.operations %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=op.work_order_id) }}">
+                                {{ op.wo_number }}
+                            </a>
+                            <small class="text-muted d-block">{{ op.product_code }}</small>
+                        </td>
+                        <td>
+                            {% if op.priority == 'Critical' %}
+                            <span class="badge bg-dark">Critical</span>
+                            {% elif op.priority == 'High' %}
+                            <span class="badge bg-danger">High</span>
+                            {% elif op.priority == 'Medium' %}
+                            <span class="badge bg-warning text-dark">Medium</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Low</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ op.operation_name }}</td>
+                        <td class="text-end">{{ "%.1f"|format(op.planned_hours) }}</td>
+                        <td class="text-end">{{ "%.1f"|format(op.setup_hours) }}</td>
+                        <td class="text-end"><strong>{{ "%.1f"|format(op.planned_hours + op.setup_hours) }}</strong></td>
+                        <td>{{ op.planned_start_date or '-' }}</td>
+                        <td>
+                            {% if op.status == 'In Progress' %}
+                            <span class="badge bg-primary">In Progress</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ op.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="5">Total</th>
+                        <th class="text-end">{{ "%.1f"|format(item.total_planned) }}</th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No scheduled operations for this work center.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<style>
+@media print {
+    .sidebar, .mobile-toggle, .btn, .card-body form, .main-content { 
+        margin-left: 0 !important; 
+    }
+    .btn { display: none !important; }
+    .sidebar { display: none !important; }
+}
+</style>
+{% endblock %}

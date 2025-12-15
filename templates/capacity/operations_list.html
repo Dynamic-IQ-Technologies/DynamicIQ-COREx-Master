@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Operations - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-list-task me-2"></i>Work Order Operations</h2>
+    <div>
+        <a href="{{ url_for('capacity_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Work Center</label>
+                <select name="work_center" class="form-select">
+                    <option value="">All Work Centers</option>
+                    {% for wc in work_centers %}
+                    <option value="{{ wc.id }}" {% if work_center_filter == wc.id|string %}selected{% endif %}>
+                        {{ wc.code }} - {{ wc.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                    <option value="In Progress" {% if status_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                    <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-filter me-1"></i>Filter
+                </button>
+                <a href="{{ url_for('capacity_routes.list_operations') }}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="operationsTable">
+                <thead>
+                    <tr>
+                        <th data-sort="string">Work Order</th>
+                        <th data-sort="number">Seq</th>
+                        <th data-sort="string">Operation</th>
+                        <th data-sort="string">Work Center</th>
+                        <th data-sort="string">Product</th>
+                        <th class="text-end" data-sort="number">Planned Hrs</th>
+                        <th data-sort="date">Start Date</th>
+                        <th data-sort="string">Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in operations %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=op.work_order_id) }}">
+                                {{ op.wo_number }}
+                            </a>
+                            {% if op.priority == 'High' %}
+                            <span class="badge bg-danger ms-1">High</span>
+                            {% elif op.priority == 'Critical' %}
+                            <span class="badge bg-dark ms-1">Critical</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ op.operation_seq }}</td>
+                        <td>{{ op.operation_name }}</td>
+                        <td>
+                            {% if op.wc_code %}
+                            <a href="{{ url_for('capacity_routes.view_work_center', id=op.work_center_id) }}">
+                                {{ op.wc_code }}
+                            </a>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ op.product_code }}</small><br>
+                            <small class="text-muted">{{ op.product_name[:30] }}{% if op.product_name|length > 30 %}...{% endif %}</small>
+                        </td>
+                        <td class="text-end">{{ "%.1f"|format(op.planned_hours + op.setup_hours) }}</td>
+                        <td>{{ op.planned_start_date or '-' }}</td>
+                        <td>
+                            {% if op.status == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif op.status == 'In Progress' %}
+                            <span class="badge bg-primary">In Progress</span>
+                            {% elif op.status == 'Cancelled' %}
+                            <span class="badge bg-secondary">Cancelled</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                <a href="{{ url_for('capacity_routes.edit_operation', id=op.id) }}" 
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No operations found matching the criteria.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/table-utils.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortableTable('operationsTable');
+    }
+});
+</script>
+{% endblock %}

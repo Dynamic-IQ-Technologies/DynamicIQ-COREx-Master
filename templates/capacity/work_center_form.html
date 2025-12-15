@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{% if action == 'create' %}New Work Center{% else %}Edit Work Center{% endif %} - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-building me-2"></i>
+        {% if action == 'create' %}New Work Center{% else %}Edit Work Center: {{ work_center.code }}{% endif %}
+    </h2>
+    <a href="{{ url_for('capacity_routes.list_work_centers') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to List
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Work Center Code</label>
+                        {% if action == 'create' %}
+                        <input type="text" name="code" class="form-control" 
+                               value="{{ next_code }}" placeholder="Auto-generated if blank">
+                        <small class="text-muted">Leave blank for auto-generated code</small>
+                        {% else %}
+                        <input type="text" class="form-control" value="{{ work_center.code }}" disabled>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="Active" {% if action == 'edit' and work_center.status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Inactive" {% if action == 'edit' and work_center.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" required
+                       value="{{ work_center.name if action == 'edit' else '' }}">
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="3">{{ work_center.description if action == 'edit' else '' }}</textarea>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Hours per Day</label>
+                        <input type="number" name="default_hours_per_day" class="form-control" 
+                               step="0.5" min="0" max="24"
+                               value="{{ work_center.default_hours_per_day if action == 'edit' else 8 }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Days per Week</label>
+                        <input type="number" name="default_days_per_week" class="form-control" 
+                               min="1" max="7"
+                               value="{{ work_center.default_days_per_week if action == 'edit' else 5 }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Efficiency Factor</label>
+                        <input type="number" name="efficiency_factor" class="form-control" 
+                               step="0.01" min="0" max="2"
+                               value="{{ work_center.efficiency_factor if action == 'edit' else 1.0 }}">
+                        <small class="text-muted">1.0 = 100% efficiency</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Cost per Hour ($)</label>
+                        <input type="number" name="cost_per_hour" class="form-control" 
+                               step="0.01" min="0"
+                               value="{{ work_center.cost_per_hour if action == 'edit' else 0 }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{{ url_for('capacity_routes.list_work_centers') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i>
+                    {% if action == 'create' %}Create Work Center{% else %}Save Changes{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

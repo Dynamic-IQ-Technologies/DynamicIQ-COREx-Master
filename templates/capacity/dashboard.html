@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Capacity Planning Dashboard - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2 me-2"></i>Capacity Planning Dashboard</h2>
+    <div>
+        <a href="{{ url_for('capacity_routes.list_work_centers') }}" class="btn btn-outline-primary">
+            <i class="bi bi-building me-1"></i>Work Centers
+        </a>
+        <a href="{{ url_for('capacity_routes.list_operations') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-list-task me-1"></i>All Operations
+        </a>
+        <a href="{{ url_for('capacity_routes.capacity_report') }}" class="btn btn-outline-info">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i>Capacity Report
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Work Centers</h6>
+                        <h2 class="mb-0">{{ capacity_data|length }}</h2>
+                    </div>
+                    <i class="bi bi-building fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Total Operations</h6>
+                        <h2 class="mb-0">{{ total_operations }}</h2>
+                    </div>
+                    <i class="bi bi-list-task fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Unassigned</h6>
+                        <h2 class="mb-0">{{ unassigned_operations }}</h2>
+                    </div>
+                    <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Bottlenecks</h6>
+                        <h2 class="mb-0">{{ bottleneck_count }}</h2>
+                    </div>
+                    <i class="bi bi-exclamation-octagon fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Date Range Filter</h5>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-filter me-1"></i>Apply Filter
+                </button>
+                <a href="{{ url_for('capacity_routes.dashboard') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Work Center Utilization</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="utilizationChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Capacity Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-building me-2"></i>Work Center Capacity Overview</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="capacityTable">
+                <thead>
+                    <tr>
+                        <th>Work Center</th>
+                        <th>Resources</th>
+                        <th class="text-center">Overrides</th>
+                        <th class="text-end">Available Hours</th>
+                        <th class="text-end">Planned Load</th>
+                        <th class="text-end">Utilization</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in capacity_data %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('capacity_routes.view_work_center', id=item.work_center.id) }}">
+                                <strong>{{ item.work_center.code }}</strong>
+                            </a>
+                            <br><small class="text-muted">{{ item.work_center.name }}</small>
+                        </td>
+                        <td>{{ item.work_center.resource_count }}</td>
+                        <td class="text-center">
+                            {% if item.override_count > 0 %}
+                            <span class="badge bg-info" title="Schedule overrides in date range">{{ item.override_count }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ "%.1f"|format(item.available_capacity) }} hrs</td>
+                        <td class="text-end">{{ "%.1f"|format(item.planned_load) }} hrs</td>
+                        <td class="text-end">
+                            <div class="progress" style="height: 20px; min-width: 100px;">
+                                <div class="progress-bar 
+                                    {% if item.utilization > 100 %}bg-danger
+                                    {% elif item.utilization > 85 %}bg-warning
+                                    {% else %}bg-success{% endif %}" 
+                                    role="progressbar" 
+                                    style="width: {{ [item.utilization, 100]|min }}%">
+                                    {{ item.utilization }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.status == 'Critical' %}
+                            <span class="badge bg-danger">Critical</span>
+                            {% elif item.status == 'Warning' %}
+                            <span class="badge bg-warning text-dark">Warning</span>
+                            {% else %}
+                            <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('capacity_routes.view_work_center', id=item.work_center.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No work centers found. 
+                            <a href="{{ url_for('capacity_routes.create_work_center') }}">Create your first work center</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const capacityData = {{ capacity_data|tojson|safe }};
+    
+    if (capacityData.length > 0) {
+        const ctx1 = document.getElementById('utilizationChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: capacityData.map(d => d.work_center.code),
+                datasets: [
+                    {
+                        label: 'Available Hours',
+                        data: capacityData.map(d => d.available_capacity),
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Planned Load',
+                        data: capacityData.map(d => d.planned_load),
+                        backgroundColor: capacityData.map(d => 
+                            d.utilization > 100 ? 'rgba(220, 53, 69, 0.7)' :
+                            d.utilization > 85 ? 'rgba(255, 193, 7, 0.7)' :
+                            'rgba(40, 167, 69, 0.7)'
+                        ),
+                        borderColor: capacityData.map(d => 
+                            d.utilization > 100 ? 'rgba(220, 53, 69, 1)' :
+                            d.utilization > 85 ? 'rgba(255, 193, 7, 1)' :
+                            'rgba(40, 167, 69, 1)'
+                        ),
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Hours'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+        
+        const statusCounts = {
+            Normal: capacityData.filter(d => d.status === 'Normal').length,
+            Warning: capacityData.filter(d => d.status === 'Warning').length,
+            Critical: capacityData.filter(d => d.status === 'Critical').length
+        };
+        
+        const ctx2 = document.getElementById('statusChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Normal', 'Warning', 'Critical'],
+                datasets: [{
+                    data: [statusCounts.Normal, statusCounts.Warning, statusCounts.Critical],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(220, 53, 69, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

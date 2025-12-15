@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Work Centers - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-building me-2"></i>Work Centers</h2>
+    <div>
+        <a href="{{ url_for('capacity_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+        {% if session.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('capacity_routes.create_work_center') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>New Work Center
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="Search code, name, description..." value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <a href="{{ url_for('capacity_routes.list_work_centers') }}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="workCentersTable">
+                <thead>
+                    <tr>
+                        <th data-sort="string">Code</th>
+                        <th data-sort="string">Name</th>
+                        <th class="text-center" data-sort="number">Hours/Day</th>
+                        <th class="text-center" data-sort="number">Days/Week</th>
+                        <th class="text-center" data-sort="number">Efficiency</th>
+                        <th class="text-center" data-sort="number">Resources</th>
+                        <th class="text-center" data-sort="number">Active Ops</th>
+                        <th data-sort="string">Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wc in work_centers %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('capacity_routes.view_work_center', id=wc.id) }}">
+                                <strong>{{ wc.code }}</strong>
+                            </a>
+                        </td>
+                        <td>{{ wc.name }}</td>
+                        <td class="text-center">{{ wc.default_hours_per_day }}</td>
+                        <td class="text-center">{{ wc.default_days_per_week }}</td>
+                        <td class="text-center">{{ "%.0f"|format(wc.efficiency_factor * 100) }}%</td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ wc.resource_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ wc.active_operations }}</span>
+                        </td>
+                        <td>
+                            {% if wc.status == 'Active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('capacity_routes.view_work_center', id=wc.id) }}" 
+                                   class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if session.role in ['Admin', 'Planner'] %}
+                                <a href="{{ url_for('capacity_routes.edit_work_center', id=wc.id) }}" 
+                                   class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('capacity_routes.manage_resources', id=wc.id) }}" 
+                                   class="btn btn-outline-info" title="Manage Resources">
+                                    <i class="bi bi-people"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No work centers found.
+                            {% if session.role in ['Admin', 'Planner'] %}
+                            <a href="{{ url_for('capacity_routes.create_work_center') }}">Create your first work center</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/table-utils.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortableTable('workCentersTable');
+    }
+});
+</script>
+{% endblock %}
