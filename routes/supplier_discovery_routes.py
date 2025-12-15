@@ -386,16 +386,15 @@ def approve_supplier(id):
             address = f"{address} | Website: {supplier['website']}" if address else f"Website: {supplier['website']}"
         
         conn.execute('''
-            INSERT INTO suppliers (code, name, contact_person, email, phone, address, payment_terms)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO suppliers (code, name, contact_person, email, phone, address)
+            VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             supplier_code,
             supplier_name,
             '',
             '',
             '',
-            address.strip(),
-            30
+            address.strip()
         ))
         
         new_supplier_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
