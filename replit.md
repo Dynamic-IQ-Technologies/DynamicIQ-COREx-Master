@@ -12,6 +12,8 @@ Preferred communication style: Simple, everyday language.
 
 The system features a responsive and modern user interface built with Bootstrap 5 and Bootstrap Icons, using a base template for consistency. It incorporates card-based and accordion-style displays, including an executive financial accounting dashboard with interactive Chart.js visualizations and color-coded KPI indicators.
 
+**Table Sorting & Filtering**: All list pages include client-side sortable columns. Click any column header to sort by that column (ascending/descending). The reusable `TableUtils` module (`static/js/table-utils.js`) supports string, number, currency, and date sorting with proper parsing of formatted values. Several pages also include quick search filters for instant row filtering.
+
 ### Technical Implementations
 
 The backend is developed with Flask using Blueprints and an SQLite database (`mrp.db`). It implements session-based authentication and comprehensive role-based access control (Admin, Planner, Production Staff, Procurement, Accountant). The `MRPEngine` handles core MRP logic like recursive BOM explosion and automatic sequential numbering. An Audit Trail System logs all CUD operations. The frontend uses Jinja2 for templating.
