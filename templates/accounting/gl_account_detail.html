@@ -196,7 +196,7 @@
                         <td>
                             {% if trans.reference_type and trans.reference_id %}
                                 {% if trans.reference_type == 'receiving_transaction' %}
-                                    <a href="{{ url_for('receiving_routes.receiving_transactions') }}" class="text-decoration-none">
+                                    <a href="{{ url_for('receiving_routes.list_receiving') }}" class="text-decoration-none">
                                         <i class="bi bi-box-arrow-in-down"></i> Receiving #{{ trans.reference_id }}
                                     </a>
                                 {% elif trans.reference_type == 'work_order' %}
