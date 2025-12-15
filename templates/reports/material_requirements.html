@@ -504,7 +504,8 @@ async function approveSupplier(supplierId) {
         }
         
         const actionsDiv = document.getElementById(`supplier-actions-${supplierId}`);
-        actionsDiv.innerHTML = '<span class="badge bg-success">Approved</span>';
+        const supplierCode = data.supplier_code || '';
+        actionsDiv.innerHTML = `<span class="badge bg-success">Approved</span>${supplierCode ? `<br><small class="text-success">Created as ${supplierCode}</small>` : ''}`;
         
     } catch (error) {
         alert('Error: ' + error.message);

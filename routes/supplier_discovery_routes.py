@@ -334,10 +334,28 @@ Return ONLY the JSON array, no other text."""
         return jsonify({'error': str(e)}), 500
 
 
+def generate_supplier_code(conn):
+    """Generate sequential supplier code"""
+    last = conn.execute('''
+        SELECT code FROM suppliers
+        WHERE code LIKE 'SUP-%'
+        ORDER BY CAST(SUBSTR(code, 5) AS INTEGER) DESC
+        LIMIT 1
+    ''').fetchone()
+    
+    if last:
+        try:
+            last_num = int(last['code'].split('-')[1])
+            return f'SUP-{last_num + 1:05d}'
+        except (ValueError, IndexError):
+            return 'SUP-00001'
+    return 'SUP-00001'
+
+
 @supplier_discovery_bp.route('/supplier-discovery/supplier/<int:id>/approve', methods=['POST'])
 @role_required('Admin', 'Procurement')
 def approve_supplier(id):
-    """Approve a discovered supplier for the approved vendor list"""
+    """Approve a discovered supplier and automatically create supplier record"""
     db = Database()
     conn = db.get_connection()
     
@@ -348,13 +366,51 @@ def approve_supplier(id):
         return jsonify({'error': 'Supplier not found'}), 404
     
     try:
+        supplier_code = generate_supplier_code(conn)
+        supplier_name = supplier['supplier_name']
+        
+        notes_parts = []
+        if supplier['certifications']:
+            notes_parts.append(f"Certifications: {supplier['certifications']}")
+        if supplier['region']:
+            notes_parts.append(f"Region: {supplier['region']}")
+        if supplier['estimated_lead_time']:
+            notes_parts.append(f"Lead Time: {supplier['estimated_lead_time']}")
+        if supplier['material_match']:
+            notes_parts.append(f"Specialty: {supplier['material_match']}")
+        if supplier['notes']:
+            notes_parts.append(supplier['notes'])
+        
+        address = f"{supplier['region'] or ''}"
+        if supplier['website']:
+            address = f"{address} | Website: {supplier['website']}" if address else f"Website: {supplier['website']}"
+        
+        conn.execute('''
+            INSERT INTO suppliers (code, name, contact_person, email, phone, address, payment_terms)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            supplier_code,
+            supplier_name,
+            '',
+            '',
+            '',
+            address.strip(),
+            30
+        ))
+        
+        new_supplier_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
         conn.execute('''
             UPDATE discovered_suppliers
             SET approval_status = 'Approved',
                 approved_by = ?,
-                approved_at = ?
+                approved_at = ?,
+                notes = CASE WHEN notes IS NULL OR notes = '' 
+                        THEN ? 
+                        ELSE notes || ' | Created as ' || ? END
             WHERE id = ?
-        ''', (session.get('user_id'), datetime.now().isoformat(), id))
+        ''', (session.get('user_id'), datetime.now().isoformat(), 
+              f'Created as {supplier_code}', supplier_code, id))
         
         AuditLogger.log_change(
             conn=conn,
@@ -362,7 +418,19 @@ def approve_supplier(id):
             record_id=id,
             action_type='Approved',
             modified_by=session.get('user_id'),
-            changed_fields={'approval_status': {'old': 'Unapproved', 'new': 'Approved'}},
+            changed_fields={'approval_status': {'old': 'Unapproved', 'new': 'Approved'}, 
+                          'created_supplier_code': supplier_code},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='supplier',
+            record_id=new_supplier_id,
+            action_type='Created',
+            modified_by=session.get('user_id'),
+            changed_fields={'source': 'AI Supplier Discovery', 'discovered_supplier_id': id},
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent')
         )
@@ -370,7 +438,12 @@ def approve_supplier(id):
         conn.commit()
         conn.close()
         
-        return jsonify({'success': True, 'message': 'Supplier approved successfully'})
+        return jsonify({
+            'success': True, 
+            'message': f'Supplier approved and created as {supplier_code}',
+            'supplier_code': supplier_code,
+            'supplier_id': new_supplier_id
+        })
         
     except Exception as e:
         conn.close()
