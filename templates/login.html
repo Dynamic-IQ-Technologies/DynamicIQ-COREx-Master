@@ -189,7 +189,7 @@
         
         .right-section {
             flex: 1;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
             padding: 4rem 3rem;
             display: flex;
             flex-direction: column;
@@ -202,23 +202,30 @@
         .right-section::before {
             content: '';
             position: absolute;
-            top: -50%;
-            right: -30%;
-            width: 80%;
-            height: 80%;
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-            border-radius: 50%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    135deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(15, 23, 42, 0.03) 40px,
+                    rgba(15, 23, 42, 0.03) 80px
+                );
+            pointer-events: none;
         }
         
         .right-section::after {
             content: '';
             position: absolute;
-            bottom: -30%;
-            left: -20%;
-            width: 60%;
-            height: 60%;
-            background: radial-gradient(circle, rgba(249, 115, 22, 0.06) 0%, transparent 70%);
-            border-radius: 50%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.08) 0%, transparent 50%, rgba(30, 41, 59, 0.05) 100%);
+            pointer-events: none;
         }
         
         .right-decorative-shapes {
@@ -232,48 +239,47 @@
         .right-shape {
             position: absolute;
             border-radius: 50%;
-            opacity: 0.5;
+            filter: blur(40px);
         }
         
         .right-shape-1 {
-            width: 200px;
-            height: 200px;
-            border: 2px solid rgba(59, 130, 246, 0.15);
-            top: 10%;
-            right: -50px;
-            animation: rotate 30s linear infinite;
+            width: 250px;
+            height: 250px;
+            background: rgba(59, 130, 246, 0.28);
+            top: -50px;
+            right: -80px;
+            box-shadow: 0 0 60px rgba(59, 130, 246, 0.3);
+            animation: float 20s ease-in-out infinite;
         }
         
         .right-shape-2 {
-            width: 150px;
-            height: 150px;
-            border: 2px solid rgba(249, 115, 22, 0.12);
-            bottom: 15%;
-            left: -30px;
-            animation: rotate 25s linear infinite reverse;
+            width: 200px;
+            height: 200px;
+            background: rgba(249, 115, 22, 0.22);
+            bottom: -30px;
+            left: -60px;
+            box-shadow: 0 0 50px rgba(249, 115, 22, 0.25);
+            animation: float 25s ease-in-out infinite reverse;
         }
         
         .right-shape-3 {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%);
-            top: 20%;
-            left: 10%;
-            animation: float 15s ease-in-out infinite;
+            width: 120px;
+            height: 120px;
+            background: rgba(16, 185, 129, 0.2);
+            top: 30%;
+            left: 5%;
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
+            animation: float 15s ease-in-out infinite 2s;
         }
         
         .right-shape-4 {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
-            bottom: 25%;
-            right: 15%;
-            animation: float 20s ease-in-out infinite reverse;
-        }
-        
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            width: 100px;
+            height: 100px;
+            background: rgba(59, 130, 246, 0.18);
+            bottom: 20%;
+            right: 10%;
+            box-shadow: 0 0 35px rgba(59, 130, 246, 0.2);
+            animation: float 18s ease-in-out infinite reverse 3s;
         }
         
         .login-form-container {
