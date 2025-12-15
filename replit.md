@@ -30,6 +30,16 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
 -   **MRO Capabilities Management**: Dedicated system for managing MRO capabilities associated with part numbers, including capability code management, compliance specifications, certification requirements, and status management. Supports flexible specifications with units, ranges, and critical flags.
 -   **AI Supplier Discovery**: AI-powered supplier discovery integrated directly into the Material Requirements page. Users can click "Find Suppliers" on any shortage item to run AI-powered discovery, view ranked supplier recommendations with confidence scores, and approve/reject suppliers - all within a modal interface without leaving the page.
 -   **Market & Capability Analysis**: AI-driven module (using OpenAI GPT-4o) that generates comprehensive strategic reports from airline fleet data. It supports both AI-powered fleet data auto-generation and CSV/Excel upload, performs automated capability matching, and generates detailed 11-section executive reports with AI-calculated win probability percentages based on multiple factors. Features interactive Chart.js visualizations, filtering, and export functionalities.
+-   **Capacity Planning Module**: Comprehensive capacity planning system for managing production load and work center utilization. Features:
+    - Work center management with efficiency factors, cost tracking, and resource assignment
+    - Labor resource allocation with utilization percentages and effective date ranges
+    - Capacity overrides for specific dates (holidays, maintenance, schedule changes)
+    - Work order operations linked to work centers with planned hours and setup time
+    - Real-time utilization calculation incorporating overrides and resource factors
+    - Interactive dashboard with Chart.js bar/doughnut charts for capacity visualization
+    - Bottleneck detection with status indicators (Normal <85%, Warning 85-100%, Critical >100%)
+    - Printable capacity reports with operation details and override summaries
+    - Proper date overlap logic for accurate load calculations across date ranges
 
 ### System Design Choices
 
