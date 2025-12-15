@@ -57,21 +57,21 @@
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table table-striped" id="inventoryTable">
                 <thead>
                     <tr>
-                        <th>Inventory ID</th>
-                        <th>Code</th>
-                        <th>Product</th>
-                        <th>Serial Number</th>
-                        <th>Quantity</th>
-                        <th>UOM</th>
-                        <th>Unit Cost</th>
-                        <th>Total Value</th>
-                        <th>Reorder Point</th>
-                        <th>Safety Stock</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th data-sort-type="string">Inventory ID</th>
+                        <th data-sort-type="string">Code</th>
+                        <th data-sort-type="string">Product</th>
+                        <th data-sort-type="string">Serial Number</th>
+                        <th data-sort-type="number">Quantity</th>
+                        <th data-sort-type="string">UOM</th>
+                        <th data-sort-type="currency">Unit Cost</th>
+                        <th data-sort-type="currency">Total Value</th>
+                        <th data-sort-type="number">Reorder Point</th>
+                        <th data-sort-type="number">Safety Stock</th>
+                        <th data-sort-type="string">Status</th>
+                        <th data-sortable="false">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -155,4 +155,12 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#inventoryTable');
+    }
+});
+</script>
 {% endblock %}

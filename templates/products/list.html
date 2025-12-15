@@ -107,15 +107,15 @@
     <div class="card-body">
         {% if products %}
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table table-striped" id="productsTable">
                 <thead>
                     <tr>
-                        <th>Code</th>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>UOM</th>
-                        <th>Cost</th>
-                        <th>Actions</th>
+                        <th data-sort-type="string">Code</th>
+                        <th data-sort-type="string">Name</th>
+                        <th data-sort-type="string">Type</th>
+                        <th data-sort-type="string">UOM</th>
+                        <th data-sort-type="currency">Cost</th>
+                        <th data-sortable="false">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -251,6 +251,10 @@ function removeFilter(filterName) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateActiveFilters();
+    // Initialize sortable table
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortable('#productsTable');
+    }
 });
 </script>
 {% endblock %}
