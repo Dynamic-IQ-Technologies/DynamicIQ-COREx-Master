@@ -111,6 +111,9 @@
                         <th>Unit Cost</th>
                         <th>Total Cost</th>
                         <th>Status</th>
+                        {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
+                        <th>Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -160,6 +163,17 @@
                             <span class="badge bg-danger">{{ req.status }}</span>
                             {% endif %}
                         </td>
+                        {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
+                        <td>
+                            {% if req.shortage_quantity > 0 %}
+                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                    onclick="findSuppliers({{ req.product_id }}, {{ req.code|tojson }}, {{ req.name|tojson }}, {{ req.shortage_quantity }}, {{ req.unit_of_measure|tojson }})"
+                                    title="Find potential suppliers using AI">
+                                <i class="bi bi-search"></i> Find Suppliers
+                            </button>
+                            {% endif %}
+                        </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -194,8 +208,59 @@
     </div>
 </div>
 
+<div class="modal fade" id="supplierDiscoveryModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-search"></i> AI Supplier Discovery
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="discoveryMaterialInfo" class="alert alert-info mb-3">
+                    <h6 class="mb-2"><i class="bi bi-box"></i> <span id="discoveryMaterialName"></span></h6>
+                    <small class="text-muted">Part: <span id="discoveryPartCode"></span> | Qty Needed: <span id="discoveryQty"></span> <span id="discoveryUom"></span></small>
+                </div>
+                
+                <div id="discoveryLoading" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">AI is searching for potential suppliers...</p>
+                    <small class="text-muted">This may take a few moments</small>
+                </div>
+                
+                <div id="discoveryStart" class="text-center py-4">
+                    <p class="mb-3">Click the button below to use AI to find potential suppliers for this material.</p>
+                    <button type="button" class="btn btn-primary btn-lg" id="runDiscoveryBtn" onclick="runAIDiscovery()">
+                        <i class="bi bi-robot"></i> Run AI Discovery
+                    </button>
+                </div>
+                
+                <div id="discoveryResults" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0"><i class="bi bi-building"></i> Discovered Suppliers</h6>
+                        <span class="badge bg-primary" id="supplierCount">0 suppliers found</span>
+                    </div>
+                    <div id="suppliersList"></div>
+                </div>
+                
+                <div id="discoveryError" class="alert alert-danger" style="display: none;">
+                    <i class="bi bi-exclamation-triangle"></i> <span id="errorMessage"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let suppliers = [];
+let currentDiscoveryRequestId = null;
+let currentMaterialData = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     fetch('/suppliers/list-json')
@@ -279,6 +344,183 @@ function procureSelected() {
     
     const modal = new bootstrap.Modal(document.getElementById('procurementModal'));
     modal.show();
+}
+
+function findSuppliers(productId, productCode, productName, shortageQty, uom) {
+    currentMaterialData = {
+        product_id: productId,
+        part_number: productCode,
+        description: productName,
+        quantity: shortageQty,
+        uom: uom,
+        urgency: 'Normal',
+        industry: 'Aerospace/MRO'
+    };
+    currentDiscoveryRequestId = null;
+    
+    document.getElementById('discoveryMaterialName').textContent = productName;
+    document.getElementById('discoveryPartCode').textContent = productCode;
+    document.getElementById('discoveryQty').textContent = shortageQty;
+    document.getElementById('discoveryUom').textContent = uom;
+    
+    document.getElementById('discoveryStart').style.display = 'block';
+    document.getElementById('discoveryLoading').style.display = 'none';
+    document.getElementById('discoveryResults').style.display = 'none';
+    document.getElementById('discoveryError').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('supplierDiscoveryModal'));
+    modal.show();
+}
+
+async function runAIDiscovery() {
+    document.getElementById('discoveryStart').style.display = 'none';
+    document.getElementById('discoveryLoading').style.display = 'block';
+    document.getElementById('discoveryError').style.display = 'none';
+    
+    try {
+        const createResponse = await fetch('/api/supplier-discovery/from-material', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentMaterialData)
+        });
+        
+        const createData = await createResponse.json();
+        
+        if (!createResponse.ok) {
+            throw new Error(createData.error || 'Failed to create discovery request');
+        }
+        
+        currentDiscoveryRequestId = createData.request_id;
+        
+        const runResponse = await fetch(`/supplier-discovery/${currentDiscoveryRequestId}/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const runData = await runResponse.json();
+        
+        if (!runResponse.ok) {
+            throw new Error(runData.error || 'AI discovery failed');
+        }
+        
+        await loadDiscoveryResults();
+        
+    } catch (error) {
+        document.getElementById('discoveryLoading').style.display = 'none';
+        document.getElementById('discoveryError').style.display = 'block';
+        document.getElementById('errorMessage').textContent = error.message;
+    }
+}
+
+async function loadDiscoveryResults() {
+    try {
+        const response = await fetch(`/api/supplier-discovery/${currentDiscoveryRequestId}/suppliers`);
+        const data = await response.json();
+        
+        document.getElementById('discoveryLoading').style.display = 'none';
+        document.getElementById('discoveryResults').style.display = 'block';
+        document.getElementById('supplierCount').textContent = `${data.suppliers.length} suppliers found`;
+        
+        const suppliersList = document.getElementById('suppliersList');
+        suppliersList.innerHTML = '';
+        
+        data.suppliers.forEach(supplier => {
+            const card = document.createElement('div');
+            card.className = 'card mb-2';
+            card.id = `supplier-card-${supplier.id}`;
+            
+            const confidenceClass = supplier.confidence_score >= 80 ? 'bg-success' : 
+                                   supplier.confidence_score >= 60 ? 'bg-warning' : 'bg-secondary';
+            
+            const statusBadge = supplier.approval_status === 'Approved' ? 
+                '<span class="badge bg-success ms-2">Approved</span>' :
+                supplier.approval_status === 'Rejected' ?
+                '<span class="badge bg-danger ms-2">Rejected</span>' : '';
+            
+            card.innerHTML = `
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-5">
+                            <h6 class="mb-1">${supplier.supplier_name} ${statusBadge}</h6>
+                            ${supplier.website ? `<small><a href="${supplier.website}" target="_blank">${supplier.website}</a></small>` : ''}
+                            <p class="mb-1 small text-muted">${supplier.material_match || ''}</p>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="badge ${confidenceClass}">${supplier.confidence_score}% match</span>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">
+                                ${supplier.region ? `<i class="bi bi-geo-alt"></i> ${supplier.region}<br>` : ''}
+                                ${supplier.estimated_lead_time ? `<i class="bi bi-clock"></i> ${supplier.estimated_lead_time}` : ''}
+                            </small>
+                        </div>
+                        <div class="col-md-3 text-end" id="supplier-actions-${supplier.id}">
+                            ${supplier.approval_status === 'Unapproved' ? `
+                                <button class="btn btn-sm btn-success me-1" onclick="approveSupplier(${supplier.id})">
+                                    <i class="bi bi-check"></i> Approve
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="rejectSupplier(${supplier.id})">
+                                    <i class="bi bi-x"></i> Reject
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ${supplier.certifications ? `<div class="mt-2"><small><i class="bi bi-patch-check"></i> ${supplier.certifications}</small></div>` : ''}
+                </div>
+            `;
+            suppliersList.appendChild(card);
+        });
+        
+    } catch (error) {
+        document.getElementById('discoveryLoading').style.display = 'none';
+        document.getElementById('discoveryError').style.display = 'block';
+        document.getElementById('errorMessage').textContent = 'Failed to load results: ' + error.message;
+    }
+}
+
+async function approveSupplier(supplierId) {
+    try {
+        const response = await fetch(`/supplier-discovery/supplier/${supplierId}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to approve supplier');
+        }
+        
+        const actionsDiv = document.getElementById(`supplier-actions-${supplierId}`);
+        actionsDiv.innerHTML = '<span class="badge bg-success">Approved</span>';
+        
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function rejectSupplier(supplierId) {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    
+    try {
+        const response = await fetch(`/supplier-discovery/supplier/${supplierId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason || '' })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to reject supplier');
+        }
+        
+        const actionsDiv = document.getElementById(`supplier-actions-${supplierId}`);
+        actionsDiv.innerHTML = '<span class="badge bg-danger">Rejected</span>';
+        
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
 }
 </script>
 {% endif %}

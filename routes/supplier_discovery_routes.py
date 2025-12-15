@@ -181,8 +181,12 @@ def run_discovery(id):
         ''', (id,))
         conn.commit()
         
+        import os
         from openai import OpenAI
-        client = OpenAI()
+        client = OpenAI(
+            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
         
         material_context = {
             'part_number': req['part_number'],
@@ -506,3 +510,39 @@ def create_from_material():
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+
+@supplier_discovery_bp.route('/api/supplier-discovery/<int:id>/suppliers')
+@login_required
+def get_suppliers_json(id):
+    """API endpoint to get suppliers for a discovery request as JSON"""
+    db = Database()
+    conn = db.get_connection()
+    
+    suppliers = conn.execute('''
+        SELECT ds.*, u.username as approved_by_name
+        FROM discovered_suppliers ds
+        LEFT JOIN users u ON ds.approved_by = u.id
+        WHERE ds.request_id = ?
+        ORDER BY ds.confidence_score DESC
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    
+    suppliers_list = []
+    for s in suppliers:
+        suppliers_list.append({
+            'id': s['id'],
+            'supplier_name': s['supplier_name'],
+            'website': s['website'],
+            'material_match': s['material_match'],
+            'certifications': s['certifications'],
+            'region': s['region'],
+            'estimated_lead_time': s['estimated_lead_time'],
+            'confidence_score': s['confidence_score'],
+            'notes': s['notes'],
+            'approval_status': s['approval_status'],
+            'approved_by_name': s['approved_by_name']
+        })
+    
+    return jsonify({'suppliers': suppliers_list})
