@@ -1404,6 +1404,60 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_capability_matches_score ON capability_matches(match_score)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_capability_matches_active ON capability_matches(is_active, is_latest)')
         
+        # Create supplier discovery requests table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS supplier_discovery_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_number TEXT UNIQUE NOT NULL,
+                product_id INTEGER,
+                part_number TEXT NOT NULL,
+                description TEXT,
+                specifications TEXT,
+                quantity REAL,
+                uom TEXT,
+                need_by_date DATE,
+                urgency TEXT DEFAULT 'Normal',
+                plant_location TEXT,
+                industry TEXT,
+                preferred_regions TEXT,
+                status TEXT DEFAULT 'Pending',
+                ai_search_queries TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create discovered suppliers table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS discovered_suppliers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER NOT NULL,
+                supplier_name TEXT NOT NULL,
+                website TEXT,
+                material_match TEXT,
+                certifications TEXT,
+                region TEXT,
+                estimated_lead_time TEXT,
+                confidence_score INTEGER DEFAULT 0,
+                notes TEXT,
+                approval_status TEXT DEFAULT 'Unapproved',
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (request_id) REFERENCES supplier_discovery_requests(id) ON DELETE CASCADE,
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create indexes for supplier discovery tables
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_supplier_discovery_status ON supplier_discovery_requests(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_supplier_discovery_part ON supplier_discovery_requests(part_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_suppliers_request ON discovered_suppliers(request_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_suppliers_score ON discovered_suppliers(confidence_score)')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         

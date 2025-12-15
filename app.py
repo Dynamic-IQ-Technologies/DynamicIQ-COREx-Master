@@ -37,6 +37,7 @@ from routes.quote_routes import quote_bp
 from routes.service_wo_routes import service_wo_bp
 from routes.capability_routes import capability_bp
 from routes.market_analysis_routes import market_analysis_bp
+from routes.supplier_discovery_routes import supplier_discovery_bp
 import os
 
 app = Flask(__name__)
@@ -79,6 +80,7 @@ app.register_blueprint(quote_bp)
 app.register_blueprint(service_wo_bp)
 app.register_blueprint(capability_bp)
 app.register_blueprint(market_analysis_bp)
+app.register_blueprint(supplier_discovery_bp)
 
 @app.context_processor
 def inject_user():

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}New Supplier Discovery Request - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-robot text-primary"></i> New Supplier Discovery Request</h2>
+        <p class="text-muted mb-0">Enter material details to discover potential suppliers using AI</p>
+    </div>
+    <a href="{{ url_for('supplier_discovery_routes.list_requests') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Material Requirements</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('supplier_discovery_routes.create_request') }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="product_id" class="form-label">Link to Product (Optional)</label>
+                            <select class="form-select" id="product_id" name="product_id">
+                                <option value="">-- Select Product --</option>
+                                {% for product in products %}
+                                <option value="{{ product.id }}" data-code="{{ product.code }}">
+                                    {{ product.code }} - {{ product.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Optionally link to an existing product in the system</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="part_number" class="form-label">Part Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="part_number" name="part_number" required>
+                            <div class="form-text">Enter the manufacturer or internal part number</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="2" 
+                                      placeholder="Describe the part or material needed"></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="specifications" class="form-label">Technical Specifications</label>
+                            <textarea class="form-control" id="specifications" name="specifications" rows="3" 
+                                      placeholder="Include any technical specifications, dimensions, material requirements, certifications needed, etc."></textarea>
+                            <div class="form-text">The more detail you provide, the better the AI can find matching suppliers</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="quantity" class="form-label">Quantity Needed</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="uom" class="form-label">Unit of Measure</label>
+                            <input type="text" class="form-control" id="uom" name="uom" placeholder="EA, LB, FT, etc.">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="need_by_date" class="form-label">Need By Date</label>
+                            <input type="date" class="form-control" id="need_by_date" name="need_by_date">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="urgency" class="form-label">Urgency</label>
+                            <select class="form-select" id="urgency" name="urgency">
+                                <option value="Normal" selected>Normal</option>
+                                <option value="High">High</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="industry" class="form-label">Industry</label>
+                            <select class="form-select" id="industry" name="industry">
+                                <option value="Aerospace/MRO" selected>Aerospace/MRO</option>
+                                <option value="Defense">Defense</option>
+                                <option value="Automotive">Automotive</option>
+                                <option value="Industrial">Industrial</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Medical">Medical</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="plant_location" class="form-label">Plant Location</label>
+                            <input type="text" class="form-control" id="plant_location" name="plant_location" 
+                                   placeholder="e.g., USA, California">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="preferred_regions" class="form-label">Preferred Supplier Regions</label>
+                            <input type="text" class="form-control" id="preferred_regions" name="preferred_regions" 
+                                   placeholder="e.g., North America, Europe, Asia">
+                            <div class="form-text">Comma-separated list of preferred regions for suppliers</div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('supplier_discovery_routes.list_requests') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Create Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card bg-light">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips for Best Results</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li class="mb-2">Include the <strong>exact part number</strong> for best matching</li>
+                    <li class="mb-2">Add <strong>technical specifications</strong> like dimensions, materials, and tolerances</li>
+                    <li class="mb-2">Specify any <strong>required certifications</strong> (AS9100, ISO 9001, NADCAP, etc.)</li>
+                    <li class="mb-2">Indicate <strong>preferred regions</strong> to find local suppliers</li>
+                    <li>Set the correct <strong>industry</strong> for better relevance</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Important Notice</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0 small">
+                    All discovered suppliers are marked as <strong>"Unapproved"</strong> by default. 
+                    Per ISO 9001 requirements, suppliers must be verified and approved before placing orders.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('product_id').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    if (selected.dataset.code) {
+        document.getElementById('part_number').value = selected.dataset.code;
+    }
+});
+</script>
+{% endblock %}

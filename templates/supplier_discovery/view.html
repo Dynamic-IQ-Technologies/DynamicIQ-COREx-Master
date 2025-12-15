@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}{{ request.request_number }} - Supplier Discovery - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>
+            <i class="bi bi-robot text-primary"></i> {{ request.request_number }}
+            {% if request.status == 'Completed' %}
+            <span class="badge bg-success">{{ request.status }}</span>
+            {% elif request.status == 'Processing' %}
+            <span class="badge bg-info">{{ request.status }}</span>
+            {% elif request.status == 'Failed' %}
+            <span class="badge bg-danger">{{ request.status }}</span>
+            {% else %}
+            <span class="badge bg-secondary">{{ request.status }}</span>
+            {% endif %}
+        </h2>
+        <p class="text-muted mb-0">Supplier Discovery Request</p>
+    </div>
+    <div>
+        <a href="{{ url_for('supplier_discovery_routes.list_requests') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+        {% if request.status in ['Pending', 'Failed'] and session.role in ['Admin', 'Procurement', 'Planner'] %}
+        <button type="button" class="btn btn-primary" id="runDiscoveryBtn" onclick="runDiscovery()">
+            <i class="bi bi-robot"></i> Run AI Discovery
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Material Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Part Number:</dt>
+                    <dd class="col-sm-7"><strong>{{ request.part_number }}</strong></dd>
+                    
+                    {% if request.product_code %}
+                    <dt class="col-sm-5">Product:</dt>
+                    <dd class="col-sm-7">{{ request.product_code }} - {{ request.product_name }}</dd>
+                    {% endif %}
+                    
+                    {% if request.description %}
+                    <dt class="col-sm-5">Description:</dt>
+                    <dd class="col-sm-7">{{ request.description }}</dd>
+                    {% endif %}
+                    
+                    {% if request.specifications %}
+                    <dt class="col-sm-5">Specifications:</dt>
+                    <dd class="col-sm-7"><small>{{ request.specifications }}</small></dd>
+                    {% endif %}
+                    
+                    {% if request.quantity %}
+                    <dt class="col-sm-5">Quantity:</dt>
+                    <dd class="col-sm-7">{{ request.quantity }} {{ request.uom }}</dd>
+                    {% endif %}
+                    
+                    {% if request.need_by_date %}
+                    <dt class="col-sm-5">Need By:</dt>
+                    <dd class="col-sm-7">{{ request.need_by_date }}</dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-5">Urgency:</dt>
+                    <dd class="col-sm-7">
+                        {% if request.urgency == 'Urgent' %}
+                        <span class="badge bg-danger">{{ request.urgency }}</span>
+                        {% elif request.urgency == 'High' %}
+                        <span class="badge bg-warning text-dark">{{ request.urgency }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ request.urgency }}</span>
+                        {% endif %}
+                    </dd>
+                    
+                    {% if request.industry %}
+                    <dt class="col-sm-5">Industry:</dt>
+                    <dd class="col-sm-7">{{ request.industry }}</dd>
+                    {% endif %}
+                    
+                    {% if request.preferred_regions %}
+                    <dt class="col-sm-5">Preferred Regions:</dt>
+                    <dd class="col-sm-7">{{ request.preferred_regions }}</dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-5">Created By:</dt>
+                    <dd class="col-sm-7">{{ request.created_by_name }}</dd>
+                    
+                    <dt class="col-sm-5">Created At:</dt>
+                    <dd class="col-sm-7">{{ request.created_at[:16] if request.created_at else '' }}</dd>
+                    
+                    {% if request.completed_at %}
+                    <dt class="col-sm-5">Completed At:</dt>
+                    <dd class="col-sm-7">{{ request.completed_at[:16] }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-building"></i> Discovered Suppliers
+                    <span class="badge bg-primary ms-2">{{ suppliers|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if suppliers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Supplier</th>
+                                <th>Match</th>
+                                <th>Certifications</th>
+                                <th>Region</th>
+                                <th>Lead Time</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in suppliers %}
+                            <tr id="supplier-row-{{ supplier.id }}">
+                                <td>
+                                    <strong>{{ supplier.supplier_name }}</strong>
+                                    {% if supplier.website %}
+                                    <br><a href="{{ supplier.website }}" target="_blank" class="small text-muted">
+                                        <i class="bi bi-box-arrow-up-right"></i> {{ supplier.website[:40] }}...
+                                    </a>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ supplier.material_match[:60] }}{% if supplier.material_match|length > 60 %}...{% endif %}</small></td>
+                                <td><small>{{ supplier.certifications }}</small></td>
+                                <td>{{ supplier.region }}</td>
+                                <td>{{ supplier.estimated_lead_time }}</td>
+                                <td>
+                                    {% if supplier.confidence_score >= 80 %}
+                                    <span class="badge bg-success">{{ supplier.confidence_score }}%</span>
+                                    {% elif supplier.confidence_score >= 60 %}
+                                    <span class="badge bg-warning text-dark">{{ supplier.confidence_score }}%</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ supplier.confidence_score }}%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if supplier.approval_status == 'Approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                    {% elif supplier.approval_status == 'Rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Unapproved</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if supplier.approval_status == 'Unapproved' and session.role in ['Admin', 'Procurement'] %}
+                                    <button type="button" class="btn btn-sm btn-success" 
+                                            onclick="approveSupplier({{ supplier.id }})" title="Approve">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger" 
+                                            onclick="rejectSupplier({{ supplier.id }})" title="Reject">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if supplier.notes %}
+                            <tr class="table-light">
+                                <td colspan="8" class="small text-muted py-1 ps-4">
+                                    <i class="bi bi-chat-left-text"></i> {{ supplier.notes }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                    {% if request.status == 'Pending' %}
+                    <p>No suppliers discovered yet.</p>
+                    <p>Click <strong>"Run AI Discovery"</strong> to find potential suppliers.</p>
+                    {% elif request.status == 'Processing' %}
+                    <p><i class="bi bi-hourglass-split"></i> AI is searching for suppliers...</p>
+                    <p>Please wait or refresh the page.</p>
+                    {% else %}
+                    <p>No suppliers found for this request.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if suppliers %}
+        <div class="card mt-3 border-info">
+            <div class="card-body">
+                <p class="mb-0 small">
+                    <i class="bi bi-info-circle text-info"></i>
+                    <strong>Note:</strong> All discovered suppliers are marked as "Unapproved" by default. 
+                    Use the approve/reject buttons to update their status. Approved suppliers can be added to your vendor list.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function runDiscovery() {
+    const btn = document.getElementById('runDiscoveryBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Searching...';
+    
+    fetch('{{ url_for("supplier_discovery_routes.run_discovery", id=request.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Success! Found ' + data.supplier_count + ' potential suppliers.');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+function approveSupplier(supplierId) {
+    if (!confirm('Approve this supplier for the approved vendor list?')) return;
+    
+    fetch('/supplier-discovery/supplier/' + supplierId + '/approve', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => alert('Error: ' + error.message));
+}
+
+function rejectSupplier(supplierId) {
+    const reason = prompt('Enter rejection reason (optional):');
+    if (reason === null) return;
+    
+    fetch('/supplier-discovery/supplier/' + supplierId + '/reject', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => alert('Error: ' + error.message));
+}
+</script>
+{% endblock %}
