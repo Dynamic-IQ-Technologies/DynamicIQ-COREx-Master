@@ -587,7 +587,7 @@ def get_product_details(product_id):
     db = Database()
     conn = db.get_connection()
     
-    product = conn.execute('SELECT id, code, name, uom FROM products WHERE id = ?', (product_id,)).fetchone()
+    product = conn.execute('SELECT id, code, name, unit_of_measure as uom FROM products WHERE id = ?', (product_id,)).fetchone()
     
     if not product:
         conn.close()
@@ -613,9 +613,8 @@ def get_all_products():
     conn = db.get_connection()
     
     products = conn.execute('''
-        SELECT id, code, name, uom 
+        SELECT id, code, name, unit_of_measure as uom 
         FROM products 
-        WHERE status = 'Active'
         ORDER BY code
     ''').fetchall()
     
