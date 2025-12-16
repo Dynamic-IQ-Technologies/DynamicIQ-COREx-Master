@@ -1,0 +1,335 @@
+CUSTOMER SERVICE MODULE (CSM)
+
+Purpose:
+Provide Customer Service with full visibility and control over customer orders, work orders, and quotes — while giving customers real-time, secure visibility into their order status and progress.
+
+1. CORE CAPABILITIES
+Internal (Customer Service Team)
+
+View all customer orders and statuses
+
+Confirm work order release
+
+Track and follow up on pending customer quote approvals
+
+Communicate updates to customers
+
+Monitor order progress, delays, and risks
+
+External (Customer Portal)
+
+View order status & progress
+
+See current production stage
+
+Review & approve quotes
+
+Download documents (quotes, order confirmations)
+
+Receive notifications
+
+2. DATA MODEL (FOUNDATION)
+Customer
+
+Customer_ID
+
+Name
+
+Contact_Email
+
+Portal_User_ID
+
+Status (Active / On Hold)
+
+Sales Order
+
+Sales_Order_ID
+
+Customer_ID
+
+Order_Number
+
+Order_Status
+(Draft | Quoted | Awaiting Approval | Approved | In Production | Completed | Shipped | Closed)
+
+Order_Date
+
+Required_Date
+
+Total_Value
+
+Linked_Quote_ID
+
+Quote
+
+Quote_ID
+
+Sales_Order_ID
+
+Quote_Status
+(Draft | Sent | Awaiting Approval | Approved | Rejected | Expired)
+
+Quote_Amount
+
+Expiration_Date
+
+Approval_Timestamp
+
+Work Order
+
+Work_Order_ID
+
+Sales_Order_ID
+
+Work_Order_Status
+(Planned | Awaiting Confirmation | Released | In Progress | Complete)
+
+Planned_Start_Date
+
+Planned_End_Date
+
+Confirmed_By
+
+Confirmation_Date
+
+Order Stage Tracking
+
+Stage_ID
+
+Sales_Order_ID
+
+Stage_Name
+(Order Received | Engineering | Material Procurement | Production | QA | Shipping)
+
+Stage_Status
+(Not Started | In Progress | Complete)
+
+%_Complete
+
+Last_Updated
+
+3. ORDER STATUS & PROGRESS ENGINE
+Order Master Status (Auto-Driven)
+
+The system automatically derives Order_Status based on:
+
+Quote approval
+
+Work order release
+
+Stage completion
+
+Example Logic:
+
+If Quote_Status = Awaiting Approval → Order_Status = Awaiting Approval
+
+If Work_Order_Status = Released → Order_Status = In Production
+
+If all stages complete → Order_Status = Completed
+
+This prevents manual errors.
+
+4. WORK ORDER CONFIRMATION FLOW
+Internal Workflow
+
+Customer Service reviews order readiness:
+
+Quote approved
+
+Materials available
+
+Capacity available
+
+Click “Confirm & Release Work Order”
+
+System:
+
+Validates prerequisites
+
+Locks order scope
+
+Updates Work_Order_Status → Released
+
+Logs user & timestamp
+
+Notifies customer
+
+Controls
+
+Cannot confirm without approved quote
+
+Cannot release without capacity availability
+
+Full audit trail
+
+5. PENDING QUOTE FOLLOW-UP AUTOMATION
+System Behavior
+
+Daily job scans for:
+
+Quote_Status = Awaiting Approval
+
+Expiration_Date within X days
+
+Auto Actions
+
+Send reminder email to customer
+
+Flag record in Customer Service dashboard
+
+Escalate internally after defined threshold
+
+CS Dashboard View
+
+Customer
+
+Quote #
+
+Days Pending
+
+Expiration Risk
+
+Action buttons: Resend | Call | Extend
+
+6. CUSTOMER SERVICE DASHBOARD
+Key Widgets
+
+Orders by Status
+
+Quotes Awaiting Approval
+
+Work Orders Awaiting Confirmation
+
+Orders at Risk (late / blocked)
+
+Customer SLA alerts
+
+Order Detail View
+
+Sales Order summary
+
+Quote status
+
+Work order status
+
+Stage progress bar
+
+Communication log
+
+7. CUSTOMER PORTAL (EXTERNAL)
+Authentication
+
+Secure login (email + password or magic link)
+
+Customers only see their own data
+
+Portal Features
+Order List
+
+Order Number
+
+Status
+
+Required Date
+
+% Complete
+
+Order Detail Page
+
+Current Order Status
+
+Visual Stage Progress Bar
+
+Estimated completion date
+
+Work order stage timeline
+
+Documents (quote, confirmation)
+
+Quote Approval
+
+View quote PDF
+
+Approve / Reject with comment
+
+Auto update ERP in real time
+
+Notifications
+
+Order released to production
+
+Stage completed
+
+Shipping confirmation
+
+Quote pending reminders
+
+8. PERMISSIONS & ROLES
+Internal Roles
+
+Customer Service Rep
+View & update orders, confirm work orders
+
+Sales
+Manage quotes
+
+Production
+Update stages
+
+Admin
+Full access
+
+External Role
+
+Customer Portal User
+Read-only order data + quote approval
+
+9. AUTOMATION & INTELLIGENCE
+
+Auto status transitions
+
+Auto email & portal notifications
+
+SLA tracking
+
+Delay detection (stage overruns)
+
+Customer satisfaction triggers post-delivery
+
+10. API ENDPOINTS (EXAMPLE)
+Internal
+
+GET /orders
+
+GET /orders/{id}
+
+POST /workorders/{id}/confirm
+
+GET /quotes/pending
+
+Portal
+
+GET /portal/orders
+
+GET /portal/orders/{id}
+
+POST /portal/quotes/{id}/approve
+
+GET /portal/documents
+
+11. AUDIT & TRACEABILITY
+
+Every status change logged
+
+User, timestamp, before/after values
+
+Quote approval evidence
+
+Work order confirmation evidence
+
+12. IMPLEMENTATION PHASES
+
+Phase 1: Internal Customer Service Module
+Phase 2: Work Order confirmation & automation
+Phase 3: Customer Portal (read-only → interactive)
+Phase 4: Notifications & intelligence
