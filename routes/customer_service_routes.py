@@ -38,12 +38,9 @@ def dashboard():
     ''').fetchall()
     
     work_orders_awaiting = conn.execute('''
-        SELECT wo.*, p.name as product_name, p.code as product_code,
-               c.name as customer_name
+        SELECT wo.*, p.name as product_name, p.code as product_code
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
-        LEFT JOIN sales_orders so ON wo.so_id = so.id
-        LEFT JOIN customers c ON so.customer_id = c.id
         WHERE wo.status IN ('Planned', 'Pending')
         ORDER BY wo.planned_start_date ASC
         LIMIT 10
@@ -172,17 +169,7 @@ def order_detail(order_id):
         ORDER BY sol.line_number
     ''', (order_id,)).fetchall()
     
-    linked_work_orders = conn.execute('''
-        SELECT wo.*, p.code as product_code, p.name as product_name,
-               woc.confirmation_date, woc.confirmed_by,
-               u.username as confirmed_by_name
-        FROM work_orders wo
-        JOIN products p ON wo.product_id = p.id
-        LEFT JOIN work_order_confirmations woc ON wo.id = woc.work_order_id
-        LEFT JOIN users u ON woc.confirmed_by = u.id
-        WHERE wo.so_id = ?
-        ORDER BY wo.created_at DESC
-    ''', (order_id,)).fetchall()
+    linked_work_orders = []
     
     stages = conn.execute('''
         SELECT * FROM order_stage_tracking 
@@ -266,15 +253,12 @@ def work_orders_confirmation():
     
     work_orders = conn.execute('''
         SELECT wo.*, p.code as product_code, p.name as product_name,
-               c.name as customer_name, so.so_number,
                (SELECT SUM(CASE WHEN i.quantity >= mr.required_quantity THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
                 FROM material_requirements mr
                 LEFT JOIN inventory i ON mr.product_id = i.product_id
                 WHERE mr.work_order_id = wo.id) as material_availability
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
-        LEFT JOIN sales_orders so ON wo.so_id = so.id
-        LEFT JOIN customers c ON so.customer_id = c.id
         WHERE wo.status IN ('Planned', 'Pending')
         ORDER BY wo.priority DESC, wo.planned_start_date ASC
     ''').fetchall()

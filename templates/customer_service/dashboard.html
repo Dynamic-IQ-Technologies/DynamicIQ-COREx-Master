@@ -171,7 +171,7 @@
                                 <tr>
                                     <th class="text-uppercase small">WO #</th>
                                     <th class="text-uppercase small">Product</th>
-                                    <th class="text-uppercase small">Customer</th>
+                                    <th class="text-uppercase small">Priority</th>
                                     <th class="text-uppercase small">Status</th>
                                 </tr>
                             </thead>
@@ -184,7 +184,7 @@
                                         </a>
                                     </td>
                                     <td>{{ wo.product_code }}</td>
-                                    <td>{{ wo.customer_name or 'N/A' }}</td>
+                                    <td>{{ wo.priority or 'Medium' }}</td>
                                     <td><span class="badge bg-warning text-dark">{{ wo.status }}</span></td>
                                 </tr>
                                 {% endfor %}

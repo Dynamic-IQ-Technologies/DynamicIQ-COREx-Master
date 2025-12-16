@@ -26,8 +26,6 @@
                         <tr>
                             <th class="text-uppercase small">WO #</th>
                             <th class="text-uppercase small">Product</th>
-                            <th class="text-uppercase small">Customer</th>
-                            <th class="text-uppercase small">SO #</th>
                             <th class="text-uppercase small">Quantity</th>
                             <th class="text-uppercase small">Priority</th>
                             <th class="text-uppercase small">Planned Start</th>
@@ -45,8 +43,6 @@
                                 </a>
                             </td>
                             <td>{{ wo.product_code }} - {{ wo.product_name }}</td>
-                            <td>{{ wo.customer_name or 'N/A' }}</td>
-                            <td>{{ wo.so_number or 'N/A' }}</td>
                             <td>{{ wo.quantity }}</td>
                             <td>
                                 {% if wo.priority == 'High' or wo.priority == 'Critical' %}
@@ -107,7 +103,7 @@
                     <div class="alert alert-info">
                         <strong>Product:</strong> {{ wo.product_code }} - {{ wo.product_name }}<br>
                         <strong>Quantity:</strong> {{ wo.quantity }}<br>
-                        <strong>Customer:</strong> {{ wo.customer_name or 'N/A' }}
+                        <strong>Priority:</strong> {{ wo.priority or 'Medium' }}
                     </div>
                     
                     <h6 class="mb-3">Confirmation Checklist</h6>
