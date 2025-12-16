@@ -1105,6 +1105,23 @@ class Database:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                contact_name TEXT NOT NULL,
+                title TEXT,
+                email TEXT,
+                phone TEXT,
+                mobile TEXT,
+                department TEXT,
+                is_primary INTEGER DEFAULT 0,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+            )
+        ''')
+        
         # Create sales_orders table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sales_orders (

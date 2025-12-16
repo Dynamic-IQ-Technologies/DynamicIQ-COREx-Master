@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database
 from auth import login_required, role_required
 import csv
@@ -158,10 +158,150 @@ def edit_customer(id):
             return redirect(url_for('customer_routes.edit_customer', id=id))
     
     customer = conn.execute('SELECT * FROM customers WHERE id = ?', (id,)).fetchone()
-    conn.close()
     
     if not customer:
+        conn.close()
         flash('Customer not found', 'danger')
         return redirect(url_for('customer_routes.list_customers'))
     
-    return render_template('customers/edit.html', customer=customer)
+    contacts = conn.execute('''
+        SELECT * FROM customer_contacts WHERE customer_id = ? ORDER BY is_primary DESC, contact_name
+    ''', (id,)).fetchall()
+    conn.close()
+    
+    return render_template('customers/edit.html', customer=customer, contacts=contacts)
+
+# Customer Contacts Management
+@customer_bp.route('/customers/<int:customer_id>/contacts')
+@role_required('Admin', 'Planner')
+def list_customer_contacts(customer_id):
+    """Get contacts for a customer as JSON"""
+    db = Database()
+    conn = db.get_connection()
+    
+    customer = conn.execute('SELECT id FROM customers WHERE id = ?', (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        return jsonify({'error': 'Customer not found'}), 404
+    
+    contacts = conn.execute('''
+        SELECT id, contact_name, title, email, phone, mobile, department, is_primary
+        FROM customer_contacts WHERE customer_id = ? ORDER BY is_primary DESC, contact_name
+    ''', (customer_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(c) for c in contacts])
+
+@customer_bp.route('/customers/<int:customer_id>/contacts/add', methods=['POST'])
+@role_required('Admin', 'Planner')
+def add_customer_contact(customer_id):
+    """Add a new contact to a customer"""
+    db = Database()
+    conn = db.get_connection()
+    
+    customer = conn.execute('SELECT id FROM customers WHERE id = ?', (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        flash('Customer not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    is_primary = 1 if request.form.get('is_primary') else 0
+    
+    if is_primary:
+        conn.execute('UPDATE customer_contacts SET is_primary = 0 WHERE customer_id = ?', (customer_id,))
+    
+    conn.execute('''
+        INSERT INTO customer_contacts (customer_id, contact_name, title, email, phone, mobile, department, is_primary, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        customer_id,
+        request.form['contact_name'],
+        request.form.get('title', ''),
+        request.form.get('email', ''),
+        request.form.get('phone', ''),
+        request.form.get('mobile', ''),
+        request.form.get('department', ''),
+        is_primary,
+        request.form.get('notes', '')
+    ))
+    conn.commit()
+    conn.close()
+    flash('Contact added successfully', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+@customer_bp.route('/customers/<int:customer_id>/contacts/<int:contact_id>/edit', methods=['POST'])
+@role_required('Admin', 'Planner')
+def edit_customer_contact(customer_id, contact_id):
+    """Edit a customer contact"""
+    db = Database()
+    conn = db.get_connection()
+    
+    contact = conn.execute('SELECT id FROM customer_contacts WHERE id = ? AND customer_id = ?', (contact_id, customer_id)).fetchone()
+    if not contact:
+        conn.close()
+        flash('Contact not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    is_primary = 1 if request.form.get('is_primary') else 0
+    
+    if is_primary:
+        conn.execute('UPDATE customer_contacts SET is_primary = 0 WHERE customer_id = ?', (customer_id,))
+    
+    conn.execute('''
+        UPDATE customer_contacts SET 
+            contact_name = ?, title = ?, email = ?, phone = ?, mobile = ?, department = ?, is_primary = ?, notes = ?
+        WHERE id = ? AND customer_id = ?
+    ''', (
+        request.form['contact_name'],
+        request.form.get('title', ''),
+        request.form.get('email', ''),
+        request.form.get('phone', ''),
+        request.form.get('mobile', ''),
+        request.form.get('department', ''),
+        is_primary,
+        request.form.get('notes', ''),
+        contact_id,
+        customer_id
+    ))
+    conn.commit()
+    conn.close()
+    flash('Contact updated successfully', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+@customer_bp.route('/customers/<int:customer_id>/contacts/<int:contact_id>/delete', methods=['POST'])
+@role_required('Admin', 'Planner')
+def delete_customer_contact(customer_id, contact_id):
+    """Delete a customer contact"""
+    db = Database()
+    conn = db.get_connection()
+    
+    contact = conn.execute('SELECT id FROM customer_contacts WHERE id = ? AND customer_id = ?', (contact_id, customer_id)).fetchone()
+    if not contact:
+        conn.close()
+        flash('Contact not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    conn.execute('DELETE FROM customer_contacts WHERE id = ? AND customer_id = ?', (contact_id, customer_id))
+    conn.commit()
+    conn.close()
+    flash('Contact deleted', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+@customer_bp.route('/customers/<int:customer_id>/contacts/<int:contact_id>/set-primary', methods=['POST'])
+@role_required('Admin', 'Planner')
+def set_customer_primary_contact(customer_id, contact_id):
+    """Set a contact as the primary contact"""
+    db = Database()
+    conn = db.get_connection()
+    
+    contact = conn.execute('SELECT id FROM customer_contacts WHERE id = ? AND customer_id = ?', (contact_id, customer_id)).fetchone()
+    if not contact:
+        conn.close()
+        flash('Contact not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    conn.execute('UPDATE customer_contacts SET is_primary = 0 WHERE customer_id = ?', (customer_id,))
+    conn.execute('UPDATE customer_contacts SET is_primary = 1 WHERE id = ? AND customer_id = ?', (contact_id, customer_id))
+    conn.commit()
+    conn.close()
+    flash('Primary contact updated', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))

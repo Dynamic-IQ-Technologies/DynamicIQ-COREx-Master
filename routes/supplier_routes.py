@@ -296,19 +296,19 @@ def add_contact(supplier_id):
     flash('Contact added successfully!', 'success')
     return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
 
-@supplier_bp.route('/suppliers/contacts/<int:contact_id>/edit', methods=['POST'])
+@supplier_bp.route('/suppliers/<int:supplier_id>/contacts/<int:contact_id>/edit', methods=['POST'])
 @role_required('Admin', 'Procurement')
-def edit_contact(contact_id):
+def edit_contact(supplier_id, contact_id):
     """Edit an existing contact"""
     db = Database()
     conn = db.get_connection()
     
-    contact = conn.execute('SELECT supplier_id FROM supplier_contacts WHERE id = ?', (contact_id,)).fetchone()
+    contact = conn.execute('SELECT id FROM supplier_contacts WHERE id = ? AND supplier_id = ?', (contact_id, supplier_id)).fetchone()
     if not contact:
+        conn.close()
         flash('Contact not found', 'danger')
         return redirect(url_for('supplier_routes.list_suppliers'))
     
-    supplier_id = contact['supplier_id']
     is_primary = 1 if request.form.get('is_primary') else 0
     
     if is_primary:
@@ -317,7 +317,7 @@ def edit_contact(contact_id):
     conn.execute('''
         UPDATE supplier_contacts 
         SET contact_name=?, title=?, email=?, phone=?, mobile=?, department=?, is_primary=?, notes=?
-        WHERE id=?
+        WHERE id=? AND supplier_id=?
     ''', (
         request.form['contact_name'],
         request.form.get('title', ''),
@@ -327,7 +327,8 @@ def edit_contact(contact_id):
         request.form.get('department', ''),
         is_primary,
         request.form.get('notes', ''),
-        contact_id
+        contact_id,
+        supplier_id
     ))
     
     conn.commit()
@@ -336,41 +337,41 @@ def edit_contact(contact_id):
     flash('Contact updated successfully!', 'success')
     return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
 
-@supplier_bp.route('/suppliers/contacts/<int:contact_id>/delete', methods=['POST'])
+@supplier_bp.route('/suppliers/<int:supplier_id>/contacts/<int:contact_id>/delete', methods=['POST'])
 @role_required('Admin', 'Procurement')
-def delete_contact(contact_id):
+def delete_contact(supplier_id, contact_id):
     """Delete a contact"""
     db = Database()
     conn = db.get_connection()
     
-    contact = conn.execute('SELECT supplier_id FROM supplier_contacts WHERE id = ?', (contact_id,)).fetchone()
+    contact = conn.execute('SELECT id FROM supplier_contacts WHERE id = ? AND supplier_id = ?', (contact_id, supplier_id)).fetchone()
     if not contact:
+        conn.close()
         flash('Contact not found', 'danger')
         return redirect(url_for('supplier_routes.list_suppliers'))
     
-    supplier_id = contact['supplier_id']
-    conn.execute('DELETE FROM supplier_contacts WHERE id = ?', (contact_id,))
+    conn.execute('DELETE FROM supplier_contacts WHERE id = ? AND supplier_id = ?', (contact_id, supplier_id))
     conn.commit()
     conn.close()
     
     flash('Contact deleted successfully!', 'success')
     return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
 
-@supplier_bp.route('/suppliers/contacts/<int:contact_id>/set-primary', methods=['POST'])
+@supplier_bp.route('/suppliers/<int:supplier_id>/contacts/<int:contact_id>/set-primary', methods=['POST'])
 @role_required('Admin', 'Procurement')
-def set_primary_contact(contact_id):
+def set_primary_contact(supplier_id, contact_id):
     """Set a contact as primary"""
     db = Database()
     conn = db.get_connection()
     
-    contact = conn.execute('SELECT supplier_id FROM supplier_contacts WHERE id = ?', (contact_id,)).fetchone()
+    contact = conn.execute('SELECT id FROM supplier_contacts WHERE id = ? AND supplier_id = ?', (contact_id, supplier_id)).fetchone()
     if not contact:
+        conn.close()
         flash('Contact not found', 'danger')
         return redirect(url_for('supplier_routes.list_suppliers'))
     
-    supplier_id = contact['supplier_id']
     conn.execute('UPDATE supplier_contacts SET is_primary = 0 WHERE supplier_id = ?', (supplier_id,))
-    conn.execute('UPDATE supplier_contacts SET is_primary = 1 WHERE id = ?', (contact_id,))
+    conn.execute('UPDATE supplier_contacts SET is_primary = 1 WHERE id = ? AND supplier_id = ?', (contact_id, supplier_id))
     conn.commit()
     conn.close()
     
