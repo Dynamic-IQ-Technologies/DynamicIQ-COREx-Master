@@ -142,18 +142,18 @@ def view_product(id):
     
     bom_usage = conn.execute('''
         SELECT b.*, p.code as parent_code, p.name as parent_name
-        FROM bom_items b
+        FROM boms b
         JOIN products p ON b.parent_product_id = p.id
-        WHERE b.component_id = ?
+        WHERE b.child_product_id = ?
         ORDER BY p.code
     ''', (id,)).fetchall()
     
     bom_components = conn.execute('''
         SELECT b.*, p.code as component_code, p.name as component_name, p.unit_of_measure
-        FROM bom_items b
-        JOIN products p ON b.component_id = p.id
+        FROM boms b
+        JOIN products p ON b.child_product_id = p.id
         WHERE b.parent_product_id = ?
-        ORDER BY b.sequence_number
+        ORDER BY b.find_number
     ''', (id,)).fetchall()
     
     recent_work_orders = conn.execute('''

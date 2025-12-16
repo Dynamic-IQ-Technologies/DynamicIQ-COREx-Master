@@ -153,7 +153,7 @@
         <table class="table table-sm table-hover mb-0">
             <thead>
                 <tr>
-                    <th>Seq</th>
+                    <th>Find #</th>
                     <th>Component Code</th>
                     <th>Component Name</th>
                     <th>Quantity</th>
@@ -163,9 +163,9 @@
             <tbody>
                 {% for comp in bom_components %}
                 <tr>
-                    <td>{{ comp.sequence_number }}</td>
+                    <td>{{ comp.find_number or loop.index }}</td>
                     <td>
-                        <a href="{{ url_for('product_routes.view_product', id=comp.component_id) }}">
+                        <a href="{{ url_for('product_routes.view_product', id=comp.child_product_id) }}">
                             {{ comp.component_code }}
                         </a>
                     </td>
