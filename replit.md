@@ -12,6 +12,13 @@ Preferred communication style: Simple, everyday language.
 
 The system features a responsive and modern user interface built with Bootstrap 5 and Bootstrap Icons, using a base template for consistency. It incorporates card-based and accordion-style displays, including an executive financial accounting dashboard with interactive Chart.js visualizations and color-coded KPI indicators.
 
+**Executive Dashboard**: The main dashboard provides a comprehensive operational overview including:
+- 8 top-level KPI cards: Active Sales Orders (with value), Active Work Orders, Open Purchase Orders (with value), Low Stock Alerts, A/R Outstanding, A/P Outstanding, Inventory Value, and Active Shipments
+- Interactive Chart.js visualizations: Operations overview bar chart and Work Order status doughnut chart
+- Real-time tables for Active Work Orders, Low Stock Alerts, Recent Sales Orders, and Pending Purchase Orders
+- Role-based widgets for Service Operations, Workforce Status (clocked-in employees), and Material Requirements
+- Quick action links for creating new Work Orders, Sales Orders, Purchase Orders, and accessing Reports
+
 **Table Sorting & Filtering**: All list pages include client-side sortable columns. Click any column header to sort by that column (ascending/descending). The reusable `TableUtils` module (`static/js/table-utils.js`) supports string, number, currency, and date sorting with proper parsing of formatted values. Several pages also include quick search filters for instant row filtering.
 
 **Currency Formatting**: All monetary values throughout the application use a centralized Jinja2 `|currency` filter defined in `app.py`. This ensures consistent professional formatting with dollar sign, thousands separators, and two decimal places (e.g., `$ 8,750.00`). Negative values display as `-$ 8,750.00`.
