@@ -646,3 +646,73 @@ def get_all_skillsets():
     
     conn.close()
     return jsonify([dict(s) for s in skillsets])
+
+
+@task_bp.route('/work-orders/<int:wo_id>/apply-template', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def apply_template(wo_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    work_order = conn.execute('SELECT * FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
+    
+    if not work_order:
+        conn.close()
+        flash('Work order not found', 'danger')
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    template_id = request.form.get('template_id')
+    
+    if not template_id:
+        conn.close()
+        flash('Please select a template', 'warning')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    try:
+        template = conn.execute('SELECT * FROM task_templates WHERE id = ?', (template_id,)).fetchone()
+        
+        if not template:
+            conn.close()
+            flash('Template not found', 'danger')
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        template_items = conn.execute('''
+            SELECT * FROM task_template_items 
+            WHERE template_id = ? 
+            ORDER BY sequence_number, id
+        ''', (template_id,)).fetchall()
+        
+        if not template_items:
+            conn.close()
+            flash('Template has no tasks to apply', 'warning')
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        tasks_created = 0
+        base_sequence = conn.execute('''
+            SELECT COALESCE(MAX(sequence_number), 0) FROM work_order_tasks WHERE work_order_id = ?
+        ''', (wo_id,)).fetchone()[0] or 0
+        
+        for idx, item in enumerate(template_items):
+            task_number = generate_task_number(conn)
+            seq_num = item['sequence_number'] if item['sequence_number'] else (base_sequence + (idx + 1) * 10)
+            
+            conn.execute('''
+                INSERT INTO work_order_tasks 
+                (task_number, work_order_id, task_name, description, category, 
+                 sequence_number, priority, planned_hours, status, remarks)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (task_number, wo_id, item['task_name'], item['description'], 
+                  item['category'], seq_num, item['priority'],
+                  item['planned_hours'] or 0, 'Not Started', item['remarks']))
+            tasks_created += 1
+        
+        conn.commit()
+        conn.close()
+        flash(f'Template "{template["template_name"]}" applied successfully - {tasks_created} tasks created', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error applying template: {str(e)}', 'danger')
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))

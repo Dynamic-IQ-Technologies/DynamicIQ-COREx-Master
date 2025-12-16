@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.template_code }} - Task Template - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('task_template_routes.list_templates') }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Templates</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-file-earmark-text"></i> {{ template.template_code }}</h2>
+        <p class="text-muted mb-0">{{ template.template_name }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if user.role in ['Admin', 'Planner'] %}
+        <a href="{{ url_for('task_template_routes.edit_template', template_id=template.id) }}" class="btn btn-warning"><i class="bi bi-pencil"></i> Edit Template</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Template Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <th style="width: 40%;">Code:</th>
+                        <td>{{ template.template_code }}</td>
+                    </tr>
+                    <tr>
+                        <th>Name:</th>
+                        <td>{{ template.template_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Category:</th>
+                        <td>{{ template.category }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if template.status == 'Active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Created By:</th>
+                        <td>{{ template.created_by_name or 'System' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Created:</th>
+                        <td>{{ template.created_at }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        {% if template.description %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Description</h5>
+            </div>
+            <div class="card-body">
+                {{ template.description }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Task Items ({{ items|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Seq</th>
+                                <th>Task Name</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Planned Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.sequence_number }}</td>
+                                <td>
+                                    <strong>{{ item.task_name }}</strong>
+                                    {% if item.description %}
+                                    <br><small class="text-muted">{{ item.description[:100] }}{{ '...' if item.description|length > 100 else '' }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.category }}</td>
+                                <td>
+                                    {% if item.priority == 'Critical' %}
+                                    <span class="badge bg-danger">{{ item.priority }}</span>
+                                    {% elif item.priority == 'High' %}
+                                    <span class="badge bg-warning text-dark">{{ item.priority }}</span>
+                                    {% elif item.priority == 'Low' %}
+                                    <span class="badge bg-secondary">{{ item.priority }}</span>
+                                    {% else %}
+                                    <span class="badge bg-info">{{ item.priority }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "%.2f"|format(item.planned_hours or 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td colspan="4" class="text-end">Total Planned Hours:</td>
+                                <td>{{ "%.2f"|format(items|sum(attribute='planned_hours') or 0) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-list-task" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">No task items in this template</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

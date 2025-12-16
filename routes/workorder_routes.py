@@ -319,6 +319,15 @@ def view_workorder(id):
         ORDER BY wot.sequence_number, wot.id
     ''', (id,)).fetchall()
     
+    # Get active task templates for Apply Template feature
+    task_templates = conn.execute('''
+        SELECT tt.id, tt.template_code, tt.template_name, tt.category,
+               (SELECT COUNT(*) FROM task_template_items WHERE template_id = tt.id) as item_count
+        FROM task_templates tt
+        WHERE tt.status = 'Active'
+        ORDER BY tt.template_name
+    ''').fetchall()
+    
     cost_info = mrp.calculate_work_order_cost(id)
     
     conn.close()
@@ -329,7 +338,8 @@ def view_workorder(id):
                          cost_info=cost_info,
                          all_products=all_products,
                          task_summary=task_summary,
-                         tasks=tasks)
+                         tasks=tasks,
+                         task_templates=task_templates)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')

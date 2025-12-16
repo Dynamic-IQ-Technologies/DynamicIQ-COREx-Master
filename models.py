@@ -684,6 +684,39 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Create task_templates table for reusable task templates
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS task_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                template_code TEXT UNIQUE NOT NULL,
+                template_name TEXT NOT NULL,
+                description TEXT,
+                category TEXT DEFAULT 'General',
+                status TEXT DEFAULT 'Active',
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_at TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create task_template_items table for individual tasks within a template
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS task_template_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                template_id INTEGER NOT NULL,
+                task_name TEXT NOT NULL,
+                description TEXT,
+                category TEXT DEFAULT 'General',
+                sequence_number INTEGER DEFAULT 0,
+                priority TEXT DEFAULT 'Medium',
+                planned_hours REAL DEFAULT 0,
+                remarks TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (template_id) REFERENCES task_templates(id) ON DELETE CASCADE
+            )
+        ''')
+        
         # Create labor_issuance table for time tracking
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS labor_issuance (
