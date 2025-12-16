@@ -763,6 +763,70 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_stage_status ON order_stage_tracking(stage_status)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_confirmations_wo ON work_order_confirmations(work_order_id)')
         
+        # Create customer_communications table for Phase 3 CS module
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_communications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                sales_order_id INTEGER,
+                communication_type TEXT NOT NULL CHECK(communication_type IN ('Call', 'Email', 'Meeting', 'Note', 'Other')),
+                subject TEXT,
+                description TEXT,
+                communication_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                follow_up_required INTEGER DEFAULT 0,
+                follow_up_date DATE,
+                follow_up_completed INTEGER DEFAULT 0,
+                outcome TEXT,
+                created_by INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id) ON DELETE SET NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create order_notes table for quick notes on orders
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS order_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sales_order_id INTEGER NOT NULL,
+                note_type TEXT DEFAULT 'General' CHECK(note_type IN ('General', 'Internal', 'Customer', 'Urgent', 'Follow-up')),
+                note_text TEXT NOT NULL,
+                is_pinned INTEGER DEFAULT 0,
+                created_by INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_by INTEGER,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (updated_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create order_activity_log table for activity timeline
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS order_activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sales_order_id INTEGER NOT NULL,
+                activity_type TEXT NOT NULL,
+                activity_description TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create indexes for customer communications and order notes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_customer_comm_customer ON customer_communications(customer_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_customer_comm_so ON customer_communications(sales_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_customer_comm_followup ON customer_communications(follow_up_required, follow_up_completed)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_notes_so ON order_notes(sales_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_activity_so ON order_activity_log(sales_order_id)')
+        
         # Create labor_issuance table for time tracking
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS labor_issuance (
