@@ -46,19 +46,19 @@
                     <tr>
                         <td>{{ account.account_code }}</td>
                         <td>{{ account.account_name }}</td>
-                        <td class="text-end">{% if account.total_debit > 0 %}${{ "%.2f"|format(account.total_debit) }}{% endif %}</td>
-                        <td class="text-end">{% if account.total_credit > 0 %}${{ "%.2f"|format(account.total_credit) }}{% endif %}</td>
+                        <td class="text-end">{% if account.total_debit > 0 %}{{ account.total_debit|currency }}{% endif %}</td>
+                        <td class="text-end">{% if account.total_credit > 0 %}{{ account.total_credit|currency }}{% endif %}</td>
                     </tr>
                     {% endfor %}
                     <tr class="table-active">
                         <td colspan="2" class="text-end"><strong>Total:</strong></td>
-                        <td class="text-end"><strong>${{ "%.2f"|format(total_debits) }}</strong></td>
-                        <td class="text-end"><strong>${{ "%.2f"|format(total_credits) }}</strong></td>
+                        <td class="text-end"><strong>{{ total_debits|currency }}</strong></td>
+                        <td class="text-end"><strong>{{ total_credits|currency }}</strong></td>
                     </tr>
                     <tr class="{% if (total_debits - total_credits)|abs < 0.01 %}table-success{% else %}table-danger{% endif %}">
                         <td colspan="2" class="text-end"><strong>Difference:</strong></td>
                         <td colspan="2" class="text-end">
-                            <strong>${{ "%.2f"|format((total_debits - total_credits)|abs) }}</strong>
+                            <strong>{{ ((total_debits - total_credits)|abs)|currency }}</strong>
                             {% if (total_debits - total_credits)|abs < 0.01 %}
                             <span class="badge bg-success ms-2">Balanced</span>
                             {% else %}

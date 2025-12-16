@@ -41,12 +41,12 @@
                 <tr>
                     <td>{{ revenue.code }}</td>
                     <td>{{ revenue.name }}</td>
-                    <td class="text-end">${{ "%.2f"|format(revenue.balance) }}</td>
+                    <td class="text-end">{{ revenue.balance|currency }}</td>
                 </tr>
                 {% endfor %}
                 <tr class="table-active">
                     <td colspan="2"><strong>Total Revenue</strong></td>
-                    <td class="text-end"><strong>${{ "%.2f"|format(total_revenue) }}</strong></td>
+                    <td class="text-end"><strong>{{ total_revenue|currency }}</strong></td>
                 </tr>
             </tbody>
         </table>
@@ -64,12 +64,12 @@
                 <tr>
                     <td>{{ expense.code }}</td>
                     <td>{{ expense.name }}</td>
-                    <td class="text-end">${{ "%.2f"|format(expense.balance) }}</td>
+                    <td class="text-end">{{ expense.balance|currency }}</td>
                 </tr>
                 {% endfor %}
                 <tr class="table-active">
                     <td colspan="2"><strong>Total Expenses</strong></td>
-                    <td class="text-end"><strong>${{ "%.2f"|format(total_expense) }}</strong></td>
+                    <td class="text-end"><strong>{{ total_expense|currency }}</strong></td>
                 </tr>
             </tbody>
         </table>
@@ -84,7 +84,7 @@
                 <p class="mb-0">For period {{ start_date }} to {{ end_date }}</p>
             </div>
             <div class="col-md-6 text-end">
-                <h3>${{ "%.2f"|format(net_income) }}</h3>
+                <h3>{{ net_income|currency }}</h3>
                 {% if net_income >= 0 %}
                 <span class="badge bg-light text-success">Profit</span>
                 {% else %}

@@ -34,8 +34,8 @@
                         <td>{{ entry.entry_date }}</td>
                         <td>{{ entry.description }}</td>
                         <td><span class="badge bg-secondary">{{ entry.transaction_source }}</span></td>
-                        <td class="text-end">${{ "%.2f"|format(entry.total_debit or 0) }}</td>
-                        <td class="text-end">${{ "%.2f"|format(entry.total_credit or 0) }}</td>
+                        <td class="text-end">{{ (entry.total_debit or 0)|currency }}</td>
+                        <td class="text-end">{{ (entry.total_credit or 0)|currency }}</td>
                         <td>
                             {% if entry.status == 'Posted' %}
                             <span class="badge bg-success">Posted</span>

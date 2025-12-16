@@ -65,8 +65,8 @@
                         <td>{{ entry.account_code }} - {{ entry.account_name }}</td>
                         <td>{{ entry.description }}</td>
                         <td><span class="badge bg-secondary">{{ entry.transaction_source }}</span></td>
-                        <td class="text-end">{% if entry.debit > 0 %}${{ "%.2f"|format(entry.debit) }}{% endif %}</td>
-                        <td class="text-end">{% if entry.credit > 0 %}${{ "%.2f"|format(entry.credit) }}{% endif %}</td>
+                        <td class="text-end">{% if entry.debit > 0 %}{{ entry.debit|currency }}{% endif %}</td>
+                        <td class="text-end">{% if entry.credit > 0 %}{{ entry.credit|currency }}{% endif %}</td>
                         <td>
                             {% if entry.status == 'Posted' %}
                             <span class="badge bg-success">Posted</span>

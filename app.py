@@ -44,6 +44,19 @@ import os
 app = Flask(__name__)
 app.secret_key = os.environ.get('SESSION_SECRET', 'dev-secret-key-change-in-production')
 
+@app.template_filter('currency')
+def currency_filter(value):
+    """Format a number as currency: $ 8,750.00"""
+    try:
+        if value is None:
+            return '$ 0.00'
+        num = float(value)
+        if num < 0:
+            return '-$ {:,.2f}'.format(abs(num))
+        return '$ {:,.2f}'.format(num)
+    except (ValueError, TypeError):
+        return '$ 0.00'
+
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(product_bp)

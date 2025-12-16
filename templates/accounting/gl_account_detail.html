@@ -30,7 +30,7 @@
         <div class="card border-primary">
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Total Debits</h6>
-                <h4 class="card-title text-primary">${{ "{:,.2f}".format(summary.total_debits) }}</h4>
+                <h4 class="card-title text-primary">{{ summary.total_debits|currency }}</h4>
             </div>
         </div>
     </div>
@@ -38,7 +38,7 @@
         <div class="card border-warning">
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Total Credits</h6>
-                <h4 class="card-title text-warning">${{ "{:,.2f}".format(summary.total_credits) }}</h4>
+                <h4 class="card-title text-warning">{{ summary.total_credits|currency }}</h4>
             </div>
         </div>
     </div>
@@ -47,7 +47,7 @@
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Net Change</h6>
                 <h4 class="card-title {% if summary.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    ${{ "{:,.2f}".format(summary.net_change) }}
+                    {{ summary.net_change|currency }}
                 </h4>
             </div>
         </div>
@@ -224,21 +224,21 @@
                         </td>
                         <td class="text-end">
                             {% if trans.debit > 0 %}
-                                <strong class="text-primary">${{ "{:,.2f}".format(trans.debit) }}</strong>
+                                <strong class="text-primary">{{ trans.debit|currency }}</strong>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td class="text-end">
                             {% if trans.credit > 0 %}
-                                <strong class="text-warning">${{ "{:,.2f}".format(trans.credit) }}</strong>
+                                <strong class="text-warning">{{ trans.credit|currency }}</strong>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td class="text-end">
                             <strong {% if trans.running_balance >= 0 %}class="text-success"{% else %}class="text-danger"{% endif %}>
-                                ${{ "{:,.2f}".format(trans.running_balance) }}
+                                {{ trans.running_balance|currency }}
                             </strong>
                         </td>
                         <td>
@@ -253,10 +253,10 @@
                 <tfoot class="table-light">
                     <tr class="fw-bold">
                         <td colspan="5" class="text-end">Totals:</td>
-                        <td class="text-end text-primary">${{ "{:,.2f}".format(summary.total_debits) }}</td>
-                        <td class="text-end text-warning">${{ "{:,.2f}".format(summary.total_credits) }}</td>
+                        <td class="text-end text-primary">{{ summary.total_debits|currency }}</td>
+                        <td class="text-end text-warning">{{ summary.total_credits|currency }}</td>
                         <td class="text-end {% if summary.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            ${{ "{:,.2f}".format(summary.net_change) }}
+                            {{ summary.net_change|currency }}
                         </td>
                         <td></td>
                     </tr>

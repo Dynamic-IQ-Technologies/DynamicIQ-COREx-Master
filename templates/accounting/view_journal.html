@@ -59,8 +59,8 @@
             <div class="card-body">
                 {% set total_debit = lines|sum(attribute='debit') %}
                 {% set total_credit = lines|sum(attribute='credit') %}
-                <p><strong>Total Debit:</strong> ${{ "%.2f"|format(total_debit) }}</p>
-                <p><strong>Total Credit:</strong> ${{ "%.2f"|format(total_credit) }}</p>
+                <p><strong>Total Debit:</strong> {{ total_debit|currency }}</p>
+                <p><strong>Total Credit:</strong> {{ total_credit|currency }}</p>
                 <p><strong>Balance:</strong> 
                     {% if (total_debit - total_credit)|abs < 0.01 %}
                     <span class="text-success">Balanced</span>
@@ -95,14 +95,14 @@
                         <td><strong>{{ line.account_code }}</strong></td>
                         <td>{{ line.account_name }}</td>
                         <td>{{ line.description or '-' }}</td>
-                        <td class="text-end">{% if line.debit > 0 %}${{ "%.2f"|format(line.debit) }}{% endif %}</td>
-                        <td class="text-end">{% if line.credit > 0 %}${{ "%.2f"|format(line.credit) }}{% endif %}</td>
+                        <td class="text-end">{% if line.debit > 0 %}{{ line.debit|currency }}{% endif %}</td>
+                        <td class="text-end">{% if line.credit > 0 %}{{ line.credit|currency }}{% endif %}</td>
                     </tr>
                     {% endfor %}
                     <tr class="table-active">
                         <td colspan="3" class="text-end"><strong>Total:</strong></td>
-                        <td class="text-end"><strong>${{ "%.2f"|format(total_debit) }}</strong></td>
-                        <td class="text-end"><strong>${{ "%.2f"|format(total_credit) }}</strong></td>
+                        <td class="text-end"><strong>{{ total_debit|currency }}</strong></td>
+                        <td class="text-end"><strong>{{ total_credit|currency }}</strong></td>
                     </tr>
                 </tbody>
             </table>
