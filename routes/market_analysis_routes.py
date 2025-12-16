@@ -896,3 +896,79 @@ def delete_analysis(source_id):
         conn.close()
     
     return redirect(url_for('market_analysis_routes.dashboard'))
+
+@market_analysis_bp.route('/market-analysis/add-capabilities/<int:source_id>', methods=['POST'])
+def add_capabilities_from_analysis(source_id):
+    """Add selected capability gaps as new MRO Capabilities"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    selected_ids = request.form.get('selected_ids', '')
+    if not selected_ids:
+        flash('No items selected', 'warning')
+        return redirect(url_for('market_analysis_routes.view_results', source_id=source_id))
+    
+    match_ids = [int(id) for id in selected_ids.split(',') if id.strip()]
+    
+    if not match_ids:
+        flash('No valid items selected', 'warning')
+        return redirect(url_for('market_analysis_routes.view_results', source_id=source_id))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        added_count = 0
+        skipped_count = 0
+        
+        for match_id in match_ids:
+            match_data = conn.execute('''
+                SELECT cm.id, fp.part_number, fp.description, fp.criticality,
+                       afa.aircraft_model
+                FROM capability_matches cm
+                JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
+                JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
+                WHERE cm.id = ? AND cm.match_score = 'No Match'
+            ''', (match_id,)).fetchone()
+            
+            if not match_data:
+                continue
+            
+            part_number = match_data['part_number']
+            description = match_data['description'] or 'MRO Capability'
+            aircraft = match_data['aircraft_model'] or ''
+            
+            existing = conn.execute('''
+                SELECT id FROM mro_capabilities WHERE part_number = ?
+            ''', (part_number,)).fetchone()
+            
+            if existing:
+                skipped_count += 1
+                continue
+            
+            cap_code = f"CAP-{part_number[:10].replace('-', '').replace(' ', '')}"
+            
+            conn.execute('''
+                INSERT INTO mro_capabilities 
+                (capability_code, part_number, capability_name, category, status, created_at)
+                VALUES (?, ?, ?, ?, 'Active', datetime('now'))
+            ''', (cap_code, part_number, description, aircraft))
+            
+            added_count += 1
+        
+        conn.commit()
+        
+        if added_count > 0:
+            flash(f'Successfully added {added_count} new MRO Capabilities!', 'success')
+        if skipped_count > 0:
+            flash(f'{skipped_count} items skipped (already exist)', 'info')
+        if added_count == 0 and skipped_count == 0:
+            flash('No capabilities were added', 'warning')
+            
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error adding capabilities: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('market_analysis_routes.view_results', source_id=source_id))

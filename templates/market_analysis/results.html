@@ -210,24 +210,73 @@
         </div>
     </div>
 
-    <!-- Visualizations -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">Match Score Distribution</h5>
+    <!-- Executive Summary -->
+    {% if stats.total > 0 or has_match_run %}
+    <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #0d6efd !important;">
+        <div class="card-header bg-white py-2">
+            <h6 class="mb-0"><i class="bi bi-clipboard-data me-2 text-primary"></i>Executive Summary</h6>
+        </div>
+        <div class="card-body py-3">
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="mb-2 small">
+                        {% if stats.high and stats.high > 0 %}
+                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                        <strong>{{ stats.high }} high-priority matches</strong> identified - immediate revenue opportunities with existing capabilities.
+                        {% else %}
+                        <i class="bi bi-info-circle-fill text-info me-1"></i>
+                        No high-priority matches found with current capabilities.
+                        {% endif %}
+                    </p>
+                    <p class="mb-2 small">
+                        {% if stats.no_match and stats.no_match > 0 %}
+                        <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+                        <strong>{{ stats.no_match }} capability gaps</strong> detected - consider adding these capabilities to expand market reach.
+                        {% else %}
+                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                        Full capability coverage - no gaps detected.
+                        {% endif %}
+                    </p>
+                    <p class="mb-0 small">
+                        {% if stats.medium and stats.medium > 0 %}
+                        <i class="bi bi-arrow-up-circle-fill text-primary me-1"></i>
+                        <strong>{{ stats.medium }} medium matches</strong> - potential for capability enhancement or certification upgrades.
+                        {% endif %}
+                    </p>
                 </div>
-                <div class="card-body">
+                <div class="col-md-4 text-end">
+                    <div class="small text-muted">
+                        <strong>Coverage Rate:</strong>
+                        {% if stats.total > 0 %}
+                        {{ ((stats.high|default(0) + stats.medium|default(0)) / stats.total * 100)|round(1) }}%
+                        {% else %}
+                        0%
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Compact Visualizations -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-2">
+                    <h6 class="mb-0 small">Match Distribution</h6>
+                </div>
+                <div class="card-body p-2" style="height: 180px;">
                     <canvas id="scoreChart"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">Top Airlines by High Matches</h5>
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-2">
+                    <h6 class="mb-0 small">Top Airlines by High Matches</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-2" style="height: 180px;">
                     <canvas id="airlineChart"></canvas>
                 </div>
             </div>
@@ -294,35 +343,61 @@
                 </div>
             </form>
 
+            <!-- Add Capabilities Form (hidden) -->
+            <form id="addCapabilitiesForm" method="POST" action="{{ url_for('market_analysis_routes.add_capabilities_from_analysis', source_id=source.id) }}">
+                <input type="hidden" id="selectedCapabilityIds" name="selected_ids" value="">
+            </form>
+            
             <!-- Results Table -->
             {% if results %}
+            {% set no_match_results = results | selectattr('match_score', 'equalto', 'No Match') | list %}
+            {% if no_match_results %}
+            <div class="alert alert-info py-2 mb-3 d-flex justify-content-between align-items-center">
+                <small>
+                    <i class="bi bi-lightbulb me-1"></i>
+                    Select "No Match" items below to add them as new MRO Capabilities.
+                </small>
+                <button type="button" id="addCapabilitiesBtn" class="btn btn-sm btn-primary" onclick="addSelectedCapabilities()" disabled>
+                    <i class="bi bi-plus-circle me-1"></i>Add 0 Selected as Capabilities
+                </button>
+            </div>
+            {% endif %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover table-sm">
                     <thead class="table-light">
                         <tr>
+                            <th style="width: 30px;">
+                                <input type="checkbox" class="form-check-input" onchange="toggleAllCapabilities(this)" title="Select all No Match items">
+                            </th>
                             <th>Airline</th>
                             <th>Region</th>
                             <th>Aircraft</th>
                             <th>Part Number</th>
-                            <th>Part Description</th>
-                            <th>Match Score</th>
+                            <th>Description</th>
+                            <th>Score</th>
                             <th>Capability</th>
-                            <th>Recommendation</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for result in results %}
                         <tr>
-                            <td>{{ result.airline_name }}</td>
-                            <td>{{ result.region or '-' }}</td>
-                            <td>{{ result.aircraft_model }}</td>
-                            <td><strong>{{ result.part_number }}</strong></td>
-                            <td>{{ result.part_description or '-' }}</td>
+                            <td>
+                                {% if result.match_score == 'No Match' %}
+                                <input type="checkbox" class="form-check-input capability-checkbox" 
+                                       value="{{ result.id }}" onchange="updateAddCapabilitiesBtn()">
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ result.airline_name }}</td>
+                            <td class="small">{{ result.region or '-' }}</td>
+                            <td class="small">{{ result.aircraft_model }}</td>
+                            <td><strong class="small">{{ result.part_number }}</strong></td>
+                            <td class="small">{{ result.part_description or '-' }}</td>
                             <td>
                                 {% if result.match_score == 'High' %}
                                 <span class="badge bg-success">High</span>
                                 {% elif result.match_score == 'Medium' %}
-                                <span class="badge bg-warning">Medium</span>
+                                <span class="badge bg-warning text-dark">Medium</span>
                                 {% elif result.match_score == 'Low' %}
                                 <span class="badge bg-info">Low</span>
                                 {% else %}
@@ -364,7 +439,7 @@
 fetch('{{ url_for("market_analysis_routes.chart_data", source_id=source.id) }}')
     .then(response => response.json())
     .then(data => {
-        // Score Distribution Pie Chart
+        // Score Distribution Doughnut Chart - Compact
         const scoreLabels = data.score_distribution.map(item => item.match_score);
         const scoreCounts = data.score_distribution.map(item => item.count);
         
@@ -375,26 +450,24 @@ fetch('{{ url_for("market_analysis_routes.chart_data", source_id=source.id) }}')
                 labels: scoreLabels,
                 datasets: [{
                     data: scoreCounts,
-                    backgroundColor: [
-                        '#28a745',  // High - Green
-                        '#ffc107',  // Medium - Yellow
-                        '#17a2b8',  // Low - Teal
-                        '#6c757d'   // No Match - Gray
-                    ]
+                    backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#9ca3af'],
+                    borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
                 plugins: {
                     legend: {
-                        position: 'bottom'
+                        position: 'right',
+                        labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
                     }
                 }
             }
         });
 
-        // Top Airlines Bar Chart
+        // Top Airlines Horizontal Bar Chart - Compact
         const airlineLabels = data.top_airlines.map(item => item.airline_name);
         const airlineCounts = data.top_airlines.map(item => item.high_matches);
         
@@ -406,27 +479,51 @@ fetch('{{ url_for("market_analysis_routes.chart_data", source_id=source.id) }}')
                 datasets: [{
                     label: 'High Matches',
                     data: airlineCounts,
-                    backgroundColor: '#4a90e2'
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 4,
+                    barThickness: 16
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { display: false }
                 },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
+                    x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { font: { size: 10 } }, grid: { display: false } }
                 }
             }
         });
     });
+
+// Capability selection functionality
+function toggleAllCapabilities(source) {
+    const checkboxes = document.querySelectorAll('.capability-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+    updateAddCapabilitiesBtn();
+}
+
+function updateAddCapabilitiesBtn() {
+    const checked = document.querySelectorAll('.capability-checkbox:checked');
+    const btn = document.getElementById('addCapabilitiesBtn');
+    if (btn) {
+        btn.disabled = checked.length === 0;
+        btn.innerHTML = `<i class="bi bi-plus-circle me-1"></i>Add ${checked.length} Selected as Capabilities`;
+    }
+}
+
+function addSelectedCapabilities() {
+    const checked = document.querySelectorAll('.capability-checkbox:checked');
+    const selectedIds = Array.from(checked).map(cb => cb.value);
+    if (selectedIds.length === 0) {
+        alert('Please select at least one capability gap to add.');
+        return;
+    }
+    document.getElementById('selectedCapabilityIds').value = selectedIds.join(',');
+    document.getElementById('addCapabilitiesForm').submit();
+}
 </script>
 {% endblock %}
