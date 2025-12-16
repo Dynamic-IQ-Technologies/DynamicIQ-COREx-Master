@@ -14,6 +14,8 @@ The system features a responsive and modern user interface built with Bootstrap 
 
 **Table Sorting & Filtering**: All list pages include client-side sortable columns. Click any column header to sort by that column (ascending/descending). The reusable `TableUtils` module (`static/js/table-utils.js`) supports string, number, currency, and date sorting with proper parsing of formatted values. Several pages also include quick search filters for instant row filtering.
 
+**Currency Formatting**: All monetary values throughout the application use a centralized Jinja2 `|currency` filter defined in `app.py`. This ensures consistent professional formatting with dollar sign, thousands separators, and two decimal places (e.g., `$ 8,750.00`). Negative values display as `-$ 8,750.00`.
+
 ### Technical Implementations
 
 The backend is developed with Flask using Blueprints and an SQLite database (`mrp.db`). It implements session-based authentication and comprehensive role-based access control (Admin, Planner, Production Staff, Procurement, Accountant). The `MRPEngine` handles core MRP logic like recursive BOM explosion and automatic sequential numbering. An Audit Trail System logs all CUD operations. The frontend uses Jinja2 for templating.
