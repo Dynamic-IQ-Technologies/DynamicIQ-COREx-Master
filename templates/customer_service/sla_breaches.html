@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}SLA Breaches - Customer Service{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">SLA Breach Monitor</h2>
+            <p class="text-muted mb-0">Orders at risk of missing service targets</p>
+        </div>
+        <a href="{{ url_for('customer_service.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm" style="border-top: 3px solid var(--danger) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small text-uppercase">Critical (>72h)</p>
+                            <h3 class="mb-0 fw-bold text-danger">{{ critical_count }}</h3>
+                        </div>
+                        <div class="icon-chip bg-danger bg-opacity-10 text-danger rounded-circle p-2">
+                            <i class="bi bi-exclamation-octagon fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm" style="border-top: 3px solid var(--warning) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small text-uppercase">Warning (48-72h)</p>
+                            <h3 class="mb-0 fw-bold text-warning">{{ warning_count }}</h3>
+                        </div>
+                        <div class="icon-chip bg-warning bg-opacity-10 text-warning rounded-circle p-2">
+                            <i class="bi bi-exclamation-triangle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if at_risk_orders %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-uppercase small">Order</th>
+                            <th class="text-uppercase small">Customer</th>
+                            <th class="text-uppercase small">Status</th>
+                            <th class="text-uppercase small">Order Date</th>
+                            <th class="text-uppercase small">Hours Open</th>
+                            <th class="text-uppercase small">SLA Status</th>
+                            <th class="text-uppercase small">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in at_risk_orders %}
+                        <tr class="{{ 'table-danger' if order.sla_status == 'Critical' else 'table-warning' if order.sla_status == 'Warning' else '' }}">
+                            <td>
+                                <a href="{{ url_for('customer_service.order_detail', order_id=order.id) }}" class="fw-medium">
+                                    {{ order.so_number }}
+                                </a>
+                            </td>
+                            <td>{{ order.customer_name }}</td>
+                            <td><span class="badge bg-secondary">{{ order.status }}</span></td>
+                            <td>{{ order.order_date }}</td>
+                            <td>{{ order.total_hours|int }}h</td>
+                            <td>
+                                {% if order.sla_status == 'Critical' %}
+                                <span class="badge bg-danger">Critical</span>
+                                {% elif order.sla_status == 'Warning' %}
+                                <span class="badge bg-warning text-dark">Warning</span>
+                                {% else %}
+                                <span class="badge bg-info">Normal</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('customer_service.escalate_order', order_id=order.id) }}" 
+                                   class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-exclamation-triangle me-1"></i> Escalate
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-check-circle text-success fs-1"></i>
+                <p class="text-muted mt-2 mb-0">No orders at risk of SLA breach</p>
+                <p class="text-muted small">All orders are within service level targets</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

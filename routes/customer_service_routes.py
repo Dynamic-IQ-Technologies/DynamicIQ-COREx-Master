@@ -129,6 +129,11 @@ def dashboard():
         WHERE follow_up_required = 1 AND follow_up_completed = 0
     ''').fetchone()[0]
     
+    open_escalations = conn.execute('''
+        SELECT COUNT(*) FROM order_escalations 
+        WHERE status IN ('Open', 'In Progress')
+    ''').fetchone()[0]
+    
     recent_activity = conn.execute('''
         SELECT oal.*, so.so_number, u.username as created_by_name
         FROM order_activity_log oal
@@ -151,6 +156,7 @@ def dashboard():
                          pending_confirmation=pending_confirmation,
                          overdue_count=overdue_count,
                          pending_followups=pending_followups,
+                         open_escalations=open_escalations,
                          recent_activity=recent_activity)
 
 
@@ -275,6 +281,15 @@ def order_detail(order_id):
         LIMIT 20
     ''', (order_id,)).fetchall()
     
+    escalations = conn.execute('''
+        SELECT e.*, u1.username as escalated_by_name, u2.username as assigned_to_name
+        FROM order_escalations e
+        JOIN users u1 ON e.escalated_by = u1.id
+        LEFT JOIN users u2 ON e.assigned_to = u2.id
+        WHERE e.sales_order_id = ?
+        ORDER BY e.escalated_at DESC
+    ''', (order_id,)).fetchall()
+    
     conn.close()
     
     return render_template('customer_service/order_detail.html',
@@ -283,7 +298,8 @@ def order_detail(order_id):
                          linked_work_orders=linked_work_orders,
                          stages=stages,
                          notes=notes,
-                         activity_log=activity_log)
+                         activity_log=activity_log,
+                         escalations=escalations)
 
 
 @customer_service_bp.route('/customer-service/orders/<int:order_id>/update-stage', methods=['POST'])
@@ -866,3 +882,398 @@ def analytics():
                          top_customers=top_customers,
                          stage_durations=stage_durations,
                          recent_notes=recent_notes)
+
+
+# ==================== PHASE 4: ESCALATION MANAGEMENT ====================
+
+@customer_service_bp.route('/customer-service/escalations')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def escalations_list():
+    """List all escalations with filtering"""
+    db = Database()
+    conn = db.get_connection()
+    
+    status_filter = request.args.get('status', '')
+    priority_filter = request.args.get('priority', '')
+    
+    query = '''
+        SELECT e.*, so.so_number, c.name as customer_name,
+               u1.username as escalated_by_name, u2.username as assigned_to_name,
+               u3.username as resolved_by_name
+        FROM order_escalations e
+        JOIN sales_orders so ON e.sales_order_id = so.id
+        JOIN customers c ON so.customer_id = c.id
+        JOIN users u1 ON e.escalated_by = u1.id
+        LEFT JOIN users u2 ON e.assigned_to = u2.id
+        LEFT JOIN users u3 ON e.resolved_by = u3.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if status_filter:
+        query += ' AND e.status = ?'
+        params.append(status_filter)
+    if priority_filter:
+        query += ' AND e.priority = ?'
+        params.append(priority_filter)
+    
+    query += ' ORDER BY e.escalated_at DESC'
+    
+    escalations = conn.execute(query, params).fetchall()
+    
+    open_count = conn.execute("SELECT COUNT(*) FROM order_escalations WHERE status = 'Open'").fetchone()[0]
+    in_progress_count = conn.execute("SELECT COUNT(*) FROM order_escalations WHERE status = 'In Progress'").fetchone()[0]
+    resolved_today = conn.execute('''
+        SELECT COUNT(*) FROM order_escalations 
+        WHERE status = 'Resolved' AND DATE(resolved_at) = DATE('now')
+    ''').fetchone()[0]
+    
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
+    
+    conn.close()
+    
+    return render_template('customer_service/escalations.html',
+                         escalations=escalations,
+                         users=users,
+                         open_count=open_count,
+                         in_progress_count=in_progress_count,
+                         resolved_today=resolved_today,
+                         filters={'status': status_filter, 'priority': priority_filter})
+
+
+@customer_service_bp.route('/customer-service/orders/<int:order_id>/escalate', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def escalate_order(order_id):
+    """Create an escalation for an order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    order = conn.execute('''
+        SELECT so.*, c.name as customer_name
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        WHERE so.id = ?
+    ''', (order_id,)).fetchone()
+    
+    if not order:
+        conn.close()
+        flash('Order not found', 'danger')
+        return redirect(url_for('customer_service.orders_list'))
+    
+    if request.method == 'POST':
+        escalation_reason = request.form.get('escalation_reason')
+        priority = request.form.get('priority', 'High')
+        assigned_to = request.form.get('assigned_to') or None
+        target_date = request.form.get('target_resolution_date') or None
+        escalation_level = int(request.form.get('escalation_level', 1))
+        
+        try:
+            conn.execute('''
+                INSERT INTO order_escalations 
+                (sales_order_id, escalation_level, escalation_reason, priority, 
+                 assigned_to, escalated_by, target_resolution_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (order_id, escalation_level, escalation_reason, priority,
+                  assigned_to, session.get('user_id'), target_date))
+            
+            log_order_activity(conn, order_id, 'Escalation', 
+                             f'Order escalated: {priority} priority - {escalation_reason[:50]}...',
+                             user_id=session.get('user_id'))
+            
+            conn.commit()
+            flash(f'Escalation created for order {order["so_number"]}', 'success')
+            conn.close()
+            return redirect(url_for('customer_service.order_detail', order_id=order_id))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error creating escalation: {str(e)}', 'danger')
+    
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
+    conn.close()
+    
+    return render_template('customer_service/escalate_order.html',
+                         order=order,
+                         users=users)
+
+
+@customer_service_bp.route('/customer-service/escalations/<int:escalation_id>/update', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def update_escalation(escalation_id):
+    """Update escalation status or assignment"""
+    db = Database()
+    conn = db.get_connection()
+    
+    escalation = conn.execute('SELECT * FROM order_escalations WHERE id = ?', (escalation_id,)).fetchone()
+    
+    if not escalation:
+        conn.close()
+        flash('Escalation not found', 'danger')
+        return redirect(url_for('customer_service.escalations_list'))
+    
+    new_status = request.form.get('status')
+    assigned_to = request.form.get('assigned_to') or None
+    resolution_notes = request.form.get('resolution_notes', '')
+    
+    try:
+        if new_status == 'Resolved':
+            conn.execute('''
+                UPDATE order_escalations 
+                SET status = ?, assigned_to = ?, resolution_notes = ?,
+                    resolved_at = CURRENT_TIMESTAMP, resolved_by = ?
+                WHERE id = ?
+            ''', (new_status, assigned_to, resolution_notes, session.get('user_id'), escalation_id))
+            
+            log_order_activity(conn, escalation['sales_order_id'], 'Escalation Resolved', 
+                             f'Escalation resolved: {resolution_notes[:50]}...' if resolution_notes else 'Escalation resolved',
+                             user_id=session.get('user_id'))
+        else:
+            conn.execute('''
+                UPDATE order_escalations 
+                SET status = ?, assigned_to = ?
+                WHERE id = ?
+            ''', (new_status, assigned_to, escalation_id))
+        
+        conn.commit()
+        flash('Escalation updated successfully', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating escalation: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.escalations_list'))
+
+
+# ==================== PHASE 4: SLA CONFIGURATION ====================
+
+@customer_service_bp.route('/customer-service/sla')
+@login_required
+@role_required('Admin')
+def sla_list():
+    """List all SLA configurations"""
+    db = Database()
+    conn = db.get_connection()
+    
+    slas = conn.execute('''
+        SELECT s.*, u.username as created_by_name
+        FROM sla_configurations s
+        LEFT JOIN users u ON s.created_by = u.id
+        ORDER BY s.sla_name
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('customer_service/sla_list.html', slas=slas)
+
+
+@customer_service_bp.route('/customer-service/sla/add', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin')
+def add_sla():
+    """Add a new SLA configuration"""
+    if request.method == 'POST':
+        db = Database()
+        conn = db.get_connection()
+        
+        sla_name = request.form.get('sla_name')
+        order_type = request.form.get('order_type') or None
+        customer_tier = request.form.get('customer_tier') or None
+        response_time = int(request.form.get('response_time_hours', 24))
+        resolution_time = int(request.form.get('resolution_time_hours', 72))
+        escalation_time = int(request.form.get('escalation_time_hours', 48))
+        
+        try:
+            conn.execute('''
+                INSERT INTO sla_configurations 
+                (sla_name, order_type, customer_tier, response_time_hours, 
+                 resolution_time_hours, escalation_time_hours, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (sla_name, order_type, customer_tier, response_time,
+                  resolution_time, escalation_time, session.get('user_id')))
+            
+            conn.commit()
+            flash(f'SLA "{sla_name}" created successfully', 'success')
+            conn.close()
+            return redirect(url_for('customer_service.sla_list'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error creating SLA: {str(e)}', 'danger')
+            conn.close()
+    
+    return render_template('customer_service/add_sla.html')
+
+
+@customer_service_bp.route('/customer-service/sla/<int:sla_id>/toggle', methods=['POST'])
+@login_required
+@role_required('Admin')
+def toggle_sla(sla_id):
+    """Toggle SLA active status"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('''
+            UPDATE sla_configurations 
+            SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+            WHERE id = ?
+        ''', (sla_id,))
+        conn.commit()
+        flash('SLA status updated', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating SLA: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.sla_list'))
+
+
+@customer_service_bp.route('/customer-service/sla-breaches')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def sla_breaches():
+    """View orders at risk of SLA breach"""
+    db = Database()
+    conn = db.get_connection()
+    
+    at_risk_orders = conn.execute('''
+        SELECT so.*, c.name as customer_name,
+               JULIANDAY(DATE('now')) - JULIANDAY(so.order_date) as hours_since_order,
+               (JULIANDAY(DATE('now')) - JULIANDAY(so.order_date)) * 24 as total_hours,
+               CASE 
+                   WHEN (JULIANDAY(DATE('now')) - JULIANDAY(so.order_date)) * 24 > 72 THEN 'Critical'
+                   WHEN (JULIANDAY(DATE('now')) - JULIANDAY(so.order_date)) * 24 > 48 THEN 'Warning'
+                   ELSE 'Normal'
+               END as sla_status
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        WHERE so.status NOT IN ('Completed', 'Shipped', 'Closed', 'Cancelled')
+          AND (JULIANDAY(DATE('now')) - JULIANDAY(so.order_date)) * 24 > 24
+        ORDER BY so.order_date ASC
+    ''').fetchall()
+    
+    critical_count = len([o for o in at_risk_orders if o['sla_status'] == 'Critical'])
+    warning_count = len([o for o in at_risk_orders if o['sla_status'] == 'Warning'])
+    
+    conn.close()
+    
+    return render_template('customer_service/sla_breaches.html',
+                         at_risk_orders=at_risk_orders,
+                         critical_count=critical_count,
+                         warning_count=warning_count)
+
+
+# ==================== PHASE 4: CUSTOMER FEEDBACK ====================
+
+@customer_service_bp.route('/customer-service/feedback')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def feedback_list():
+    """List all customer feedback"""
+    db = Database()
+    conn = db.get_connection()
+    
+    rating_filter = request.args.get('rating', '')
+    
+    query = '''
+        SELECT f.*, c.name as customer_name, so.so_number, wo.wo_number
+        FROM customer_feedback f
+        JOIN customers c ON f.customer_id = c.id
+        LEFT JOIN sales_orders so ON f.sales_order_id = so.id
+        LEFT JOIN work_orders wo ON f.work_order_id = wo.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if rating_filter:
+        query += ' AND f.rating = ?'
+        params.append(int(rating_filter))
+    
+    query += ' ORDER BY f.submitted_at DESC'
+    
+    feedback = conn.execute(query, params).fetchall()
+    
+    avg_rating = conn.execute('SELECT AVG(rating) FROM customer_feedback').fetchone()[0] or 0
+    total_feedback = conn.execute('SELECT COUNT(*) FROM customer_feedback').fetchone()[0]
+    recommend_rate = conn.execute('''
+        SELECT COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM customer_feedback), 0) 
+        FROM customer_feedback WHERE would_recommend = 1
+    ''').fetchone()[0] or 0
+    
+    rating_distribution_rows = conn.execute('''
+        SELECT rating, COUNT(*) as count
+        FROM customer_feedback
+        GROUP BY rating
+        ORDER BY rating DESC
+    ''').fetchall()
+    rating_distribution = [{'rating': r['rating'], 'count': r['count']} for r in rating_distribution_rows]
+    
+    conn.close()
+    
+    return render_template('customer_service/feedback_list.html',
+                         feedback=feedback,
+                         avg_rating=round(avg_rating, 1),
+                         total_feedback=total_feedback,
+                         recommend_rate=round(recommend_rate, 1),
+                         rating_distribution=rating_distribution,
+                         rating_filter=rating_filter)
+
+
+@customer_service_bp.route('/customer-service/feedback/add', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def add_feedback():
+    """Record new customer feedback"""
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        customer_id = request.form.get('customer_id')
+        sales_order_id = request.form.get('sales_order_id') or None
+        work_order_id = request.form.get('work_order_id') or None
+        rating = int(request.form.get('rating', 5))
+        feedback_type = request.form.get('feedback_type', 'Order Completion')
+        comments = request.form.get('comments', '')
+        would_recommend = 1 if request.form.get('would_recommend') else 0
+        follow_up = 1 if request.form.get('follow_up_required') else 0
+        
+        try:
+            conn.execute('''
+                INSERT INTO customer_feedback 
+                (sales_order_id, work_order_id, customer_id, rating, feedback_type,
+                 comments, would_recommend, follow_up_required)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (sales_order_id, work_order_id, customer_id, rating, feedback_type,
+                  comments, would_recommend, follow_up))
+            
+            if sales_order_id:
+                log_order_activity(conn, sales_order_id, 'Feedback Received', 
+                                 f'Customer feedback: {rating}/5 stars',
+                                 user_id=session.get('user_id'))
+            
+            conn.commit()
+            flash('Customer feedback recorded', 'success')
+            conn.close()
+            return redirect(url_for('customer_service.feedback_list'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error recording feedback: {str(e)}', 'danger')
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    recent_orders = conn.execute('''
+        SELECT so.id, so.so_number, c.name as customer_name
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        WHERE so.status IN ('Completed', 'Shipped', 'Closed')
+        ORDER BY so.order_date DESC
+        LIMIT 50
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('customer_service/add_feedback.html',
+                         customers=customers,
+                         recent_orders=recent_orders)

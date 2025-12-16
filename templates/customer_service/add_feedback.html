@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Record Feedback - Customer Service{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">Record Customer Feedback</h2>
+                    <p class="text-muted mb-0">Capture customer satisfaction data</p>
+                </div>
+                <a href="{{ url_for('customer_service.feedback_list') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Feedback
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" class="form-select" required>
+                                    <option value="">-- Select Customer --</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Feedback Type</label>
+                                <select name="feedback_type" class="form-select">
+                                    <option value="Order Completion">Order Completion</option>
+                                    <option value="Service Quality">Service Quality</option>
+                                    <option value="Communication">Communication</option>
+                                    <option value="Delivery">Delivery</option>
+                                    <option value="General">General</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Related Sales Order</label>
+                                <select name="sales_order_id" class="form-select">
+                                    <option value="">-- None --</option>
+                                    {% for order in recent_orders %}
+                                    <option value="{{ order.id }}">{{ order.so_number }} - {{ order.customer_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Related Work Order</label>
+                                <input type="text" name="work_order_id" class="form-control" placeholder="Work Order ID (optional)">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Rating <span class="text-danger">*</span></label>
+                                <div class="d-flex gap-3">
+                                    {% for i in range(1, 6) %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="rating" 
+                                               id="rating{{ i }}" value="{{ i }}" {{ 'checked' if i == 5 }}>
+                                        <label class="form-check-label" for="rating{{ i }}">
+                                            {% for j in range(i) %}
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                            {% endfor %}
+                                            {% for j in range(5-i) %}
+                                            <i class="bi bi-star text-warning"></i>
+                                            {% endfor %}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Comments</label>
+                                <textarea name="comments" class="form-control" rows="4" 
+                                          placeholder="Customer's feedback comments..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="would_recommend" 
+                                           id="would_recommend" checked>
+                                    <label class="form-check-label" for="would_recommend">
+                                        Customer would recommend us
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="follow_up_required" 
+                                           id="follow_up_required">
+                                    <label class="form-check-label" for="follow_up_required">
+                                        Follow-up required
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <hr>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg me-1"></i> Record Feedback
+                                </button>
+                                <a href="{{ url_for('customer_service.feedback_list') }}" class="btn btn-outline-secondary ms-2">
+                                    Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

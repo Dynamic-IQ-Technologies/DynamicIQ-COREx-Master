@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Escalate Order - Customer Service{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">Escalate Order</h2>
+                    <p class="text-muted mb-0">Create escalation for {{ order.so_number }}</p>
+                </div>
+                <a href="{{ url_for('customer_service.order_detail', order_id=order.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Order
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Order Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Order Number:</strong> {{ order.so_number }}</p>
+                            <p class="mb-1"><strong>Customer:</strong> {{ order.customer_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Status:</strong> <span class="badge bg-secondary">{{ order.status }}</span></p>
+                            <p class="mb-1"><strong>Order Date:</strong> {{ order.order_date }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Escalation Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Priority <span class="text-danger">*</span></label>
+                                <select name="priority" class="form-select" required>
+                                    <option value="Critical">Critical</option>
+                                    <option value="High" selected>High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Escalation Level</label>
+                                <select name="escalation_level" class="form-select">
+                                    <option value="1" selected>Level 1 - Supervisor</option>
+                                    <option value="2">Level 2 - Manager</option>
+                                    <option value="3">Level 3 - Director</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Assign To</label>
+                                <select name="assigned_to" class="form-select">
+                                    <option value="">-- Select User --</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Target Resolution Date</label>
+                                <input type="date" name="target_resolution_date" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Escalation Reason <span class="text-danger">*</span></label>
+                                <textarea name="escalation_reason" class="form-control" rows="4" required
+                                          placeholder="Describe the reason for escalation..."></textarea>
+                            </div>
+                            <div class="col-12">
+                                <hr>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-exclamation-triangle me-1"></i> Create Escalation
+                                </button>
+                                <a href="{{ url_for('customer_service.order_detail', order_id=order.id) }}" class="btn btn-outline-secondary ms-2">
+                                    Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

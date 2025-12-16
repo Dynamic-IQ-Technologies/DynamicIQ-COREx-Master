@@ -827,6 +827,72 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_notes_so ON order_notes(sales_order_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_activity_so ON order_activity_log(sales_order_id)')
         
+        # Phase 4: Escalation Management tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS order_escalations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sales_order_id INTEGER NOT NULL,
+                escalation_level INTEGER DEFAULT 1,
+                escalation_reason TEXT NOT NULL,
+                priority TEXT DEFAULT 'High',
+                assigned_to INTEGER,
+                escalated_by INTEGER NOT NULL,
+                escalated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                target_resolution_date DATE,
+                resolved_at TIMESTAMP,
+                resolved_by INTEGER,
+                resolution_notes TEXT,
+                status TEXT DEFAULT 'Open',
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (assigned_to) REFERENCES users(id),
+                FOREIGN KEY (escalated_by) REFERENCES users(id),
+                FOREIGN KEY (resolved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # SLA Configuration table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sla_configurations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sla_name TEXT NOT NULL,
+                order_type TEXT,
+                customer_tier TEXT,
+                response_time_hours INTEGER DEFAULT 24,
+                resolution_time_hours INTEGER DEFAULT 72,
+                escalation_time_hours INTEGER DEFAULT 48,
+                is_active INTEGER DEFAULT 1,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Customer Feedback/Satisfaction table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sales_order_id INTEGER,
+                work_order_id INTEGER,
+                customer_id INTEGER NOT NULL,
+                rating INTEGER NOT NULL,
+                feedback_type TEXT DEFAULT 'Order Completion',
+                comments TEXT,
+                would_recommend INTEGER DEFAULT 1,
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                follow_up_required INTEGER DEFAULT 0,
+                follow_up_notes TEXT,
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (customer_id) REFERENCES customers(id)
+            )
+        ''')
+        
+        # Create indexes for Phase 4 tables
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_escalation_so ON order_escalations(sales_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_escalation_status ON order_escalations(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_customer ON customer_feedback(customer_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_rating ON customer_feedback(rating)')
+        
         # Create labor_issuance table for time tracking
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS labor_issuance (

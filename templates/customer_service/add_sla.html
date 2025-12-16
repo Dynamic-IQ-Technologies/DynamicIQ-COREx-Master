@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Add SLA - Customer Service{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">Add SLA Configuration</h2>
+                    <p class="text-muted mb-0">Define service level agreement targets</p>
+                </div>
+                <a href="{{ url_for('customer_service.sla_list') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Back to SLAs
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">SLA Name <span class="text-danger">*</span></label>
+                                <input type="text" name="sla_name" class="form-control" required
+                                       placeholder="e.g., Standard SLA, Premium SLA">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Order Type</label>
+                                <select name="order_type" class="form-select">
+                                    <option value="">All Order Types</option>
+                                    <option value="Standard">Standard</option>
+                                    <option value="Rush">Rush</option>
+                                    <option value="Repair">Repair</option>
+                                    <option value="Warranty">Warranty</option>
+                                </select>
+                                <small class="text-muted">Leave blank to apply to all order types</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Customer Tier</label>
+                                <select name="customer_tier" class="form-select">
+                                    <option value="">All Customers</option>
+                                    <option value="Standard">Standard</option>
+                                    <option value="Premium">Premium</option>
+                                    <option value="Enterprise">Enterprise</option>
+                                    <option value="VIP">VIP</option>
+                                </select>
+                                <small class="text-muted">Leave blank to apply to all customers</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Response Time (Hours) <span class="text-danger">*</span></label>
+                                <input type="number" name="response_time_hours" class="form-control" 
+                                       value="24" min="1" required>
+                                <small class="text-muted">Time to acknowledge order</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Resolution Time (Hours) <span class="text-danger">*</span></label>
+                                <input type="number" name="resolution_time_hours" class="form-control" 
+                                       value="72" min="1" required>
+                                <small class="text-muted">Time to complete order</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Escalation Time (Hours) <span class="text-danger">*</span></label>
+                                <input type="number" name="escalation_time_hours" class="form-control" 
+                                       value="48" min="1" required>
+                                <small class="text-muted">Time before escalation</small>
+                            </div>
+                            <div class="col-12">
+                                <hr>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i> Create SLA
+                                </button>
+                                <a href="{{ url_for('customer_service.sla_list') }}" class="btn btn-outline-secondary ms-2">
+                                    Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

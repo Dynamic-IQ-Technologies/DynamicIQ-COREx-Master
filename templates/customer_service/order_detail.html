@@ -15,7 +15,7 @@
             </nav>
             <h2 class="mb-0">Order {{ order.so_number }}</h2>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             {% if order.status in ['Draft', 'Quoted', 'Pending Approval'] %}
             <form action="{{ url_for('customer_service.approve_order', order_id=order.id) }}" method="POST" class="d-inline">
                 <button type="submit" class="btn btn-success" onclick="return confirm('Approve this quote?')">
@@ -28,6 +28,9 @@
                 <i class="bi bi-plus-lg me-1"></i> Create Work Order
             </button>
             {% endif %}
+            <a href="{{ url_for('customer_service.escalate_order', order_id=order.id) }}" class="btn btn-outline-danger">
+                <i class="bi bi-exclamation-triangle me-1"></i> Escalate
+            </a>
             <a href="{{ url_for('salesorder_routes.view_salesorder', id=order.id) }}" class="btn btn-outline-primary">
                 <i class="bi bi-box-arrow-up-right me-1"></i> View Full Order
             </a>
@@ -362,6 +365,64 @@
             </div>
         </div>
     </div>
+
+    {% if escalations %}
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--danger) !important;">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Escalations</h5>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">Priority</th>
+                                    <th class="text-uppercase small">Level</th>
+                                    <th class="text-uppercase small">Reason</th>
+                                    <th class="text-uppercase small">Assigned To</th>
+                                    <th class="text-uppercase small">Status</th>
+                                    <th class="text-uppercase small">Escalated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for esc in escalations %}
+                                <tr>
+                                    <td>
+                                        {% if esc.priority == 'Critical' %}
+                                        <span class="badge bg-danger">{{ esc.priority }}</span>
+                                        {% elif esc.priority == 'High' %}
+                                        <span class="badge bg-warning text-dark">{{ esc.priority }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ esc.priority }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>Level {{ esc.escalation_level }}</td>
+                                    <td>{{ esc.escalation_reason[:60] }}{% if esc.escalation_reason|length > 60 %}...{% endif %}</td>
+                                    <td>{{ esc.assigned_to_name or 'Unassigned' }}</td>
+                                    <td>
+                                        {% if esc.status == 'Open' %}
+                                        <span class="badge bg-danger">{{ esc.status }}</span>
+                                        {% elif esc.status == 'In Progress' %}
+                                        <span class="badge bg-warning text-dark">{{ esc.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ esc.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ esc.escalated_at[:16] if esc.escalated_at else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% for stage in stages %}

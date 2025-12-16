@@ -14,17 +14,32 @@
                 <i class="bi bi-list-ul me-1"></i> Orders
             </a>
             <a href="{{ url_for('customer_service.communications_list') }}" class="btn btn-outline-info">
-                <i class="bi bi-chat-dots me-1"></i> Communications
+                <i class="bi bi-chat-dots me-1"></i> Comms
                 {% if pending_followups > 0 %}
                 <span class="badge bg-warning text-dark">{{ pending_followups }}</span>
                 {% endif %}
             </a>
-            <a href="{{ url_for('customer_service.analytics') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-graph-up me-1"></i> Analytics
+            <a href="{{ url_for('customer_service.escalations_list') }}" class="btn btn-outline-danger">
+                <i class="bi bi-exclamation-triangle me-1"></i> Escalations
+                {% if open_escalations > 0 %}
+                <span class="badge bg-danger">{{ open_escalations }}</span>
+                {% endif %}
             </a>
-            <a href="{{ url_for('customer_service.work_orders_confirmation') }}" class="btn btn-primary">
-                <i class="bi bi-check-circle me-1"></i> Confirm WOs
+            <a href="{{ url_for('customer_service.feedback_list') }}" class="btn btn-outline-success">
+                <i class="bi bi-star me-1"></i> Feedback
             </a>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-gear me-1"></i> More
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('customer_service.analytics') }}"><i class="bi bi-graph-up me-2"></i>Analytics</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('customer_service.sla_breaches') }}"><i class="bi bi-clock me-2"></i>SLA Monitor</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('customer_service.sla_list') }}"><i class="bi bi-sliders me-2"></i>SLA Config</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('customer_service.work_orders_confirmation') }}"><i class="bi bi-check-circle me-2"></i>Confirm WOs</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
