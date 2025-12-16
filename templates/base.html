@@ -311,6 +311,12 @@
                     <span>Inventory</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('report_routes.material_requirements_report') }}">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span>Material Requirements</span>
+                </a>
+            </li>
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">
@@ -488,10 +494,6 @@
                     <a href="{{ url_for('report_routes.workorder_costs_report') }}">
                         <i class="bi bi-file-earmark-text"></i>
                         Work Order Costs
-                    </a>
-                    <a href="{{ url_for('report_routes.material_requirements_report') }}">
-                        <i class="bi bi-clipboard-data"></i>
-                        Material Requirements
                     </a>
                     <a href="{{ url_for('report_routes.material_usage_report') }}">
                         <i class="bi bi-file-earmark-spreadsheet"></i>
