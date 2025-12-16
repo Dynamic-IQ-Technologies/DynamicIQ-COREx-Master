@@ -98,9 +98,87 @@
     </div>
 </div>
 
+<!-- Quick Add Product Modal -->
+<div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-labelledby="quickAddProductLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quickAddProductLabel"><i class="bi bi-plus-circle"></i> Quick Add Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickProductForm">
+                    <div class="mb-3">
+                        <label for="quick_product_code" class="form-label">Part Number *</label>
+                        <input type="text" class="form-control" id="quick_product_code" required placeholder="Enter part number">
+                    </div>
+                    <div class="mb-3">
+                        <label for="quick_product_name" class="form-label">Product Name *</label>
+                        <input type="text" class="form-control" id="quick_product_name" required placeholder="Enter product name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="quick_product_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="quick_product_description" rows="2" placeholder="Optional description"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quick_product_uom" class="form-label">Unit of Measure *</label>
+                                <select class="form-select" id="quick_product_uom" required>
+                                    <option value="">Select UOM</option>
+                                    <option value="EA">EA - Each</option>
+                                    <option value="PCS">PCS - Pieces</option>
+                                    <option value="FT">FT - Feet</option>
+                                    <option value="IN">IN - Inches</option>
+                                    <option value="LB">LB - Pounds</option>
+                                    <option value="KG">KG - Kilograms</option>
+                                    <option value="GAL">GAL - Gallons</option>
+                                    <option value="BOX">BOX - Box</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quick_product_type" class="form-label">Product Type *</label>
+                                <select class="form-select" id="quick_product_type" required>
+                                    <option value="Purchased">Purchased</option>
+                                    <option value="Raw Material">Raw Material</option>
+                                    <option value="Component">Component</option>
+                                    <option value="Consumable">Consumable</option>
+                                    <option value="Manufactured">Manufactured</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quick_product_category" class="form-label">Part Category</label>
+                        <select class="form-select" id="quick_product_category">
+                            <option value="Other">Other</option>
+                            <option value="Airframe">Airframe</option>
+                            <option value="Avionics">Avionics</option>
+                            <option value="Engine">Engine</option>
+                            <option value="Hardware">Hardware</option>
+                            <option value="Consumable">Consumable</option>
+                            <option value="Chemical">Chemical</option>
+                            <option value="Tool">Tool</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="quick_product_line_num" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveQuickProduct">
+                    <i class="bi bi-check-lg"></i> Create Product
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let lineCounter = 0;
-const products = {{ products|tojson }};
+let products = {{ products|tojson }};
 const uoms = {{ uoms|tojson }};
 
 function addLine() {
@@ -112,10 +190,15 @@ function addLine() {
     row.innerHTML = `
         <td>${lineCounter}</td>
         <td>
-            <select class="form-select form-select-sm line-product" name="lines[${lineCounter}][product_id]" required data-line="${lineCounter}">
-                <option value="">Select Product</option>
-                ${products.map(p => `<option value="${p.id}">${p.code} - ${p.name}</option>`).join('')}
-            </select>
+            <div class="input-group input-group-sm">
+                <select class="form-select form-select-sm line-product" name="lines[${lineCounter}][product_id]" required data-line="${lineCounter}">
+                    <option value="">Select Product</option>
+                    ${products.map(p => `<option value="${p.id}">${p.code} - ${p.name}</option>`).join('')}
+                </select>
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="openQuickAddProduct(${lineCounter})" title="Create new product">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
         </td>
         <td>
             <select class="form-select form-select-sm line-uom" name="lines[${lineCounter}][uom_id]" required data-line="${lineCounter}">
@@ -273,5 +356,96 @@ addLine();
 
 // Set today's date
 document.getElementById('order_date').value = new Date().toISOString().split('T')[0];
+
+// Quick Add Product Functions
+function openQuickAddProduct(lineNum) {
+    document.getElementById('quick_product_line_num').value = lineNum;
+    document.getElementById('quickProductForm').reset();
+    document.getElementById('quick_product_type').value = 'Purchased';
+    document.getElementById('quick_product_category').value = 'Other';
+    const modal = new bootstrap.Modal(document.getElementById('quickAddProductModal'));
+    modal.show();
+}
+
+document.getElementById('saveQuickProduct').addEventListener('click', async function() {
+    const code = document.getElementById('quick_product_code').value.trim();
+    const name = document.getElementById('quick_product_name').value.trim();
+    const description = document.getElementById('quick_product_description').value.trim();
+    const uom = document.getElementById('quick_product_uom').value;
+    const productType = document.getElementById('quick_product_type').value;
+    const category = document.getElementById('quick_product_category').value;
+    const lineNum = document.getElementById('quick_product_line_num').value;
+    
+    if (!code || !name || !uom || !productType) {
+        alert('Please fill in all required fields (Part Number, Name, UOM, Type).');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/quick-add-product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: code,
+                name: name,
+                description: description,
+                unit_of_measure: uom,
+                product_type: productType,
+                part_category: category
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Add new product to the products array
+            products.push({
+                id: data.product.id,
+                code: data.product.code,
+                name: data.product.name
+            });
+            
+            // Update all product dropdowns on the page
+            document.querySelectorAll('.line-product').forEach(select => {
+                const currentValue = select.value;
+                const selectLineNum = select.dataset.line;
+                
+                // Rebuild options
+                select.innerHTML = '<option value="">Select Product</option>';
+                products.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.code} - ${p.name}`;
+                    select.appendChild(option);
+                });
+                
+                // Restore selection or select new product for the triggering line
+                if (selectLineNum === lineNum) {
+                    select.value = data.product.id;
+                    // Trigger product change to load UOM options
+                    handleProductChange({ target: select });
+                } else {
+                    select.value = currentValue;
+                }
+            });
+            
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('quickAddProductModal')).hide();
+            
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `<i class="bi bi-check-circle"></i> Product "${code} - ${name}" created successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('.card-body').firstChild);
+            setTimeout(() => alertDiv.remove(), 5000);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to create product'));
+        }
+    } catch (error) {
+        console.error('Error creating product:', error);
+        alert('An error occurred while creating the product.');
+    }
+});
 </script>
 {% endblock %}

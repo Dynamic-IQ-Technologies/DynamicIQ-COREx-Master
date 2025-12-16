@@ -177,9 +177,11 @@ def view_product(id):
     ''', (id,)).fetchall()
     
     uom_conversions = conn.execute('''
-        SELECT * FROM uom_conversions 
-        WHERE product_id = ? AND is_active = 1
-        ORDER BY target_uom
+        SELECT puc.*, um.uom_code, um.uom_name 
+        FROM product_uom_conversions puc
+        JOIN uom_master um ON puc.uom_id = um.id
+        WHERE puc.product_id = ? AND puc.is_active = 1
+        ORDER BY um.uom_code
     ''', (id,)).fetchall()
     
     conn.close()

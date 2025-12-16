@@ -858,3 +858,74 @@ def api_calculate_conversion():
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+@po_bp.route('/api/quick-add-product', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Planner')
+def api_quick_add_product():
+    """API endpoint to quickly create a new product from PO line"""
+    from flask import jsonify
+    
+    data = request.get_json()
+    code = data.get('code', '').strip()
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    unit_of_measure = data.get('unit_of_measure', 'EA')
+    product_type = data.get('product_type', 'Purchased')
+    part_category = data.get('part_category', 'Other')
+    
+    if not code or not name:
+        return jsonify({'success': False, 'error': 'Part number and name are required'}), 400
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Check if product code already exists
+        existing = conn.execute('SELECT id FROM products WHERE code = ?', (code,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'success': False, 'error': f'Product with code "{code}" already exists'}), 400
+        
+        # Create the product
+        cursor = conn.execute('''
+            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (code, name, description, unit_of_measure, product_type, part_category))
+        
+        product_id = cursor.lastrowid
+        
+        # Create inventory record for the new product
+        conn.execute('''
+            INSERT INTO inventory (product_id, quantity, location, reorder_point, safety_stock)
+            VALUES (?, 0, 'STOCK', 0, 0)
+        ''', (product_id,))
+        
+        conn.commit()
+        
+        # Log the audit
+        AuditLogger.log_change(
+            'products', 
+            product_id, 
+            'CREATE', 
+            None, 
+            {'code': code, 'name': name, 'product_type': product_type},
+            f'Quick-created from Purchase Order'
+        )
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'product': {
+                'id': product_id,
+                'code': code,
+                'name': name,
+                'unit_of_measure': unit_of_measure,
+                'product_type': product_type
+            }
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
