@@ -19,7 +19,7 @@
         <div class="card bg-light">
             <div class="card-body">
                 <h5><i class="bi bi-person-badge"></i> Employee: {{ employee.name }} ({{ employee.employee_code }})</h5>
-                <p class="mb-0">Role: {{ employee.role }} | Hourly Rate: ${{ "%.2f"|format(employee.hourly_rate) }}</p>
+                <p class="mb-0">Role: {{ employee.role }} | Hourly Rate: {{ employee.hourly_rate|currency }}</p>
             </div>
         </div>
     </div>
@@ -117,7 +117,7 @@
                         <td>{{ entry.clock_in_time[:16] }}</td>
                         <td>{{ entry.clock_out_time[:16] if entry.clock_out_time else '-' }}</td>
                         <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
-                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                        <td>{{ entry.labor_cost|currency }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -125,7 +125,7 @@
                     <tr class="table-active">
                         <td colspan="5" class="text-end"><strong>Total Today:</strong></td>
                         <td><strong>{{ "%.2f"|format(todays_entries|sum(attribute='hours_worked')) }}</strong></td>
-                        <td><strong>${{ "%.2f"|format(todays_entries|sum(attribute='labor_cost')) }}</strong></td>
+                        <td><strong>{{ (todays_entries|sum(attribute='labor_cost'))|currency }}</strong></td>
                     </tr>
                 </tfoot>
             </table>

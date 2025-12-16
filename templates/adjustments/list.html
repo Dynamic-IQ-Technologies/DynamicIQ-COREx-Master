@@ -46,7 +46,7 @@
                         </td>
                         <td>{{ "%.2f"|format(adj.quantity_adjusted) }} {{ adj.unit_of_measure }}</td>
                         <td class="fw-bold" style="color: {% if adj.cost_impact and adj.cost_impact > 0 %}green{% elif adj.cost_impact and adj.cost_impact < 0 %}red{% else %}gray{% endif %}">
-                            {% if adj.cost_impact and adj.cost_impact > 0 %}+{% endif %}${{ "%.2f"|format(adj.cost_impact or 0) }}
+                            {% if adj.cost_impact and adj.cost_impact > 0 %}+{% endif %}{{ (adj.cost_impact or 0)|currency }}
                         </td>
                         <td>{{ "%.2f"|format(adj.quantity_before) }}</td>
                         <td>{{ "%.2f"|format(adj.quantity_after) }}</td>

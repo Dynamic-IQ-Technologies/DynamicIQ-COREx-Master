@@ -66,7 +66,7 @@
         <div class="card bg-warning text-white">
             <div class="card-body">
                 <h6><i class="bi bi-currency-dollar"></i> Labor Cost</h6>
-                <h2>${{ "%.2f"|format(total_labor_cost) }}</h2>
+                <h2>{{ total_labor_cost|currency }}</h2>
             </div>
         </div>
     </div>
@@ -145,7 +145,7 @@
                         </td>
                         <td>{{ emp.punch_count }}</td>
                         <td><strong>{{ "%.2f"|format(emp.hours) }}</strong></td>
-                        <td>${{ "%.2f"|format(emp.labor_cost) }}</td>
+                        <td>{{ emp.labor_cost|currency }}</td>
                         <td>
                             <a href="{{ url_for('clock_station_routes.manager_employee_detail', employee_id=emp.id, period=period) }}" 
                                class="btn btn-sm btn-outline-primary">

@@ -110,7 +110,7 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(resource.hourly_rate) }}</td>
+                        <td>{{ resource.hourly_rate|currency }}</td>
                         <td>{{ resource.cost_center or '-' }}</td>
                         <td>
                             {% if resource.status == 'Active' %}

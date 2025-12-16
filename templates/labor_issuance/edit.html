@@ -21,7 +21,7 @@
                         <select class="form-select" id="resource_id" name="resource_id" required>
                             {% for resource in labor_resources %}
                             <option value="{{ resource.id }}" {% if labor_issuance.resource_id == resource.id %}selected{% endif %}>
-                                {{ resource.first_name }} {{ resource.last_name }} - {{ resource.role }} (${{ "%.2f"|format(resource.hourly_rate) }}/hr)
+                                {{ resource.first_name }} {{ resource.last_name }} - {{ resource.role }} ({{ resource.hourly_rate|currency }}/hr)
                             </option>
                             {% endfor %}
                         </select>

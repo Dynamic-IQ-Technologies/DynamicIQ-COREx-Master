@@ -71,7 +71,7 @@
                                 {% endif %}
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(task.actual_labor_cost or 0) }}</td>
+                        <td>{{ (task.actual_labor_cost or 0)|currency }}</td>
                         <td>
                             <a href="{{ url_for('task_routes.view_task', task_id=task.id) }}" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>
                             {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
@@ -91,7 +91,7 @@
                         <td colspan="5" class="text-end">Totals:</td>
                         <td>{{ "%.2f"|format(tasks|sum(attribute='planned_hours') or 0) }}</td>
                         <td>{{ "%.2f"|format(tasks|sum(attribute='actual_hours') or 0) }}</td>
-                        <td>${{ "%.2f"|format(tasks|sum(attribute='actual_labor_cost') or 0) }}</td>
+                        <td>{{ (tasks|sum(attribute='actual_labor_cost') or 0)|currency }}</td>
                         <td></td>
                     </tr>
                 </tfoot>

@@ -39,7 +39,7 @@
         <div class="card">
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Total Cost</h6>
-                <h3 class="card-title">${{ "%.2f"|format(summary.total_cost) }}</h3>
+                <h3 class="card-title">{{ summary.total_cost|currency }}</h3>
             </div>
         </div>
     </div>
@@ -73,7 +73,7 @@
                 <div class="border rounded p-3">
                     <h6>{{ category }}</h6>
                     <p class="mb-1"><strong>Items:</strong> {{ data.count }}</p>
-                    <p class="mb-0"><strong>Cost:</strong> ${{ "%.2f"|format(data.total_cost) }}</p>
+                    <p class="mb-0"><strong>Cost:</strong> {{ data.total_cost|currency }}</p>
                 </div>
             </div>
             {% endfor %}
@@ -138,8 +138,8 @@
                         <td><span class="badge bg-secondary">{{ item.bom.category or 'Other' }}</span></td>
                         <td>{{ "%.2f"|format(item.bom.quantity) }}</td>
                         <td>{{ "%.1f"|format(item.bom.scrap_percentage or 0) }}%</td>
-                        <td>${{ "%.2f"|format(item.bom.child_cost or 0) }}</td>
-                        <td>${{ "%.2f"|format(item.extended_cost) }}</td>
+                        <td>{{ (item.bom.child_cost or 0)|currency }}</td>
+                        <td>{{ item.extended_cost|currency }}</td>
                         <td>{{ item.bom.revision or 'A' }}</td>
                         <td>
                             {% if item.bom.status == 'Active' %}

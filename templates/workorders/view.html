@@ -73,11 +73,11 @@
             </div>
             <div class="card-body">
                 {% if cost_info %}
-                <p><strong>Material Cost:</strong> ${{ "%.2f"|format(cost_info.material_cost) }}</p>
-                <p><strong>Labor Cost:</strong> ${{ "%.2f"|format(cost_info.labor_cost) }}</p>
-                <p><strong>Overhead Cost:</strong> ${{ "%.2f"|format(cost_info.overhead_cost) }}</p>
+                <p><strong>Material Cost:</strong> {{ cost_info.material_cost|currency }}</p>
+                <p><strong>Labor Cost:</strong> {{ cost_info.labor_cost|currency }}</p>
+                <p><strong>Overhead Cost:</strong> {{ cost_info.overhead_cost|currency }}</p>
                 <hr>
-                <p><strong>Total Cost:</strong> ${{ "%.2f"|format(cost_info.total_cost) }}</p>
+                <p><strong>Total Cost:</strong> {{ cost_info.total_cost|currency }}</p>
                 {% endif %}
             </div>
         </div>
@@ -139,7 +139,7 @@
                         {{ "%.2f"|format(hours_var) }}
                     </span>
                 </p>
-                <p class="mb-0"><strong>Labor Cost:</strong> ${{ "%.2f"|format(task_summary.total_actual_labor_cost or 0) }}</p>
+                <p class="mb-0"><strong>Labor Cost:</strong> {{ (task_summary.total_actual_labor_cost or 0)|currency }}</p>
             </div>
         </div>
         {% else %}
@@ -192,7 +192,7 @@
                         </td>
                         <td>{{ "%.2f"|format(task.planned_hours or 0) }}</td>
                         <td>{{ "%.2f"|format(task.actual_hours or 0) }}</td>
-                        <td>${{ "%.2f"|format(task.actual_labor_cost or 0) }}</td>
+                        <td>{{ (task.actual_labor_cost or 0)|currency }}</td>
                         <td>
                             {% if task.labor_count > 0 %}
                             <span class="badge bg-primary">{{ task.labor_count }}</span>

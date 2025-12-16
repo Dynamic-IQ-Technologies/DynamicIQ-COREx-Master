@@ -103,7 +103,7 @@
                                 {% endif %}
                                 <br>
                                 <span>{{ r.first_name }} {{ r.last_name }}</span><br>
-                                <small class="text-muted">{{ r.role }} | ${{ "%.2f"|format(r.hourly_rate) }}/hr</small><br>
+                                <small class="text-muted">{{ r.role }} | {{ r.hourly_rate|currency }}/hr</small><br>
                                 <small class="text-muted">
                                     Utilization: {{ "%.0f"|format(r.utilization_percent) }}%
                                     {% if r.effective_start_date %}| From: {{ r.effective_start_date }}{% endif %}

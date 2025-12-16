@@ -92,8 +92,8 @@
                         <td>{{ issue.product_code }}</td>
                         <td>{{ issue.product_name }}</td>
                         <td>{{ "%.2f"|format(issue.quantity_issued) }} {{ issue.unit_of_measure }}</td>
-                        <td>${{ "%.2f"|format(issue.unit_cost) }}</td>
-                        <td class="fw-bold text-primary">${{ "%.2f"|format(issue.total_cost) }}</td>
+                        <td>{{ issue.unit_cost|currency }}</td>
+                        <td class="fw-bold text-primary">{{ issue.total_cost|currency }}</td>
                     </tr>
                 </tbody>
             </table>

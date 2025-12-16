@@ -24,7 +24,7 @@
         <div class="card bg-info text-white">
             <div class="card-body">
                 <h6>Combined Hourly Rate</h6>
-                <h2>${{ "%.2f"|format(total_hourly_cost) }}/hr</h2>
+                <h2>{{ total_hourly_cost|currency }}/hr</h2>
             </div>
         </div>
     </div>
@@ -32,7 +32,7 @@
         <div class="card bg-warning text-white">
             <div class="card-body">
                 <h6>Est. Current Labor Cost</h6>
-                <h2>${{ "%.2f"|format(current_labor_cost) }}</h2>
+                <h2>{{ current_labor_cost|currency }}</h2>
             </div>
         </div>
     </div>
@@ -79,7 +79,7 @@
                         <td>{{ entry.task_name or 'General Work' }}</td>
                         <td>{{ entry.clock_in_time[:16] }}</td>
                         <td class="elapsed-time" data-clock-in="{{ entry.clock_in_time }}">-</td>
-                        <td>${{ "%.2f"|format(entry.hourly_rate) }}</td>
+                        <td>{{ entry.hourly_rate|currency }}</td>
                         <td class="estimated-cost" data-clock-in="{{ entry.clock_in_time }}" data-rate="{{ entry.hourly_rate }}">-</td>
                     </tr>
                     {% endfor %}
@@ -87,7 +87,7 @@
                 <tfoot>
                     <tr class="table-secondary">
                         <td colspan="8" class="text-end"><strong>Totals:</strong></td>
-                        <td><strong>${{ "%.2f"|format(total_hourly_cost) }}/hr</strong></td>
+                        <td><strong>{{ total_hourly_cost|currency }}/hr</strong></td>
                         <td id="totalEstimatedCost"><strong>-</strong></td>
                     </tr>
                 </tfoot>

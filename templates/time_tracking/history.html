@@ -43,7 +43,7 @@
                         <td>{{ entry.clock_in_time[11:16] }}</td>
                         <td>{{ entry.clock_out_time[11:16] if entry.clock_out_time else '-' }}</td>
                         <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
-                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                        <td>{{ entry.labor_cost|currency }}</td>
                         <td>
                             {% if entry.status == 'Completed' %}
                             <span class="badge bg-success">{{ entry.status }}</span>

@@ -114,18 +114,18 @@
                     </tr>
                     <tr>
                         <th>Planned Labor Cost:</th>
-                        <td>${{ "%.2f"|format(task.planned_labor_cost or 0) }}</td>
+                        <td>{{ (task.planned_labor_cost or 0)|currency }}</td>
                     </tr>
                     <tr>
                         <th>Actual Labor Cost:</th>
-                        <td>${{ "%.2f"|format(task.actual_labor_cost or 0) }}</td>
+                        <td>{{ (task.actual_labor_cost or 0)|currency }}</td>
                     </tr>
                     <tr>
                         <th>Cost Variance:</th>
                         <td>
                             {% set cost_variance = (task.actual_labor_cost or 0) - (task.planned_labor_cost or 0) %}
                             <span class="{% if cost_variance > 0 %}text-danger{% elif cost_variance < 0 %}text-success{% endif %}">
-                                ${{ "%.2f"|format(cost_variance) }}
+                                {{ cost_variance|currency }}
                                 {% if task.planned_labor_cost and task.planned_labor_cost > 0 %}
                                 ({{ "%.0f"|format((cost_variance / task.planned_labor_cost) * 100) }}%)
                                 {% endif %}
@@ -134,7 +134,7 @@
                     </tr>
                     <tr>
                         <th>Hourly Rate:</th>
-                        <td>${{ "%.2f"|format(task.hourly_rate or 0) }}</td>
+                        <td>{{ (task.hourly_rate or 0)|currency }}</td>
                     </tr>
                 </table>
             </div>
@@ -325,8 +325,8 @@
                         <td>{{ entry.start_time or '-' }}</td>
                         <td>{{ entry.end_time or '-' }}</td>
                         <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
-                        <td>${{ "%.2f"|format(entry.hourly_rate) }}</td>
-                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                        <td>{{ entry.hourly_rate|currency }}</td>
+                        <td>{{ entry.labor_cost|currency }}</td>
                         <td>{{ entry.created_by_name or 'System' }}</td>
                         <td>
                             {% if user.role in ['Admin', 'Planner'] %}
@@ -346,7 +346,7 @@
                         <td colspan="5" class="text-end">Totals:</td>
                         <td>{{ "%.2f"|format(labor_entries|sum(attribute='hours_worked')) }}</td>
                         <td></td>
-                        <td>${{ "%.2f"|format(labor_entries|sum(attribute='labor_cost')) }}</td>
+                        <td>{{ (labor_entries|sum(attribute='labor_cost'))|currency }}</td>
                         <td colspan="2"></td>
                     </tr>
                 </tfoot>

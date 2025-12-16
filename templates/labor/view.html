@@ -57,7 +57,7 @@
                     </tr>
                     <tr>
                         <th>Hourly Rate:</th>
-                        <td>${{ "%.2f"|format(labor_resource.hourly_rate) }}</td>
+                        <td>{{ labor_resource.hourly_rate|currency }}</td>
                     </tr>
                     <tr>
                         <th>Cost Center:</th>
@@ -107,7 +107,7 @@
                     </tr>
                     <tr>
                         <th>Total Labor Cost:</th>
-                        <td>${{ "%.2f"|format(labor_entries|sum(attribute='labor_cost') or 0) }}</td>
+                        <td>{{ (labor_entries|sum(attribute='labor_cost') or 0)|currency }}</td>
                     </tr>
                 </table>
             </div>
@@ -181,7 +181,7 @@
                         <td>{{ entry.task_name }}</td>
                         <td>{{ entry.work_date }}</td>
                         <td>{{ "%.2f"|format(entry.hours_worked) }}</td>
-                        <td>${{ "%.2f"|format(entry.labor_cost) }}</td>
+                        <td>{{ entry.labor_cost|currency }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

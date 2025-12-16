@@ -118,7 +118,7 @@
                                 </span>
                             </td>
                             <td>{{ swo.due_date or '-' }}</td>
-                            <td>${{ "{:,.2f}".format(swo.total_cost) }}</td>
+                            <td>{{ swo.total_cost|currency }}</td>
                             <td>
                                 <a href="{{ url_for('service_wo_routes.view_service_work_order', id=swo.id) }}" 
                                    class="btn btn-sm btn-outline-primary" title="View">

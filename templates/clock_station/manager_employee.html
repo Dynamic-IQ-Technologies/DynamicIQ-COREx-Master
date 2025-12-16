@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2><i class="bi bi-person-badge"></i> {{ employee.first_name }} {{ employee.last_name }}</h2>
-        <p class="text-muted mb-0">{{ employee.employee_code }} | {{ employee.role }} | ${{ "%.2f"|format(employee.hourly_rate) }}/hr</p>
+        <p class="text-muted mb-0">{{ employee.employee_code }} | {{ employee.role }} | {{ employee.hourly_rate|currency }}/hr</p>
     </div>
     <div>
         <a href="{{ url_for('clock_station_routes.manager_dashboard', period=period) }}" class="btn btn-secondary">
@@ -49,7 +49,7 @@
         <div class="card bg-success text-white">
             <div class="card-body">
                 <h6><i class="bi bi-currency-dollar"></i> Labor Cost</h6>
-                <h2>${{ "%.2f"|format(total_hours * employee.hourly_rate) }}</h2>
+                <h2>{{ (total_hours * employee.hourly_rate)|currency }}</h2>
             </div>
         </div>
     </div>
@@ -86,7 +86,7 @@
                         <td><strong>{{ day.date }}</strong></td>
                         <td>{{ day.punch_count }}</td>
                         <td>{{ "%.2f"|format(day.hours) }}</td>
-                        <td>${{ "%.2f"|format(day.hours * employee.hourly_rate) }}</td>
+                        <td>{{ (day.hours * employee.hourly_rate)|currency }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -95,7 +95,7 @@
                         <th>Total</th>
                         <th>{{ punches|length }}</th>
                         <th>{{ "%.2f"|format(total_hours) }}</th>
-                        <th>${{ "%.2f"|format(total_hours * employee.hourly_rate) }}</th>
+                        <th>{{ (total_hours * employee.hourly_rate)|currency }}</th>
                     </tr>
                 </tfoot>
             </table>

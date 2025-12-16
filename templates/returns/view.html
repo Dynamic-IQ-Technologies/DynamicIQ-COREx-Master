@@ -94,8 +94,8 @@
                         <td>{{ ret.product_code }}</td>
                         <td>{{ ret.product_name }}</td>
                         <td>{{ "%.2f"|format(ret.quantity_returned) }} {{ ret.unit_of_measure }}</td>
-                        <td>${{ "%.2f"|format(ret.unit_cost or 0) }}</td>
-                        <td class="fw-bold text-success">${{ "%.2f"|format(ret.total_cost or 0) }}</td>
+                        <td>{{ (ret.unit_cost or 0)|currency }}</td>
+                        <td class="fw-bold text-success">{{ (ret.total_cost or 0)|currency }}</td>
                     </tr>
                 </tbody>
             </table>

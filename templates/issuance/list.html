@@ -131,7 +131,7 @@
                         <td>{{ issue.issue_date }}</td>
                         <td>{{ issue.issued_to or '-' }}</td>
                         <td>{{ issue.warehouse_location }}</td>
-                        <td>${{ "%.2f"|format(issue.total_cost) }}</td>
+                        <td>{{ issue.total_cost|currency }}</td>
                         <td>{{ issue.issued_by_name }}</td>
                         <td>
                             <a href="{{ url_for('issuance_routes.view_issue', issue_number=issue.issue_number) }}" class="btn btn-sm btn-info">

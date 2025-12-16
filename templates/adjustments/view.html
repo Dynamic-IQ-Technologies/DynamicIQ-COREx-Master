@@ -84,12 +84,12 @@
                 <hr>
                 <div class="row mb-3">
                     <div class="col-4"><strong>Unit Cost:</strong></div>
-                    <div class="col-8">${{ "%.2f"|format(adjustment.unit_cost or 0) }}</div>
+                    <div class="col-8">{{ (adjustment.unit_cost or 0)|currency }}</div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-4"><strong>Cost Impact:</strong></div>
                     <div class="col-8 fs-5 fw-bold" style="color: {% if adjustment.cost_impact and adjustment.cost_impact > 0 %}green{% elif adjustment.cost_impact and adjustment.cost_impact < 0 %}red{% else %}gray{% endif %}">
-                        {% if adjustment.cost_impact and adjustment.cost_impact > 0 %}+{% endif %}${{ "%.2f"|format(adjustment.cost_impact or 0) }}
+                        {% if adjustment.cost_impact and adjustment.cost_impact > 0 %}+{% endif %}{{ (adjustment.cost_impact or 0)|currency }}
                     </div>
                 </div>
             </div>

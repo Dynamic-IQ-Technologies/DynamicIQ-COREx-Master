@@ -38,7 +38,7 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=ret.work_order_id) }}">{{ ret.wo_number }}</a></td>
                         <td>{{ ret.product_code }} - {{ ret.product_name }}</td>
                         <td>{{ "%.2f"|format(ret.quantity_returned) }} {{ ret.unit_of_measure }}</td>
-                        <td class="text-success fw-bold">${{ "%.2f"|format(ret.total_cost or 0) }}</td>
+                        <td class="text-success fw-bold">{{ (ret.total_cost or 0)|currency }}</td>
                         <td>{{ ret.return_date }}</td>
                         <td>
                             {% if ret.condition == 'New' %}

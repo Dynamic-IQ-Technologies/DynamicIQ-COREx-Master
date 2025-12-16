@@ -71,8 +71,8 @@
             <div class="card bg-primary text-white">
                 <div class="card-body text-center">
                     <small>Total Cost</small>
-                    <h2 class="mb-0">${{ "{:,.2f}".format(swo.total_cost) }}</h2>
-                    <small>Labor: ${{ "{:,.2f}".format(swo.labor_subtotal) }} | Materials: ${{ "{:,.2f}".format(swo.materials_subtotal) }} | Expenses: ${{ "{:,.2f}".format(swo.expenses_subtotal) }}</small>
+                    <h2 class="mb-0">{{ swo.total_cost|currency }}</h2>
+                    <small>Labor: {{ swo.labor_subtotal|currency }} | Materials: {{ swo.materials_subtotal|currency }} | Expenses: {{ swo.expenses_subtotal|currency }}</small>
                 </div>
             </div>
         </div>
@@ -264,8 +264,8 @@
                             <td>{{ labor.employee_name }}<br><small class="text-muted">{{ labor.employee_code }}</small></td>
                             <td><span class="badge {% if labor.labor_type == 'NDT' %}bg-info{% elif labor.labor_type == 'Overtime' %}bg-warning{% elif labor.labor_type == 'Service Rate' %}bg-success{% else %}bg-secondary{% endif %}">{{ labor.labor_type }}</span></td>
                             <td>{{ labor.hours_worked }}</td>
-                            <td>${{ "{:,.2f}".format(labor.hourly_rate) }}/hr</td>
-                            <td><strong>${{ "{:,.2f}".format(labor.labor_cost) }}</strong></td>
+                            <td>{{ labor.hourly_rate|currency }}/hr</td>
+                            <td><strong>{{ labor.labor_cost|currency }}</strong></td>
                             <td>{{ labor.description or '-' }}</td>
                             {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
                             <td>
@@ -291,7 +291,7 @@
                         {% endfor %}
                         <tr class="table-primary">
                             <td colspan="5" class="text-end"><strong>Labor Subtotal:</strong></td>
-                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}3{% else %}2{% endif %}"><strong>${{ "{:,.2f}".format(swo.labor_subtotal) }}</strong></td>
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}3{% else %}2{% endif %}"><strong>{{ swo.labor_subtotal|currency }}</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -335,8 +335,8 @@
                         <tr>
                             <td>{{ material.product_code }}<br><small class="text-muted">{{ material.product_name }}</small></td>
                             <td>{{ material.quantity }}</td>
-                            <td>${{ "{:,.2f}".format(material.unit_price) }}</td>
-                            <td><strong>${{ "{:,.2f}".format(material.total_cost) }}</strong></td>
+                            <td>{{ material.unit_price|currency }}</td>
+                            <td><strong>{{ material.total_cost|currency }}</strong></td>
                             <td>
                                 {% if material.serial_number %}
                                 <span class="badge bg-info">{{ material.serial_number }}</span>
@@ -365,7 +365,7 @@
                         {% endfor %}
                         <tr class="table-primary">
                             <td colspan="3" class="text-end"><strong>Materials Subtotal:</strong></td>
-                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}4{% else %}3{% endif %}"><strong>${{ "{:,.2f}".format(swo.materials_subtotal) }}</strong></td>
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}4{% else %}3{% endif %}"><strong>{{ swo.materials_subtotal|currency }}</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -411,7 +411,7 @@
                             <td>{{ expense.description or '-' }}</td>
                             <td>{{ expense.vendor_name or '-' }}</td>
                             <td>{{ expense.receipt_reference or '-' }}</td>
-                            <td><strong>${{ "{:,.2f}".format(expense.amount) }}</strong></td>
+                            <td><strong>{{ expense.amount|currency }}</strong></td>
                             {% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}
                             <td>
                                 <form method="POST" action="{{ url_for('service_wo_routes.delete_expense', id=swo.id, expense_id=expense.id) }}" style="display:inline;">
@@ -425,7 +425,7 @@
                         {% endfor %}
                         <tr class="table-primary">
                             <td colspan="5" class="text-end"><strong>Expenses Subtotal:</strong></td>
-                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}2{% else %}1{% endif %}"><strong>${{ "{:,.2f}".format(swo.expenses_subtotal) }}</strong></td>
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] and not swo.invoiced %}2{% else %}1{% endif %}"><strong>{{ swo.expenses_subtotal|currency }}</strong></td>
                         </tr>
                     </tbody>
                 </table>

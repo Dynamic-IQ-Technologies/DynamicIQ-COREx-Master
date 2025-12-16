@@ -139,7 +139,7 @@
         <div class="clock-card text-center">
             <small class="text-muted">Total Hours</small>
             <div class="total-hours">{{ "%.2f"|format(total_hours) }}</div>
-            <small class="text-muted">Estimated Pay: ${{ "%.2f"|format(total_hours * employee.hourly_rate) }}</small>
+            <small class="text-muted">Estimated Pay: {{ (total_hours * employee.hourly_rate)|currency }}</small>
         </div>
 
         <!-- Daily Summary -->
