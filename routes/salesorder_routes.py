@@ -755,9 +755,8 @@ def allocate_line(line_id):
         
         # Get available inventory with serialization info
         inventory = conn.execute('''
-            SELECT i.*, p.is_serialized 
+            SELECT i.* 
             FROM inventory i
-            JOIN products p ON i.product_id = p.id
             WHERE i.product_id = ?
         ''', (line['product_id'],)).fetchone()
         

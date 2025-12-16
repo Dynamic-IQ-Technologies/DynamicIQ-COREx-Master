@@ -711,9 +711,11 @@ def api_products():
     db = Database()
     conn = db.get_connection()
     products = conn.execute('''
-        SELECT id, code, name, description, cost
-        FROM products
-        ORDER BY code
+        SELECT p.id, p.code, p.name, p.description, p.cost,
+               COALESCE(i.is_serialized, 0) as is_serialized
+        FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
+        ORDER BY p.code
     ''').fetchall()
     conn.close()
     
