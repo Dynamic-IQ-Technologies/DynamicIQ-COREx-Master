@@ -62,7 +62,7 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - Bottleneck detection with status indicators (Normal <85%, Warning 85-100%, Critical >100%)
     - Printable capacity reports with operation and task details plus override summaries
     - Proper date overlap logic for accurate load calculations across date ranges (uses task-level dates with fallback to WO dates)
--   **Customer Service Module (Phase 1)**: Internal customer service dashboard providing full visibility into customer orders and work orders. Features:
+-   **Customer Service Module**: Internal customer service dashboard providing full visibility into customer orders and work orders. Features:
     - Executive dashboard with KPI cards (total orders, active orders, pending confirmations, overdue count)
     - Orders by status chart visualization with doughnut chart
     - At-risk orders tracking with risk level indicators (Overdue, Critical, Warning)
@@ -70,7 +70,12 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - Pending quote follow-up tracking with days pending indicators
     - Order stage progress tracking with 6 default stages (Order Received, Engineering Review, Material Procurement, Production, Quality Assurance, Shipping)
     - Order detail view with linked work orders and stage progress visualization
-    - Database tables: order_stage_tracking, work_order_confirmations
+    - Sales Order to Work Order linking via so_id foreign key for full traceability
+    - Create Work Order directly from order detail page with product selection from order lines
+    - Quote approval workflow that updates order status and initiates stage tracking
+    - Order status automation engine that automatically updates sales order status based on work order release and stage completion
+    - Customer visibility in work order tables showing linked customer and SO number
+    - Database tables: order_stage_tracking, work_order_confirmations (work_orders.so_id links to sales_orders)
 
 ### System Design Choices
 

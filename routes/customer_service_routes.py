@@ -14,6 +14,43 @@ DEFAULT_STAGES = [
     ('Shipping', 6)
 ]
 
+def update_sales_order_status(conn, so_id):
+    """Auto-update sales order status based on linked work orders and stages"""
+    work_orders = conn.execute('''
+        SELECT status FROM work_orders WHERE so_id = ?
+    ''', (so_id,)).fetchall()
+    
+    stages = conn.execute('''
+        SELECT stage_status FROM order_stage_tracking WHERE sales_order_id = ?
+    ''', (so_id,)).fetchall()
+    
+    order = conn.execute('SELECT status FROM sales_orders WHERE id = ?', (so_id,)).fetchone()
+    if not order:
+        return
+    
+    current_status = order['status']
+    new_status = current_status
+    
+    if work_orders:
+        wo_statuses = [wo['status'] for wo in work_orders]
+        
+        if all(s in ['Completed', 'Complete'] for s in wo_statuses):
+            new_status = 'Completed'
+        elif any(s in ['In Progress', 'Released'] for s in wo_statuses):
+            new_status = 'In Production'
+        elif all(s in ['Planned', 'Pending'] for s in wo_statuses) and current_status == 'Approved':
+            new_status = 'Approved'
+    
+    if stages:
+        stage_statuses = [s['stage_status'] for s in stages]
+        if all(s == 'Complete' for s in stage_statuses):
+            new_status = 'Completed'
+    
+    if new_status != current_status and current_status not in ['Shipped', 'Closed', 'Cancelled']:
+        conn.execute('''
+            UPDATE sales_orders SET status = ? WHERE id = ?
+        ''', (new_status, so_id))
+
 @customer_service_bp.route('/customer-service')
 @login_required
 @role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
@@ -21,11 +58,12 @@ def dashboard():
     db = Database()
     conn = db.get_connection()
     
-    orders_by_status = conn.execute('''
+    orders_by_status_rows = conn.execute('''
         SELECT status, COUNT(*) as count 
         FROM sales_orders 
         GROUP BY status
     ''').fetchall()
+    orders_by_status = [{'status': row['status'], 'count': row['count']} for row in orders_by_status_rows]
     
     pending_quotes = conn.execute('''
         SELECT so.*, c.name as customer_name,
@@ -38,9 +76,12 @@ def dashboard():
     ''').fetchall()
     
     work_orders_awaiting = conn.execute('''
-        SELECT wo.*, p.name as product_name, p.code as product_code
+        SELECT wo.*, p.name as product_name, p.code as product_code,
+               so.so_number, c.name as customer_name
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
+        LEFT JOIN sales_orders so ON wo.so_id = so.id
+        LEFT JOIN customers c ON COALESCE(wo.customer_id, so.customer_id) = c.id
         WHERE wo.status IN ('Planned', 'Pending')
         ORDER BY wo.planned_start_date ASC
         LIMIT 10
@@ -169,7 +210,17 @@ def order_detail(order_id):
         ORDER BY sol.line_number
     ''', (order_id,)).fetchall()
     
-    linked_work_orders = []
+    linked_work_orders = conn.execute('''
+        SELECT wo.*, p.code as product_code, p.name as product_name,
+               woc.confirmation_date, woc.confirmed_by,
+               u.username as confirmed_by_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN work_order_confirmations woc ON wo.id = woc.work_order_id
+        LEFT JOIN users u ON woc.confirmed_by = u.id
+        WHERE wo.so_id = ?
+        ORDER BY wo.created_at DESC
+    ''', (order_id,)).fetchall()
     
     stages = conn.execute('''
         SELECT * FROM order_stage_tracking 
@@ -233,6 +284,8 @@ def update_stage(order_id):
                 WHERE id = ?
             ''', (new_status, percent_complete, now, stage_id))
         
+        update_sales_order_status(conn, order_id)
+        
         conn.commit()
         flash('Stage updated successfully', 'success')
     except Exception as e:
@@ -253,12 +306,15 @@ def work_orders_confirmation():
     
     work_orders = conn.execute('''
         SELECT wo.*, p.code as product_code, p.name as product_name,
+               so.so_number, so.status as so_status, c.name as customer_name,
                (SELECT SUM(CASE WHEN i.quantity >= mr.required_quantity THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
                 FROM material_requirements mr
                 LEFT JOIN inventory i ON mr.product_id = i.product_id
                 WHERE mr.work_order_id = wo.id) as material_availability
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
+        LEFT JOIN sales_orders so ON wo.so_id = so.id
+        LEFT JOIN customers c ON COALESCE(wo.customer_id, so.customer_id) = c.id
         WHERE wo.status IN ('Planned', 'Pending')
         ORDER BY wo.priority DESC, wo.planned_start_date ASC
     ''').fetchall()
@@ -303,6 +359,9 @@ def confirm_work_order(wo_id):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (wo_id, session.get('user_id'), quote_approved, materials_available,
               capacity_available, confirmation_notes, previous_status, new_status))
+        
+        if work_order['so_id']:
+            update_sales_order_status(conn, work_order['so_id'])
         
         conn.commit()
         flash(f'Work Order {work_order["wo_number"]} confirmed and released successfully', 'success')
@@ -397,3 +456,102 @@ def at_risk_orders():
     conn.close()
     
     return render_template('customer_service/at_risk_orders.html', orders=orders)
+
+
+@customer_service_bp.route('/customer-service/orders/<int:order_id>/create-work-order', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def create_work_order_from_so(order_id):
+    """Create a work order linked to a sales order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    order = conn.execute('''
+        SELECT so.*, c.name as customer_name
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        WHERE so.id = ?
+    ''', (order_id,)).fetchone()
+    
+    if not order:
+        conn.close()
+        flash('Sales order not found', 'danger')
+        return redirect(url_for('customer_service.orders_list'))
+    
+    product_id = request.form.get('product_id')
+    quantity = request.form.get('quantity', 1)
+    priority = request.form.get('priority', 'Medium')
+    planned_start = request.form.get('planned_start_date')
+    planned_end = request.form.get('planned_end_date')
+    
+    if not product_id:
+        conn.close()
+        flash('Please select a product for the work order', 'warning')
+        return redirect(url_for('customer_service.order_detail', order_id=order_id))
+    
+    try:
+        last_wo = conn.execute("SELECT wo_number FROM work_orders ORDER BY id DESC LIMIT 1").fetchone()
+        if last_wo:
+            last_num = int(last_wo['wo_number'].replace('WO-', ''))
+            new_num = f"WO-{last_num + 1:06d}"
+        else:
+            new_num = "WO-000001"
+        
+        conn.execute('''
+            INSERT INTO work_orders 
+            (wo_number, product_id, quantity, status, priority, planned_start_date, planned_end_date, 
+             so_id, customer_id)
+            VALUES (?, ?, ?, 'Planned', ?, ?, ?, ?, ?)
+        ''', (new_num, product_id, quantity, priority, planned_start, planned_end, 
+              order_id, order['customer_id']))
+        
+        if order['status'] == 'Approved':
+            conn.execute("UPDATE sales_orders SET status = 'In Production' WHERE id = ?", (order_id,))
+        
+        conn.commit()
+        flash(f'Work Order {new_num} created successfully for {order["so_number"]}', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error creating work order: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.order_detail', order_id=order_id))
+
+
+@customer_service_bp.route('/customer-service/orders/<int:order_id>/approve', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def approve_order(order_id):
+    """Approve a sales order (mark quote as approved)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    order = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (order_id,)).fetchone()
+    
+    if not order:
+        conn.close()
+        flash('Order not found', 'danger')
+        return redirect(url_for('customer_service.orders_list'))
+    
+    try:
+        conn.execute('''
+            UPDATE sales_orders SET status = 'Approved' WHERE id = ?
+        ''', (order_id,))
+        
+        for stage_name, stage_order in DEFAULT_STAGES[:1]:
+            conn.execute('''
+                UPDATE order_stage_tracking 
+                SET stage_status = 'In Progress', started_at = CURRENT_TIMESTAMP
+                WHERE sales_order_id = ? AND stage_order = 1
+            ''', (order_id,))
+        
+        conn.commit()
+        flash(f'Order {order["so_number"]} approved successfully', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error approving order: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.order_detail', order_id=order_id))

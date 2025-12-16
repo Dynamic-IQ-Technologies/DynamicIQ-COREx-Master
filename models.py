@@ -1680,6 +1680,9 @@ class Database:
         # Migrate mro_capabilities table - add applicability and part_class columns if they don't exist
         self._migrate_mro_capabilities(cursor)
         
+        # Migrate work_orders table - add so_id and customer_id columns for sales order linking
+        self._migrate_work_orders_so_link(cursor)
+        
         conn.commit()
         conn.close()
     
@@ -1747,6 +1750,21 @@ class Database:
         # Add part_class column if it doesn't exist
         if 'part_class' not in existing_columns:
             cursor.execute("ALTER TABLE mro_capabilities ADD COLUMN part_class TEXT")
+    
+    def _migrate_work_orders_so_link(self, cursor):
+        """Add so_id column to work_orders table to link to sales orders"""
+        
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(work_orders)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add so_id column if it doesn't exist
+        if 'so_id' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN so_id INTEGER REFERENCES sales_orders(id)")
+        
+        # Add customer_id column if it doesn't exist
+        if 'customer_id' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN customer_id INTEGER REFERENCES customers(id)")
     
     def seed_chart_of_accounts(self):
         conn = self.get_connection()
