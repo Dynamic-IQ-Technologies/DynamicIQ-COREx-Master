@@ -929,3 +929,91 @@ def api_quick_add_product():
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@po_bp.route('/api/purchaseorders/mass-update', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def api_mass_update_purchaseorders():
+    """API endpoint to mass update multiple purchase orders"""
+    from flask import jsonify
+    
+    data = request.get_json()
+    po_ids = data.get('po_ids', [])
+    updates = data.get('updates', {})
+    
+    if not po_ids:
+        return jsonify({'success': False, 'error': 'No purchase orders selected'}), 400
+    
+    if not updates:
+        return jsonify({'success': False, 'error': 'No updates specified'}), 400
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        updated_count = 0
+        
+        for po_id in po_ids:
+            # Get current PO for audit
+            old_po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+            if not old_po:
+                continue
+            
+            # Build update query dynamically
+            update_fields = []
+            update_values = []
+            
+            if 'status' in updates:
+                update_fields.append('status = ?')
+                update_values.append(updates['status'])
+            
+            if 'expected_delivery_date' in updates:
+                update_fields.append('expected_delivery_date = ?')
+                update_values.append(updates['expected_delivery_date'] or None)
+            
+            if 'order_date' in updates:
+                update_fields.append('order_date = ?')
+                update_values.append(updates['order_date'] or None)
+            
+            if 'notes_append' in updates and updates['notes_append']:
+                # Append to existing notes
+                current_notes = old_po['notes'] or ''
+                new_notes = current_notes + ('\n' if current_notes else '') + updates['notes_append']
+                update_fields.append('notes = ?')
+                update_values.append(new_notes)
+            
+            if update_fields:
+                update_values.append(po_id)
+                conn.execute(f'''
+                    UPDATE purchase_orders 
+                    SET {', '.join(update_fields)}
+                    WHERE id = ?
+                ''', update_values)
+                
+                # Get new PO for audit
+                new_po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+                
+                # Log the audit
+                AuditLogger.log_change(
+                    'purchase_orders',
+                    po_id,
+                    'UPDATE',
+                    dict(old_po),
+                    dict(new_po),
+                    'Mass update'
+                )
+                
+                updated_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'updated_count': updated_count,
+            'message': f'Successfully updated {updated_count} purchase order(s)'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500

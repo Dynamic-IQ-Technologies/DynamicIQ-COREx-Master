@@ -10,6 +10,9 @@
         <a href="{{ url_for('po_routes.purchase_suggestions') }}" class="btn btn-info me-2"><i class="bi bi-lightbulb"></i> Suggestions</a>
         {% endif %}
         {% if session.role in ['Admin', 'Procurement'] %}
+        <button type="button" class="btn btn-warning me-2 d-none" id="massUpdateBtn" onclick="openMassUpdateModal()">
+            <i class="bi bi-pencil-square"></i> Mass Update (<span id="selectedCount">0</span>)
+        </button>
         <a href="{{ url_for('po_routes.create_purchaseorder') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Create PO</a>
         {% endif %}
     </div>
@@ -29,6 +32,11 @@
             <table class="table table-striped" id="purchaseOrdersTable">
                 <thead>
                     <tr>
+                        {% if session.role in ['Admin', 'Procurement'] %}
+                        <th data-sortable="false" style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()">
+                        </th>
+                        {% endif %}
                         <th data-sort-type="string">PO Number</th>
                         <th data-sort-type="string">Supplier</th>
                         <th data-sort-type="number">Line Items</th>
@@ -42,6 +50,13 @@
                 <tbody>
                     {% for po in purchase_orders %}
                     <tr>
+                        {% if session.role in ['Admin', 'Procurement'] %}
+                        <td>
+                            <input type="checkbox" class="form-check-input po-checkbox" value="{{ po.id }}" 
+                                   data-po-number="{{ po.po_number }}" data-status="{{ po.status }}"
+                                   onclick="updateSelectedCount()">
+                        </td>
+                        {% endif %}
                         <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
                         <td>{{ po.supplier_name }}</td>
                         <td>{{ po.line_count }} line(s)</td>
@@ -51,6 +66,8 @@
                             <span class="badge bg-success">{{ po.status }}</span>
                             {% elif po.status == 'Ordered' %}
                             <span class="badge bg-info">{{ po.status }}</span>
+                            {% elif po.status == 'Partially Received' %}
+                            <span class="badge bg-primary">{{ po.status }}</span>
                             {% else %}
                             <span class="badge bg-warning">{{ po.status }}</span>
                             {% endif %}
@@ -68,11 +85,237 @@
     </div>
 </div>
 
+<!-- Mass Update Modal -->
+{% if session.role in ['Admin', 'Procurement'] %}
+<div class="modal fade" id="massUpdateModal" tabindex="-1" aria-labelledby="massUpdateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="massUpdateModalLabel">
+                    <i class="bi bi-pencil-square"></i> Mass Update Purchase Orders
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> You are about to update <strong id="modalSelectedCount">0</strong> purchase orders.
+                    Select the fields you want to update and set their new values.
+                </div>
+                
+                <div class="mb-3" id="selectedPOsList">
+                    <label class="form-label fw-bold">Selected Purchase Orders:</label>
+                    <div id="selectedPOsContainer" class="border rounded p-2" style="max-height: 100px; overflow-y: auto; background: #f8f9fa;"></div>
+                </div>
+                
+                <hr>
+                
+                <form id="massUpdateForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="updateStatus" onchange="toggleField('status')">
+                                    <label class="form-check-label fw-bold" for="updateStatus">Update Status</label>
+                                </div>
+                                <select class="form-select mt-2" id="massStatus" disabled>
+                                    <option value="">Select Status</option>
+                                    <option value="Draft">Draft</option>
+                                    <option value="Ordered">Ordered</option>
+                                    <option value="Partially Received">Partially Received</option>
+                                    <option value="Received">Received</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="updateExpectedDelivery" onchange="toggleField('expectedDelivery')">
+                                    <label class="form-check-label fw-bold" for="updateExpectedDelivery">Update Expected Delivery Date</label>
+                                </div>
+                                <input type="date" class="form-control mt-2" id="massExpectedDelivery" disabled>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="updateOrderDate" onchange="toggleField('orderDate')">
+                                    <label class="form-check-label fw-bold" for="updateOrderDate">Update Order Date</label>
+                                </div>
+                                <input type="date" class="form-control mt-2" id="massOrderDate" disabled>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="updateNotes" onchange="toggleField('notes')">
+                                    <label class="form-check-label fw-bold" for="updateNotes">Append Notes</label>
+                                </div>
+                                <textarea class="form-control mt-2" id="massNotes" rows="2" placeholder="Notes to append..." disabled></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="applyMassUpdate" onclick="applyMassUpdate()">
+                    <i class="bi bi-check-lg"></i> Apply Updates
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof TableUtils !== 'undefined') {
         TableUtils.init('#purchaseOrdersTable', '#quickFilter');
     }
 });
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.po-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.po-checkbox:checked');
+    const count = checkboxes.length;
+    document.getElementById('selectedCount').textContent = count;
+    
+    const massUpdateBtn = document.getElementById('massUpdateBtn');
+    if (count > 0) {
+        massUpdateBtn.classList.remove('d-none');
+    } else {
+        massUpdateBtn.classList.add('d-none');
+    }
+}
+
+function toggleField(field) {
+    const fieldMap = {
+        'status': { checkbox: 'updateStatus', input: 'massStatus' },
+        'expectedDelivery': { checkbox: 'updateExpectedDelivery', input: 'massExpectedDelivery' },
+        'orderDate': { checkbox: 'updateOrderDate', input: 'massOrderDate' },
+        'notes': { checkbox: 'updateNotes', input: 'massNotes' }
+    };
+    
+    const config = fieldMap[field];
+    const checkbox = document.getElementById(config.checkbox);
+    const input = document.getElementById(config.input);
+    
+    input.disabled = !checkbox.checked;
+    if (!checkbox.checked) {
+        input.value = '';
+    }
+}
+
+function openMassUpdateModal() {
+    const checkboxes = document.querySelectorAll('.po-checkbox:checked');
+    const count = checkboxes.length;
+    
+    if (count === 0) {
+        alert('Please select at least one purchase order.');
+        return;
+    }
+    
+    document.getElementById('modalSelectedCount').textContent = count;
+    
+    // Display selected PO numbers
+    const container = document.getElementById('selectedPOsContainer');
+    container.innerHTML = '';
+    checkboxes.forEach(cb => {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-secondary me-1 mb-1';
+        badge.textContent = cb.dataset.poNumber;
+        container.appendChild(badge);
+    });
+    
+    // Reset form
+    document.getElementById('massUpdateForm').reset();
+    document.getElementById('massStatus').disabled = true;
+    document.getElementById('massExpectedDelivery').disabled = true;
+    document.getElementById('massOrderDate').disabled = true;
+    document.getElementById('massNotes').disabled = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('massUpdateModal'));
+    modal.show();
+}
+
+async function applyMassUpdate() {
+    const checkboxes = document.querySelectorAll('.po-checkbox:checked');
+    const poIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (poIds.length === 0) {
+        alert('No purchase orders selected.');
+        return;
+    }
+    
+    // Collect updates
+    const updates = {};
+    
+    if (document.getElementById('updateStatus').checked) {
+        const status = document.getElementById('massStatus').value;
+        if (!status) {
+            alert('Please select a status.');
+            return;
+        }
+        updates.status = status;
+    }
+    
+    if (document.getElementById('updateExpectedDelivery').checked) {
+        updates.expected_delivery_date = document.getElementById('massExpectedDelivery').value;
+    }
+    
+    if (document.getElementById('updateOrderDate').checked) {
+        updates.order_date = document.getElementById('massOrderDate').value;
+    }
+    
+    if (document.getElementById('updateNotes').checked) {
+        updates.notes_append = document.getElementById('massNotes').value;
+    }
+    
+    if (Object.keys(updates).length === 0) {
+        alert('Please select at least one field to update.');
+        return;
+    }
+    
+    // Confirm
+    if (!confirm(`Are you sure you want to update ${poIds.length} purchase order(s)?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/purchaseorders/mass-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                po_ids: poIds,
+                updates: updates
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('massUpdateModal')).hide();
+            alert(`Successfully updated ${data.updated_count} purchase order(s).`);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to update purchase orders'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while updating purchase orders.');
+    }
+}
 </script>
 {% endblock %}
