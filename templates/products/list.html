@@ -127,6 +127,7 @@
                         <td>{{ product.unit_of_measure }}</td>
                         <td>${{ "%.2f"|format(product.cost) }}</td>
                         <td>
+                            <a href="{{ url_for('product_routes.view_product', id=product.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
                             {% if session.role in ['Admin', 'Planner'] %}
                             <a href="{{ url_for('product_routes.edit_product', id=product.id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
                             {% if session.role == 'Admin' %}

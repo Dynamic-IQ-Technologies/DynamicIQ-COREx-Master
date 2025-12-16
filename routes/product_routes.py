@@ -126,6 +126,72 @@ def create_product():
     
     return render_template('products/create.html')
 
+@product_bp.route('/products/<int:id>')
+@login_required
+def view_product(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    product = conn.execute('SELECT * FROM products WHERE id = ?', (id,)).fetchone()
+    if not product:
+        conn.close()
+        flash('Product not found', 'danger')
+        return redirect(url_for('product_routes.list_products'))
+    
+    inventory = conn.execute('SELECT * FROM inventory WHERE product_id = ?', (id,)).fetchone()
+    
+    bom_usage = conn.execute('''
+        SELECT b.*, p.code as parent_code, p.name as parent_name
+        FROM bom_items b
+        JOIN products p ON b.parent_product_id = p.id
+        WHERE b.component_id = ?
+        ORDER BY p.code
+    ''', (id,)).fetchall()
+    
+    bom_components = conn.execute('''
+        SELECT b.*, p.code as component_code, p.name as component_name, p.unit_of_measure
+        FROM bom_items b
+        JOIN products p ON b.component_id = p.id
+        WHERE b.parent_product_id = ?
+        ORDER BY b.sequence_number
+    ''', (id,)).fetchall()
+    
+    recent_work_orders = conn.execute('''
+        SELECT wo.*, p.code as product_code
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        WHERE wo.product_id = ?
+        ORDER BY wo.created_at DESC
+        LIMIT 10
+    ''', (id,)).fetchall()
+    
+    recent_po_lines = conn.execute('''
+        SELECT pol.*, po.po_number, s.name as supplier_name
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.purchase_order_id = po.id
+        LEFT JOIN suppliers s ON po.supplier_id = s.id
+        WHERE pol.product_id = ?
+        ORDER BY po.order_date DESC
+        LIMIT 10
+    ''', (id,)).fetchall()
+    
+    uom_conversions = conn.execute('''
+        SELECT * FROM uom_conversions 
+        WHERE product_id = ? AND is_active = 1
+        ORDER BY target_uom
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('products/view.html',
+                          product=product,
+                          inventory=inventory,
+                          bom_usage=bom_usage,
+                          bom_components=bom_components,
+                          recent_work_orders=recent_work_orders,
+                          recent_po_lines=recent_po_lines,
+                          uom_conversions=uom_conversions)
+
 @product_bp.route('/products/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
 def edit_product(id):
