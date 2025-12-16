@@ -168,7 +168,7 @@ def view_product(id):
     recent_po_lines = conn.execute('''
         SELECT pol.*, po.po_number, s.name as supplier_name
         FROM purchase_order_lines pol
-        JOIN purchase_orders po ON pol.purchase_order_id = po.id
+        JOIN purchase_orders po ON pol.po_id = po.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id
         WHERE pol.product_id = ?
         ORDER BY po.order_date DESC

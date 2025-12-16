@@ -285,7 +285,7 @@
                 {% for pol in recent_po_lines %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('po_routes.view_purchaseorder', id=pol.purchase_order_id) }}">
+                        <a href="{{ url_for('po_routes.view_purchaseorder', id=pol.po_id) }}">
                             {{ pol.po_number }}
                         </a>
                     </td>
