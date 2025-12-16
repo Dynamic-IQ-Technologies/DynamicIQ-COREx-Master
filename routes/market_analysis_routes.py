@@ -734,6 +734,17 @@ def view_results(source_id):
     if latest_run and latest_run['notes']:
         ai_insights = latest_run['notes']
     
+    # Check if any match runs exist for this source
+    has_match_run = conn.execute('''
+        SELECT COUNT(*) as count FROM match_runs WHERE source_id = ?
+    ''', (source_id,)).fetchone()['count'] > 0
+    
+    # Check if analysis is currently running
+    analysis_running = conn.execute('''
+        SELECT COUNT(*) as count FROM match_runs 
+        WHERE source_id = ? AND status = 'Running'
+    ''', (source_id,)).fetchone()['count'] > 0
+    
     conn.close()
     
     return render_template('market_analysis/results.html',
@@ -744,6 +755,8 @@ def view_results(source_id):
                          models=models,
                          stats=stats,
                          ai_insights=ai_insights,
+                         has_match_run=has_match_run,
+                         analysis_running=analysis_running,
                          filters={
                              'region': region_filter,
                              'airline': airline_filter,
