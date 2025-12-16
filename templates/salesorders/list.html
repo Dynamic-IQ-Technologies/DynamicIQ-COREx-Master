@@ -88,8 +88,8 @@
                                         <span class="badge bg-warning">{{ so.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td>${{ "{:,.2f}".format(so.total_amount) }}</td>
-                                <td>${{ "{:,.2f}".format(so.balance_due) }}</td>
+                                <td>{{ so.total_amount|currency }}</td>
+                                <td>{{ so.balance_due|currency }}</td>
                                 <td>{{ so.line_count }}</td>
                                 <td>
                                     <a href="{{ url_for('salesorder_routes.view_sales_order', id=so.id) }}" 

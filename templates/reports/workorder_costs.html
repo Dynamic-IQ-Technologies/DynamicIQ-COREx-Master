@@ -27,10 +27,10 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                         <td>{{ wo.code }} - {{ wo.name }}</td>
                         <td>{{ wo.quantity }}</td>
-                        <td>${{ "%.2f"|format(wo.material_cost) }}</td>
-                        <td>${{ "%.2f"|format(wo.labor_cost) }}</td>
-                        <td>${{ "%.2f"|format(wo.overhead_cost) }}</td>
-                        <td><strong>${{ "%.2f"|format(wo.total_cost) }}</strong></td>
+                        <td>{{ wo.material_cost|currency }}</td>
+                        <td>{{ wo.labor_cost|currency }}</td>
+                        <td>{{ wo.overhead_cost|currency }}</td>
+                        <td><strong>{{ wo.total_cost|currency }}</strong></td>
                         <td><span class="badge bg-info">{{ wo.status }}</span></td>
                     </tr>
                     {% endfor %}

@@ -30,7 +30,7 @@
                         <td>{{ item.required_quantity|int }}</td>
                         <td>{{ item.available_quantity|int }}</td>
                         <td>{{ item.shortage_quantity|int }}</td>
-                        <td>${{ "%.2f"|format(item.total_cost) }}</td>
+                        <td>{{ item.total_cost|currency }}</td>
                         <td>
                             {% if item.status == 'Satisfied' %}
                             <span class="badge bg-success">{{ item.status }}</span>

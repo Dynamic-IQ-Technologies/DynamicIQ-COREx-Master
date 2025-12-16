@@ -125,7 +125,7 @@
                         <td>{{ product.name }}</td>
                         <td><span class="badge bg-secondary">{{ product.product_type }}</span></td>
                         <td>{{ product.unit_of_measure }}</td>
-                        <td>${{ "%.2f"|format(product.cost) }}</td>
+                        <td>{{ product.cost|currency }}</td>
                         <td>
                             <a href="{{ url_for('product_routes.view_product', id=product.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
                             {% if session.role in ['Admin', 'Planner'] %}

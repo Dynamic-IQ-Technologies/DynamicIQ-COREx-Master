@@ -217,11 +217,11 @@
                             </div>
                             <div class="col-md-3 text-end">
                                 <p class="mb-1">Qty: <strong>{{ line.quantity }} {{ line.unit_of_measure }}</strong></p>
-                                <p class="mb-1">Unit Price: ${{ "{:,.2f}".format(line.unit_price) }}</p>
+                                <p class="mb-1">Unit Price: {{ line.unit_price|currency }}</p>
                                 {% if line.discount_percent > 0 %}
                                 <p class="mb-1 text-success">Discount: {{ line.discount_percent }}%</p>
                                 {% endif %}
-                                <p class="mb-0 fs-5"><strong>Line Total: ${{ "{:,.2f}".format(line.line_total) }}</strong></p>
+                                <p class="mb-0 fs-5"><strong>Line Total: {{ line.line_total|currency }}</strong></p>
                             </div>
                             <div class="col-md-3 text-end">
                                 {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
@@ -254,7 +254,7 @@
                             <div class="row mt-2">
                                 <div class="col-md-3">
                                     <small class="text-muted">Core Charge:</small><br>
-                                    <strong>${{ "{:,.2f}".format(line.core_charge) }}</strong>
+                                    <strong>{{ line.core_charge|currency }}</strong>
                                 </div>
                                 {% if line.core_due_days %}
                                 <div class="col-md-3">
@@ -292,7 +292,7 @@
                                 {% if line.repair_nte %}
                                 <div class="col-md-3">
                                     <small class="text-muted">Repair NTE:</small><br>
-                                    <strong>${{ "{:,.2f}".format(line.repair_nte) }}</strong>
+                                    <strong>{{ line.repair_nte|currency }}</strong>
                                 </div>
                                 {% endif %}
                                 {% if line.vendor_repair_source %}
@@ -345,7 +345,7 @@
                                 {% for payment in payments %}
                                 <tr>
                                     <td>{{ payment.payment_date }}</td>
-                                    <td>${{ "{:,.2f}".format(payment.amount) }}</td>
+                                    <td>{{ payment.amount|currency }}</td>
                                     <td>{{ payment.payment_method }}</td>
                                 </tr>
                                 {% endfor %}
@@ -367,33 +367,33 @@
                     <table class="table table-borderless table-sm">
                         <tr>
                             <th width="60%">Subtotal:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.subtotal) }}</td>
+                            <td class="text-end">{{ sales_order.subtotal|currency }}</td>
                         </tr>
                         {% if sales_order.sales_type in ['Exchange', 'Managed Repair'] %}
                         <tr>
                             <th>Core Charge:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.core_charge) }}</td>
+                            <td class="text-end">{{ sales_order.core_charge|currency }}</td>
                         </tr>
                         <tr>
                             <th>Repair Charge:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.repair_charge) }}</td>
+                            <td class="text-end">{{ sales_order.repair_charge|currency }}</td>
                         </tr>
                         {% endif %}
                         <tr>
                             <th>Tax:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.tax_amount) }}</td>
+                            <td class="text-end">{{ sales_order.tax_amount|currency }}</td>
                         </tr>
                         <tr class="table-active fw-bold">
                             <th>Total Amount:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.total_amount) }}</td>
+                            <td class="text-end">{{ sales_order.total_amount|currency }}</td>
                         </tr>
                         <tr>
                             <th>Amount Paid:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.amount_paid) }}</td>
+                            <td class="text-end">{{ sales_order.amount_paid|currency }}</td>
                         </tr>
                         <tr class="{% if sales_order.balance_due > 0 %}table-warning{% else %}table-success{% endif %} fw-bold">
                             <th>Balance Due:</th>
-                            <td class="text-end">${{ "{:,.2f}".format(sales_order.balance_due) }}</td>
+                            <td class="text-end">{{ sales_order.balance_due|currency }}</td>
                         </tr>
                     </table>
                 </div>

@@ -70,11 +70,11 @@
                 <h5 class="mb-0">Cost & Value</h5>
             </div>
             <div class="card-body">
-                <p><strong>Unit Cost:</strong> ${{ "{:,.2f}".format(inventory.cost) }}</p>
+                <p><strong>Unit Cost:</strong> {{ inventory.cost|currency }}</p>
                 <p><strong>Current Quantity:</strong> {{ inventory.quantity }}</p>
                 <hr>
                 <p><strong>Total Inventory Value:</strong> <br>
-                    <span class="text-success fs-4">${{ "{:,.2f}".format(inventory.inventory_value) }}</span>
+                    <span class="text-success fs-4">{{ inventory.inventory_value|currency }}</span>
                 </p>
             </div>
         </div>

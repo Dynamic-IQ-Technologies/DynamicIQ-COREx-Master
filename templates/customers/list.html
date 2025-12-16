@@ -47,7 +47,7 @@
                                 <td>{{ customer.email or '-' }}</td>
                                 <td>{{ customer.phone or '-' }}</td>
                                 <td>Net {{ customer.payment_terms }}</td>
-                                <td>${{ "{:,.2f}".format(customer.credit_limit) }}</td>
+                                <td>{{ customer.credit_limit|currency }}</td>
                                 <td>
                                     {% if customer.status == 'Active' %}
                                         <span class="badge bg-success">Active</span>

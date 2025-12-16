@@ -55,7 +55,7 @@
                     <table class="table table-borderless">
                         <tr>
                             <th width="40%">Credit Limit:</th>
-                            <td>${{ "{:,.2f}".format(customer.credit_limit) }}</td>
+                            <td>{{ customer.credit_limit|currency }}</td>
                         </tr>
                         <tr>
                             <th>Tax Exempt:</th>
@@ -142,8 +142,8 @@
                                         <span class="badge bg-dark">{{ sale.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td>${{ "{:,.2f}".format(sale.total_amount) }}</td>
-                                <td>${{ "{:,.2f}".format(sale.balance_due) }}</td>
+                                <td>{{ sale.total_amount|currency }}</td>
+                                <td>{{ sale.balance_due|currency }}</td>
                                 <td>{{ sale.line_count }}</td>
                             </tr>
                             {% endfor %}

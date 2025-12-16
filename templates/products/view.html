@@ -67,7 +67,7 @@
                     </tr>
                     <tr>
                         <th>Cost</th>
-                        <td>${{ "%.2f"|format(product.cost or 0) }}</td>
+                        <td>{{ (product.cost or 0)|currency }}</td>
                     </tr>
                 </table>
             </div>
@@ -299,8 +299,8 @@
                     </td>
                     <td>{{ pol.supplier_name or '-' }}</td>
                     <td>{{ pol.quantity }}</td>
-                    <td>${{ "%.2f"|format(pol.unit_price or 0) }}</td>
-                    <td>${{ "%.2f"|format((pol.quantity or 0) * (pol.unit_price or 0)) }}</td>
+                    <td>{{ (pol.unit_price or 0)|currency }}</td>
+                    <td>{{ ((pol.quantity or 0) * (pol.unit_price or 0))|currency }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

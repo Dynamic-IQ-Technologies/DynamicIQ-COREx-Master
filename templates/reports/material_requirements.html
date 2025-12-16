@@ -38,7 +38,7 @@
         <div class="card">
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Total Value</h6>
-                <h3 class="card-title">${{ "%.2f"|format(total_cost) }}</h3>
+                <h3 class="card-title">{{ total_cost|currency }}</h3>
             </div>
         </div>
     </div>
@@ -46,7 +46,7 @@
         <div class="card">
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Shortage Value</h6>
-                <h3 class="card-title text-danger">${{ "%.2f"|format(total_shortage_cost) }}</h3>
+                <h3 class="card-title text-danger">{{ total_shortage_cost|currency }}</h3>
             </div>
         </div>
     </div>
@@ -74,7 +74,7 @@
                         <td>{{ item.code }}</td>
                         <td>{{ item.name }}</td>
                         <td class="text-danger">{{ item.total_shortage|int }}</td>
-                        <td class="text-danger">${{ "%.2f"|format(item.shortage_value) }}</td>
+                        <td class="text-danger">{{ item.shortage_value|currency }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -154,8 +154,8 @@
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(req.cost or 0) }}</td>
-                        <td>${{ "%.2f"|format(req.total_cost) }}</td>
+                        <td>{{ (req.cost or 0)|currency }}</td>
+                        <td>{{ req.total_cost|currency }}</td>
                         <td>
                             {% if req.status == 'Satisfied' or req.status == 'Available' %}
                             <span class="badge bg-success">{{ req.status }}</span>

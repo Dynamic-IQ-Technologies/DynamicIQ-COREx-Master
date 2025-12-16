@@ -91,8 +91,8 @@
                         </td>
                         <td>{{ item.quantity }}</td>
                         <td>{{ item.unit_of_measure }}</td>
-                        <td>${{ "{:,.2f}".format(item.cost) }}</td>
-                        <td><strong>${{ "{:,.2f}".format(item.inventory_value) }}</strong></td>
+                        <td>{{ item.cost|currency }}</td>
+                        <td><strong>{{ item.inventory_value|currency }}</strong></td>
                         <td>{{ item.reorder_point }}</td>
                         <td>{{ item.safety_stock }}</td>
                         <td>
@@ -115,7 +115,7 @@
                 <tfoot>
                     <tr class="table-primary">
                         <td colspan="7" class="text-end"><strong>Total Inventory Value:</strong></td>
-                        <td colspan="5"><strong class="text-success fs-5">${{ "{:,.2f}".format(total_value) }}</strong></td>
+                        <td colspan="5"><strong class="text-success fs-5">{{ total_value|currency }}</strong></td>
                     </tr>
                 </tfoot>
             </table>

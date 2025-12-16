@@ -92,8 +92,8 @@
                                 <td><span class="badge bg-secondary">{{ line.line_type }}</span></td>
                                 <td>{{ line.description }}</td>
                                 <td>{{ line.quantity }}</td>
-                                <td>${{ "%.2f"|format(line.unit_price) }}</td>
-                                <td>${{ "%.2f"|format(line.line_total) }}</td>
+                                <td>{{ line.unit_price|currency }}</td>
+                                <td>{{ line.line_total|currency }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -106,33 +106,33 @@
                             {% endif %}
                             <tr>
                                 <td colspan="4" class="text-end"><strong>Parts Subtotal:</strong></td>
-                                <td><strong>${{ "%.2f"|format(quote.subtotal) }}</strong></td>
+                                <td><strong>{{ quote.subtotal|currency }}</strong></td>
                             </tr>
                             {% if quote.labor_amount and quote.labor_amount > 0 %}
                             <tr>
                                 <td colspan="4" class="text-end">Labor:</td>
-                                <td>${{ "%.2f"|format(quote.labor_amount) }}</td>
+                                <td>{{ quote.labor_amount|currency }}</td>
                             </tr>
                             {% endif %}
                             {% if quote.consumables_amount and quote.consumables_amount > 0 %}
                             <tr>
                                 <td colspan="4" class="text-end">Consumables:</td>
-                                <td>${{ "%.2f"|format(quote.consumables_amount) }}</td>
+                                <td>{{ quote.consumables_amount|currency }}</td>
                             </tr>
                             {% endif %}
                             {% if quote.other_fees_amount and quote.other_fees_amount > 0 %}
                             <tr>
                                 <td colspan="4" class="text-end">Other Fees:</td>
-                                <td>${{ "%.2f"|format(quote.other_fees_amount) }}</td>
+                                <td>{{ quote.other_fees_amount|currency }}</td>
                             </tr>
                             {% endif %}
                             <tr>
                                 <td colspan="4" class="text-end">Tax ({{ quote.tax_rate }}%):</td>
-                                <td>${{ "%.2f"|format(quote.tax_amount) }}</td>
+                                <td>{{ quote.tax_amount|currency }}</td>
                             </tr>
                             <tr class="table-primary">
                                 <td colspan="4" class="text-end"><strong>Total:</strong></td>
-                                <td><strong>${{ "%.2f"|format(quote.total_amount) }}</strong></td>
+                                <td><strong>{{ quote.total_amount|currency }}</strong></td>
                             </tr>
                         </tfoot>
                     </table>

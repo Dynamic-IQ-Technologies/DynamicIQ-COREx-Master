@@ -65,7 +65,7 @@
                     <label class="form-label">Tax Rate (%)</label>
                     <input type="number" step="0.01" class="form-control" name="tax_rate" id="tax_rate" 
                            value="{{ sales_order.tax_rate or 0 }}">
-                    <small class="text-muted">Current tax amount: ${{ "{:,.2f}".format(sales_order.tax_amount or 0) }}</small>
+                    <small class="text-muted">Current tax amount: {{ (sales_order.tax_amount or 0)|currency }}</small>
                 </div>
 
                 <div class="mb-3">
@@ -114,11 +114,11 @@
                                     <small class="text-muted">{{ line.description or line.product_name }}</small>
                                 </td>
                                 <td>{{ line.quantity }}</td>
-                                <td>${{ "{:,.2f}".format(line.unit_price) }}</td>
+                                <td>{{ line.unit_price|currency }}</td>
                                 <td>
-                                    ${{ "{:,.2f}".format(line.line_total) }}
+                                    {{ line.line_total|currency }}
                                     {% if line.line_type == 'Exchange' and line.core_charge %}
-                                        <br><small class="text-primary">+${{ "{:,.2f}".format(line.core_charge) }} core</small>
+                                        <br><small class="text-primary">+{{ line.core_charge|currency }} core</small>
                                     {% endif %}
                                 </td>
                                 <td>
