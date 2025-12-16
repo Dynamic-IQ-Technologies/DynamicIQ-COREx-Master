@@ -10,14 +10,24 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 
-The system features a responsive and modern user interface built with Bootstrap 5 and Bootstrap Icons, using a base template for consistency. It incorporates card-based and accordion-style displays, including an executive financial accounting dashboard with interactive Chart.js visualizations and color-coded KPI indicators.
+The system features a professional, elegant user interface with a modern design system built on Bootstrap 5, Bootstrap Icons, and custom CSS design tokens. The UI uses the Inter font family and a refined slate-based color palette for a cohesive executive look.
 
-**Executive Dashboard**: The main dashboard provides a comprehensive operational overview including:
-- 8 top-level KPI cards: Active Sales Orders (with value), Active Work Orders, Open Purchase Orders (with value), Low Stock Alerts, A/R Outstanding, A/P Outstanding, Inventory Value, and Active Shipments
-- Interactive Chart.js visualizations: Operations overview bar chart and Work Order status doughnut chart
-- Real-time tables for Active Work Orders, Low Stock Alerts, Recent Sales Orders, and Pending Purchase Orders
-- Role-based widgets for Service Operations, Workforce Status (clocked-in employees), and Material Requirements
-- Quick action links for creating new Work Orders, Sales Orders, Purchase Orders, and accessing Reports
+**Design System (`static/css/style.css`)**:
+- CSS design tokens for colors, typography, shadows, and border-radius
+- Primary palette: Blue (#2563eb), Success (#059669), Warning (#d97706), Danger (#dc2626), Info (#0891b2), Purple (#7c3aed)
+- Neutral palette: Slate scale from 50-900 for text, backgrounds, and borders
+- Consistent shadow system (sm, default, md, lg) for depth hierarchy
+- Inter font family with fallback to system fonts
+
+**Executive Dashboard**: The main dashboard features an elegant, professional design including:
+- 8 KPI cards with accent top-borders, icon chips, and hover effects
+- Section labels with uppercase styling for visual hierarchy
+- Interactive Chart.js visualizations with coordinated color palette
+- Stats mini-cards for key metrics (Products, Customers, Suppliers, Employees)
+- Real-time tables with refined styling (uppercase headers, zebra striping)
+- Role-based widgets for Service Operations, Workforce Status, and Material Requirements
+- Quick action cards with hover states for creating new orders and accessing reports
+- Responsive grid layout (4 columns on XL, 3 on LG, 2 on MD, 1 on mobile)
 
 **Table Sorting & Filtering**: All list pages include client-side sortable columns. Click any column header to sort by that column (ascending/descending). The reusable `TableUtils` module (`static/js/table-utils.js`) supports string, number, currency, and date sorting with proper parsing of formatted values. Several pages also include quick search filters for instant row filtering.
 

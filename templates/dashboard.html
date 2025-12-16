@@ -3,204 +3,232 @@
 {% block title %}Executive Dashboard - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-speedometer2"></i> Executive Dashboard</h2>
-    <small class="text-muted">Last updated: {{ now().strftime('%B %d, %Y %I:%M %p') if now is defined else 'Today' }}</small>
-</div>
-
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card bg-primary text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="card-subtitle mb-1 text-white-50">Active Sales Orders</h6>
-                        <h2 class="mb-0">{{ so_stats.active or 0 }}</h2>
-                        <small>{{ "$ {:,.2f}".format(so_stats.active_value or 0) }}</small>
-                    </div>
-                    <i class="bi bi-cart-check fs-1 opacity-50"></i>
-                </div>
-            </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="text-white text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
+<div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+        <h2><i class="bi bi-speedometer2"></i> Executive Dashboard</h2>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card bg-warning text-dark h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="card-subtitle mb-1">Active Work Orders</h6>
-                        <h2 class="mb-0">{{ wo_stats.active or 0 }}</h2>
-                        <small>{{ wo_stats.in_progress or 0 }} in progress</small>
-                    </div>
-                    <i class="bi bi-gear-wide-connected fs-1 opacity-50"></i>
-                </div>
-            </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('workorder_routes.list_workorders') }}" class="text-dark text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card bg-info text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="card-subtitle mb-1 text-white-50">Open Purchase Orders</h6>
-                        <h2 class="mb-0">{{ po_stats.open_count or 0 }}</h2>
-                        <small>{{ "$ {:,.2f}".format(po_open_value or 0) }}</small>
-                    </div>
-                    <i class="bi bi-bag-check fs-1 opacity-50"></i>
-                </div>
-            </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="text-white text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card bg-danger text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="card-subtitle mb-1 text-white-50">Low Stock Alerts</h6>
-                        <h2 class="mb-0">{{ low_stock_count or 0 }}</h2>
-                        <small>Items below reorder point</small>
-                    </div>
-                    <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
-                </div>
-            </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('inventory_routes.list_inventory') }}" class="text-white text-decoration-none small">View Inventory <i class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
+    <div class="dashboard-timestamp">
+        <i class="bi bi-clock me-1"></i>
+        Last updated: {{ now().strftime('%B %d, %Y at %I:%M %p') if now is defined else 'Today' }}
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card bg-success text-white h-100">
+<div class="section-title">Key Performance Indicators</div>
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-primary">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="card-subtitle mb-1 text-white-50">A/R Outstanding</h6>
-                        <h2 class="mb-0">{{ "$ {:,.2f}".format(invoice_stats.ar_outstanding or 0) }}</h2>
-                        <small>{{ invoice_stats.sent or 0 }} sent, {{ invoice_stats.overdue or 0 }} overdue</small>
+                        <div class="kpi-label">Active Sales Orders</div>
+                        <div class="kpi-value">{{ so_stats.active or 0 }}</div>
+                        <div class="kpi-subtext">{{ "$ {:,.2f}".format(so_stats.active_value or 0) }}</div>
                     </div>
-                    <i class="bi bi-cash-stack fs-1 opacity-50"></i>
+                    <div class="kpi-icon">
+                        <i class="bi bi-cart-check"></i>
+                    </div>
                 </div>
             </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('invoice_routes.list_invoices') }}" class="text-white text-decoration-none small">View A/R <i class="bi bi-arrow-right"></i></a>
+            <div class="card-footer">
+                <a href="{{ url_for('salesorder_routes.list_sales_orders') }}">View all orders <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card bg-secondary text-white h-100">
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-warning">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="card-subtitle mb-1 text-white-50">A/P Outstanding</h6>
-                        <h2 class="mb-0">{{ "$ {:,.2f}".format(ap_stats.ap_outstanding or 0) }}</h2>
-                        <small>{{ ap_stats.open_count or 0 }} open, {{ ap_stats.approved or 0 }} approved</small>
+                        <div class="kpi-label">Active Work Orders</div>
+                        <div class="kpi-value">{{ wo_stats.active or 0 }}</div>
+                        <div class="kpi-subtext">{{ wo_stats.in_progress or 0 }} in progress</div>
                     </div>
-                    <i class="bi bi-credit-card fs-1 opacity-50"></i>
+                    <div class="kpi-icon">
+                        <i class="bi bi-gear-wide-connected"></i>
+                    </div>
                 </div>
             </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('ap_routes.ap_dashboard') }}" class="text-white text-decoration-none small">View A/P <i class="bi bi-arrow-right"></i></a>
+            <div class="card-footer">
+                <a href="{{ url_for('workorder_routes.list_workorders') }}">View all work orders <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-primary h-100">
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-info">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="card-subtitle mb-1 text-muted">Inventory Value</h6>
-                        <h2 class="mb-0 text-primary">{{ "$ {:,.2f}".format(inventory_stats.total_value or 0) }}</h2>
-                        <small class="text-muted">{{ "{:,.0f}".format(inventory_stats.total_qty or 0) }} units in stock</small>
+                        <div class="kpi-label">Open Purchase Orders</div>
+                        <div class="kpi-value">{{ po_stats.open_count or 0 }}</div>
+                        <div class="kpi-subtext">{{ "$ {:,.2f}".format(po_open_value or 0) }}</div>
                     </div>
-                    <i class="bi bi-boxes fs-1 text-primary opacity-50"></i>
+                    <div class="kpi-icon">
+                        <i class="bi bi-bag-check"></i>
+                    </div>
                 </div>
             </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('report_routes.inventory_report') }}" class="text-decoration-none small">Valuation Report <i class="bi bi-arrow-right"></i></a>
+            <div class="card-footer">
+                <a href="{{ url_for('po_routes.list_purchaseorders') }}">View all POs <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-warning h-100">
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-danger">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="card-subtitle mb-1 text-muted">Active Shipments</h6>
-                        <h2 class="mb-0 text-warning">{{ (shipment_stats.pending or 0) + (shipment_stats.in_transit or 0) }}</h2>
-                        <small class="text-muted">{{ shipment_stats.pending or 0 }} pending, {{ shipment_stats.in_transit or 0 }} in transit</small>
+                        <div class="kpi-label">Low Stock Alerts</div>
+                        <div class="kpi-value">{{ low_stock_count or 0 }}</div>
+                        <div class="kpi-subtext">Items below reorder point</div>
                     </div>
-                    <i class="bi bi-truck fs-1 text-warning opacity-50"></i>
+                    <div class="kpi-icon">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
                 </div>
             </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('shipping_routes.dashboard') }}" class="text-decoration-none small">Shipping Dashboard <i class="bi bi-arrow-right"></i></a>
+            <div class="card-footer">
+                <a href="{{ url_for('inventory_routes.list_inventory') }}">View inventory <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-lg-8">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Operations Overview</h5>
-            </div>
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-success">
             <div class="card-body">
-                <div class="row text-center mb-4">
-                    <div class="col-md-3 col-6 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-primary mb-0">{{ products_count }}</h4>
-                            <small class="text-muted">Products</small>
-                        </div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">A/R Outstanding</div>
+                        <div class="kpi-value">{{ "$ {:,.0f}".format(invoice_stats.ar_outstanding or 0) }}</div>
+                        <div class="kpi-subtext">{{ invoice_stats.sent or 0 }} sent, {{ invoice_stats.overdue or 0 }} overdue</div>
                     </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-success mb-0">{{ customers_count }}</h4>
-                            <small class="text-muted">Customers</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-info mb-0">{{ suppliers_count }}</h4>
-                            <small class="text-muted">Suppliers</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-warning mb-0">{{ active_labor }}</h4>
-                            <small class="text-muted">Active Employees</small>
-                        </div>
+                    <div class="kpi-icon">
+                        <i class="bi bi-cash-stack"></i>
                     </div>
                 </div>
-                <canvas id="operationsChart" height="200"></canvas>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('invoice_routes.list_invoices') }}">View A/R <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-lg-4">
-        <div class="card h-100">
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-purple">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">A/P Outstanding</div>
+                        <div class="kpi-value">{{ "$ {:,.0f}".format(ap_stats.ap_outstanding or 0) }}</div>
+                        <div class="kpi-subtext">{{ ap_stats.open_count or 0 }} open, {{ ap_stats.approved or 0 }} approved</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="bi bi-credit-card"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('ap_routes.ap_dashboard') }}">View A/P <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">Inventory Value</div>
+                        <div class="kpi-value">{{ "$ {:,.0f}".format(inventory_stats.total_value or 0) }}</div>
+                        <div class="kpi-subtext">{{ "{:,.0f}".format(inventory_stats.total_qty or 0) }} units in stock</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="bi bi-boxes"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('report_routes.inventory_report') }}">Valuation report <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="kpi-card kpi-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kpi-label">Active Shipments</div>
+                        <div class="kpi-value">{{ (shipment_stats.pending or 0) + (shipment_stats.in_transit or 0) }}</div>
+                        <div class="kpi-subtext">{{ shipment_stats.pending or 0 }} pending, {{ shipment_stats.in_transit or 0 }} in transit</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('shipping_routes.dashboard') }}">Shipping dashboard <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section-title">Operations Analytics</div>
+<div class="row g-3 mb-4">
+    <div class="col-xl-8 col-lg-7">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Operations Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3 col-6">
+                        <div class="stats-mini">
+                            <div class="stats-value text-primary">{{ products_count }}</div>
+                            <div class="stats-label">Products</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stats-mini">
+                            <div class="stats-value text-success">{{ customers_count }}</div>
+                            <div class="stats-label">Customers</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stats-mini">
+                            <div class="stats-value text-info">{{ suppliers_count }}</div>
+                            <div class="stats-label">Suppliers</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stats-mini">
+                            <div class="stats-value text-warning">{{ active_labor }}</div>
+                            <div class="stats-label">Active Employees</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height: 220px;">
+                    <canvas id="operationsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4 col-lg-5">
+        <div class="card chart-card h-100">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Work Order Status</h5>
             </div>
             <div class="card-body d-flex align-items-center justify-content-center">
-                <canvas id="woStatusChart" height="200"></canvas>
+                <div style="width: 100%; max-width: 280px;">
+                    <canvas id="woStatusChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-lg-6 mb-3">
+<div class="section-title">Activity Feed</div>
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Active Work Orders</h5>
@@ -210,11 +238,11 @@
                 {% if active_work_orders %}
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>WO Number</th>
                                 <th>Product</th>
-                                <th>Qty</th>
+                                <th class="text-end">Qty</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -223,14 +251,14 @@
                             <tr>
                                 <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                                 <td>{{ wo.code }}</td>
-                                <td>{{ wo.quantity }}</td>
+                                <td class="text-end">{{ wo.quantity }}</td>
                                 <td>
                                     {% if wo.status == 'In Progress' %}
                                     <span class="badge bg-success">{{ wo.status }}</span>
                                     {% elif wo.status == 'Released' %}
                                     <span class="badge bg-primary">{{ wo.status }}</span>
                                     {% elif wo.status == 'On Hold' %}
-                                    <span class="badge bg-warning text-dark">{{ wo.status }}</span>
+                                    <span class="badge bg-warning">{{ wo.status }}</span>
                                     {% else %}
                                     <span class="badge bg-secondary">{{ wo.status }}</span>
                                     {% endif %}
@@ -241,12 +269,15 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted text-center py-4 mb-0">No active work orders</p>
+                <div class="empty-state">
+                    <i class="bi bi-clipboard-x d-block"></i>
+                    <p>No active work orders</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-lg-6 mb-3">
+    <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Low Stock Alerts</h5>
@@ -256,12 +287,12 @@
                 {% if low_stock %}
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>Code</th>
                                 <th>Product</th>
-                                <th>On Hand</th>
-                                <th>Reorder Pt</th>
+                                <th class="text-end">On Hand</th>
+                                <th class="text-end">Reorder Pt</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -269,23 +300,26 @@
                             <tr>
                                 <td><a href="{{ url_for('product_routes.view_product', id=item.product_id) }}">{{ item.code }}</a></td>
                                 <td>{{ item.name }}</td>
-                                <td><span class="badge bg-danger">{{ item.quantity }}</span></td>
-                                <td>{{ item.reorder_point }}</td>
+                                <td class="text-end"><span class="badge bg-danger">{{ item.quantity }}</span></td>
+                                <td class="text-end">{{ item.reorder_point }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-success text-center py-4 mb-0"><i class="bi bi-check-circle"></i> All items adequately stocked</p>
+                <div class="empty-state">
+                    <i class="bi bi-check-circle text-success d-block"></i>
+                    <p class="text-success">All items adequately stocked</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-lg-6 mb-3">
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-cart-check"></i> Recent Sales Orders</h5>
@@ -295,11 +329,11 @@
                 {% if recent_sales_orders %}
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>SO Number</th>
                                 <th>Customer</th>
-                                <th>Amount</th>
+                                <th class="text-end">Amount</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -308,7 +342,7 @@
                             <tr>
                                 <td><a href="{{ url_for('salesorder_routes.view_sales_order', id=so.id) }}">{{ so.so_number }}</a></td>
                                 <td>{{ so.customer_name or 'N/A' }}</td>
-                                <td>{{ "$ {:,.2f}".format(so.total_amount or 0) }}</td>
+                                <td class="text-end">{{ "$ {:,.2f}".format(so.total_amount or 0) }}</td>
                                 <td>
                                     {% if so.status == 'Confirmed' %}
                                     <span class="badge bg-success">{{ so.status }}</span>
@@ -326,12 +360,15 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted text-center py-4 mb-0">No active sales orders</p>
+                <div class="empty-state">
+                    <i class="bi bi-cart-x d-block"></i>
+                    <p>No active sales orders</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-lg-6 mb-3">
+    <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-bag-check"></i> Pending Purchase Orders</h5>
@@ -341,7 +378,7 @@
                 {% if pending_pos %}
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>PO Number</th>
                                 <th>Supplier</th>
@@ -359,7 +396,7 @@
                                     {% if po.status == 'Ordered' %}
                                     <span class="badge bg-primary">{{ po.status }}</span>
                                     {% elif po.status == 'Partially Received' %}
-                                    <span class="badge bg-warning text-dark">{{ po.status }}</span>
+                                    <span class="badge bg-warning">{{ po.status }}</span>
                                     {% else %}
                                     <span class="badge bg-secondary">{{ po.status }}</span>
                                     {% endif %}
@@ -370,7 +407,10 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted text-center py-4 mb-0">No pending purchase orders</p>
+                <div class="empty-state">
+                    <i class="bi bi-bag-x d-block"></i>
+                    <p>No pending purchase orders</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -378,43 +418,44 @@
 </div>
 
 {% if user_role in ['Admin', 'Procurement', 'Planner'] %}
-<div class="row mb-4">
-    <div class="col-lg-4 mb-3">
-        <div class="card h-100">
+<div class="section-title">Operations Widgets</div>
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="widget-card widget-primary">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-tools"></i> Service Operations</h5>
             </div>
-            <div class="card-body text-center">
-                <h2 class="text-primary">{{ swo_stats.active or 0 }}</h2>
-                <p class="text-muted mb-3">Active Service Work Orders</p>
+            <div class="card-body">
+                <div class="widget-value">{{ swo_stats.active or 0 }}</div>
+                <div class="widget-label">Active Service Work Orders</div>
                 <a href="{{ url_for('service_wo_routes.list_service_work_orders') }}" class="btn btn-sm btn-outline-primary">View Service WOs</a>
             </div>
         </div>
     </div>
-    <div class="col-lg-4 mb-3">
-        <div class="card h-100">
+    <div class="col-lg-4">
+        <div class="widget-card widget-success">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-people"></i> Workforce Status</h5>
             </div>
-            <div class="card-body text-center">
-                <h2 class="text-success">{{ clocked_in_today }}</h2>
-                <p class="text-muted mb-3">Currently Clocked In</p>
+            <div class="card-body">
+                <div class="widget-value">{{ clocked_in_today }}</div>
+                <div class="widget-label">Currently Clocked In</div>
                 <a href="{{ url_for('clock_station_routes.clock_dashboard') }}" class="btn btn-sm btn-outline-success">Time Clock</a>
             </div>
         </div>
     </div>
-    <div class="col-lg-4 mb-3">
-        <div class="card h-100">
+    <div class="col-lg-4">
+        <div class="widget-card {% if shortage_items %}widget-danger{% else %}widget-success{% endif %}">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-lightning"></i> Material Requirements</h5>
             </div>
-            <div class="card-body text-center">
+            <div class="card-body">
                 {% if shortage_items %}
-                <h2 class="text-danger">{{ shortage_items|length }}</h2>
-                <p class="text-muted mb-3">Items Need Ordering</p>
+                <div class="widget-value">{{ shortage_items|length }}</div>
+                <div class="widget-label">Items Need Ordering</div>
                 {% else %}
-                <h2 class="text-success">0</h2>
-                <p class="text-muted mb-3">All Materials Adequate</p>
+                <div class="widget-value">0</div>
+                <div class="widget-label">All Materials Adequate</div>
                 {% endif %}
                 <a href="{{ url_for('report_routes.material_requirements_report') }}" class="btn btn-sm btn-outline-warning">View Requirements</a>
             </div>
@@ -423,28 +464,32 @@
 </div>
 {% endif %}
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 col-6 mb-2">
-                        <a href="{{ url_for('workorder_routes.create_workorder') }}" class="btn btn-outline-primary w-100"><i class="bi bi-plus-circle"></i> New Work Order</a>
-                    </div>
-                    <div class="col-md-3 col-6 mb-2">
-                        <a href="{{ url_for('salesorder_routes.create_sales_order') }}" class="btn btn-outline-success w-100"><i class="bi bi-plus-circle"></i> New Sales Order</a>
-                    </div>
-                    <div class="col-md-3 col-6 mb-2">
-                        <a href="{{ url_for('po_routes.create_purchaseorder') }}" class="btn btn-outline-info w-100"><i class="bi bi-plus-circle"></i> New Purchase Order</a>
-                    </div>
-                    <div class="col-md-3 col-6 mb-2">
-                        <a href="{{ url_for('report_routes.inventory_report') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
-                    </div>
-                </div>
-            </div>
+<div class="section-title">Quick Actions</div>
+<div class="quick-link-card mb-4">
+    <div class="row g-3">
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('workorder_routes.create_workorder') }}" class="quick-link-btn">
+                <i class="bi bi-plus-circle"></i>
+                New Work Order
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('salesorder_routes.create_sales_order') }}" class="quick-link-btn">
+                <i class="bi bi-plus-circle"></i>
+                New Sales Order
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('po_routes.create_purchaseorder') }}" class="quick-link-btn">
+                <i class="bi bi-plus-circle"></i>
+                New Purchase Order
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('report_routes.inventory_report') }}" class="quick-link-btn">
+                <i class="bi bi-file-earmark-bar-graph"></i>
+                Reports
+            </a>
         </div>
     </div>
 </div>
@@ -452,6 +497,16 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const chartColors = {
+        primary: '#2563eb',
+        success: '#059669',
+        warning: '#d97706',
+        danger: '#dc2626',
+        info: '#0891b2',
+        purple: '#7c3aed',
+        slate: '#64748b'
+    };
+
     const woStatusCtx = document.getElementById('woStatusChart').getContext('2d');
     new Chart(woStatusCtx, {
         type: 'doughnut',
@@ -464,17 +519,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     {{ wo_stats.on_hold or 0 }},
                     {{ wo_stats.completed or 0 }}
                 ],
-                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#6c757d'],
-                borderWidth: 0
+                backgroundColor: [chartColors.primary, chartColors.success, chartColors.warning, chartColors.slate],
+                borderWidth: 0,
+                hoverOffset: 4
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
+            cutout: '65%',
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { padding: 15 }
+                    labels: {
+                        padding: 16,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        font: { size: 12, family: "'Inter', sans-serif" }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: "'Inter', sans-serif", weight: 600 },
+                    bodyFont: { family: "'Inter', sans-serif" },
+                    padding: 12,
+                    cornerRadius: 8
                 }
             }
         }
@@ -494,20 +563,46 @@ document.addEventListener('DOMContentLoaded', function() {
                     {{ swo_stats.active or 0 }},
                     {{ (shipment_stats.pending or 0) + (shipment_stats.in_transit or 0) }}
                 ],
-                backgroundColor: ['#0d6efd', '#ffc107', '#17a2b8', '#6f42c1', '#fd7e14'],
-                borderRadius: 4
+                backgroundColor: [
+                    chartColors.primary,
+                    chartColors.warning,
+                    chartColors.info,
+                    chartColors.purple,
+                    chartColors.success
+                ],
+                borderRadius: 6,
+                borderSkipped: false,
+                barThickness: 40
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: "'Inter', sans-serif", weight: 600 },
+                    bodyFont: { family: "'Inter', sans-serif" },
+                    padding: 12,
+                    cornerRadius: 8
+                }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { stepSize: 1 }
+                    grid: { color: '#e2e8f0', drawBorder: false },
+                    ticks: { 
+                        font: { size: 11, family: "'Inter', sans-serif" },
+                        color: '#64748b'
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, family: "'Inter', sans-serif" },
+                        color: '#64748b'
+                    }
                 }
             }
         }
