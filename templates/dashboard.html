@@ -1,92 +1,216 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Dynamic.IQ.MRP{% endblock %}
+{% block title %}Executive Dashboard - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Dashboard</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Executive Dashboard</h2>
+    <small class="text-muted">Last updated: {{ now().strftime('%B %d, %Y %I:%M %p') if now is defined else 'Today' }}</small>
+</div>
 
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-white bg-primary">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-primary text-white h-100">
             <div class="card-body">
-                <h5 class="card-title">Products</h5>
-                <h2>{{ products_count }}</h2>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-white-50">Active Sales Orders</h6>
+                        <h2 class="mb-0">{{ so_stats.active or 0 }}</h2>
+                        <small>{{ "$ {:,.2f}".format(so_stats.active_value or 0) }}</small>
+                    </div>
+                    <i class="bi bi-cart-check fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="text-white text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-white bg-warning">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-warning text-dark h-100">
             <div class="card-body">
-                <h5 class="card-title">Active Work Orders</h5>
-                <h2>{{ work_orders_count }}</h2>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1">Active Work Orders</h6>
+                        <h2 class="mb-0">{{ wo_stats.active or 0 }}</h2>
+                        <small>{{ wo_stats.in_progress or 0 }} in progress</small>
+                    </div>
+                    <i class="bi bi-gear-wide-connected fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('workorder_routes.list_workorders') }}" class="text-dark text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-white bg-success">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-info text-white h-100">
             <div class="card-body">
-                <h5 class="card-title">Suppliers</h5>
-                <h2>{{ suppliers_count }}</h2>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-white-50">Open Purchase Orders</h6>
+                        <h2 class="mb-0">{{ po_stats.open_count or 0 }}</h2>
+                        <small>{{ "$ {:,.2f}".format(po_stats.open_value or 0) }}</small>
+                    </div>
+                    <i class="bi bi-bag-check fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('po_routes.list_purchase_orders') }}" class="text-white text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-white bg-danger">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-danger text-white h-100">
             <div class="card-body">
-                <h5 class="card-title">Low Stock Items</h5>
-                <h2>{{ low_stock|length }}</h2>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-white-50">Low Stock Alerts</h6>
+                        <h2 class="mb-0">{{ low_stock_count or 0 }}</h2>
+                        <small>Items below reorder point</small>
+                    </div>
+                    <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('inventory_routes.inventory_list') }}" class="text-white text-decoration-none small">View Inventory <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Low Stock Alerts</h5>
-            </div>
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-success text-white h-100">
             <div class="card-body">
-                {% if low_stock %}
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Code</th>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Reorder Point</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in low_stock %}
-                            <tr>
-                                <td>{{ item.code }}</td>
-                                <td>{{ item.name }}</td>
-                                <td><span class="badge bg-danger">{{ item.quantity }}</span></td>
-                                <td>{{ item.reorder_point }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-white-50">A/R Outstanding</h6>
+                        <h2 class="mb-0">{{ "$ {:,.2f}".format(invoice_stats.ar_outstanding or 0) }}</h2>
+                        <small>{{ invoice_stats.sent or 0 }} sent, {{ invoice_stats.overdue or 0 }} overdue</small>
+                    </div>
+                    <i class="bi bi-cash-stack fs-1 opacity-50"></i>
                 </div>
-                {% else %}
-                <p class="text-muted">No low stock items</p>
-                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('invoice_routes.invoice_dashboard') }}" class="text-white text-decoration-none small">View A/R <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-white-50">A/P Outstanding</h6>
+                        <h2 class="mb-0">{{ "$ {:,.2f}".format(ap_stats.ap_outstanding or 0) }}</h2>
+                        <small>{{ ap_stats.open_count or 0 }} open, {{ ap_stats.approved or 0 }} approved</small>
+                    </div>
+                    <i class="bi bi-credit-card fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('ap_routes.ap_dashboard') }}" class="text-white text-decoration-none small">View A/P <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-muted">Inventory Value</h6>
+                        <h2 class="mb-0 text-primary">{{ "$ {:,.2f}".format(inventory_stats.total_value or 0) }}</h2>
+                        <small class="text-muted">{{ "{:,.0f}".format(inventory_stats.total_qty or 0) }} units in stock</small>
+                    </div>
+                    <i class="bi bi-boxes fs-1 text-primary opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('report_routes.inventory_valuation_report') }}" class="text-decoration-none small">Valuation Report <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-muted">Active Shipments</h6>
+                        <h2 class="mb-0 text-warning">{{ (shipment_stats.pending or 0) + (shipment_stats.in_transit or 0) }}</h2>
+                        <small class="text-muted">{{ shipment_stats.pending or 0 }} pending, {{ shipment_stats.in_transit or 0 }} in transit</small>
+                    </div>
+                    <i class="bi bi-truck fs-1 text-warning opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{{ url_for('shipping_routes.shipping_dashboard') }}" class="text-decoration-none small">Shipping Dashboard <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Active Work Orders</h5>
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Operations Overview</h5>
             </div>
             <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-primary mb-0">{{ products_count }}</h4>
+                            <small class="text-muted">Products</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-success mb-0">{{ customers_count }}</h4>
+                            <small class="text-muted">Customers</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-info mb-0">{{ suppliers_count }}</h4>
+                            <small class="text-muted">Suppliers</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-warning mb-0">{{ active_labor }}</h4>
+                            <small class="text-muted">Active Employees</small>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="operationsChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Work Order Status</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="woStatusChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Active Work Orders</h5>
+                <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
                 {% if active_work_orders %}
                 <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
                             <tr>
                                 <th>WO Number</th>
                                 <th>Product</th>
@@ -98,16 +222,155 @@
                             {% for wo in active_work_orders %}
                             <tr>
                                 <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
-                                <td>{{ wo.name }}</td>
+                                <td>{{ wo.code }}</td>
                                 <td>{{ wo.quantity }}</td>
-                                <td><span class="badge bg-info">{{ wo.status }}</span></td>
+                                <td>
+                                    {% if wo.status == 'In Progress' %}
+                                    <span class="badge bg-success">{{ wo.status }}</span>
+                                    {% elif wo.status == 'Released' %}
+                                    <span class="badge bg-primary">{{ wo.status }}</span>
+                                    {% elif wo.status == 'On Hold' %}
+                                    <span class="badge bg-warning text-dark">{{ wo.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ wo.status }}</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted">No active work orders</p>
+                <p class="text-muted text-center py-4 mb-0">No active work orders</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Low Stock Alerts</h5>
+                <a href="{{ url_for('inventory_routes.inventory_list') }}" class="btn btn-sm btn-outline-danger">View Inventory</a>
+            </div>
+            <div class="card-body p-0">
+                {% if low_stock %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Product</th>
+                                <th>On Hand</th>
+                                <th>Reorder Pt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock %}
+                            <tr>
+                                <td><a href="{{ url_for('product_routes.product_view', id=item.product_id) }}">{{ item.code }}</a></td>
+                                <td>{{ item.name }}</td>
+                                <td><span class="badge bg-danger">{{ item.quantity }}</span></td>
+                                <td>{{ item.reorder_point }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-success text-center py-4 mb-0"><i class="bi bi-check-circle"></i> All items adequately stocked</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-cart-check"></i> Recent Sales Orders</h5>
+                <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_sales_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>SO Number</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for so in recent_sales_orders %}
+                            <tr>
+                                <td><a href="{{ url_for('salesorder_routes.view_sales_order', id=so.id) }}">{{ so.so_number }}</a></td>
+                                <td>{{ so.customer_name or 'N/A' }}</td>
+                                <td>{{ "$ {:,.2f}".format(so.total_amount or 0) }}</td>
+                                <td>
+                                    {% if so.status == 'Confirmed' %}
+                                    <span class="badge bg-success">{{ so.status }}</span>
+                                    {% elif so.status == 'Processing' %}
+                                    <span class="badge bg-primary">{{ so.status }}</span>
+                                    {% elif so.status == 'Draft' %}
+                                    <span class="badge bg-secondary">{{ so.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-info">{{ so.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">No active sales orders</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-bag-check"></i> Pending Purchase Orders</h5>
+                <a href="{{ url_for('po_routes.list_purchase_orders') }}" class="btn btn-sm btn-outline-info">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if pending_pos %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>PO Number</th>
+                                <th>Supplier</th>
+                                <th>Expected</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for po in pending_pos %}
+                            <tr>
+                                <td><a href="{{ url_for('po_routes.view_purchase_order', id=po.id) }}">{{ po.po_number }}</a></td>
+                                <td>{{ po.supplier_name or 'N/A' }}</td>
+                                <td>{{ po.expected_delivery_date or 'TBD' }}</td>
+                                <td>
+                                    {% if po.status == 'Ordered' %}
+                                    <span class="badge bg-primary">{{ po.status }}</span>
+                                    {% elif po.status == 'Partially Received' %}
+                                    <span class="badge bg-warning text-dark">{{ po.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ po.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">No pending purchase orders</p>
                 {% endif %}
             </div>
         </div>
@@ -115,22 +378,140 @@
 </div>
 
 {% if user_role in ['Admin', 'Procurement', 'Planner'] %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-cart-plus"></i> Purchase Order Suggestions</h5>
-                <a href="{{ url_for('po_routes.purchase_suggestions') }}" class="btn btn-sm btn-primary">View All Suggestions</a>
+<div class="row mb-4">
+    <div class="col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-tools"></i> Service Operations</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body text-center">
+                <h2 class="text-primary">{{ swo_stats.active or 0 }}</h2>
+                <p class="text-muted mb-3">Active Service Work Orders</p>
+                <a href="{{ url_for('service_wo_routes.list_service_work_orders') }}" class="btn btn-sm btn-outline-primary">View Service WOs</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-people"></i> Workforce Status</h5>
+            </div>
+            <div class="card-body text-center">
+                <h2 class="text-success">{{ clocked_in_today }}</h2>
+                <p class="text-muted mb-3">Currently Clocked In</p>
+                <a href="{{ url_for('clock_station_routes.clock_station_dashboard') }}" class="btn btn-sm btn-outline-success">Time Clock</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Material Requirements</h5>
+            </div>
+            <div class="card-body text-center">
                 {% if shortage_items %}
-                <p class="text-warning">There are {{ shortage_items|length }} items that need to be ordered.</p>
+                <h2 class="text-danger">{{ shortage_items|length }}</h2>
+                <p class="text-muted mb-3">Items Need Ordering</p>
                 {% else %}
-                <p class="text-success">All items are adequately stocked.</p>
+                <h2 class="text-success">0</h2>
+                <p class="text-muted mb-3">All Materials Adequate</p>
                 {% endif %}
+                <a href="{{ url_for('report_routes.material_requirements') }}" class="btn btn-sm btn-outline-warning">View Requirements</a>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-2">
+                        <a href="{{ url_for('workorder_routes.create_workorder') }}" class="btn btn-outline-primary w-100"><i class="bi bi-plus-circle"></i> New Work Order</a>
+                    </div>
+                    <div class="col-md-3 col-6 mb-2">
+                        <a href="{{ url_for('salesorder_routes.create_sales_order') }}" class="btn btn-outline-success w-100"><i class="bi bi-plus-circle"></i> New Sales Order</a>
+                    </div>
+                    <div class="col-md-3 col-6 mb-2">
+                        <a href="{{ url_for('po_routes.create_purchase_order') }}" class="btn btn-outline-info w-100"><i class="bi bi-plus-circle"></i> New Purchase Order</a>
+                    </div>
+                    <div class="col-md-3 col-6 mb-2">
+                        <a href="{{ url_for('report_routes.inventory_valuation_report') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const woStatusCtx = document.getElementById('woStatusChart').getContext('2d');
+    new Chart(woStatusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Released', 'In Progress', 'On Hold', 'Completed'],
+            datasets: [{
+                data: [
+                    {{ wo_stats.released or 0 }}, 
+                    {{ wo_stats.in_progress or 0 }}, 
+                    {{ wo_stats.on_hold or 0 }},
+                    {{ wo_stats.completed or 0 }}
+                ],
+                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#6c757d'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 15 }
+                }
+            }
+        }
+    });
+
+    const operationsCtx = document.getElementById('operationsChart').getContext('2d');
+    new Chart(operationsCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Sales Orders', 'Work Orders', 'Purchase Orders', 'Service WOs', 'Shipments'],
+            datasets: [{
+                label: 'Active',
+                data: [
+                    {{ so_stats.active or 0 }},
+                    {{ wo_stats.active or 0 }},
+                    {{ po_stats.open_count or 0 }},
+                    {{ swo_stats.active or 0 }},
+                    {{ (shipment_stats.pending or 0) + (shipment_stats.in_transit or 0) }}
+                ],
+                backgroundColor: ['#0d6efd', '#ffc107', '#17a2b8', '#6f42c1', '#fd7e14'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
