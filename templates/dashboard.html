@@ -50,13 +50,13 @@
                     <div>
                         <h6 class="card-subtitle mb-1 text-white-50">Open Purchase Orders</h6>
                         <h2 class="mb-0">{{ po_stats.open_count or 0 }}</h2>
-                        <small>{{ "$ {:,.2f}".format(po_stats.open_value or 0) }}</small>
+                        <small>{{ "$ {:,.2f}".format(po_open_value or 0) }}</small>
                     </div>
                     <i class="bi bi-bag-check fs-1 opacity-50"></i>
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('po_routes.list_purchase_orders') }}" class="text-white text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
+                <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="text-white text-decoration-none small">View All <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
@@ -73,7 +73,7 @@
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('inventory_routes.inventory_list') }}" class="text-white text-decoration-none small">View Inventory <i class="bi bi-arrow-right"></i></a>
+                <a href="{{ url_for('inventory_routes.list_inventory') }}" class="text-white text-decoration-none small">View Inventory <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
@@ -93,7 +93,7 @@
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('invoice_routes.invoice_dashboard') }}" class="text-white text-decoration-none small">View A/R <i class="bi bi-arrow-right"></i></a>
+                <a href="{{ url_for('invoice_routes.list_invoices') }}" class="text-white text-decoration-none small">View A/R <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
@@ -127,7 +127,7 @@
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('report_routes.inventory_valuation_report') }}" class="text-decoration-none small">Valuation Report <i class="bi bi-arrow-right"></i></a>
+                <a href="{{ url_for('report_routes.inventory_report') }}" class="text-decoration-none small">Valuation Report <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
@@ -144,7 +144,7 @@
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0">
-                <a href="{{ url_for('shipping_routes.shipping_dashboard') }}" class="text-decoration-none small">Shipping Dashboard <i class="bi bi-arrow-right"></i></a>
+                <a href="{{ url_for('shipping_routes.dashboard') }}" class="text-decoration-none small">Shipping Dashboard <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
@@ -250,7 +250,7 @@
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Low Stock Alerts</h5>
-                <a href="{{ url_for('inventory_routes.inventory_list') }}" class="btn btn-sm btn-outline-danger">View Inventory</a>
+                <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-sm btn-outline-danger">View Inventory</a>
             </div>
             <div class="card-body p-0">
                 {% if low_stock %}
@@ -267,7 +267,7 @@
                         <tbody>
                             {% for item in low_stock %}
                             <tr>
-                                <td><a href="{{ url_for('product_routes.product_view', id=item.product_id) }}">{{ item.code }}</a></td>
+                                <td><a href="{{ url_for('product_routes.view_product', id=item.product_id) }}">{{ item.code }}</a></td>
                                 <td>{{ item.name }}</td>
                                 <td><span class="badge bg-danger">{{ item.quantity }}</span></td>
                                 <td>{{ item.reorder_point }}</td>
@@ -335,7 +335,7 @@
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-bag-check"></i> Pending Purchase Orders</h5>
-                <a href="{{ url_for('po_routes.list_purchase_orders') }}" class="btn btn-sm btn-outline-info">View All</a>
+                <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="btn btn-sm btn-outline-info">View All</a>
             </div>
             <div class="card-body p-0">
                 {% if pending_pos %}
@@ -352,7 +352,7 @@
                         <tbody>
                             {% for po in pending_pos %}
                             <tr>
-                                <td><a href="{{ url_for('po_routes.view_purchase_order', id=po.id) }}">{{ po.po_number }}</a></td>
+                                <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
                                 <td>{{ po.supplier_name or 'N/A' }}</td>
                                 <td>{{ po.expected_delivery_date or 'TBD' }}</td>
                                 <td>
@@ -399,7 +399,7 @@
             <div class="card-body text-center">
                 <h2 class="text-success">{{ clocked_in_today }}</h2>
                 <p class="text-muted mb-3">Currently Clocked In</p>
-                <a href="{{ url_for('clock_station_routes.clock_station_dashboard') }}" class="btn btn-sm btn-outline-success">Time Clock</a>
+                <a href="{{ url_for('clock_station_routes.clock_dashboard') }}" class="btn btn-sm btn-outline-success">Time Clock</a>
             </div>
         </div>
     </div>
@@ -416,7 +416,7 @@
                 <h2 class="text-success">0</h2>
                 <p class="text-muted mb-3">All Materials Adequate</p>
                 {% endif %}
-                <a href="{{ url_for('report_routes.material_requirements') }}" class="btn btn-sm btn-outline-warning">View Requirements</a>
+                <a href="{{ url_for('report_routes.material_requirements_report') }}" class="btn btn-sm btn-outline-warning">View Requirements</a>
             </div>
         </div>
     </div>
@@ -438,10 +438,10 @@
                         <a href="{{ url_for('salesorder_routes.create_sales_order') }}" class="btn btn-outline-success w-100"><i class="bi bi-plus-circle"></i> New Sales Order</a>
                     </div>
                     <div class="col-md-3 col-6 mb-2">
-                        <a href="{{ url_for('po_routes.create_purchase_order') }}" class="btn btn-outline-info w-100"><i class="bi bi-plus-circle"></i> New Purchase Order</a>
+                        <a href="{{ url_for('po_routes.create_purchaseorder') }}" class="btn btn-outline-info w-100"><i class="bi bi-plus-circle"></i> New Purchase Order</a>
                     </div>
                     <div class="col-md-3 col-6 mb-2">
-                        <a href="{{ url_for('report_routes.inventory_valuation_report') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+                        <a href="{{ url_for('report_routes.inventory_report') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
                     </div>
                 </div>
             </div>

@@ -61,7 +61,7 @@ def dashboard():
     ''').fetchone()
     
     recent_sales_orders = conn.execute('''
-        SELECT so.*, c.company_name as customer_name
+        SELECT so.*, c.name as customer_name
         FROM sales_orders so
         LEFT JOIN customers c ON so.customer_id = c.id
         WHERE so.status NOT IN ('Completed', 'Cancelled')
@@ -72,14 +72,20 @@ def dashboard():
     # === PURCHASE ORDERS (PROCUREMENT) ===
     po_stats = conn.execute('''
         SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'Draft' THEN 1 ELSE 0 END) as draft,
-            SUM(CASE WHEN status = 'Ordered' THEN 1 ELSE 0 END) as ordered,
-            SUM(CASE WHEN status = 'Partially Received' THEN 1 ELSE 0 END) as partial,
-            SUM(CASE WHEN status NOT IN ('Received', 'Cancelled') THEN 1 ELSE 0 END) as open_count,
-            COALESCE(SUM(CASE WHEN status NOT IN ('Received', 'Cancelled') THEN total_amount ELSE 0 END), 0) as open_value
-        FROM purchase_orders
+            COUNT(DISTINCT po.id) as total,
+            SUM(CASE WHEN po.status = 'Draft' THEN 1 ELSE 0 END) as draft,
+            SUM(CASE WHEN po.status = 'Ordered' THEN 1 ELSE 0 END) as ordered,
+            SUM(CASE WHEN po.status = 'Partially Received' THEN 1 ELSE 0 END) as partial,
+            SUM(CASE WHEN po.status NOT IN ('Received', 'Cancelled') THEN 1 ELSE 0 END) as open_count
+        FROM purchase_orders po
     ''').fetchone()
+    
+    po_open_value = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as open_value
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.status NOT IN ('Received', 'Cancelled')
+    ''').fetchone()['open_value']
     
     pending_pos = conn.execute('''
         SELECT po.*, s.name as supplier_name
@@ -157,9 +163,17 @@ def dashboard():
     ''').fetchone()['count']
     
     clocked_in_today = conn.execute('''
-        SELECT COUNT(DISTINCT employee_id) as count 
-        FROM time_clock_punches 
-        WHERE DATE(clock_in) = DATE('now') AND clock_out IS NULL
+        SELECT COUNT(DISTINCT t1.employee_id) as count 
+        FROM time_clock_punches t1
+        WHERE DATE(t1.punch_time) = DATE('now') 
+        AND t1.punch_type = 'Clock In'
+        AND NOT EXISTS (
+            SELECT 1 FROM time_clock_punches t2 
+            WHERE t2.employee_id = t1.employee_id 
+            AND t2.punch_type = 'Clock Out' 
+            AND t2.punch_time > t1.punch_time
+            AND DATE(t2.punch_time) = DATE('now')
+        )
     ''').fetchone()['count']
     
     # === SHORTAGE ITEMS ===
@@ -199,6 +213,7 @@ def dashboard():
                          so_stats=so_stats,
                          recent_sales_orders=recent_sales_orders,
                          po_stats=po_stats,
+                         po_open_value=po_open_value,
                          pending_pos=pending_pos,
                          inventory_stats=inventory_stats,
                          low_stock=low_stock,
