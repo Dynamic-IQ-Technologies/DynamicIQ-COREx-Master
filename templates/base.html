@@ -282,15 +282,27 @@
             </li>
         </ul>
         
-        <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">
-            <span>Operations</span>
-            <i class="bi bi-chevron-down toggle-icon" id="operations-icon"></i>
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('procurement')">
+            <span>Procurement</span>
+            <i class="bi bi-chevron-down toggle-icon" id="procurement-icon"></i>
         </div>
-        <ul class="sidebar-nav collapsible-content" id="operations-content">
+        <ul class="sidebar-nav collapsible-content" id="procurement-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('supplier_routes.list_suppliers') }}">
                     <i class="bi bi-truck"></i>
                     <span>Suppliers</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('po_routes.list_purchaseorders') }}">
+                    <i class="bi bi-cart"></i>
+                    <span>Purchase Orders</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('receiving_routes.list_receiving') }}">
+                    <i class="bi bi-inbox-fill"></i>
+                    <span>Receiving</span>
                 </a>
             </li>
             <li class="sidebar-nav-item">
@@ -299,6 +311,13 @@
                     <span>Inventory</span>
                 </a>
             </li>
+        </ul>
+        
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">
+            <span>Operations</span>
+            <i class="bi bi-chevron-down toggle-icon" id="operations-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="operations-content">
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('workorder_routes.list_workorders') }}">
                     <i class="bi bi-clipboard-check"></i>
@@ -319,18 +338,6 @@
                 </a>
             </li>
             {% endif %}
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('po_routes.list_purchaseorders') }}">
-                    <i class="bi bi-cart"></i>
-                    <span>Purchase Orders</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('receiving_routes.list_receiving') }}">
-                    <i class="bi bi-inbox-fill"></i>
-                    <span>Receiving</span>
-                </a>
-            </li>
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
                     <i class="bi bi-box-arrow-right"></i>
