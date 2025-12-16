@@ -424,9 +424,9 @@ def generate_ai_insights(source_id, run_id):
         
         # Aggregate data for better AI analysis
         if not df.empty:
-            airline_summary = df.groupby(['airline_name', 'region', 'match_score']).size().reset_index(name='count')
-            regional_summary = df.groupby(['region', 'match_score']).size().reset_index(name='count')
-            aircraft_summary = df.groupby(['aircraft_model', 'match_score']).size().reset_index(name='count')
+            airline_summary = df.groupby(['airline_name', 'region', 'match_score']).size().to_frame('count').reset_index()
+            regional_summary = df.groupby(['region', 'match_score']).size().to_frame('count').reset_index()
+            aircraft_summary = df.groupby(['aircraft_model', 'match_score']).size().to_frame('count').reset_index()
         else:
             airline_summary = pd.DataFrame()
             regional_summary = pd.DataFrame()
