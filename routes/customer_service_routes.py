@@ -1,24 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from auth import login_required, role_required
 from models import Database
-from functools import wraps
 from datetime import datetime, timedelta
 
 customer_service_bp = Blueprint('customer_service', __name__)
-
-def role_required(*roles):
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if not current_user.is_authenticated:
-                flash('Please log in to access this page.', 'warning')
-                return redirect(url_for('auth.login'))
-            if current_user.role not in roles:
-                flash('You do not have permission to access this page.', 'danger')
-                return redirect(url_for('main.dashboard'))
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
 
 DEFAULT_STAGES = [
     ('Order Received', 1),
@@ -332,7 +317,7 @@ def confirm_work_order(wo_id):
             (work_order_id, confirmed_by, quote_approved, materials_available, 
              capacity_available, confirmation_notes, previous_status, new_status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (wo_id, current_user.id, quote_approved, materials_available,
+        ''', (wo_id, session.get('user_id'), quote_approved, materials_available,
               capacity_available, confirmation_notes, previous_status, new_status))
         
         conn.commit()
@@ -385,7 +370,7 @@ def follow_up_quote(order_id):
     
     try:
         notes = order['notes'] or ''
-        follow_up_note = f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M')}] Follow-up by {current_user.username}"
+        follow_up_note = f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M')}] Follow-up by {session.get('username', 'User')}"
         
         conn.execute('''
             UPDATE sales_orders SET notes = ? WHERE id = ?
