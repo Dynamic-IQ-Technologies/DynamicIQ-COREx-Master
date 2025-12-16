@@ -178,8 +178,8 @@
                             <td>{{ line.code }}</td>
                             <td>{{ line.name }}</td>
                             <td class="text-end">{{ line.quantity }}</td>
-                            <td class="text-end">${{ "%.2f"|format(line.unit_price) }}</td>
-                            <td class="text-end">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
+                            <td class="text-end">{{ line.unit_price|currency }}</td>
+                            <td class="text-end">{{ (line.quantity * line.unit_price)|currency }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

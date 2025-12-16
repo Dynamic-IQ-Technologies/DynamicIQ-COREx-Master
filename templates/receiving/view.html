@@ -109,8 +109,8 @@
                             {% endif %}
                         </td>
                         <td>{{ receipt.warehouse_location }}</td>
-                        <td>${{ "%.2f"|format(receipt.unit_price) }}</td>
-                        <td class="fw-bold">${{ "%.2f"|format(receipt.quantity_received * receipt.unit_price) }}</td>
+                        <td>{{ receipt.unit_price|currency }}</td>
+                        <td class="fw-bold">{{ (receipt.quantity_received * receipt.unit_price)|currency }}</td>
                     </tr>
                 </tbody>
             </table>

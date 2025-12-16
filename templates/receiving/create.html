@@ -24,7 +24,7 @@
                                     data-remaining="{{ '%.2f'|format(po.remaining_quantity) }}"
                                     data-uom="{{ po.unit_of_measure }}"
                                     data-unitprice="{{ '%.2f'|format(po.unit_price) }}">
-                                {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining @ ${{ "%.2f"|format(po.unit_price) }}
+                                {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining @ {{ po.unit_price|currency }}
                             </option>
                             {% endfor %}
                         </select>

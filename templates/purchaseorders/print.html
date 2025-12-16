@@ -303,14 +303,14 @@
                 </td>
                 <td>{{ line.uom_code or line.unit_of_measure }}</td>
                 <td style="text-align: right;">{{ "%.2f"|format(line.quantity) if line.quantity != line.quantity|int else line.quantity|int }}</td>
-                <td style="text-align: right;">${{ "%.2f"|format(line.unit_price) }}</td>
-                <td style="text-align: right;">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
+                <td style="text-align: right;">{{ line.unit_price|currency }}</td>
+                <td style="text-align: right;">{{ (line.quantity * line.unit_price)|currency }}</td>
             </tr>
             {% set ns.grand_total = ns.grand_total + (line.quantity * line.unit_price) %}
             {% endfor %}
             <tr class="total-row">
                 <td colspan="6" style="text-align: right;"><strong>Total Order Value:</strong></td>
-                <td style="text-align: right;"><strong>${{ "%.2f"|format(ns.grand_total) }}</strong></td>
+                <td style="text-align: right;"><strong>{{ ns.grand_total|currency }}</strong></td>
             </tr>
         </tbody>
     </table>

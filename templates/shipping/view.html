@@ -153,8 +153,8 @@
             <div class="card-body">
                 <p class="mb-2"><strong>Weight:</strong> {{ shipment.weight or '0' }} {{ shipment.weight_unit }}</p>
                 <p class="mb-2"><strong>Dimensions:</strong> {{ shipment.dimensions or '-' }}</p>
-                <p class="mb-2"><strong>Freight Cost:</strong> ${{ "%.2f"|format(shipment.freight_cost or 0) }}</p>
-                <p class="mb-0"><strong>Insurance:</strong> ${{ "%.2f"|format(shipment.insurance_value or 0) }}</p>
+                <p class="mb-2"><strong>Freight Cost:</strong> {{ (shipment.freight_cost or 0)|currency }}</p>
+                <p class="mb-0"><strong>Insurance:</strong> {{ (shipment.insurance_value or 0)|currency }}</p>
             </div>
         </div>
 

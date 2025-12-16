@@ -151,8 +151,8 @@
                             <span class="badge bg-secondary">0</span>
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(line_price) }}</td>
-                        <td class="fw-bold">${{ "%.2f"|format(line_total) }}</td>
+                        <td>{{ line_price|currency }}</td>
+                        <td class="fw-bold">{{ line_total|currency }}</td>
                         <td>
                             {% if line.inventory_quantity is not none %}
                             {{ line.inventory_quantity|int }}
@@ -167,7 +167,7 @@
                 <tfoot>
                     <tr class="table-light">
                         <td colspan="8" class="text-end"><strong>Total Order Value:</strong></td>
-                        <td colspan="2" class="fw-bold text-primary">${{ "%.2f"|format(ns.total) }}</td>
+                        <td colspan="2" class="fw-bold text-primary">{{ ns.total|currency }}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -222,9 +222,9 @@
                             <span class="badge bg-danger">Overdue</span>
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(ap.total_amount) }}</td>
-                        <td>${{ "%.2f"|format(ap.amount_paid) }}</td>
-                        <td><strong>${{ "%.2f"|format(ap.balance_due) }}</strong></td>
+                        <td>{{ ap.total_amount|currency }}</td>
+                        <td>{{ ap.amount_paid|currency }}</td>
+                        <td><strong>{{ ap.balance_due|currency }}</strong></td>
                         <td>
                             {% if ap.status == 'Paid' %}
                             <span class="badge bg-success">{{ ap.status }}</span>

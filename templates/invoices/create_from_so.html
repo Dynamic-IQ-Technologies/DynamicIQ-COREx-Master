@@ -49,7 +49,7 @@
                     </div>
                     <div class="row">
                         <div class="col-4"><strong>Total Amount:</strong></div>
-                        <div class="col-8"><strong>${{ "{:,.2f}".format(sales_order.total_amount) }}</strong></div>
+                        <div class="col-8"><strong>{{ sales_order.total_amount|currency }}</strong></div>
                     </div>
                 </div>
             </div>
@@ -79,8 +79,8 @@
                                     <td>{{ line.code }}</td>
                                     <td>{{ line.description }}</td>
                                     <td class="text-end">{{ "{:,.2f}".format(line.quantity) }}</td>
-                                    <td class="text-end">${{ "{:,.2f}".format(line.unit_price) }}</td>
-                                    <td class="text-end"><strong>${{ "{:,.2f}".format(line.line_total) }}</strong></td>
+                                    <td class="text-end">{{ line.unit_price|currency }}</td>
+                                    <td class="text-end"><strong>{{ line.line_total|currency }}</strong></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -122,24 +122,24 @@
                         <div class="mb-3">
                             <div class="row">
                                 <div class="col-6"><strong>Subtotal:</strong></div>
-                                <div class="col-6 text-end">${{ "{:,.2f}".format(sales_order.subtotal) }}</div>
+                                <div class="col-6 text-end">{{ sales_order.subtotal|currency }}</div>
                             </div>
                             {% if sales_order.tax_amount > 0 %}
                             <div class="row">
                                 <div class="col-6"><strong>Tax:</strong></div>
-                                <div class="col-6 text-end">${{ "{:,.2f}".format(sales_order.tax_amount) }}</div>
+                                <div class="col-6 text-end">{{ sales_order.tax_amount|currency }}</div>
                             </div>
                             {% endif %}
                             {% if sales_order.discount_amount > 0 %}
                             <div class="row">
                                 <div class="col-6"><strong>Discount:</strong></div>
-                                <div class="col-6 text-end text-danger">-${{ "{:,.2f}".format(sales_order.discount_amount) }}</div>
+                                <div class="col-6 text-end text-danger">-{{ sales_order.discount_amount|currency }}</div>
                             </div>
                             {% endif %}
                             <hr>
                             <div class="row">
                                 <div class="col-6"><h5>Total:</h5></div>
-                                <div class="col-6 text-end"><h5>${{ "{:,.2f}".format(sales_order.total_amount) }}</h5></div>
+                                <div class="col-6 text-end"><h5>{{ sales_order.total_amount|currency }}</h5></div>
                             </div>
                         </div>
 

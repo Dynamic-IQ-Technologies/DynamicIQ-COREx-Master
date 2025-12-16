@@ -125,23 +125,23 @@
                     <table class="table table-bordered">
                         <tr>
                             <td><strong>Subtotal:</strong></td>
-                            <td class="text-end">${{ "%.2f"|format(ap.amount) }}</td>
+                            <td class="text-end">{{ ap.amount|currency }}</td>
                         </tr>
                         <tr>
                             <td><strong>Tax:</strong></td>
-                            <td class="text-end">${{ "%.2f"|format(ap.tax_amount) }}</td>
+                            <td class="text-end">{{ ap.tax_amount|currency }}</td>
                         </tr>
                         <tr class="table-light">
                             <td><strong>Total Amount:</strong></td>
-                            <td class="text-end"><strong>${{ "%.2f"|format(ap.total_amount) }}</strong></td>
+                            <td class="text-end"><strong>{{ ap.total_amount|currency }}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Amount Paid:</strong></td>
-                            <td class="text-end">${{ "%.2f"|format(ap.amount_paid) }}</td>
+                            <td class="text-end">{{ ap.amount_paid|currency }}</td>
                         </tr>
                         <tr class="table-primary">
                             <td><strong>Balance Due:</strong></td>
-                            <td class="text-end"><strong>${{ "%.2f"|format(ap.total_amount - ap.amount_paid) }}</strong></td>
+                            <td class="text-end"><strong>{{ (ap.total_amount - ap.amount_paid)|currency }}</strong></td>
                         </tr>
                     </table>
                 </div>
@@ -163,7 +163,7 @@
                             <input type="number" class="form-control" id="payment_amount" name="payment_amount" 
                                    step="0.01" min="0.01" max="{{ ap.total_amount - ap.amount_paid }}" 
                                    value="{{ ap.total_amount - ap.amount_paid }}" required>
-                            <small class="text-muted">Max: ${{ "%.2f"|format(ap.total_amount - ap.amount_paid) }}</small>
+                            <small class="text-muted">Max: {{ (ap.total_amount - ap.amount_paid)|currency }}</small>
                         </div>
                     </div>
                     <div class="col-md-3">

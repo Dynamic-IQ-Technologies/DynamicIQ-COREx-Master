@@ -171,9 +171,9 @@
                             <td>{{ line.product_code or '-' }}</td>
                             <td>{{ line.description }}</td>
                             <td class="text-end">{{ "{:,.2f}".format(line.quantity) }}</td>
-                            <td class="text-end">${{ "{:,.2f}".format(line.unit_price) }}</td>
+                            <td class="text-end">{{ line.unit_price|currency }}</td>
                             <td class="text-end">{{ "{:.1f}".format(line.discount_percent) }}%</td>
-                            <td class="text-end"><strong>${{ "{:,.2f}".format(line.line_total) }}</strong></td>
+                            <td class="text-end"><strong>{{ line.line_total|currency }}</strong></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -190,34 +190,34 @@
                 <div class="card-body">
                     <div class="row mb-2">
                         <div class="col-6"><strong>Subtotal:</strong></div>
-                        <div class="col-6 text-end">${{ "{:,.2f}".format(invoice.subtotal) }}</div>
+                        <div class="col-6 text-end">{{ invoice.subtotal|currency }}</div>
                     </div>
                     {% if invoice.discount_amount > 0 %}
                     <div class="row mb-2">
                         <div class="col-6"><strong>Discount:</strong></div>
-                        <div class="col-6 text-end text-danger">-${{ "{:,.2f}".format(invoice.discount_amount) }}</div>
+                        <div class="col-6 text-end text-danger">-{{ invoice.discount_amount|currency }}</div>
                     </div>
                     {% endif %}
                     {% if invoice.tax_amount > 0 %}
                     <div class="row mb-2">
                         <div class="col-6"><strong>Tax:</strong></div>
-                        <div class="col-6 text-end">${{ "{:,.2f}".format(invoice.tax_amount) }}</div>
+                        <div class="col-6 text-end">{{ invoice.tax_amount|currency }}</div>
                     </div>
                     {% endif %}
                     <hr>
                     <div class="row mb-2">
                         <div class="col-6"><h5>Total:</h5></div>
-                        <div class="col-6 text-end"><h5>${{ "{:,.2f}".format(invoice.total_amount) }}</h5></div>
+                        <div class="col-6 text-end"><h5>{{ invoice.total_amount|currency }}</h5></div>
                     </div>
                     <div class="row mb-2">
                         <div class="col-6"><strong>Amount Paid:</strong></div>
-                        <div class="col-6 text-end text-success">${{ "{:,.2f}".format(invoice.amount_paid) }}</div>
+                        <div class="col-6 text-end text-success">{{ invoice.amount_paid|currency }}</div>
                     </div>
                     <div class="row">
                         <div class="col-6"><strong>Balance Due:</strong></div>
                         <div class="col-6 text-end">
                             {% if invoice.balance_due > 0 %}
-                            <strong class="text-warning">${{ "{:,.2f}".format(invoice.balance_due) }}</strong>
+                            <strong class="text-warning">{{ invoice.balance_due|currency }}</strong>
                             {% else %}
                             <span class="text-success">$0.00</span>
                             {% endif %}
@@ -252,7 +252,7 @@
                             <td><strong>{{ payment.payment_number }}</strong></td>
                             <td>{{ payment.payment_date }}</td>
                             <td>{{ payment.payment_method }}</td>
-                            <td class="text-end">${{ "{:,.2f}".format(payment.amount) }}</td>
+                            <td class="text-end">{{ payment.amount|currency }}</td>
                             <td>{{ payment.remarks or '-' }}</td>
                         </tr>
                         {% endfor %}

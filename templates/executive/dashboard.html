@@ -48,7 +48,7 @@
             <div class="card h-100 border-primary">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Total Revenue</h6>
-                    <h3 class="card-title text-primary mb-0">${{ "{:,.2f}".format(revenue) }}</h3>
+                    <h3 class="card-title text-primary mb-0">{{ revenue|currency }}</h3>
                     <small class="text-muted">{{ period_label }}</small>
                 </div>
             </div>
@@ -57,7 +57,7 @@
             <div class="card h-100 border-danger">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Total Expenses</h6>
-                    <h3 class="card-title text-danger mb-0">${{ "{:,.2f}".format(expenses) }}</h3>
+                    <h3 class="card-title text-danger mb-0">{{ expenses|currency }}</h3>
                     <small class="text-muted">{{ period_label }}</small>
                 </div>
             </div>
@@ -69,7 +69,7 @@
                     <h3 class="card-title {% if profit_margin >= 20 %}text-success{% elif profit_margin >= 10 %}text-warning{% else %}text-danger{% endif %} mb-0">
                         {{ "{:.2f}".format(profit_margin) }}%
                     </h3>
-                    <small class="text-muted">Profit: ${{ "{:,.2f}".format(gross_profit) }}</small>
+                    <small class="text-muted">Profit: {{ gross_profit|currency }}</small>
                 </div>
             </div>
         </div>
@@ -78,7 +78,7 @@
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Net Income</h6>
                     <h3 class="card-title {% if net_income >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">
-                        ${{ "{:,.2f}".format(net_income) }}
+                        {{ net_income|currency }}
                     </h3>
                     <small class="text-muted">{{ period_label }}</small>
                 </div>
@@ -91,8 +91,8 @@
             <div class="card h-100 border-warning">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Accounts Payable (Open)</h6>
-                    <h3 class="card-title text-warning mb-0">${{ "{:,.2f}".format(ap_open) }}</h3>
-                    <small class="text-muted">Due Now: ${{ "{:,.2f}".format(ap_due) }}</small>
+                    <h3 class="card-title text-warning mb-0">{{ ap_open|currency }}</h3>
+                    <small class="text-muted">Due Now: {{ ap_due|currency }}</small>
                     <div class="mt-2">
                         <a href="{{ url_for('ap_routes.list_ap') }}" class="btn btn-sm btn-outline-warning">
                             <i class="bi bi-arrow-right"></i> View Details
@@ -105,7 +105,7 @@
             <div class="card h-100 border-info">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Cash on Hand</h6>
-                    <h3 class="card-title text-info mb-0">${{ "{:,.2f}".format(cash_balance) }}</h3>
+                    <h3 class="card-title text-info mb-0">{{ cash_balance|currency }}</h3>
                     <small class="text-muted">From GL Cash Accounts</small>
                     <div class="mt-2">
                         <a href="{{ url_for('accounting_routes.general_ledger') }}" class="btn btn-sm btn-outline-info">
@@ -119,7 +119,7 @@
             <div class="card h-100 border-secondary">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Inventory Value</h6>
-                    <h3 class="card-title text-secondary mb-0">${{ "{:,.2f}".format(inventory_value) }}</h3>
+                    <h3 class="card-title text-secondary mb-0">{{ inventory_value|currency }}</h3>
                     <small class="text-muted">Current on-hand value</small>
                     <div class="mt-2">
                         <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-sm btn-outline-secondary">

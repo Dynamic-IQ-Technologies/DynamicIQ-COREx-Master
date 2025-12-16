@@ -22,7 +22,7 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-wallet2"></i> Total Open Payables</h5>
-                    <h3>${{ "%.2f"|format(total_open) }}</h3>
+                    <h3>{{ total_open|currency }}</h3>
                 </div>
             </div>
         </div>
@@ -30,7 +30,7 @@
             <div class="card bg-danger text-white">
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-exclamation-triangle"></i> Overdue Amount</h5>
-                    <h3>${{ "%.2f"|format(total_overdue) }}</h3>
+                    <h3>{{ total_overdue|currency }}</h3>
                 </div>
             </div>
         </div>
@@ -100,9 +100,9 @@
                                 <span class="badge bg-danger">Overdue</span>
                                 {% endif %}
                             </td>
-                            <td>${{ "%.2f"|format(ap.total_amount) }}</td>
-                            <td>${{ "%.2f"|format(ap.amount_paid) }}</td>
-                            <td><strong>${{ "%.2f"|format(ap.balance_due) }}</strong></td>
+                            <td>{{ ap.total_amount|currency }}</td>
+                            <td>{{ ap.amount_paid|currency }}</td>
+                            <td><strong>{{ ap.balance_due|currency }}</strong></td>
                             <td>
                                 {% if ap.status == 'Paid' %}
                                 <span class="badge bg-success">{{ ap.status }}</span>

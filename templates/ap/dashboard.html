@@ -22,7 +22,7 @@
             <div class="card bg-success text-white">
                 <div class="card-body text-center">
                     <h6>Current</h6>
-                    <h4>${{ "%.2f"|format(aging_totals.current) }}</h4>
+                    <h4>{{ aging_totals.current|currency }}</h4>
                     <small>{{ aging_data.current|length }} invoices</small>
                 </div>
             </div>
@@ -31,7 +31,7 @@
             <div class="card bg-info text-white">
                 <div class="card-body text-center">
                     <h6>1-30 Days</h6>
-                    <h4>${{ "%.2f"|format(aging_totals['1_30']) }}</h4>
+                    <h4>{{ aging_totals['1_30']|currency }}</h4>
                     <small>{{ aging_data['1_30']|length }} invoices</small>
                 </div>
             </div>
@@ -40,7 +40,7 @@
             <div class="card bg-warning text-dark">
                 <div class="card-body text-center">
                     <h6>31-60 Days</h6>
-                    <h4>${{ "%.2f"|format(aging_totals['31_60']) }}</h4>
+                    <h4>{{ aging_totals['31_60']|currency }}</h4>
                     <small>{{ aging_data['31_60']|length }} invoices</small>
                 </div>
             </div>
@@ -49,7 +49,7 @@
             <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
                 <div class="card-body text-center">
                     <h6>61-90 Days</h6>
-                    <h4>${{ "%.2f"|format(aging_totals['61_90']) }}</h4>
+                    <h4>{{ aging_totals['61_90']|currency }}</h4>
                     <small>{{ aging_data['61_90']|length }} invoices</small>
                 </div>
             </div>
@@ -58,7 +58,7 @@
             <div class="card bg-danger text-white">
                 <div class="card-body text-center">
                     <h6>Over 90 Days</h6>
-                    <h4>${{ "%.2f"|format(aging_totals.over_90) }}</h4>
+                    <h4>{{ aging_totals.over_90|currency }}</h4>
                     <small>{{ aging_data.over_90|length }} invoices</small>
                 </div>
             </div>
@@ -67,7 +67,7 @@
             <div class="card bg-primary text-white">
                 <div class="card-body text-center">
                     <h6>Total Outstanding</h6>
-                    <h4>${{ "%.2f"|format(aging_totals.current + aging_totals['1_30'] + aging_totals['31_60'] + aging_totals['61_90'] + aging_totals.over_90) }}</h4>
+                    <h4>{{ (aging_totals.current + aging_totals['1_30'] + aging_totals['31_60'] + aging_totals['61_90'] + aging_totals.over_90)|currency }}</h4>
                 </div>
             </div>
         </div>
@@ -96,7 +96,7 @@
                                 <tr>
                                     <td>{{ vendor.vendor_name }}</td>
                                     <td><span class="badge bg-info">{{ vendor.invoice_count }}</span></td>
-                                    <td><strong>${{ "%.2f"|format(vendor.total_due) }}</strong></td>
+                                    <td><strong>{{ vendor.total_due|currency }}</strong></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -116,7 +116,7 @@
         <div class="accordion-item">
             <h2 class="accordion-header" id="headingCurrent">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCurrent">
-                    Current ({{ aging_data.current|length }} invoices - ${{ "%.2f"|format(aging_totals.current) }})
+                    Current ({{ aging_data.current|length }} invoices - {{ aging_totals.current|currency }})
                 </button>
             </h2>
             <div id="collapseCurrent" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
@@ -132,7 +132,7 @@
                                 <td>{{ ap.invoice_number }}</td>
                                 <td>{{ ap.vendor_name }}</td>
                                 <td>{{ ap.due_date }}</td>
-                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td>{{ ap.balance_due|currency }}</td>
                                 <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
                             </tr>
                             {% endfor %}
@@ -149,7 +149,7 @@
         <div class="accordion-item">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1_30">
-                    1-30 Days Past Due ({{ aging_data['1_30']|length }} invoices - ${{ "%.2f"|format(aging_totals['1_30']) }})
+                    1-30 Days Past Due ({{ aging_data['1_30']|length }} invoices - {{ aging_totals['1_30']|currency }})
                 </button>
             </h2>
             <div id="collapse1_30" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
@@ -166,7 +166,7 @@
                                 <td>{{ ap.vendor_name }}</td>
                                 <td>{{ ap.due_date }}</td>
                                 <td><span class="badge bg-warning">{{ ap.days_overdue|int }} days</span></td>
-                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td>{{ ap.balance_due|currency }}</td>
                                 <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
                             </tr>
                             {% endfor %}
@@ -183,7 +183,7 @@
         <div class="accordion-item">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse31_60">
-                    31-60 Days Past Due ({{ aging_data['31_60']|length }} invoices - ${{ "%.2f"|format(aging_totals['31_60']) }})
+                    31-60 Days Past Due ({{ aging_data['31_60']|length }} invoices - {{ aging_totals['31_60']|currency }})
                 </button>
             </h2>
             <div id="collapse31_60" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
@@ -200,7 +200,7 @@
                                 <td>{{ ap.vendor_name }}</td>
                                 <td>{{ ap.due_date }}</td>
                                 <td><span class="badge bg-warning">{{ ap.days_overdue|int }} days</span></td>
-                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td>{{ ap.balance_due|currency }}</td>
                                 <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
                             </tr>
                             {% endfor %}
@@ -217,7 +217,7 @@
         <div class="accordion-item">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse61_90">
-                    61-90 Days Past Due ({{ aging_data['61_90']|length }} invoices - ${{ "%.2f"|format(aging_totals['61_90']) }})
+                    61-90 Days Past Due ({{ aging_data['61_90']|length }} invoices - {{ aging_totals['61_90']|currency }})
                 </button>
             </h2>
             <div id="collapse61_90" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
@@ -234,7 +234,7 @@
                                 <td>{{ ap.vendor_name }}</td>
                                 <td>{{ ap.due_date }}</td>
                                 <td><span class="badge bg-danger">{{ ap.days_overdue|int }} days</span></td>
-                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td>{{ ap.balance_due|currency }}</td>
                                 <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
                             </tr>
                             {% endfor %}
@@ -251,7 +251,7 @@
         <div class="accordion-item">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOver90">
-                    Over 90 Days Past Due ({{ aging_data.over_90|length }} invoices - ${{ "%.2f"|format(aging_totals.over_90) }})
+                    Over 90 Days Past Due ({{ aging_data.over_90|length }} invoices - {{ aging_totals.over_90|currency }})
                 </button>
             </h2>
             <div id="collapseOver90" class="accordion-collapse collapse" data-bs-parent="#agingAccordion">
@@ -268,7 +268,7 @@
                                 <td>{{ ap.vendor_name }}</td>
                                 <td>{{ ap.due_date }}</td>
                                 <td><span class="badge bg-danger">{{ ap.days_overdue|int }} days</span></td>
-                                <td>${{ "%.2f"|format(ap.balance_due) }}</td>
+                                <td>{{ ap.balance_due|currency }}</td>
                                 <td><a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
                             </tr>
                             {% endfor %}

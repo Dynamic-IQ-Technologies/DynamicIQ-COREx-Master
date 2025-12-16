@@ -45,7 +45,7 @@
                         <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
                         <td>{{ po.supplier_name }}</td>
                         <td>{{ po.line_count }} line(s)</td>
-                        <td>${{ "%.2f"|format(po.total_amount or 0) }}</td>
+                        <td>{{ (po.total_amount or 0)|currency }}</td>
                         <td>
                             {% if po.status == 'Received' %}
                             <span class="badge bg-success">{{ po.status }}</span>
