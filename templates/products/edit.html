@@ -29,7 +29,7 @@
             </div>
 
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="product_type" class="form-label">Product Type *</label>
                         <select class="form-select" id="product_type" name="product_type" required>
@@ -39,7 +39,18 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="part_category" class="form-label">Part Category *</label>
+                        <select class="form-select" id="part_category" name="part_category" required>
+                            <option value="Electrical" {% if product.part_category == "Electrical" %}selected{% endif %}>Electrical</option>
+                            <option value="Mechanical" {% if product.part_category == "Mechanical" %}selected{% endif %}>Mechanical</option>
+                            <option value="Structural" {% if product.part_category == "Structural" %}selected{% endif %}>Structural</option>
+                            <option value="Other" {% if product.part_category == "Other" or not product.part_category %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="unit_of_measure" class="form-label">Unit of Measure *</label>
                         <input type="text" class="form-control" id="unit_of_measure" name="unit_of_measure" value="{{ product.unit_of_measure }}" required>

@@ -276,6 +276,20 @@ class Database:
             )
         ''')
         
+        cursor.execute("PRAGMA table_info(products)")
+        product_columns = [col[1] for col in cursor.fetchall()]
+        
+        product_new_columns = [
+            ('part_category', 'TEXT DEFAULT "Other"')
+        ]
+        
+        for col_name, col_type in product_new_columns:
+            if col_name not in product_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE products ADD COLUMN {col_name} {col_type}')
+                except sqlite3.OperationalError:
+                    pass
+        
         cursor.execute("PRAGMA table_info(boms)")
         existing_columns = [col[1] for col in cursor.fetchall()]
         

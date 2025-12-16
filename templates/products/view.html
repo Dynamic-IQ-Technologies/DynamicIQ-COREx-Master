@@ -54,6 +54,14 @@
                         </td>
                     </tr>
                     <tr>
+                        <th>Part Category</th>
+                        <td>
+                            <span class="badge {% if product.part_category == 'Electrical' %}bg-warning text-dark{% elif product.part_category == 'Mechanical' %}bg-info{% elif product.part_category == 'Structural' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ product.part_category or 'Other' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Unit of Measure</th>
                         <td>{{ product.unit_of_measure }}</td>
                     </tr>

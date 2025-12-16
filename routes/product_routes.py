@@ -89,14 +89,15 @@ def create_product():
         conn = db.get_connection()
         
         conn.execute('''
-            INSERT INTO products (code, name, description, unit_of_measure, product_type, cost)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             request.form['code'],
             request.form['name'],
             request.form['description'],
             request.form['unit_of_measure'],
             request.form['product_type'],
+            request.form.get('part_category', 'Other'),
             0.0
         ))
         
@@ -205,7 +206,7 @@ def edit_product(id):
         
         conn.execute('''
             UPDATE products 
-            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?
+            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, part_category=?
             WHERE id=?
         ''', (
             request.form['code'],
@@ -213,6 +214,7 @@ def edit_product(id):
             request.form['description'],
             request.form['unit_of_measure'],
             request.form['product_type'],
+            request.form.get('part_category', 'Other'),
             id
         ))
         
