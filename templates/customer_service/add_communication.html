@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Log Communication{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('customer_service.dashboard') }}">Customer Service</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('customer_service.communications_list') }}">Communications</a></li>
+                    <li class="breadcrumb-item active">Log Communication</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">Log Customer Communication</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" class="form-select" required id="customerSelect">
+                                    <option value="">Select Customer...</option>
+                                    {% for c in customers %}
+                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Related Order (Optional)</label>
+                                <select name="sales_order_id" class="form-select" id="orderSelect">
+                                    <option value="">No specific order</option>
+                                    {% for so in sales_orders %}
+                                    <option value="{{ so.id }}" data-customer="{{ so.customer_name }}">
+                                        {{ so.so_number }} - {{ so.customer_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Communication Type <span class="text-danger">*</span></label>
+                                <select name="communication_type" class="form-select" required>
+                                    <option value="Call">Phone Call</option>
+                                    <option value="Email">Email</option>
+                                    <option value="Meeting">Meeting</option>
+                                    <option value="Note">Internal Note</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Subject</label>
+                                <input type="text" name="subject" class="form-control" placeholder="Brief subject line">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <textarea name="description" class="form-control" rows="5" required 
+                                      placeholder="Details of the communication..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Outcome</label>
+                            <input type="text" name="outcome" class="form-control" 
+                                   placeholder="What was the result of this communication?">
+                        </div>
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body">
+                                <h6 class="mb-3">Follow-up Required?</h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="follow_up_required" 
+                                           id="followUpCheck" onchange="toggleFollowUpDate()">
+                                    <label class="form-check-label" for="followUpCheck">
+                                        Schedule a follow-up
+                                    </label>
+                                </div>
+                                <div id="followUpDateDiv" style="display: none;">
+                                    <label class="form-label">Follow-up Date</label>
+                                    <input type="date" name="follow_up_date" class="form-control" style="max-width: 200px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Log Communication
+                            </button>
+                            <a href="{{ url_for('customer_service.communications_list') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="mb-0">Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2"><i class="bi bi-telephone text-info me-2"></i> <strong>Call:</strong> Phone conversations</li>
+                        <li class="mb-2"><i class="bi bi-envelope text-primary me-2"></i> <strong>Email:</strong> Email correspondence</li>
+                        <li class="mb-2"><i class="bi bi-people text-success me-2"></i> <strong>Meeting:</strong> In-person or virtual meetings</li>
+                        <li class="mb-2"><i class="bi bi-sticky text-secondary me-2"></i> <strong>Note:</strong> Internal notes</li>
+                    </ul>
+                    <hr>
+                    <p class="text-muted small mb-0">
+                        Logging communications helps track customer interactions and ensures follow-ups aren't missed.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleFollowUpDate() {
+    const checkbox = document.getElementById('followUpCheck');
+    const dateDiv = document.getElementById('followUpDateDiv');
+    dateDiv.style.display = checkbox.checked ? 'block' : 'none';
+}
+</script>
+{% endblock %}

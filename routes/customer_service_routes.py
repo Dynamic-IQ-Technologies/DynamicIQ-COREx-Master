@@ -124,6 +124,20 @@ def dashboard():
           AND expected_ship_date < DATE('now')
     ''').fetchone()[0]
     
+    pending_followups = conn.execute('''
+        SELECT COUNT(*) FROM customer_communications 
+        WHERE follow_up_required = 1 AND follow_up_completed = 0
+    ''').fetchone()[0]
+    
+    recent_activity = conn.execute('''
+        SELECT oal.*, so.so_number, u.username as created_by_name
+        FROM order_activity_log oal
+        JOIN sales_orders so ON oal.sales_order_id = so.id
+        LEFT JOIN users u ON oal.created_by = u.id
+        ORDER BY oal.created_at DESC
+        LIMIT 10
+    ''').fetchall()
+    
     conn.close()
     
     return render_template('customer_service/dashboard.html',
@@ -135,7 +149,9 @@ def dashboard():
                          total_orders=total_orders,
                          active_orders=active_orders,
                          pending_confirmation=pending_confirmation,
-                         overdue_count=overdue_count)
+                         overdue_count=overdue_count,
+                         pending_followups=pending_followups,
+                         recent_activity=recent_activity)
 
 
 @customer_service_bp.route('/customer-service/orders')
@@ -242,13 +258,32 @@ def order_detail(order_id):
             ORDER BY stage_order
         ''', (order_id,)).fetchall()
     
+    notes = conn.execute('''
+        SELECT on_t.*, u.username as created_by_name
+        FROM order_notes on_t
+        JOIN users u ON on_t.created_by = u.id
+        WHERE on_t.sales_order_id = ?
+        ORDER BY on_t.is_pinned DESC, on_t.created_at DESC
+    ''', (order_id,)).fetchall()
+    
+    activity_log = conn.execute('''
+        SELECT oal.*, u.username as created_by_name
+        FROM order_activity_log oal
+        LEFT JOIN users u ON oal.created_by = u.id
+        WHERE oal.sales_order_id = ?
+        ORDER BY oal.created_at DESC
+        LIMIT 20
+    ''', (order_id,)).fetchall()
+    
     conn.close()
     
     return render_template('customer_service/order_detail.html',
                          order=order,
                          order_lines=order_lines,
                          linked_work_orders=linked_work_orders,
-                         stages=stages)
+                         stages=stages,
+                         notes=notes,
+                         activity_log=activity_log)
 
 
 @customer_service_bp.route('/customer-service/orders/<int:order_id>/update-stage', methods=['POST'])
@@ -555,3 +590,279 @@ def approve_order(order_id):
         conn.close()
     
     return redirect(url_for('customer_service.order_detail', order_id=order_id))
+
+
+def log_order_activity(conn, so_id, activity_type, description, old_value=None, new_value=None, user_id=None):
+    """Log an activity for an order"""
+    conn.execute('''
+        INSERT INTO order_activity_log (sales_order_id, activity_type, activity_description, old_value, new_value, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (so_id, activity_type, description, old_value, new_value, user_id or session.get('user_id')))
+
+
+@customer_service_bp.route('/customer-service/communications')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def communications_list():
+    """List all customer communications"""
+    db = Database()
+    conn = db.get_connection()
+    
+    customer_filter = request.args.get('customer', '')
+    type_filter = request.args.get('type', '')
+    pending_only = request.args.get('pending', '')
+    
+    query = '''
+        SELECT cc.*, c.name as customer_name, so.so_number, u.username as created_by_name
+        FROM customer_communications cc
+        JOIN customers c ON cc.customer_id = c.id
+        LEFT JOIN sales_orders so ON cc.sales_order_id = so.id
+        JOIN users u ON cc.created_by = u.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if customer_filter:
+        query += ' AND cc.customer_id = ?'
+        params.append(customer_filter)
+    if type_filter:
+        query += ' AND cc.communication_type = ?'
+        params.append(type_filter)
+    if pending_only == '1':
+        query += ' AND cc.follow_up_required = 1 AND cc.follow_up_completed = 0'
+    
+    query += ' ORDER BY cc.communication_date DESC LIMIT 100'
+    
+    communications = conn.execute(query, params).fetchall()
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    
+    pending_follow_ups = conn.execute('''
+        SELECT COUNT(*) FROM customer_communications 
+        WHERE follow_up_required = 1 AND follow_up_completed = 0
+    ''').fetchone()[0]
+    
+    conn.close()
+    
+    return render_template('customer_service/communications.html',
+                         communications=communications,
+                         customers=customers,
+                         pending_follow_ups=pending_follow_ups,
+                         filters={'customer': customer_filter, 'type': type_filter, 'pending': pending_only})
+
+
+@customer_service_bp.route('/customer-service/communications/add', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def add_communication():
+    """Add a new customer communication"""
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        customer_id = request.form.get('customer_id')
+        sales_order_id = request.form.get('sales_order_id') or None
+        comm_type = request.form.get('communication_type')
+        subject = request.form.get('subject')
+        description = request.form.get('description')
+        follow_up = 1 if request.form.get('follow_up_required') else 0
+        follow_up_date = request.form.get('follow_up_date') or None
+        outcome = request.form.get('outcome')
+        
+        try:
+            conn.execute('''
+                INSERT INTO customer_communications 
+                (customer_id, sales_order_id, communication_type, subject, description, 
+                 follow_up_required, follow_up_date, outcome, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (customer_id, sales_order_id, comm_type, subject, description,
+                  follow_up, follow_up_date, outcome, session.get('user_id')))
+            
+            if sales_order_id:
+                log_order_activity(conn, sales_order_id, 'Communication', 
+                                 f'{comm_type}: {subject}', user_id=session.get('user_id'))
+            
+            conn.commit()
+            flash('Communication logged successfully', 'success')
+            return redirect(url_for('customer_service.communications_list'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error logging communication: {str(e)}', 'danger')
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    sales_orders = conn.execute('''
+        SELECT so.id, so.so_number, c.name as customer_name 
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        WHERE so.status NOT IN ('Completed', 'Shipped', 'Closed', 'Cancelled')
+        ORDER BY so.so_number DESC
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('customer_service/add_communication.html',
+                         customers=customers, sales_orders=sales_orders)
+
+
+@customer_service_bp.route('/customer-service/communications/<int:comm_id>/complete-followup', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def complete_followup(comm_id):
+    """Mark a follow-up as completed"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('''
+            UPDATE customer_communications 
+            SET follow_up_completed = 1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (comm_id,))
+        conn.commit()
+        flash('Follow-up marked as completed', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.communications_list', pending='1'))
+
+
+@customer_service_bp.route('/customer-service/orders/<int:order_id>/notes', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def add_order_note(order_id):
+    """Add a quick note to an order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    note_text = request.form.get('note_text')
+    note_type = request.form.get('note_type', 'General')
+    is_pinned = 1 if request.form.get('is_pinned') else 0
+    
+    try:
+        conn.execute('''
+            INSERT INTO order_notes (sales_order_id, note_type, note_text, is_pinned, created_by)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (order_id, note_type, note_text, is_pinned, session.get('user_id')))
+        
+        log_order_activity(conn, order_id, 'Note Added', f'{note_type} note added', user_id=session.get('user_id'))
+        
+        conn.commit()
+        flash('Note added successfully', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error adding note: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.order_detail', order_id=order_id))
+
+
+@customer_service_bp.route('/customer-service/orders/<int:order_id>/notes/<int:note_id>/delete', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def delete_order_note(order_id, note_id):
+    """Delete an order note"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('DELETE FROM order_notes WHERE id = ? AND sales_order_id = ?', (note_id, order_id))
+        conn.commit()
+        flash('Note deleted', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting note: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('customer_service.order_detail', order_id=order_id))
+
+
+@customer_service_bp.route('/customer-service/analytics')
+@login_required
+@role_required('Admin', 'Planner')
+def analytics():
+    """Customer service analytics and reporting"""
+    db = Database()
+    conn = db.get_connection()
+    
+    total_communications = conn.execute('SELECT COUNT(*) FROM customer_communications').fetchone()[0]
+    this_month_comms = conn.execute('''
+        SELECT COUNT(*) FROM customer_communications 
+        WHERE communication_date >= DATE('now', 'start of month')
+    ''').fetchone()[0]
+    
+    pending_followups = conn.execute('''
+        SELECT COUNT(*) FROM customer_communications 
+        WHERE follow_up_required = 1 AND follow_up_completed = 0
+    ''').fetchone()[0]
+    
+    overdue_followups = conn.execute('''
+        SELECT COUNT(*) FROM customer_communications 
+        WHERE follow_up_required = 1 AND follow_up_completed = 0 
+          AND follow_up_date < DATE('now')
+    ''').fetchone()[0]
+    
+    comms_by_type_rows = conn.execute('''
+        SELECT communication_type, COUNT(*) as count
+        FROM customer_communications
+        GROUP BY communication_type
+        ORDER BY count DESC
+    ''').fetchall()
+    comms_by_type = [{'type': r['communication_type'], 'count': r['count']} for r in comms_by_type_rows]
+    
+    comms_by_month_rows = conn.execute('''
+        SELECT strftime('%Y-%m', communication_date) as month, COUNT(*) as count
+        FROM customer_communications
+        WHERE communication_date >= DATE('now', '-6 months')
+        GROUP BY month
+        ORDER BY month
+    ''').fetchall()
+    comms_by_month = [{'month': r['month'], 'count': r['count']} for r in comms_by_month_rows]
+    
+    top_customers_rows = conn.execute('''
+        SELECT c.name, COUNT(cc.id) as comm_count
+        FROM customer_communications cc
+        JOIN customers c ON cc.customer_id = c.id
+        GROUP BY cc.customer_id
+        ORDER BY comm_count DESC
+        LIMIT 10
+    ''').fetchall()
+    top_customers = [{'name': r['name'], 'count': r['comm_count']} for r in top_customers_rows]
+    
+    avg_orders_per_stage_rows = conn.execute('''
+        SELECT stage_name, 
+               AVG(CASE WHEN completed_at IS NOT NULL AND started_at IS NOT NULL 
+                   THEN JULIANDAY(completed_at) - JULIANDAY(started_at) 
+                   ELSE NULL END) as avg_days
+        FROM order_stage_tracking
+        WHERE stage_status = 'Complete'
+        GROUP BY stage_name
+        ORDER BY stage_order
+    ''').fetchall()
+    stage_durations = [{'stage': r['stage_name'], 'avg_days': round(r['avg_days'] or 0, 1)} for r in avg_orders_per_stage_rows]
+    
+    recent_notes = conn.execute('''
+        SELECT on_t.*, so.so_number, u.username as created_by_name
+        FROM order_notes on_t
+        JOIN sales_orders so ON on_t.sales_order_id = so.id
+        JOIN users u ON on_t.created_by = u.id
+        ORDER BY on_t.created_at DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('customer_service/analytics.html',
+                         total_communications=total_communications,
+                         this_month_comms=this_month_comms,
+                         pending_followups=pending_followups,
+                         overdue_followups=overdue_followups,
+                         comms_by_type=comms_by_type,
+                         comms_by_month=comms_by_month,
+                         top_customers=top_customers,
+                         stage_durations=stage_durations,
+                         recent_notes=recent_notes)

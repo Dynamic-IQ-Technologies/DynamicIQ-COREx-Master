@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Service Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('customer_service.dashboard') }}">Customer Service</a></li>
+                    <li class="breadcrumb-item active">Analytics</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">Customer Service Analytics</h2>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--primary) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase mb-1">Total Communications</p>
+                            <h3 class="mb-0 fw-bold">{{ total_communications }}</h3>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded p-2">
+                            <i class="bi bi-chat-dots text-primary fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--success) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase mb-1">This Month</p>
+                            <h3 class="mb-0 fw-bold">{{ this_month_comms }}</h3>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded p-2">
+                            <i class="bi bi-calendar-check text-success fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--warning) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase mb-1">Pending Follow-ups</p>
+                            <h3 class="mb-0 fw-bold">{{ pending_followups }}</h3>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 rounded p-2">
+                            <i class="bi bi-bell text-warning fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--danger) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase mb-1">Overdue Follow-ups</p>
+                            <h3 class="mb-0 fw-bold">{{ overdue_followups }}</h3>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 rounded p-2">
+                            <i class="bi bi-exclamation-circle text-danger fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Communications by Type</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="commsByTypeChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Communication Trend (6 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="commsTrendChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Top Customers by Interactions</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if top_customers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">Customer</th>
+                                    <th class="text-uppercase small text-end">Interactions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cust in top_customers %}
+                                <tr>
+                                    <td>{{ cust.name }}</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-primary">{{ cust.count }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Average Stage Duration (Days)</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if stage_durations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">Stage</th>
+                                    <th class="text-uppercase small text-end">Avg Days</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stage in stage_durations %}
+                                <tr>
+                                    <td>{{ stage.stage }}</td>
+                                    <td class="text-end">
+                                        <span class="badge {% if stage.avg_days > 5 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                            {{ stage.avg_days }} days
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No completed stages yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="mb-0 fw-semibold">Recent Order Notes</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_notes %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-uppercase small">Order</th>
+                            <th class="text-uppercase small">Type</th>
+                            <th class="text-uppercase small">Note</th>
+                            <th class="text-uppercase small">By</th>
+                            <th class="text-uppercase small">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for note in recent_notes %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('customer_service.order_detail', order_id=note.sales_order_id) }}">
+                                    {{ note.so_number }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if note.note_type == 'Urgent' %}
+                                <span class="badge bg-danger">{{ note.note_type }}</span>
+                                {% elif note.note_type == 'Customer' %}
+                                <span class="badge bg-info">{{ note.note_type }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ note.note_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ note.note_text[:80] }}{% if note.note_text|length > 80 %}...{% endif %}</td>
+                            <td>{{ note.created_by_name }}</td>
+                            <td>{{ note.created_at[:16] if note.created_at else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">No notes yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const commsByType = {{ comms_by_type | tojson }};
+const commsByMonth = {{ comms_by_month | tojson }};
+
+if (commsByType.length > 0) {
+    new Chart(document.getElementById('commsByTypeChart'), {
+        type: 'doughnut',
+        data: {
+            labels: commsByType.map(c => c.type),
+            datasets: [{
+                data: commsByType.map(c => c.count),
+                backgroundColor: ['#0891b2', '#2563eb', '#059669', '#6b7280', '#7c3aed']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+if (commsByMonth.length > 0) {
+    new Chart(document.getElementById('commsTrendChart'), {
+        type: 'bar',
+        data: {
+            labels: commsByMonth.map(c => c.month),
+            datasets: [{
+                label: 'Communications',
+                data: commsByMonth.map(c => c.count),
+                backgroundColor: '#2563eb'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -69,13 +69,17 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - Work order confirmation workflow with checklist (quote approved, materials available, capacity available)
     - Pending quote follow-up tracking with days pending indicators
     - Order stage progress tracking with 6 default stages (Order Received, Engineering Review, Material Procurement, Production, Quality Assurance, Shipping)
-    - Order detail view with linked work orders and stage progress visualization
+    - Order detail view with linked work orders, stage progress visualization, notes, and activity timeline
     - Sales Order to Work Order linking via so_id foreign key for full traceability
     - Create Work Order directly from order detail page with product selection from order lines
     - Quote approval workflow that updates order status and initiates stage tracking
     - Order status automation engine that automatically updates sales order status based on work order release and stage completion
     - Customer visibility in work order tables showing linked customer and SO number
-    - Database tables: order_stage_tracking, work_order_confirmations (work_orders.so_id links to sales_orders)
+    - Customer Communications Log for tracking calls, emails, meetings with follow-up scheduling
+    - Quick Notes system for adding notes to orders with type categorization (General, Internal, Customer, Urgent, Follow-up) and pinning
+    - Activity Timeline showing all order activities (status changes, notes, communications) in chronological order
+    - Analytics dashboard with KPIs (total communications, pending/overdue follow-ups), charts by type and month, top customers, and stage duration metrics
+    - Database tables: order_stage_tracking, work_order_confirmations, customer_communications, order_notes, order_activity_log (work_orders.so_id links to sales_orders)
 
 ### System Design Choices
 

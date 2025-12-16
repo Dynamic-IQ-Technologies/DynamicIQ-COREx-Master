@@ -9,12 +9,21 @@
             <h2 class="mb-1">Customer Service Dashboard</h2>
             <p class="text-muted mb-0">Order visibility and workflow management</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <a href="{{ url_for('customer_service.orders_list') }}" class="btn btn-outline-primary">
-                <i class="bi bi-list-ul me-1"></i> All Orders
+                <i class="bi bi-list-ul me-1"></i> Orders
+            </a>
+            <a href="{{ url_for('customer_service.communications_list') }}" class="btn btn-outline-info">
+                <i class="bi bi-chat-dots me-1"></i> Communications
+                {% if pending_followups > 0 %}
+                <span class="badge bg-warning text-dark">{{ pending_followups }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('customer_service.analytics') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-graph-up me-1"></i> Analytics
             </a>
             <a href="{{ url_for('customer_service.work_orders_confirmation') }}" class="btn btn-primary">
-                <i class="bi bi-check-circle me-1"></i> Confirm Work Orders
+                <i class="bi bi-check-circle me-1"></i> Confirm WOs
             </a>
         </div>
     </div>
@@ -257,22 +266,67 @@
         </div>
     </div>
 
-    {% if recent_confirmations %}
-    <div class="row g-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
+    <div class="row g-4 mb-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Recent Activity</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_activity %}
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for activity in recent_activity %}
+                        <div class="list-group-item py-2">
+                            <div class="d-flex align-items-start">
+                                <div class="me-2">
+                                    {% if activity.activity_type == 'Status Change' %}
+                                    <i class="bi bi-arrow-repeat text-primary"></i>
+                                    {% elif activity.activity_type == 'Note Added' %}
+                                    <i class="bi bi-sticky text-info"></i>
+                                    {% elif activity.activity_type == 'Communication' %}
+                                    <i class="bi bi-chat-dots text-success"></i>
+                                    {% else %}
+                                    <i class="bi bi-clock text-muted"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <p class="mb-0 small">
+                                        <a href="{{ url_for('customer_service.order_detail', order_id=activity.sales_order_id) }}">
+                                            {{ activity.so_number }}
+                                        </a>: {{ activity.activity_description }}
+                                    </p>
+                                    <small class="text-muted">
+                                        {{ activity.created_at[:16] if activity.created_at else '' }}
+                                        {% if activity.created_by_name %} - {{ activity.created_by_name }}{% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-clock-history text-muted fs-1"></i>
+                        <p class="text-muted mt-2 mb-0">No recent activity</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white border-0 py-3">
                     <h5 class="mb-0 fw-semibold">Recent Work Order Confirmations</h5>
                 </div>
                 <div class="card-body p-0">
+                    {% if recent_confirmations %}
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th class="text-uppercase small">Work Order</th>
                                     <th class="text-uppercase small">Confirmed By</th>
-                                    <th class="text-uppercase small">Confirmation Date</th>
-                                    <th class="text-uppercase small">New Status</th>
+                                    <th class="text-uppercase small">Date</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -280,18 +334,22 @@
                                 <tr>
                                     <td>{{ conf.wo_number }}</td>
                                     <td>{{ conf.confirmed_by_name }}</td>
-                                    <td>{{ conf.confirmation_date }}</td>
-                                    <td><span class="badge bg-success">{{ conf.new_status }}</span></td>
+                                    <td>{{ conf.confirmation_date[:16] if conf.confirmation_date else 'N/A' }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success fs-1"></i>
+                        <p class="text-muted mt-2 mb-0">No recent confirmations</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 {% endblock %}
 
