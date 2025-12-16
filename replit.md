@@ -62,6 +62,15 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - Bottleneck detection with status indicators (Normal <85%, Warning 85-100%, Critical >100%)
     - Printable capacity reports with operation and task details plus override summaries
     - Proper date overlap logic for accurate load calculations across date ranges (uses task-level dates with fallback to WO dates)
+-   **Customer Service Module (Phase 1)**: Internal customer service dashboard providing full visibility into customer orders and work orders. Features:
+    - Executive dashboard with KPI cards (total orders, active orders, pending confirmations, overdue count)
+    - Orders by status chart visualization with doughnut chart
+    - At-risk orders tracking with risk level indicators (Overdue, Critical, Warning)
+    - Work order confirmation workflow with checklist (quote approved, materials available, capacity available)
+    - Pending quote follow-up tracking with days pending indicators
+    - Order stage progress tracking with 6 default stages (Order Received, Engineering Review, Material Procurement, Production, Quality Assurance, Shipping)
+    - Order detail view with linked work orders and stage progress visualization
+    - Database tables: order_stage_tracking, work_order_confirmations
 
 ### System Design Choices
 

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Orders{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('customer_service.dashboard') }}">Customer Service</a></li>
+                    <li class="breadcrumb-item active">All Orders</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">Customer Orders</h2>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small text-uppercase">Customer</label>
+                    <select name="customer" class="form-select">
+                        <option value="">All Customers</option>
+                        {% for c in customers %}
+                        <option value="{{ c.id }}" {% if customer_filter == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-uppercase">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for s in statuses %}
+                        <option value="{{ s.status }}" {% if status_filter == s.status %}selected{% endif %}>{{ s.status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                    <a href="{{ url_for('customer_service.orders_list') }}" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="ordersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-uppercase small sortable" data-sort="string">Order #</th>
+                            <th class="text-uppercase small sortable" data-sort="string">Customer</th>
+                            <th class="text-uppercase small sortable" data-sort="date">Order Date</th>
+                            <th class="text-uppercase small sortable" data-sort="date">Ship Date</th>
+                            <th class="text-uppercase small sortable" data-sort="currency">Total</th>
+                            <th class="text-uppercase small sortable" data-sort="number">Lines</th>
+                            <th class="text-uppercase small sortable" data-sort="string">Status</th>
+                            <th class="text-uppercase small">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('customer_service.order_detail', order_id=order.id) }}" class="fw-medium">
+                                    {{ order.so_number }}
+                                </a>
+                            </td>
+                            <td>{{ order.customer_name }}</td>
+                            <td>{{ order.order_date or 'N/A' }}</td>
+                            <td>{{ order.expected_ship_date or 'N/A' }}</td>
+                            <td>{{ order.total_amount | currency }}</td>
+                            <td>{{ order.line_count }}</td>
+                            <td>
+                                {% if order.status == 'Completed' or order.status == 'Shipped' %}
+                                <span class="badge bg-success">{{ order.status }}</span>
+                                {% elif order.status == 'In Production' %}
+                                <span class="badge bg-primary">{{ order.status }}</span>
+                                {% elif order.status in ['Draft', 'Quoted', 'Pending Approval'] %}
+                                <span class="badge bg-warning text-dark">{{ order.status }}</span>
+                                {% elif order.status == 'Cancelled' %}
+                                <span class="badge bg-danger">{{ order.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ order.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('customer_service.order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3 mb-0">No orders found matching your criteria</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/table-utils.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortableTable('ordersTable');
+    }
+});
+</script>
+{% endblock %}

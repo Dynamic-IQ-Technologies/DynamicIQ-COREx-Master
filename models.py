@@ -717,6 +717,52 @@ class Database:
             )
         ''')
         
+        # Create order_stage_tracking table for customer service module
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS order_stage_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sales_order_id INTEGER,
+                work_order_id INTEGER,
+                stage_name TEXT NOT NULL,
+                stage_order INTEGER DEFAULT 1,
+                stage_status TEXT DEFAULT 'Not Started',
+                percent_complete INTEGER DEFAULT 0,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                assigned_to INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (assigned_to) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create work_order_confirmations table for CS module confirmation workflow
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_confirmations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_order_id INTEGER NOT NULL,
+                confirmed_by INTEGER NOT NULL,
+                confirmation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                quote_approved INTEGER DEFAULT 0,
+                materials_available INTEGER DEFAULT 0,
+                capacity_available INTEGER DEFAULT 0,
+                confirmation_notes TEXT,
+                previous_status TEXT,
+                new_status TEXT DEFAULT 'Released',
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (confirmed_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create indexes for order stage tracking
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_stage_so ON order_stage_tracking(sales_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_stage_wo ON order_stage_tracking(work_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_stage_status ON order_stage_tracking(stage_status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_confirmations_wo ON work_order_confirmations(work_order_id)')
+        
         # Create labor_issuance table for time tracking
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS labor_issuance (

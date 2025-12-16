@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Work Order Confirmation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('customer_service.dashboard') }}">Customer Service</a></li>
+                    <li class="breadcrumb-item active">Work Order Confirmation</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">Work Order Confirmation</h2>
+            <p class="text-muted mb-0">Review and release work orders for production</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if work_orders %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-uppercase small">WO #</th>
+                            <th class="text-uppercase small">Product</th>
+                            <th class="text-uppercase small">Customer</th>
+                            <th class="text-uppercase small">SO #</th>
+                            <th class="text-uppercase small">Quantity</th>
+                            <th class="text-uppercase small">Priority</th>
+                            <th class="text-uppercase small">Planned Start</th>
+                            <th class="text-uppercase small">Material Avail.</th>
+                            <th class="text-uppercase small">Status</th>
+                            <th class="text-uppercase small">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wo in work_orders %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-medium">
+                                    {{ wo.wo_number }}
+                                </a>
+                            </td>
+                            <td>{{ wo.product_code }} - {{ wo.product_name }}</td>
+                            <td>{{ wo.customer_name or 'N/A' }}</td>
+                            <td>{{ wo.so_number or 'N/A' }}</td>
+                            <td>{{ wo.quantity }}</td>
+                            <td>
+                                {% if wo.priority == 'High' or wo.priority == 'Critical' %}
+                                <span class="badge bg-danger">{{ wo.priority }}</span>
+                                {% elif wo.priority == 'Medium' %}
+                                <span class="badge bg-warning text-dark">{{ wo.priority }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ wo.priority }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ wo.planned_start_date or 'N/A' }}</td>
+                            <td>
+                                {% if wo.material_availability %}
+                                    {% if wo.material_availability >= 100 %}
+                                    <span class="badge bg-success">100%</span>
+                                    {% elif wo.material_availability >= 75 %}
+                                    <span class="badge bg-warning text-dark">{{ wo.material_availability|int }}%</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{{ wo.material_availability|int }}%</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="badge bg-secondary">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-warning text-dark">{{ wo.status }}</span></td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-success" 
+                                        data-bs-toggle="modal" data-bs-target="#confirmModal{{ wo.id }}">
+                                    <i class="bi bi-check-circle me-1"></i> Confirm
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">All Caught Up!</h5>
+                <p class="text-muted mb-0">No work orders awaiting confirmation</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% for wo in work_orders %}
+<div class="modal fade" id="confirmModal{{ wo.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('customer_service.confirm_work_order', wo_id=wo.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Work Order {{ wo.wo_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Product:</strong> {{ wo.product_code }} - {{ wo.product_name }}<br>
+                        <strong>Quantity:</strong> {{ wo.quantity }}<br>
+                        <strong>Customer:</strong> {{ wo.customer_name or 'N/A' }}
+                    </div>
+                    
+                    <h6 class="mb-3">Confirmation Checklist</h6>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="quote_approved" id="quoteApproved{{ wo.id }}">
+                        <label class="form-check-label" for="quoteApproved{{ wo.id }}">
+                            Quote Approved (if applicable)
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="materials_available" id="materialsAvailable{{ wo.id }}">
+                        <label class="form-check-label" for="materialsAvailable{{ wo.id }}">
+                            Materials Available
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="capacity_available" id="capacityAvailable{{ wo.id }}">
+                        <label class="form-check-label" for="capacityAvailable{{ wo.id }}">
+                            Capacity Available
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Confirmation Notes</label>
+                        <textarea name="confirmation_notes" class="form-control" rows="3" 
+                                  placeholder="Optional notes for this confirmation..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-1"></i> Confirm & Release
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

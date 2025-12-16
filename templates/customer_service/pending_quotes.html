@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Quote Approvals{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('customer_service.dashboard') }}">Customer Service</a></li>
+                    <li class="breadcrumb-item active">Pending Quotes</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">Pending Quote Approvals</h2>
+            <p class="text-muted mb-0">Track and follow up on quotes awaiting customer approval</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if quotes %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="quotesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-uppercase small sortable" data-sort="string">Order #</th>
+                            <th class="text-uppercase small sortable" data-sort="string">Customer</th>
+                            <th class="text-uppercase small">Email</th>
+                            <th class="text-uppercase small sortable" data-sort="date">Order Date</th>
+                            <th class="text-uppercase small sortable" data-sort="number">Days Pending</th>
+                            <th class="text-uppercase small sortable" data-sort="currency">Total Value</th>
+                            <th class="text-uppercase small sortable" data-sort="string">Status</th>
+                            <th class="text-uppercase small">Created By</th>
+                            <th class="text-uppercase small">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for quote in quotes %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('customer_service.order_detail', order_id=quote.id) }}" class="fw-medium">
+                                    {{ quote.so_number }}
+                                </a>
+                            </td>
+                            <td>{{ quote.customer_name }}</td>
+                            <td>
+                                {% if quote.customer_email %}
+                                <a href="mailto:{{ quote.customer_email }}">{{ quote.customer_email }}</a>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ quote.order_date or 'N/A' }}</td>
+                            <td>
+                                {% set days = (quote.days_pending or 0)|int %}
+                                {% if days > 14 %}
+                                <span class="badge bg-danger">{{ days }} days</span>
+                                {% elif days > 7 %}
+                                <span class="badge bg-warning text-dark">{{ days }} days</span>
+                                {% elif days > 3 %}
+                                <span class="badge bg-info">{{ days }} days</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ days }} days</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-medium">{{ quote.total_amount | currency }}</td>
+                            <td>
+                                {% if quote.status == 'Draft' %}
+                                <span class="badge bg-secondary">{{ quote.status }}</span>
+                                {% elif quote.status == 'Quoted' %}
+                                <span class="badge bg-info">{{ quote.status }}</span>
+                                {% elif quote.status == 'Pending Approval' %}
+                                <span class="badge bg-warning text-dark">{{ quote.status }}</span>
+                                {% else %}
+                                <span class="badge bg-primary">{{ quote.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ quote.created_by_name or 'N/A' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('customer_service.order_detail', order_id=quote.id) }}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if current_user.role in ['Admin', 'Planner'] %}
+                                    <form action="{{ url_for('customer_service.follow_up_quote', order_id=quote.id) }}" 
+                                          method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-success" title="Record Follow-up">
+                                            <i class="bi bi-telephone"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if quote.customer_email %}
+                                    <a href="mailto:{{ quote.customer_email }}?subject=Quote Follow-up: {{ quote.so_number }}" 
+                                       class="btn btn-outline-info" title="Send Email">
+                                        <i class="bi bi-envelope"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">No Pending Quotes</h5>
+                <p class="text-muted mb-0">All quotes have been processed</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if quotes %}
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="mb-0 fw-semibold">Follow-up Priority Guide</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-danger me-2">14+ days</span>
+                        <span class="small">Critical - Immediate follow-up required</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-warning text-dark me-2">7-14 days</span>
+                        <span class="small">High - Follow-up today</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-info me-2">3-7 days</span>
+                        <span class="small">Medium - Schedule follow-up</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-secondary me-2">0-3 days</span>
+                        <span class="small">Low - Recently sent</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/table-utils.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof TableUtils !== 'undefined') {
+        TableUtils.initSortableTable('quotesTable');
+    }
+});
+</script>
+{% endblock %}

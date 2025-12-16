@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Service Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Customer Service Dashboard</h2>
+            <p class="text-muted mb-0">Order visibility and workflow management</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('customer_service.orders_list') }}" class="btn btn-outline-primary">
+                <i class="bi bi-list-ul me-1"></i> All Orders
+            </a>
+            <a href="{{ url_for('customer_service.work_orders_confirmation') }}" class="btn btn-primary">
+                <i class="bi bi-check-circle me-1"></i> Confirm Work Orders
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--primary) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small text-uppercase">Total Orders</p>
+                            <h3 class="mb-0 fw-bold">{{ total_orders }}</h3>
+                        </div>
+                        <div class="icon-chip bg-primary bg-opacity-10 text-primary rounded-circle p-2">
+                            <i class="bi bi-cart fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--success) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small text-uppercase">Active Orders</p>
+                            <h3 class="mb-0 fw-bold">{{ active_orders }}</h3>
+                        </div>
+                        <div class="icon-chip bg-success bg-opacity-10 text-success rounded-circle p-2">
+                            <i class="bi bi-activity fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--warning) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small text-uppercase">Pending Confirmation</p>
+                            <h3 class="mb-0 fw-bold">{{ pending_confirmation }}</h3>
+                        </div>
+                        <div class="icon-chip bg-warning bg-opacity-10 text-warning rounded-circle p-2">
+                            <i class="bi bi-hourglass-split fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid var(--danger) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small text-uppercase">Overdue Orders</p>
+                            <h3 class="mb-0 fw-bold">{{ overdue_count }}</h3>
+                        </div>
+                        <div class="icon-chip bg-danger bg-opacity-10 text-danger rounded-circle p-2">
+                            <i class="bi bi-exclamation-triangle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold">Orders by Status</h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="ordersChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold">At-Risk Orders</h5>
+                        <a href="{{ url_for('customer_service.at_risk_orders') }}" class="btn btn-sm btn-outline-danger">
+                            View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if at_risk_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">Order #</th>
+                                    <th class="text-uppercase small">Customer</th>
+                                    <th class="text-uppercase small">Due Date</th>
+                                    <th class="text-uppercase small">Days Left</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in at_risk_orders %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('customer_service.order_detail', order_id=order.id) }}">
+                                            {{ order.so_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ order.customer_name }}</td>
+                                    <td>{{ order.expected_ship_date or 'N/A' }}</td>
+                                    <td>
+                                        {% if order.days_until_due < 0 %}
+                                        <span class="badge bg-danger">{{ order.days_until_due|int|abs }} days overdue</span>
+                                        {% elif order.days_until_due <= 3 %}
+                                        <span class="badge bg-warning text-dark">{{ order.days_until_due|int }} days</span>
+                                        {% else %}
+                                        <span class="badge bg-info">{{ order.days_until_due|int }} days</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success fs-1"></i>
+                        <p class="text-muted mt-2 mb-0">No at-risk orders</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold">Work Orders Awaiting Confirmation</h5>
+                        <a href="{{ url_for('customer_service.work_orders_confirmation') }}" class="btn btn-sm btn-outline-primary">
+                            Manage
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if work_orders_awaiting %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">WO #</th>
+                                    <th class="text-uppercase small">Product</th>
+                                    <th class="text-uppercase small">Customer</th>
+                                    <th class="text-uppercase small">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wo in work_orders_awaiting %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">
+                                            {{ wo.wo_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ wo.product_code }}</td>
+                                    <td>{{ wo.customer_name or 'N/A' }}</td>
+                                    <td><span class="badge bg-warning text-dark">{{ wo.status }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success fs-1"></i>
+                        <p class="text-muted mt-2 mb-0">No work orders awaiting confirmation</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold">Pending Quote Approvals</h5>
+                        <a href="{{ url_for('customer_service.pending_quotes') }}" class="btn btn-sm btn-outline-primary">
+                            View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if pending_quotes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">Order #</th>
+                                    <th class="text-uppercase small">Customer</th>
+                                    <th class="text-uppercase small">Days Pending</th>
+                                    <th class="text-uppercase small">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quote in pending_quotes %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('customer_service.order_detail', order_id=quote.id) }}">
+                                            {{ quote.so_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ quote.customer_name }}</td>
+                                    <td>
+                                        {% if quote.days_pending and quote.days_pending > 7 %}
+                                        <span class="badge bg-danger">{{ quote.days_pending|int }} days</span>
+                                        {% elif quote.days_pending and quote.days_pending > 3 %}
+                                        <span class="badge bg-warning text-dark">{{ quote.days_pending|int }} days</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ (quote.days_pending or 0)|int }} days</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-info">{{ quote.status }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success fs-1"></i>
+                        <p class="text-muted mt-2 mb-0">No pending quotes</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if recent_confirmations %}
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">Recent Work Order Confirmations</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase small">Work Order</th>
+                                    <th class="text-uppercase small">Confirmed By</th>
+                                    <th class="text-uppercase small">Confirmation Date</th>
+                                    <th class="text-uppercase small">New Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for conf in recent_confirmations %}
+                                <tr>
+                                    <td>{{ conf.wo_number }}</td>
+                                    <td>{{ conf.confirmed_by_name }}</td>
+                                    <td>{{ conf.confirmation_date }}</td>
+                                    <td><span class="badge bg-success">{{ conf.new_status }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusData = {{ orders_by_status | list | tojson }};
+    
+    const labels = statusData.map(s => s.status || 'Unknown');
+    const data = statusData.map(s => s.count);
+    
+    const colors = {
+        'Draft': '#6c757d',
+        'Quoted': '#0891b2',
+        'Pending Approval': '#d97706',
+        'Approved': '#059669',
+        'In Production': '#2563eb',
+        'Completed': '#16a34a',
+        'Shipped': '#7c3aed',
+        'Closed': '#475569',
+        'Cancelled': '#dc2626'
+    };
+    
+    const backgroundColors = labels.map(l => colors[l] || '#64748b');
+    
+    new Chart(document.getElementById('ordersChart'), {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: backgroundColors,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

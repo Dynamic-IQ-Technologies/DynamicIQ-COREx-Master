@@ -406,6 +406,14 @@
                     <span>Customers</span>
                 </a>
             </li>
+            {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement'] %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('customer_service.dashboard') }}">
+                    <i class="bi bi-headset"></i>
+                    <span>Customer Service</span>
+                </a>
+            </li>
+            {% endif %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('salesorder_routes.list_sales_orders') }}">
                     <i class="bi bi-receipt"></i>
