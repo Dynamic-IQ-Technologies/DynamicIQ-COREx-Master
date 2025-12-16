@@ -68,6 +68,23 @@ class Database:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS supplier_contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                supplier_id INTEGER NOT NULL,
+                contact_name TEXT NOT NULL,
+                title TEXT,
+                email TEXT,
+                phone TEXT,
+                mobile TEXT,
+                department TEXT,
+                is_primary INTEGER DEFAULT 0,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS inventory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_id INTEGER NOT NULL,

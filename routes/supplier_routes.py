@@ -98,9 +98,12 @@ def edit_supplier(id):
         return redirect(url_for('supplier_routes.list_suppliers'))
     
     supplier = conn.execute('SELECT * FROM suppliers WHERE id=?', (id,)).fetchone()
+    contacts = conn.execute('''
+        SELECT * FROM supplier_contacts WHERE supplier_id = ? ORDER BY is_primary DESC, contact_name
+    ''', (id,)).fetchall()
     conn.close()
     
-    return render_template('suppliers/edit.html', supplier=supplier)
+    return render_template('suppliers/edit.html', supplier=supplier, contacts=contacts)
 
 @supplier_bp.route('/suppliers/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
@@ -233,3 +236,143 @@ def import_suppliers():
             conn.close()
     
     return redirect(url_for('supplier_routes.list_suppliers'))
+
+# Supplier Contacts Management
+@supplier_bp.route('/suppliers/<int:supplier_id>/contacts')
+@role_required('Admin', 'Procurement')
+def list_contacts(supplier_id):
+    """Get contacts for a supplier as JSON"""
+    db = Database()
+    conn = db.get_connection()
+    
+    supplier = conn.execute('SELECT id FROM suppliers WHERE id = ?', (supplier_id,)).fetchone()
+    if not supplier:
+        conn.close()
+        return jsonify({'error': 'Supplier not found'}), 404
+    
+    contacts = conn.execute('''
+        SELECT id, contact_name, title, email, phone, mobile, department, is_primary
+        FROM supplier_contacts WHERE supplier_id = ? ORDER BY is_primary DESC, contact_name
+    ''', (supplier_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(c) for c in contacts])
+
+@supplier_bp.route('/suppliers/<int:supplier_id>/contacts/add', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def add_contact(supplier_id):
+    """Add a new contact to a supplier"""
+    db = Database()
+    conn = db.get_connection()
+    
+    supplier = conn.execute('SELECT id FROM suppliers WHERE id = ?', (supplier_id,)).fetchone()
+    if not supplier:
+        conn.close()
+        flash('Supplier not found', 'danger')
+        return redirect(url_for('supplier_routes.list_suppliers'))
+    
+    is_primary = 1 if request.form.get('is_primary') else 0
+    
+    if is_primary:
+        conn.execute('UPDATE supplier_contacts SET is_primary = 0 WHERE supplier_id = ?', (supplier_id,))
+    
+    conn.execute('''
+        INSERT INTO supplier_contacts (supplier_id, contact_name, title, email, phone, mobile, department, is_primary, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        supplier_id,
+        request.form['contact_name'],
+        request.form.get('title', ''),
+        request.form.get('email', ''),
+        request.form.get('phone', ''),
+        request.form.get('mobile', ''),
+        request.form.get('department', ''),
+        is_primary,
+        request.form.get('notes', '')
+    ))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Contact added successfully!', 'success')
+    return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
+
+@supplier_bp.route('/suppliers/contacts/<int:contact_id>/edit', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def edit_contact(contact_id):
+    """Edit an existing contact"""
+    db = Database()
+    conn = db.get_connection()
+    
+    contact = conn.execute('SELECT supplier_id FROM supplier_contacts WHERE id = ?', (contact_id,)).fetchone()
+    if not contact:
+        flash('Contact not found', 'danger')
+        return redirect(url_for('supplier_routes.list_suppliers'))
+    
+    supplier_id = contact['supplier_id']
+    is_primary = 1 if request.form.get('is_primary') else 0
+    
+    if is_primary:
+        conn.execute('UPDATE supplier_contacts SET is_primary = 0 WHERE supplier_id = ?', (supplier_id,))
+    
+    conn.execute('''
+        UPDATE supplier_contacts 
+        SET contact_name=?, title=?, email=?, phone=?, mobile=?, department=?, is_primary=?, notes=?
+        WHERE id=?
+    ''', (
+        request.form['contact_name'],
+        request.form.get('title', ''),
+        request.form.get('email', ''),
+        request.form.get('phone', ''),
+        request.form.get('mobile', ''),
+        request.form.get('department', ''),
+        is_primary,
+        request.form.get('notes', ''),
+        contact_id
+    ))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Contact updated successfully!', 'success')
+    return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
+
+@supplier_bp.route('/suppliers/contacts/<int:contact_id>/delete', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def delete_contact(contact_id):
+    """Delete a contact"""
+    db = Database()
+    conn = db.get_connection()
+    
+    contact = conn.execute('SELECT supplier_id FROM supplier_contacts WHERE id = ?', (contact_id,)).fetchone()
+    if not contact:
+        flash('Contact not found', 'danger')
+        return redirect(url_for('supplier_routes.list_suppliers'))
+    
+    supplier_id = contact['supplier_id']
+    conn.execute('DELETE FROM supplier_contacts WHERE id = ?', (contact_id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Contact deleted successfully!', 'success')
+    return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
+
+@supplier_bp.route('/suppliers/contacts/<int:contact_id>/set-primary', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def set_primary_contact(contact_id):
+    """Set a contact as primary"""
+    db = Database()
+    conn = db.get_connection()
+    
+    contact = conn.execute('SELECT supplier_id FROM supplier_contacts WHERE id = ?', (contact_id,)).fetchone()
+    if not contact:
+        flash('Contact not found', 'danger')
+        return redirect(url_for('supplier_routes.list_suppliers'))
+    
+    supplier_id = contact['supplier_id']
+    conn.execute('UPDATE supplier_contacts SET is_primary = 0 WHERE supplier_id = ?', (supplier_id,))
+    conn.execute('UPDATE supplier_contacts SET is_primary = 1 WHERE id = ?', (contact_id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Primary contact updated!', 'success')
+    return redirect(url_for('supplier_routes.edit_supplier', id=supplier_id))
