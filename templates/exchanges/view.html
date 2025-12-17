@@ -44,7 +44,7 @@
                         <dt class="col-5">Sales Order:</dt>
                         <dd class="col-7">
                             {% if exchange.so_number %}
-                            <a href="{{ url_for('sales.view_order', order_id=exchange.sales_order_id) }}">{{ exchange.so_number }}</a>
+                            <a href="{{ url_for('salesorder_routes.view_sales_order', id=exchange.sales_order_id) }}">{{ exchange.so_number }}</a>
                             {% else %}-{% endif %}
                         </dd>
                         <dt class="col-5">Customer:</dt>
