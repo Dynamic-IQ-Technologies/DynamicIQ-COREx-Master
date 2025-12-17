@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Forecasting & Scenarios{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-graph-up me-2"></i>Forecasting & Scenarios
+        </h2>
+        <a href="{{ url_for('org_analyzer_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Generate Forecast</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Forecast Horizon</label>
+                            <select name="horizon_days" class="form-select">
+                                <option value="30">30 Days</option>
+                                <option value="60">60 Days</option>
+                                <option value="90">90 Days (Quarterly)</option>
+                                <option value="180">180 Days (Semi-Annual)</option>
+                                <option value="365">365 Days (Annual)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Scenario</label>
+                            <select name="scenario" class="form-select">
+                                <option value="Base Case">Base Case</option>
+                                <option value="Best Case">Best Case (Optimistic)</option>
+                                <option value="Worst Case">Worst Case (Pessimistic)</option>
+                                <option value="Growth">High Growth</option>
+                                <option value="Conservative">Conservative</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-stars me-1"></i>Generate AI Forecast
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-heart-pulse me-2"></i>Health Score History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for score in health_history[:10] %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ score.score_date }}</strong>
+                                <div class="small text-muted">
+                                    F:{{ "%.0f"|format(score.financial_score or 0) }} |
+                                    O:{{ "%.0f"|format(score.operational_score or 0) }} |
+                                    W:{{ "%.0f"|format(score.workforce_score or 0) }} |
+                                    C:{{ "%.0f"|format(score.customer_score or 0) }}
+                                </div>
+                            </div>
+                            <span class="badge {% if score.overall_score >= 70 %}bg-success{% elif score.overall_score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6">
+                                {{ "%.0f"|format(score.overall_score) }}
+                            </span>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center text-muted py-4">
+                            No health history recorded yet
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Generated Forecasts</h5>
+                </div>
+                <div class="card-body">
+                    {% if forecasts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Scenario</th>
+                                    <th>Horizon</th>
+                                    <th>Forecast Date</th>
+                                    <th>Predicted</th>
+                                    <th>Range</th>
+                                    <th>Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fc in forecasts %}
+                                <tr>
+                                    <td><strong>{{ fc.metric_name }}</strong></td>
+                                    <td>
+                                        <span class="badge {% if fc.scenario == 'Best Case' %}bg-success{% elif fc.scenario == 'Worst Case' %}bg-danger{% else %}bg-primary{% endif %}">
+                                            {{ fc.scenario }}
+                                        </span>
+                                    </td>
+                                    <td>{{ fc.horizon_days }} days</td>
+                                    <td>{{ fc.forecast_date }}</td>
+                                    <td>
+                                        {% if 'Revenue' in fc.metric_name or 'Cost' in fc.metric_name %}
+                                            {{ fc.predicted_value|currency }}
+                                        {% elif '%' in fc.metric_name %}
+                                            {{ "%.1f"|format(fc.predicted_value) }}%
+                                        {% else %}
+                                            {{ "%.0f"|format(fc.predicted_value) }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="small text-muted">
+                                        {% if fc.lower_bound and fc.upper_bound %}
+                                            {{ "%.0f"|format(fc.lower_bound) }} - {{ "%.0f"|format(fc.upper_bound) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if fc.confidence_level %}
+                                        <div class="progress" style="height: 8px; width: 60px;">
+                                            <div class="progress-bar" style="width: {{ fc.confidence_level }}%"></div>
+                                        </div>
+                                        <small>{{ "%.0f"|format(fc.confidence_level) }}%</small>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-graph-up fs-1 d-block mb-3"></i>
+                        <h5>No forecasts generated yet</h5>
+                        <p>Use the form on the left to generate AI-powered forecasts.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if forecasts and forecasts[0].assumptions %}
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Latest Forecast Assumptions</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">{{ forecasts[0].assumptions }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

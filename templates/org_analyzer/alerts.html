@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Organizational Alerts{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-bell me-2"></i>Organizational Alerts
+        </h2>
+        <a href="{{ url_for('org_analyzer_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Message</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                        <tr class="{% if alert.is_acknowledged %}table-light{% endif %}">
+                            <td>
+                                <span class="badge {% if alert.severity == 'Critical' %}bg-danger{% elif alert.severity == 'Warning' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                    {{ alert.severity }}
+                                </span>
+                            </td>
+                            <td><strong>{{ alert.title }}</strong></td>
+                            <td>{{ alert.message or '-' }}</td>
+                            <td>{{ alert.created_at[:16] }}</td>
+                            <td>
+                                {% if alert.is_acknowledged %}
+                                <span class="badge bg-success">Acknowledged</span>
+                                <br><small class="text-muted">by {{ alert.acknowledged_by_name or 'Unknown' }}</small>
+                                {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not alert.is_acknowledged %}
+                                <button class="btn btn-sm btn-outline-success acknowledge-alert" data-alert-id="{{ alert.id }}">
+                                    <i class="bi bi-check me-1"></i>Acknowledge
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+                                No alerts found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.acknowledge-alert').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const alertId = this.dataset.alertId;
+        fetch(`/org-analyzer/alerts/${alertId}/acknowledge`, {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

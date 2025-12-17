@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Strategic Recommendations{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-lightbulb me-2"></i>Strategic Recommendations
+        </h2>
+        <a href="{{ url_for('org_analyzer_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        {% for rec in recommendations %}
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 {% if rec.status == 'Implemented' %}border-success{% elif rec.status == 'In Progress' %}border-warning{% elif rec.status == 'Rejected' %}border-danger{% endif %}" style="border-left: 4px solid {% if rec.priority == 'High' %}#dc2626{% elif rec.priority == 'Medium' %}#d97706{% else %}#6b7280{% endif %} !important;">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge {% if rec.priority == 'High' %}bg-danger{% elif rec.priority == 'Medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %} me-2">
+                            {{ rec.priority }} Priority
+                        </span>
+                        <span class="badge bg-light text-dark">{{ rec.recommendation_type }}</span>
+                    </div>
+                    {% if rec.confidence_score %}
+                    <span class="text-muted small">
+                        <i class="bi bi-bullseye me-1"></i>{{ "%.0f"|format(rec.confidence_score) }}% confidence
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ rec.title }}</h5>
+                    <p class="card-text text-muted">{{ rec.description or 'No description available.' }}</p>
+                    
+                    <div class="row small text-muted mb-3">
+                        {% if rec.business_impact %}
+                        <div class="col-6 mb-2">
+                            <strong><i class="bi bi-graph-up me-1"></i>Impact:</strong> {{ rec.business_impact }}
+                        </div>
+                        {% endif %}
+                        {% if rec.risk_level %}
+                        <div class="col-6 mb-2">
+                            <strong><i class="bi bi-exclamation-triangle me-1"></i>Risk:</strong> {{ rec.risk_level }}
+                        </div>
+                        {% endif %}
+                        {% if rec.time_to_value %}
+                        <div class="col-6 mb-2">
+                            <strong><i class="bi bi-clock me-1"></i>Time to Value:</strong> {{ rec.time_to_value }}
+                        </div>
+                        {% endif %}
+                        <div class="col-6 mb-2">
+                            <strong><i class="bi bi-calendar me-1"></i>Created:</strong> {{ rec.created_at[:10] }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge {% if rec.status == 'Pending' %}bg-secondary{% elif rec.status == 'In Progress' %}bg-warning text-dark{% elif rec.status == 'Implemented' %}bg-success{% elif rec.status == 'Rejected' %}bg-danger{% else %}bg-info{% endif %}">
+                            {{ rec.status }}
+                        </span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success update-status" data-rec-id="{{ rec.id }}" data-status="Implemented">
+                                <i class="bi bi-check"></i>
+                            </button>
+                            <button class="btn btn-outline-warning update-status" data-rec-id="{{ rec.id }}" data-status="In Progress">
+                                <i class="bi bi-hourglass"></i>
+                            </button>
+                            <button class="btn btn-outline-danger update-status" data-rec-id="{{ rec.id }}" data-status="Rejected">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% if rec.reviewed_by_name %}
+                <div class="card-footer bg-transparent small text-muted">
+                    Reviewed by {{ rec.reviewed_by_name }} on {{ rec.reviewed_at[:10] if rec.reviewed_at else 'N/A' }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5 text-muted">
+                    <i class="bi bi-stars fs-1 d-block mb-3"></i>
+                    <h5>No recommendations yet</h5>
+                    <p>Go to the dashboard and click "Generate AI Insights" to create recommendations.</p>
+                    <a href="{{ url_for('org_analyzer_routes.dashboard') }}" class="btn btn-primary">
+                        <i class="bi bi-arrow-left me-1"></i>Go to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.update-status').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const recId = this.dataset.recId;
+        const status = this.dataset.status;
+        
+        fetch(`/org-analyzer/recommendations/${recId}/status`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: status})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
