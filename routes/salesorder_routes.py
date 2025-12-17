@@ -155,6 +155,7 @@ def edit_sales_order(id):
         conn = db.get_connection()
         try:
             # Update header
+            customer_id = request.form.get('customer_id')
             expected_ship_date = request.form.get('expected_ship_date') or None
             expected_return_date = request.form.get('expected_return_date') or None
             
@@ -163,11 +164,12 @@ def edit_sales_order(id):
             
             conn.execute('''
                 UPDATE sales_orders SET
+                    customer_id = ?,
                     expected_ship_date = ?,
                     expected_return_date = ?, service_notes = ?, notes = ?, tax_rate = ?
                 WHERE id = ?
             ''', (
-                expected_ship_date, expected_return_date,
+                customer_id, expected_ship_date, expected_return_date,
                 request.form.get('service_notes', ''), request.form.get('notes', ''), tax_rate, id
             ))
             
@@ -222,10 +224,15 @@ def edit_sales_order(id):
         ORDER BY p.code
     ''').fetchall()
     
+    # Get customers for customer dropdown
+    customers = conn.execute(
+        'SELECT * FROM customers WHERE status = ? ORDER BY name', ('Active',)
+    ).fetchall()
+    
     conn.close()
     
     return render_template('salesorders/edit.html', 
-                         sales_order=sales_order, lines=lines, products=products)
+                         sales_order=sales_order, lines=lines, products=products, customers=customers)
 
 @salesorder_bp.route('/sales-orders/<int:id>/add-line', methods=['POST'])
 @role_required('Admin', 'Planner')
