@@ -313,14 +313,18 @@ def calculate_risk_metrics(conn):
         metrics['revenue_concentration'] = (top_customer_revenue['revenue'] / total_revenue) * 100
     
     top_supplier_spend = conn.execute('''
-        SELECT supplier_id, COALESCE(SUM(total_amount), 0) as spend
-        FROM purchase_orders WHERE status NOT IN ('Draft', 'Cancelled')
-        GROUP BY supplier_id ORDER BY spend DESC LIMIT 1
+        SELECT po.supplier_id, COALESCE(SUM(pol.quantity * pol.unit_price), 0) as spend
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON pol.po_id = po.id
+        WHERE po.status NOT IN ('Draft', 'Cancelled')
+        GROUP BY po.supplier_id ORDER BY spend DESC LIMIT 1
     ''').fetchone()
     
     total_spend = conn.execute('''
-        SELECT COALESCE(SUM(total_amount), 0) as total FROM purchase_orders 
-        WHERE status NOT IN ('Draft', 'Cancelled')
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total 
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.status NOT IN ('Draft', 'Cancelled')
     ''').fetchone()['total']
     
     metrics['supplier_concentration'] = 0

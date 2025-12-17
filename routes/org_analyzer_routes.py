@@ -244,7 +244,7 @@ def calculate_customer_kpis(conn):
     overdue_orders = conn.execute('''
         SELECT COUNT(*) as count FROM sales_orders 
         WHERE status NOT IN ('Shipped', 'Delivered', 'Cancelled', 'Closed')
-        AND required_date < date('now')
+        AND expected_ship_date < date('now')
     ''').fetchone()['count']
     
     kpis['total_customers'] = total_customers
