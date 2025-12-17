@@ -183,7 +183,7 @@
                                     {{ invoice.so_number }}
                                 </a>
                                 {% elif invoice.wo_number %}
-                                <a href="{{ url_for('workorder_routes.view_work_order', id=invoice.wo_id) }}">
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=invoice.wo_id) }}">
                                     {{ invoice.wo_number }}
                                 </a>
                                 {% else %}
