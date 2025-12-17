@@ -752,13 +752,13 @@ def part_analyzer_analyze():
         if not analysis_scope or 'bom' in analysis_scope:
             bom_usage = conn.execute('''
                 SELECT b.*, p.code as parent_code, p.name as parent_name
-                FROM bom_items b
+                FROM boms b
                 JOIN products p ON b.parent_product_id = p.id
                 WHERE b.child_product_id = ?
             ''', (product_id,)).fetchall()
             bom_children = conn.execute('''
                 SELECT b.*, p.code as child_code, p.name as child_name
-                FROM bom_items b
+                FROM boms b
                 JOIN products p ON b.child_product_id = p.id
                 WHERE b.parent_product_id = ?
             ''', (product_id,)).fetchall()
