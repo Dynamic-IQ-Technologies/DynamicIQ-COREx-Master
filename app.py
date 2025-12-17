@@ -45,6 +45,7 @@ from routes.portal_routes import portal_bp
 from routes.tools_routes import tools_bp
 from routes.rfq_routes import rfq_bp
 from routes.org_analyzer_routes import org_analyzer_bp
+from routes.financial_analyzer_routes import financial_analyzer_bp
 import os
 
 app = Flask(__name__)
@@ -108,6 +109,7 @@ app.register_blueprint(portal_bp)
 app.register_blueprint(tools_bp)
 app.register_blueprint(rfq_bp)
 app.register_blueprint(org_analyzer_bp)
+app.register_blueprint(financial_analyzer_bp)
 
 @app.context_processor
 def inject_user():

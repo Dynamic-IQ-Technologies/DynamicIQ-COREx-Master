@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Analyzer - CFO Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="bi bi-currency-dollar me-2"></i>Financial Analyzer
+            </h2>
+            <small class="text-muted">Super AI CFO - Executive Financial Intelligence</small>
+        </div>
+        <button type="button" class="btn btn-primary" id="generateAnalysisBtn">
+            <i class="bi bi-stars me-1"></i>Generate CFO Analysis
+        </button>
+    </div>
+
+    <p class="text-muted text-uppercase small fw-bold mb-3"><i class="bi bi-wallet2 me-1"></i>Cash Position & Liquidity</p>
+    <div class="row mb-4">
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #059669 !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Net Cash Flow (MTD)</h6>
+                    <h3 class="mb-1 {% if cash.net_cash_flow_mtd >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ cash.net_cash_flow_mtd|currency }}
+                    </h3>
+                    <small class="text-muted">In: {{ cash.cash_in_mtd|currency }} | Out: {{ cash.cash_out_mtd|currency }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #dc2626 !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Monthly Burn Rate</h6>
+                    <h3 class="mb-1">{{ cash.monthly_burn_rate|currency }}</h3>
+                    <small class="text-muted">Based on last month outflows</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #7c3aed !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Estimated Runway</h6>
+                    <h3 class="mb-1 {% if cash.runway_months >= 12 %}text-success{% elif cash.runway_months >= 6 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ cash.runway_months }} months
+                    </h3>
+                    <small class="text-muted">
+                        {% if cash.runway_months >= 12 %}Healthy
+                        {% elif cash.runway_months >= 6 %}Caution - Plan fundraising
+                        {% else %}Critical - Immediate action needed{% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #2563eb !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Net Working Capital</h6>
+                    <h3 class="mb-1 {% if cash.estimated_cash_position >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ cash.estimated_cash_position|currency }}
+                    </h3>
+                    <small class="text-muted">A/R - A/P Position</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-arrow-down-circle text-success me-2"></i>Receivables</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="mb-1">{{ cash.ar_outstanding|currency }}</h4>
+                            <small class="text-muted">A/R Outstanding</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-1">{{ cash.inventory_value|currency }}</h4>
+                            <small class="text-muted">Inventory Value</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-1 {% if risk.overdue_ar_count > 0 %}text-warning{% else %}text-success{% endif %}">{{ risk.overdue_ar_count }}</h4>
+                            <small class="text-muted">Overdue Invoices</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-arrow-up-circle text-danger me-2"></i>Payables</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="mb-1">{{ cash.ap_outstanding|currency }}</h4>
+                            <small class="text-muted">A/P Outstanding</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-1">{{ cash.open_po_value|currency }}</h4>
+                            <small class="text-muted">Open PO Commitments</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-1 {% if risk.overdue_ap_count > 0 %}text-danger{% else %}text-success{% endif %}">{{ risk.overdue_ap_count }}</h4>
+                            <small class="text-muted">Overdue Bills</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="text-muted text-uppercase small fw-bold mb-3"><i class="bi bi-graph-up me-1"></i>Revenue & Margins</p>
+    <div class="row mb-4">
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #2563eb !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Revenue</h6>
+                    <h3 class="mb-1">{{ revenue.total_revenue|currency }}</h3>
+                    <small class="{% if revenue.revenue_growth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <i class="bi bi-{% if revenue.revenue_growth >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                        {{ "%.1f"|format(revenue.revenue_growth) }}% vs last month
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #059669 !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Gross Margin</h6>
+                    <h3 class="mb-1 {% if revenue.gross_margin >= 40 %}text-success{% elif revenue.gross_margin >= 25 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ "%.1f"|format(revenue.gross_margin) }}%
+                    </h3>
+                    <small class="text-muted">Gross Profit: {{ revenue.gross_profit|currency }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #0891b2 !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Avg Order Value</h6>
+                    <h3 class="mb-1">{{ revenue.avg_order_value|currency }}</h3>
+                    <small class="text-muted">{{ revenue.order_count }} orders from {{ revenue.customer_count }} customers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #d97706 !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Revenue per Customer</h6>
+                    <h3 class="mb-1">{{ revenue.revenue_per_customer|currency }}</h3>
+                    <small class="text-muted">Revenue YTD: {{ revenue.revenue_ytd|currency }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <p class="text-muted text-uppercase small fw-bold mb-3"><i class="bi bi-speedometer2 me-1"></i>Operational Efficiency</p>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                                    <i class="bi bi-people text-primary fs-4"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">{{ efficiency.employee_count }}</h5>
+                                    <small class="text-muted">Employees</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                                    <i class="bi bi-currency-dollar text-success fs-4"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">{{ efficiency.revenue_per_employee|currency }}</h5>
+                                    <small class="text-muted">Revenue/Employee</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                                    <i class="bi bi-arrow-repeat text-info fs-4"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">{{ efficiency.inventory_turnover }}x</h5>
+                                    <small class="text-muted">Inventory Turnover</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                                    <i class="bi bi-calendar-check text-warning fs-4"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">{{ efficiency.days_inventory|int }} days</h5>
+                                    <small class="text-muted">Days Inventory</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <p class="text-muted text-uppercase small fw-bold mb-3"><i class="bi bi-exclamation-triangle me-1"></i>Risk Indicators</p>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>A/R Aging Risk</span>
+                            <span class="badge {% if risk.ar_risk_percentage > 20 %}bg-danger{% elif risk.ar_risk_percentage > 10 %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ "%.1f"|format(risk.ar_risk_percentage) }}% at risk
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: {{ (risk.ar_current / (risk.ar_current + risk.ar_31_60 + risk.ar_61_90 + risk.ar_over_90 + 0.01)) * 100 }}%" title="Current"></div>
+                            <div class="progress-bar bg-warning" style="width: {{ (risk.ar_31_60 / (risk.ar_current + risk.ar_31_60 + risk.ar_61_90 + risk.ar_over_90 + 0.01)) * 100 }}%" title="31-60 days"></div>
+                            <div class="progress-bar bg-orange" style="width: {{ (risk.ar_61_90 / (risk.ar_current + risk.ar_31_60 + risk.ar_61_90 + risk.ar_over_90 + 0.01)) * 100 }}%; background-color: #f97316;" title="61-90 days"></div>
+                            <div class="progress-bar bg-danger" style="width: {{ (risk.ar_over_90 / (risk.ar_current + risk.ar_31_60 + risk.ar_61_90 + risk.ar_over_90 + 0.01)) * 100 }}%" title="90+ days"></div>
+                        </div>
+                        <small class="text-muted">Current: {{ risk.ar_current|currency }} | 31-60: {{ risk.ar_31_60|currency }} | 61-90: {{ risk.ar_61_90|currency }} | 90+: {{ risk.ar_over_90|currency }}</small>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="text-center p-2 rounded {% if risk.revenue_concentration > 50 %}bg-danger bg-opacity-10{% elif risk.revenue_concentration > 30 %}bg-warning bg-opacity-10{% else %}bg-success bg-opacity-10{% endif %}">
+                                <h5 class="mb-0">{{ "%.0f"|format(risk.revenue_concentration) }}%</h5>
+                                <small class="text-muted">Revenue Concentration</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 rounded {% if risk.supplier_concentration > 50 %}bg-danger bg-opacity-10{% elif risk.supplier_concentration > 30 %}bg-warning bg-opacity-10{% else %}bg-success bg-opacity-10{% endif %}">
+                                <h5 class="mb-0">{{ "%.0f"|format(risk.supplier_concentration) }}%</h5>
+                                <small class="text-muted">Supplier Concentration</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Scenario Modeling</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card h-100" style="cursor: pointer;" onclick="runScenario('revenue_growth', 20)">
+                        <div class="card-body text-center">
+                            <i class="bi bi-graph-up-arrow fs-1 text-success"></i>
+                            <h6 class="mt-2">Revenue Growth +20%</h6>
+                            <small class="text-muted">Model growth acceleration impact</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100" style="cursor: pointer;" onclick="runScenario('cost_reduction', 15)">
+                        <div class="card-body text-center">
+                            <i class="bi bi-scissors fs-1 text-warning"></i>
+                            <h6 class="mt-2">Cost Reduction -15%</h6>
+                            <small class="text-muted">Model expense optimization</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100" style="cursor: pointer;" onclick="runScenario('revenue_decline', 25)">
+                        <div class="card-body text-center">
+                            <i class="bi bi-graph-down-arrow fs-1 text-danger"></i>
+                            <h6 class="mt-2">Revenue Decline -25%</h6>
+                            <small class="text-muted">Stress test downturn scenario</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="scenarioResults" class="mt-4" style="display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%); color: white;">
+                <h5 class="modal-title"><i class="bi bi-stars me-2"></i>CFO Financial Analysis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="analysisContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Generating CFO-level financial analysis...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('generateAnalysisBtn').addEventListener('click', function() {
+    const modal = new bootstrap.Modal(document.getElementById('analysisModal'));
+    modal.show();
+    
+    fetch('{{ url_for("financial_analyzer_routes.generate_analysis") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const d = data.data;
+            let html = `
+                <div class="alert alert-primary mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1"><i class="bi bi-briefcase me-2"></i>Executive Summary</h5>
+                            <p class="mb-0">${d.executive_summary}</p>
+                        </div>
+                        <div class="text-center">
+                            <h2 class="mb-0 ${d.health_score >= 70 ? 'text-success' : d.health_score >= 50 ? 'text-warning' : 'text-danger'}">${d.health_score}</h2>
+                            <small>Health Score</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-3 text-center">
+                        <div class="progress mb-1" style="height: 8px;"><div class="progress-bar bg-success" style="width: ${d.health_breakdown?.cash || 50}%"></div></div>
+                        <small>Cash: ${d.health_breakdown?.cash || 'N/A'}</small>
+                    </div>
+                    <div class="col-3 text-center">
+                        <div class="progress mb-1" style="height: 8px;"><div class="progress-bar bg-primary" style="width: ${d.health_breakdown?.revenue || 50}%"></div></div>
+                        <small>Revenue: ${d.health_breakdown?.revenue || 'N/A'}</small>
+                    </div>
+                    <div class="col-3 text-center">
+                        <div class="progress mb-1" style="height: 8px;"><div class="progress-bar bg-info" style="width: ${d.health_breakdown?.efficiency || 50}%"></div></div>
+                        <small>Efficiency: ${d.health_breakdown?.efficiency || 'N/A'}</small>
+                    </div>
+                    <div class="col-3 text-center">
+                        <div class="progress mb-1" style="height: 8px;"><div class="progress-bar bg-warning" style="width: ${100 - (d.health_breakdown?.risk || 50)}%"></div></div>
+                        <small>Risk: ${d.health_breakdown?.risk || 'N/A'}</small>
+                    </div>
+                </div>
+                
+                <h6 class="mb-3"><i class="bi bi-exclamation-circle text-danger me-2"></i>Critical Findings</h6>
+                <div class="list-group mb-4">
+                    ${(d.critical_findings || []).map(f => `
+                        <div class="list-group-item d-flex justify-content-between">
+                            <div>
+                                <strong>${f.issue}</strong>
+                                <p class="mb-0 text-muted small">${f.impact}</p>
+                            </div>
+                            <span class="badge bg-${f.urgency === 'High' ? 'danger' : f.urgency === 'Medium' ? 'warning' : 'secondary'}">${f.urgency}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="bi bi-wallet2 me-2"></i>Cash Analysis</h6>
+                                <span class="badge bg-${d.cash_analysis?.status === 'Healthy' ? 'success' : d.cash_analysis?.status === 'Critical' ? 'danger' : 'warning'} mb-2">${d.cash_analysis?.status || 'N/A'}</span>
+                                <p class="small mb-1">${d.cash_analysis?.summary || 'N/A'}</p>
+                                <small class="text-muted">${d.cash_analysis?.runway_assessment || ''}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="bi bi-percent me-2"></i>Margin Analysis</h6>
+                                <span class="badge bg-info mb-2">${d.margin_analysis?.status || 'N/A'}</span>
+                                <p class="small mb-0">${d.margin_analysis?.gross_margin_assessment || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h6 class="mb-3"><i class="bi bi-shield-exclamation me-2"></i>Risks</h6>
+                <div class="row mb-4">
+                    ${(d.risks || []).map(r => `
+                        <div class="col-md-6 mb-2">
+                            <div class="card border-${r.severity === 'Critical' ? 'danger' : r.severity === 'High' ? 'warning' : 'secondary'}">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>${r.risk}</strong>
+                                        <span class="badge bg-${r.severity === 'Critical' ? 'danger' : r.severity === 'High' ? 'warning' : 'secondary'}">${r.severity}</span>
+                                    </div>
+                                    <small class="text-muted">${r.mitigation}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <h6 class="mb-3"><i class="bi bi-rocket me-2"></i>CFO Recommendations</h6>
+                <div class="list-group mb-4">
+                    ${(d.recommendations || []).map((r, i) => `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>#${i+1} ${r.action}</strong>
+                                <span class="badge bg-${r.priority === 'High' ? 'danger' : r.priority === 'Medium' ? 'warning' : 'secondary'}">${r.priority}</span>
+                            </div>
+                            <p class="mb-1 small">${r.impact}</p>
+                            <small class="text-muted">Timeline: ${r.timeline || 'TBD'}</small>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        <h6><i class="bi bi-calendar-range me-2"></i>90-Day Outlook</h6>
+                        <p class="mb-2">${d.outlook_90_day?.summary || 'N/A'}</p>
+                        <div class="d-flex gap-3">
+                            ${(d.outlook_90_day?.key_metrics_forecast || []).map(m => `
+                                <span><i class="bi bi-${m.direction === 'Up' ? 'arrow-up text-success' : m.direction === 'Down' ? 'arrow-down text-danger' : 'arrow-right text-warning'}"></i> ${m.metric}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('analysisContent').innerHTML = html;
+        } else {
+            document.getElementById('analysisContent').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('analysisContent').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+    });
+});
+
+function runScenario(type, adjustment) {
+    fetch('{{ url_for("financial_analyzer_routes.run_scenario") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scenario_type: type, adjustment: adjustment})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const s = data.scenario;
+            const b = data.baseline;
+            let html = `
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-calculator me-2"></i>${s.title}</h6>
+                    <div class="row mt-3">
+            `;
+            if (type === 'revenue_growth') {
+                html += `
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Projected Revenue</small>
+                        <h4>$${s.new_revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</h4>
+                        <small class="text-success">+${adjustment}% from baseline</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Margin Impact</small>
+                        <h4>${s.impact_on_margin.toFixed(1)}%</h4>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Runway Impact</small>
+                        <h4>${s.impact_on_runway.toFixed(1)} months</h4>
+                    </div>
+                `;
+            } else if (type === 'cost_reduction') {
+                html += `
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">New Burn Rate</small>
+                        <h4>$${s.new_burn_rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</h4>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Extended Runway</small>
+                        <h4 class="text-success">${s.new_runway.toFixed(1)} months</h4>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Monthly Savings</small>
+                        <h4 class="text-success">$${s.savings.toLocaleString(undefined, {minimumFractionDigits: 2})}</h4>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Stressed Revenue</small>
+                        <h4 class="text-danger">$${s.new_revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</h4>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Margin Impact</small>
+                        <h4 class="text-warning">${s.impact_on_margin.toFixed(1)}%</h4>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted">Runway Impact</small>
+                        <h4 class="text-danger">${s.impact_on_runway.toFixed(1)} months</h4>
+                    </div>
+                `;
+            }
+            html += `</div></div>`;
+            document.getElementById('scenarioResults').innerHTML = html;
+            document.getElementById('scenarioResults').style.display = 'block';
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -35,6 +35,7 @@ The backend is developed with Flask, using Blueprints and an SQLite database. It
 -   **Capacity Planning Module**: Comprehensive system for managing production load, work center utilization, labor resource allocation, and bottleneck detection.
 -   **Customer Service Module**: Internal dashboard for customer order and work order visibility, including a confirmation workflow, at-risk order tracking, communications log, activity timeline, escalation management, SLA configuration, customer feedback, and a secure Customer Portal.
 -   **Organizational Analyzer Module**: AI-powered executive intelligence dashboard providing CEO-level organizational insights with KPIs, AI-powered recommendations, alerts, and forecasting capabilities.
+-   **Financial Analyzer Module**: Super AI CFO providing executive-level financial intelligence including cash position, burn rate, runway analysis, revenue/margins, operational efficiency metrics, risk indicators (A/R aging, concentration risk), AI-powered CFO analysis with health scoring, scenario modeling (growth, cost reduction, stress testing), and 90-day financial outlook.
 
 ### System Design Choices
 
