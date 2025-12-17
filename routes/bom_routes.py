@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify
-from models import Database
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify, session
+from models import Database, AuditLogger
 from auth import login_required, role_required
 from bom_utils import BOMHierarchy
 import csv
@@ -92,6 +92,12 @@ def create_bom():
             extended_cost
         ))
         
+        bom_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        parent_product = conn.execute('SELECT code FROM products WHERE id = ?', (parent_id,)).fetchone()
+        child_product = conn.execute('SELECT code FROM products WHERE id = ?', (child_id,)).fetchone()
+        AuditLogger.log_change(conn, 'bom', bom_id, 'CREATE', session.get('user_id'),
+                              {'parent_code': parent_product['code'], 'child_code': child_product['code'],
+                               'quantity': quantity, 'find_number': find_number})
         conn.commit()
         conn.close()
         
@@ -111,6 +117,20 @@ def create_bom():
 def delete_bom(id):
     db = Database()
     conn = db.get_connection()
+    
+    bom = conn.execute('''
+        SELECT b.*, p1.code as parent_code, p2.code as child_code
+        FROM boms b
+        JOIN products p1 ON b.parent_product_id = p1.id
+        JOIN products p2 ON b.child_product_id = p2.id
+        WHERE b.id = ?
+    ''', (id,)).fetchone()
+    
+    if bom:
+        AuditLogger.log_change(conn, 'bom', id, 'DELETE', session.get('user_id'),
+                              {'parent_code': bom['parent_code'], 'child_code': bom['child_code'],
+                               'quantity': bom['quantity']})
+    
     conn.execute('DELETE FROM boms WHERE id=?', (id,))
     conn.commit()
     conn.close()
@@ -355,6 +375,10 @@ def edit_bom(id):
             id
         ))
         
+        AuditLogger.log_change(conn, 'bom', id, 'UPDATE', session.get('user_id'),
+                              {'parent_code': parent_product['code'], 'child_code': child_product['code'],
+                               'quantity': quantity, 'old_quantity': bom['quantity'],
+                               'revision': request.form.get('revision', 'A')})
         conn.commit()
         conn.close()
         
