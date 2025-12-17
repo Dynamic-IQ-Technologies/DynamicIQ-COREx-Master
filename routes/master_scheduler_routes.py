@@ -713,3 +713,267 @@ def capacity_chart_data(schedule_id):
         result[wc_code]['utilization'].append(row['utilization_pct'])
     
     return jsonify(result)
+
+
+@master_scheduler_bp.route('/master-scheduler/api/kpi-details/active-orders')
+@login_required
+def kpi_active_orders():
+    """Get detailed breakdown of active orders for KPI modal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    orders = conn.execute('''
+        SELECT wo.order_number, wo.status, wo.priority, wo.planned_end_date,
+               p.name as product_name, p.part_number as product_code
+        FROM work_orders wo
+        LEFT JOIN products p ON wo.product_id = p.id
+        WHERE wo.status IN ('Planned', 'Released', 'In Progress')
+        ORDER BY wo.priority DESC, wo.planned_end_date
+    ''').fetchall()
+    
+    by_status = {}
+    by_priority = {'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0}
+    
+    for o in orders:
+        status = o['status']
+        by_status[status] = by_status.get(status, 0) + 1
+        
+        priority = o['priority'] or 0
+        if priority >= 8:
+            by_priority['Critical'] += 1
+        elif priority >= 5:
+            by_priority['High'] += 1
+        elif priority >= 3:
+            by_priority['Medium'] += 1
+        else:
+            by_priority['Low'] += 1
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'total': len(orders),
+            'by_status': by_status,
+            'by_priority': by_priority,
+            'orders': [dict(o) for o in orders]
+        }
+    })
+
+
+@master_scheduler_bp.route('/master-scheduler/api/kpi-details/otd')
+@login_required
+def kpi_otd():
+    """Get detailed OTD analysis for KPI modal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    total = conn.execute('''
+        SELECT COUNT(*) as count FROM work_orders 
+        WHERE status IN ('Planned', 'Released', 'In Progress', 'Completed')
+    ''').fetchone()['count']
+    
+    late = conn.execute('''
+        SELECT COUNT(*) as count FROM work_orders
+        WHERE status IN ('Planned', 'Released', 'In Progress')
+        AND planned_end_date < date('now')
+    ''').fetchone()['count']
+    
+    on_time = total - late
+    rate = (on_time / total * 100) if total > 0 else 100
+    
+    weekly_trend = []
+    for i in range(4):
+        week_start_days = (i + 1) * 7
+        week_end_days = i * 7
+        
+        week_total = conn.execute('''
+            SELECT COUNT(*) as count FROM work_orders 
+            WHERE date(created_at) BETWEEN date('now', ? || ' days') AND date('now', ? || ' days')
+        ''', (f'-{week_start_days}', f'-{week_end_days}')).fetchone()['count'] or 1
+        
+        week_late = conn.execute('''
+            SELECT COUNT(*) as count FROM work_orders
+            WHERE date(created_at) BETWEEN date('now', ? || ' days') AND date('now', ? || ' days')
+            AND planned_end_date < date('now')
+        ''', (f'-{week_start_days}', f'-{week_end_days}')).fetchone()['count']
+        
+        week_rate = ((week_total - week_late) / week_total * 100) if week_total > 0 else 100
+        weekly_trend.append({
+            'week': f'Week -{i+1}',
+            'rate': week_rate
+        })
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'rate': rate,
+            'total_orders': total,
+            'on_time': on_time,
+            'late': late,
+            'weekly_trend': list(reversed(weekly_trend))
+        }
+    })
+
+
+@master_scheduler_bp.route('/master-scheduler/api/kpi-details/late-orders')
+@login_required
+def kpi_late_orders():
+    """Get detailed late orders breakdown for KPI modal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    orders = conn.execute('''
+        SELECT wo.order_number, wo.status, wo.planned_end_date,
+               julianday('now') - julianday(wo.planned_end_date) as days_late,
+               p.name as product_name
+        FROM work_orders wo
+        LEFT JOIN products p ON wo.product_id = p.id
+        WHERE wo.status IN ('Planned', 'Released', 'In Progress')
+        AND wo.planned_end_date < date('now')
+        ORDER BY days_late DESC
+    ''').fetchall()
+    
+    by_severity = {'1-3 days': 0, '4-7 days': 0, '7+ days': 0}
+    total_days_late = 0
+    
+    for o in orders:
+        days = o['days_late'] or 0
+        total_days_late += int(days)
+        if days <= 3:
+            by_severity['1-3 days'] += 1
+        elif days <= 7:
+            by_severity['4-7 days'] += 1
+        else:
+            by_severity['7+ days'] += 1
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'total': len(orders),
+            'total_days_late': total_days_late,
+            'by_severity': by_severity,
+            'orders': [{'order_number': o['order_number'], 'status': o['status'],
+                       'planned_end_date': o['planned_end_date'], 'days_late': int(o['days_late'] or 0),
+                       'product_name': o['product_name']} for o in orders]
+        }
+    })
+
+
+@master_scheduler_bp.route('/master-scheduler/api/kpi-details/work-centers')
+@login_required
+def kpi_work_centers():
+    """Get detailed work center overview for KPI modal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    work_centers = conn.execute('''
+        SELECT wc.*, 
+               (SELECT COALESCE(SUM(woo.planned_hours), 0) 
+                FROM work_order_operations woo
+                JOIN work_orders wo ON woo.work_order_id = wo.id
+                WHERE woo.work_center_id = wc.id
+                AND woo.status IN ('Pending', 'In Progress')
+                AND wo.status IN ('Planned', 'In Progress', 'Released')) as current_load
+        FROM work_centers wc
+        ORDER BY wc.status DESC, wc.code
+    ''').fetchall()
+    
+    total = len(work_centers)
+    active = sum(1 for wc in work_centers if wc['status'] == 'Active')
+    
+    wc_data = []
+    total_util = 0
+    overloaded = 0
+    
+    for wc in work_centers:
+        capacity = (wc['default_hours_per_day'] or 8) * (wc['default_days_per_week'] or 5) * (wc['efficiency_factor'] or 1.0) * 4
+        load = wc['current_load'] or 0
+        util = (load / capacity * 100) if capacity > 0 else 0
+        
+        if util > 100:
+            overloaded += 1
+        
+        total_util += util
+        wc_data.append({
+            'code': wc['code'],
+            'name': wc['name'],
+            'status': wc['status'],
+            'current_load': load,
+            'capacity': capacity,
+            'utilization': util
+        })
+    
+    avg_util = total_util / total if total > 0 else 0
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'total': total,
+            'active': active,
+            'overloaded': overloaded,
+            'avg_utilization': avg_util,
+            'work_centers': wc_data
+        }
+    })
+
+
+@master_scheduler_bp.route('/master-scheduler/api/gantt-data/<int:schedule_id>')
+@login_required
+def gantt_data(schedule_id):
+    """Get Gantt chart data for schedule visualization"""
+    db = Database()
+    conn = db.get_connection()
+    
+    items = conn.execute('''
+        SELECT msi.*, p.name as product_name
+        FROM master_schedule_items msi
+        LEFT JOIN products p ON msi.product_id = p.id
+        WHERE msi.schedule_id = ?
+        ORDER BY msi.scheduled_start, msi.sequence_number
+    ''', (schedule_id,)).fetchall()
+    
+    schedule = conn.execute('SELECT * FROM master_schedules WHERE id = ?', (schedule_id,)).fetchone()
+    
+    conn.close()
+    
+    gantt_items = []
+    for item in items:
+        color = '#28a745'
+        if item['priority_class'] == 'Critical':
+            color = '#dc3545'
+        elif item['priority_class'] == 'High':
+            color = '#fd7e14'
+        elif item['is_locked']:
+            color = '#6c757d'
+        
+        gantt_items.append({
+            'id': item['id'],
+            'order_number': item['order_number'],
+            'product': item['product_name'] or item['product_code'] or '-',
+            'start': item['scheduled_start'],
+            'end': item['scheduled_end'],
+            'priority': item['priority_class'],
+            'status': item['status'],
+            'color': color,
+            'is_locked': item['is_locked']
+        })
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'schedule': {
+                'id': schedule['id'],
+                'name': schedule['name'],
+                'horizon_start': schedule['horizon_start'],
+                'horizon_end': schedule['horizon_end']
+            },
+            'items': gantt_items
+        }
+    })

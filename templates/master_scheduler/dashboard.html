@@ -23,7 +23,7 @@
 
     <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 kpi-card" role="button" data-bs-toggle="modal" data-bs-target="#activeOrdersModal">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
@@ -33,12 +33,13 @@
                             <h3 class="mb-0">{{ total_orders }}</h3>
                             <small class="text-muted">Active Orders</small>
                         </div>
+                        <i class="bi bi-chevron-right ms-auto text-muted"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 kpi-card" role="button" data-bs-toggle="modal" data-bs-target="#otdModal">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="rounded-circle {{ 'bg-success' if otd_rate >= 95 else 'bg-warning' if otd_rate >= 85 else 'bg-danger' }} bg-opacity-10 p-3 me-3">
@@ -48,12 +49,13 @@
                             <h3 class="mb-0">{{ otd_rate }}%</h3>
                             <small class="text-muted">On-Time Delivery</small>
                         </div>
+                        <i class="bi bi-chevron-right ms-auto text-muted"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 kpi-card" role="button" data-bs-toggle="modal" data-bs-target="#lateOrdersModal">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="rounded-circle {{ 'bg-danger' if late_orders > 0 else 'bg-success' }} bg-opacity-10 p-3 me-3">
@@ -63,12 +65,13 @@
                             <h3 class="mb-0">{{ late_orders }}</h3>
                             <small class="text-muted">Late Orders</small>
                         </div>
+                        <i class="bi bi-chevron-right ms-auto text-muted"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 kpi-card" role="button" data-bs-toggle="modal" data-bs-target="#workCentersModal">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
@@ -78,6 +81,7 @@
                             <h3 class="mb-0">{{ work_centers|length }}</h3>
                             <small class="text-muted">Work Centers</small>
                         </div>
+                        <i class="bi bi-chevron-right ms-auto text-muted"></i>
                     </div>
                 </div>
             </div>
@@ -274,6 +278,74 @@
     </div>
 </div>
 
+<div class="modal fade" id="activeOrdersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Active Orders Breakdown</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="activeOrdersContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Loading order details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="otdModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header {{ 'bg-success' if otd_rate >= 95 else 'bg-warning' if otd_rate >= 85 else 'bg-danger' }} text-white">
+                <h5 class="modal-title"><i class="bi bi-speedometer2 me-2"></i>On-Time Delivery Analysis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="otdContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Loading OTD details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="lateOrdersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Late Orders Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="lateOrdersContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Loading late order details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="workCentersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-gear-wide-connected me-2"></i>Work Centers Overview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="workCentersContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Loading work center details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="aiAnalysisModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -293,6 +365,11 @@
         </div>
     </div>
 </div>
+
+<style>
+.kpi-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15)!important; }
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -398,6 +475,207 @@ document.querySelectorAll('.reject-rec').forEach(btn => {
             if (data.success) location.reload();
         });
     });
+});
+
+document.getElementById('activeOrdersModal').addEventListener('show.bs.modal', function() {
+    fetch('/master-scheduler/api/kpi-details/active-orders')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                let html = `
+                    <div class="row g-3 mb-4">
+                        <div class="col-4 text-center">
+                            <h4 class="text-primary mb-0">${data.data.total}</h4>
+                            <small class="text-muted">Total Active</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <h4 class="text-warning mb-0">${data.data.by_status.Planned || 0}</h4>
+                            <small class="text-muted">Planned</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <h4 class="text-success mb-0">${data.data.by_status['In Progress'] || 0}</h4>
+                            <small class="text-muted">In Progress</small>
+                        </div>
+                    </div>
+                    <h6 class="mb-3"><i class="bi bi-pie-chart me-2"></i>By Priority</h6>
+                    <div class="row g-2 mb-4">
+                        ${Object.entries(data.data.by_priority).map(([p, c]) => `
+                            <div class="col-3">
+                                <div class="border rounded p-2 text-center">
+                                    <strong>${c}</strong>
+                                    <small class="d-block text-muted">${p}</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <h6 class="mb-3"><i class="bi bi-list-ul me-2"></i>Orders List</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead><tr><th>Order #</th><th>Product</th><th>Due Date</th><th>Priority</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${data.data.orders.map(o => `
+                                    <tr>
+                                        <td><strong>${o.order_number}</strong></td>
+                                        <td>${o.product_name || '-'}</td>
+                                        <td>${o.planned_end_date || '-'}</td>
+                                        <td><span class="badge bg-${o.priority >= 8 ? 'danger' : o.priority >= 5 ? 'warning text-dark' : 'secondary'}">${o.priority}</span></td>
+                                        <td><span class="badge bg-info">${o.status}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('activeOrdersContent').innerHTML = html;
+            }
+        });
+});
+
+document.getElementById('otdModal').addEventListener('show.bs.modal', function() {
+    fetch('/master-scheduler/api/kpi-details/otd')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const d = data.data;
+                let html = `
+                    <div class="text-center mb-4">
+                        <div class="d-inline-block rounded-circle p-4 bg-${d.rate >= 95 ? 'success' : d.rate >= 85 ? 'warning' : 'danger'} bg-opacity-10">
+                            <h1 class="mb-0 text-${d.rate >= 95 ? 'success' : d.rate >= 85 ? 'warning' : 'danger'}">${d.rate.toFixed(1)}%</h1>
+                        </div>
+                        <p class="text-muted mt-2">On-Time Delivery Rate</p>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-4 text-center">
+                            <h4 class="mb-0">${d.total_orders}</h4>
+                            <small class="text-muted">Total Orders</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <h4 class="text-success mb-0">${d.on_time}</h4>
+                            <small class="text-muted">On Time</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <h4 class="text-danger mb-0">${d.late}</h4>
+                            <small class="text-muted">Late</small>
+                        </div>
+                    </div>
+                    <h6 class="mb-3"><i class="bi bi-calendar3 me-2"></i>Weekly Trend</h6>
+                    <div class="mb-4">
+                        ${d.weekly_trend.map(w => `
+                            <div class="d-flex align-items-center mb-2">
+                                <small class="text-muted" style="width:80px;">${w.week}</small>
+                                <div class="progress flex-grow-1" style="height:20px;">
+                                    <div class="progress-bar bg-${w.rate >= 95 ? 'success' : w.rate >= 85 ? 'warning' : 'danger'}" style="width:${w.rate}%">${w.rate.toFixed(0)}%</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                document.getElementById('otdContent').innerHTML = html;
+            }
+        });
+});
+
+document.getElementById('lateOrdersModal').addEventListener('show.bs.modal', function() {
+    fetch('/master-scheduler/api/kpi-details/late-orders')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const d = data.data;
+                let html = `
+                    <div class="alert alert-danger d-flex align-items-center mb-4">
+                        <i class="bi bi-exclamation-octagon fs-3 me-3"></i>
+                        <div>
+                            <strong>${d.total} Late Orders</strong>
+                            <p class="mb-0">Total ${d.total_days_late} days late across all orders</p>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-4 text-center">
+                            <h4 class="text-warning mb-0">${d.by_severity['1-3 days'] || 0}</h4>
+                            <small class="text-muted">1-3 Days Late</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <h4 class="text-orange mb-0">${d.by_severity['4-7 days'] || 0}</h4>
+                            <small class="text-muted">4-7 Days Late</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <h4 class="text-danger mb-0">${d.by_severity['7+ days'] || 0}</h4>
+                            <small class="text-muted">7+ Days Late</small>
+                        </div>
+                    </div>
+                    <h6 class="mb-3"><i class="bi bi-list-ul me-2"></i>Late Orders Detail</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead><tr><th>Order #</th><th>Product</th><th>Due Date</th><th>Days Late</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${d.orders.map(o => `
+                                    <tr class="table-danger">
+                                        <td><strong>${o.order_number}</strong></td>
+                                        <td>${o.product_name || '-'}</td>
+                                        <td>${o.planned_end_date}</td>
+                                        <td><span class="badge bg-danger">${o.days_late} days</span></td>
+                                        <td>${o.status}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('lateOrdersContent').innerHTML = html;
+            }
+        });
+});
+
+document.getElementById('workCentersModal').addEventListener('show.bs.modal', function() {
+    fetch('/master-scheduler/api/kpi-details/work-centers')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const d = data.data;
+                let html = `
+                    <div class="row g-3 mb-4">
+                        <div class="col-3 text-center">
+                            <h4 class="text-primary mb-0">${d.total}</h4>
+                            <small class="text-muted">Total</small>
+                        </div>
+                        <div class="col-3 text-center">
+                            <h4 class="text-success mb-0">${d.active}</h4>
+                            <small class="text-muted">Active</small>
+                        </div>
+                        <div class="col-3 text-center">
+                            <h4 class="text-danger mb-0">${d.overloaded}</h4>
+                            <small class="text-muted">Overloaded</small>
+                        </div>
+                        <div class="col-3 text-center">
+                            <h4 class="text-info mb-0">${d.avg_utilization.toFixed(0)}%</h4>
+                            <small class="text-muted">Avg Util.</small>
+                        </div>
+                    </div>
+                    <h6 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Utilization by Work Center</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Code</th><th>Name</th><th>Load (hrs)</th><th>Capacity (hrs)</th><th>Utilization</th></tr></thead>
+                            <tbody>
+                                ${d.work_centers.map(wc => `
+                                    <tr class="${wc.utilization > 100 ? 'table-danger' : wc.utilization > 85 ? 'table-warning' : ''}">
+                                        <td><strong>${wc.code}</strong></td>
+                                        <td>${wc.name}</td>
+                                        <td>${wc.current_load.toFixed(1)}</td>
+                                        <td>${wc.capacity.toFixed(1)}</td>
+                                        <td>
+                                            <div class="progress" style="height:18px;">
+                                                <div class="progress-bar bg-${wc.utilization > 100 ? 'danger' : wc.utilization > 85 ? 'warning' : 'success'}" style="width:${Math.min(wc.utilization, 100)}%">${wc.utilization.toFixed(0)}%</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('workCentersContent').innerHTML = html;
+            }
+        });
 });
 </script>
 {% endblock %}

@@ -92,6 +92,11 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="gantt-tab" data-bs-toggle="tab" data-bs-target="#gantt" type="button">
+                <i class="bi bi-bar-chart-steps me-1"></i>Gantt Chart
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="exceptions-tab" data-bs-toggle="tab" data-bs-target="#exceptions" type="button">
                 <i class="bi bi-exclamation-triangle me-1"></i>Exceptions
                 {% if exceptions %}<span class="badge bg-danger ms-1">{{ exceptions|length }}</span>{% endif %}
@@ -171,6 +176,35 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="gantt" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart-steps me-2"></i>Schedule Gantt Chart</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" id="zoomOut"><i class="bi bi-zoom-out"></i></button>
+                        <button class="btn btn-outline-secondary" id="zoomIn"><i class="bi bi-zoom-in"></i></button>
+                        <button class="btn btn-outline-secondary" id="zoomFit"><i class="bi bi-arrows-fullscreen"></i> Fit</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="gantt-legend d-flex gap-3 px-3 py-2 border-bottom bg-light">
+                        <span><i class="bi bi-square-fill text-success me-1"></i>Normal</span>
+                        <span><i class="bi bi-square-fill text-warning me-1"></i>High Priority</span>
+                        <span><i class="bi bi-square-fill text-danger me-1"></i>Critical</span>
+                        <span><i class="bi bi-square-fill text-secondary me-1"></i>Locked</span>
+                    </div>
+                    <div id="ganttContainer" style="overflow-x:auto; height:500px; position:relative;">
+                        <div id="ganttChart" style="min-width:100%; height:100%; position:relative;">
+                            <div class="text-center py-5" id="ganttLoading">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2 text-muted">Loading Gantt chart...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -707,6 +741,142 @@ document.querySelectorAll('.analyze-scenario').forEach(btn => {
             }
         });
     });
+});
+
+let ganttLoaded = false;
+let ganttScale = 1;
+
+document.getElementById('gantt-tab').addEventListener('shown.bs.tab', function() {
+    if (!ganttLoaded) {
+        loadGanttChart();
+        ganttLoaded = true;
+    }
+});
+
+function loadGanttChart() {
+    fetch('/master-scheduler/api/gantt-data/{{ schedule.id }}')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                renderGanttChart(data.data);
+            }
+        })
+        .catch(err => {
+            document.getElementById('ganttChart').innerHTML = `
+                <div class="alert alert-danger m-3">Error loading Gantt chart: ${err.message}</div>
+            `;
+        });
+}
+
+function renderGanttChart(data) {
+    const container = document.getElementById('ganttChart');
+    const schedule = data.schedule;
+    const items = data.items;
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-calendar-x fs-3 d-block mb-2"></i>No scheduled items to display</div>';
+        return;
+    }
+    
+    const startDate = new Date(schedule.horizon_start);
+    const endDate = new Date(schedule.horizon_end);
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const dayWidth = 40 * ganttScale;
+    const rowHeight = 36;
+    const headerHeight = 50;
+    const labelWidth = 200;
+    
+    let html = `
+        <style>
+            .gantt-row:hover { background: rgba(0,123,255,0.05); }
+            .gantt-bar { transition: transform 0.2s; }
+            .gantt-bar:hover { transform: scaleY(1.1); z-index: 10; }
+        </style>
+        <div style="display:flex;">
+            <div style="width:${labelWidth}px; flex-shrink:0; border-right:1px solid #ddd; background:#f8f9fa;">
+                <div style="height:${headerHeight}px; border-bottom:2px solid #ddd; padding:12px; font-weight:600;">
+                    Order / Product
+                </div>
+                ${items.map((item, i) => `
+                    <div class="gantt-row" style="height:${rowHeight}px; border-bottom:1px solid #eee; padding:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        <strong>${item.order_number}</strong>
+                        <small class="text-muted d-block">${item.product}</small>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="flex-grow:1; overflow-x:auto;">
+                <div style="min-width:${daysDiff * dayWidth}px;">
+                    <div style="height:${headerHeight}px; border-bottom:2px solid #ddd; display:flex; background:#f8f9fa;">
+                        ${generateDateHeaders(startDate, daysDiff, dayWidth)}
+                    </div>
+                    <div style="position:relative;">
+                        ${generateTodayLine(startDate, daysDiff, dayWidth, items.length * rowHeight)}
+                        ${items.map((item, i) => {
+                            const itemStart = new Date(item.start);
+                            const itemEnd = new Date(item.end);
+                            const offsetDays = Math.max(0, Math.ceil((itemStart - startDate) / (1000 * 60 * 60 * 24)));
+                            const durationDays = Math.max(1, Math.ceil((itemEnd - itemStart) / (1000 * 60 * 60 * 24)) + 1);
+                            
+                            return `
+                                <div class="gantt-row" style="height:${rowHeight}px; border-bottom:1px solid #eee; position:relative;">
+                                    <div class="gantt-bar" style="position:absolute; left:${offsetDays * dayWidth + 2}px; width:${durationDays * dayWidth - 4}px; 
+                                         top:6px; height:${rowHeight - 12}px; background:${item.color}; border-radius:4px; 
+                                         color:white; font-size:11px; padding:2px 6px; overflow:hidden; white-space:nowrap;"
+                                         title="${item.order_number}: ${item.start} - ${item.end}">
+                                        ${item.is_locked ? '<i class="bi bi-lock me-1"></i>' : ''}
+                                        ${item.order_number}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function generateDateHeaders(startDate, days, dayWidth) {
+    let html = '';
+    for (let i = 0; i < days; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        const isToday = d.toDateString() === new Date().toDateString();
+        html += `
+            <div style="width:${dayWidth}px; flex-shrink:0; text-align:center; font-size:10px; 
+                        ${isWeekend ? 'background:#f0f0f0;' : ''} ${isToday ? 'background:#e3f2fd;' : ''}
+                        border-right:1px solid #eee; padding-top:8px;">
+                <div>${d.toLocaleDateString('en-US', {weekday:'short'})}</div>
+                <div style="font-weight:600;">${d.getDate()}</div>
+            </div>
+        `;
+    }
+    return html;
+}
+
+function generateTodayLine(startDate, days, dayWidth, height) {
+    const today = new Date();
+    const offsetDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+    if (offsetDays < 0 || offsetDays >= days) return '';
+    return `<div style="position:absolute; left:${offsetDays * dayWidth + dayWidth/2}px; top:0; width:2px; height:${height}px; background:#dc3545; z-index:5;"></div>`;
+}
+
+document.getElementById('zoomIn').addEventListener('click', function() {
+    ganttScale = Math.min(ganttScale * 1.2, 3);
+    loadGanttChart();
+});
+
+document.getElementById('zoomOut').addEventListener('click', function() {
+    ganttScale = Math.max(ganttScale / 1.2, 0.5);
+    loadGanttChart();
+});
+
+document.getElementById('zoomFit').addEventListener('click', function() {
+    ganttScale = 1;
+    loadGanttChart();
 });
 </script>
 {% endblock %}
