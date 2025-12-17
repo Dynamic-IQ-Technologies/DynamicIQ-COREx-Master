@@ -580,3 +580,148 @@ def update_all_days_outstanding():
     conn.close()
     
     return jsonify({'success': True, 'updated': updated})
+
+
+@exchange_bp.route('/<int:exchange_id>/receive-core', methods=['POST'])
+@login_required
+def receive_core(exchange_id):
+    conn = get_db()
+    
+    try:
+        exchange = conn.execute('SELECT * FROM exchange_master WHERE id = ?', (exchange_id,)).fetchone()
+        if not exchange:
+            flash('Exchange not found', 'error')
+            conn.close()
+            return redirect(url_for('exchange.exchange_dashboard'))
+        
+        core = conn.execute('SELECT * FROM exchange_cores WHERE exchange_id = ?', (exchange_id,)).fetchone()
+        old_status = core['core_status'] if core else 'Unknown'
+        
+        core_serial = request.form.get('core_serial_number', '').strip()
+        condition = request.form.get('condition_on_receipt', '')
+        inspection_notes = request.form.get('inspection_notes', '')
+        receiving_location = request.form.get('receiving_location', '')
+        quantity_received = int(request.form.get('quantity_received', 1))
+        
+        conn.execute('''
+            UPDATE exchange_cores SET
+                core_status = 'Core Received',
+                core_serial_number = ?,
+                received_date = ?,
+                received_by = ?,
+                condition_on_receipt = ?,
+                inspection_notes = ?,
+                receiving_location = ?,
+                quantity_received = ?,
+                days_outstanding = 0,
+                ownership_responsibility = 'Company',
+                last_updated = ?
+            WHERE exchange_id = ?
+        ''', (core_serial, date.today().isoformat(), session.get('user_id'),
+              condition, inspection_notes, receiving_location, quantity_received,
+              datetime.now().isoformat(), exchange_id))
+        
+        conn.execute('''
+            UPDATE exchange_master SET status = 'Core Received' WHERE id = ?
+        ''', (exchange_id,))
+        
+        log_exchange_audit(conn, exchange_id, 'Core Received', old_status, 'Core Received',
+                          f'Core received: S/N {core_serial}, Condition: {condition}, Qty: {quantity_received}',
+                          session.get('user_id'), session.get('username'))
+        
+        conn.commit()
+        flash(f'Core received successfully! Serial: {core_serial}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error receiving core: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('exchange.view_exchange', exchange_id=exchange_id))
+
+
+@exchange_bp.route('/<int:exchange_id>/create-repair-wo', methods=['POST'])
+@login_required
+def create_repair_work_order(exchange_id):
+    conn = get_db()
+    
+    try:
+        exchange = conn.execute('''
+            SELECT em.*, c.name as customer_name, p.code as product_code, p.name as product_name,
+                   ec.core_serial_number, ec.condition_on_receipt
+            FROM exchange_master em
+            JOIN customers c ON em.customer_id = c.id
+            JOIN products p ON em.product_id = p.id
+            LEFT JOIN exchange_cores ec ON ec.exchange_id = em.id
+            WHERE em.id = ?
+        ''', (exchange_id,)).fetchone()
+        
+        if not exchange:
+            flash('Exchange not found', 'error')
+            conn.close()
+            return redirect(url_for('exchange.exchange_dashboard'))
+        
+        if exchange['repair_work_order_id']:
+            flash('A repair work order already exists for this exchange', 'warning')
+            conn.close()
+            return redirect(url_for('exchange.view_exchange', exchange_id=exchange_id))
+        
+        last_wo = conn.execute(
+            'SELECT wo_number FROM work_orders ORDER BY id DESC LIMIT 1'
+        ).fetchone()
+        
+        if last_wo and last_wo['wo_number']:
+            try:
+                parts = last_wo['wo_number'].split('-')
+                if len(parts) >= 2:
+                    last_num = int(parts[1])
+                    wo_number = f'WO-{last_num + 1:06d}'
+                else:
+                    wo_number = 'WO-000001'
+            except:
+                wo_number = 'WO-000001'
+        else:
+            wo_number = 'WO-000001'
+        
+        priority = request.form.get('priority', 'Medium')
+        notes = request.form.get('notes', '')
+        planned_start = request.form.get('planned_start_date') or date.today().isoformat()
+        planned_end = request.form.get('planned_end_date')
+        
+        cursor = conn.execute('''
+            INSERT INTO work_orders (
+                wo_number, product_id, quantity, disposition, status, priority,
+                planned_start_date, planned_end_date, customer_id, notes, created_by, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            wo_number, exchange['product_id'], 1, 'Repair', 'Draft', priority,
+            planned_start, planned_end, exchange['customer_id'],
+            f"Exchange Core Repair - {exchange['exchange_id']}\nCore S/N: {exchange['core_serial_number'] or 'N/A'}\nCondition: {exchange['condition_on_receipt'] or 'N/A'}\n{notes}",
+            session.get('user_id'), datetime.now().isoformat()
+        ))
+        
+        wo_id = cursor.lastrowid
+        
+        conn.execute('''
+            UPDATE exchange_master SET repair_work_order_id = ? WHERE id = ?
+        ''', (wo_id, exchange_id))
+        
+        conn.execute('''
+            UPDATE exchange_cores SET work_order_id = ? WHERE exchange_id = ?
+        ''', (wo_id, exchange_id))
+        
+        log_exchange_audit(conn, exchange_id, 'Repair WO Created', exchange['status'], exchange['status'],
+                          f'Created repair work order {wo_number} (ID: {wo_id})',
+                          session.get('user_id'), session.get('username'))
+        
+        conn.commit()
+        flash(f'Repair Work Order {wo_number} created successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error creating repair work order: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('exchange.view_exchange', exchange_id=exchange_id))

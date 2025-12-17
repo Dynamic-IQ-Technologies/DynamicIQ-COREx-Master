@@ -3978,6 +3978,27 @@ def init_qms_tables(cursor):
         )
     ''')
     
+    # Migrations for exchange tables
+    try:
+        cursor.execute('ALTER TABLE exchange_master ADD COLUMN repair_work_order_id INTEGER REFERENCES work_orders(id)')
+    except:
+        pass
+    
+    try:
+        cursor.execute('ALTER TABLE exchange_cores ADD COLUMN work_order_id INTEGER REFERENCES work_orders(id)')
+    except:
+        pass
+    
+    try:
+        cursor.execute('ALTER TABLE exchange_cores ADD COLUMN receiving_location TEXT')
+    except:
+        pass
+    
+    try:
+        cursor.execute('ALTER TABLE exchange_cores ADD COLUMN quantity_received INTEGER DEFAULT 1')
+    except:
+        pass
+    
     # Create indexes for QMS tables
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')
