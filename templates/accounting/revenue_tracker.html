@@ -34,28 +34,112 @@
                 </div>
             </div>
         </div>
-        {% for key, dept in departments.items() %}
-        <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="rounded-circle p-2 me-2" style="background-color: {{ dept.color }}20;">
-                            <i class="bi {{ dept.icon }}" style="color: {{ dept.color }}; font-size: 1.2rem;"></i>
-                        </div>
-                        <h6 class="mb-0">{{ dept.name }}</h6>
-                    </div>
-                    <h4 class="mb-1">{{ "${:,.2f}".format(dept.revenue) }}</h4>
-                    <small class="text-muted">{{ dept.orders }} orders</small>
-                    {% if total_revenue > 0 %}
-                    <div class="progress mt-2" style="height: 4px;">
-                        <div class="progress-bar" style="width: {{ (dept.revenue / total_revenue * 100)|int }}%; background-color: {{ dept.color }};"></div>
-                    </div>
-                    <small class="text-muted">{{ "{:.1f}".format(dept.revenue / total_revenue * 100 if total_revenue > 0 else 0) }}% of total</small>
-                    {% endif %}
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100 bg-gradient" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                <div class="card-body text-white">
+                    <h6 class="text-white-50 mb-2">Total Costs</h6>
+                    <h2 class="mb-0">{{ "${:,.2f}".format(total_cost) }}</h2>
+                    <small class="text-white-50">Direct + Labor Costs</small>
                 </div>
             </div>
         </div>
-        {% endfor %}
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100 bg-gradient" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
+                <div class="card-body text-white">
+                    <h6 class="text-white-50 mb-2">Gross Profit</h6>
+                    <h2 class="mb-0">{{ "${:,.2f}".format(total_profit) }}</h2>
+                    <small class="text-white-50">Revenue - Costs</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100 {% if overall_margin >= 30 %}bg-success{% elif overall_margin >= 15 %}bg-warning{% else %}bg-danger{% endif %}">
+                <div class="card-body text-white text-center">
+                    <h6 class="text-white-50 mb-2">Profit Margin</h6>
+                    <h1 class="mb-0">{{ "{:.1f}".format(overall_margin) }}%</h1>
+                    <small class="text-white">Overall Margin</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Profitability by Department</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Department</th>
+                                    <th class="text-end">Revenue</th>
+                                    <th class="text-end">Costs</th>
+                                    <th class="text-end">Gross Profit</th>
+                                    <th class="text-center">Margin</th>
+                                    <th class="text-center">% of Total Profit</th>
+                                    <th>Margin Indicator</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for key, dept in departments.items() %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle p-2 me-2" style="background-color: {{ dept.color }}20;">
+                                                <i class="bi {{ dept.icon }}" style="color: {{ dept.color }};"></i>
+                                            </div>
+                                            <strong>{{ dept.name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">{{ "${:,.2f}".format(dept.revenue) }}</td>
+                                    <td class="text-end text-danger">{{ "${:,.2f}".format(dept.cost) }}</td>
+                                    <td class="text-end {% if dept.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ "${:,.2f}".format(dept.profit) }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if dept.margin >= 30 %}bg-success{% elif dept.margin >= 15 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "{:.1f}".format(dept.margin) }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if total_profit > 0 %}
+                                        {{ "{:.1f}".format(dept.profit / total_profit * 100 if dept.profit > 0 else 0) }}%
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 8px; width: 100px;">
+                                            <div class="progress-bar {% if dept.margin >= 30 %}bg-success{% elif dept.margin >= 15 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ [dept.margin, 100]|min }}%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr class="fw-bold">
+                                    <td>Total</td>
+                                    <td class="text-end">{{ "${:,.2f}".format(total_revenue) }}</td>
+                                    <td class="text-end text-danger">{{ "${:,.2f}".format(total_cost) }}</td>
+                                    <td class="text-end text-success">{{ "${:,.2f}".format(total_profit) }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if overall_margin >= 30 %}bg-success{% elif overall_margin >= 15 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "{:.1f}".format(overall_margin) }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center">100%</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4 mb-4">

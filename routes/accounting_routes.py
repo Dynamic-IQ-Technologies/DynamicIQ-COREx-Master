@@ -202,6 +202,14 @@ def revenue_tracker():
         WHERE status NOT IN ('Cancelled', 'Draft') {date_filter_sales}
     ''', params_sales).fetchone()
     
+    sales_cogs = conn.execute(f'''
+        SELECT COALESCE(SUM(sol.quantity * COALESCE(p.unit_cost, 0)), 0) as cogs
+        FROM sales_order_lines sol
+        JOIN sales_orders so ON sol.sales_order_id = so.id
+        LEFT JOIN products p ON sol.product_id = p.id
+        WHERE so.status NOT IN ('Cancelled', 'Draft') {date_filter_sales.replace('order_date', 'so.order_date')}
+    ''', params_sales).fetchone()
+    
     sales_by_type = conn.execute(f'''
         SELECT 
             sales_type,
@@ -255,6 +263,15 @@ def revenue_tracker():
         SELECT COALESCE(SUM(i.total_amount), 0) as invoiced_revenue
         FROM invoices i
         WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled' {date_filter_ndt.replace('created_at', 'i.created_at')}
+    ''', params_ndt).fetchone()
+    
+    ndt_costs = conn.execute(f'''
+        SELECT 
+            COALESCE(SUM(nr.labor_hours * COALESCE(lr.hourly_rate, 75)), 0) as labor_cost
+        FROM ndt_results nr
+        JOIN ndt_work_orders nwo ON nr.ndt_work_order_id = nwo.id
+        LEFT JOIN labor_resources lr ON nr.technician_id = lr.id
+        WHERE 1=1 {date_filter_ndt.replace('created_at', 'nwo.created_at')}
     ''', params_ndt).fetchone()
     
     ndt_by_method = conn.execute(f'''
@@ -371,6 +388,27 @@ def revenue_tracker():
     ndt_dict = dict(ndt_data) if ndt_data else {}
     consulting_dict = dict(consulting_data) if consulting_data else {}
     
+    sales_rev = sales_dict.get('total_revenue', 0) or 0
+    sales_cost = sales_cogs['cogs'] if sales_cogs else 0
+    sales_profit = sales_rev - sales_cost
+    sales_margin = (sales_profit / sales_rev * 100) if sales_rev > 0 else 0
+    
+    ops_rev = wo_revenue['invoiced_revenue'] if wo_revenue else 0
+    ops_cost = ops_dict.get('total_cost', 0) or 0
+    ops_profit = ops_rev - ops_cost
+    ops_margin = (ops_profit / ops_rev * 100) if ops_rev > 0 else 0
+    
+    ndt_rev = ndt_revenue['invoiced_revenue'] if ndt_revenue else 0
+    ndt_cost = ndt_costs['labor_cost'] if ndt_costs else 0
+    ndt_profit = ndt_rev - ndt_cost
+    ndt_margin = (ndt_profit / ndt_rev * 100) if ndt_rev > 0 else 0
+    
+    consulting_rev = consulting_dict.get('total_revenue', 0) or 0
+    consulting_labor = consulting_dict.get('labor_revenue', 0) or 0
+    consulting_cost = consulting_labor * 0.4
+    consulting_profit = consulting_rev - consulting_cost
+    consulting_margin = (consulting_profit / consulting_rev * 100) if consulting_rev > 0 else 0
+    
     departments = {
         'sales': {
             'name': 'Sales',
@@ -378,7 +416,10 @@ def revenue_tracker():
             'color': '#28a745',
             'data': sales_dict,
             'breakdown': [dict(r) for r in sales_by_type],
-            'revenue': sales_dict.get('total_revenue', 0) or 0,
+            'revenue': sales_rev,
+            'cost': sales_cost,
+            'profit': sales_profit,
+            'margin': sales_margin,
             'orders': sales_dict.get('order_count', 0) or 0
         },
         'operations': {
@@ -387,8 +428,10 @@ def revenue_tracker():
             'color': '#007bff',
             'data': ops_dict,
             'breakdown': [dict(r) for r in wo_by_status],
-            'revenue': wo_revenue['invoiced_revenue'] if wo_revenue else 0,
-            'cost': ops_dict.get('total_cost', 0) or 0,
+            'revenue': ops_rev,
+            'cost': ops_cost,
+            'profit': ops_profit,
+            'margin': ops_margin,
             'orders': ops_dict.get('order_count', 0) or 0
         },
         'ndt': {
@@ -397,7 +440,10 @@ def revenue_tracker():
             'color': '#6f42c1',
             'data': ndt_dict,
             'breakdown': [dict(r) for r in ndt_by_method],
-            'revenue': ndt_revenue['invoiced_revenue'] if ndt_revenue else 0,
+            'revenue': ndt_rev,
+            'cost': ndt_cost,
+            'profit': ndt_profit,
+            'margin': ndt_margin,
             'orders': ndt_dict.get('order_count', 0) or 0
         },
         'consulting': {
@@ -406,16 +452,25 @@ def revenue_tracker():
             'color': '#fd7e14',
             'data': consulting_dict,
             'breakdown': [dict(r) for r in consulting_by_type],
-            'revenue': consulting_dict.get('total_revenue', 0) or 0,
+            'revenue': consulting_rev,
+            'cost': consulting_cost,
+            'profit': consulting_profit,
+            'margin': consulting_margin,
             'orders': consulting_dict.get('order_count', 0) or 0
         }
     }
     
     total_revenue = sum([d['revenue'] for d in departments.values()])
+    total_cost = sum([d['cost'] for d in departments.values()])
+    total_profit = sum([d['profit'] for d in departments.values()])
+    overall_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
     
     return render_template('accounting/revenue_tracker.html',
                          departments=departments,
                          total_revenue=total_revenue,
+                         total_cost=total_cost,
+                         total_profit=total_profit,
+                         overall_margin=overall_margin,
                          trend_data=trend_data,
                          start_date=start_date,
                          end_date=end_date)
