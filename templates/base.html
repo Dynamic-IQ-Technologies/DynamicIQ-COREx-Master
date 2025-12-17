@@ -705,12 +705,6 @@
                     <span>Master Scheduler</span>
                 </a>
             </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('sf_migration_routes.dashboard') }}">
-                    <i class="bi bi-cloud-arrow-down"></i>
-                    <span>SF Migration Agent</span>
-                </a>
-            </li>
             {% endif %}
         </ul>
         
@@ -931,6 +925,12 @@
                 <a class="sidebar-nav-link" href="{{ url_for('adjustment_routes.list_adjustments') }}">
                     <i class="bi bi-sliders"></i>
                     <span>Inventory Adjustments</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('sf_migration_routes.dashboard') }}">
+                    <i class="bi bi-cloud-arrow-down"></i>
+                    <span>Salesforce Migration</span>
                 </a>
             </li>
         </ul>
