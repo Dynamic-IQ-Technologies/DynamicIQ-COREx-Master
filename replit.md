@@ -24,6 +24,51 @@ The backend is developed with Flask, using Blueprints and an SQLite database. It
 -   **AI-Powered Modules**: AI Supplier Discovery, Market & Capability Analysis, Capacity Planning Module, Customer Service Module, Organizational Analyzer, Financial Analyzer, ERP Copilot (AI Helper), AI Super Master Scheduler, Part Analyzer, Business Analytics AI Super Agent, Secure IT Manager AI Super Agent.
 -   **Integration**: Salesforce Data Migration Agent.
 
+### Patent-Eligible Architecture (December 2025)
+
+The system implements a novel patent-eligible architecture for ERP exchange management with the following components:
+
+**1. Exchange Dependency Graph Engine** (`engines/exchange_graph.py`)
+-   DAG-based data structure with O(1) node lookup and O(V+E) traversal
+-   Hash-linked nodes for integrity verification
+-   BFS dependency resolution for upstream/downstream analysis
+-   Cached traversal results for performance optimization
+
+**2. Deterministic Event Processing Engine** (`engines/event_engine.py`)
+-   Idempotent event processing with idempotency key tracking
+-   Hash-chained events for tamper detection and replay verification
+-   Event sourcing for deterministic state reconstruction
+-   Handler registration for event-driven processing
+
+**3. AI Execution Path Modifier** (`engines/ai_executor.py`)
+-   Risk vector computation from historical event patterns
+-   CONCRETE execution path modifications (not recommendations):
+  - Priority queue reordering for high-risk chains
+  - Cache preloading decisions based on access predictions
+  - Lock escalation for critical operations
+  - Resource allocation adjustments
+-   Effectiveness tracking for continuous learning
+
+**4. Performance Instrumentation System** (`engines/performance_profiler.py`)
+-   Latency measurement with before/after baseline comparison
+-   Cache hit ratio tracking
+-   Query reduction metrics
+-   Comprehensive performance reporting
+
+**5. Cryptographic Security Layer** (`security_utils/crypto.py`)
+-   HMAC-SHA256 based access key generation
+-   Role-scoped cryptographic access control
+-   Tamper-evident audit trails with hash chain verification
+-   Integrity verification with corruption detection
+
+**6. Exchange Orchestrator** (`engines/orchestrator.py`)
+-   Unified integration layer connecting all engines
+-   Demonstrates patentable method:
+  1. AI analyzes risk from historical event patterns
+  2. System behavior is MODIFIED based on predictions
+  3. Events are processed through cryptographic verification
+  4. Operations are instrumented for improvement evidence
+
 ### System Design Choices
 
 -   **Inventory Management**: Real-time stock level tracking, low stock alerts, and automatic updates.

@@ -6,6 +6,7 @@ Patent-Eligible Technical Components:
 - Deterministic Event Processing Engine (idempotent, hash-linked events)
 - AI Execution Path Modifier (dynamic scheduling, caching, locking)
 - Performance Profiler (instrumentation and metrics)
+- Exchange Orchestrator (unified integration layer)
 """
 
 from engines.exchange_graph import (
@@ -47,6 +48,12 @@ from engines.performance_profiler import (
     profile_function
 )
 
+from engines.orchestrator import (
+    ExchangeOrchestrator,
+    get_orchestrator,
+    reset_orchestrator
+)
+
 __all__ = [
     'ExchangeDependencyGraph',
     'ExchangeChainNode',
@@ -74,5 +81,8 @@ __all__ = [
     'LatencyMeasurement',
     'get_profiler',
     'reset_profiler',
-    'profile_function'
+    'profile_function',
+    'ExchangeOrchestrator',
+    'get_orchestrator',
+    'reset_orchestrator'
 ]
