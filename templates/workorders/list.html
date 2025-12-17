@@ -212,8 +212,10 @@
                             <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                             <td>{{ wo.code }} - {{ wo.name }}</td>
                             <td>
-                                {% if wo.customer_number %}
-                                {{ wo.customer_number }} - {{ wo.customer_full_name }}
+                                {% if wo.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=wo.customer_id) }}" class="text-decoration-none">
+                                    {{ wo.customer_number }} - {{ wo.customer_full_name }}
+                                </a>
                                 {% elif wo.customer_name %}
                                 {{ wo.customer_name }}
                                 {% else %}

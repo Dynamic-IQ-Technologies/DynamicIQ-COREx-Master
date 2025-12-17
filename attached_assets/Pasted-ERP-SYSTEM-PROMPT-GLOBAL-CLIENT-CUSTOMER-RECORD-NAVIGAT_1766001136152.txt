@@ -1,0 +1,191 @@
+ERP SYSTEM PROMPT – GLOBAL CLIENT & CUSTOMER RECORD NAVIGATION
+
+YOU ARE A WORLD-CLASS ERP ARCHITECT, ENTERPRISE UX ENGINEER, AND DATA GOVERNANCE SME.
+Your responsibility is to enhance my ERP application by enforcing universal, consistent, and secure access to Client and Customer record pages from anywhere their name appears within the system.
+
+1. CORE OBJECTIVE
+
+Ensure that Client and Customer names are globally clickable entities across the entire ERP application and that clicking on a name always navigates the user to the authoritative Client or Customer Record Page.
+
+This behavior must be consistent, intuitive, role-aware, and audit-compliant.
+
+2. GLOBAL CLICKABLE ENTITY STANDARD
+
+The ERP must treat Client and Customer as first-class global entities.
+
+Mandatory Behavior:
+
+Wherever a Client or Customer name appears, it must:
+
+Be rendered as a clickable link
+
+Open the corresponding Client or Customer Record Page
+
+This applies to all modules, including but not limited to:
+
+Sales Orders
+
+Purchase Orders
+
+Work Orders
+
+Exchanges
+
+Repairs
+
+Quotes
+
+Invoices
+
+Payments
+
+Inventory transactions
+
+Reports
+
+Dashboards
+
+Audit logs
+
+Notifications
+
+AI insights and recommendations
+
+3. SINGLE SOURCE OF TRUTH (SSOT)
+
+Each Client and Customer must have:
+
+A unique, immutable Client/Customer ID
+
+A single authoritative Record Page
+
+Navigation must always resolve by ID, not display name, to prevent duplication or ambiguity.
+
+Any legacy or duplicated references must automatically redirect to the authoritative record.
+
+4. RECORD PAGE REQUIREMENTS
+
+The Client/Customer Record Page must include:
+
+Master data (legal name, aliases, status)
+
+Contact information
+
+Commercial terms
+
+Linked transactions:
+
+Sales Orders
+
+Work Orders
+
+Exchanges
+
+Invoices
+
+Credits
+
+Core obligations
+
+Financial exposure summary
+
+Risk indicators (AI-driven if enabled)
+
+Document repository
+
+Audit history
+
+5. ROLE-BASED ACCESS CONTROL
+
+Clicking a Client/Customer name must respect:
+
+User role
+
+Security permissions
+
+Data visibility rules
+
+If access is restricted:
+
+Display a permission-aware summary view
+
+Log the access attempt for audit purposes
+
+6. CONTEXT-AWARE NAVIGATION
+
+When navigating from another module:
+
+Preserve context (e.g., “Opened from Sales Order #SO-10231”)
+
+Allow users to return to the originating record
+
+Enable breadcrumb navigation for user efficiency.
+
+7. SEARCH & QUICK ACCESS ENHANCEMENTS
+
+Clicking a Client/Customer name from:
+
+Search results
+
+AI assistant responses
+
+Reports
+
+Alerts
+must behave identically and open the same record page.
+
+Support keyboard shortcuts and quick-view hover cards where applicable.
+
+8. AI ASSISTANT INTEGRATION
+
+AI assistants and system recommendations must:
+
+Reference Clients and Customers using clickable links
+
+Deep-link directly to their record pages
+
+AI explanations and insights must maintain navigation consistency.
+
+9. DATA QUALITY & GOVERNANCE
+
+Prevent creation of orphan or duplicate Client/Customer records.
+
+Enforce mandatory linking to an existing Client/Customer record when referenced.
+
+Log and flag any manual overrides or mismatches.
+
+10. PERFORMANCE & RELIABILITY
+
+Client/Customer record navigation must:
+
+Load within defined performance thresholds
+
+Fail gracefully with meaningful error messages
+
+Broken links are not permitted.
+
+11. AUDIT & COMPLIANCE
+
+All navigations to Client/Customer records must be:
+
+Logged
+
+Time-stamped
+
+Traceable to user and originating module
+
+System must be compliant with SOX, AS9110, and internal IT controls.
+
+✅ FINAL OUTCOME
+
+A globally consistent, secure, and intuitive navigation standard where Client and Customer record pages are always accessible with a single click, regardless of where their name appears in the ERP.
+
+This establishes:
+
+Faster user workflows
+
+Reduced data errors
+
+Strong governance
+
+Enterprise-grade user experience

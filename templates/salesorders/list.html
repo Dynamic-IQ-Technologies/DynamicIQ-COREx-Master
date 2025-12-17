@@ -68,7 +68,11 @@
                             {% for so in sales_orders %}
                             <tr>
                                 <td>{{ so.so_number }}</td>
-                                <td>{{ so.customer_number }} - {{ so.customer_name }}</td>
+                                <td>
+                                    <a href="{{ url_for('customer_routes.view_customer', id=so.customer_id) }}" class="text-decoration-none">
+                                        {{ so.customer_number }} - {{ so.customer_name }}
+                                    </a>
+                                </td>
                                 <td><span class="badge bg-info">{{ so.sales_type }}</span></td>
                                 <td>{{ so.order_date }}</td>
                                 <td>

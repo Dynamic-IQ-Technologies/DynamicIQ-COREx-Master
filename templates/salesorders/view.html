@@ -141,7 +141,15 @@
                         </tr>
                         <tr>
                             <th>Name:</th>
-                            <td>{{ sales_order.customer_name }}</td>
+                            <td>
+                                {% if sales_order.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=sales_order.customer_id) }}" class="text-decoration-none fw-semibold">
+                                    {{ sales_order.customer_name }}
+                                </a>
+                                {% else %}
+                                {{ sales_order.customer_name }}
+                                {% endif %}
+                            </td>
                         </tr>
                         <tr>
                             <th>Billing Address:</th>
