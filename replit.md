@@ -83,6 +83,13 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - SLA Configuration for defining service level agreements with response time, resolution time, and escalation thresholds
     - SLA Breach Monitor showing orders at risk of missing service targets with Critical/Warning status indicators
     - Customer Feedback System for tracking satisfaction ratings (1-5 stars), recommendation likelihood, and feedback comments
+    - Customer Portal: Public-facing web portal allowing customers to view their order status via unique secure links without logging in. Features include:
+      - Secure token-based access using secrets.token_urlsafe(32)
+      - Portal dashboard showing all customer orders with status, dates, and totals
+      - Order detail view with line items, stage progress, and linked work orders
+      - Portal management in customer edit page (generate link, enable/disable, regenerate)
+      - Separate portal templates with customer-friendly design
+      - Routes: /portal/<token> for dashboard, /portal/<token>/order/<id> for details
     - Database tables: order_stage_tracking, work_order_confirmations, customer_communications, order_notes, order_activity_log, order_escalations, sla_configurations, customer_feedback (work_orders.so_id links to sales_orders)
 
 ### System Design Choices
