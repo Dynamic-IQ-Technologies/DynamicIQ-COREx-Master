@@ -119,6 +119,55 @@
 </div>
 {% endif %}
 
+{% if workorder.status == 'Completed' and session.role in ['Admin', 'Planner', 'Production Staff'] %}
+<div class="card mb-4 border-success">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-check-circle"></i> Completed Work Order Actions</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">This work order is completed. Choose how to handle the finished product:</p>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-truck display-4 text-primary mb-3"></i>
+                        <h5>Release to Shipping</h5>
+                        <p class="text-muted small">Ship the finished product to the customer. Creates a pending shipment record.</p>
+                        {% if workorder.disposition == 'Released to Shipping' %}
+                        <span class="badge bg-info"><i class="bi bi-check"></i> Already Released</span>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('workorder_routes.release_wo_to_shipping', id=workorder.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-truck"></i> Release to Shipping
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-box-seam display-4 text-success mb-3"></i>
+                        <h5>Turn into Stock</h5>
+                        <p class="text-muted small">Add the finished product to inventory. Product is already in stock when completed.</p>
+                        {% if workorder.disposition == 'Turned into Stock' %}
+                        <span class="badge bg-success"><i class="bi bi-check"></i> Already in Stock</span>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('workorder_routes.turn_into_stock', id=workorder.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-box-seam"></i> Turn into Stock
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="card mb-4">
     <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-list-task"></i> Task Summary</h5>

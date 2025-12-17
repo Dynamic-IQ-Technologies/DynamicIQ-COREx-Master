@@ -1461,3 +1461,173 @@ def api_list_stages():
         'success': True,
         'stages': [dict(s) for s in stages]
     })
+
+
+@workorder_bp.route('/workorders/<int:id>/release-to-shipping', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def release_wo_to_shipping(id):
+    """Release completed Work Order to Pending Shipments"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get work order details with customer and product info
+        wo = conn.execute('''
+            SELECT wo.*, p.code as product_code, p.name as product_name,
+                   c.name as customer_name, c.customer_number, c.shipping_address, c.billing_address
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers c ON wo.customer_id = c.id
+            WHERE wo.id = ?
+        ''', (id,)).fetchone()
+        
+        if not wo:
+            flash('Work Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.list_workorders'))
+        
+        # Only Completed work orders can be released to shipping
+        if wo['status'] != 'Completed':
+            flash('Only Completed work orders can be released to shipping.', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Check if already released
+        existing = conn.execute('''
+            SELECT id FROM shipments 
+            WHERE reference_type = 'Work Order' AND reference_id = ? AND status IN ('Pending', 'Shipped')
+        ''', (id,)).fetchone()
+        
+        if existing:
+            flash('This work order has already been released to shipping.', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Generate shipment number
+        last_shipment = conn.execute(
+            'SELECT shipment_number FROM shipments ORDER BY id DESC LIMIT 1'
+        ).fetchone()
+        
+        if last_shipment and last_shipment['shipment_number']:
+            try:
+                last_num = int(last_shipment['shipment_number'].split('-')[1])
+                shipment_number = f'SHIP-{last_num + 1:05d}'
+            except:
+                shipment_number = 'SHIP-00001'
+        else:
+            shipment_number = 'SHIP-00001'
+        
+        # Get ship-to info from customer or work order
+        ship_to_name = wo['customer_name'] or ''
+        ship_to_address = wo['shipping_address'] or wo['billing_address'] or ''
+        
+        # Create pending shipment record
+        conn.execute('''
+            INSERT INTO shipments (
+                shipment_number, shipment_type, reference_type, reference_id,
+                status, shipment_stage, ship_to_name, ship_to_address,
+                released_by, released_at, created_by, created_at
+            ) VALUES (?, 'Outbound', 'Work Order', ?, 'Pending', 'Pending',
+                      ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+        ''', (
+            shipment_number, id,
+            ship_to_name, ship_to_address,
+            session.get('user_id'), session.get('user_id')
+        ))
+        
+        # Update work order disposition to indicate released to shipping
+        conn.execute('''
+            UPDATE work_orders 
+            SET disposition = 'Released to Shipping'
+            WHERE id = ?
+        ''', (id,))
+        
+        # Log activity
+        from models import AuditLogger
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='work_orders',
+            record_id=id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'disposition': {'old': wo['disposition'], 'new': 'Released to Shipping'}},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        flash(f'Work Order {wo["wo_number"]} released to shipping! Shipment {shipment_number} created.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error releasing to shipping: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+
+@workorder_bp.route('/workorders/<int:id>/turn-into-stock', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def turn_into_stock(id):
+    """Explicitly turn completed Work Order into stock (updates disposition)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get work order details
+        wo = conn.execute('''
+            SELECT wo.*, p.code as product_code, p.name as product_name
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            WHERE wo.id = ?
+        ''', (id,)).fetchone()
+        
+        if not wo:
+            flash('Work Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.list_workorders'))
+        
+        # Only Completed work orders can be turned into stock
+        if wo['status'] != 'Completed':
+            flash('Only Completed work orders can be turned into stock.', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Check if already in stock
+        if wo['disposition'] == 'Turned into Stock':
+            flash('This work order has already been turned into stock.', 'info')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Update disposition
+        old_disposition = wo['disposition']
+        conn.execute('''
+            UPDATE work_orders 
+            SET disposition = 'Turned into Stock'
+            WHERE id = ?
+        ''', (id,))
+        
+        # Log activity
+        from models import AuditLogger
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='work_orders',
+            record_id=id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'disposition': {'old': old_disposition, 'new': 'Turned into Stock'}},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        flash(f'Work Order {wo["wo_number"]} marked as turned into stock. Product {wo["product_code"]} added to finished goods inventory.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating work order: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
