@@ -1178,3 +1178,93 @@ def work_order_traveler(id):
                          tasks=tasks,
                          company_settings=company_settings,
                          now=datetime.now)
+
+
+@workorder_bp.route('/api/workorders/mass-update', methods=['POST'])
+@role_required('Admin', 'Planner')
+def api_mass_update_workorders():
+    """API endpoint to mass update multiple work orders"""
+    from flask import jsonify
+    
+    data = request.get_json()
+    wo_ids = data.get('wo_ids', [])
+    updates = data.get('updates', {})
+    
+    if not wo_ids:
+        return jsonify({'success': False, 'error': 'No work orders selected'}), 400
+    
+    if not updates:
+        return jsonify({'success': False, 'error': 'No updates specified'}), 400
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        updated_count = 0
+        
+        for wo_id in wo_ids:
+            old_wo = conn.execute('SELECT * FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
+            if not old_wo:
+                continue
+            
+            update_fields = []
+            update_values = []
+            
+            if 'status' in updates:
+                update_fields.append('status = ?')
+                update_values.append(updates['status'])
+            
+            if 'priority' in updates:
+                update_fields.append('priority = ?')
+                update_values.append(updates['priority'])
+            
+            if 'operational_status' in updates:
+                update_fields.append('operational_status = ?')
+                update_values.append(updates['operational_status'])
+            
+            if 'disposition' in updates:
+                update_fields.append('disposition = ?')
+                update_values.append(updates['disposition'])
+            
+            if 'planned_start_date' in updates:
+                update_fields.append('planned_start_date = ?')
+                update_values.append(updates['planned_start_date'] or None)
+            
+            if 'planned_end_date' in updates:
+                update_fields.append('planned_end_date = ?')
+                update_values.append(updates['planned_end_date'] or None)
+            
+            if update_fields:
+                update_values.append(wo_id)
+                conn.execute(f'''
+                    UPDATE work_orders 
+                    SET {', '.join(update_fields)}
+                    WHERE id = ?
+                ''', update_values)
+                
+                new_wo = conn.execute('SELECT * FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
+                
+                AuditLogger.log_change(
+                    'work_orders',
+                    wo_id,
+                    'UPDATE',
+                    session.get('user_id'),
+                    dict(old_wo) if old_wo else {},
+                    dict(new_wo) if new_wo else {}
+                )
+                
+                updated_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'updated_count': updated_count,
+            'message': f'Successfully updated {updated_count} work orders'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
