@@ -30,7 +30,13 @@
                 <div class="row">
                     <div class="col-md-6">
                         <p><strong>Work Order:</strong> {{ quote.wo_number }}</p>
-                        <p><strong>Customer:</strong> {{ quote.customer_name or 'N/A' }}</p>
+                        <p><strong>Customer:</strong> 
+                            {% if quote.customer_id %}
+                            <a href="{{ url_for('customer_routes.view_customer', id=quote.customer_id) }}" class="text-decoration-none">{{ quote.customer_name }}</a>
+                            {% else %}
+                            {{ quote.customer_name or 'N/A' }}
+                            {% endif %}
+                        </p>
                         <p><strong>Account:</strong> {{ quote.customer_account or 'N/A' }}</p>
                         <p><strong>Status:</strong> 
                             {% if quote.status == 'Approved' %}

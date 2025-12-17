@@ -168,7 +168,11 @@
                             <td>{{ invoice.invoice_date }}</td>
                             <td>
                                 <div class="small">{{ invoice.customer_number }}</div>
+                                {% if invoice.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=invoice.customer_id) }}" class="text-decoration-none">{{ invoice.customer_name }}</a>
+                                {% else %}
                                 <div>{{ invoice.customer_name }}</div>
+                                {% endif %}
                             </td>
                             <td>
                                 <span class="badge bg-info">{{ invoice.invoice_type }}</span>

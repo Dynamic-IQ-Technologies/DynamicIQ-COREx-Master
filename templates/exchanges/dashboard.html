@@ -215,7 +215,13 @@
                         <tr>
                             <td><a href="{{ url_for('exchange.view_exchange', exchange_id=ex.id) }}">{{ ex.exchange_id }}</a></td>
                             <td>{{ ex.so_number or '-' }}</td>
-                            <td>{{ ex.customer_name }}</td>
+                            <td>
+                                {% if ex.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=ex.customer_id) }}" class="text-decoration-none">{{ ex.customer_name }}</a>
+                                {% else %}
+                                {{ ex.customer_name }}
+                                {% endif %}
+                            </td>
                             <td>{{ ex.product_code }}</td>
                             <td>
                                 {% if ex.core_status == 'Core Overdue' %}

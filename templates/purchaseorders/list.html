@@ -58,7 +58,13 @@
                         </td>
                         {% endif %}
                         <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
-                        <td>{{ po.supplier_name }}</td>
+                        <td>
+                            {% if po.supplier_id %}
+                            <a href="{{ url_for('supplier_routes.edit_supplier', id=po.supplier_id) }}" class="text-decoration-none">{{ po.supplier_name }}</a>
+                            {% else %}
+                            {{ po.supplier_name }}
+                            {% endif %}
+                        </td>
                         <td>{{ po.line_count }} line(s)</td>
                         <td>{{ (po.total_amount or 0)|currency }}</td>
                         <td>

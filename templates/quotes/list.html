@@ -28,7 +28,13 @@
                     <tr>
                         <td><a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}">{{ quote.quote_number }}</a></td>
                         <td>{{ quote.wo_number }}</td>
-                        <td>{{ quote.customer_name or 'N/A' }}</td>
+                        <td>
+                            {% if quote.customer_id %}
+                            <a href="{{ url_for('customer_routes.view_customer', id=quote.customer_id) }}" class="text-decoration-none">{{ quote.customer_name }}</a>
+                            {% else %}
+                            {{ quote.customer_name or 'N/A' }}
+                            {% endif %}
+                        </td>
                         <td>{{ quote.total_amount|currency }}</td>
                         <td>
                             {% if quote.status == 'Approved' %}
