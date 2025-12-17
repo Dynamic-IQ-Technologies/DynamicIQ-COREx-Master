@@ -254,6 +254,8 @@ def clock_punch():
     count = conn.execute('SELECT COUNT(*) as count FROM time_clock_punches').fetchone()['count']
     punch_number = f"PUNCH-{count + 1:07d}"
     
+    punch_time = datetime.now()
+    
     # Insert punch record with work order and task
     conn.execute('''
         INSERT INTO time_clock_punches (
@@ -261,9 +263,44 @@ def clock_punch():
             location, ip_address, device_info, work_order_id, task_id, notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        punch_number, employee_id, punch_type, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        punch_number, employee_id, punch_type, punch_time.strftime('%Y-%m-%d %H:%M:%S'),
         location, ip_address, device_info, work_order_id, task_id, notes
     ))
+    
+    # If clocking out with a task, update task actual hours
+    if punch_type == 'Clock Out' and task_id:
+        # Find the matching clock-in punch for this task
+        last_clock_in = conn.execute('''
+            SELECT punch_time FROM time_clock_punches
+            WHERE employee_id = ? AND punch_type = 'Clock In' AND task_id = ?
+            ORDER BY punch_time DESC
+            LIMIT 1
+        ''', (employee_id, task_id)).fetchone()
+        
+        if last_clock_in:
+            clock_in_time = datetime.strptime(last_clock_in['punch_time'], '%Y-%m-%d %H:%M:%S')
+            hours_worked = (punch_time - clock_in_time).total_seconds() / 3600
+            
+            # Get employee hourly rate
+            employee = conn.execute('SELECT hourly_rate FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
+            hourly_rate = employee['hourly_rate'] if employee and employee['hourly_rate'] else 0
+            labor_cost = hours_worked * hourly_rate
+            
+            # Update task actual hours and labor cost
+            conn.execute('''
+                UPDATE work_order_tasks 
+                SET actual_hours = COALESCE(actual_hours, 0) + ?,
+                    actual_labor_cost = COALESCE(actual_labor_cost, 0) + ?
+                WHERE id = ?
+            ''', (round(hours_worked, 2), round(labor_cost, 2), task_id))
+            
+            # Also update work order labor cost
+            if work_order_id:
+                conn.execute('''
+                    UPDATE work_orders 
+                    SET labor_cost = COALESCE(labor_cost, 0) + ?
+                    WHERE id = ?
+                ''', (round(labor_cost, 2), work_order_id))
     
     conn.commit()
     conn.close()
