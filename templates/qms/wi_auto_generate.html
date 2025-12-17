@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}Auto-Generate Work Instructions - QMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-robot me-2"></i>Auto-Generate Work Instructions</h2>
+            <p class="text-muted mb-0">AI-powered work instruction generation for ERP transactions</p>
+        </div>
+        <a href="{{ url_for('qms.wi_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Work Instructions
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Select Transaction Capability</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">ERP Module</label>
+                            <select id="moduleSelect" class="form-select">
+                                <option value="">-- Select Module --</option>
+                                {% for module, transactions in transaction_capabilities.items() %}
+                                <option value="{{ module }}">{{ module }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Transaction</label>
+                            <select id="transactionSelect" class="form-select" disabled>
+                                <option value="">-- Select Transaction --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="transactionDetails" class="d-none">
+                        <div class="alert alert-info">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle fs-4 me-3"></i>
+                                <div>
+                                    <strong id="selectedTxnName"></strong>
+                                    <p id="selectedTxnDesc" class="mb-0 mt-1"></p>
+                                    <small class="text-muted">Code: <code id="selectedTxnCode"></code></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Link to SOP (Optional)</label>
+                            <select id="sopSelect" class="form-select">
+                                <option value="">-- No SOP Link --</option>
+                                {% for sop in sops %}
+                                <option value="{{ sop.id }}">{{ sop.sop_number }} - {{ sop.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Additional Context (Optional)</label>
+                            <textarea id="additionalContext" class="form-control" rows="3" 
+                                placeholder="Add any specific requirements, company-specific details, or additional instructions..."></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button id="generateBtn" class="btn btn-primary btn-lg" onclick="generateWorkInstruction()">
+                                <i class="bi bi-magic me-2"></i>Generate Work Instruction
+                            </button>
+                            <button id="previewBtn" class="btn btn-outline-secondary btn-lg" onclick="previewTransaction()">
+                                <i class="bi bi-eye me-2"></i>Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="generationResult" class="d-none">
+                <div class="card shadow-sm mb-4 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-check-circle me-2"></i>Generated Work Instruction</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h4 id="generatedTitle" class="mb-1"></h4>
+                                <span class="badge bg-primary" id="generatedWiNumber"></span>
+                            </div>
+                            <a id="viewWiLink" href="#" class="btn btn-success">
+                                <i class="bi bi-arrow-right me-1"></i>View Full Work Instruction
+                            </a>
+                        </div>
+                        <div id="generatedContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Bulk Generation</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Generate work instructions for all transactions in a module at once.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <select id="bulkModuleSelect" class="form-select mb-3">
+                                <option value="">-- Select Module for Bulk Generation --</option>
+                                {% for module, transactions in transaction_capabilities.items() %}
+                                <option value="{{ module }}" data-count="{{ transactions|length }}">
+                                    {{ module }} ({{ transactions|length }} transactions)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <button id="bulkGenerateBtn" class="btn btn-warning" onclick="bulkGenerate()" disabled>
+                                <i class="bi bi-collection me-2"></i>Generate All for Module
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="bulkProgress" class="d-none mt-3">
+                        <div class="progress mb-2" style="height: 25px;">
+                            <div id="bulkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                        <div id="bulkStatus" class="text-muted small"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Transaction Catalog</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                    <div class="accordion accordion-flush" id="transactionCatalog">
+                        {% for module, transactions in transaction_capabilities.items() %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed py-2" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#catalog{{ loop.index }}">
+                                    {{ module }}
+                                    <span class="badge bg-secondary ms-2">{{ transactions|length }}</span>
+                                </button>
+                            </h2>
+                            <div id="catalog{{ loop.index }}" class="accordion-collapse collapse">
+                                <div class="accordion-body p-0">
+                                    <ul class="list-group list-group-flush">
+                                        {% for txn in transactions %}
+                                        <li class="list-group-item small py-1 catalog-item" 
+                                            data-module="{{ module }}"
+                                            data-code="{{ txn.code }}"
+                                            data-name="{{ txn.name }}"
+                                            data-description="{{ txn.description }}"
+                                            style="cursor: pointer;">
+                                            <code class="me-1">{{ txn.code }}</code> {{ txn.name }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recently Generated</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_wis %}
+                    <ul class="list-group list-group-flush">
+                        {% for wi in recent_wis %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <a href="{{ url_for('qms.wi_view', wi_id=wi.id) }}" class="text-decoration-none">
+                                        <strong>{{ wi.wi_number }}</strong>
+                                    </a>
+                                    <p class="mb-0 small text-muted">{{ wi.title[:50] }}{% if wi.title|length > 50 %}...{% endif %}</p>
+                                    {% if wi.erp_transaction %}
+                                    <code class="small">{{ wi.erp_transaction }}</code>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-{{ 'success' if wi.status == 'Active' else 'warning' if wi.status == 'Draft' else 'secondary' }}">
+                                    {{ wi.status }}
+                                </span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-file-earmark-text fs-1 d-block mb-2"></i>
+                        No work instructions generated yet
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Transaction Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="previewContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="generateFromPreview()">
+                    <i class="bi bi-magic me-2"></i>Generate Work Instruction
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const transactionData = {{ transaction_capabilities | tojson }};
+
+document.getElementById('moduleSelect').addEventListener('change', function() {
+    const module = this.value;
+    const txnSelect = document.getElementById('transactionSelect');
+    txnSelect.innerHTML = '<option value="">-- Select Transaction --</option>';
+    
+    if (module && transactionData[module]) {
+        transactionData[module].forEach(txn => {
+            const opt = document.createElement('option');
+            opt.value = txn.code;
+            opt.textContent = `${txn.code} - ${txn.name}`;
+            opt.dataset.name = txn.name;
+            opt.dataset.description = txn.description;
+            txnSelect.appendChild(opt);
+        });
+        txnSelect.disabled = false;
+    } else {
+        txnSelect.disabled = true;
+    }
+    document.getElementById('transactionDetails').classList.add('d-none');
+});
+
+document.getElementById('transactionSelect').addEventListener('change', function() {
+    const selectedOpt = this.options[this.selectedIndex];
+    if (this.value) {
+        document.getElementById('selectedTxnCode').textContent = this.value;
+        document.getElementById('selectedTxnName').textContent = selectedOpt.dataset.name;
+        document.getElementById('selectedTxnDesc').textContent = selectedOpt.dataset.description;
+        document.getElementById('transactionDetails').classList.remove('d-none');
+    } else {
+        document.getElementById('transactionDetails').classList.add('d-none');
+    }
+});
+
+document.querySelectorAll('.catalog-item').forEach(item => {
+    item.addEventListener('click', function() {
+        const module = this.dataset.module;
+        const code = this.dataset.code;
+        
+        document.getElementById('moduleSelect').value = module;
+        document.getElementById('moduleSelect').dispatchEvent(new Event('change'));
+        
+        setTimeout(() => {
+            document.getElementById('transactionSelect').value = code;
+            document.getElementById('transactionSelect').dispatchEvent(new Event('change'));
+        }, 100);
+    });
+});
+
+document.getElementById('bulkModuleSelect').addEventListener('change', function() {
+    document.getElementById('bulkGenerateBtn').disabled = !this.value;
+});
+
+async function generateWorkInstruction() {
+    const module = document.getElementById('moduleSelect').value;
+    const txnCode = document.getElementById('transactionSelect').value;
+    const txnSelect = document.getElementById('transactionSelect');
+    const selectedOpt = txnSelect.options[txnSelect.selectedIndex];
+    const sopId = document.getElementById('sopSelect').value;
+    const additionalContext = document.getElementById('additionalContext').value;
+    
+    if (!module || !txnCode) {
+        alert('Please select a module and transaction');
+        return;
+    }
+    
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    
+    try {
+        const response = await fetch('{{ url_for("qms.wi_generate") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                transaction_code: txnCode,
+                transaction_name: selectedOpt.dataset.name,
+                description: selectedOpt.dataset.description,
+                module: module,
+                sop_id: sopId || null,
+                additional_context: additionalContext
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('generatedTitle').textContent = data.title;
+            document.getElementById('generatedWiNumber').textContent = data.wi_number;
+            document.getElementById('viewWiLink').href = `/qms/work-instructions/${data.wi_id}`;
+            
+            const content = data.content;
+            let html = `
+                <div class="mb-3">
+                    <h6>Purpose</h6>
+                    <p>${content.purpose || ''}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Prerequisites</h6>
+                    <p class="mb-0" style="white-space: pre-line;">${content.prerequisites || ''}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Procedure Steps</h6>
+                    <ol>
+            `;
+            
+            if (content.procedure_steps) {
+                content.procedure_steps.forEach(step => {
+                    html += `<li><strong>${step.action}</strong>
+                        <br><small class="text-muted">Expected: ${step.expected_result || ''}</small></li>`;
+                });
+            }
+            
+            html += `</ol></div>`;
+            
+            document.getElementById('generatedContent').innerHTML = html;
+            document.getElementById('generationResult').classList.remove('d-none');
+            document.getElementById('generationResult').scrollIntoView({behavior: 'smooth'});
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Error generating work instruction: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic me-2"></i>Generate Work Instruction';
+    }
+}
+
+function previewTransaction() {
+    const module = document.getElementById('moduleSelect').value;
+    const txnCode = document.getElementById('transactionSelect').value;
+    const txnSelect = document.getElementById('transactionSelect');
+    const selectedOpt = txnSelect.options[txnSelect.selectedIndex];
+    
+    document.getElementById('previewContent').innerHTML = `
+        <table class="table table-bordered">
+            <tr><th width="150">Module</th><td>${module}</td></tr>
+            <tr><th>Transaction Code</th><td><code>${txnCode}</code></td></tr>
+            <tr><th>Name</th><td>${selectedOpt.dataset.name}</td></tr>
+            <tr><th>Description</th><td>${selectedOpt.dataset.description}</td></tr>
+        </table>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            The AI will generate a comprehensive work instruction including:
+            <ul class="mb-0 mt-2">
+                <li>Purpose and scope</li>
+                <li>Prerequisites and safety requirements</li>
+                <li>Step-by-step procedure with expected results</li>
+                <li>Verification checkpoints</li>
+                <li>Troubleshooting guidance</li>
+            </ul>
+        </div>
+    `;
+    
+    new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
+
+function generateFromPreview() {
+    bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+    generateWorkInstruction();
+}
+
+async function bulkGenerate() {
+    const module = document.getElementById('bulkModuleSelect').value;
+    if (!module || !transactionData[module]) return;
+    
+    const transactions = transactionData[module];
+    const progressBar = document.getElementById('bulkProgressBar');
+    const progressDiv = document.getElementById('bulkProgress');
+    const statusDiv = document.getElementById('bulkStatus');
+    const btn = document.getElementById('bulkGenerateBtn');
+    
+    btn.disabled = true;
+    progressDiv.classList.remove('d-none');
+    
+    let completed = 0;
+    let success = 0;
+    let failed = 0;
+    
+    for (const txn of transactions) {
+        statusDiv.textContent = `Generating: ${txn.name}...`;
+        
+        try {
+            const response = await fetch('{{ url_for("qms.wi_generate") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    transaction_code: txn.code,
+                    transaction_name: txn.name,
+                    description: txn.description,
+                    module: module,
+                    sop_id: null,
+                    additional_context: ''
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) success++;
+            else failed++;
+        } catch (err) {
+            failed++;
+        }
+        
+        completed++;
+        const pct = Math.round((completed / transactions.length) * 100);
+        progressBar.style.width = pct + '%';
+        progressBar.textContent = pct + '%';
+    }
+    
+    statusDiv.textContent = `Complete! Generated: ${success}, Failed: ${failed}`;
+    progressBar.classList.remove('progress-bar-animated');
+    progressBar.classList.add('bg-success');
+    btn.disabled = false;
+    
+    setTimeout(() => location.reload(), 2000);
+}
+</script>
+{% endblock %}

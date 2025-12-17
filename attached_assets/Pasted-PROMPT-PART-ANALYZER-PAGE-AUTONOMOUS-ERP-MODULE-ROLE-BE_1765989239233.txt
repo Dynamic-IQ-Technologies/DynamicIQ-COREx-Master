@@ -1,0 +1,281 @@
+PROMPT: PART ANALYZER PAGE (AUTONOMOUS ERP MODULE)
+
+ROLE & BEHAVIOR
+You are an Autonomous ERP Application Architect and Data Intelligence Agent.
+Your task is to design, build, and integrate a new ERP page called “Part Analyzer” that provides complete, cross-module historical intelligence for any part number in the system.
+
+The solution must be:
+
+Secure
+
+Performant
+
+Audit-ready
+
+Read-only (unless explicitly authorized)
+
+Scalable across all ERP modules
+
+🧠 PAGE PURPOSE
+
+Create a Part Analyzer page that allows users to:
+
+Search for a Part Number
+
+Instantly retrieve all historical and active transactions related to that part across the entire ERP lifecycle
+
+This page acts as a single source of truth for part intelligence.
+
+🔍 SEARCH & INPUT REQUIREMENTS
+
+Search by:
+
+Part Number (exact / partial)
+
+Alternate Part Numbers
+
+Customer / OEM Part Numbers
+
+Serialized vs Non-Serialized
+
+Autocomplete & fuzzy search
+
+Validate part existence before querying data
+
+Enforce role-based data visibility
+
+📦 PART MASTER OVERVIEW (TOP SECTION)
+
+Display a Part Summary Card containing:
+
+Part Number
+
+Description
+
+Part Type (Rotable / Consumable / Serialized)
+
+Status (Active, Obsolete, Restricted)
+
+OEM / ATA Chapter (if applicable)
+
+UOM
+
+Current Stock by Location
+
+Average Cost / Last Cost
+
+Repairability Indicator
+
+Lifecycle Phase
+
+📊 TRANSACTIONAL HISTORY (CORE FUNCTION)
+
+Retrieve and display full historical transactions for the selected part across ALL modules, including but not limited to:
+
+1️⃣ Sales History
+
+Sales Orders
+
+Customers
+
+Quantities
+
+Sale Price
+
+Order Status
+
+Invoice References
+
+Shipment Dates
+
+2️⃣ Repair History
+
+Repair Orders
+
+Shop Visits
+
+Findings
+
+Turnaround Time (TAT)
+
+Repair Cost
+
+Warranty Indicator
+
+Failure Codes
+
+3️⃣ Work Orders
+
+Internal Work Orders
+
+Operation Steps
+
+Labor Hours
+
+Materials Consumed
+
+Scrap / Rework
+
+Completion Status
+
+4️⃣ Purchase History
+
+Purchase Orders
+
+Suppliers
+
+Lead Time
+
+Purchase Cost
+
+Received Quantities
+
+Backorders
+
+Delivery Performance
+
+5️⃣ Returns & RMA
+
+Customer Returns
+
+Vendor Returns
+
+RMA Numbers
+
+Reason Codes
+
+Disposition (Scrap / Repair / Restock)
+
+6️⃣ Inventory Movements
+
+Receipts
+
+Issues
+
+Transfers
+
+Adjustments
+
+Cycle Count Variances
+
+📈 ANALYTICS & INSIGHTS (AUTONOMOUS INTELLIGENCE)
+
+Generate automated insights for the part:
+
+Demand trends
+
+Failure rate trends
+
+Repair vs Replace recommendation
+
+Supplier performance score
+
+Cost escalation alerts
+
+Excess / Obsolete inventory risk
+
+Mean Time Between Failure (MTBF)
+
+Usage velocity
+
+All insights must include:
+
+Explanation
+
+Confidence score
+
+Data sources used
+
+🧭 UI & UX REQUIREMENTS
+
+Single Page: Part Analyzer
+
+Layout:
+
+Search Bar (Top)
+
+Part Summary Card
+
+Tabbed Sections:
+
+Sales
+
+Repairs
+
+Work Orders
+
+Purchasing
+
+Returns
+
+Inventory
+
+Analytics
+
+Filters:
+
+Date range
+
+Customer
+
+Supplier
+
+Status
+
+Export options (CSV / PDF – permission based)
+
+Click-through to source transaction (read-only)
+
+🔐 SECURITY & GOVERNANCE
+
+Enforce RBAC for all data visibility
+
+Log every search and access (audit trail)
+
+No data mutation allowed from this page
+
+Mask sensitive financial fields if user is unauthorized
+
+Comply with ISO 9001 / AS9100 traceability expectations
+
+⚙️ TECHNICAL IMPLEMENTATION REQUIREMENTS
+
+Query data across multiple ERP tables/modules
+
+Use indexed queries for performance
+
+Normalize part number aliases
+
+Support large historical datasets
+
+Gracefully handle missing or partial data
+
+Provide system messages when no data exists
+
+🔄 AUTONOMOUS BEHAVIOR
+
+The system should:
+
+Pre-cache frequently searched parts
+
+Learn which parts are frequently analyzed
+
+Recommend related parts for analysis
+
+Flag anomalies automatically
+
+Notify users of unusual trends (optional)
+
+✅ DEFINITION OF DONE
+
+The Part Analyzer page is complete when:
+
+A user can search any part number
+
+All related historical transactions are visible
+
+Data is accurate, traceable, and fast
+
+Insights are generated automatically
+
+Page is secure and audit-ready

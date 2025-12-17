@@ -278,7 +278,7 @@ def sop_create():
         return redirect(url_for('qms.sop_view', sop_id=sop_id))
     
     categories = conn.execute('SELECT * FROM qms_sop_categories WHERE status = ? ORDER BY name', ('Active',)).fetchall()
-    users = conn.execute('SELECT id, username, full_name FROM users WHERE status = ? ORDER BY username', ('active',)).fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     
     conn.close()
     
@@ -296,9 +296,9 @@ def sop_view(sop_id):
     
     sop = conn.execute('''
         SELECT s.*, c.name as category_name, 
-               u1.username as prepared_by_name, u1.full_name as prepared_by_full,
-               u2.username as reviewed_by_name, u2.full_name as reviewed_by_full,
-               u3.username as approved_by_name, u3.full_name as approved_by_full
+               u1.username as prepared_by_name,
+               u2.username as reviewed_by_name,
+               u3.username as approved_by_name
         FROM qms_sops s
         LEFT JOIN qms_sop_categories c ON s.category_id = c.id
         LEFT JOIN users u1 ON s.prepared_by = u1.id
@@ -328,7 +328,7 @@ def sop_view(sop_id):
     
     # Get acknowledgments
     acknowledgments = conn.execute('''
-        SELECT a.*, u.username, u.full_name
+        SELECT a.*, u.username
         FROM qms_acknowledgments a
         JOIN users u ON a.user_id = u.id
         WHERE a.document_type = 'SOP' AND a.document_id = ?
@@ -417,7 +417,7 @@ def sop_edit(sop_id):
         return redirect(url_for('qms.sop_view', sop_id=sop_id))
     
     categories = conn.execute('SELECT * FROM qms_sop_categories WHERE status = ? ORDER BY name', ('Active',)).fetchall()
-    users = conn.execute('SELECT id, username, full_name FROM users WHERE status = ? ORDER BY username', ('active',)).fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     
     conn.close()
     
@@ -607,8 +607,8 @@ def wi_view(wi_id):
     
     wi = conn.execute('''
         SELECT wi.*, s.sop_number, s.title as sop_title,
-               u1.username as prepared_by_name, u1.full_name as prepared_by_full,
-               u2.username as approved_by_name, u2.full_name as approved_by_full
+               u1.username as prepared_by_name,
+               u2.username as approved_by_name
         FROM qms_work_instructions wi
         LEFT JOIN qms_sops s ON wi.sop_id = s.id
         LEFT JOIN users u1 ON wi.prepared_by = u1.id
@@ -630,7 +630,7 @@ def wi_view(wi_id):
     
     # Get acknowledgments
     acknowledgments = conn.execute('''
-        SELECT a.*, u.username, u.full_name
+        SELECT a.*, u.username
         FROM qms_acknowledgments a
         JOIN users u ON a.user_id = u.id
         WHERE a.document_type = 'WorkInstruction' AND a.document_id = ?
@@ -829,7 +829,7 @@ def deviation_create():
     
     sops = conn.execute('SELECT id, sop_number, title FROM qms_sops ORDER BY sop_number').fetchall()
     wis = conn.execute('SELECT id, wi_number, title FROM qms_work_instructions ORDER BY wi_number').fetchall()
-    users = conn.execute('SELECT id, username, full_name FROM users WHERE status = ? ORDER BY username', ('active',)).fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     
     deviation_types = ['Process', 'Documentation', 'Training', 'Equipment', 'Material', 'Other']
     
@@ -952,7 +952,7 @@ def capa_create():
         flash(f'CAPA {capa_number} created successfully', 'success')
         return redirect(url_for('qms.capa_list'))
     
-    users = conn.execute('SELECT id, username, full_name FROM users WHERE status = ? ORDER BY username', ('active',)).fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     deviations = conn.execute('SELECT id, deviation_number, description FROM qms_deviations WHERE capa_required = 1 AND capa_id IS NULL').fetchall()
     
     capa_types = ['Corrective', 'Preventive', 'Both']
@@ -975,8 +975,8 @@ def capa_view(capa_id):
     conn = get_db()
     
     capa = conn.execute('''
-        SELECT c.*, u1.username as assigned_to_name, u1.full_name as assigned_to_full,
-               u2.username as owner_name, u2.full_name as owner_full,
+        SELECT c.*, u1.username as assigned_to_name,
+               u2.username as owner_name,
                u3.username as created_by_name, u4.username as verified_by_name
         FROM qms_capa c
         LEFT JOIN users u1 ON c.assigned_to = u1.id
@@ -1365,7 +1365,7 @@ def training_list():
     conn = get_db()
     
     records = conn.execute('''
-        SELECT t.*, u.username, u.full_name,
+        SELECT t.*, u.username,
                CASE t.document_type 
                    WHEN 'SOP' THEN (SELECT sop_number FROM qms_sops WHERE id = t.document_id)
                    WHEN 'WorkInstruction' THEN (SELECT wi_number FROM qms_work_instructions WHERE id = t.document_id)
@@ -1410,7 +1410,7 @@ def training_create():
         flash('Training record created successfully', 'success')
         return redirect(url_for('qms.training_list'))
     
-    users = conn.execute('SELECT id, username, full_name FROM users WHERE status = ? ORDER BY username', ('active',)).fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     sops = conn.execute('SELECT id, sop_number, title FROM qms_sops ORDER BY sop_number').fetchall()
     wis = conn.execute('SELECT id, wi_number, title FROM qms_work_instructions ORDER BY wi_number').fetchall()
     
@@ -1421,3 +1421,467 @@ def training_create():
                           users=[dict(u) for u in users],
                           sops=[dict(s) for s in sops],
                           wis=[dict(w) for w in wis])
+
+
+# ============== Auto-Generate Work Instructions ==============
+
+# Define all ERP transaction capabilities
+ERP_TRANSACTION_CAPABILITIES = {
+    'Products': [
+        {'code': 'PROD-CREATE', 'name': 'Create Product', 'description': 'Create a new product in the system'},
+        {'code': 'PROD-EDIT', 'name': 'Edit Product', 'description': 'Modify existing product information'},
+        {'code': 'PROD-BOM', 'name': 'Manage Bill of Materials', 'description': 'Create and edit product BOM structures'},
+        {'code': 'PROD-SERIAL', 'name': 'Manage Serialized Products', 'description': 'Handle serial number tracking for products'},
+    ],
+    'Inventory': [
+        {'code': 'INV-RECEIVE', 'name': 'Receive Inventory', 'description': 'Receive items into inventory'},
+        {'code': 'INV-ADJUST', 'name': 'Adjust Inventory', 'description': 'Perform inventory adjustments'},
+        {'code': 'INV-TRANSFER', 'name': 'Transfer Inventory', 'description': 'Transfer inventory between locations'},
+        {'code': 'INV-COUNT', 'name': 'Physical Count', 'description': 'Conduct physical inventory counts'},
+        {'code': 'INV-ALLOCATE', 'name': 'Allocate Inventory', 'description': 'Allocate inventory to work orders'},
+    ],
+    'Work Orders': [
+        {'code': 'WO-CREATE', 'name': 'Create Work Order', 'description': 'Create a new manufacturing work order'},
+        {'code': 'WO-RELEASE', 'name': 'Release Work Order', 'description': 'Release work order for production'},
+        {'code': 'WO-MATERIAL', 'name': 'Issue Materials', 'description': 'Issue materials to work order'},
+        {'code': 'WO-LABOR', 'name': 'Record Labor', 'description': 'Record labor time against work order'},
+        {'code': 'WO-COMPLETE', 'name': 'Complete Work Order', 'description': 'Complete work order and receive finished goods'},
+        {'code': 'WO-CLOSE', 'name': 'Close Work Order', 'description': 'Close work order after completion'},
+    ],
+    'Purchase Orders': [
+        {'code': 'PO-CREATE', 'name': 'Create Purchase Order', 'description': 'Create a new purchase order'},
+        {'code': 'PO-APPROVE', 'name': 'Approve Purchase Order', 'description': 'Approve purchase order for sending'},
+        {'code': 'PO-SEND', 'name': 'Send to Supplier', 'description': 'Send purchase order to supplier'},
+        {'code': 'PO-RECEIVE', 'name': 'Receive Goods', 'description': 'Receive goods against purchase order'},
+        {'code': 'PO-PARTIAL', 'name': 'Partial Receipt', 'description': 'Process partial receipt of goods'},
+        {'code': 'PO-CLOSE', 'name': 'Close Purchase Order', 'description': 'Close purchase order after completion'},
+    ],
+    'Sales Orders': [
+        {'code': 'SO-CREATE', 'name': 'Create Sales Order', 'description': 'Create a new sales order'},
+        {'code': 'SO-CONFIRM', 'name': 'Confirm Sales Order', 'description': 'Confirm and process sales order'},
+        {'code': 'SO-SHIP', 'name': 'Ship Sales Order', 'description': 'Process shipment for sales order'},
+        {'code': 'SO-INVOICE', 'name': 'Generate Invoice', 'description': 'Generate invoice from sales order'},
+        {'code': 'SO-CLOSE', 'name': 'Close Sales Order', 'description': 'Close sales order after completion'},
+    ],
+    'Service Work Orders': [
+        {'code': 'SWO-CREATE', 'name': 'Create Service Work Order', 'description': 'Create a service work order'},
+        {'code': 'SWO-LABOR', 'name': 'Record Service Labor', 'description': 'Record labor for service work'},
+        {'code': 'SWO-PARTS', 'name': 'Add Service Parts', 'description': 'Add parts to service work order'},
+        {'code': 'SWO-COMPLETE', 'name': 'Complete Service', 'description': 'Complete service work order'},
+    ],
+    'NDT Operations': [
+        {'code': 'NDT-CREATE', 'name': 'Create NDT Work Order', 'description': 'Create NDT inspection work order'},
+        {'code': 'NDT-SCHEDULE', 'name': 'Schedule Inspection', 'description': 'Schedule NDT inspection'},
+        {'code': 'NDT-PERFORM', 'name': 'Perform Inspection', 'description': 'Perform NDT inspection and record results'},
+        {'code': 'NDT-REVIEW', 'name': 'Level III Review', 'description': 'Level III technician review and approval'},
+        {'code': 'NDT-REPORT', 'name': 'Generate NDT Report', 'description': 'Generate inspection report'},
+    ],
+    'RFQ': [
+        {'code': 'RFQ-CREATE', 'name': 'Create RFQ', 'description': 'Create request for quotation'},
+        {'code': 'RFQ-SEND', 'name': 'Send to Suppliers', 'description': 'Send RFQ to selected suppliers'},
+        {'code': 'RFQ-QUOTE', 'name': 'Enter Quotes', 'description': 'Enter supplier quote responses'},
+        {'code': 'RFQ-COMPARE', 'name': 'Compare Quotes', 'description': 'Compare and analyze quotes'},
+        {'code': 'RFQ-AWARD', 'name': 'Award RFQ', 'description': 'Award RFQ to selected supplier'},
+    ],
+    'Shipping': [
+        {'code': 'SHIP-CREATE', 'name': 'Create Shipment', 'description': 'Create shipment record'},
+        {'code': 'SHIP-PACK', 'name': 'Pack Items', 'description': 'Pack items for shipment'},
+        {'code': 'SHIP-LABEL', 'name': 'Generate Labels', 'description': 'Generate shipping labels'},
+        {'code': 'SHIP-DISPATCH', 'name': 'Dispatch Shipment', 'description': 'Dispatch shipment to carrier'},
+    ],
+    'Invoicing': [
+        {'code': 'INV-CREATE', 'name': 'Create Invoice', 'description': 'Create customer invoice'},
+        {'code': 'INV-SEND', 'name': 'Send Invoice', 'description': 'Send invoice to customer'},
+        {'code': 'INV-PAYMENT', 'name': 'Record Payment', 'description': 'Record payment against invoice'},
+        {'code': 'INV-CREDIT', 'name': 'Issue Credit Memo', 'description': 'Issue credit memo'},
+    ],
+    'Capacity Planning': [
+        {'code': 'CAP-SCHEDULE', 'name': 'Schedule Production', 'description': 'Schedule production load'},
+        {'code': 'CAP-RESOURCE', 'name': 'Assign Resources', 'description': 'Assign labor resources to work centers'},
+        {'code': 'CAP-OVERRIDE', 'name': 'Override Capacity', 'description': 'Override capacity constraints'},
+    ],
+    'Quality (QMS)': [
+        {'code': 'QMS-SOP', 'name': 'Create SOP', 'description': 'Create standard operating procedure'},
+        {'code': 'QMS-WI', 'name': 'Create Work Instruction', 'description': 'Create work instruction'},
+        {'code': 'QMS-DEV', 'name': 'Report Deviation', 'description': 'Report quality deviation'},
+        {'code': 'QMS-CAPA', 'name': 'Create CAPA', 'description': 'Create corrective/preventive action'},
+        {'code': 'QMS-AUDIT', 'name': 'Conduct Audit', 'description': 'Conduct quality audit'},
+    ],
+    'Tools Management': [
+        {'code': 'TOOL-CHECKOUT', 'name': 'Checkout Tool', 'description': 'Check out tool for use'},
+        {'code': 'TOOL-CHECKIN', 'name': 'Checkin Tool', 'description': 'Return tool after use'},
+        {'code': 'TOOL-CAL', 'name': 'Record Calibration', 'description': 'Record tool calibration'},
+    ],
+    'Time Clock': [
+        {'code': 'TIME-IN', 'name': 'Clock In', 'description': 'Clock in for work shift'},
+        {'code': 'TIME-OUT', 'name': 'Clock Out', 'description': 'Clock out from work shift'},
+        {'code': 'TIME-WO', 'name': 'Assign to Work Order', 'description': 'Assign time to work order task'},
+    ],
+}
+
+
+@qms_bp.route('/work-instructions/auto-generate')
+@login_required
+def wi_auto_generate():
+    """Auto-generate work instructions page"""
+    conn = get_db()
+    
+    # Get existing SOPs for linking
+    sops = conn.execute('SELECT id, sop_number, title FROM qms_sops WHERE status = ? ORDER BY sop_number', ('Active',)).fetchall()
+    
+    # Get recently generated work instructions
+    recent_wis = conn.execute('''
+        SELECT wi.*, u.username as created_by_name
+        FROM qms_work_instructions wi
+        LEFT JOIN users u ON wi.prepared_by = u.id
+        WHERE wi.erp_transaction IS NOT NULL
+        ORDER BY wi.created_at DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('qms/wi_auto_generate.html',
+                          transaction_capabilities=ERP_TRANSACTION_CAPABILITIES,
+                          sops=[dict(s) for s in sops],
+                          recent_wis=[dict(w) for w in recent_wis])
+
+
+@qms_bp.route('/work-instructions/auto-generate/generate', methods=['POST'])
+@login_required
+def wi_generate():
+    """Generate work instruction using AI"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'})
+    
+    transaction_code = data.get('transaction_code')
+    transaction_name = data.get('transaction_name')
+    transaction_description = data.get('description')
+    module_name = data.get('module')
+    sop_id = data.get('sop_id')
+    additional_context = data.get('additional_context', '')
+    
+    # Validate required fields
+    if not transaction_code or not transaction_name or not module_name:
+        return jsonify({'success': False, 'error': 'Missing required fields: transaction_code, transaction_name, and module are required'})
+    
+    # Validate module exists
+    if module_name not in ERP_TRANSACTION_CAPABILITIES:
+        return jsonify({'success': False, 'error': f'Invalid module: {module_name}'})
+    
+    # Validate OpenAI configuration
+    if not os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'):
+        return jsonify({'success': False, 'error': 'OpenAI API key not configured'})
+    
+    conn = get_db()
+    
+    try:
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+        
+        prompt = f"""Generate a comprehensive, standardized Work Instruction for an aerospace MRO ERP system.
+
+Transaction: {transaction_name}
+Code: {transaction_code}
+Module: {module_name}
+Description: {transaction_description}
+{f'Additional Context: {additional_context}' if additional_context else ''}
+
+Create a detailed work instruction with the following sections:
+
+1. **TITLE**: Clear, descriptive title for the work instruction
+
+2. **PURPOSE**: Why this procedure is needed (2-3 sentences)
+
+3. **PREREQUISITES**: 
+   - Required user roles/permissions
+   - Required system access
+   - Any preparatory steps needed
+
+4. **SAFETY REQUIREMENTS**: Any safety or compliance considerations
+
+5. **TOOLS/EQUIPMENT REQUIRED**: System access, equipment, or tools needed
+
+6. **MATERIALS/DOCUMENTS REQUIRED**: Forms, reference documents, or materials needed
+
+7. **STEP-BY-STEP PROCEDURE**: Detailed numbered steps including:
+   - Navigation path in the ERP system
+   - Specific fields to complete
+   - Required vs optional fields
+   - Business rules and validations
+   - Expected system responses
+   - Screenshots guidance (describe what should be visible)
+
+8. **VERIFICATION/QUALITY CHECKPOINTS**: Steps to verify correct completion
+
+9. **COMMON ERRORS AND TROUBLESHOOTING**: Potential issues and resolutions
+
+10. **RELATED TRANSACTIONS**: Other procedures that may follow or precede this one
+
+Format the output as structured JSON with these keys:
+{{
+    "title": "string",
+    "purpose": "string",
+    "prerequisites": "string (multi-line with bullet points)",
+    "safety_requirements": "string",
+    "tools_required": "string",
+    "materials_required": "string",
+    "procedure_steps": [
+        {{"step_number": 1, "action": "string", "expected_result": "string", "notes": "string or null"}}
+    ],
+    "verification_checkpoints": "string",
+    "troubleshooting": "string",
+    "related_transactions": "string"
+}}"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert technical writer specializing in ERP system documentation for aerospace MRO organizations. Generate clear, compliant, and comprehensive work instructions following AS9100 and ISO 9001 standards. Always respond with valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=3000,
+            response_format={"type": "json_object"}
+        )
+        
+        ai_response = response.choices[0].message.content or '{}'
+        generated_content = json.loads(ai_response)
+        
+        # Generate WI number
+        wi_number = generate_wi_number(conn)
+        
+        # Format procedure steps for storage
+        procedure_steps = generated_content.get('procedure_steps', [])
+        formatted_steps = json.dumps(procedure_steps)
+        
+        # Create work instruction with all generated fields
+        cursor = conn.execute('''
+            INSERT INTO qms_work_instructions (
+                wi_number, title, sop_id, revision, revision_date, effective_date,
+                description, prerequisites, safety_requirements, tools_required,
+                materials_required, erp_module, erp_transaction, applicable_roles,
+                verification_checkpoints, troubleshooting, related_transactions,
+                status, prepared_by, created_at
+            ) VALUES (?, ?, ?, 'A', date('now'), date('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, datetime('now'))
+        ''', (
+            wi_number,
+            generated_content.get('title', transaction_name),
+            sop_id if sop_id else None,
+            generated_content.get('purpose', ''),
+            generated_content.get('prerequisites', ''),
+            generated_content.get('safety_requirements', ''),
+            generated_content.get('tools_required', ''),
+            generated_content.get('materials_required', ''),
+            module_name,
+            transaction_code,
+            'All',
+            generated_content.get('verification_checkpoints', ''),
+            generated_content.get('troubleshooting', ''),
+            generated_content.get('related_transactions', ''),
+            session.get('user_id')
+        ))
+        
+        wi_id = cursor.lastrowid
+        
+        # Insert procedure steps
+        for step in procedure_steps:
+            conn.execute('''
+                INSERT INTO qms_work_instruction_steps (
+                    work_instruction_id, step_number, action, expected_result, notes
+                ) VALUES (?, ?, ?, ?, ?)
+            ''', (
+                wi_id,
+                step.get('step_number', 0),
+                step.get('action', ''),
+                step.get('expected_result', ''),
+                step.get('notes')
+            ))
+        
+        # Log audit
+        log_qms_audit(conn, 'Work Instruction', wi_id, 'Auto-Generated', 
+                     session.get('user_id'), session.get('username'),
+                     notes=f'Transaction: {transaction_code}')
+        
+        # Save AI analysis
+        conn.execute('''
+            INSERT INTO qms_ai_analyses (analysis_type, context, request_data, response_data, user_id)
+            VALUES ('work_instruction_generation', ?, ?, ?, ?)
+        ''', (transaction_code, prompt, ai_response, session.get('user_id')))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'wi_id': wi_id,
+            'wi_number': wi_number,
+            'title': generated_content.get('title'),
+            'content': generated_content,
+            'message': f'Work Instruction {wi_number} generated successfully'
+        })
+        
+    except json.JSONDecodeError as e:
+        conn.close()
+        return jsonify({'success': False, 'error': f'Failed to parse AI response: {str(e)}'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@qms_bp.route('/work-instructions/auto-generate/bulk', methods=['POST'])
+@login_required
+def wi_bulk_generate():
+    """Bulk generate work instructions for multiple transactions"""
+    data = request.get_json()
+    transactions = data.get('transactions', [])
+    sop_id = data.get('sop_id')
+    
+    results = []
+    
+    for txn in transactions:
+        try:
+            # Make internal request to generate each one
+            response = wi_generate_single(
+                txn['code'], txn['name'], txn['description'], 
+                txn['module'], sop_id
+            )
+            results.append({
+                'code': txn['code'],
+                'success': response['success'],
+                'wi_number': response.get('wi_number'),
+                'error': response.get('error')
+            })
+        except Exception as e:
+            results.append({
+                'code': txn['code'],
+                'success': False,
+                'error': str(e)
+            })
+    
+    return jsonify({
+        'success': True,
+        'results': results,
+        'generated': sum(1 for r in results if r['success']),
+        'failed': sum(1 for r in results if not r['success'])
+    })
+
+
+def wi_generate_single(transaction_code, transaction_name, description, module_name, sop_id):
+    """Internal function to generate a single work instruction"""
+    conn = get_db()
+    
+    try:
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+        
+        prompt = f"""Generate a Work Instruction for an aerospace MRO ERP system.
+
+Transaction: {transaction_name}
+Code: {transaction_code}
+Module: {module_name}
+Description: {description}
+
+Create a work instruction with:
+1. Title
+2. Purpose (2-3 sentences)
+3. Prerequisites (required permissions, system access)
+4. Safety requirements
+5. Tools/equipment required
+6. Materials/documents required
+7. Step-by-step procedure (5-10 numbered steps with actions and expected results)
+8. Verification checkpoints
+9. Troubleshooting tips
+
+Format as JSON:
+{{
+    "title": "string",
+    "purpose": "string",
+    "prerequisites": "string",
+    "safety_requirements": "string",
+    "tools_required": "string",
+    "materials_required": "string",
+    "procedure_steps": [{{"step_number": 1, "action": "string", "expected_result": "string"}}],
+    "verification_checkpoints": "string",
+    "troubleshooting": "string",
+    "related_transactions": "string"
+}}"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert ERP documentation writer. Generate clear work instructions. Respond with valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+            response_format={"type": "json_object"}
+        )
+        
+        generated_content = json.loads(response.choices[0].message.content or '{}')
+        wi_number = generate_wi_number(conn)
+        
+        cursor = conn.execute('''
+            INSERT INTO qms_work_instructions (
+                wi_number, title, sop_id, revision, revision_date, effective_date,
+                description, prerequisites, safety_requirements, tools_required,
+                materials_required, erp_module, erp_transaction, applicable_roles,
+                verification_checkpoints, troubleshooting, related_transactions,
+                status, prepared_by, created_at
+            ) VALUES (?, ?, ?, 'A', date('now'), date('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, datetime('now'))
+        ''', (
+            wi_number,
+            generated_content.get('title', transaction_name),
+            sop_id if sop_id else None,
+            generated_content.get('purpose', ''),
+            generated_content.get('prerequisites', ''),
+            generated_content.get('safety_requirements', ''),
+            generated_content.get('tools_required', ''),
+            generated_content.get('materials_required', ''),
+            module_name,
+            transaction_code,
+            'All',
+            generated_content.get('verification_checkpoints', ''),
+            generated_content.get('troubleshooting', ''),
+            generated_content.get('related_transactions', ''),
+            session.get('user_id')
+        ))
+        
+        wi_id = cursor.lastrowid
+        
+        for step in generated_content.get('procedure_steps', []):
+            conn.execute('''
+                INSERT INTO qms_work_instruction_steps (
+                    work_instruction_id, step_number, action, expected_result, notes
+                ) VALUES (?, ?, ?, ?, ?)
+            ''', (wi_id, step.get('step_number', 0), step.get('action', ''), 
+                  step.get('expected_result', ''), None))
+        
+        log_qms_audit(conn, 'Work Instruction', wi_id, 'Auto-Generated', 
+                     session.get('user_id'), session.get('username'))
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'wi_id': wi_id, 'wi_number': wi_number}
+        
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+@qms_bp.route('/api/transaction-capabilities')
+@login_required
+def get_transaction_capabilities():
+    """API endpoint to get all transaction capabilities"""
+    return jsonify(ERP_TRANSACTION_CAPABILITIES)
