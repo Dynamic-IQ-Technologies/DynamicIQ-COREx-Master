@@ -2631,6 +2631,213 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_audit ON sf_audit_events(migration_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_id_map ON sf_id_mappings(migration_id, object_name)')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_security_incidents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                incident_number TEXT UNIQUE NOT NULL,
+                incident_type TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                status TEXT DEFAULT 'Open',
+                title TEXT NOT NULL,
+                description TEXT,
+                affected_system TEXT,
+                affected_user_id INTEGER,
+                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                detected_by TEXT,
+                containment_status TEXT,
+                eradication_status TEXT,
+                recovery_status TEXT,
+                root_cause TEXT,
+                remediation_actions TEXT,
+                lessons_learned TEXT,
+                assigned_to INTEGER,
+                resolved_at TIMESTAMP,
+                closed_at TIMESTAMP,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (affected_user_id) REFERENCES users(id),
+                FOREIGN KEY (assigned_to) REFERENCES users(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_access_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action_type TEXT NOT NULL,
+                resource_type TEXT,
+                resource_id TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                session_id TEXT,
+                success INTEGER DEFAULT 1,
+                failure_reason TEXT,
+                risk_score INTEGER DEFAULT 0,
+                risk_factors TEXT,
+                geo_location TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_compliance_assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                framework TEXT NOT NULL,
+                assessment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                overall_score REAL DEFAULT 0,
+                status TEXT DEFAULT 'In Progress',
+                findings_count INTEGER DEFAULT 0,
+                critical_findings INTEGER DEFAULT 0,
+                high_findings INTEGER DEFAULT 0,
+                medium_findings INTEGER DEFAULT 0,
+                low_findings INTEGER DEFAULT 0,
+                controls_assessed INTEGER DEFAULT 0,
+                controls_passed INTEGER DEFAULT 0,
+                controls_failed INTEGER DEFAULT 0,
+                next_assessment_date TIMESTAMP,
+                assessor TEXT,
+                notes TEXT,
+                evidence_links TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_ai_agent_monitoring (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_name TEXT NOT NULL,
+                agent_type TEXT,
+                status TEXT DEFAULT 'Active',
+                trust_score REAL DEFAULT 100,
+                total_actions INTEGER DEFAULT 0,
+                approved_actions INTEGER DEFAULT 0,
+                blocked_actions INTEGER DEFAULT 0,
+                escalated_actions INTEGER DEFAULT 0,
+                last_action_at TIMESTAMP,
+                last_action_type TEXT,
+                scope_violations INTEGER DEFAULT 0,
+                risk_level TEXT DEFAULT 'Low',
+                throttle_status TEXT DEFAULT 'Normal',
+                suspension_reason TEXT,
+                suspended_at TIMESTAMP,
+                suspended_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (suspended_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_security_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alert_type TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                status TEXT DEFAULT 'Active',
+                title TEXT NOT NULL,
+                description TEXT,
+                source TEXT,
+                affected_resource TEXT,
+                affected_user_id INTEGER,
+                risk_score INTEGER DEFAULT 0,
+                detection_method TEXT,
+                recommended_action TEXT,
+                auto_remediated INTEGER DEFAULT 0,
+                remediation_action TEXT,
+                acknowledged_by INTEGER,
+                acknowledged_at TIMESTAMP,
+                resolved_by INTEGER,
+                resolved_at TIMESTAMP,
+                false_positive INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (affected_user_id) REFERENCES users(id),
+                FOREIGN KEY (acknowledged_by) REFERENCES users(id),
+                FOREIGN KEY (resolved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_user_risk_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                overall_risk_score INTEGER DEFAULT 0,
+                access_risk INTEGER DEFAULT 0,
+                behavior_risk INTEGER DEFAULT 0,
+                compliance_risk INTEGER DEFAULT 0,
+                dormant_account INTEGER DEFAULT 0,
+                excessive_privileges INTEGER DEFAULT 0,
+                sod_conflicts INTEGER DEFAULT 0,
+                failed_logins_24h INTEGER DEFAULT 0,
+                unusual_activity_count INTEGER DEFAULT 0,
+                last_login TIMESTAMP,
+                last_activity TIMESTAMP,
+                risk_factors TEXT,
+                calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_compliance_controls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                framework TEXT NOT NULL,
+                control_id TEXT NOT NULL,
+                control_name TEXT NOT NULL,
+                control_description TEXT,
+                control_category TEXT,
+                status TEXT DEFAULT 'Not Assessed',
+                implementation_status TEXT,
+                evidence TEXT,
+                last_tested TIMESTAMP,
+                next_test_due TIMESTAMP,
+                owner_id INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (owner_id) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS it_change_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                change_number TEXT UNIQUE NOT NULL,
+                change_type TEXT NOT NULL,
+                status TEXT DEFAULT 'Pending',
+                priority TEXT DEFAULT 'Medium',
+                title TEXT NOT NULL,
+                description TEXT,
+                business_justification TEXT,
+                affected_systems TEXT,
+                risk_assessment TEXT,
+                risk_score INTEGER DEFAULT 0,
+                impact_analysis TEXT,
+                rollback_plan TEXT,
+                requested_by INTEGER,
+                approved_by INTEGER,
+                implemented_by INTEGER,
+                requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                scheduled_at TIMESTAMP,
+                implemented_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (requested_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id),
+                FOREIGN KEY (implemented_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_incidents_status ON it_security_incidents(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_access_user ON it_access_audit(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_access_time ON it_access_audit(created_at)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_alerts_status ON it_security_alerts(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_user_risk ON it_user_risk_scores(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_compliance ON it_compliance_assessments(framework)')
+        
         conn.commit()
         conn.close()
     
