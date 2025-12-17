@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import Database, AuditLogger
 from auth import login_required, role_required
-from datetime import datetime
+from datetime import datetime, timedelta
 
 tools_bp = Blueprint('tools_routes', __name__)
 
@@ -20,6 +20,22 @@ def generate_tool_number(conn):
         except:
             pass
     return "TOOL-00001"
+
+def calculate_next_calibration_date(last_calibration_date, calibration_interval_days):
+    """Calculate next calibration date based on last calibration and interval"""
+    if not last_calibration_date or not calibration_interval_days:
+        return None
+    
+    try:
+        if isinstance(last_calibration_date, str):
+            last_date = datetime.strptime(last_calibration_date, '%Y-%m-%d')
+        else:
+            last_date = last_calibration_date
+        
+        next_date = last_date + timedelta(days=int(calibration_interval_days))
+        return next_date.strftime('%Y-%m-%d')
+    except (ValueError, TypeError):
+        return None
 
 @tools_bp.route('/tools')
 @login_required
@@ -56,6 +72,10 @@ def create_tool():
     if request.method == 'POST':
         tool_number = generate_tool_number(conn)
         
+        last_calibration = request.form.get('last_calibration_date') or None
+        calibration_interval = int(request.form.get('calibration_interval_days') or 0) or None
+        next_calibration = calculate_next_calibration_date(last_calibration, calibration_interval)
+        
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO tools (tool_number, name, description, category, manufacturer, 
@@ -76,9 +96,9 @@ def create_tool():
             request.form.get('condition', 'Good'),
             request.form.get('purchase_date') or None,
             float(request.form.get('purchase_cost') or 0),
-            request.form.get('last_calibration_date') or None,
-            request.form.get('next_calibration_date') or None,
-            int(request.form.get('calibration_interval_days') or 0) or None,
+            last_calibration,
+            next_calibration,
+            calibration_interval,
             request.form.get('notes', '')
         ))
         
@@ -143,6 +163,10 @@ def edit_tool(tool_id):
     if request.method == 'POST':
         old_values = dict(tool)
         
+        last_calibration = request.form.get('last_calibration_date') or None
+        calibration_interval = int(request.form.get('calibration_interval_days') or 0) or None
+        next_calibration = calculate_next_calibration_date(last_calibration, calibration_interval)
+        
         conn.execute('''
             UPDATE tools SET name = ?, description = ?, category = ?, manufacturer = ?,
                            model_number = ?, serial_number = ?, location = ?, status = ?,
@@ -162,9 +186,9 @@ def edit_tool(tool_id):
             request.form.get('condition', 'Good'),
             request.form.get('purchase_date') or None,
             float(request.form.get('purchase_cost') or 0),
-            request.form.get('last_calibration_date') or None,
-            request.form.get('next_calibration_date') or None,
-            int(request.form.get('calibration_interval_days') or 0) or None,
+            last_calibration,
+            next_calibration,
+            calibration_interval,
             request.form.get('notes', ''),
             tool_id
         ))
