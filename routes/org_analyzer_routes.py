@@ -167,10 +167,10 @@ def calculate_workforce_kpis(conn):
     today = datetime.now().strftime('%Y-%m-%d')
     clocked_in = conn.execute('''
         SELECT COUNT(DISTINCT employee_id) as count FROM time_clock_punches 
-        WHERE punch_date = ? AND punch_type = 'Clock In'
+        WHERE date(punch_time) = ? AND punch_type = 'Clock In'
         AND employee_id NOT IN (
             SELECT employee_id FROM time_clock_punches 
-            WHERE punch_date = ? AND punch_type = 'Clock Out'
+            WHERE date(punch_time) = ? AND punch_type = 'Clock Out'
         )
     ''', (today, today)).fetchone()['count']
     
@@ -185,7 +185,7 @@ def calculate_workforce_kpis(conn):
                     AND p2.punch_time < time_clock_punches.punch_time
                 ))) * 24
             ELSE 0 END
-        ), 0) as hours FROM time_clock_punches WHERE punch_date >= ?
+        ), 0) as hours FROM time_clock_punches WHERE date(punch_time) >= ?
     ''', (month_start,)).fetchone()['hours']
     
     productivity_per_employee = 0
