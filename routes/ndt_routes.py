@@ -801,3 +801,110 @@ def api_certified_technicians():
         'name': f"{t['first_name']} {t['last_name']}",
         'level': t['level']
     } for t in technicians])
+
+
+@ndt_bp.route('/ndt/api/mass-update', methods=['POST'])
+def api_mass_update():
+    """API endpoint to mass update multiple NDT work orders"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', '')
+    if user_role not in ['Admin', 'Planner']:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    wo_ids = data.get('wo_ids', [])
+    updates = data.get('updates', {})
+    
+    if not wo_ids:
+        return jsonify({'success': False, 'error': 'No work orders selected'}), 400
+    
+    if not updates:
+        return jsonify({'success': False, 'error': 'No updates specified'}), 400
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        updated_count = 0
+        
+        for wo_id in wo_ids:
+            ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (wo_id,)).fetchone()
+            if not ndt_wo:
+                continue
+            
+            update_fields = []
+            update_values = []
+            
+            if 'status' in updates and updates['status']:
+                update_fields.append('status = ?')
+                update_values.append(updates['status'])
+            
+            if 'priority' in updates and updates['priority']:
+                update_fields.append('priority = ?')
+                update_values.append(updates['priority'])
+            
+            if 'assigned_technician_id' in updates:
+                update_fields.append('assigned_technician_id = ?')
+                update_values.append(int(updates['assigned_technician_id']) if updates['assigned_technician_id'] else None)
+            
+            if 'inspection_location' in updates and updates['inspection_location']:
+                update_fields.append('inspection_location = ?')
+                update_values.append(updates['inspection_location'])
+            
+            if 'planned_start_date' in updates:
+                update_fields.append('planned_start_date = ?')
+                update_values.append(updates['planned_start_date'] or None)
+            
+            if 'planned_end_date' in updates:
+                update_fields.append('planned_end_date = ?')
+                update_values.append(updates['planned_end_date'] or None)
+            
+            if update_fields:
+                update_values.append(wo_id)
+                conn.execute(f'''
+                    UPDATE ndt_work_orders 
+                    SET {', '.join(update_fields)}
+                    WHERE id = ?
+                ''', update_values)
+                updated_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'updated_count': updated_count,
+            'message': f'Successfully updated {updated_count} NDT work orders'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ndt_bp.route('/ndt/api/technicians')
+def api_technicians():
+    """API to get all active technicians for mass update"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    technicians = conn.execute('''
+        SELECT id, technician_number, first_name, last_name
+        FROM ndt_technicians 
+        WHERE contract_status = 'Active'
+        ORDER BY last_name, first_name
+    ''').fetchall()
+    
+    conn.close()
+    
+    return jsonify([{
+        'id': t['id'],
+        'number': t['technician_number'],
+        'name': f"{t['first_name']} {t['last_name']}"
+    } for t in technicians])

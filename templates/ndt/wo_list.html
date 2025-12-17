@@ -13,6 +13,11 @@
             <a href="{{ url_for('ndt_routes.dashboard') }}" class="btn btn-outline-secondary me-2">
                 <i class="bi bi-speedometer2 me-1"></i> Dashboard
             </a>
+            {% if session.get('role') in ['Admin', 'Planner'] %}
+            <button type="button" class="btn btn-warning me-2" id="massUpdateBtn" disabled onclick="showMassUpdateModal()">
+                <i class="bi bi-pencil-square me-1"></i> Mass Update (<span id="selectedCount">0</span>)
+            </button>
+            {% endif %}
             <a href="{{ url_for('ndt_routes.wo_new') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i> New NDT Work Order
             </a>
@@ -64,6 +69,11 @@
                 <table class="table table-hover mb-0" id="woTable">
                     <thead class="table-light">
                         <tr>
+                            {% if session.get('role') in ['Admin', 'Planner'] %}
+                            <th width="40">
+                                <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
+                            {% endif %}
                             <th>NDT WO #</th>
                             <th>Type</th>
                             <th>Customer</th>
@@ -71,6 +81,7 @@
                             <th>Methods</th>
                             <th>Technician</th>
                             <th>Status</th>
+                            <th>Priority</th>
                             <th>Planned End</th>
                             <th width="80">Actions</th>
                         </tr>
@@ -78,6 +89,11 @@
                     <tbody>
                         {% for wo in work_orders %}
                         <tr>
+                            {% if session.get('role') in ['Admin', 'Planner'] %}
+                            <td>
+                                <input type="checkbox" class="form-check-input wo-checkbox" value="{{ wo.id }}" onchange="updateSelectedCount()">
+                            </td>
+                            {% endif %}
                             <td><strong>{{ wo.ndt_wo_number }}</strong></td>
                             <td><span class="badge bg-light text-dark">{{ wo.order_type }}</span></td>
                             <td>{{ wo.customer_name or '-' }}</td>
@@ -103,6 +119,11 @@
                                     {{ wo.status }}
                                 </span>
                             </td>
+                            <td>
+                                <span class="badge {% if wo.priority == 'Urgent' %}bg-danger{% elif wo.priority == 'High' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ wo.priority or 'Normal' }}
+                                </span>
+                            </td>
                             <td>{{ wo.planned_end_date or '-' }}</td>
                             <td>
                                 <a href="{{ url_for('ndt_routes.wo_view', id=wo.id) }}" class="btn btn-sm btn-outline-primary">
@@ -112,7 +133,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">No NDT work orders found</td>
+                            <td colspan="{% if session.get('role') in ['Admin', 'Planner'] %}12{% else %}11{% endif %}" class="text-center text-muted py-4">No NDT work orders found</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -121,4 +142,154 @@
         </div>
     </div>
 </div>
+
+{% if session.get('role') in ['Admin', 'Planner'] %}
+<div class="modal fade" id="massUpdateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mass Update NDT Work Orders</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Leave fields blank to keep existing values. Changes will apply to <strong id="modalSelectedCount">0</strong> selected work orders.</p>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select id="massStatus" class="form-select">
+                            <option value="">-- No Change --</option>
+                            {% for status in ndt_statuses %}
+                            <option value="{{ status }}">{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Priority</label>
+                        <select id="massPriority" class="form-select">
+                            <option value="">-- No Change --</option>
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Assigned Technician</label>
+                        <select id="massTechnician" class="form-select">
+                            <option value="">-- No Change --</option>
+                            <option value="0">Unassign</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Inspection Location</label>
+                        <input type="text" id="massLocation" class="form-control" placeholder="Leave blank for no change">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Planned Start Date</label>
+                        <input type="date" id="massStartDate" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Planned End Date</label>
+                        <input type="date" id="massEndDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="applyMassUpdate()">
+                    <i class="bi bi-check-lg me-1"></i> Apply Updates
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.wo-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
+    const count = checkboxes.length;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('massUpdateBtn').disabled = count === 0;
+}
+
+function showMassUpdateModal() {
+    const count = document.querySelectorAll('.wo-checkbox:checked').length;
+    document.getElementById('modalSelectedCount').textContent = count;
+    
+    fetch('/ndt/api/technicians')
+        .then(response => response.json())
+        .then(technicians => {
+            const select = document.getElementById('massTechnician');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">-- No Change --</option><option value="0">Unassign</option>';
+            technicians.forEach(t => {
+                select.innerHTML += `<option value="${t.id}">${t.number} - ${t.name}</option>`;
+            });
+            select.value = currentVal;
+        });
+    
+    const modal = new bootstrap.Modal(document.getElementById('massUpdateModal'));
+    modal.show();
+}
+
+function applyMassUpdate() {
+    const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
+    const woIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    const updates = {};
+    
+    const status = document.getElementById('massStatus').value;
+    if (status) updates.status = status;
+    
+    const priority = document.getElementById('massPriority').value;
+    if (priority) updates.priority = priority;
+    
+    const technician = document.getElementById('massTechnician').value;
+    if (technician !== '') {
+        updates.assigned_technician_id = technician === '0' ? null : technician;
+    }
+    
+    const location = document.getElementById('massLocation').value.trim();
+    if (location) updates.inspection_location = location;
+    
+    const startDate = document.getElementById('massStartDate').value;
+    if (startDate) updates.planned_start_date = startDate;
+    
+    const endDate = document.getElementById('massEndDate').value;
+    if (endDate) updates.planned_end_date = endDate;
+    
+    if (Object.keys(updates).length === 0) {
+        alert('Please select at least one field to update.');
+        return;
+    }
+    
+    fetch('/ndt/api/mass-update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({wo_ids: woIds, updates: updates})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+</script>
 {% endblock %}
