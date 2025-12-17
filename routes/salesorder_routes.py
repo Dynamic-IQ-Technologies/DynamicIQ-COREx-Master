@@ -431,13 +431,57 @@ def delete_line(id, line_id):
     conn = db.get_connection()
     
     try:
+        # Get the line details for validation
+        line = conn.execute('''
+            SELECT sol.*, p.code as product_code
+            FROM sales_order_lines sol
+            LEFT JOIN products p ON sol.product_id = p.id
+            WHERE sol.id = ? AND sol.so_id = ?
+        ''', (line_id, id)).fetchone()
+        
+        if not line:
+            flash('Line item not found.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # VALIDATION 1: Check if line has been shipped (released_to_shipping_at is set)
+        if line['released_to_shipping_at']:
+            flash(f'Cannot delete line {line["line_number"]} ({line["product_code"]}) - it has been released to shipping. Shipped lines cannot be deleted.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # VALIDATION 2: Check if line has been invoiced
+        invoice_check = conn.execute('''
+            SELECT il.id, i.invoice_number
+            FROM invoice_lines il
+            JOIN invoices i ON il.invoice_id = i.id
+            WHERE il.reference_type = 'sales_order_line' AND il.reference_id = ?
+        ''', (line_id,)).fetchone()
+        
+        if invoice_check:
+            flash(f'Cannot delete line {line["line_number"]} ({line["product_code"]}) - it has been invoiced (Invoice #{invoice_check["invoice_number"]}). Invoiced lines cannot be deleted.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # VALIDATION 3: Check if line is allocated (has inventory reserved)
+        if line['allocation_status'] in ('Allocated', 'Partially Allocated'):
+            allocated_qty = line['allocated_quantity'] or 0
+            flash(f'Cannot delete line {line["line_number"]} ({line["product_code"]}) - {allocated_qty} units are allocated. Please deallocate inventory first before deleting.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # All validations passed - delete the line
         conn.execute('DELETE FROM sales_order_lines WHERE id = ? AND so_id = ?', (line_id, id))
+        
+        # Also delete any associated core tracking records
+        conn.execute('DELETE FROM core_due_tracking WHERE so_line_id = ?', (line_id,))
+        
         recalculate_totals(conn, id)
         conn.commit()
-        flash('Line item deleted successfully!', 'success')
+        flash(f'Line {line["line_number"]} ({line["product_code"]}) deleted successfully!', 'success')
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while deleting the line item.', 'danger')
+        flash(f'An error occurred while deleting the line item: {str(e)}', 'danger')
     finally:
         conn.close()
     
@@ -986,6 +1030,91 @@ def allocate_line(line_id):
     except Exception as e:
         conn.rollback()
         flash(f'An error occurred during allocation: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+
+@salesorder_bp.route('/sales-orders/lines/<int:line_id>/deallocate', methods=['POST'])
+@role_required('Admin', 'Planner')
+def deallocate_line(line_id):
+    """Deallocate inventory from a sales order line, returning it to available stock"""
+    db = Database()
+    conn = db.get_connection()
+    so_id = None
+    
+    try:
+        # Get line details
+        line = conn.execute('''
+            SELECT sol.*, p.code, p.name, so.so_number, so.id as so_id
+            FROM sales_order_lines sol
+            LEFT JOIN products p ON sol.product_id = p.id
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            flash('Sales order line not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        so_id = line['so_id']
+        
+        # Validation: Check if line has been released to shipping
+        if line['released_to_shipping_at']:
+            flash(f'Cannot deallocate line {line["line_number"]} - it has been released to shipping.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        # Validation: Check if line is allocated
+        if line['allocation_status'] not in ['Allocated', 'Partially Allocated']:
+            flash(f'Line {line["line_number"]} is not currently allocated.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        allocated_qty = line['allocated_quantity'] or 0
+        serial_number = line['serial_number']
+        
+        # Clear the allocation
+        conn.execute('''
+            UPDATE sales_order_lines
+            SET allocated_quantity = 0,
+                allocation_status = 'Pending',
+                allocation_notes = 'Deallocated by user',
+                serial_number = NULL,
+                line_status = 'Pending',
+                modified_by = ?,
+                modified_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (session.get('user_id'), line_id))
+        
+        # Log activity
+        from models import AuditTrail
+        changed_fields = {
+            'allocated_quantity': f'{allocated_qty} -> 0', 
+            'allocation_status': f'{line["allocation_status"]} -> Pending',
+            'action': 'Deallocated'
+        }
+        if serial_number:
+            changed_fields['serial_number'] = f'{serial_number} -> NULL'
+        
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='sales_order_lines',
+            record_id=line_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields=changed_fields
+        )
+        
+        conn.commit()
+        
+        serial_msg = f' (S/N: {serial_number})' if serial_number else ''
+        flash(f'Successfully deallocated {allocated_qty} units of {line["code"]} from line {line["line_number"]}{serial_msg}. Line can now be deleted.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred during deallocation: {str(e)}', 'danger')
     finally:
         conn.close()
     

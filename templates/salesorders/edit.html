@@ -131,11 +131,29 @@
                                     <button type="button" class="btn btn-sm btn-primary me-1" onclick="openEditLineModal({{ line.id }})">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    
+                                    {% set can_delete = true %}
+                                    {% set delete_reason = '' %}
+                                    
+                                    {% if line.released_to_shipping_at %}
+                                        {% set can_delete = false %}
+                                        {% set delete_reason = 'Line has been shipped' %}
+                                    {% elif line.allocation_status in ['Allocated', 'Partially Allocated'] %}
+                                        {% set can_delete = false %}
+                                        {% set delete_reason = 'Deallocate first' %}
+                                    {% endif %}
+                                    
+                                    {% if can_delete %}
                                     <form method="POST" action="{{ url_for('salesorder_routes.delete_line', id=sales_order.id, line_id=line.id) }}" style="display: inline;">
                                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this line?')">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-secondary" disabled title="{{ delete_reason }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
