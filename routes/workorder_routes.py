@@ -1320,7 +1320,7 @@ def api_mass_update_workorders():
 
 
 # Work Order Stages Management Routes
-@workorder_bp.route('/workorder-stages')
+@workorder_bp.route('/workorders/stages')
 @role_required('Admin')
 def list_stages():
     """List all work order stages"""
@@ -1338,7 +1338,7 @@ def list_stages():
     return render_template('workorders/stages.html', stages=stages)
 
 
-@workorder_bp.route('/workorder-stages/create', methods=['POST'])
+@workorder_bp.route('/workorders/stages/create', methods=['POST'])
 @role_required('Admin')
 def create_stage():
     """Create a new work order stage"""
@@ -1376,7 +1376,7 @@ def create_stage():
     return redirect(url_for('workorder_routes.list_stages'))
 
 
-@workorder_bp.route('/workorder-stages/<int:id>/update', methods=['POST'])
+@workorder_bp.route('/workorders/stages/<int:id>/update', methods=['POST'])
 @role_required('Admin')
 def update_stage(id):
     """Update a work order stage"""
@@ -1411,7 +1411,7 @@ def update_stage(id):
     return redirect(url_for('workorder_routes.list_stages'))
 
 
-@workorder_bp.route('/workorder-stages/<int:id>/delete', methods=['POST'])
+@workorder_bp.route('/workorders/stages/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
 def delete_stage(id):
     """Delete a work order stage"""
@@ -1439,6 +1439,7 @@ def delete_stage(id):
 
 
 @workorder_bp.route('/api/workorder-stages')
+@workorder_bp.route('/api/workorders/stages')
 @login_required
 def api_list_stages():
     """API endpoint to get all active stages"""
