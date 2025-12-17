@@ -33,10 +33,11 @@ def customer_portal(token):
     # Work Orders linked to this customer
     work_orders = conn.execute('''
         SELECT wo.*, p.code as product_code, p.name as product_name,
-               so.so_number
+               so.so_number, wos.name as stage_name, wos.color as stage_color
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN sales_orders so ON wo.so_id = so.id
+        LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
         WHERE wo.customer_id = ?
         ORDER BY wo.created_at DESC
     ''', (customer['id'],)).fetchall()
