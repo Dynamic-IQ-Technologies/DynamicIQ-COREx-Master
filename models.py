@@ -1803,6 +1803,132 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_order_operations_wc ON work_order_operations(work_center_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_work_order_operations_status ON work_order_operations(status)')
         
+        # Tools Management Module Tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tools (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tool_number TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                category TEXT,
+                manufacturer TEXT,
+                model_number TEXT,
+                serial_number TEXT,
+                location TEXT,
+                status TEXT DEFAULT 'Available',
+                condition TEXT DEFAULT 'Good',
+                purchase_date DATE,
+                purchase_cost REAL DEFAULT 0,
+                last_calibration_date DATE,
+                next_calibration_date DATE,
+                calibration_interval_days INTEGER,
+                assigned_to INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (assigned_to) REFERENCES labor_resources(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tool_checkouts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tool_id INTEGER NOT NULL,
+                checked_out_by INTEGER NOT NULL,
+                work_order_id INTEGER,
+                checkout_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expected_return_date DATE,
+                return_date TIMESTAMP,
+                condition_on_checkout TEXT,
+                condition_on_return TEXT,
+                notes TEXT,
+                FOREIGN KEY (tool_id) REFERENCES tools(id) ON DELETE CASCADE,
+                FOREIGN KEY (checked_out_by) REFERENCES labor_resources(id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_tools_status ON tools(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_tools_category ON tools(category)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_tool_checkouts_tool ON tool_checkouts(tool_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_tool_checkouts_return ON tool_checkouts(return_date)')
+        
+        # RFQ (Request for Quotation) Module Tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfqs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_number TEXT UNIQUE NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                status TEXT DEFAULT 'Draft',
+                issue_date DATE,
+                due_date DATE,
+                currency TEXT DEFAULT 'USD',
+                terms_conditions TEXT,
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_id INTEGER NOT NULL,
+                line_number INTEGER NOT NULL,
+                product_id INTEGER,
+                description TEXT NOT NULL,
+                quantity REAL NOT NULL DEFAULT 1,
+                uom_id INTEGER,
+                target_price REAL,
+                required_date DATE,
+                notes TEXT,
+                FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (uom_id) REFERENCES uom_master(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_suppliers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_id INTEGER NOT NULL,
+                supplier_id INTEGER NOT NULL,
+                sent_date TIMESTAMP,
+                response_date TIMESTAMP,
+                response_status TEXT DEFAULT 'Pending',
+                notes TEXT,
+                FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_quotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_id INTEGER NOT NULL,
+                rfq_line_id INTEGER NOT NULL,
+                supplier_id INTEGER NOT NULL,
+                quoted_price REAL NOT NULL,
+                quoted_quantity REAL,
+                lead_time_days INTEGER,
+                valid_until DATE,
+                notes TEXT,
+                is_selected INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE,
+                FOREIGN KEY (rfq_line_id) REFERENCES rfq_lines(id) ON DELETE CASCADE,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfqs_status ON rfqs(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_lines_rfq ON rfq_lines(rfq_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_suppliers_rfq ON rfq_suppliers(rfq_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_quotes_rfq ON rfq_quotes(rfq_id)')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         
