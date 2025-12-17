@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Edit RFQ{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('rfq_routes.view_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-secondary me-3">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit RFQ</h2>
+        <p class="text-muted mb-0">{{ rfq.rfq_number }} - {{ rfq.title }}</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold">RFQ Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" value="{{ rfq.title }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Currency</label>
+                            <select name="currency" class="form-select">
+                                <option value="USD" {% if rfq.currency == 'USD' %}selected{% endif %}>USD</option>
+                                <option value="EUR" {% if rfq.currency == 'EUR' %}selected{% endif %}>EUR</option>
+                                <option value="GBP" {% if rfq.currency == 'GBP' %}selected{% endif %}>GBP</option>
+                                <option value="CAD" {% if rfq.currency == 'CAD' %}selected{% endif %}>CAD</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="2">{{ rfq.description or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Issue Date</label>
+                            <input type="date" name="issue_date" class="form-control" value="{{ rfq.issue_date or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Due Date</label>
+                            <input type="date" name="due_date" class="form-control" value="{{ rfq.due_date or '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Terms & Conditions</label>
+                            <textarea name="terms_conditions" class="form-control" rows="3">{{ rfq.terms_conditions or '' }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="form-control" rows="2">{{ rfq.notes or '' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-2"></i>Line Items</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if lines %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase small">#</th>
+                                <th class="text-uppercase small">Description</th>
+                                <th class="text-uppercase small">Part #</th>
+                                <th class="text-uppercase small">Qty</th>
+                                <th class="text-uppercase small">Target</th>
+                                <th class="text-uppercase small"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in lines %}
+                            <tr>
+                                <td>{{ line.line_number }}</td>
+                                <td>{{ line.description }}</td>
+                                <td>{{ line.part_number or '-' }}</td>
+                                <td>{{ line.quantity }} {{ line.uom_code or 'EA' }}</td>
+                                <td>{{ "$ {:,.2f}".format(line.target_price) if line.target_price else '-' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('rfq_routes.remove_rfq_line', rfq_id=rfq.id, line_id=line.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this line?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+                <div class="p-3 border-top">
+                    <form method="POST" action="{{ url_for('rfq_routes.add_rfq_line', rfq_id=rfq.id) }}">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small">Product (Optional)</label>
+                                <select name="product_id" class="form-select form-select-sm">
+                                    <option value="">Manual Entry</option>
+                                    {% for p in products %}
+                                    <option value="{{ p.id }}">{{ p.part_number }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Description <span class="text-danger">*</span></label>
+                                <input type="text" name="description" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Qty</label>
+                                <input type="number" name="quantity" class="form-control form-control-sm" value="1" min="1" step="any">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Target $</label>
+                                <input type="number" name="target_price" class="form-control form-control-sm" step="0.01" min="0">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="bi bi-plus me-1"></i>Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-truck me-2"></i>Suppliers</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if suppliers %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase small">Supplier</th>
+                                <th class="text-uppercase small">Code</th>
+                                <th class="text-uppercase small">Notes</th>
+                                <th class="text-uppercase small"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in suppliers %}
+                            <tr>
+                                <td class="fw-medium">{{ supplier.supplier_name }}</td>
+                                <td>{{ supplier.supplier_code }}</td>
+                                <td>{{ supplier.notes or '-' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('rfq_routes.remove_rfq_supplier', rfq_id=rfq.id, supplier_id=supplier.supplier_id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this supplier?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+                <div class="p-3 border-top">
+                    <form method="POST" action="{{ url_for('rfq_routes.add_rfq_supplier', rfq_id=rfq.id) }}">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label small">Supplier <span class="text-danger">*</span></label>
+                                <select name="supplier_id" class="form-select form-select-sm" required>
+                                    <option value="">Select Supplier</option>
+                                    {% for s in all_suppliers %}
+                                    <option value="{{ s.id }}">{{ s.name }} ({{ s.code }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" name="notes" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="bi bi-plus me-1"></i>Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2"></i>Status</h5>
+            </div>
+            <div class="card-body text-center">
+                <span class="badge bg-secondary fs-5 px-4 py-2">{{ rfq.status }}</span>
+                <p class="text-muted mt-3 mb-0 small">
+                    Add line items and suppliers, then issue the RFQ to send to vendors.
+                </p>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('rfq_routes.view_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="bi bi-eye me-1"></i>View RFQ
+                </a>
+                {% if lines|length > 0 and suppliers|length > 0 %}
+                <form method="POST" action="{{ url_for('rfq_routes.issue_rfq', rfq_id=rfq.id) }}">
+                    <button type="submit" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-send me-1"></i>Issue RFQ
+                    </button>
+                </form>
+                {% endif %}
+                {% if session.role == 'Admin' %}
+                <form method="POST" action="{{ url_for('rfq_routes.delete_rfq', rfq_id=rfq.id) }}" 
+                      onsubmit="return confirm('Delete this RFQ and all its data?');">
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-trash me-1"></i>Delete RFQ
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

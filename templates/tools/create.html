@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Add Tool{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('tools_routes.list_tools') }}" class="btn btn-outline-secondary me-3">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="mb-0"><i class="bi bi-plus-lg me-2"></i>Add New Tool</h2>
+        <p class="text-muted mb-0">Register a new tool or equipment</p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Tool Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">Select Category</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Manufacturer</label>
+                    <input type="text" name="manufacturer" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Model Number</label>
+                    <input type="text" name="model_number" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Serial Number</label>
+                    <input type="text" name="serial_number" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="location" class="form-control" placeholder="e.g., Tool Crib A, Bay 3">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="Available">Available</option>
+                        <option value="In Use">In Use</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Retired">Retired</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Condition</label>
+                    <select name="condition" class="form-select">
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                    </select>
+                </div>
+                
+                <div class="col-12"><hr class="my-2"><h6 class="text-muted">Purchase Information</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Purchase Date</label>
+                    <input type="date" name="purchase_date" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Purchase Cost</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="purchase_cost" class="form-control" step="0.01" min="0">
+                    </div>
+                </div>
+                
+                <div class="col-12"><hr class="my-2"><h6 class="text-muted">Calibration Information</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Last Calibration Date</label>
+                    <input type="date" name="last_calibration_date" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Next Calibration Date</label>
+                    <input type="date" name="next_calibration_date" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Calibration Interval (days)</label>
+                    <input type="number" name="calibration_interval_days" class="form-control" min="0">
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Create Tool</button>
+                <a href="{{ url_for('tools_routes.list_tools') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

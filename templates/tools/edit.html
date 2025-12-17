@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tool{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('tools_routes.view_tool', tool_id=tool.id) }}" class="btn btn-outline-secondary me-3">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit Tool</h2>
+        <p class="text-muted mb-0">{{ tool.tool_number }} - {{ tool.name }}</p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Tool Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" value="{{ tool.name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">Select Category</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if tool.category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ tool.description or '' }}</textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Manufacturer</label>
+                    <input type="text" name="manufacturer" class="form-control" value="{{ tool.manufacturer or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Model Number</label>
+                    <input type="text" name="model_number" class="form-control" value="{{ tool.model_number or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Serial Number</label>
+                    <input type="text" name="serial_number" class="form-control" value="{{ tool.serial_number or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="location" class="form-control" value="{{ tool.location or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="Available" {% if tool.status == 'Available' %}selected{% endif %}>Available</option>
+                        <option value="In Use" {% if tool.status == 'In Use' %}selected{% endif %}>In Use</option>
+                        <option value="Maintenance" {% if tool.status == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                        <option value="Retired" {% if tool.status == 'Retired' %}selected{% endif %}>Retired</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Condition</label>
+                    <select name="condition" class="form-select">
+                        <option value="Good" {% if tool.condition == 'Good' %}selected{% endif %}>Good</option>
+                        <option value="Fair" {% if tool.condition == 'Fair' %}selected{% endif %}>Fair</option>
+                        <option value="Poor" {% if tool.condition == 'Poor' %}selected{% endif %}>Poor</option>
+                    </select>
+                </div>
+                
+                <div class="col-12"><hr class="my-2"><h6 class="text-muted">Purchase Information</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Purchase Date</label>
+                    <input type="date" name="purchase_date" class="form-control" value="{{ tool.purchase_date or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Purchase Cost</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="purchase_cost" class="form-control" step="0.01" min="0" value="{{ tool.purchase_cost or 0 }}">
+                    </div>
+                </div>
+                
+                <div class="col-12"><hr class="my-2"><h6 class="text-muted">Calibration Information</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Last Calibration Date</label>
+                    <input type="date" name="last_calibration_date" class="form-control" value="{{ tool.last_calibration_date or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Next Calibration Date</label>
+                    <input type="date" name="next_calibration_date" class="form-control" value="{{ tool.next_calibration_date or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Calibration Interval (days)</label>
+                    <input type="number" name="calibration_interval_days" class="form-control" min="0" value="{{ tool.calibration_interval_days or '' }}">
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ tool.notes or '' }}</textarea>
+                </div>
+            </div>
+            
+            <div class="mt-4 d-flex justify-content-between">
+                <div>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+                    <a href="{{ url_for('tools_routes.view_tool', tool_id=tool.id) }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+                {% if session.role == 'Admin' %}
+                <form method="POST" action="{{ url_for('tools_routes.delete_tool', tool_id=tool.id) }}" 
+                      onsubmit="return confirm('Are you sure you want to delete this tool?');">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Create RFQ{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('rfq_routes.list_rfqs') }}" class="btn btn-outline-secondary me-3">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="mb-0"><i class="bi bi-plus-lg me-2"></i>Create New RFQ</h2>
+        <p class="text-muted mb-0">Request for Quotation from suppliers</p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Title <span class="text-danger">*</span></label>
+                    <input type="text" name="title" class="form-control" required placeholder="e.g., Q1 2025 Raw Materials">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Currency</label>
+                    <select name="currency" class="form-select">
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="CAD">CAD - Canadian Dollar</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Brief description of items being requested..."></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Issue Date</label>
+                    <input type="date" name="issue_date" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Response Due Date</label>
+                    <input type="date" name="due_date" class="form-control">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Terms & Conditions</label>
+                    <textarea name="terms_conditions" class="form-control" rows="3" placeholder="Payment terms, delivery requirements, etc."></textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Create RFQ</button>
+                <a href="{{ url_for('rfq_routes.list_rfqs') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="bi bi-info-circle me-2"></i>
+    After creating the RFQ, you'll be able to add line items and select suppliers to send the request to.
+</div>
+{% endblock %}

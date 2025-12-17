@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Tools{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-tools me-2"></i>Tools Management</h2>
+        <p class="text-muted mb-0">Track and manage tools, equipment, and calibration</p>
+    </div>
+    {% if session.role in ['Admin', 'Procurement'] %}
+    <a href="{{ url_for('tools_routes.create_tool') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i> Add Tool
+    </a>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card border-0 shadow-sm" style="border-top: 3px solid var(--bs-primary) !important;">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0 fw-bold text-primary">{{ stats.total }}</h3>
+                <small class="text-muted">Total Tools</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card border-0 shadow-sm" style="border-top: 3px solid var(--bs-success) !important;">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0 fw-bold text-success">{{ stats.available }}</h3>
+                <small class="text-muted">Available</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card border-0 shadow-sm" style="border-top: 3px solid var(--bs-info) !important;">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0 fw-bold text-info">{{ stats.in_use }}</h3>
+                <small class="text-muted">In Use</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card border-0 shadow-sm" style="border-top: 3px solid var(--bs-warning) !important;">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0 fw-bold text-warning">{{ stats.calibration_due }}</h3>
+                <small class="text-muted">Calibration Due</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-3">
+        <div class="row align-items-center">
+            <div class="col">
+                <h5 class="mb-0 fw-semibold">All Tools</h5>
+            </div>
+            <div class="col-auto">
+                <div class="input-group input-group-sm" style="width: 250px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="toolsFilter" placeholder="Search tools...">
+                </div>
+            </div>
+            <div class="col-auto">
+                <select class="form-select form-select-sm" id="statusFilter" style="width: 150px;">
+                    <option value="">All Statuses</option>
+                    <option value="Available">Available</option>
+                    <option value="In Use">In Use</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Retired">Retired</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if tools %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="toolsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-uppercase small">Tool #</th>
+                        <th class="text-uppercase small">Name</th>
+                        <th class="text-uppercase small">Category</th>
+                        <th class="text-uppercase small">Location</th>
+                        <th class="text-uppercase small">Status</th>
+                        <th class="text-uppercase small">Condition</th>
+                        <th class="text-uppercase small">Next Calibration</th>
+                        <th class="text-uppercase small">Assigned To</th>
+                        <th class="text-uppercase small"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tool in tools %}
+                    <tr data-status="{{ tool.status }}">
+                        <td class="fw-medium">
+                            <a href="{{ url_for('tools_routes.view_tool', tool_id=tool.id) }}">{{ tool.tool_number }}</a>
+                        </td>
+                        <td>{{ tool.name }}</td>
+                        <td>{{ tool.category or '-' }}</td>
+                        <td>{{ tool.location or '-' }}</td>
+                        <td>
+                            {% if tool.status == 'Available' %}
+                            <span class="badge bg-success">Available</span>
+                            {% elif tool.status == 'In Use' %}
+                            <span class="badge bg-info">In Use</span>
+                            {% elif tool.status == 'Maintenance' %}
+                            <span class="badge bg-warning text-dark">Maintenance</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ tool.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tool.condition == 'Good' %}
+                            <span class="text-success"><i class="bi bi-check-circle me-1"></i>Good</span>
+                            {% elif tool.condition == 'Fair' %}
+                            <span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>Fair</span>
+                            {% elif tool.condition == 'Poor' %}
+                            <span class="text-danger"><i class="bi bi-x-circle me-1"></i>Poor</span>
+                            {% else %}
+                            {{ tool.condition or '-' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tool.next_calibration_date %}
+                                {% if tool.next_calibration_date <= now %}
+                                <span class="text-danger fw-medium"><i class="bi bi-exclamation-triangle me-1"></i>{{ tool.next_calibration_date }}</span>
+                                {% else %}
+                                {{ tool.next_calibration_date }}
+                                {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ tool.assigned_to_name or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('tools_routes.view_tool', tool_id=tool.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-tools text-muted" style="font-size: 3rem;"></i>
+            <p class="text-muted mt-2 mb-0">No tools found</p>
+            {% if session.role in ['Admin', 'Procurement'] %}
+            <a href="{{ url_for('tools_routes.create_tool') }}" class="btn btn-primary mt-3">Add Your First Tool</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filter = document.getElementById('toolsFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const table = document.getElementById('toolsTable');
+    
+    function filterTable() {
+        const searchText = filter.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const rows = table.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const rowStatus = row.dataset.status;
+            const matchesSearch = text.includes(searchText);
+            const matchesStatus = !statusValue || rowStatus === statusValue;
+            row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+        });
+    }
+    
+    if (filter) filter.addEventListener('input', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Tool {{ tool.tool_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('tools_routes.list_tools') }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0">{{ tool.tool_number }}</h2>
+            <p class="text-muted mb-0">{{ tool.name }}</p>
+        </div>
+    </div>
+    {% if session.role in ['Admin', 'Procurement'] %}
+    <div>
+        <a href="{{ url_for('tools_routes.edit_tool', tool_id=tool.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2"></i>Tool Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Category</label>
+                        <p class="mb-0 fw-medium">{{ tool.category or '-' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Location</label>
+                        <p class="mb-0 fw-medium">{{ tool.location or '-' }}</p>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Description</label>
+                        <p class="mb-0">{{ tool.description or '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Manufacturer</label>
+                        <p class="mb-0 fw-medium">{{ tool.manufacturer or '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Model</label>
+                        <p class="mb-0 fw-medium">{{ tool.model_number or '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Serial Number</label>
+                        <p class="mb-0 fw-medium">{{ tool.serial_number or '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Purchase Date</label>
+                        <p class="mb-0 fw-medium">{{ tool.purchase_date or '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Purchase Cost</label>
+                        <p class="mb-0 fw-medium">{{ "$ {:,.2f}".format(tool.purchase_cost or 0) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i>Checkout History</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if checkouts %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase small">Checked Out By</th>
+                                <th class="text-uppercase small">Checkout Date</th>
+                                <th class="text-uppercase small">Return Date</th>
+                                <th class="text-uppercase small">Work Order</th>
+                                <th class="text-uppercase small">Condition</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for co in checkouts %}
+                            <tr>
+                                <td>{{ co.employee_name }}</td>
+                                <td>{{ co.checkout_date[:16] if co.checkout_date else '-' }}</td>
+                                <td>
+                                    {% if co.return_date %}
+                                    {{ co.return_date[:16] }}
+                                    {% else %}
+                                    <span class="badge bg-info">Currently Out</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ co.wo_number or '-' }}</td>
+                                <td>{{ co.condition_on_return or co.condition_on_checkout or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted mb-0">No checkout history</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-activity me-2"></i>Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if tool.status == 'Available' %}
+                    <span class="badge bg-success fs-5 px-4 py-2">Available</span>
+                    {% elif tool.status == 'In Use' %}
+                    <span class="badge bg-info fs-5 px-4 py-2">In Use</span>
+                    {% elif tool.status == 'Maintenance' %}
+                    <span class="badge bg-warning text-dark fs-5 px-4 py-2">Maintenance</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-5 px-4 py-2">{{ tool.status }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Condition</label>
+                    <p class="mb-0">
+                        {% if tool.condition == 'Good' %}
+                        <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Good</span>
+                        {% elif tool.condition == 'Fair' %}
+                        <span class="text-warning"><i class="bi bi-exclamation-circle-fill me-1"></i>Fair</span>
+                        {% else %}
+                        <span class="text-danger"><i class="bi bi-x-circle-fill me-1"></i>Poor</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                {% if tool.assigned_to_name %}
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Assigned To</label>
+                    <p class="mb-0 fw-medium">{{ tool.assigned_to_name }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-clipboard-check me-2"></i>Calibration</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Last Calibration</label>
+                    <p class="mb-0 fw-medium">{{ tool.last_calibration_date or 'Not recorded' }}</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Next Calibration</label>
+                    <p class="mb-0 fw-medium">
+                        {% if tool.next_calibration_date %}
+                            {% if tool.next_calibration_date <= now %}
+                            <span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ tool.next_calibration_date }} (Overdue)</span>
+                            {% else %}
+                            {{ tool.next_calibration_date }}
+                            {% endif %}
+                        {% else %}
+                        Not scheduled
+                        {% endif %}
+                    </p>
+                </div>
+                {% if tool.calibration_interval_days %}
+                <div>
+                    <label class="form-label text-muted small">Calibration Interval</label>
+                    <p class="mb-0">{{ tool.calibration_interval_days }} days</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if session.role in ['Admin', 'Procurement', 'Production Staff'] %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-box-arrow-right me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                {% if tool.status == 'Available' %}
+                <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#checkoutModal">
+                    <i class="bi bi-box-arrow-right me-1"></i>Check Out Tool
+                </button>
+                {% elif tool.status == 'In Use' %}
+                <form method="POST" action="{{ url_for('tools_routes.checkin_tool', tool_id=tool.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Condition on Return</label>
+                        <select name="condition_on_return" class="form-select">
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Poor">Poor</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-box-arrow-in-left me-1"></i>Check In Tool
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('tools_routes.checkout_tool', tool_id=tool.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Check Out Tool</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Checked Out By <span class="text-danger">*</span></label>
+                        <select name="checked_out_by" class="form-select" required>
+                            <option value="">Select Employee</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Work Order (Optional)</label>
+                        <select name="work_order_id" class="form-select">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Expected Return Date</label>
+                        <input type="date" name="expected_return_date" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Check Out</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
