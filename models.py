@@ -98,6 +98,18 @@ class Database:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_stages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                color TEXT DEFAULT '#6c757d',
+                sequence INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS work_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 wo_number TEXT UNIQUE NOT NULL,
@@ -112,20 +124,10 @@ class Database:
                 material_cost REAL DEFAULT 0,
                 labor_cost REAL DEFAULT 0,
                 overhead_cost REAL DEFAULT 0,
+                stage_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (product_id) REFERENCES products(id)
-            )
-        ''')
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS work_order_stages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                description TEXT,
-                color TEXT DEFAULT '#6c757d',
-                sequence INTEGER DEFAULT 0,
-                is_active INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (stage_id) REFERENCES work_order_stages(id)
             )
         ''')
         
