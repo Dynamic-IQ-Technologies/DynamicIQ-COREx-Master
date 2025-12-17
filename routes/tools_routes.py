@@ -29,7 +29,7 @@ def list_tools():
     
     tools = conn.execute('''
         SELECT t.*, 
-               lr.employee_name as assigned_to_name,
+               (lr.first_name || ' ' || lr.last_name) as assigned_to_name,
                (SELECT COUNT(*) FROM tool_checkouts tc WHERE tc.tool_id = t.id AND tc.return_date IS NULL) as is_checked_out
         FROM tools t
         LEFT JOIN labor_resources lr ON t.assigned_to = lr.id
@@ -104,7 +104,7 @@ def view_tool(tool_id):
     conn = db.get_connection()
     
     tool = conn.execute('''
-        SELECT t.*, lr.employee_name as assigned_to_name
+        SELECT t.*, (lr.first_name || ' ' || lr.last_name) as assigned_to_name
         FROM tools t
         LEFT JOIN labor_resources lr ON t.assigned_to = lr.id
         WHERE t.id = ?
@@ -116,7 +116,7 @@ def view_tool(tool_id):
         return redirect(url_for('tools_routes.list_tools'))
     
     checkouts = conn.execute('''
-        SELECT tc.*, lr.employee_name, wo.wo_number
+        SELECT tc.*, (lr.first_name || ' ' || lr.last_name) as employee_name, wo.wo_number
         FROM tool_checkouts tc
         JOIN labor_resources lr ON tc.checked_out_by = lr.id
         LEFT JOIN work_orders wo ON tc.work_order_id = wo.id
@@ -178,7 +178,7 @@ def edit_tool(tool_id):
         return redirect(url_for('tools_routes.view_tool', tool_id=tool_id))
     
     categories = ['Hand Tool', 'Power Tool', 'Measuring', 'Calibrated', 'Safety', 'Specialty', 'Other']
-    labor_resources = conn.execute('SELECT id, employee_name FROM labor_resources WHERE is_active = 1 ORDER BY employee_name').fetchall()
+    labor_resources = conn.execute("SELECT id, (first_name || ' ' || last_name) as employee_name FROM labor_resources WHERE status = 'Active' ORDER BY last_name, first_name").fetchall()
     conn.close()
     return render_template('tools/edit.html', tool=tool, categories=categories, labor_resources=labor_resources)
 
