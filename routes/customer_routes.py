@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from models import Database
+from models import Database, AuditLogger
 from auth import login_required, role_required
 import csv
 import io
@@ -68,6 +68,9 @@ def create_customer():
                 request.form.get('status', 'Active')
             ))
             
+            customer_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            AuditLogger.log_change(conn, 'customers', customer_id, 'CREATE', session.get('user_id'),
+                                  {'customer_number': customer_number, 'name': request.form['name']})
             conn.commit()
             flash(f'Customer created successfully! Customer #: {customer_number}', 'success')
             return redirect(url_for('customer_routes.list_customers'))
@@ -123,6 +126,8 @@ def edit_customer(id):
             credit_limit = request.form.get('credit_limit', '0').strip()
             credit_limit = float(credit_limit) if credit_limit else 0.0
             
+            old_customer = conn.execute('SELECT * FROM customers WHERE id = ?', (id,)).fetchone()
+            
             conn.execute('''
                 UPDATE customers SET
                     name = ?, contact_person = ?, email = ?, phone = ?,
@@ -144,6 +149,9 @@ def edit_customer(id):
                 id
             ))
             
+            AuditLogger.log_change(conn, 'customers', id, 'UPDATE', session.get('user_id'),
+                                  {'name': request.form['name'], 'status': request.form.get('status', 'Active'),
+                                   'old_name': old_customer['name']})
             conn.commit()
             flash('Customer updated successfully!', 'success')
             return redirect(url_for('customer_routes.view_customer', id=id))

@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify
-from models import Database
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify, session
+from models import Database, AuditLogger
 from auth import login_required, role_required
 import csv
 import io
@@ -62,6 +62,9 @@ def create_supplier():
             request.form.get('address', '')
         ))
         
+        supplier_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        AuditLogger.log_change(conn, 'suppliers', supplier_id, 'CREATE', session.get('user_id'),
+                              {'code': supplier_code, 'name': request.form['name']})
         conn.commit()
         conn.close()
         
@@ -77,6 +80,8 @@ def edit_supplier(id):
     conn = db.get_connection()
     
     if request.method == 'POST':
+        old_supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (id,)).fetchone()
+        
         conn.execute('''
             UPDATE suppliers 
             SET code=?, name=?, contact_person=?, email=?, phone=?, address=?
@@ -91,6 +96,9 @@ def edit_supplier(id):
             id
         ))
         
+        AuditLogger.log_change(conn, 'suppliers', id, 'UPDATE', session.get('user_id'),
+                              {'code': request.form['code'], 'name': request.form['name'],
+                               'old_name': old_supplier['name']})
         conn.commit()
         conn.close()
         
@@ -110,6 +118,12 @@ def edit_supplier(id):
 def delete_supplier(id):
     db = Database()
     conn = db.get_connection()
+    
+    supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (id,)).fetchone()
+    if supplier:
+        AuditLogger.log_change(conn, 'suppliers', id, 'DELETE', session.get('user_id'),
+                              {'code': supplier['code'], 'name': supplier['name']})
+    
     conn.execute('DELETE FROM suppliers WHERE id=?', (id,))
     conn.commit()
     conn.close()
