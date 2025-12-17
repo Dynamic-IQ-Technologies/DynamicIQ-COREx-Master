@@ -148,3 +148,269 @@ def general_ledger():
                          start_date=start_date,
                          end_date=end_date,
                          account_id=account_id)
+
+@accounting_bp.route('/revenue-tracker')
+@login_required
+@role_required('Admin', 'Accountant')
+def revenue_tracker():
+    """Revenue and Profitability Tracker by Department"""
+    db = Database()
+    conn = db.get_connection()
+    
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    
+    date_filter_sales = ""
+    date_filter_wo = ""
+    date_filter_ndt = ""
+    date_filter_swo = ""
+    params_sales = []
+    params_wo = []
+    params_ndt = []
+    params_swo = []
+    
+    if start_date:
+        date_filter_sales += " AND order_date >= ?"
+        date_filter_wo += " AND created_at >= ?"
+        date_filter_ndt += " AND created_at >= ?"
+        date_filter_swo += " AND created_at >= ?"
+        params_sales.append(start_date)
+        params_wo.append(start_date)
+        params_ndt.append(start_date)
+        params_swo.append(start_date)
+    
+    if end_date:
+        date_filter_sales += " AND order_date <= ?"
+        date_filter_wo += " AND created_at <= ?"
+        date_filter_ndt += " AND created_at <= ?"
+        date_filter_swo += " AND created_at <= ?"
+        params_sales.append(end_date)
+        params_wo.append(end_date)
+        params_ndt.append(end_date)
+        params_swo.append(end_date)
+    
+    sales_data = conn.execute(f'''
+        SELECT 
+            COUNT(*) as order_count,
+            COALESCE(SUM(total_amount), 0) as total_revenue,
+            COALESCE(SUM(amount_paid), 0) as collected,
+            COALESCE(SUM(balance_due), 0) as outstanding,
+            COALESCE(SUM(discount_amount), 0) as discounts,
+            COALESCE(SUM(tax_amount), 0) as taxes,
+            COALESCE(SUM(subtotal), 0) as subtotal
+        FROM sales_orders
+        WHERE status NOT IN ('Cancelled', 'Draft') {date_filter_sales}
+    ''', params_sales).fetchone()
+    
+    sales_by_type = conn.execute(f'''
+        SELECT 
+            sales_type,
+            COUNT(*) as count,
+            COALESCE(SUM(total_amount), 0) as revenue
+        FROM sales_orders
+        WHERE status NOT IN ('Cancelled', 'Draft') {date_filter_sales}
+        GROUP BY sales_type
+        ORDER BY revenue DESC
+    ''', params_sales).fetchall()
+    
+    operations_data = conn.execute(f'''
+        SELECT 
+            COUNT(*) as order_count,
+            COALESCE(SUM(material_cost), 0) as material_cost,
+            COALESCE(SUM(labor_cost), 0) as labor_cost,
+            COALESCE(SUM(overhead_cost), 0) as overhead_cost,
+            COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as total_cost
+        FROM work_orders
+        WHERE status NOT IN ('Cancelled') {date_filter_wo}
+    ''', params_wo).fetchone()
+    
+    wo_revenue = conn.execute(f'''
+        SELECT COALESCE(SUM(i.total_amount), 0) as invoiced_revenue
+        FROM invoices i
+        WHERE i.source_type = 'work_order' AND i.status != 'Cancelled' {date_filter_wo.replace('created_at', 'i.created_at')}
+    ''', params_wo).fetchone()
+    
+    wo_by_status = conn.execute(f'''
+        SELECT 
+            status,
+            COUNT(*) as count,
+            COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as cost
+        FROM work_orders
+        WHERE status NOT IN ('Cancelled') {date_filter_wo}
+        GROUP BY status
+        ORDER BY count DESC
+    ''', params_wo).fetchall()
+    
+    ndt_data = conn.execute(f'''
+        SELECT 
+            COUNT(*) as order_count,
+            SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
+            SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
+            SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) as closed_count
+        FROM ndt_work_orders
+        WHERE 1=1 {date_filter_ndt}
+    ''', params_ndt).fetchone()
+    
+    ndt_revenue = conn.execute(f'''
+        SELECT COALESCE(SUM(i.total_amount), 0) as invoiced_revenue
+        FROM invoices i
+        WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled' {date_filter_ndt.replace('created_at', 'i.created_at')}
+    ''', params_ndt).fetchone()
+    
+    ndt_by_method = conn.execute(f'''
+        SELECT 
+            ndt_methods,
+            COUNT(*) as count
+        FROM ndt_work_orders
+        WHERE 1=1 {date_filter_ndt}
+        GROUP BY ndt_methods
+        ORDER BY count DESC
+        LIMIT 5
+    ''', params_ndt).fetchall()
+    
+    consulting_data = conn.execute(f'''
+        SELECT 
+            COUNT(*) as order_count,
+            COALESCE(SUM(labor_subtotal), 0) as labor_revenue,
+            COALESCE(SUM(materials_subtotal), 0) as materials_revenue,
+            COALESCE(SUM(expenses_subtotal), 0) as expenses_revenue,
+            COALESCE(SUM(total_cost), 0) as total_revenue,
+            SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed_count,
+            SUM(CASE WHEN invoiced = 1 THEN 1 ELSE 0 END) as invoiced_count
+        FROM service_work_orders
+        WHERE status NOT IN ('Cancelled') {date_filter_swo}
+    ''', params_swo).fetchone()
+    
+    consulting_by_type = conn.execute(f'''
+        SELECT 
+            service_type,
+            COUNT(*) as count,
+            COALESCE(SUM(total_cost), 0) as revenue
+        FROM service_work_orders
+        WHERE status NOT IN ('Cancelled') {date_filter_swo}
+        GROUP BY service_type
+        ORDER BY revenue DESC
+    ''', params_swo).fetchall()
+    
+    trend_date_filter_sales = ""
+    trend_date_filter_wo = ""
+    trend_date_filter_ndt = ""
+    trend_date_filter_swo = ""
+    trend_params = []
+    
+    if start_date:
+        trend_date_filter_sales += " AND order_date >= ?"
+        trend_date_filter_wo += " AND created_at >= ?"
+        trend_date_filter_ndt += " AND created_at >= ?"
+        trend_date_filter_swo += " AND created_at >= ?"
+        trend_params.extend([start_date, start_date, start_date, start_date])
+    
+    if end_date:
+        trend_date_filter_sales += " AND order_date <= ?"
+        trend_date_filter_wo += " AND created_at <= ?"
+        trend_date_filter_ndt += " AND created_at <= ?"
+        trend_date_filter_swo += " AND created_at <= ?"
+        trend_params.extend([end_date, end_date, end_date, end_date])
+    
+    monthly_trends = conn.execute(f'''
+        SELECT 
+            strftime('%Y-%m', order_date) as month,
+            'Sales' as department,
+            COALESCE(SUM(total_amount), 0) as revenue
+        FROM sales_orders
+        WHERE status NOT IN ('Cancelled', 'Draft') {trend_date_filter_sales}
+        GROUP BY strftime('%Y-%m', order_date)
+        UNION ALL
+        SELECT 
+            strftime('%Y-%m', created_at) as month,
+            'Operations' as department,
+            COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as revenue
+        FROM work_orders
+        WHERE status NOT IN ('Cancelled') {trend_date_filter_wo}
+        GROUP BY strftime('%Y-%m', created_at)
+        UNION ALL
+        SELECT 
+            strftime('%Y-%m', i.created_at) as month,
+            'NDT' as department,
+            COALESCE(SUM(i.total_amount), 0) as revenue
+        FROM invoices i
+        WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled' {trend_date_filter_ndt.replace('created_at', 'i.created_at')}
+        GROUP BY strftime('%Y-%m', i.created_at)
+        UNION ALL
+        SELECT 
+            strftime('%Y-%m', created_at) as month,
+            'Consulting' as department,
+            COALESCE(SUM(total_cost), 0) as revenue
+        FROM service_work_orders
+        WHERE status NOT IN ('Cancelled') {trend_date_filter_swo}
+        GROUP BY strftime('%Y-%m', created_at)
+        ORDER BY month DESC
+        LIMIT 48
+    ''', trend_params).fetchall()
+    
+    months = sorted(list(set([r['month'] for r in monthly_trends if r['month']])))[-12:]
+    trend_data = {
+        'labels': months,
+        'sales': [0] * len(months),
+        'operations': [0] * len(months),
+        'ndt': [0] * len(months),
+        'consulting': [0] * len(months)
+    }
+    
+    for row in monthly_trends:
+        if row['month'] in months:
+            idx = months.index(row['month'])
+            dept = row['department'].lower()
+            if dept in trend_data:
+                trend_data[dept][idx] = row['revenue']
+    
+    conn.close()
+    
+    departments = {
+        'sales': {
+            'name': 'Sales',
+            'icon': 'bi-cart-check',
+            'color': '#28a745',
+            'data': sales_data,
+            'breakdown': sales_by_type,
+            'revenue': sales_data['total_revenue'] if sales_data else 0,
+            'orders': sales_data['order_count'] if sales_data else 0
+        },
+        'operations': {
+            'name': 'Operations',
+            'icon': 'bi-gear-wide-connected',
+            'color': '#007bff',
+            'data': operations_data,
+            'breakdown': wo_by_status,
+            'revenue': wo_revenue['invoiced_revenue'] if wo_revenue else 0,
+            'cost': operations_data['total_cost'] if operations_data else 0,
+            'orders': operations_data['order_count'] if operations_data else 0
+        },
+        'ndt': {
+            'name': 'NDT',
+            'icon': 'bi-search',
+            'color': '#6f42c1',
+            'data': ndt_data,
+            'breakdown': ndt_by_method,
+            'revenue': ndt_revenue['invoiced_revenue'] if ndt_revenue else 0,
+            'orders': ndt_data['order_count'] if ndt_data else 0
+        },
+        'consulting': {
+            'name': 'Consulting',
+            'icon': 'bi-people',
+            'color': '#fd7e14',
+            'data': consulting_data,
+            'breakdown': consulting_by_type,
+            'revenue': consulting_data['total_revenue'] if consulting_data else 0,
+            'orders': consulting_data['order_count'] if consulting_data else 0
+        }
+    }
+    
+    total_revenue = sum([d['revenue'] for d in departments.values()])
+    
+    return render_template('accounting/revenue_tracker.html',
+                         departments=departments,
+                         total_revenue=total_revenue,
+                         trend_data=trend_data,
+                         start_date=start_date,
+                         end_date=end_date)

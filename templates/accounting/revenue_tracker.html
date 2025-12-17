@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Revenue Tracker - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-graph-up-arrow me-2"></i>Revenue Tracker</h2>
+            <p class="text-muted mb-0">Revenue and Profitability by Department</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" placeholder="Start Date">
+                <span class="text-muted">to</span>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" placeholder="End Date">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-funnel me-1"></i> Filter
+                </button>
+                {% if start_date or end_date %}
+                <a href="{{ url_for('accounting_routes.revenue_tracker') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100 bg-gradient" style="background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);">
+                <div class="card-body text-white">
+                    <h6 class="text-white-50 mb-2">Total Revenue</h6>
+                    <h2 class="mb-0">{{ "${:,.2f}".format(total_revenue) }}</h2>
+                    <small class="text-white-50">All Departments Combined</small>
+                </div>
+            </div>
+        </div>
+        {% for key, dept in departments.items() %}
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-2 me-2" style="background-color: {{ dept.color }}20;">
+                            <i class="bi {{ dept.icon }}" style="color: {{ dept.color }}; font-size: 1.2rem;"></i>
+                        </div>
+                        <h6 class="mb-0">{{ dept.name }}</h6>
+                    </div>
+                    <h4 class="mb-1">{{ "${:,.2f}".format(dept.revenue) }}</h4>
+                    <small class="text-muted">{{ dept.orders }} orders</small>
+                    {% if total_revenue > 0 %}
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar" style="width: {{ (dept.revenue / total_revenue * 100)|int }}%; background-color: {{ dept.color }};"></div>
+                    </div>
+                    <small class="text-muted">{{ "{:.1f}".format(dept.revenue / total_revenue * 100 if total_revenue > 0 else 0) }}% of total</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Revenue Trends (Last 12 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Revenue Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="distributionChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex align-items-center">
+                    <i class="bi bi-cart-check me-2 text-success"></i>
+                    <h5 class="mb-0">Sales Department</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-4">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-success">{{ "${:,.2f}".format(departments.sales.data.total_revenue or 0) }}</h5>
+                                <small class="text-muted">Total Revenue</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-primary">{{ "${:,.2f}".format(departments.sales.data.collected or 0) }}</h5>
+                                <small class="text-muted">Collected</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-warning">{{ "${:,.2f}".format(departments.sales.data.outstanding or 0) }}</h5>
+                                <small class="text-muted">Outstanding</small>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="text-muted mb-2">By Sales Type</h6>
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Type</th>
+                                <th class="text-center">Orders</th>
+                                <th class="text-end">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in departments.sales.breakdown %}
+                            <tr>
+                                <td>{{ row.sales_type }}</td>
+                                <td class="text-center">{{ row.count }}</td>
+                                <td class="text-end">{{ "${:,.2f}".format(row.revenue) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex align-items-center">
+                    <i class="bi bi-gear-wide-connected me-2 text-primary"></i>
+                    <h5 class="mb-0">Operations Department</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-success">{{ "${:,.2f}".format(departments.operations.revenue or 0) }}</h5>
+                                <small class="text-muted">Invoiced</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-info">{{ "${:,.2f}".format(departments.operations.data.material_cost or 0) }}</h5>
+                                <small class="text-muted">Materials</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-warning">{{ "${:,.2f}".format(departments.operations.data.labor_cost or 0) }}</h5>
+                                <small class="text-muted">Labor</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-secondary">{{ "${:,.2f}".format(departments.operations.data.overhead_cost or 0) }}</h5>
+                                <small class="text-muted">Overhead</small>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="text-muted mb-2">By Status</h6>
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Status</th>
+                                <th class="text-center">Count</th>
+                                <th class="text-end">Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in departments.operations.breakdown %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ row.status }}</span></td>
+                                <td class="text-center">{{ row.count }}</td>
+                                <td class="text-end">{{ "${:,.2f}".format(row.cost) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex align-items-center">
+                    <i class="bi bi-search me-2" style="color: #6f42c1;"></i>
+                    <h5 class="mb-0">NDT Department</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-success">{{ "${:,.2f}".format(departments.ndt.revenue or 0) }}</h5>
+                                <small class="text-muted">Invoiced</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-primary">{{ departments.ndt.data.order_count or 0 }}</h5>
+                                <small class="text-muted">Total WOs</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-success">{{ departments.ndt.data.approved_count or 0 }}</h5>
+                                <small class="text-muted">Approved</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-danger">{{ departments.ndt.data.rejected_count or 0 }}</h5>
+                                <small class="text-muted">Rejected</small>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="text-muted mb-2">By Method</h6>
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Method(s)</th>
+                                <th class="text-end">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in departments.ndt.breakdown %}
+                            <tr>
+                                <td>{{ row.ndt_methods }}</td>
+                                <td class="text-end">{{ row.count }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex align-items-center">
+                    <i class="bi bi-people me-2" style="color: #fd7e14;"></i>
+                    <h5 class="mb-0">Consulting Department</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-success">{{ "${:,.2f}".format(departments.consulting.revenue or 0) }}</h5>
+                                <small class="text-muted">Total Revenue</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-info">{{ "${:,.2f}".format(departments.consulting.data.labor_revenue or 0) }}</h5>
+                                <small class="text-muted">Labor</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-warning">{{ "${:,.2f}".format(departments.consulting.data.materials_revenue or 0) }}</h5>
+                                <small class="text-muted">Materials</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-3 text-center">
+                                <h5 class="mb-0 text-secondary">{{ "${:,.2f}".format(departments.consulting.data.expenses_revenue or 0) }}</h5>
+                                <small class="text-muted">Expenses</small>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="text-muted mb-2">By Service Type</h6>
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Service Type</th>
+                                <th class="text-center">Count</th>
+                                <th class="text-end">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in departments.consulting.breakdown %}
+                            <tr>
+                                <td>{{ row.service_type }}</td>
+                                <td class="text-center">{{ row.count }}</td>
+                                <td class="text-end">{{ "${:,.2f}".format(row.revenue) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ trend_data.labels | tojson }},
+            datasets: [
+                {
+                    label: 'Sales',
+                    data: {{ trend_data.sales | tojson }},
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Operations',
+                    data: {{ trend_data.operations | tojson }},
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Consulting',
+                    data: {{ trend_data.consulting | tojson }},
+                    borderColor: '#fd7e14',
+                    backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const distCtx = document.getElementById('distributionChart').getContext('2d');
+    new Chart(distCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Sales', 'Operations', 'NDT', 'Consulting'],
+            datasets: [{
+                data: [
+                    {{ departments.sales.revenue }},
+                    {{ departments.operations.revenue }},
+                    {{ departments.ndt.revenue }},
+                    {{ departments.consulting.revenue }}
+                ],
+                backgroundColor: ['#28a745', '#007bff', '#6f42c1', '#fd7e14'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
