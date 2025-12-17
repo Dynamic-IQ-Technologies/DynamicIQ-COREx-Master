@@ -45,7 +45,7 @@ def customer_portal(token):
     invoices = conn.execute('''
         SELECT i.*, so.so_number
         FROM invoices i
-        LEFT JOIN sales_orders so ON i.sales_order_id = so.id
+        LEFT JOIN sales_orders so ON i.so_id = so.id
         WHERE i.customer_id = ?
         ORDER BY i.invoice_date DESC
     ''', (customer['id'],)).fetchall()
