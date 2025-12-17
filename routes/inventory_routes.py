@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
-from models import Database
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, session
+from models import Database, AuditLogger
 from auth import login_required, role_required
 import csv
 import io
@@ -134,6 +134,11 @@ def create_inventory():
         ))
         
         inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        product = conn.execute('SELECT code, name FROM products WHERE id = ?', (product_id,)).fetchone()
+        AuditLogger.log_change(conn, 'inventory', inventory_id, 'CREATE', session.get('user_id'),
+                              {'product_code': product['code'], 'quantity': float(request.form.get('quantity', 0)),
+                               'serial_number': serial_number if serial_number else None})
         conn.commit()
         conn.close()
         
@@ -251,6 +256,9 @@ def edit_inventory(id):
                     conn.close()
                     return redirect(url_for('inventory_routes.edit_inventory', id=id))
             
+            # Get old values for audit
+            old_record = conn.execute('SELECT * FROM inventory WHERE id = ?', (id,)).fetchone()
+            
             # Update inventory
             conn.execute('''
                 UPDATE inventory 
@@ -268,6 +276,9 @@ def edit_inventory(id):
             ''', (quantity, reorder_point, safety_stock, warehouse_location, bin_location, 
                   condition, status, is_serialized, serial_number if serial_number else None, id))
             
+            AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
+                                  {'quantity': quantity, 'old_quantity': old_record['quantity'],
+                                   'warehouse_location': warehouse_location, 'condition': condition, 'status': status})
             conn.commit()
             flash('Inventory updated successfully!', 'success')
             
@@ -316,6 +327,12 @@ def adjust_inventory(id):
         
         conn.execute('UPDATE inventory SET quantity=?, last_updated=CURRENT_TIMESTAMP WHERE id=?', 
                     (new_quantity, id))
+        
+        reason = request.form.get('reason', '')
+        AuditLogger.log_change(conn, 'inventory', id, 'ADJUST', session.get('user_id'),
+                              {'adjustment_type': adjustment_type, 'adjustment_qty': quantity,
+                               'old_quantity': current['quantity'], 'new_quantity': new_quantity,
+                               'reason': reason})
         conn.commit()
         conn.close()
         
