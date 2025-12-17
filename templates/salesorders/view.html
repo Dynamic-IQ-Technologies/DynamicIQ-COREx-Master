@@ -168,13 +168,6 @@
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Line Items</h5>
-            {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
-            <form method="POST" action="{{ url_for('salesorder_routes.allocate_all_lines', id=sales_order.id) }}" style="display: inline;">
-                <button type="submit" class="btn btn-sm btn-success" title="Allocate inventory to all lines">
-                    <i class="bi bi-box-seam"></i> Allocate All Lines
-                </button>
-            </form>
-            {% endif %}
         </div>
         <div class="card-body">
             {% if lines %}
@@ -246,13 +239,13 @@
                             </div>
                             <div class="col-md-3 text-end">
                                 {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
-                                    <!-- Allocate Button -->
+                                    <!-- Allocate Button - Opens Modal -->
                                     {% if not line.is_core and not line.allocation_status in ['Allocated', 'Partially Allocated'] %}
-                                    <form method="POST" action="{{ url_for('salesorder_routes.allocate_line', line_id=line.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-success mb-1" title="Allocate inventory">
-                                            <i class="bi bi-box-seam"></i> Allocate
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-success mb-1" 
+                                            onclick="openAllocationModal({{ line.id }}, '{{ line.code }}', {{ line.quantity }})" 
+                                            title="Select inventory to allocate">
+                                        <i class="bi bi-box-seam"></i> Allocate
+                                    </button>
                                     {% endif %}
                                     
                                     <!-- Release to Shipping Button -->
@@ -463,5 +456,195 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Inventory Allocation Modal -->
+<div class="modal fade" id="allocationModal" tabindex="-1" aria-labelledby="allocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="allocationModalLabel">
+                    <i class="bi bi-box-seam me-2"></i>Select Inventory to Allocate
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>Product:</strong> <span id="modalProductCode"></span><br>
+                    <strong>Requested Quantity:</strong> <span id="modalRequestedQty"></span>
+                </div>
+                
+                <div id="inventoryLoadingSpinner" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading available inventory...</p>
+                </div>
+                
+                <div id="inventoryTableContainer" style="display: none;">
+                    <div id="noInventoryAlert" class="alert alert-warning" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No available inventory found for this product. The line will be backordered.
+                    </div>
+                    
+                    <form id="allocationForm" method="POST" action="">
+                        <table class="table table-hover" id="inventoryTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">Select</th>
+                                    <th>Location</th>
+                                    <th>Bin</th>
+                                    <th>Condition</th>
+                                    <th>Serial #</th>
+                                    <th>Available</th>
+                                    <th>Allocate Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody">
+                            </tbody>
+                        </table>
+                        
+                        <input type="hidden" name="inventory_id" id="selectedInventoryId">
+                        <input type="hidden" name="allocate_qty" id="selectedAllocateQty">
+                        <input type="hidden" name="serial_number" id="selectedSerialNumber">
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmAllocationBtn" onclick="submitAllocation()">
+                    <i class="bi bi-check-lg me-1"></i>Confirm Allocation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentLineId = null;
+let currentRequestedQty = 0;
+
+function openAllocationModal(lineId, productCode, requestedQty) {
+    currentLineId = lineId;
+    currentRequestedQty = requestedQty;
+    
+    document.getElementById('modalProductCode').textContent = productCode;
+    document.getElementById('modalRequestedQty').textContent = requestedQty;
+    document.getElementById('inventoryLoadingSpinner').style.display = 'block';
+    document.getElementById('inventoryTableContainer').style.display = 'none';
+    document.getElementById('noInventoryAlert').style.display = 'none';
+    document.getElementById('inventoryTableBody').innerHTML = '';
+    document.getElementById('selectedInventoryId').value = '';
+    document.getElementById('selectedAllocateQty').value = '';
+    document.getElementById('selectedSerialNumber').value = '';
+    
+    // Set form action
+    document.getElementById('allocationForm').action = `/sales-orders/lines/${lineId}/allocate`;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('allocationModal'));
+    modal.show();
+    
+    // Fetch available inventory
+    fetch(`/sales-orders/lines/${lineId}/available-inventory`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('inventoryLoadingSpinner').style.display = 'none';
+            document.getElementById('inventoryTableContainer').style.display = 'block';
+            
+            if (data.inventory && data.inventory.length > 0) {
+                let html = '';
+                data.inventory.forEach((inv, index) => {
+                    const maxQty = Math.min(inv.available_qty, requestedQty);
+                    html += `
+                        <tr onclick="selectInventoryRow(${inv.id}, ${inv.available_qty}, '${inv.serial_number || ''}', this)" 
+                            style="cursor: pointer;" 
+                            class="inventory-row">
+                            <td>
+                                <input type="radio" name="inv_select" value="${inv.id}" 
+                                       class="form-check-input" id="inv_${inv.id}">
+                            </td>
+                            <td>${inv.warehouse_location}</td>
+                            <td>${inv.bin_location}</td>
+                            <td>
+                                <span class="badge ${inv.condition === 'Serviceable' ? 'bg-success' : 'bg-secondary'}">
+                                    ${inv.condition}
+                                </span>
+                            </td>
+                            <td>
+                                ${inv.is_serialized ? `<span class="badge bg-info">${inv.serial_number}</span>` : '-'}
+                            </td>
+                            <td><strong>${inv.available_qty}</strong></td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm allocate-qty-input" 
+                                       id="qty_${inv.id}" value="${maxQty}" 
+                                       min="1" max="${inv.available_qty}" step="0.01" style="width: 80px;"
+                                       ${inv.is_serialized ? 'readonly' : ''}>
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('inventoryTableBody').innerHTML = html;
+                
+                // Auto-select first row if only one
+                if (data.inventory.length === 1) {
+                    const firstRow = document.querySelector('.inventory-row');
+                    selectInventoryRow(data.inventory[0].id, data.inventory[0].available_qty, 
+                                       data.inventory[0].serial_number || '', firstRow);
+                }
+            } else {
+                document.getElementById('noInventoryAlert').style.display = 'block';
+                document.getElementById('inventoryTable').style.display = 'none';
+                document.getElementById('confirmAllocationBtn').disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching inventory:', error);
+            document.getElementById('inventoryLoadingSpinner').style.display = 'none';
+            document.getElementById('inventoryTableContainer').style.display = 'block';
+            document.getElementById('noInventoryAlert').innerHTML = 
+                '<i class="bi bi-exclamation-triangle me-2"></i>Error loading inventory. Please try again.';
+            document.getElementById('noInventoryAlert').style.display = 'block';
+        });
+}
+
+function selectInventoryRow(inventoryId, availableQty, serialNumber, rowElement) {
+    // Clear previous selection
+    document.querySelectorAll('.inventory-row').forEach(row => {
+        row.classList.remove('table-primary');
+    });
+    document.querySelectorAll('input[name="inv_select"]').forEach(radio => {
+        radio.checked = false;
+    });
+    
+    // Select this row
+    rowElement.classList.add('table-primary');
+    document.getElementById(`inv_${inventoryId}`).checked = true;
+    
+    // Update hidden fields
+    document.getElementById('selectedInventoryId').value = inventoryId;
+    const qtyInput = document.getElementById(`qty_${inventoryId}`);
+    document.getElementById('selectedAllocateQty').value = qtyInput.value;
+    document.getElementById('selectedSerialNumber').value = serialNumber;
+    
+    // Enable confirm button
+    document.getElementById('confirmAllocationBtn').disabled = false;
+}
+
+function submitAllocation() {
+    const inventoryId = document.getElementById('selectedInventoryId').value;
+    if (!inventoryId) {
+        alert('Please select inventory to allocate.');
+        return;
+    }
+    
+    // Update the qty from the input field
+    const qtyInput = document.getElementById(`qty_${inventoryId}`);
+    if (qtyInput) {
+        document.getElementById('selectedAllocateQty').value = qtyInput.value;
+    }
+    
+    document.getElementById('allocationForm').submit();
+}
+</script>
 
 {% endblock %}

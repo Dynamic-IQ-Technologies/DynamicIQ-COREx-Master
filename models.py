@@ -2908,7 +2908,10 @@ class Database:
             # Inventory allocation fields
             'allocated_quantity': "ALTER TABLE sales_order_lines ADD COLUMN allocated_quantity REAL DEFAULT 0",
             'allocation_status': "ALTER TABLE sales_order_lines ADD COLUMN allocation_status TEXT DEFAULT 'Pending'",
+            'allocation_notes': "ALTER TABLE sales_order_lines ADD COLUMN allocation_notes TEXT",
+            'inventory_id': "ALTER TABLE sales_order_lines ADD COLUMN inventory_id INTEGER REFERENCES inventory(id)",
             'released_to_shipping_at': "ALTER TABLE sales_order_lines ADD COLUMN released_to_shipping_at TIMESTAMP",
+            'released_by': "ALTER TABLE sales_order_lines ADD COLUMN released_by INTEGER REFERENCES users(id)",
             'shipped_quantity': "ALTER TABLE sales_order_lines ADD COLUMN shipped_quantity REAL DEFAULT 0",
             # Audit trail fields
             'created_by': "ALTER TABLE sales_order_lines ADD COLUMN created_by INTEGER",
