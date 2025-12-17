@@ -69,13 +69,13 @@
                         <td><span class="badge bg-secondary">{{ shipment.shipment_type }}</span></td>
                         <td>
                             {% if shipment.reference_type and shipment.reference_id %}
-                                {% if shipment.reference_type == 'Sales Order' %}
+                                {% if shipment.reference_type == 'Sales Order' and shipment.so_number %}
                                 <a href="{{ url_for('salesorder_routes.view_sales_order', id=shipment.reference_id) }}" class="text-decoration-none">
-                                    <i class="bi bi-cart"></i> SO #{{ shipment.reference_id }}
+                                    <i class="bi bi-cart"></i> {{ shipment.so_number }}
                                 </a>
-                                {% elif shipment.reference_type == 'Work Order' %}
+                                {% elif shipment.reference_type == 'Work Order' and shipment.wo_number %}
                                 <a href="{{ url_for('workorder_routes.view_workorder', id=shipment.reference_id) }}" class="text-decoration-none">
-                                    <i class="bi bi-tools"></i> WO #{{ shipment.reference_id }}
+                                    <i class="bi bi-tools"></i> {{ shipment.wo_number }}
                                 </a>
                                 {% else %}
                                 {{ shipment.reference_type }} #{{ shipment.reference_id }}

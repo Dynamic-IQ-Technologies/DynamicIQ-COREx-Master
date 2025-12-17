@@ -21,11 +21,15 @@ def list_shipments():
                 s.*,
                 u.username as created_by_name,
                 u2.username as shipped_by_name,
-                COUNT(sl.id) as line_count
+                COUNT(sl.id) as line_count,
+                so.so_number,
+                wo.wo_number
             FROM shipments s
             LEFT JOIN users u ON s.created_by = u.id
             LEFT JOIN users u2 ON s.shipped_by = u2.id
             LEFT JOIN shipment_lines sl ON s.id = sl.shipment_id
+            LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+            LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
             GROUP BY s.id
             ORDER BY s.created_at DESC
         ''').fetchall()
@@ -35,11 +39,15 @@ def list_shipments():
                 s.*,
                 u.username as created_by_name,
                 u2.username as shipped_by_name,
-                COUNT(sl.id) as line_count
+                COUNT(sl.id) as line_count,
+                so.so_number,
+                wo.wo_number
             FROM shipments s
             LEFT JOIN users u ON s.created_by = u.id
             LEFT JOIN users u2 ON s.shipped_by = u2.id
             LEFT JOIN shipment_lines sl ON s.id = sl.shipment_id
+            LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+            LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
             WHERE s.status = ?
             GROUP BY s.id
             ORDER BY s.created_at DESC
@@ -454,9 +462,12 @@ def dashboard():
     
     # Pending shipments
     pending_shipments = conn.execute('''
-        SELECT s.*, COUNT(sl.id) as item_count
+        SELECT s.*, COUNT(sl.id) as item_count,
+            so.so_number, wo.wo_number
         FROM shipments s
         LEFT JOIN shipment_lines sl ON s.id = sl.shipment_id
+        LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+        LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
         WHERE s.status = 'Pending'
         GROUP BY s.id
         ORDER BY s.created_at DESC
@@ -465,9 +476,12 @@ def dashboard():
     
     # In-transit shipments
     intransit_shipments = conn.execute('''
-        SELECT s.*, COUNT(sl.id) as item_count
+        SELECT s.*, COUNT(sl.id) as item_count,
+            so.so_number, wo.wo_number
         FROM shipments s
         LEFT JOIN shipment_lines sl ON s.id = sl.shipment_id
+        LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
+        LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
         WHERE s.status = 'Shipped'
         GROUP BY s.id
         ORDER BY s.ship_date DESC
