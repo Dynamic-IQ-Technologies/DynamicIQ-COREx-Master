@@ -14,14 +14,28 @@ def get_openai_client():
         base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
     )
 
+def get_gl_account_balance(conn, account_code):
+    """Get the balance from General Ledger for a specific account code"""
+    result = conn.execute('''
+        SELECT COALESCE(SUM(gl_lines.debit - gl_lines.credit), 0) as balance
+        FROM gl_entry_lines gl_lines
+        JOIN gl_entries gl ON gl_lines.gl_entry_id = gl.id
+        JOIN chart_of_accounts coa ON gl_lines.account_id = coa.id
+        WHERE coa.account_code = ? AND gl.status = 'Posted'
+    ''', (account_code,)).fetchone()
+    return result['balance'] if result else 0
+
 def calculate_cash_metrics(conn):
-    """Calculate cash flow and liquidity metrics"""
+    """Calculate cash flow and liquidity metrics using GL data"""
     metrics = {}
     
     today = datetime.now()
     month_start = today.replace(day=1).strftime('%Y-%m-%d')
     last_month_start = (today.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')
-    last_month_end = (today.replace(day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    cash_balance = get_gl_account_balance(conn, '1110')
+    ar_gl_balance = get_gl_account_balance(conn, '1120')
+    ap_gl_balance = abs(get_gl_account_balance(conn, '2110'))
     
     cash_in_mtd = conn.execute('''
         SELECT COALESCE(SUM(amount_paid), 0) as total FROM invoices 
@@ -71,13 +85,16 @@ def calculate_cash_metrics(conn):
     
     monthly_burn_rate = cash_out_last_month if cash_out_last_month > 0 else cash_out_mtd
     
-    estimated_cash_position = ar_outstanding - ap_outstanding
+    current_assets = cash_balance + ar_outstanding + inventory_value
+    current_liabilities = ap_outstanding + open_po_value
+    net_working_capital = current_assets - current_liabilities
     
     runway_months = 0
     if monthly_burn_rate > 0:
-        available_cash = max(0, ar_outstanding + inventory_value * 0.5 - ap_outstanding - open_po_value)
+        available_cash = max(0, cash_balance + (ar_outstanding * 0.85) - ap_outstanding - open_po_value)
         runway_months = available_cash / monthly_burn_rate
     
+    metrics['cash_balance'] = cash_balance
     metrics['cash_in_mtd'] = cash_in_mtd
     metrics['cash_in_last_month'] = cash_in_last_month
     metrics['cash_out_mtd'] = cash_out_mtd
@@ -89,7 +106,9 @@ def calculate_cash_metrics(conn):
     metrics['inventory_value'] = inventory_value
     metrics['open_po_value'] = open_po_value
     metrics['monthly_burn_rate'] = monthly_burn_rate
-    metrics['estimated_cash_position'] = estimated_cash_position
+    metrics['current_assets'] = current_assets
+    metrics['current_liabilities'] = current_liabilities
+    metrics['net_working_capital'] = net_working_capital
     metrics['runway_months'] = round(runway_months, 1)
     
     return metrics
@@ -366,6 +385,10 @@ FINANCIAL SNAPSHOT - CFO BRIEFING
 ==================================
 
 CASH POSITION & LIQUIDITY:
+- Cash Balance (GL): ${cash['cash_balance']:,.2f}
+- Current Assets: ${cash['current_assets']:,.2f}
+- Current Liabilities: ${cash['current_liabilities']:,.2f}
+- Net Working Capital: ${cash['net_working_capital']:,.2f}
 - Cash In (MTD): ${cash['cash_in_mtd']:,.2f}
 - Cash Out (MTD): ${cash['cash_out_mtd']:,.2f}
 - Net Cash Flow (MTD): ${cash['net_cash_flow_mtd']:,.2f}

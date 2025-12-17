@@ -57,10 +57,44 @@
             <div class="card border-0 shadow-sm h-100" style="border-top: 3px solid #2563eb !important;">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">Net Working Capital</h6>
-                    <h3 class="mb-1 {% if cash.estimated_cash_position >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        {{ cash.estimated_cash_position|currency }}
+                    <h3 class="mb-1 {% if cash.net_working_capital >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ cash.net_working_capital|currency }}
                     </h3>
-                    <small class="text-muted">A/R - A/P Position</small>
+                    <small class="text-muted">Current Assets - Current Liabilities</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-bank text-primary me-2"></i>Cash Position (from GL)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="mb-1 {% if cash.cash_balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ cash.cash_balance|currency }}</h4>
+                            <small class="text-muted">Cash Balance</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-1">{{ cash.current_assets|currency }}</h4>
+                            <small class="text-muted">Current Assets</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-1 text-warning">{{ cash.current_liabilities|currency }}</h4>
+                            <small class="text-muted">Current Liabilities</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <span class="badge {% if (cash.current_liabilities > 0) and (cash.current_assets / cash.current_liabilities >= 1.5) %}bg-success{% elif (cash.current_liabilities > 0) and (cash.current_assets / cash.current_liabilities >= 1) %}bg-warning{% else %}bg-danger{% endif %} fs-6">
+                                    {{ "%.2f"|format(cash.current_assets / (cash.current_liabilities + 0.01)) }}
+                                </span>
+                            </div>
+                            <small class="text-muted">Current Ratio</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
