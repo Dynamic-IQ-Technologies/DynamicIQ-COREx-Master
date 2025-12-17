@@ -179,10 +179,13 @@ def create_workorder():
                 else:
                     customer_id = None
                 
+                stage_id = request.form.get('stage_id')
+                stage_id = int(stage_id) if stage_id else None
+                
                 conn.execute('''
                     INSERT INTO work_orders 
-                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name, operational_status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name, operational_status, stage_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     wo_number,
                     int(request.form['product_id']),
@@ -196,7 +199,8 @@ def create_workorder():
                     float(request.form.get('overhead_cost', 0)),
                     customer_id,
                     customer_name,
-                    request.form.get('operational_status') or None
+                    request.form.get('operational_status') or None,
+                    stage_id
                 ))
                 
                 wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -238,6 +242,7 @@ def create_workorder():
     
     products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
     customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
+    stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
     last_wo = conn.execute('''
         SELECT wo_number FROM work_orders 
@@ -259,7 +264,7 @@ def create_workorder():
     
     conn.close()
     
-    return render_template('workorders/create.html', products=products, customers=customers, next_wo_number=next_wo_number)
+    return render_template('workorders/create.html', products=products, customers=customers, stages=stages, next_wo_number=next_wo_number)
 
 @workorder_bp.route('/workorders/<int:id>')
 @login_required
@@ -270,10 +275,12 @@ def view_workorder(id):
     
     workorder = conn.execute('''
         SELECT wo.*, p.code, p.name, p.unit_of_measure, 
-               c.customer_number, c.name as customer_full_name, c.email as customer_email, c.phone as customer_phone
+               c.customer_number, c.name as customer_full_name, c.email as customer_email, c.phone as customer_phone,
+               wos.name as stage_name, wos.color as stage_color
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
+        LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
         WHERE wo.id=?
     ''', (id,)).fetchone()
     
@@ -371,6 +378,9 @@ def edit_workorder(id):
             else:
                 customer_id = None
             
+            stage_id = request.form.get('stage_id')
+            stage_id = int(stage_id) if stage_id else None
+            
             # Update work order
             conn.execute('''
                 UPDATE work_orders 
@@ -385,7 +395,8 @@ def edit_workorder(id):
                     overhead_cost = ?,
                     customer_id = ?,
                     customer_name = ?,
-                    operational_status = ?
+                    operational_status = ?,
+                    stage_id = ?
                 WHERE id = ?
             ''', (
                 int(request.form['product_id']),
@@ -400,6 +411,7 @@ def edit_workorder(id):
                 customer_id,
                 customer_name,
                 request.form.get('operational_status') or None,
+                stage_id,
                 id
             ))
             
@@ -470,10 +482,11 @@ def edit_workorder(id):
     
     products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
     customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
+    stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
     conn.close()
     
-    return render_template('workorders/edit.html', workorder=workorder, products=products, customers=customers)
+    return render_template('workorders/edit.html', workorder=workorder, products=products, customers=customers, stages=stages)
 
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')

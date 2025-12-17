@@ -52,8 +52,8 @@
                         <p><strong>Disposition:</strong> <span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></p>
                         <p><strong>Status:</strong> <span class="badge bg-info">{{ workorder.status }}</span></p>
                         <p><strong>Priority:</strong> {{ workorder.priority }}</p>
-                        {% if workorder.operational_status %}
-                        <p><strong>Operational Status:</strong> <span class="badge bg-success">{{ workorder.operational_status }}</span></p>
+                        {% if workorder.stage_name %}
+                        <p><strong>Stage:</strong> <span class="badge" style="background-color: {{ workorder.stage_color or '#6c757d' }};">{{ workorder.stage_name }}</span></p>
                         {% endif %}
                     </div>
                     <div class="col-md-6">

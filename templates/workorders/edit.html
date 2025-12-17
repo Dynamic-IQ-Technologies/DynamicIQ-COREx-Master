@@ -91,7 +91,18 @@
             </div>
 
             <div class="row">
-                <div class="col-md-12">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="stage_id" class="form-label">Stage</label>
+                        <select class="form-select" id="stage_id" name="stage_id">
+                            <option value="">Select Stage (Optional)</option>
+                            {% for stage in stages %}
+                            <option value="{{ stage.id }}" {% if stage.id == workorder.stage_id %}selected{% endif %}>{{ stage.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
                     <div class="mb-3">
                         <label for="operational_status" class="form-label">Operational Status</label>
                         <select class="form-select" id="operational_status" name="operational_status">
