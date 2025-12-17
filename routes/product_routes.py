@@ -809,7 +809,7 @@ def part_analyzer_analyze():
         
         if not analysis_scope or 'sales_orders' in analysis_scope:
             so_lines = conn.execute('''
-                SELECT sol.*, so.order_number, so.status as order_status,
+                SELECT sol.*, so.so_number, so.status as order_status,
                        so.order_date, c.name as customer_name
                 FROM sales_order_lines sol
                 JOIN sales_orders so ON sol.so_id = so.id
