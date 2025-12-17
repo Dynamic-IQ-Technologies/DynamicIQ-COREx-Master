@@ -799,8 +799,8 @@ def release_to_shipping(id):
         ''', (id,))
         
         # Log activity
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from models import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='sales_orders',
             record_id=id,
@@ -1116,7 +1116,7 @@ def allocate_line(line_id):
         ''', (allocation_status, line_id))
         
         # Log activity
-        from models import AuditTrail
+        from models import AuditLogger
         changed_fields = {
             'allocated_quantity': allocate_qty, 
             'allocation_status': allocation_status,
@@ -1126,7 +1126,7 @@ def allocate_line(line_id):
         if serial_number:
             changed_fields['serial_number'] = serial_number
         
-        AuditTrail.log_change(
+        AuditLogger.log_change(
             conn=conn,
             record_type='sales_order_lines',
             record_id=line_id,
@@ -1199,7 +1199,7 @@ def deallocate_line(line_id):
         ''', (session.get('user_id'), line_id))
         
         # Log activity
-        from models import AuditTrail
+        from models import AuditLogger
         changed_fields = {
             'allocated_quantity': f'{allocated_qty} -> 0', 
             'allocation_status': f'{line["allocation_status"]} -> Pending',
@@ -1208,7 +1208,7 @@ def deallocate_line(line_id):
         if serial_number:
             changed_fields['serial_number'] = f'{serial_number} -> NULL'
         
-        AuditTrail.log_change(
+        AuditLogger.log_change(
             conn=conn,
             record_type='sales_order_lines',
             record_id=line_id,
@@ -1279,8 +1279,8 @@ def release_line_to_shipping(line_id):
         ''', (session.get('user_id'), session.get('user_id'), line_id))
         
         # Log activity
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from models import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='sales_order_lines',
             record_id=line_id,
