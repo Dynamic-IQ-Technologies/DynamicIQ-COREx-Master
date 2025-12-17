@@ -1314,6 +1314,125 @@ Ensure the procedure is professional, detailed, and follows aerospace industry b
         return jsonify({'success': False, 'error': str(e)})
 
 
+@qms_bp.route('/ai-manager/generate-iso-sop', methods=['POST'])
+@login_required
+def ai_generate_iso_sop():
+    """Generate ISO-compliant SOP using AI and save to database"""
+    data = request.get_json()
+    process_name = data.get('process_name', '')
+    category_id = data.get('category_id', '')
+    erp_module = data.get('erp_module', '')
+    context = data.get('context', '')
+    standards = data.get('standards', ['AS9100', 'ISO 9001'])
+    
+    if not process_name:
+        return jsonify({'success': False, 'error': 'Process name is required'})
+    
+    try:
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+        
+        standards_str = ', '.join(standards)
+        
+        prompt = f"""Generate a comprehensive ISO-compliant Standard Operating Procedure (SOP) for an aerospace MRO organization.
+
+Process Name: {process_name}
+ERP Module: {erp_module if erp_module else 'General'}
+Compliance Standards: {standards_str}
+Additional Context: {context if context else 'Standard aerospace MRO operations'}
+
+Generate a complete SOP following {standards_str} requirements with the following structure (return as JSON):
+{{
+    "title": "Full SOP title",
+    "purpose": "Clear purpose statement (2-3 sentences)",
+    "scope": "Detailed scope including what is covered and what is excluded",
+    "responsibilities": "Section with roles and their specific responsibilities in bulleted format",
+    "definitions": "Key terms and definitions relevant to this procedure",
+    "procedure_content": "Detailed step-by-step procedure with numbered main steps and sub-steps. Include quality checks, documentation requirements, and verification points. Format with clear sections.",
+    "references_text": "List of related documents, standards, and regulatory references",
+    "compliance_standards": "{standards_str}",
+    "applicable_roles": "Comma-separated list of applicable roles (e.g., Admin, Planner, Technician, Quality, Manager)",
+    "applicable_modules": "{erp_module if erp_module else 'General'}"
+}}
+
+Ensure the procedure is:
+1. Professional and detailed enough for actual use
+2. Compliant with {standards_str} documentation requirements
+3. Includes clear acceptance criteria and verification steps
+4. References appropriate forms, records, and documentation
+5. Follows aerospace industry best practices"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert QMS consultant specializing in aerospace MRO operations. Generate professional, compliant SOPs that meet regulatory requirements."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.5,
+            max_tokens=3000,
+            response_format={"type": "json_object"}
+        )
+        
+        sop_data = json.loads(response.choices[0].message.content or '{}')
+        
+        conn = get_db()
+        
+        count = conn.execute('SELECT COUNT(*) FROM qms_sops').fetchone()[0]
+        sop_number = f"SOP-{(count + 1):04d}"
+        
+        cursor = conn.execute('''
+            INSERT INTO qms_sops (
+                sop_number, title, purpose, scope, responsibilities, definitions,
+                procedure_content, references_text, compliance_standards,
+                category_id, status, revision, applicable_roles, applicable_modules,
+                prepared_by, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ''', (
+            sop_number,
+            sop_data.get('title', process_name),
+            sop_data.get('purpose', ''),
+            sop_data.get('scope', ''),
+            sop_data.get('responsibilities', ''),
+            sop_data.get('definitions', ''),
+            sop_data.get('procedure_content', ''),
+            sop_data.get('references_text', ''),
+            sop_data.get('compliance_standards', standards_str),
+            category_id if category_id else None,
+            'Draft',
+            1,
+            sop_data.get('applicable_roles', ''),
+            sop_data.get('applicable_modules', erp_module),
+            session.get('user_id')
+        ))
+        
+        sop_id = cursor.lastrowid
+        
+        log_qms_audit(conn, 'SOP', sop_id, 'Created', session.get('user_id'),
+                     session.get('username'), notes=f'AI-generated SOP {sop_number}')
+        
+        conn.execute('''
+            INSERT INTO qms_ai_analyses (analysis_type, context, request_data, response_data, user_id)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ('iso_sop_generation', process_name, prompt, json.dumps(sop_data), session.get('user_id')))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'sop_id': sop_id,
+            'sop_number': sop_number,
+            'redirect_url': url_for('qms.sop_view', sop_id=sop_id)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 # ============== Audit Trail ==============
 
 @qms_bp.route('/audit-trail')

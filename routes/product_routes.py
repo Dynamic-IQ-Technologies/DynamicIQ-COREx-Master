@@ -3,6 +3,8 @@ from models import Database, AuditLogger
 from auth import login_required, role_required
 import csv
 import io
+import os
+import json
 
 product_bp = Blueprint('product_routes', __name__)
 
@@ -692,3 +694,205 @@ def delete_product_uom_conversion(product_id, uom_id):
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+
+# ============== Part Analyzer (AI-Powered Cross-Module Intelligence) ==============
+
+@product_bp.route('/part-analyzer')
+@login_required
+def part_analyzer():
+    """Part Analyzer - AI-powered cross-module historical intelligence"""
+    db = Database()
+    conn = db.get_connection()
+    
+    products = conn.execute('''
+        SELECT id, code, name, product_type FROM products ORDER BY code
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('products/part_analyzer.html',
+                          products=[dict(p) for p in products])
+
+
+@product_bp.route('/part-analyzer/analyze', methods=['POST'])
+@login_required
+def part_analyzer_analyze():
+    """Analyze a part across all modules"""
+    db = Database()
+    conn = db.get_connection()
+    
+    product_id = request.form.get('product_id')
+    analysis_scope = request.form.getlist('scope')
+    
+    if not product_id:
+        return jsonify({'success': False, 'error': 'Please select a part to analyze'})
+    
+    try:
+        product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+        if not product:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Product not found'})
+        
+        product_data = dict(product)
+        
+        cross_module_data = {}
+        
+        if not analysis_scope or 'inventory' in analysis_scope:
+            inventory = conn.execute('''
+                SELECT * FROM inventory WHERE product_id = ?
+            ''', (product_id,)).fetchall()
+            inventory_dicts = [dict(i) for i in inventory]
+            cross_module_data['inventory'] = {
+                'records': inventory_dicts,
+                'total_qty': sum(i['quantity'] for i in inventory_dicts) if inventory_dicts else 0,
+                'locations': len(set(i.get('location') for i in inventory_dicts if i.get('location')))
+            }
+        
+        if not analysis_scope or 'bom' in analysis_scope:
+            bom_usage = conn.execute('''
+                SELECT b.*, p.code as parent_code, p.name as parent_name
+                FROM bom_items b
+                JOIN products p ON b.parent_product_id = p.id
+                WHERE b.child_product_id = ?
+            ''', (product_id,)).fetchall()
+            bom_children = conn.execute('''
+                SELECT b.*, p.code as child_code, p.name as child_name
+                FROM bom_items b
+                JOIN products p ON b.child_product_id = p.id
+                WHERE b.parent_product_id = ?
+            ''', (product_id,)).fetchall()
+            cross_module_data['bom'] = {
+                'used_in': [dict(b) for b in bom_usage],
+                'contains': [dict(b) for b in bom_children]
+            }
+        
+        if not analysis_scope or 'work_orders' in analysis_scope:
+            work_orders = conn.execute('''
+                SELECT wo.*, c.name as customer_name
+                FROM work_orders wo
+                LEFT JOIN customers c ON wo.customer_id = c.id
+                WHERE wo.product_id = ?
+                ORDER BY wo.created_at DESC LIMIT 20
+            ''', (product_id,)).fetchall()
+            wo_stats = conn.execute('''
+                SELECT status, COUNT(*) as count
+                FROM work_orders WHERE product_id = ? GROUP BY status
+            ''', (product_id,)).fetchall()
+            cross_module_data['work_orders'] = {
+                'recent': [dict(w) for w in work_orders],
+                'stats': {s['status']: s['count'] for s in wo_stats}
+            }
+        
+        if not analysis_scope or 'purchase_orders' in analysis_scope:
+            po_lines = conn.execute('''
+                SELECT pol.*, po.po_number, po.status as po_status, 
+                       po.order_date, s.name as supplier_name
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.purchase_order_id = po.id
+                LEFT JOIN suppliers s ON po.supplier_id = s.id
+                WHERE pol.product_id = ?
+                ORDER BY po.order_date DESC LIMIT 20
+            ''', (product_id,)).fetchall()
+            po_stats = conn.execute('''
+                SELECT SUM(pol.quantity) as total_ordered,
+                       AVG(pol.unit_price) as avg_price,
+                       COUNT(DISTINCT po.supplier_id) as supplier_count
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.purchase_order_id = po.id
+                WHERE pol.product_id = ?
+            ''', (product_id,)).fetchone()
+            cross_module_data['purchase_orders'] = {
+                'recent': [dict(p) for p in po_lines],
+                'stats': dict(po_stats) if po_stats else {}
+            }
+        
+        if not analysis_scope or 'sales_orders' in analysis_scope:
+            so_lines = conn.execute('''
+                SELECT sol.*, so.order_number, so.status as order_status,
+                       so.order_date, c.name as customer_name
+                FROM sales_order_lines sol
+                JOIN sales_orders so ON sol.sales_order_id = so.id
+                LEFT JOIN customers c ON so.customer_id = c.id
+                WHERE sol.product_id = ?
+                ORDER BY so.order_date DESC LIMIT 20
+            ''', (product_id,)).fetchall()
+            so_stats = conn.execute('''
+                SELECT SUM(sol.quantity) as total_sold,
+                       AVG(sol.unit_price) as avg_sell_price,
+                       COUNT(DISTINCT so.customer_id) as customer_count
+                FROM sales_order_lines sol
+                JOIN sales_orders so ON sol.sales_order_id = so.id
+                WHERE sol.product_id = ?
+            ''', (product_id,)).fetchone()
+            cross_module_data['sales_orders'] = {
+                'recent': [dict(s) for s in so_lines],
+                'stats': dict(so_stats) if so_stats else {}
+            }
+        
+        if not analysis_scope or 'quality' in analysis_scope:
+            deviations = conn.execute('''
+                SELECT * FROM qms_deviations 
+                WHERE product_id = ? OR description LIKE ?
+                ORDER BY created_at DESC LIMIT 10
+            ''', (product_id, f'%{product_data["code"]}%')).fetchall()
+            cross_module_data['quality'] = {
+                'deviations': [dict(d) for d in deviations]
+            }
+        
+        conn.close()
+        
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+        
+        prompt = f"""Analyze this part/product across all ERP modules and provide strategic intelligence.
+
+PART INFORMATION:
+Code: {product_data.get('code')}
+Name: {product_data.get('name')}
+Type: {product_data.get('product_type')}
+Cost: ${product_data.get('cost', 0)}
+Description: {product_data.get('description', 'N/A')}
+
+CROSS-MODULE DATA:
+{json.dumps(cross_module_data, indent=2, default=str)}
+
+Provide a comprehensive analysis including:
+1. **Inventory Health**: Current stock status, turnover assessment, reorder recommendations
+2. **Supply Chain Analysis**: Supplier diversity, pricing trends, lead time patterns
+3. **Demand Analysis**: Sales patterns, customer concentration, growth trends
+4. **Production Insights**: Work order patterns, quality issues, production efficiency
+5. **BOM Impact**: Where this part is used, criticality assessment
+6. **Quality Assessment**: Deviation patterns, root causes, improvement opportunities
+7. **Strategic Recommendations**: Top 3-5 actionable recommendations for this part
+8. **Risk Indicators**: Any concerns or risks identified across modules
+9. **Cost Optimization**: Opportunities to reduce costs or improve margins
+
+Format the response with clear sections and bullet points for easy reading."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert ERP analyst specializing in aerospace MRO operations. Provide actionable, data-driven insights for part management and optimization."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2500
+        )
+        
+        analysis = response.choices[0].message.content
+        
+        return jsonify({
+            'success': True,
+            'product': product_data,
+            'cross_module_data': cross_module_data,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})

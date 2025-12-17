@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Part Analyzer - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-search-heart me-2"></i>Part Analyzer</h1>
+            <p class="text-muted mb-0">AI-powered cross-module historical intelligence for any part</p>
+        </div>
+        <a href="{{ url_for('product_routes.list_products') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Products
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Analysis Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Part <span class="text-danger">*</span></label>
+                        <select id="productSelect" class="form-select">
+                            <option value="">-- Select a Part --</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Analysis Scope</label>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input scope-check" id="scopeInventory" value="inventory" checked>
+                            <label class="form-check-label" for="scopeInventory">
+                                <i class="bi bi-box-seam me-1"></i> Inventory
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input scope-check" id="scopeBom" value="bom" checked>
+                            <label class="form-check-label" for="scopeBom">
+                                <i class="bi bi-diagram-3 me-1"></i> Bill of Materials
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input scope-check" id="scopeWO" value="work_orders" checked>
+                            <label class="form-check-label" for="scopeWO">
+                                <i class="bi bi-clipboard-check me-1"></i> Work Orders
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input scope-check" id="scopePO" value="purchase_orders" checked>
+                            <label class="form-check-label" for="scopePO">
+                                <i class="bi bi-cart me-1"></i> Purchase Orders
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input scope-check" id="scopeSO" value="sales_orders" checked>
+                            <label class="form-check-label" for="scopeSO">
+                                <i class="bi bi-receipt me-1"></i> Sales Orders
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input scope-check" id="scopeQuality" value="quality" checked>
+                            <label class="form-check-label" for="scopeQuality">
+                                <i class="bi bi-shield-check me-1"></i> Quality / Deviations
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="analyzeBtn" class="btn btn-primary w-100">
+                        <i class="bi bi-cpu me-1"></i> Analyze Part
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4" id="partInfoCard" style="display: none;">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Part Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-5">Code:</dt>
+                        <dd class="col-7" id="partCode">-</dd>
+                        <dt class="col-5">Name:</dt>
+                        <dd class="col-7" id="partName">-</dd>
+                        <dt class="col-5">Type:</dt>
+                        <dd class="col-7" id="partType">-</dd>
+                        <dt class="col-5">Cost:</dt>
+                        <dd class="col-7" id="partCost">-</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4" id="quickStatsCard" style="display: none;">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3" id="quickStatsContent">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm" id="analysisCard" style="display: none;">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI Analysis</h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyAnalysis()">
+                        <i class="bi bi-clipboard me-1"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="analysisResult" class="analysis-content" style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.6; max-height: 600px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm" id="loadingCard" style="display: none;">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="text-muted">Analyzing part across all modules...</h5>
+                    <p class="text-muted small">This may take a few moments as we gather data from inventory, orders, work orders, and quality records.</p>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm" id="welcomeCard">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-search-heart display-1 text-primary mb-3"></i>
+                    <h4>Part Analyzer</h4>
+                    <p class="text-muted">Select a part from the list and click "Analyze Part" to get comprehensive cross-module intelligence including:</p>
+                    <div class="row g-3 mt-3 text-start">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-box-seam text-primary me-2 fs-5"></i>
+                                <div>
+                                    <strong>Inventory Health</strong>
+                                    <p class="small text-muted mb-0">Stock levels, turnover, reorder points</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-truck text-primary me-2 fs-5"></i>
+                                <div>
+                                    <strong>Supply Chain</strong>
+                                    <p class="small text-muted mb-0">Supplier diversity, pricing trends</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-graph-up text-primary me-2 fs-5"></i>
+                                <div>
+                                    <strong>Demand Analysis</strong>
+                                    <p class="small text-muted mb-0">Sales patterns, customer insights</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-shield-check text-primary me-2 fs-5"></i>
+                                <div>
+                                    <strong>Quality Assessment</strong>
+                                    <p class="small text-muted mb-0">Deviations, root causes, improvements</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('analyzeBtn').addEventListener('click', analyzePart);
+
+function analyzePart() {
+    const productId = document.getElementById('productSelect').value;
+    if (!productId) {
+        alert('Please select a part to analyze');
+        return;
+    }
+    
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
+    
+    document.getElementById('welcomeCard').style.display = 'none';
+    document.getElementById('analysisCard').style.display = 'none';
+    document.getElementById('loadingCard').style.display = 'block';
+    
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    
+    document.querySelectorAll('.scope-check:checked').forEach(cb => {
+        formData.append('scope', cb.value);
+    });
+    
+    fetch('{{ url_for("product_routes.part_analyzer_analyze") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Analyze Part';
+        document.getElementById('loadingCard').style.display = 'none';
+        
+        if (data.success) {
+            document.getElementById('partInfoCard').style.display = 'block';
+            document.getElementById('partCode').textContent = data.product.code || '-';
+            document.getElementById('partName').textContent = data.product.name || '-';
+            document.getElementById('partType').textContent = data.product.product_type || '-';
+            document.getElementById('partCost').textContent = data.product.cost ? '$' + parseFloat(data.product.cost).toFixed(2) : '-';
+            
+            buildQuickStats(data.cross_module_data);
+            
+            document.getElementById('analysisResult').textContent = data.analysis;
+            document.getElementById('analysisCard').style.display = 'block';
+        } else {
+            document.getElementById('welcomeCard').style.display = 'block';
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Analyze Part';
+        document.getElementById('loadingCard').style.display = 'none';
+        document.getElementById('welcomeCard').style.display = 'block';
+        alert('Error analyzing part: ' + error);
+    });
+}
+
+function buildQuickStats(data) {
+    const statsHtml = [];
+    
+    if (data.inventory) {
+        statsHtml.push(`
+            <div class="col-6">
+                <div class="p-2 bg-light rounded text-center">
+                    <div class="fs-4 fw-bold text-primary">${data.inventory.total_qty || 0}</div>
+                    <small class="text-muted">In Stock</small>
+                </div>
+            </div>
+        `);
+    }
+    
+    if (data.work_orders && data.work_orders.stats) {
+        const totalWO = Object.values(data.work_orders.stats).reduce((a, b) => a + b, 0);
+        statsHtml.push(`
+            <div class="col-6">
+                <div class="p-2 bg-light rounded text-center">
+                    <div class="fs-4 fw-bold text-info">${totalWO}</div>
+                    <small class="text-muted">Work Orders</small>
+                </div>
+            </div>
+        `);
+    }
+    
+    if (data.purchase_orders && data.purchase_orders.stats) {
+        statsHtml.push(`
+            <div class="col-6">
+                <div class="p-2 bg-light rounded text-center">
+                    <div class="fs-4 fw-bold text-warning">${data.purchase_orders.stats.supplier_count || 0}</div>
+                    <small class="text-muted">Suppliers</small>
+                </div>
+            </div>
+        `);
+    }
+    
+    if (data.sales_orders && data.sales_orders.stats) {
+        statsHtml.push(`
+            <div class="col-6">
+                <div class="p-2 bg-light rounded text-center">
+                    <div class="fs-4 fw-bold text-success">${data.sales_orders.stats.customer_count || 0}</div>
+                    <small class="text-muted">Customers</small>
+                </div>
+            </div>
+        `);
+    }
+    
+    if (data.bom) {
+        statsHtml.push(`
+            <div class="col-6">
+                <div class="p-2 bg-light rounded text-center">
+                    <div class="fs-4 fw-bold text-secondary">${data.bom.used_in ? data.bom.used_in.length : 0}</div>
+                    <small class="text-muted">Used In</small>
+                </div>
+            </div>
+        `);
+    }
+    
+    if (data.quality) {
+        statsHtml.push(`
+            <div class="col-6">
+                <div class="p-2 bg-light rounded text-center">
+                    <div class="fs-4 fw-bold text-danger">${data.quality.deviations ? data.quality.deviations.length : 0}</div>
+                    <small class="text-muted">Deviations</small>
+                </div>
+            </div>
+        `);
+    }
+    
+    if (statsHtml.length > 0) {
+        document.getElementById('quickStatsContent').innerHTML = statsHtml.join('');
+        document.getElementById('quickStatsCard').style.display = 'block';
+    }
+}
+
+function copyAnalysis() {
+    const text = document.getElementById('analysisResult').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Analysis copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}
