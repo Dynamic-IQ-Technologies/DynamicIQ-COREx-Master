@@ -118,7 +118,7 @@
         {% endwith %}
 
         <form method="POST" action="{{ url_for('clock_station_routes.clock_auth') }}">
-            <div class="mb-3">
+            <div class="mb-4">
                 <label for="employee_code" class="form-label">
                     <i class="bi bi-person-badge"></i> Employee Code
                 </label>
@@ -130,25 +130,11 @@
                        autocomplete="off"
                        autofocus
                        required>
-            </div>
-
-            <div class="mb-4">
-                <label for="pin" class="form-label">
-                    <i class="bi bi-lock-fill"></i> PIN
-                </label>
-                <input type="password" 
-                       class="form-control form-control-lg" 
-                       id="pin" 
-                       name="pin" 
-                       placeholder="••••"
-                       autocomplete="off"
-                       inputmode="numeric"
-                       pattern="[0-9]*"
-                       required>
+                <small class="form-text text-muted text-center d-block mt-2">Enter your employee code to clock in or out</small>
             </div>
 
             <button type="submit" class="btn btn-primary btn-clock w-100">
-                <i class="bi bi-box-arrow-in-right"></i> Sign In
+                <i class="bi bi-box-arrow-in-right"></i> Continue
             </button>
         </form>
 

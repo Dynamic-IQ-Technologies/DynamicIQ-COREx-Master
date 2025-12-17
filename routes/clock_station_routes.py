@@ -22,12 +22,11 @@ def clock_login():
 
 @clock_station_bp.route('/clock/auth', methods=['POST'])
 def clock_auth():
-    """Authenticate employee with PIN"""
+    """Authenticate employee with Employee Code only"""
     employee_code = request.form.get('employee_code', '').strip().upper()
-    pin = request.form.get('pin', '').strip()
     
-    if not employee_code or not pin:
-        flash('Please enter both Employee Code and PIN.', 'danger')
+    if not employee_code:
+        flash('Please enter your Employee Code.', 'danger')
         return redirect(url_for('clock_station_routes.clock_login'))
     
     # Get IP address for tracking
@@ -36,21 +35,9 @@ def clock_auth():
     db = Database()
     conn = db.get_connection()
     
-    # SERVER-SIDE BRUTE-FORCE PROTECTION: Check failed attempts in last 15 minutes
-    cutoff_time = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
-    failed_count = conn.execute('''
-        SELECT COUNT(*) as count FROM clock_login_attempts
-        WHERE employee_code = ? AND ip_address = ? AND attempt_time >= ? AND success = 0
-    ''', (employee_code, ip_address, cutoff_time)).fetchone()['count']
-    
-    if failed_count >= 5:
-        flash('Too many failed attempts. Please try again in 15 minutes.', 'danger')
-        conn.close()
-        return redirect(url_for('clock_station_routes.clock_login'))
-    
     # Find employee with matching code
     employee = conn.execute('''
-        SELECT id, employee_code, first_name, last_name, hourly_rate, status, clock_pin
+        SELECT id, employee_code, first_name, last_name, hourly_rate, status
         FROM labor_resources
         WHERE UPPER(employee_code) = ? AND status = 'Active'
     ''', (employee_code,)).fetchone()
@@ -64,33 +51,6 @@ def clock_auth():
         conn.commit()
         conn.close()
         flash('Invalid employee code or account is inactive.', 'danger')
-        return redirect(url_for('clock_station_routes.clock_login'))
-    
-    # SECURITY: Require PIN to be set
-    if not employee['clock_pin']:
-        conn.close()
-        flash('Your PIN has not been set. Please contact your manager to set up your clock station PIN.', 'warning')
-        return redirect(url_for('clock_station_routes.clock_login'))
-    
-    # SECURITY: Verify hashed PIN (with safe fallback for legacy plaintext PINs)
-    try:
-        # Try to verify as hashed PIN
-        pin_valid = check_password_hash(employee['clock_pin'], pin)
-    except (ValueError, TypeError):
-        # Legacy plaintext PIN detected - reject and prompt for reset
-        conn.close()
-        flash('Your PIN needs to be reset for security. Please contact your manager to reset your clock station PIN.', 'warning')
-        return redirect(url_for('clock_station_routes.clock_login'))
-    
-    if not pin_valid:
-        # Log failed attempt
-        conn.execute('''
-            INSERT INTO clock_login_attempts (employee_code, ip_address, attempt_time, success)
-            VALUES (?, ?, ?, 0)
-        ''', (employee_code, ip_address, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        conn.commit()
-        conn.close()
-        flash('Invalid PIN. Please try again.', 'danger')
         return redirect(url_for('clock_station_routes.clock_login'))
     
     # Log successful login
