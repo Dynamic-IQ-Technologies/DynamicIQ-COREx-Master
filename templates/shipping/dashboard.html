@@ -64,6 +64,7 @@
                     <tr>
                         <th>Shipment #</th>
                         <th>Type</th>
+                        <th>Related Record</th>
                         <th>Ship To</th>
                         <th>Items</th>
                         <th>Carrier</th>
@@ -76,6 +77,23 @@
                     <tr>
                         <td><a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}">{{ shipment.shipment_number }}</a></td>
                         <td><span class="badge bg-secondary">{{ shipment.shipment_type }}</span></td>
+                        <td>
+                            {% if shipment.reference_type and shipment.reference_id %}
+                                {% if shipment.reference_type == 'Sales Order' %}
+                                <a href="{{ url_for('salesorder_routes.view_sales_order', id=shipment.reference_id) }}" class="text-decoration-none">
+                                    <i class="bi bi-cart"></i> SO #{{ shipment.reference_id }}
+                                </a>
+                                {% elif shipment.reference_type == 'Work Order' %}
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=shipment.reference_id) }}" class="text-decoration-none">
+                                    <i class="bi bi-tools"></i> WO #{{ shipment.reference_id }}
+                                </a>
+                                {% else %}
+                                {{ shipment.reference_type }} #{{ shipment.reference_id }}
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>{{ shipment.ship_to_name }}</td>
                         <td>{{ shipment.item_count }} items</td>
                         <td>{{ shipment.carrier or 'TBD' }}</td>
@@ -108,6 +126,7 @@
                 <thead>
                     <tr>
                         <th>Shipment #</th>
+                        <th>Related Record</th>
                         <th>Ship To</th>
                         <th>Tracking</th>
                         <th>Ship Date</th>
@@ -119,6 +138,23 @@
                     {% for shipment in intransit_shipments %}
                     <tr>
                         <td><a href="{{ url_for('shipping_routes.view_shipment', id=shipment.id) }}">{{ shipment.shipment_number }}</a></td>
+                        <td>
+                            {% if shipment.reference_type and shipment.reference_id %}
+                                {% if shipment.reference_type == 'Sales Order' %}
+                                <a href="{{ url_for('salesorder_routes.view_sales_order', id=shipment.reference_id) }}" class="text-decoration-none">
+                                    <i class="bi bi-cart"></i> SO #{{ shipment.reference_id }}
+                                </a>
+                                {% elif shipment.reference_type == 'Work Order' %}
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=shipment.reference_id) }}" class="text-decoration-none">
+                                    <i class="bi bi-tools"></i> WO #{{ shipment.reference_id }}
+                                </a>
+                                {% else %}
+                                {{ shipment.reference_type }} #{{ shipment.reference_id }}
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>{{ shipment.ship_to_name }}</td>
                         <td>
                             {% if shipment.tracking_number %}
