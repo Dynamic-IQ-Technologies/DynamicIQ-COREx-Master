@@ -2961,6 +2961,22 @@ class Database:
         # Add customer_id column if it doesn't exist
         if 'customer_id' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN customer_id INTEGER REFERENCES customers(id)")
+        
+        # Refresh columns list after potential additions
+        cursor.execute("PRAGMA table_info(work_orders)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add notes column if it doesn't exist
+        if 'notes' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN notes TEXT")
+        
+        # Add disposition column if it doesn't exist
+        if 'disposition' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN disposition TEXT")
+        
+        # Add created_by column if it doesn't exist
+        if 'created_by' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN created_by INTEGER REFERENCES users(id)")
     
     def _migrate_work_orders_stages(self, cursor):
         """Add stage_id column to work_orders table for tracking work order stages"""
