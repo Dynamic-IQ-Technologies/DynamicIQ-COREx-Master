@@ -212,6 +212,32 @@
                 {% if is_clocked_in %}
                 <input type="hidden" name="punch_type" value="Clock Out">
                 
+                {% if last_punch and last_punch.work_order_id %}
+                <div class="alert alert-info mb-3">
+                    <small><i class="bi bi-gear"></i> Currently on: <strong>{{ last_punch.wo_number }}</strong></small>
+                    {% if last_punch.task_name %}
+                    <br><small><i class="bi bi-list-task"></i> Task: <strong>{{ last_punch.task_name }}</strong></small>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label">Work Order</label>
+                    <select class="form-select" id="work_order_id_out" name="work_order_id" onchange="loadWorkOrderTasksOut()">
+                        <option value="">No Work Order</option>
+                        {% for wo in work_orders %}
+                        <option value="{{ wo.id }}" {% if last_punch and last_punch.work_order_id == wo.id %}selected{% endif %}>{{ wo.wo_number }} - {{ wo.product_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Task</label>
+                    <select class="form-select" id="task_id_out" name="task_id">
+                        <option value="">No Specific Task</option>
+                    </select>
+                </div>
+                
                 <div class="mb-3">
                     <label class="form-label">Work Notes (Optional)</label>
                     <textarea class="form-control" name="notes" rows="2" placeholder="Briefly describe work completed..."></textarea>
@@ -340,7 +366,7 @@
         setInterval(updateTime, 1000);
         setInterval(updateElapsedTime, 1000);
 
-        // Load tasks when work order is selected
+        // Load tasks when work order is selected (Clock In)
         function loadWorkOrderTasks() {
             const woSelect = document.getElementById('work_order_id');
             const taskSelect = document.getElementById('task_id');
@@ -357,7 +383,7 @@
                         tasks.forEach(task => {
                             const option = document.createElement('option');
                             option.value = task.id;
-                            option.textContent = task.task_name;
+                            option.textContent = task.task_name + (task.status ? ` (${task.status})` : '');
                             taskSelect.appendChild(option);
                         });
                     })
@@ -366,6 +392,45 @@
                     });
             }
         }
+
+        // Load tasks when work order is selected (Clock Out)
+        function loadWorkOrderTasksOut() {
+            const woSelect = document.getElementById('work_order_id_out');
+            const taskSelect = document.getElementById('task_id_out');
+            const woId = woSelect.value;
+            
+            // Reset task dropdown
+            taskSelect.innerHTML = '<option value="">No Specific Task</option>';
+            
+            if (woId) {
+                // Fetch tasks for selected work order
+                fetch(`/clock/api/tasks/${woId}`)
+                    .then(response => response.json())
+                    .then(tasks => {
+                        tasks.forEach(task => {
+                            const option = document.createElement('option');
+                            option.value = task.id;
+                            option.textContent = task.task_name + (task.status ? ` (${task.status})` : '');
+                            {% if last_punch and last_punch.task_id %}
+                            if (task.id == {{ last_punch.task_id or 0 }}) {
+                                option.selected = true;
+                            }
+                            {% endif %}
+                            taskSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading tasks:', error);
+                    });
+            }
+        }
+
+        // Auto-load tasks if work order was selected during clock-in
+        {% if is_clocked_in and last_punch and last_punch.work_order_id %}
+        document.addEventListener('DOMContentLoaded', function() {
+            loadWorkOrderTasksOut();
+        });
+        {% endif %}
     </script>
 </body>
 </html>

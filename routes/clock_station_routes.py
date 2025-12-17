@@ -124,12 +124,17 @@ def clock_dashboard():
         WHERE id = ?
     ''', (employee_id,)).fetchone()
     
-    # Get current status (last punch)
+    # Get current status (last punch) with work order and task info
     last_punch = conn.execute('''
-        SELECT punch_type, punch_time, location, notes, project_name
-        FROM time_clock_punches
-        WHERE employee_id = ?
-        ORDER BY punch_time DESC
+        SELECT tcp.punch_type, tcp.punch_time, tcp.location, tcp.notes, tcp.project_name,
+               tcp.work_order_id, tcp.task_id,
+               wo.wo_number,
+               wot.task_name
+        FROM time_clock_punches tcp
+        LEFT JOIN work_orders wo ON tcp.work_order_id = wo.id
+        LEFT JOIN work_order_tasks wot ON tcp.task_id = wot.id
+        WHERE tcp.employee_id = ?
+        ORDER BY tcp.punch_time DESC
         LIMIT 1
     ''', (employee_id,)).fetchone()
     
