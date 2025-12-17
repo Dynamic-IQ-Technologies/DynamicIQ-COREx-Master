@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Deviations - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-exclamation-triangle me-2"></i>Deviations</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item active">Deviations</li>
+                </ol>
+            </nav>
+        </div>
+        <a href="{{ url_for('qms.deviation_create') }}" class="btn btn-warning">
+            <i class="bi bi-plus-lg me-1"></i> Report Deviation
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="Open" {{ 'selected' if status_filter == 'Open' }}>Open</option>
+                        <option value="In Progress" {{ 'selected' if status_filter == 'In Progress' }}>In Progress</option>
+                        <option value="Closed" {{ 'selected' if status_filter == 'Closed' }}>Closed</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Severity</label>
+                    <select name="severity" class="form-select">
+                        <option value="">All Severities</option>
+                        <option value="Minor" {{ 'selected' if severity_filter == 'Minor' }}>Minor</option>
+                        <option value="Major" {{ 'selected' if severity_filter == 'Major' }}>Major</option>
+                        <option value="Critical" {{ 'selected' if severity_filter == 'Critical' }}>Critical</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Deviation #</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Severity</th>
+                        <th>Reported By</th>
+                        <th>Assigned To</th>
+                        <th>Status</th>
+                        <th>Due Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dev in deviations %}
+                    <tr>
+                        <td class="fw-bold">{{ dev.deviation_number }}</td>
+                        <td>{{ dev.deviation_type }}</td>
+                        <td>{{ dev.description[:50] }}{% if dev.description|length > 50 %}...{% endif %}</td>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if dev.severity == 'Critical' else 'warning' if dev.severity == 'Major' else 'secondary' }}">
+                                {{ dev.severity }}
+                            </span>
+                        </td>
+                        <td>{{ dev.reported_by_name or '-' }}</td>
+                        <td>{{ dev.assigned_to_name or '-' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if dev.status == 'Open' else 'info' if dev.status == 'In Progress' else 'success' }}">
+                                {{ dev.status }}
+                            </span>
+                        </td>
+                        <td>{{ dev.due_date or '-' }}</td>
+                        <td>
+                            {% if dev.status != 'Closed' %}
+                            <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#closeModal{{ dev.id }}">
+                                <i class="bi bi-check"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+                            No deviations found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% for dev in deviations %}
+{% if dev.status != 'Closed' %}
+<div class="modal fade" id="closeModal{{ dev.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('qms.deviation_close', deviation_id=dev.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Close Deviation {{ dev.deviation_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Closure Notes</label>
+                        <textarea name="closure_notes" class="form-control" rows="3" required placeholder="Describe resolution..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Close Deviation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}SOP Categories - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-folder me-2"></i>SOP Categories</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item active">Categories</li>
+                </ol>
+            </nav>
+        </div>
+        <a href="{{ url_for('qms.category_create') }}" class="btn btn-success">
+            <i class="bi bi-plus-lg me-1"></i> New Category
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>SOPs</th>
+                        <th>Status</th>
+                        <th>Sort Order</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categories %}
+                    <tr>
+                        <td class="fw-bold">{{ cat.code }}</td>
+                        <td>{{ cat.name }}</td>
+                        <td>{{ cat.description or '-' }}</td>
+                        <td><span class="badge bg-secondary">{{ cat.sop_count }}</span></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if cat.status == 'Active' else 'secondary' }}">{{ cat.status }}</span>
+                        </td>
+                        <td>{{ cat.sort_order }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-folder fs-1 d-block mb-2"></i>
+                            No categories found. <a href="{{ url_for('qms.category_create') }}">Create your first category</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

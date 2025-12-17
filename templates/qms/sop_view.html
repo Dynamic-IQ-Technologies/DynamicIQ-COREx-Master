@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sop.sop_number }} - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-file-earmark-text me-2"></i>{{ sop.sop_number }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.sop_list') }}">SOPs</a></li>
+                    <li class="breadcrumb-item active">{{ sop.sop_number }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex gap-2">
+            {% if sop.status == 'Draft' and session.get('role') in ['admin', 'manager', 'quality'] %}
+            <form method="post" action="{{ url_for('qms.sop_approve', sop_id=sop.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle me-1"></i> Approve & Activate
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('qms.sop_edit', sop_id=sop.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+            {% if sop.status == 'Active' %}
+            <form method="post" action="{{ url_for('qms.sop_acknowledge', sop_id=sop.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="bi bi-check2-square me-1"></i> Acknowledge
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ sop.title }}</h5>
+                    <div>
+                        <span class="badge bg-{{ 'success' if sop.status == 'Active' else 'warning' if sop.status == 'Draft' else 'secondary' }} fs-6">{{ sop.status }}</span>
+                        <span class="badge bg-secondary fs-6 ms-1">Rev {{ sop.revision }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if sop.purpose %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-bullseye me-1"></i> Purpose</h6>
+                        <p class="mb-0">{{ sop.purpose }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if sop.scope %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-arrows-angle-expand me-1"></i> Scope</h6>
+                        <p class="mb-0">{{ sop.scope }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if sop.responsibilities %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-people me-1"></i> Responsibilities</h6>
+                        <p class="mb-0 white-space-pre-line">{{ sop.responsibilities }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if sop.definitions %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-book me-1"></i> Definitions</h6>
+                        <p class="mb-0 white-space-pre-line">{{ sop.definitions }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-list-ol me-1"></i> Procedure</h6>
+                        <div class="bg-light p-3 rounded white-space-pre-line">{{ sop.procedure_content or 'No procedure content defined.' }}</div>
+                    </div>
+
+                    {% if sop.references_text %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-link-45deg me-1"></i> References</h6>
+                        <p class="mb-0 white-space-pre-line">{{ sop.references_text }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if work_instructions %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Related Work Instructions</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for wi in work_instructions %}
+                        <a href="{{ url_for('qms.wi_view', wi_id=wi.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ wi.wi_number }}</strong> - {{ wi.title }}
+                                </div>
+                                <span class="badge bg-{{ 'success' if wi.status == 'Active' else 'secondary' }}">{{ wi.status }}</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if versions %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Revision History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Revision</th>
+                                    <th>Date</th>
+                                    <th>Change Summary</th>
+                                    <th>By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ver in versions %}
+                                <tr>
+                                    <td><span class="badge bg-secondary">{{ ver.revision }}</span></td>
+                                    <td>{{ ver.revision_date }}</td>
+                                    <td>{{ ver.change_summary or '-' }}</td>
+                                    <td>{{ ver.created_by_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Document Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th class="text-muted">Category</th>
+                            <td>{{ sop.category_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Effective Date</th>
+                            <td>{{ sop.effective_date or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Review Date</th>
+                            <td>{{ sop.review_date or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Prepared By</th>
+                            <td>{{ sop.prepared_by_full or sop.prepared_by_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Reviewed By</th>
+                            <td>{{ sop.reviewed_by_full or sop.reviewed_by_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Approved By</th>
+                            <td>{{ sop.approved_by_full or sop.approved_by_name or '-' }}</td>
+                        </tr>
+                        {% if sop.approved_date %}
+                        <tr>
+                            <th class="text-muted">Approved Date</th>
+                            <td>{{ sop.approved_date[:10] }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sop.compliance_standards %}
+                        <tr>
+                            <th class="text-muted">Compliance</th>
+                            <td>{{ sop.compliance_standards }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sop.applicable_roles %}
+                        <tr>
+                            <th class="text-muted">Roles</th>
+                            <td>{{ sop.applicable_roles }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sop.applicable_modules %}
+                        <tr>
+                            <th class="text-muted">Modules</th>
+                            <td>{{ sop.applicable_modules }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            {% if acknowledgments %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Acknowledgments</h5>
+                    <span class="badge bg-primary">{{ acknowledgments|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                        {% for ack in acknowledgments %}
+                        <div class="list-group-item py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ ack.full_name or ack.username }}</span>
+                                <small class="text-muted">{{ ack.acknowledged_at[:10] }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if audit_trail %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit Trail</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for entry in audit_trail %}
+                        <div class="list-group-item py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-info">{{ entry.action }}</span>
+                                    <small class="d-block text-muted">{{ entry.user_name }}</small>
+                                </div>
+                                <small class="text-muted">{{ entry.timestamp[:16] }}</small>
+                            </div>
+                            {% if entry.notes %}
+                            <small class="text-muted">{{ entry.notes }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.white-space-pre-line { white-space: pre-line; }
+</style>
+{% endblock %}

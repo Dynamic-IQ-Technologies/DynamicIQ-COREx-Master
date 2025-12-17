@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}{{ wi.wi_number }} - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-list-check me-2"></i>{{ wi.wi_number }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.wi_list') }}">Work Instructions</a></li>
+                    <li class="breadcrumb-item active">{{ wi.wi_number }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('qms.wi_edit', wi_id=wi.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ wi.title }}</h5>
+                    <span class="badge bg-{{ 'success' if wi.status == 'Active' else 'warning' if wi.status == 'Draft' else 'secondary' }} fs-6">{{ wi.status }}</span>
+                </div>
+                <div class="card-body">
+                    {% if wi.description %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-info-circle me-1"></i> Description</h6>
+                        <p class="mb-0">{{ wi.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if wi.prerequisites %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-check-square me-1"></i> Prerequisites</h6>
+                        <p class="mb-0 white-space-pre-line">{{ wi.prerequisites }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if wi.safety_requirements %}
+                    <div class="alert alert-warning mb-4">
+                        <h6><i class="bi bi-shield-exclamation me-1"></i> Safety Requirements</h6>
+                        <p class="mb-0 white-space-pre-line">{{ wi.safety_requirements }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-4">
+                        {% if wi.tools_required %}
+                        <div class="col-md-6">
+                            <h6 class="text-primary"><i class="bi bi-tools me-1"></i> Tools Required</h6>
+                            <p class="white-space-pre-line">{{ wi.tools_required }}</p>
+                        </div>
+                        {% endif %}
+                        {% if wi.materials_required %}
+                        <div class="col-md-6">
+                            <h6 class="text-primary"><i class="bi bi-box me-1"></i> Materials Required</h6>
+                            <p class="white-space-pre-line">{{ wi.materials_required }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-list-ol me-2"></i>Procedure Steps</h5>
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addStepModal">
+                        <i class="bi bi-plus"></i> Add Step
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    {% if steps %}
+                    <div class="list-group list-group-flush">
+                        {% for step in steps %}
+                        <div class="list-group-item">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <span class="badge bg-primary rounded-circle fs-6" style="width: 32px; height: 32px; line-height: 24px;">{{ step.step_number }}</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ step.title }}</h6>
+                                    {% if step.instructions %}
+                                    <p class="mb-2 white-space-pre-line">{{ step.instructions }}</p>
+                                    {% endif %}
+                                    
+                                    {% if step.warning_text %}
+                                    <div class="alert alert-danger py-1 px-2 mb-1">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> <strong>WARNING:</strong> {{ step.warning_text }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if step.caution_text %}
+                                    <div class="alert alert-warning py-1 px-2 mb-1">
+                                        <i class="bi bi-exclamation-circle me-1"></i> <strong>CAUTION:</strong> {{ step.caution_text }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if step.note_text %}
+                                    <div class="alert alert-info py-1 px-2 mb-1">
+                                        <i class="bi bi-info-circle me-1"></i> <strong>NOTE:</strong> {{ step.note_text }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if step.expected_result %}
+                                    <div class="text-muted small">
+                                        <strong>Expected Result:</strong> {{ step.expected_result }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if step.verification_required %}
+                                    <span class="badge bg-info"><i class="bi bi-check-circle"></i> Verification: {{ step.verification_type or 'Required' }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-list-ol fs-1"></i>
+                        <p class="mb-0 mt-2">No steps defined yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th class="text-muted">Linked SOP</th>
+                            <td>
+                                {% if wi.sop_number %}
+                                <a href="{{ url_for('qms.sop_view', sop_id=wi.sop_id) }}">{{ wi.sop_number }}</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">ERP Module</th>
+                            <td>{{ wi.erp_module or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Transaction</th>
+                            <td>{{ wi.erp_transaction or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Difficulty</th>
+                            <td>
+                                <span class="badge bg-{{ 'success' if wi.difficulty_level == 'Basic' else 'info' if wi.difficulty_level == 'Intermediate' else 'warning' if wi.difficulty_level == 'Advanced' else 'danger' }}">
+                                    {{ wi.difficulty_level }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Est. Time</th>
+                            <td>{{ wi.estimated_time_minutes or '-' }} min</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Prepared By</th>
+                            <td>{{ wi.prepared_by_full or wi.prepared_by_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Effective Date</th>
+                            <td>{{ wi.effective_date or '-' }}</td>
+                        </tr>
+                        {% if wi.applicable_roles %}
+                        <tr>
+                            <th class="text-muted">Roles</th>
+                            <td>{{ wi.applicable_roles }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            {% if acknowledgments %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Acknowledgments</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                        {% for ack in acknowledgments %}
+                        <div class="list-group-item py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ ack.full_name or ack.username }}</span>
+                                <small class="text-muted">{{ ack.acknowledged_at[:10] }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStepModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('qms.wi_add_step', wi_id=wi.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Step</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Step Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Instructions</label>
+                        <textarea name="instructions" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Expected Result</label>
+                        <input type="text" name="expected_result" class="form-control">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input type="checkbox" name="verification_required" class="form-check-input" id="verificationRequired">
+                                <label class="form-check-label" for="verificationRequired">Verification Required</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" name="verification_type" class="form-control" placeholder="Verification type...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warning (if any)</label>
+                        <input type="text" name="warning_text" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Caution (if any)</label>
+                        <input type="text" name="caution_text" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note (if any)</label>
+                        <input type="text" name="note_text" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Step</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.white-space-pre-line { white-space: pre-line; }
+</style>
+{% endblock %}

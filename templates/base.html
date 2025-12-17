@@ -708,6 +708,61 @@
             {% endif %}
         </ul>
         
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('quality')">
+            <span>Quality</span>
+            <i class="bi bi-chevron-down toggle-icon" id="quality-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="quality-content">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.dashboard') }}">
+                    <i class="bi bi-shield-check"></i>
+                    <span>QMS Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.sop_list') }}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>SOPs</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.wi_list') }}">
+                    <i class="bi bi-list-check"></i>
+                    <span>Work Instructions</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.deviation_list') }}">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span>Deviations</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.capa_list') }}">
+                    <i class="bi bi-tools"></i>
+                    <span>CAPA</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.ai_manager') }}">
+                    <i class="bi bi-robot"></i>
+                    <span>QMS AI Manager</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.audit_trail') }}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Audit Trail</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qms.training_list') }}">
+                    <i class="bi bi-mortarboard"></i>
+                    <span>Training Records</span>
+                </a>
+            </li>
+        </ul>
+        
         <div class="sidebar-section-title collapsible" onclick="toggleSection('shipping')">
             <span>Shipping & Receiving</span>
             <i class="bi bi-chevron-down toggle-icon" id="shipping-icon"></i>

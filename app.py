@@ -52,6 +52,7 @@ from routes.master_scheduler_routes import master_scheduler_bp
 from routes.salesforce_migration_routes import sf_migration_bp
 from routes.business_analytics_routes import business_analytics_bp
 from routes.it_manager_routes import it_manager_bp
+from routes.qms_routes import qms_bp
 import os
 
 app = Flask(__name__)
@@ -122,6 +123,7 @@ app.register_blueprint(master_scheduler_bp)
 app.register_blueprint(sf_migration_bp)
 app.register_blueprint(business_analytics_bp)
 app.register_blueprint(it_manager_bp)
+app.register_blueprint(qms_bp)
 
 @app.context_processor
 def inject_user():

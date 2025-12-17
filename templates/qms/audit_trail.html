@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-clock-history me-2"></i>QMS Audit Trail</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item active">Audit Trail</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Document Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="SOP" {{ 'selected' if document_type == 'SOP' }}>SOP</option>
+                        <option value="WorkInstruction" {{ 'selected' if document_type == 'WorkInstruction' }}>Work Instruction</option>
+                        <option value="Deviation" {{ 'selected' if document_type == 'Deviation' }}>Deviation</option>
+                        <option value="CAPA" {{ 'selected' if document_type == 'CAPA' }}>CAPA</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Action</label>
+                    <select name="action" class="form-select">
+                        <option value="">All Actions</option>
+                        <option value="Created" {{ 'selected' if action_filter == 'Created' }}>Created</option>
+                        <option value="Updated" {{ 'selected' if action_filter == 'Updated' }}>Updated</option>
+                        <option value="Approved" {{ 'selected' if action_filter == 'Approved' }}>Approved</option>
+                        <option value="Acknowledged" {{ 'selected' if action_filter == 'Acknowledged' }}>Acknowledged</option>
+                        <option value="Closed" {{ 'selected' if action_filter == 'Closed' }}>Closed</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <a href="{{ url_for('qms.audit_trail') }}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Document Type</th>
+                        <th>Document ID</th>
+                        <th>Action</th>
+                        <th>User</th>
+                        <th>Field Changed</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.timestamp[:19] }}</td>
+                        <td><span class="badge bg-secondary">{{ entry.document_type }}</span></td>
+                        <td>{{ entry.document_id }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if entry.action == 'Created' else 'info' if entry.action == 'Updated' else 'primary' if entry.action == 'Approved' else 'warning' }}">
+                                {{ entry.action }}
+                            </span>
+                        </td>
+                        <td>{{ entry.user_name or '-' }}</td>
+                        <td>{{ entry.field_changed or '-' }}</td>
+                        <td>{{ entry.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            No audit entries found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

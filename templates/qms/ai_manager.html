@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}QMS AI Manager - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-robot me-2"></i>QMS AI Manager</h1>
+            <p class="text-muted mb-0">AI-powered compliance monitoring, SOP generation, and process guidance</p>
+        </div>
+        <a href="{{ url_for('qms.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to QMS
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-4 text-primary mb-2">{{ sop_stats.active or 0 }}</div>
+                    <h6 class="text-muted">Active SOPs</h6>
+                    {% if sop_stats.overdue %}
+                    <span class="badge bg-danger">{{ sop_stats.overdue }} Overdue Review</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-4 text-warning mb-2">{{ deviation_stats.open or 0 }}</div>
+                    <h6 class="text-muted">Open Deviations</h6>
+                    {% if deviation_stats.critical %}
+                    <span class="badge bg-danger">{{ deviation_stats.critical }} Critical</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-4 text-danger mb-2">{{ capa_stats.open or 0 }}</div>
+                    <h6 class="text-muted">Open CAPAs</h6>
+                    {% if capa_stats.overdue %}
+                    <span class="badge bg-danger">{{ capa_stats.overdue }} Overdue</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i>AI Analysis Console</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Analysis Type</label>
+                        <select id="analysisType" class="form-select">
+                            <option value="compliance_review">Compliance Review</option>
+                            <option value="sop_generation">Generate SOP</option>
+                            <option value="deviation_analysis">Deviation Analysis</option>
+                            <option value="process_guidance">Process Guidance</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Context / Query</label>
+                        <textarea id="analysisContext" class="form-control" rows="3" placeholder="Enter your query or context for the AI analysis..."></textarea>
+                    </div>
+                    <button type="button" id="runAnalysisBtn" class="btn btn-primary">
+                        <i class="bi bi-play-fill me-1"></i> Run Analysis
+                    </button>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm" id="analysisResultCard" style="display: none;">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Analysis Result</h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyResult()">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="analysisResult" class="bg-light p-3 rounded" style="white-space: pre-wrap; max-height: 500px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-magic me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary text-start" onclick="quickAction('compliance_review', 'Run a comprehensive compliance review of all active SOPs, open deviations, and pending CAPAs.')">
+                            <i class="bi bi-shield-check me-2"></i>Run Compliance Review
+                        </button>
+                        <button type="button" class="btn btn-outline-info text-start" onclick="quickAction('deviation_analysis', 'Analyze recent deviations to identify patterns and systemic issues.')">
+                            <i class="bi bi-graph-up me-2"></i>Analyze Deviations
+                        </button>
+                        <button type="button" class="btn btn-outline-success text-start" data-bs-toggle="modal" data-bs-target="#generateSopModal">
+                            <i class="bi bi-file-earmark-plus me-2"></i>Generate SOP with AI
+                        </button>
+                        <button type="button" class="btn btn-outline-warning text-start" onclick="quickAction('process_guidance', 'Provide best practices for conducting internal quality audits.')">
+                            <i class="bi bi-lightbulb me-2"></i>Get Process Guidance
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Analyses</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_analyses %}
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for analysis in recent_analyses %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-info">{{ analysis.analysis_type }}</span>
+                                    <small class="d-block text-muted mt-1">{{ analysis.context[:40] }}{% if analysis.context|length > 40 %}...{% endif %}</small>
+                                </div>
+                                <small class="text-muted">{{ analysis.created_at[:10] }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-robot fs-1"></i>
+                        <p class="mb-0 mt-2">No analyses yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="generateSopModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-magic me-2"></i>Generate SOP with AI</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Process Name <span class="text-danger">*</span></label>
+                    <input type="text" id="sopProcessName" class="form-control" placeholder="e.g., Work Order Creation Process">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea id="sopDescription" class="form-control" rows="3" placeholder="Describe the process you want to document..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">ERP Module</label>
+                    <select id="sopErpModule" class="form-select">
+                        <option value="">Select Module</option>
+                        <option value="Work Orders">Work Orders</option>
+                        <option value="Inventory">Inventory</option>
+                        <option value="Purchase Orders">Purchase Orders</option>
+                        <option value="Sales Orders">Sales Orders</option>
+                        <option value="NDT">NDT</option>
+                        <option value="Service">Service</option>
+                        <option value="Shipping">Shipping</option>
+                        <option value="Receiving">Receiving</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="generateSopBtn">
+                    <i class="bi bi-magic me-1"></i> Generate SOP
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('runAnalysisBtn').addEventListener('click', runAnalysis);
+document.getElementById('generateSopBtn').addEventListener('click', generateSop);
+
+function runAnalysis() {
+    const analysisType = document.getElementById('analysisType').value;
+    const context = document.getElementById('analysisContext').value;
+    
+    if (!context.trim()) {
+        alert('Please enter a context or query');
+        return;
+    }
+    
+    const btn = document.getElementById('runAnalysisBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
+    
+    const formData = new FormData();
+    formData.append('analysis_type', analysisType);
+    formData.append('context', context);
+    
+    fetch('{{ url_for("qms.ai_analyze") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Run Analysis';
+        
+        if (data.success) {
+            document.getElementById('analysisResult').textContent = data.analysis;
+            document.getElementById('analysisResultCard').style.display = 'block';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Run Analysis';
+        alert('Error running analysis');
+    });
+}
+
+function quickAction(type, context) {
+    document.getElementById('analysisType').value = type;
+    document.getElementById('analysisContext').value = context;
+    runAnalysis();
+}
+
+function generateSop() {
+    const processName = document.getElementById('sopProcessName').value;
+    const description = document.getElementById('sopDescription').value;
+    const erpModule = document.getElementById('sopErpModule').value;
+    
+    if (!processName.trim()) {
+        alert('Please enter a process name');
+        return;
+    }
+    
+    const btn = document.getElementById('generateSopBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating...';
+    
+    fetch('{{ url_for("qms.ai_generate_sop") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            process_name: processName,
+            description: description,
+            erp_module: erpModule
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic me-1"></i> Generate SOP';
+        
+        if (data.success) {
+            const sop = data.sop;
+            document.getElementById('analysisResult').textContent = 
+                'GENERATED SOP: ' + (sop.title || processName) + '\n\n' +
+                'PURPOSE:\n' + (sop.purpose || '') + '\n\n' +
+                'SCOPE:\n' + (sop.scope || '') + '\n\n' +
+                'RESPONSIBILITIES:\n' + (sop.responsibilities || '') + '\n\n' +
+                'PROCEDURE:\n' + (sop.procedure_content || '') + '\n\n' +
+                'REFERENCES:\n' + (sop.references_text || '') + '\n\n' +
+                'COMPLIANCE STANDARDS:\n' + (sop.compliance_standards || '');
+            document.getElementById('analysisResultCard').style.display = 'block';
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('generateSopModal'));
+            modal.hide();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic me-1"></i> Generate SOP';
+        alert('Error generating SOP');
+    });
+}
+
+function copyResult() {
+    const text = document.getElementById('analysisResult').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

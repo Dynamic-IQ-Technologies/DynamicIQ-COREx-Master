@@ -2859,6 +2859,9 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_user_risk ON it_user_risk_scores(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_compliance ON it_compliance_assessments(framework)')
         
+        # Initialize QMS tables
+        init_qms_tables(cursor)
+        
         conn.commit()
         conn.close()
     
@@ -3526,3 +3529,299 @@ class GLAutoPost:
             # Log error but don't fail the transaction
             print(f"GL Auto-posting error: {str(e)}")
             return None
+
+
+def init_qms_tables(cursor):
+    """Initialize Quality Management System (QMS) tables"""
+    
+    # SOP Categories for organizing procedures
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_sop_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            parent_id INTEGER,
+            sort_order INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'Active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (parent_id) REFERENCES qms_sop_categories(id)
+        )
+    ''')
+    
+    # Standard Operating Procedures (SOPs)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_sops (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sop_number TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            category_id INTEGER,
+            revision TEXT DEFAULT 'A',
+            revision_date DATE,
+            effective_date DATE,
+            review_date DATE,
+            purpose TEXT,
+            scope TEXT,
+            responsibilities TEXT,
+            procedure_content TEXT,
+            references_text TEXT,
+            definitions TEXT,
+            attachments TEXT,
+            applicable_roles TEXT,
+            applicable_modules TEXT,
+            compliance_standards TEXT,
+            status TEXT DEFAULT 'Draft',
+            approval_status TEXT DEFAULT 'Pending',
+            prepared_by INTEGER,
+            reviewed_by INTEGER,
+            approved_by INTEGER,
+            approved_date TIMESTAMP,
+            supersedes_sop_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES qms_sop_categories(id),
+            FOREIGN KEY (prepared_by) REFERENCES users(id),
+            FOREIGN KEY (reviewed_by) REFERENCES users(id),
+            FOREIGN KEY (approved_by) REFERENCES users(id),
+            FOREIGN KEY (supersedes_sop_id) REFERENCES qms_sops(id)
+        )
+    ''')
+    
+    # SOP Version History
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_sop_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sop_id INTEGER NOT NULL,
+            revision TEXT NOT NULL,
+            revision_date DATE,
+            change_summary TEXT,
+            procedure_content TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sop_id) REFERENCES qms_sops(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Work Instructions (linked to SOPs)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_work_instructions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            wi_number TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            sop_id INTEGER,
+            revision TEXT DEFAULT 'A',
+            revision_date DATE,
+            effective_date DATE,
+            description TEXT,
+            prerequisites TEXT,
+            safety_requirements TEXT,
+            tools_required TEXT,
+            materials_required TEXT,
+            erp_module TEXT,
+            erp_transaction TEXT,
+            applicable_roles TEXT,
+            estimated_time_minutes INTEGER,
+            difficulty_level TEXT DEFAULT 'Intermediate',
+            status TEXT DEFAULT 'Draft',
+            approval_status TEXT DEFAULT 'Pending',
+            prepared_by INTEGER,
+            approved_by INTEGER,
+            approved_date TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (sop_id) REFERENCES qms_sops(id),
+            FOREIGN KEY (prepared_by) REFERENCES users(id),
+            FOREIGN KEY (approved_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Work Instruction Steps
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_wi_steps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            work_instruction_id INTEGER NOT NULL,
+            step_number INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            instructions TEXT,
+            expected_result TEXT,
+            verification_required INTEGER DEFAULT 0,
+            verification_type TEXT,
+            warning_text TEXT,
+            caution_text TEXT,
+            note_text TEXT,
+            image_path TEXT,
+            estimated_seconds INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (work_instruction_id) REFERENCES qms_work_instructions(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # User Acknowledgments (for SOPs and Work Instructions)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_acknowledgments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            document_type TEXT NOT NULL,
+            document_id INTEGER NOT NULL,
+            document_revision TEXT,
+            acknowledged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            acknowledgment_method TEXT DEFAULT 'Electronic',
+            ip_address TEXT,
+            notes TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    
+    # Compliance Records / Process Deviations
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_deviations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deviation_number TEXT UNIQUE NOT NULL,
+            deviation_type TEXT NOT NULL,
+            severity TEXT DEFAULT 'Minor',
+            sop_id INTEGER,
+            work_instruction_id INTEGER,
+            erp_module TEXT,
+            erp_transaction_id TEXT,
+            reported_by INTEGER,
+            reported_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            description TEXT NOT NULL,
+            root_cause TEXT,
+            immediate_action TEXT,
+            status TEXT DEFAULT 'Open',
+            assigned_to INTEGER,
+            due_date DATE,
+            closed_date TIMESTAMP,
+            closed_by INTEGER,
+            closure_notes TEXT,
+            capa_required INTEGER DEFAULT 0,
+            capa_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (sop_id) REFERENCES qms_sops(id),
+            FOREIGN KEY (work_instruction_id) REFERENCES qms_work_instructions(id),
+            FOREIGN KEY (reported_by) REFERENCES users(id),
+            FOREIGN KEY (assigned_to) REFERENCES users(id),
+            FOREIGN KEY (closed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Corrective and Preventive Actions (CAPA)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_capa (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            capa_number TEXT UNIQUE NOT NULL,
+            capa_type TEXT NOT NULL,
+            priority TEXT DEFAULT 'Medium',
+            source_type TEXT,
+            source_id INTEGER,
+            title TEXT NOT NULL,
+            description TEXT,
+            root_cause_analysis TEXT,
+            corrective_action TEXT,
+            preventive_action TEXT,
+            verification_method TEXT,
+            effectiveness_criteria TEXT,
+            assigned_to INTEGER,
+            owner_id INTEGER,
+            status TEXT DEFAULT 'Open',
+            target_date DATE,
+            completion_date TIMESTAMP,
+            verified_date TIMESTAMP,
+            verified_by INTEGER,
+            effectiveness_verified INTEGER DEFAULT 0,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (assigned_to) REFERENCES users(id),
+            FOREIGN KEY (owner_id) REFERENCES users(id),
+            FOREIGN KEY (verified_by) REFERENCES users(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # QMS Audit Trail
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_audit_trail (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_type TEXT NOT NULL,
+            document_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            field_changed TEXT,
+            old_value TEXT,
+            new_value TEXT,
+            user_id INTEGER,
+            user_name TEXT,
+            ip_address TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    
+    # QMS AI Analysis Records
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_ai_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            analysis_type TEXT NOT NULL,
+            context TEXT,
+            request_data TEXT,
+            response_data TEXT,
+            recommendations TEXT,
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    
+    # QMS Training Records
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_training_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            document_type TEXT NOT NULL,
+            document_id INTEGER NOT NULL,
+            training_type TEXT DEFAULT 'Initial',
+            training_date DATE,
+            trainer_id INTEGER,
+            score REAL,
+            passed INTEGER DEFAULT 1,
+            certificate_number TEXT,
+            expiry_date DATE,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (trainer_id) REFERENCES users(id)
+        )
+    ''')
+    
+    # QMS Compliance Metrics
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS qms_compliance_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            metric_date DATE NOT NULL,
+            metric_type TEXT NOT NULL,
+            module TEXT,
+            total_transactions INTEGER DEFAULT 0,
+            compliant_transactions INTEGER DEFAULT 0,
+            deviations_count INTEGER DEFAULT 0,
+            capa_open INTEGER DEFAULT 0,
+            capa_closed INTEGER DEFAULT 0,
+            acknowledgment_rate REAL DEFAULT 0,
+            training_completion_rate REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create indexes for QMS tables
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_category ON qms_sops(category_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_wi_sop ON qms_work_instructions(sop_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_deviations_status ON qms_deviations(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_capa_status ON qms_capa(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_ack_user ON qms_acknowledgments(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_audit_doc ON qms_audit_trail(document_type, document_id)')
+    except:
+        pass

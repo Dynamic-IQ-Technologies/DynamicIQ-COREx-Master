@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ capa.capa_number }} - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-tools me-2"></i>{{ capa.capa_number }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.capa_list') }}">CAPA</a></li>
+                    <li class="breadcrumb-item active">{{ capa.capa_number }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <span class="badge bg-{{ 'danger' if capa.priority == 'Critical' else 'warning' if capa.priority == 'High' else 'info' if capa.priority == 'Medium' else 'secondary' }} fs-5 me-2">{{ capa.priority }}</span>
+            <span class="badge bg-{{ 'danger' if capa.status == 'Open' else 'info' if capa.status == 'In Progress' else 'success' if capa.status == 'Closed' else 'primary' }} fs-5">{{ capa.status }}</span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">{{ capa.title }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if capa.description %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-info-circle me-1"></i> Description</h6>
+                        <p class="mb-0 white-space-pre-line">{{ capa.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if capa.root_cause_analysis %}
+                    <div class="mb-4">
+                        <h6 class="text-primary"><i class="bi bi-search me-1"></i> Root Cause Analysis</h6>
+                        <div class="bg-light p-3 rounded white-space-pre-line">{{ capa.root_cause_analysis }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if capa.corrective_action %}
+                    <div class="mb-4">
+                        <h6 class="text-danger"><i class="bi bi-wrench me-1"></i> Corrective Action</h6>
+                        <div class="bg-light p-3 rounded white-space-pre-line">{{ capa.corrective_action }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if capa.preventive_action %}
+                    <div class="mb-4">
+                        <h6 class="text-success"><i class="bi bi-shield-check me-1"></i> Preventive Action</h6>
+                        <div class="bg-light p-3 rounded white-space-pre-line">{{ capa.preventive_action }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if capa.verification_method or capa.effectiveness_criteria %}
+                    <div class="row">
+                        {% if capa.verification_method %}
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-info"><i class="bi bi-check-square me-1"></i> Verification Method</h6>
+                            <p class="mb-0">{{ capa.verification_method }}</p>
+                        </div>
+                        {% endif %}
+                        {% if capa.effectiveness_criteria %}
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-info"><i class="bi bi-bullseye me-1"></i> Effectiveness Criteria</h6>
+                            <p class="mb-0">{{ capa.effectiveness_criteria }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if capa.status not in ['Closed', 'Verified'] %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-arrow-right-circle me-2"></i>Update Status</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('qms.capa_update_status', capa_id=capa.id) }}" class="d-flex gap-2">
+                        <select name="status" class="form-select" style="max-width: 200px;">
+                            <option value="Open" {{ 'selected' if capa.status == 'Open' }}>Open</option>
+                            <option value="In Progress" {{ 'selected' if capa.status == 'In Progress' }}>In Progress</option>
+                            <option value="Closed">Closed</option>
+                            <option value="Verified">Verified</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Update Status</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th class="text-muted">Type</th>
+                            <td>{{ capa.capa_type }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Source</th>
+                            <td>{{ capa.source_type or '-' }} {% if capa.source_id %}({{ capa.source_id }}){% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Assigned To</th>
+                            <td>{{ capa.assigned_to_full or capa.assigned_to_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Owner</th>
+                            <td>{{ capa.owner_full or capa.owner_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Created By</th>
+                            <td>{{ capa.created_by_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Target Date</th>
+                            <td>{{ capa.target_date or '-' }}</td>
+                        </tr>
+                        {% if capa.completion_date %}
+                        <tr>
+                            <th class="text-muted">Completed</th>
+                            <td>{{ capa.completion_date[:10] }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if capa.verified_date %}
+                        <tr>
+                            <th class="text-muted">Verified</th>
+                            <td>{{ capa.verified_date[:10] }} by {{ capa.verified_by_name or '-' }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th class="text-muted">Effectiveness</th>
+                            <td>
+                                {% if capa.effectiveness_verified %}
+                                <span class="badge bg-success"><i class="bi bi-check"></i> Verified</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Not Verified</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if audit_trail %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit Trail</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for entry in audit_trail %}
+                        <div class="list-group-item py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-info">{{ entry.action }}</span>
+                                    <small class="d-block text-muted">{{ entry.user_name }}</small>
+                                </div>
+                                <small class="text-muted">{{ entry.timestamp[:16] }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.white-space-pre-line { white-space: pre-line; }
+</style>
+{% endblock %}

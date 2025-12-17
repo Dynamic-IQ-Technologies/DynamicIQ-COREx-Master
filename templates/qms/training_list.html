@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Training Records - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-mortarboard me-2"></i>Training Records</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item active">Training</li>
+                </ol>
+            </nav>
+        </div>
+        <a href="{{ url_for('qms.training_create') }}" class="btn btn-success">
+            <i class="bi bi-plus-lg me-1"></i> New Training Record
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Employee</th>
+                        <th>Document</th>
+                        <th>Training Type</th>
+                        <th>Training Date</th>
+                        <th>Score</th>
+                        <th>Passed</th>
+                        <th>Expiry</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.full_name or record.username }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ record.document_type }}</span>
+                            {{ record.document_number or record.document_id }}
+                        </td>
+                        <td>{{ record.training_type }}</td>
+                        <td>{{ record.training_date or '-' }}</td>
+                        <td>{{ record.score or '-' }}{% if record.score %}%{% endif %}</td>
+                        <td>
+                            {% if record.passed %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                            {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x"></i></span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record.expiry_date or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            No training records found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Create CAPA - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-tools me-2"></i>Create CAPA</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.capa_list') }}">CAPA</a></li>
+                    <li class="breadcrumb-item active">Create</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <form method="post">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">CAPA Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">CAPA Type <span class="text-danger">*</span></label>
+                                <select name="capa_type" class="form-select" required>
+                                    {% for ctype in capa_types %}
+                                    <option value="{{ ctype }}">{{ ctype }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Priority <span class="text-danger">*</span></label>
+                                <select name="priority" class="form-select" required>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Critical">Critical</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Describe the issue and its impact..."></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Source Type</label>
+                                <select name="source_type" class="form-select">
+                                    <option value="">Select Source</option>
+                                    {% for stype in source_types %}
+                                    <option value="{{ stype }}">{{ stype }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Source ID</label>
+                                <input type="text" name="source_id" class="form-control" placeholder="e.g., DEV-0001, Audit #...">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Root Cause Analysis</label>
+                            <textarea name="root_cause_analysis" class="form-control" rows="3" placeholder="5 Whys, Fishbone, etc..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Corrective Action</label>
+                            <textarea name="corrective_action" class="form-control" rows="3" placeholder="Actions to fix the immediate issue..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Preventive Action</label>
+                            <textarea name="preventive_action" class="form-control" rows="3" placeholder="Actions to prevent recurrence..."></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Verification Method</label>
+                                <input type="text" name="verification_method" class="form-control" placeholder="How will effectiveness be verified?">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Effectiveness Criteria</label>
+                                <input type="text" name="effectiveness_criteria" class="form-control" placeholder="What defines success?">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">Assignment</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Assigned To</label>
+                            <select name="assigned_to" class="form-select">
+                                <option value="">Unassigned</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Owner</label>
+                            <select name="owner_id" class="form-select">
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Target Completion Date</label>
+                            <input type="date" name="target_date" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-danger btn-lg">
+                        <i class="bi bi-tools me-1"></i> Create CAPA
+                    </button>
+                    <a href="{{ url_for('qms.capa_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

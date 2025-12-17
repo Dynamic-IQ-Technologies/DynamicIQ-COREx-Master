@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if sop else 'Create' }} SOP - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-file-earmark-text me-2"></i>
+                {{ 'Edit SOP: ' + sop.sop_number if sop else 'Create New SOP' }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.sop_list') }}">SOPs</a></li>
+                    <li class="breadcrumb-item active">{{ 'Edit' if sop else 'Create' }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <form method="post">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">SOP Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" required value="{{ sop.title if sop else '' }}">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Category</label>
+                                <select name="category_id" class="form-select">
+                                    <option value="">Select Category</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {{ 'selected' if sop and sop.category_id == cat.id }}>{{ cat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Compliance Standards</label>
+                                <input type="text" name="compliance_standards" class="form-control" placeholder="AS9100, ISO 9001, FAA..." value="{{ sop.compliance_standards if sop else '' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Purpose</label>
+                            <textarea name="purpose" class="form-control" rows="3" placeholder="Describe the purpose of this SOP...">{{ sop.purpose if sop else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Scope</label>
+                            <textarea name="scope" class="form-control" rows="3" placeholder="Define the scope and applicability...">{{ sop.scope if sop else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Responsibilities</label>
+                            <textarea name="responsibilities" class="form-control" rows="3" placeholder="Define roles and responsibilities...">{{ sop.responsibilities if sop else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Definitions</label>
+                            <textarea name="definitions" class="form-control" rows="3" placeholder="Key terms and definitions...">{{ sop.definitions if sop else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Procedure <span class="text-danger">*</span></label>
+                            <textarea name="procedure_content" class="form-control" rows="12" placeholder="Step-by-step procedure instructions...">{{ sop.procedure_content if sop else '' }}</textarea>
+                            <small class="text-muted">Use markdown formatting for numbered steps and sub-steps</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">References</label>
+                            <textarea name="references_text" class="form-control" rows="3" placeholder="Related documents, standards, regulations...">{{ sop.references_text if sop else '' }}</textarea>
+                        </div>
+
+                        {% if sop %}
+                        <div class="mb-3">
+                            <label class="form-label">Change Summary</label>
+                            <textarea name="change_summary" class="form-control" rows="2" placeholder="Describe what changed in this revision..."></textarea>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Applicable Roles</label>
+                            <input type="text" name="applicable_roles" class="form-control" placeholder="Admin, Planner, Technician..." value="{{ sop.applicable_roles if sop else '' }}">
+                            <small class="text-muted">Comma-separated list of roles</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Applicable Modules</label>
+                            <input type="text" name="applicable_modules" class="form-control" placeholder="Work Orders, Inventory, Sales..." value="{{ sop.applicable_modules if sop else '' }}">
+                            <small class="text-muted">Comma-separated list of ERP modules</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Effective Date</label>
+                            <input type="date" name="effective_date" class="form-control" value="{{ sop.effective_date if sop else '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Next Review Date</label>
+                            <input type="date" name="review_date" class="form-control" value="{{ sop.review_date if sop else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-lg me-1"></i> {{ 'Update SOP' if sop else 'Create SOP' }}
+                    </button>
+                    <a href="{{ url_for('qms.sop_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

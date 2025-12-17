@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}SOPs - QMS - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-file-earmark-text me-2"></i>Standard Operating Procedures</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item active">SOPs</li>
+                </ol>
+            </nav>
+        </div>
+        <a href="{{ url_for('qms.sop_create') }}" class="btn btn-success">
+            <i class="bi bi-plus-lg me-1"></i> New SOP
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="Draft" {{ 'selected' if status_filter == 'Draft' }}>Draft</option>
+                        <option value="Active" {{ 'selected' if status_filter == 'Active' }}>Active</option>
+                        <option value="Obsolete" {{ 'selected' if status_filter == 'Obsolete' }}>Obsolete</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {{ 'selected' if category_filter|string == cat.id|string }}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="SOP number or title..." value="{{ search }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>SOP Number</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Revision</th>
+                        <th>Status</th>
+                        <th>Effective Date</th>
+                        <th>Review Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sop in sops %}
+                    <tr>
+                        <td><a href="{{ url_for('qms.sop_view', sop_id=sop.id) }}" class="fw-bold text-decoration-none">{{ sop.sop_number }}</a></td>
+                        <td>{{ sop.title }}</td>
+                        <td>{{ sop.category_name or '-' }}</td>
+                        <td><span class="badge bg-secondary">Rev {{ sop.revision }}</span></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if sop.status == 'Active' else 'warning' if sop.status == 'Draft' else 'secondary' }}">
+                                {{ sop.status }}
+                            </span>
+                            {% if sop.approval_status == 'Pending' %}
+                            <span class="badge bg-info">Pending Approval</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ sop.effective_date or '-' }}</td>
+                        <td>
+                            {% if sop.review_date %}
+                                {% if sop.review_date < today %}
+                                <span class="text-danger"><i class="bi bi-exclamation-circle"></i> {{ sop.review_date }}</span>
+                                {% else %}
+                                {{ sop.review_date }}
+                                {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('qms.sop_view', sop_id=sop.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('qms.sop_edit', sop_id=sop.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-file-earmark fs-1 d-block mb-2"></i>
+                            No SOPs found. <a href="{{ url_for('qms.sop_create') }}">Create your first SOP</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

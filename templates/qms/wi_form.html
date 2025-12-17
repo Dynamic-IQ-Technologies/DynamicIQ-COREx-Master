@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if wi else 'Create' }} Work Instruction - QMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-list-check me-2"></i>
+                {{ 'Edit: ' + wi.wi_number if wi else 'Create Work Instruction' }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('qms.wi_list') }}">Work Instructions</a></li>
+                    <li class="breadcrumb-item active">{{ 'Edit' if wi else 'Create' }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <form method="post">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">Work Instruction Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" required value="{{ wi.title if wi else '' }}">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Linked SOP</label>
+                                <select name="sop_id" class="form-select">
+                                    <option value="">No linked SOP</option>
+                                    {% for sop in sops %}
+                                    <option value="{{ sop.id }}" {{ 'selected' if wi and wi.sop_id == sop.id }}>{{ sop.sop_number }} - {{ sop.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">ERP Module</label>
+                                <select name="erp_module" class="form-select">
+                                    <option value="">Select Module</option>
+                                    {% for mod in erp_modules %}
+                                    <option value="{{ mod }}" {{ 'selected' if wi and wi.erp_module == mod }}>{{ mod }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">ERP Transaction</label>
+                            <input type="text" name="erp_transaction" class="form-control" placeholder="e.g., Create Work Order, Receive PO..." value="{{ wi.erp_transaction if wi else '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3">{{ wi.description if wi else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Prerequisites</label>
+                            <textarea name="prerequisites" class="form-control" rows="2" placeholder="What must be done before starting...">{{ wi.prerequisites if wi else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Safety Requirements</label>
+                            <textarea name="safety_requirements" class="form-control" rows="2" placeholder="PPE, safety precautions...">{{ wi.safety_requirements if wi else '' }}</textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tools Required</label>
+                                <textarea name="tools_required" class="form-control" rows="2">{{ wi.tools_required if wi else '' }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Materials Required</label>
+                                <textarea name="materials_required" class="form-control" rows="2">{{ wi.materials_required if wi else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Applicable Roles</label>
+                            <input type="text" name="applicable_roles" class="form-control" placeholder="Admin, Planner, Technician..." value="{{ wi.applicable_roles if wi else '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Estimated Time (minutes)</label>
+                            <input type="number" name="estimated_time_minutes" class="form-control" min="1" value="{{ wi.estimated_time_minutes if wi else '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Difficulty Level</label>
+                            <select name="difficulty_level" class="form-select">
+                                <option value="Basic" {{ 'selected' if wi and wi.difficulty_level == 'Basic' }}>Basic</option>
+                                <option value="Intermediate" {{ 'selected' if not wi or wi.difficulty_level == 'Intermediate' }}>Intermediate</option>
+                                <option value="Advanced" {{ 'selected' if wi and wi.difficulty_level == 'Advanced' }}>Advanced</option>
+                                <option value="Expert" {{ 'selected' if wi and wi.difficulty_level == 'Expert' }}>Expert</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Effective Date</label>
+                            <input type="date" name="effective_date" class="form-control" value="{{ wi.effective_date if wi else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-lg me-1"></i> {{ 'Update' if wi else 'Create' }}
+                    </button>
+                    <a href="{{ url_for('qms.wi_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
