@@ -68,25 +68,47 @@
     <div class="tab-pane fade show active" id="sales" role="tabpanel">
         <div class="card shadow-sm">
             <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-cart me-2"></i>Sales Orders</h5>
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0 fw-semibold"><i class="bi bi-cart me-2"></i>Sales Orders</h5>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="salesFilter" placeholder="Search orders...">
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" id="salesStatusFilter" style="width: 150px;">
+                            <option value="">All Statuses</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Quoted">Quoted</option>
+                            <option value="Approved">Approved</option>
+                            <option value="In Production">In Production</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             <div class="card-body p-0">
                 {% if sales_orders %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="salesTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-uppercase small">Order #</th>
-                                <th class="text-uppercase small">Date</th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Order # <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Date <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
-                                <th class="text-uppercase small">Expected Ship</th>
-                                <th class="text-uppercase small">Items</th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Expected Ship <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="number" style="cursor:pointer;">Items <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small"></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for order in sales_orders %}
-                            <tr>
+                            <tr data-status="{{ order.status }}">
                                 <td class="fw-medium">{{ order.so_number }}</td>
                                 <td>{{ order.order_date or 'N/A' }}</td>
                                 <td>
@@ -105,7 +127,7 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ order.expected_ship_date or 'TBD' }}</td>
-                                <td>{{ order.line_count }} item{% if order.line_count != 1 %}s{% endif %}</td>
+                                <td>{{ order.line_count }}</td>
                                 <td>
                                     <a href="{{ url_for('portal.portal_order_detail', token=token, order_id=order.id) }}" 
                                        class="btn btn-sm btn-outline-primary">
@@ -130,26 +152,47 @@
     <div class="tab-pane fade" id="workorders" role="tabpanel">
         <div class="card shadow-sm">
             <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-tools me-2"></i>Work Orders</h5>
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0 fw-semibold"><i class="bi bi-tools me-2"></i>Work Orders</h5>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="woFilter" placeholder="Search work orders...">
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" id="woStatusFilter" style="width: 150px;">
+                            <option value="">All Statuses</option>
+                            <option value="Planned">Planned</option>
+                            <option value="Released">Released</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="On Hold">On Hold</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             <div class="card-body p-0">
                 {% if work_orders %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="woTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-uppercase small">WO #</th>
-                                <th class="text-uppercase small">Product</th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">WO # <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Product <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
                                 <th class="text-uppercase small">Priority</th>
-                                <th class="text-uppercase small">Planned Start</th>
-                                <th class="text-uppercase small">Planned End</th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Planned Start <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Planned End <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Sales Order</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for wo in work_orders %}
-                            <tr>
+                            <tr data-status="{{ wo.status }}">
                                 <td class="fw-medium">{{ wo.wo_number }}</td>
                                 <td>
                                     <span class="text-muted small">{{ wo.product_code }}</span><br>
@@ -200,19 +243,29 @@
     <div class="tab-pane fade" id="quotes" role="tabpanel">
         <div class="card shadow-sm">
             <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-file-text me-2"></i>Pending Quotes</h5>
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0 fw-semibold"><i class="bi bi-file-text me-2"></i>Pending Quotes</h5>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="quotesFilter" placeholder="Search quotes...">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="card-body p-0">
                 {% if quotes %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="quotesTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-uppercase small">Quote #</th>
-                                <th class="text-uppercase small">Date</th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Quote # <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Date <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
-                                <th class="text-uppercase small">Items</th>
-                                <th class="text-uppercase small">Total</th>
+                                <th class="text-uppercase small sortable" data-sort="number" style="cursor:pointer;">Items <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="currency" style="cursor:pointer;">Total <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small"></th>
                             </tr>
                         </thead>
@@ -224,7 +277,7 @@
                                 <td>
                                     <span class="badge bg-warning text-dark">{{ quote.status }}</span>
                                 </td>
-                                <td>{{ quote.line_count }} item{% if quote.line_count != 1 %}s{% endif %}</td>
+                                <td>{{ quote.line_count }}</td>
                                 <td>{{ "$ {:,.2f}".format(quote.total_amount or 0) }}</td>
                                 <td>
                                     <a href="{{ url_for('portal.portal_order_detail', token=token, order_id=quote.id) }}" 
@@ -250,25 +303,46 @@
     <div class="tab-pane fade" id="invoices" role="tabpanel">
         <div class="card shadow-sm">
             <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Invoices</h5>
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Invoices</h5>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="invoicesFilter" placeholder="Search invoices...">
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" id="invoicesStatusFilter" style="width: 150px;">
+                            <option value="">All Statuses</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Sent">Sent</option>
+                            <option value="Partial">Partial</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             <div class="card-body p-0">
                 {% if invoices %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="invoicesTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-uppercase small">Invoice #</th>
-                                <th class="text-uppercase small">Date</th>
-                                <th class="text-uppercase small">Due Date</th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Invoice # <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Date <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Due Date <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
-                                <th class="text-uppercase small">Amount</th>
+                                <th class="text-uppercase small sortable" data-sort="currency" style="cursor:pointer;">Amount <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Sales Order</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for invoice in invoices %}
-                            <tr>
+                            <tr data-status="{{ invoice.status }}">
                                 <td class="fw-medium">{{ invoice.invoice_number }}</td>
                                 <td>{{ invoice.invoice_date or 'N/A' }}</td>
                                 <td>{{ invoice.due_date or 'N/A' }}</td>
@@ -311,4 +385,94 @@
         This portal shows the current status of your orders, work orders, quotes, and invoices. For questions, please contact us.
     </p>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function setupTableFilter(inputId, tableId, statusFilterId) {
+        const input = document.getElementById(inputId);
+        const table = document.getElementById(tableId);
+        const statusFilter = statusFilterId ? document.getElementById(statusFilterId) : null;
+        
+        if (!input || !table) return;
+        
+        function filterTable() {
+            const searchText = input.value.toLowerCase();
+            const statusValue = statusFilter ? statusFilter.value : '';
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const rowStatus = row.dataset.status || '';
+                const matchesSearch = text.includes(searchText);
+                const matchesStatus = !statusValue || rowStatus === statusValue;
+                
+                row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+            });
+        }
+        
+        input.addEventListener('input', filterTable);
+        if (statusFilter) {
+            statusFilter.addEventListener('change', filterTable);
+        }
+    }
+    
+    function setupTableSort(tableId) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        
+        const headers = table.querySelectorAll('th.sortable');
+        let currentSort = { col: -1, asc: true };
+        
+        headers.forEach((header, index) => {
+            header.addEventListener('click', function() {
+                const sortType = this.dataset.sort;
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                const asc = currentSort.col === index ? !currentSort.asc : true;
+                currentSort = { col: index, asc: asc };
+                
+                rows.sort((a, b) => {
+                    let aVal = a.cells[index].textContent.trim();
+                    let bVal = b.cells[index].textContent.trim();
+                    
+                    if (sortType === 'number') {
+                        aVal = parseInt(aVal) || 0;
+                        bVal = parseInt(bVal) || 0;
+                    } else if (sortType === 'currency') {
+                        aVal = parseFloat(aVal.replace(/[$,]/g, '')) || 0;
+                        bVal = parseFloat(bVal.replace(/[$,]/g, '')) || 0;
+                    } else if (sortType === 'date') {
+                        aVal = aVal === 'TBD' || aVal === 'N/A' ? '' : aVal;
+                        bVal = bVal === 'TBD' || bVal === 'N/A' ? '' : bVal;
+                    }
+                    
+                    if (aVal < bVal) return asc ? -1 : 1;
+                    if (aVal > bVal) return asc ? 1 : -1;
+                    return 0;
+                });
+                
+                rows.forEach(row => tbody.appendChild(row));
+                
+                headers.forEach(h => {
+                    const icon = h.querySelector('i');
+                    if (icon) icon.className = 'bi bi-chevron-expand';
+                });
+                const icon = this.querySelector('i');
+                if (icon) icon.className = asc ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+            });
+        });
+    }
+    
+    setupTableFilter('salesFilter', 'salesTable', 'salesStatusFilter');
+    setupTableFilter('woFilter', 'woTable', 'woStatusFilter');
+    setupTableFilter('quotesFilter', 'quotesTable', null);
+    setupTableFilter('invoicesFilter', 'invoicesTable', 'invoicesStatusFilter');
+    
+    setupTableSort('salesTable');
+    setupTableSort('woTable');
+    setupTableSort('quotesTable');
+    setupTableSort('invoicesTable');
+});
+</script>
 {% endblock %}
