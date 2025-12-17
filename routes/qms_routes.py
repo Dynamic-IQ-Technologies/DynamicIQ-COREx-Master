@@ -528,6 +528,9 @@ def wi_list():
     # Get unique modules for filter
     modules = conn.execute('SELECT DISTINCT erp_module FROM qms_work_instructions WHERE erp_module IS NOT NULL').fetchall()
     
+    # Get SOPs for auto-generate modal
+    sops = conn.execute('SELECT id, sop_number, title FROM qms_sops WHERE status = ? ORDER BY sop_number', ('Active',)).fetchall()
+    
     conn.close()
     
     return render_template('qms/wi_list.html',
@@ -535,7 +538,9 @@ def wi_list():
                           modules=[m['erp_module'] for m in modules],
                           status_filter=status_filter,
                           module_filter=module_filter,
-                          search=search)
+                          search=search,
+                          transaction_capabilities=ERP_TRANSACTION_CAPABILITIES,
+                          sops=[dict(s) for s in sops])
 
 
 @qms_bp.route('/work-instructions/new', methods=['GET', 'POST'])
@@ -1849,6 +1854,130 @@ Format the output as structured JSON with these keys:
     except json.JSONDecodeError as e:
         conn.close()
         return jsonify({'success': False, 'error': f'Failed to parse AI response: {str(e)}'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@qms_bp.route('/work-instructions/auto-generate/single', methods=['POST'])
+@login_required
+def wi_auto_generate_single():
+    """Generate a single work instruction from form data"""
+    module_name = request.form.get('module')
+    transaction_code = request.form.get('transaction_code')
+    sop_id = request.form.get('sop_id') or None
+    additional_context = request.form.get('additional_context', '')
+    
+    if not module_name or not transaction_code:
+        return jsonify({'success': False, 'error': 'Module and transaction are required'})
+    
+    if module_name not in ERP_TRANSACTION_CAPABILITIES:
+        return jsonify({'success': False, 'error': f'Invalid module: {module_name}'})
+    
+    txn = next((t for t in ERP_TRANSACTION_CAPABILITIES[module_name] if t['code'] == transaction_code), None)
+    if not txn:
+        return jsonify({'success': False, 'error': f'Transaction {transaction_code} not found in {module_name}'})
+    
+    if not os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'):
+        return jsonify({'success': False, 'error': 'OpenAI API key not configured'})
+    
+    conn = get_db()
+    
+    try:
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+        
+        prompt = f"""Generate a comprehensive, standardized Work Instruction for an aerospace MRO ERP system.
+
+Transaction: {txn['name']}
+Code: {transaction_code}
+Module: {module_name}
+Description: {txn['description']}
+{f'Additional Context: {additional_context}' if additional_context else ''}
+
+Create a detailed work instruction with the following sections and output as JSON:
+{{
+    "title": "string",
+    "purpose": "string",
+    "prerequisites": "string (multi-line with bullet points)",
+    "safety_requirements": "string",
+    "tools_required": "string",
+    "materials_required": "string",
+    "procedure_steps": [
+        {{"step_number": 1, "action": "string", "expected_result": "string", "notes": "string or null"}}
+    ],
+    "verification_checkpoints": "string",
+    "troubleshooting": "string",
+    "related_transactions": "string"
+}}"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert technical writer for aerospace MRO ERP documentation. Generate clear, AS9100/ISO 9001 compliant work instructions. Always respond with valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=3000,
+            response_format={"type": "json_object"}
+        )
+        
+        generated_content = json.loads(response.choices[0].message.content or '{}')
+        wi_number = generate_wi_number(conn)
+        
+        cursor = conn.execute('''
+            INSERT INTO qms_work_instructions (
+                wi_number, title, sop_id, revision, revision_date, effective_date,
+                description, prerequisites, safety_requirements, tools_required,
+                materials_required, erp_module, erp_transaction, applicable_roles,
+                verification_checkpoints, troubleshooting, related_transactions,
+                status, prepared_by, created_at
+            ) VALUES (?, ?, ?, 'A', date('now'), date('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, datetime('now'))
+        ''', (
+            wi_number,
+            generated_content.get('title', txn['name']),
+            sop_id if sop_id else None,
+            generated_content.get('purpose', ''),
+            generated_content.get('prerequisites', ''),
+            generated_content.get('safety_requirements', ''),
+            generated_content.get('tools_required', ''),
+            generated_content.get('materials_required', ''),
+            module_name,
+            transaction_code,
+            'All',
+            generated_content.get('verification_checkpoints', ''),
+            generated_content.get('troubleshooting', ''),
+            generated_content.get('related_transactions', ''),
+            session.get('user_id')
+        ))
+        
+        wi_id = cursor.lastrowid
+        
+        for step in generated_content.get('procedure_steps', []):
+            conn.execute('''
+                INSERT INTO qms_work_instruction_steps (
+                    work_instruction_id, step_number, action, expected_result, notes
+                ) VALUES (?, ?, ?, ?, ?)
+            ''', (wi_id, step.get('step_number', 0), step.get('action', ''), step.get('expected_result', ''), step.get('notes')))
+        
+        log_qms_audit(conn, 'Work Instruction', wi_id, 'Auto-Generated', 
+                     session.get('user_id'), session.get('username'),
+                     notes=f'Transaction: {transaction_code}')
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'wi_id': wi_id,
+            'wi_number': wi_number,
+            'redirect_url': url_for('qms.wi_view', wi_id=wi_id)
+        })
+        
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)})
