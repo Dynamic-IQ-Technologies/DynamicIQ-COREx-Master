@@ -140,6 +140,10 @@ def initialize_database():
     db.init_db()
     db.seed_chart_of_accounts()
     db.seed_unit_of_measure()
+    
+    from services.exchange_chain_service import get_exchange_chain_service
+    exchange_service = get_exchange_chain_service()
+    exchange_service.load_graph_from_database()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
