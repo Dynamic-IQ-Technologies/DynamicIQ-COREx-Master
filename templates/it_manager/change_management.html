@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Change Management - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-gear me-2"></i>Change Management</h2>
+            <p class="text-muted mb-0">Configuration Changes, Approvals & Release Management</p>
+        </div>
+        <a href="{{ url_for('it_manager_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Total Changes</h6>
+                    <h2 class="mb-0">{{ stats.total or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-warning text-dark">
+                <div class="card-body">
+                    <h6>Pending Approval</h6>
+                    <h2 class="mb-0">{{ stats.pending or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Approved</h6>
+                    <h2 class="mb-0">{{ stats.approved or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Change #</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Priority</th>
+                            <th>Requester</th>
+                            <th>Status</th>
+                            <th>Scheduled</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for change in changes %}
+                        <tr>
+                            <td><code>{{ change.change_number }}</code></td>
+                            <td>{{ change.title }}</td>
+                            <td>{{ change.change_type }}</td>
+                            <td>
+                                <span class="badge {% if change.priority == 'Critical' %}bg-danger{% elif change.priority == 'High' %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ change.priority }}
+                                </span>
+                            </td>
+                            <td>{{ change.requester or '-' }}</td>
+                            <td>
+                                <span class="badge {% if change.status == 'Pending' %}bg-warning{% elif change.status == 'Approved' %}bg-success{% elif change.status == 'Rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ change.status }}
+                                </span>
+                            </td>
+                            <td>{{ change.scheduled_at[:10] if change.scheduled_at else '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">No change requests</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

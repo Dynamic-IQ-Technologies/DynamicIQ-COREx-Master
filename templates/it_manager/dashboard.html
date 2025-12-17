@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}Secure IT Manager - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-shield-lock me-2"></i>Secure IT Manager</h2>
+            <p class="text-muted mb-0">Zero-Trust Security Operations Center</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#askAgentModal">
+                <i class="bi bi-chat-dots me-1"></i> Ask IT Agent
+            </button>
+            <button class="btn btn-danger" onclick="initiateLockdown()">
+                <i class="bi bi-lock me-1"></i> Lockdown
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100 {% if security_posture.overall >= 80 %}bg-success{% elif security_posture.overall >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                <div class="card-body text-white text-center">
+                    <h6 class="text-white-50 mb-2">Security Posture</h6>
+                    <h1 class="display-4 mb-0">{{ security_posture.overall }}%</h1>
+                    <span class="badge bg-white text-dark mt-2">{{ security_posture.status }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">Active Alerts</h6>
+                            <h2 class="mb-0">{{ active_alerts|length }}</h2>
+                        </div>
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <a href="{{ url_for('it_manager_routes.alerts') }}" class="text-white small">View all alerts <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">High-Risk Users</h6>
+                            <h2 class="mb-0">{{ user_risk_summary.high_risk }}</h2>
+                        </div>
+                        <i class="bi bi-person-exclamation" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="text-white">of {{ user_risk_summary.total_users }} total users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">Failed Logins (24h)</h6>
+                            <h2 class="mb-0">{{ access_metrics.failed_logins_24h }}</h2>
+                        </div>
+                        <i class="bi bi-shield-x" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="text-white">{{ access_metrics.logins_24h }} total login attempts</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Security Components</h5>
+                </div>
+                <div class="card-body">
+                    {% for component, score in security_posture.components.items() %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-capitalize">{{ component.replace('_', ' ') }}</span>
+                            <span class="fw-bold {% if score >= 80 %}text-success{% elif score >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ score }}%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar {% if score >= 80 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 style="width: {{ score }}%;"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Compliance Status</h5>
+                    <a href="{{ url_for('it_manager_routes.compliance') }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for fw, data in compliance_status.items() %}
+                        <div class="col-6">
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>{{ fw }}</strong>
+                                    <span class="badge {% if data.score >= 80 %}bg-success{% elif data.score >= 60 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                        {{ data.score|int }}%
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ data.status }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Active Alerts</h5>
+                    <span class="badge bg-danger">{{ active_alerts|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for alert in active_alerts %}
+                        <div class="list-group-item border-0 d-flex align-items-start">
+                            <span class="badge {% if alert.severity == 'Critical' %}bg-danger{% elif alert.severity == 'High' %}bg-warning{% else %}bg-info{% endif %} me-2 mt-1">
+                                {{ alert.severity }}
+                            </span>
+                            <div class="flex-grow-1">
+                                <strong>{{ alert.title }}</strong>
+                                <p class="mb-0 small text-muted">{{ alert.description[:80] }}...</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success" onclick="resolveAlert({{ alert.id }})">
+                                <i class="bi bi-check"></i>
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item border-0 text-center text-muted py-4">
+                            <i class="bi bi-shield-check display-6 text-success mb-2"></i>
+                            <p class="mb-0">No active security alerts</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>User Risk Distribution</h5>
+                    <a href="{{ url_for('it_manager_routes.access_governance') }}" class="btn btn-sm btn-outline-primary">Manage</a>
+                </div>
+                <div class="card-body">
+                    <canvas id="riskChart" height="200"></canvas>
+                    <div class="row text-center mt-3">
+                        <div class="col-4">
+                            <h4 class="text-danger mb-0">{{ user_risk_summary.high_risk }}</h4>
+                            <small class="text-muted">High Risk</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning mb-0">{{ user_risk_summary.medium_risk }}</h4>
+                            <small class="text-muted">Medium</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success mb-0">{{ user_risk_summary.low_risk }}</h4>
+                            <small class="text-muted">Low Risk</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI Agent Trust Scores</h5>
+                    <a href="{{ url_for('it_manager_routes.ai_agents') }}" class="btn btn-sm btn-outline-primary">Monitor</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for agent in ai_agents[:5] %}
+                        <div class="list-group-item border-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-cpu me-2 text-primary"></i>
+                                <span>{{ agent.agent_name }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress" style="width: 80px; height: 6px;">
+                                    <div class="progress-bar {% if agent.trust_score >= 90 %}bg-success{% elif agent.trust_score >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                         style="width: {{ agent.trust_score }}%;"></div>
+                                </div>
+                                <span class="badge {% if agent.trust_score >= 90 %}bg-success{% elif agent.trust_score >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ agent.trust_score|int }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Recent Incidents</h5>
+                    <a href="{{ url_for('it_manager_routes.incidents') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_incidents %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Severity</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for incident in recent_incidents %}
+                                <tr>
+                                    <td><code>{{ incident.incident_number }}</code></td>
+                                    <td>{{ incident.title[:30] }}...</td>
+                                    <td>
+                                        <span class="badge {% if incident.severity == 'Critical' %}bg-danger{% elif incident.severity == 'High' %}bg-warning{% else %}bg-info{% endif %}">
+                                            {{ incident.severity }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if incident.status == 'Open' %}bg-danger{% elif incident.status == 'In Progress' %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ incident.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-shield-check display-6 text-success mb-2"></i>
+                        <p class="mb-0">No security incidents recorded</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-terminal me-2"></i>Quick Commands</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button class="btn btn-outline-primary w-100" onclick="askQuestion('Who has excessive access right now?')">
+                                <i class="bi bi-person-lock me-1"></i> Excessive Access
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-outline-warning w-100" onclick="askQuestion('Show all high-risk user activity in the last 24 hours')">
+                                <i class="bi bi-activity me-1"></i> High-Risk Activity
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-outline-info w-100" onclick="askQuestion('Are we audit-ready for SOC 2?')">
+                                <i class="bi bi-clipboard-check me-1"></i> Audit Readiness
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-outline-danger w-100" onclick="askQuestion('Which AI agents pose the highest risk?')">
+                                <i class="bi bi-robot me-1"></i> AI Agent Risk
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="askAgentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>IT Security Agent</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Ask the IT Security Agent</label>
+                    <textarea id="agentQuery" class="form-control" rows="3" 
+                              placeholder="e.g., Who has excessive access right now? Are we audit-ready for SOC 2?"></textarea>
+                </div>
+                <div id="agentResponse" class="d-none">
+                    <h6>Response:</h6>
+                    <div id="responseContent" class="border rounded p-3 bg-light" style="white-space: pre-wrap;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="submitQuery()" id="submitBtn">
+                    <i class="bi bi-send me-1"></i> Ask
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const riskCtx = document.getElementById('riskChart');
+if (riskCtx) {
+    new Chart(riskCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+            datasets: [{
+                data: [{{ user_risk_summary.high_risk }}, {{ user_risk_summary.medium_risk }}, {{ user_risk_summary.low_risk }}],
+                backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            cutout: '70%'
+        }
+    });
+}
+
+function askQuestion(query) {
+    document.getElementById('agentQuery').value = query;
+    const modal = new bootstrap.Modal(document.getElementById('askAgentModal'));
+    modal.show();
+}
+
+async function submitQuery() {
+    const query = document.getElementById('agentQuery').value;
+    if (!query) return;
+    
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
+    
+    try {
+        const response = await fetch('/it-manager/api/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+        });
+        
+        const data = await response.json();
+        
+        document.getElementById('agentResponse').classList.remove('d-none');
+        document.getElementById('responseContent').textContent = data.response || data.error;
+    } catch (error) {
+        document.getElementById('responseContent').textContent = 'Error: ' + error.message;
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send me-1"></i> Ask';
+}
+
+async function resolveAlert(alertId) {
+    if (!confirm('Mark this alert as resolved?')) return;
+    
+    try {
+        const response = await fetch(`/it-manager/api/resolve-alert/${alertId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('Error resolving alert');
+    }
+}
+
+function initiateLockdown() {
+    if (!confirm('CRITICAL: This will initiate a system lockdown. Are you sure?')) return;
+    if (!confirm('This action will suspend high-risk operations and create a security incident. Proceed?')) return;
+    
+    fetch('/it-manager/api/lockdown', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Lockdown initiated. Security incident created.');
+                location.reload();
+            }
+        });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Compliance - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-clipboard-check me-2"></i>Compliance & Audit</h2>
+            <p class="text-muted mb-0">SOC 2, ISO 27001, FAA/EASA, SOX Compliance Management</p>
+        </div>
+        <a href="{{ url_for('it_manager_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        {% for fw, data in frameworks.items() %}
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h5 class="mb-3">{{ data.name }}</h5>
+                    <div class="position-relative d-inline-block mb-3">
+                        <svg viewBox="0 0 36 36" style="width: 100px; height: 100px; transform: rotate(-90deg);">
+                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                  fill="none" stroke="#e9ecef" stroke-width="3"/>
+                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                  fill="none" 
+                                  stroke="{% if data.score >= 80 %}#28a745{% elif data.score >= 60 %}#ffc107{% else %}#6c757d{% endif %}" 
+                                  stroke-width="3"
+                                  stroke-dasharray="{{ data.score }}, 100"/>
+                        </svg>
+                        <div class="position-absolute top-50 start-50 translate-middle">
+                            <h4 class="mb-0">{{ data.score|int }}%</h4>
+                        </div>
+                    </div>
+                    <span class="badge {% if data.status == 'Compliant' %}bg-success{% elif data.status == 'In Progress' %}bg-warning{% else %}bg-secondary{% endif %}">
+                        {{ data.status }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Recent Assessments</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Framework</th>
+                                    <th>Date</th>
+                                    <th>Score</th>
+                                    <th>Findings</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assessment in assessments %}
+                                <tr>
+                                    <td>{{ assessment.framework }}</td>
+                                    <td>{{ assessment.assessment_date[:10] if assessment.assessment_date else '-' }}</td>
+                                    <td>
+                                        <span class="badge {% if assessment.overall_score >= 80 %}bg-success{% elif assessment.overall_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ assessment.overall_score|int }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ assessment.critical_findings or 0 }} Critical</span>
+                                        <span class="badge bg-warning">{{ assessment.high_findings or 0 }} High</span>
+                                    </td>
+                                    <td>{{ assessment.status }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No assessments recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Control Summary</h5>
+                </div>
+                <div class="card-body">
+                    {% for control in controls %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <strong>{{ control.framework }}</strong>
+                            <span>{{ control.passed or 0 }}/{{ control.total or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            {% set pct = (control.passed / control.total * 100) if control.total else 0 %}
+                            <div class="progress-bar bg-success" style="width: {{ pct }}%;"></div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No controls configured</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

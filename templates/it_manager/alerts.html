@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Security Alerts - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-exclamation-triangle me-2"></i>Security Alerts</h2>
+            <p class="text-muted mb-0">Real-time Threat Detection & Response</p>
+        </div>
+        <a href="{{ url_for('it_manager_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Active Alerts</h6>
+                    <h2 class="mb-0">{{ stats.active or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-warning text-dark">
+                <div class="card-body">
+                    <h6>Critical Active</h6>
+                    <h2 class="mb-0">{{ stats.critical or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Total Alerts</h6>
+                    <h2 class="mb-0">{{ stats.total or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Affected User</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                        <tr>
+                            <td>
+                                <span class="badge {% if alert.severity == 'Critical' %}bg-danger{% elif alert.severity == 'High' %}bg-warning{% elif alert.severity == 'Medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ alert.severity }}
+                                </span>
+                            </td>
+                            <td>{{ alert.title }}</td>
+                            <td>{{ alert.alert_type }}</td>
+                            <td>{{ alert.affected_username or '-' }}</td>
+                            <td>
+                                <span class="badge {% if alert.status == 'Active' %}bg-danger{% elif alert.status == 'Acknowledged' %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ alert.status }}
+                                </span>
+                            </td>
+                            <td>{{ alert.created_at[:16] if alert.created_at else '-' }}</td>
+                            <td>
+                                {% if alert.status == 'Active' %}
+                                <button class="btn btn-sm btn-outline-success" onclick="resolveAlert({{ alert.id }})">
+                                    <i class="bi bi-check"></i> Resolve
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="bi bi-shield-check display-6 text-success mb-2"></i>
+                                <p class="mb-0">No security alerts</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function resolveAlert(alertId) {
+    if (!confirm('Mark this alert as resolved?')) return;
+    
+    const response = await fetch(`/it-manager/api/resolve-alert/${alertId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) location.reload();
+}
+</script>
+{% endblock %}

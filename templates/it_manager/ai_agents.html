@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}AI Agent Oversight - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-robot me-2"></i>AI Agent Oversight</h2>
+            <p class="text-muted mb-0">Monitor, Govern, and Ensure AI Agent Safety</p>
+        </div>
+        <a href="{{ url_for('it_manager_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4">
+        {% for agent in agents %}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-cpu me-2 text-primary" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h5 class="mb-0">{{ agent.agent_name }}</h5>
+                            <small class="text-muted">{{ agent.agent_type }}</small>
+                        </div>
+                    </div>
+                    <span class="badge {% if agent.status == 'Active' %}bg-success{% elif agent.status == 'Throttled' %}bg-warning{% else %}bg-danger{% endif %}">
+                        {{ agent.status }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="position-relative d-inline-block">
+                            <svg viewBox="0 0 36 36" style="width: 80px; height: 80px; transform: rotate(-90deg);">
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none" stroke="#e9ecef" stroke-width="3"/>
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none" 
+                                      stroke="{% if agent.trust_score >= 90 %}#28a745{% elif agent.trust_score >= 70 %}#ffc107{% else %}#dc3545{% endif %}" 
+                                      stroke-width="3"
+                                      stroke-dasharray="{{ agent.trust_score }}, 100"/>
+                            </svg>
+                            <div class="position-absolute top-50 start-50 translate-middle">
+                                <h5 class="mb-0">{{ agent.trust_score|int }}</h5>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">Trust Score</p>
+                    </div>
+                    
+                    <div class="row text-center g-2 mb-3">
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <h6 class="mb-0">{{ agent.total_actions or 0 }}</h6>
+                                <small class="text-muted">Total</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <h6 class="mb-0 text-success">{{ agent.approved_actions or 0 }}</h6>
+                                <small class="text-muted">Approved</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <h6 class="mb-0 text-danger">{{ agent.blocked_actions or 0 }}</h6>
+                                <small class="text-muted">Blocked</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge {% if agent.risk_level == 'Low' %}bg-success{% elif agent.risk_level == 'Medium' %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ agent.risk_level }} Risk
+                        </span>
+                        {% if agent.status == 'Active' %}
+                        <button class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-pause"></i> Throttle
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

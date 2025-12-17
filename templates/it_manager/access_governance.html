@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Access Governance - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-person-lock me-2"></i>Access Governance</h2>
+            <p class="text-muted mb-0">User Access Risk Analysis & Role Management</p>
+        </div>
+        <a href="{{ url_for('it_manager_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">High Risk Users</h6>
+                    <h2 class="mb-0">{{ high_risk_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="mb-3">Role Distribution</h6>
+                    <div class="d-flex gap-3">
+                        {% for role in role_distribution %}
+                        <div class="border rounded p-2 text-center" style="min-width: 100px;">
+                            <h4 class="mb-0">{{ role.count }}</h4>
+                            <small class="text-muted">{{ role.role }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">User Risk Scores</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th class="text-center">Risk Score</th>
+                            <th class="text-center">Access Risk</th>
+                            <th class="text-center">Behavior Risk</th>
+                            <th>Flags</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <strong>{{ user.username }}</strong>
+                                <br><small class="text-muted">{{ user.email }}</small>
+                            </td>
+                            <td>
+                                <span class="badge {% if user.role == 'Admin' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ user.role }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                    <div class="progress" style="width: 60px; height: 8px;">
+                                        <div class="progress-bar {% if user.risk_score >= 70 %}bg-danger{% elif user.risk_score >= 40 %}bg-warning{% else %}bg-success{% endif %}" 
+                                             style="width: {{ user.risk_score }}%;"></div>
+                                    </div>
+                                    <span class="badge {% if user.risk_score >= 70 %}bg-danger{% elif user.risk_score >= 40 %}bg-warning{% else %}bg-success{% endif %}">
+                                        {{ user.risk_score }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="text-center">{{ user.access_risk }}</td>
+                            <td class="text-center">{{ user.behavior_risk }}</td>
+                            <td>
+                                {% if user.dormant %}
+                                <span class="badge bg-secondary me-1">Dormant</span>
+                                {% endif %}
+                                {% if user.excessive_privileges %}
+                                <span class="badge bg-warning me-1">Excessive Access</span>
+                                {% endif %}
+                                {% if user.sod_conflicts %}
+                                <span class="badge bg-danger me-1">SoD Conflict</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="calculateRisk({{ user.id }})">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function calculateRisk(userId) {
+    const response = await fetch(`/it-manager/api/calculate-risk/${userId}`, { method: 'POST' });
+    if (response.ok) location.reload();
+}
+</script>
+{% endblock %}
