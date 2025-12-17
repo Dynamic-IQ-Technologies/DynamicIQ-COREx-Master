@@ -79,7 +79,11 @@ The backend is developed with Flask using Blueprints and an SQLite database (`mr
     - Quick Notes system for adding notes to orders with type categorization (General, Internal, Customer, Urgent, Follow-up) and pinning
     - Activity Timeline showing all order activities (status changes, notes, communications) in chronological order
     - Analytics dashboard with KPIs (total communications, pending/overdue follow-ups), charts by type and month, top customers, and stage duration metrics
-    - Database tables: order_stage_tracking, work_order_confirmations, customer_communications, order_notes, order_activity_log (work_orders.so_id links to sales_orders)
+    - Escalation Management with priority levels (Critical, High, Medium, Low), escalation levels (1-3), assignment tracking, and resolution workflow
+    - SLA Configuration for defining service level agreements with response time, resolution time, and escalation thresholds
+    - SLA Breach Monitor showing orders at risk of missing service targets with Critical/Warning status indicators
+    - Customer Feedback System for tracking satisfaction ratings (1-5 stars), recommendation likelihood, and feedback comments
+    - Database tables: order_stage_tracking, work_order_confirmations, customer_communications, order_notes, order_activity_log, order_escalations, sla_configurations, customer_feedback (work_orders.so_id links to sales_orders)
 
 ### System Design Choices
 
