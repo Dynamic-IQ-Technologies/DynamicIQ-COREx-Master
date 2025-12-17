@@ -862,22 +862,22 @@ CROSS-MODULE DATA:
 {json.dumps(cross_module_data, indent=2, default=str)}
 
 Provide a comprehensive analysis including:
-1. **Inventory Health**: Current stock status, turnover assessment, reorder recommendations
-2. **Supply Chain Analysis**: Supplier diversity, pricing trends, lead time patterns
-3. **Demand Analysis**: Sales patterns, customer concentration, growth trends
-4. **Production Insights**: Work order patterns, quality issues, production efficiency
-5. **BOM Impact**: Where this part is used, criticality assessment
-6. **Quality Assessment**: Deviation patterns, root causes, improvement opportunities
-7. **Strategic Recommendations**: Top 3-5 actionable recommendations for this part
-8. **Risk Indicators**: Any concerns or risks identified across modules
-9. **Cost Optimization**: Opportunities to reduce costs or improve margins
+1. Inventory Health - Current stock status, turnover assessment, reorder recommendations
+2. Supply Chain Analysis - Supplier diversity, pricing trends, lead time patterns
+3. Demand Analysis - Sales patterns, customer concentration, growth trends
+4. Production Insights - Work order patterns, quality issues, production efficiency
+5. BOM Impact - Where this part is used, criticality assessment
+6. Quality Assessment - Deviation patterns, root causes, improvement opportunities
+7. Strategic Recommendations - Top 3-5 actionable recommendations for this part
+8. Risk Indicators - Any concerns or risks identified across modules
+9. Cost Optimization - Opportunities to reduce costs or improve margins
 
-Format the response with clear sections and bullet points for easy reading."""
+Format the response with clear sections using plain text only. Use dashes for lists. Do not use any special characters, asterisks, markdown formatting, or symbols."""
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an expert ERP analyst specializing in aerospace MRO operations. Provide actionable, data-driven insights for part management and optimization."},
+                {"role": "system", "content": "You are an expert ERP analyst specializing in aerospace MRO operations. Provide actionable, data-driven insights for part management and optimization. Use plain text only without any special characters, asterisks, markdown, or formatting symbols."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
