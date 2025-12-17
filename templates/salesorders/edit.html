@@ -38,23 +38,6 @@
                 </div>
 
                 {% if sales_order.sales_type in ['Exchange', 'Managed Repair'] %}
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Core Charge</label>
-                            <input type="number" step="0.01" class="form-control" name="core_charge" 
-                                   value="{{ sales_order.core_charge }}">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Repair Charge</label>
-                            <input type="number" step="0.01" class="form-control" name="repair_charge"
-                                   value="{{ sales_order.repair_charge }}">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="mb-3">
                     <label class="form-label">Service Notes</label>
                     <textarea class="form-control" name="service_notes" rows="2">{{ sales_order.service_notes or '' }}</textarea>

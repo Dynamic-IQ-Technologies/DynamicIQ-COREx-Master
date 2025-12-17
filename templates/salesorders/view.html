@@ -382,16 +382,6 @@
                             <th width="60%">Subtotal:</th>
                             <td class="text-end">{{ sales_order.subtotal|currency }}</td>
                         </tr>
-                        {% if sales_order.sales_type in ['Exchange', 'Managed Repair'] %}
-                        <tr>
-                            <th>Core Charge:</th>
-                            <td class="text-end">{{ sales_order.core_charge|currency }}</td>
-                        </tr>
-                        <tr>
-                            <th>Repair Charge:</th>
-                            <td class="text-end">{{ sales_order.repair_charge|currency }}</td>
-                        </tr>
-                        {% endif %}
                         <tr>
                             <th>Tax:</th>
                             <td class="text-end">{{ sales_order.tax_amount|currency }}</td>

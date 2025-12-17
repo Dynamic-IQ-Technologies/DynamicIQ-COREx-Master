@@ -66,13 +66,6 @@ def create_sales_order():
             expected_ship_date = request.form.get('expected_ship_date') or None
             expected_return_date = request.form.get('expected_return_date') or None
             
-            # Parse amounts
-            core_charge_str = request.form.get('core_charge', '0').strip()
-            core_charge = float(core_charge_str) if core_charge_str else 0.0
-            
-            repair_charge_str = request.form.get('repair_charge', '0').strip()
-            repair_charge = float(repair_charge_str) if repair_charge_str else 0.0
-            
             # Insert sales order
             cursor = conn.execute('''
                 INSERT INTO sales_orders (
@@ -82,7 +75,7 @@ def create_sales_order():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 so_number, customer_id, sales_type, order_date, expected_ship_date,
-                'Draft', core_charge, repair_charge, expected_return_date,
+                'Draft', 0, 0, expected_return_date,
                 request.form.get('service_notes', ''),
                 request.form.get('notes', ''),
                 session.get('user_id')
@@ -165,22 +158,16 @@ def edit_sales_order(id):
             expected_ship_date = request.form.get('expected_ship_date') or None
             expected_return_date = request.form.get('expected_return_date') or None
             
-            core_charge_str = request.form.get('core_charge', '0').strip()
-            core_charge = float(core_charge_str) if core_charge_str else 0.0
-            
-            repair_charge_str = request.form.get('repair_charge', '0').strip()
-            repair_charge = float(repair_charge_str) if repair_charge_str else 0.0
-            
             tax_rate_str = request.form.get('tax_rate', '0').strip()
             tax_rate = float(tax_rate_str) if tax_rate_str else 0.0
             
             conn.execute('''
                 UPDATE sales_orders SET
-                    expected_ship_date = ?, core_charge = ?, repair_charge = ?,
+                    expected_ship_date = ?,
                     expected_return_date = ?, service_notes = ?, notes = ?, tax_rate = ?
                 WHERE id = ?
             ''', (
-                expected_ship_date, core_charge, repair_charge, expected_return_date,
+                expected_ship_date, expected_return_date,
                 request.form.get('service_notes', ''), request.form.get('notes', ''), tax_rate, id
             ))
             

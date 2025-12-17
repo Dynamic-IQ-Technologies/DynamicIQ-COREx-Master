@@ -54,21 +54,6 @@
                     </div>
                 </div>
 
-                <div class="row" id="charges_section" style="display: none;">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Core Charge</label>
-                            <input type="number" step="0.01" class="form-control" name="core_charge" value="0">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Repair Charge</label>
-                            <input type="number" step="0.01" class="form-control" name="repair_charge" value="0">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="mb-3" id="service_notes_section" style="display: none;">
                     <label class="form-label">Service Notes</label>
                     <textarea class="form-control" name="service_notes" rows="2"></textarea>
@@ -96,15 +81,12 @@
 document.getElementById('sales_type').addEventListener('change', function() {
     const type = this.value;
     const returnDateSection = document.getElementById('return_date_section');
-    const chargesSection = document.getElementById('charges_section');
     const serviceNotesSection = document.getElementById('service_notes_section');
     
     if (type === 'Exchange' || type === 'Managed Repair') {
-        chargesSection.style.display = 'block';
         returnDateSection.style.display = 'block';
         serviceNotesSection.style.display = 'block';
     } else {
-        chargesSection.style.display = 'none';
         returnDateSection.style.display = 'none';
         serviceNotesSection.style.display = 'none';
     }
