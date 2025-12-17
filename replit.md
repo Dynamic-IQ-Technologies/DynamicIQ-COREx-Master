@@ -55,3 +55,29 @@ The backend is developed with Flask, using Blueprints and an SQLite database. It
 -   **AI Integration**: OpenAI API (GPT-4o).
 -   **Database**: SQLite (`mrp.db`).
 -   **Environment Variables**: `SESSION_SECRET`.
+
+## Sample Data
+
+The system includes comprehensive sample data for testing and showcasing all functionalities. Run `python seed_sample_data.py` to populate the database with:
+
+-   **10 Customers**: Major airlines (Delta, United, Southwest, American, JetBlue, Alaska, FedEx, UPS, Spirit, Frontier) with portal access enabled
+-   **10 Suppliers**: Aerospace OEMs (Boeing, Airbus, Pratt & Whitney, GE, Honeywell, Collins, Spirit AeroSystems, Safran, Parker, Moog)
+-   **10 MRO Capabilities**: Landing gear, fuel systems, flight controls, engine mounts, APU, pneumatics, NDT services, composites, avionics
+-   **15 Products**: Aircraft parts (actuators, pumps, valves), assemblies, consumables (O-rings, fluids, fasteners), and raw materials
+-   **8 Work Orders**: Various statuses with tasks, stages, and customer assignments
+-   **6 Sales Orders**: Different order types (Standard Sale, Repair Exchange, Outright)
+-   **5 Purchase Orders**: Multi-line orders with different suppliers
+-   **3 RFQs**: With supplier assignments and quotes
+-   **3 NDT Work Orders**: With technicians and certifications (UT, MT, PT, RT, VT, ET)
+-   **3 Service Work Orders**: On-site repair, calibration, emergency AOG
+-   **5 Work Centers**: Hydraulics, Avionics, NDT Lab, Assembly, Test Cell
+-   **8 Labor Resources**: Technicians with multi-skillset assignments
+-   **5 Tools**: With calibration tracking
+-   **Chart of Accounts, SLA Configurations, Task Templates**
+
+**Test Login Credentials:**
+-   Admin: `admin` / `admin123`
+-   Planner: `jsmith` / `planner123`
+-   Sales: `mwilson` / `sales123`
+-   Technician: `tgarcia` / `tech123`
+-   Customer Service: `lchen` / `cs123`
