@@ -34,8 +34,19 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <input type="text" class="form-control" id="description" name="description" value="{{ quote.description or '' }}">
+                        <label for="description" class="form-label">Description / Service Type</label>
+                        <select class="form-control" id="description" name="description">
+                            <option value="">-- Select Service Type --</option>
+                            <option value="Non-Destructive Testing (NDT)" {% if quote.description == 'Non-Destructive Testing (NDT)' %}selected{% endif %}>Non-Destructive Testing (NDT)</option>
+                            <option value="Radiographic Testing (RT) X-Ray NDT" {% if quote.description == 'Radiographic Testing (RT) X-Ray NDT' %}selected{% endif %}>Radiographic Testing (RT) X-Ray NDT</option>
+                            <option value="Fluorescent Penetrant Inspection (FPI)" {% if quote.description == 'Fluorescent Penetrant Inspection (FPI)' %}selected{% endif %}>Fluorescent Penetrant Inspection (FPI)</option>
+                            <option value="Magnetic Particle Inspection (MPI)" {% if quote.description == 'Magnetic Particle Inspection (MPI)' %}selected{% endif %}>Magnetic Particle Inspection (MPI)</option>
+                            <option value="Electromagnetic Testing (ET)" {% if quote.description == 'Electromagnetic Testing (ET)' %}selected{% endif %}>Electromagnetic Testing (ET)</option>
+                            <option value="Thermographic Inspection (TE)" {% if quote.description == 'Thermographic Inspection (TE)' %}selected{% endif %}>Thermographic Inspection (TE)</option>
+                            {% if quote.description and quote.description not in ['Non-Destructive Testing (NDT)', 'Radiographic Testing (RT) X-Ray NDT', 'Fluorescent Penetrant Inspection (FPI)', 'Magnetic Particle Inspection (MPI)', 'Electromagnetic Testing (ET)', 'Thermographic Inspection (TE)'] %}
+                            <option value="{{ quote.description }}" selected>{{ quote.description }}</option>
+                            {% endif %}
+                        </select>
                     </div>
                     
                     <div class="mb-3">

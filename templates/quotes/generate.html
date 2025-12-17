@@ -34,9 +34,16 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <input type="text" class="form-control" id="description" name="description" 
-                               value="{{ work_order.code }} - {{ work_order.name }}">
+                        <label for="description" class="form-label">Description / Service Type</label>
+                        <select class="form-control" id="description" name="description">
+                            <option value="{{ work_order.code }} - {{ work_order.name }}" selected>{{ work_order.code }} - {{ work_order.name }}</option>
+                            <option value="Non-Destructive Testing (NDT)">Non-Destructive Testing (NDT)</option>
+                            <option value="Radiographic Testing (RT) X-Ray NDT">Radiographic Testing (RT) X-Ray NDT</option>
+                            <option value="Fluorescent Penetrant Inspection (FPI)">Fluorescent Penetrant Inspection (FPI)</option>
+                            <option value="Magnetic Particle Inspection (MPI)">Magnetic Particle Inspection (MPI)</option>
+                            <option value="Electromagnetic Testing (ET)">Electromagnetic Testing (ET)</option>
+                            <option value="Thermographic Inspection (TE)">Thermographic Inspection (TE)</option>
+                        </select>
                     </div>
                     
                     <div class="mb-3">
