@@ -833,9 +833,9 @@ def part_analyzer_analyze():
         if not analysis_scope or 'quality' in analysis_scope:
             deviations = conn.execute('''
                 SELECT * FROM qms_deviations 
-                WHERE product_id = ? OR description LIKE ?
-                ORDER BY created_at DESC LIMIT 10
-            ''', (product_id, f'%{product_data["code"]}%')).fetchall()
+                WHERE description LIKE ? OR root_cause LIKE ?
+                ORDER BY reported_date DESC LIMIT 10
+            ''', (f'%{product_data["code"]}%', f'%{product_data["code"]}%')).fetchall()
             cross_module_data['quality'] = {
                 'deviations': [dict(d) for d in deviations]
             }
