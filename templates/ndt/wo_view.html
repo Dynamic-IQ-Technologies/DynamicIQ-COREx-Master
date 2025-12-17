@@ -44,7 +44,13 @@
                 </div>
                 <div class="card-body">
                     <table class="table table-sm mb-0">
-                        <tr><th width="40%">Customer</th><td>{{ ndt_wo.customer_name or '-' }}</td></tr>
+                        <tr><th width="40%">Customer</th><td>
+                            {% if ndt_wo.customer_id %}
+                            <a href="{{ url_for('customer_routes.view_customer', id=ndt_wo.customer_id) }}" class="text-decoration-none">{{ ndt_wo.customer_name }}</a>
+                            {% else %}
+                            {{ ndt_wo.customer_name or '-' }}
+                            {% endif %}
+                        </td></tr>
                         <tr><th>Product</th><td>{{ ndt_wo.product_code or ndt_wo.part_description or '-' }}</td></tr>
                         <tr><th>Serial #</th><td>{{ ndt_wo.serial_number or '-' }}</td></tr>
                         <tr><th>Heat/Lot #</th><td>{{ ndt_wo.heat_number or '-' }}</td></tr>

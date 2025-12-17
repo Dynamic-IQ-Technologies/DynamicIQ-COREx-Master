@@ -125,7 +125,13 @@
                                     {{ esc.so_number }}
                                 </a>
                             </td>
-                            <td>{{ esc.customer_name }}</td>
+                            <td>
+                                {% if esc.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=esc.customer_id) }}" class="text-decoration-none">{{ esc.customer_name }}</a>
+                                {% else %}
+                                {{ esc.customer_name }}
+                                {% endif %}
+                            </td>
                             <td>{{ esc.escalation_reason[:50] }}{% if esc.escalation_reason|length > 50 %}...{% endif %}</td>
                             <td>
                                 {% if esc.priority == 'Critical' %}

@@ -341,7 +341,13 @@
                             {% for so in recent_sales_orders %}
                             <tr>
                                 <td><a href="{{ url_for('salesorder_routes.view_sales_order', id=so.id) }}">{{ so.so_number }}</a></td>
-                                <td>{{ so.customer_name or 'N/A' }}</td>
+                                <td>
+                                    {% if so.customer_id %}
+                                    <a href="{{ url_for('customer_routes.view_customer', id=so.customer_id) }}" class="text-decoration-none">{{ so.customer_name }}</a>
+                                    {% else %}
+                                    {{ so.customer_name or 'N/A' }}
+                                    {% endif %}
+                                </td>
                                 <td class="text-end">{{ "$ {:,.2f}".format(so.total_amount or 0) }}</td>
                                 <td>
                                     {% if so.status == 'Confirmed' %}

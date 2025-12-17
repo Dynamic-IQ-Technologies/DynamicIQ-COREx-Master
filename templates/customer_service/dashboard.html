@@ -149,7 +149,13 @@
                                             {{ order.so_number }}
                                         </a>
                                     </td>
-                                    <td>{{ order.customer_name }}</td>
+                                    <td>
+                                        {% if order.customer_id %}
+                                        <a href="{{ url_for('customer_routes.view_customer', id=order.customer_id) }}" class="text-decoration-none">{{ order.customer_name }}</a>
+                                        {% else %}
+                                        {{ order.customer_name }}
+                                        {% endif %}
+                                    </td>
                                     <td>{{ order.expected_ship_date or 'N/A' }}</td>
                                     <td>
                                         {% if order.days_until_due < 0 %}
@@ -208,7 +214,13 @@
                                         </a>
                                     </td>
                                     <td>{{ wo.product_code }}</td>
-                                    <td>{{ wo.customer_name or 'N/A' }}</td>
+                                    <td>
+                                        {% if wo.customer_id %}
+                                        <a href="{{ url_for('customer_routes.view_customer', id=wo.customer_id) }}" class="text-decoration-none">{{ wo.customer_name }}</a>
+                                        {% else %}
+                                        {{ wo.customer_name or 'N/A' }}
+                                        {% endif %}
+                                    </td>
                                     <td><span class="badge bg-warning text-dark">{{ wo.status }}</span></td>
                                 </tr>
                                 {% endfor %}
@@ -254,7 +266,13 @@
                                             {{ quote.so_number }}
                                         </a>
                                     </td>
-                                    <td>{{ quote.customer_name }}</td>
+                                    <td>
+                                        {% if quote.customer_id %}
+                                        <a href="{{ url_for('customer_routes.view_customer', id=quote.customer_id) }}" class="text-decoration-none">{{ quote.customer_name }}</a>
+                                        {% else %}
+                                        {{ quote.customer_name }}
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if quote.days_pending and quote.days_pending > 7 %}
                                         <span class="badge bg-danger">{{ quote.days_pending|int }} days</span>

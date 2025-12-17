@@ -94,7 +94,13 @@
                                 <span class="badge bg-dark">{{ comm.communication_type }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ comm.customer_name }}</td>
+                            <td>
+                                {% if comm.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=comm.customer_id) }}" class="text-decoration-none">{{ comm.customer_name }}</a>
+                                {% else %}
+                                {{ comm.customer_name }}
+                                {% endif %}
+                            </td>
                             <td>{{ comm.subject or 'N/A' }}</td>
                             <td>
                                 {% if comm.so_number %}

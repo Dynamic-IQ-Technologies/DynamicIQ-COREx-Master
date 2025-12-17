@@ -40,7 +40,13 @@
                         <td>{{ receipt.product_code }} - {{ receipt.product_name }}</td>
                         <td>{{ "%.2f"|format(receipt.quantity_received) }} {{ receipt.unit_of_measure }}</td>
                         <td>{{ receipt.receipt_date }}</td>
-                        <td>{{ receipt.supplier_name }}</td>
+                        <td>
+                            {% if receipt.supplier_id %}
+                            <a href="{{ url_for('supplier_routes.edit_supplier', id=receipt.supplier_id) }}" class="text-decoration-none">{{ receipt.supplier_name }}</a>
+                            {% else %}
+                            {{ receipt.supplier_name }}
+                            {% endif %}
+                        </td>
                         <td>{{ receipt.warehouse_location }}</td>
                         <td>
                             {% if receipt.condition == 'New' %}

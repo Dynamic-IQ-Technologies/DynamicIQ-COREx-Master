@@ -38,7 +38,13 @@
                             <tbody>
                                 {% for exp in exposure_by_customer %}
                                 <tr>
-                                    <td>{{ exp.customer_name }}</td>
+                                    <td>
+                                        {% if exp.customer_id %}
+                                        <a href="{{ url_for('customer_routes.view_customer', id=exp.customer_id) }}" class="text-decoration-none">{{ exp.customer_name }}</a>
+                                        {% else %}
+                                        {{ exp.customer_name }}
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center">{{ exp.exchange_count }}</td>
                                     <td class="text-end fw-bold {% if exp.total_exposure > 50000 %}text-danger{% endif %}">
                                         ${{ "{:,.2f}".format(exp.total_exposure or 0) }}
@@ -91,7 +97,13 @@
                         {% for item in aging_data %}
                         <tr>
                             <td><a href="{{ url_for('exchange.view_exchange', exchange_id=item.id) if item.id else '#' }}">{{ item.exchange_id }}</a></td>
-                            <td>{{ item.customer_name }}</td>
+                            <td>
+                                {% if item.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=item.customer_id) }}" class="text-decoration-none">{{ item.customer_name }}</a>
+                                {% else %}
+                                {{ item.customer_name }}
+                                {% endif %}
+                            </td>
                             <td>{{ item.product_code }}</td>
                             <td>
                                 {% if item.core_status == 'Core Overdue' %}

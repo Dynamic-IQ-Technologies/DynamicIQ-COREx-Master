@@ -96,7 +96,13 @@
                             {% endif %}
                             <td><strong>{{ wo.ndt_wo_number }}</strong></td>
                             <td><span class="badge bg-light text-dark">{{ wo.order_type }}</span></td>
-                            <td>{{ wo.customer_name or '-' }}</td>
+                            <td>
+                                {% if wo.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=wo.customer_id) }}" class="text-decoration-none">{{ wo.customer_name }}</a>
+                                {% else %}
+                                {{ wo.customer_name or '-' }}
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if wo.product_code %}
                                     {{ wo.product_code }}

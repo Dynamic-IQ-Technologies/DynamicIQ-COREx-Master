@@ -72,7 +72,13 @@
                                     {{ order.so_number }}
                                 </a>
                             </td>
-                            <td>{{ order.customer_name }}</td>
+                            <td>
+                                {% if order.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=order.customer_id) }}" class="text-decoration-none">{{ order.customer_name }}</a>
+                                {% else %}
+                                {{ order.customer_name }}
+                                {% endif %}
+                            </td>
                             <td>{{ order.order_date or 'N/A' }}</td>
                             <td>{{ order.expected_ship_date or 'N/A' }}</td>
                             <td>{{ order.total_amount | currency }}</td>

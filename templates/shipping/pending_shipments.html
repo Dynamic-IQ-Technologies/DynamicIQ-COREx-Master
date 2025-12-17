@@ -61,8 +61,14 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if shipment.customer_number %}
-                            {{ shipment.customer_number }} - {{ shipment.customer_name }}
+                            {% if shipment.customer_id %}
+                            <a href="{{ url_for('customer_routes.view_customer', id=shipment.customer_id) }}" class="text-decoration-none">
+                                {% if shipment.customer_number %}
+                                {{ shipment.customer_number }} - {{ shipment.customer_name }}
+                                {% else %}
+                                {{ shipment.customer_name }}
+                                {% endif %}
+                            </a>
                             {% else %}
                             {{ shipment.customer_name or '-' }}
                             {% endif %}

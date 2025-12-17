@@ -96,7 +96,14 @@
                         <tbody>
                             {% for supplier in suppliers %}
                             <tr>
-                                <td class="fw-medium">{{ supplier.supplier_name }} <small class="text-muted">({{ supplier.supplier_code }})</small></td>
+                                <td class="fw-medium">
+                                    {% if supplier.supplier_id %}
+                                    <a href="{{ url_for('supplier_routes.edit_supplier', id=supplier.supplier_id) }}" class="text-decoration-none">{{ supplier.supplier_name }}</a>
+                                    {% else %}
+                                    {{ supplier.supplier_name }}
+                                    {% endif %}
+                                    <small class="text-muted">({{ supplier.supplier_code }})</small>
+                                </td>
                                 <td>{{ supplier.sent_date[:10] if supplier.sent_date else '-' }}</td>
                                 <td>
                                     {% if supplier.response_status == 'Received' %}

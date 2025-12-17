@@ -51,7 +51,13 @@
                         </tr>
                         <tr>
                             <td class="text-muted">Customer</td>
-                            <td class="fw-medium">{{ order.customer_name }}</td>
+                            <td class="fw-medium">
+                                {% if order.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=order.customer_id) }}" class="text-decoration-none">{{ order.customer_name }}</a>
+                                {% else %}
+                                {{ order.customer_name }}
+                                {% endif %}
+                            </td>
                         </tr>
                         <tr>
                             <td class="text-muted">Customer Email</td>
