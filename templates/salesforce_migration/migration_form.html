@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}New Migration - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">New Migration</h2>
+            <p class="text-muted mb-0">Define a new Salesforce data migration</p>
+        </div>
+        <a href="{{ url_for('sf_migration_routes.list_migrations') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+
+    <form method="POST" id="migrationForm">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Migration Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Migration Name <span class="text-danger">*</span></label>
+                                <input type="text" name="migration_name" class="form-control" 
+                                       placeholder="e.g., Initial Data Migration - December 2024" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Migration Type</label>
+                                <select name="migration_type" class="form-select">
+                                    {% for mtype in migration_types %}
+                                    <option value="{{ mtype }}">{{ mtype }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <label class="form-label">Source Connection <span class="text-danger">*</span></label>
+                            <select name="connection_id" class="form-select" id="connectionSelect" required onchange="loadObjects()">
+                                <option value="">-- Select Connection --</option>
+                                {% for conn in connections %}
+                                <option value="{{ conn.id }}" data-objects="{{ conn.object_count }}">
+                                    {{ conn.connection_name }} ({{ conn.object_count }} objects)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Objects to Migrate</h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(true)">Select All</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(false)">Deselect All</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="objectList" class="row g-2" style="max-height: 400px; overflow-y: auto;">
+                            <p class="text-muted text-center py-4">Select a connection to load available objects</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4 bg-light">
+                    <div class="card-body">
+                        <h6><i class="bi bi-info-circle me-1"></i> Migration Types</h6>
+                        <ul class="small mb-0">
+                            <li><strong>Full:</strong> Migrate all selected objects and records</li>
+                            <li><strong>Incremental:</strong> Only migrate changed records since last run</li>
+                            <li><strong>Selective:</strong> Migrate specific objects with custom filters</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <h6>Summary</h6>
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <td>Selected Objects:</td>
+                                <td class="text-end fw-bold" id="selectedCount">0</td>
+                            </tr>
+                            <tr>
+                                <td>Estimated Records:</td>
+                                <td class="text-end fw-bold" id="estimatedRecords">0</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-lg me-1"></i> Create Migration
+                    </button>
+                    <a href="{{ url_for('sf_migration_routes.list_migrations') }}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let objectsData = [];
+
+function loadObjects() {
+    const connId = document.getElementById('connectionSelect').value;
+    const objectList = document.getElementById('objectList');
+    
+    if (!connId) {
+        objectList.innerHTML = '<p class="text-muted text-center py-4">Select a connection to load available objects</p>';
+        return;
+    }
+    
+    objectList.innerHTML = '<p class="text-muted text-center py-4">Loading objects...</p>';
+    
+    fetch(`/salesforce-migration/api/connection/${connId}/objects`)
+        .then(response => response.json())
+        .then(data => {
+            objectsData = data;
+            renderObjects(data);
+        })
+        .catch(err => {
+            objectList.innerHTML = '<p class="text-danger text-center py-4">Error loading objects</p>';
+        });
+}
+
+function renderObjects(objects) {
+    const objectList = document.getElementById('objectList');
+    
+    if (objects.length === 0) {
+        objectList.innerHTML = '<p class="text-muted text-center py-4">No objects available. Run discovery first.</p>';
+        return;
+    }
+    
+    let html = '';
+    objects.forEach(obj => {
+        html += `
+            <div class="col-md-6">
+                <div class="form-check p-2 border rounded">
+                    <input type="checkbox" name="objects" value="${obj.id}" 
+                           class="form-check-input object-checkbox" 
+                           data-records="${obj.record_count}"
+                           onchange="updateSummary()" id="obj_${obj.id}">
+                    <label class="form-check-label w-100" for="obj_${obj.id}">
+                        <strong>${obj.object_name}</strong>
+                        <br>
+                        <small class="text-muted">${obj.record_count.toLocaleString()} records</small>
+                        ${obj.erp_table_exists ? '<span class="badge bg-success ms-1">Table Ready</span>' : '<span class="badge bg-warning text-dark ms-1">No Table</span>'}
+                    </label>
+                </div>
+            </div>
+        `;
+    });
+    
+    objectList.innerHTML = html;
+}
+
+function toggleAll(checked) {
+    document.querySelectorAll('.object-checkbox').forEach(cb => cb.checked = checked);
+    updateSummary();
+}
+
+function updateSummary() {
+    const checkboxes = document.querySelectorAll('.object-checkbox:checked');
+    let totalRecords = 0;
+    
+    checkboxes.forEach(cb => {
+        totalRecords += parseInt(cb.dataset.records) || 0;
+    });
+    
+    document.getElementById('selectedCount').textContent = checkboxes.length;
+    document.getElementById('estimatedRecords').textContent = totalRecords.toLocaleString();
+}
+</script>
+{% endblock %}

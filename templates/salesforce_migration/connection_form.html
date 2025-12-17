@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{% if connection %}Edit{% else %}New{% endif %} Salesforce Connection - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{% if connection %}Edit{% else %}New{% endif %} Salesforce Connection</h2>
+            <p class="text-muted mb-0">Configure Salesforce OAuth 2.0 credentials</p>
+        </div>
+        <a href="{{ url_for('sf_migration_routes.list_connections') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Connection Name <span class="text-danger">*</span></label>
+                            <input type="text" name="connection_name" class="form-control" 
+                                   value="{{ connection.connection_name if connection else '' }}" 
+                                   placeholder="e.g., Production Org" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Instance URL <span class="text-danger">*</span></label>
+                            <input type="url" name="instance_url" class="form-control" 
+                                   value="{{ connection.instance_url if connection else '' }}" 
+                                   placeholder="e.g., https://yourorg.my.salesforce.com" required>
+                            <small class="text-muted">Your Salesforce org URL (My Domain)</small>
+                        </div>
+                        
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Client ID (Consumer Key) <span class="text-danger">*</span></label>
+                                <input type="text" name="client_id" class="form-control" 
+                                       value="{{ connection.client_id if connection else '' }}" 
+                                       placeholder="Connected App Consumer Key" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Client Secret (Consumer Secret)</label>
+                                <input type="password" name="client_secret" class="form-control" 
+                                       placeholder="{% if connection %}Leave blank to keep existing{% else %}Connected App Consumer Secret{% endif %}">
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">API Version</label>
+                                <select name="api_version" class="form-select">
+                                    <option value="v59.0" {% if not connection or connection.api_version == 'v59.0' %}selected{% endif %}>v59.0 (Winter '24)</option>
+                                    <option value="v58.0" {% if connection and connection.api_version == 'v58.0' %}selected{% endif %}>v58.0 (Summer '23)</option>
+                                    <option value="v57.0" {% if connection and connection.api_version == 'v57.0' %}selected{% endif %}>v57.0 (Spring '23)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check">
+                                    <input type="checkbox" name="sandbox" class="form-check-input" id="sandbox"
+                                           {% if connection and connection.sandbox %}checked{% endif %}>
+                                    <label class="form-check-label" for="sandbox">Sandbox Environment</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('sf_migration_routes.list_connections') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Save Connection
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle me-1"></i> Setup Instructions</h6>
+                    <ol class="small mb-0">
+                        <li class="mb-2">In Salesforce Setup, create a <strong>Connected App</strong></li>
+                        <li class="mb-2">Enable OAuth settings with scopes: <code>api</code>, <code>refresh_token</code></li>
+                        <li class="mb-2">Set callback URL to your ERP OAuth endpoint</li>
+                        <li class="mb-2">Copy the Consumer Key and Consumer Secret</li>
+                        <li>After saving, use "Connect" to authorize</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body">
+                    <h6><i class="bi bi-shield-check me-1"></i> Security</h6>
+                    <ul class="small mb-0">
+                        <li>Credentials encrypted at rest</li>
+                        <li>OAuth 2.0 with refresh tokens</li>
+                        <li>Read-only access by default</li>
+                        <li>Full audit trail logging</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

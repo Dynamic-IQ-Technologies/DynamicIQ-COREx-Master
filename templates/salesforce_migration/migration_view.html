@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}{{ migration.migration_name }} - Migration - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{{ migration.migration_name }}</h2>
+            <p class="text-muted mb-0">
+                <span class="badge 
+                    {% if migration.status == 'Complete' %}bg-success
+                    {% elif migration.status == 'Running' %}bg-info
+                    {% elif migration.status == 'Ready' %}bg-primary
+                    {% elif migration.status == 'Error' %}bg-danger
+                    {% else %}bg-secondary{% endif %}">
+                    {{ migration.status }}
+                </span>
+                <span class="ms-2">{{ migration.connection_name }}</span>
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('sf_migration_routes.list_migrations') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+            {% if migration.status == 'Pending Approval' %}
+            <form action="{{ url_for('sf_migration_routes.approve_migration', id=migration.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-lg me-1"></i> Approve
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="h3 mb-0">{{ migration.total_objects }}</div>
+                    <small class="text-muted">Total Objects</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="h3 mb-0 text-success">{{ migration.completed_objects }}</div>
+                    <small class="text-muted">Completed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="h3 mb-0 text-primary">{{ "{:,}".format(migration.migrated_records) }}</div>
+                    <small class="text-muted">Records Migrated</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="h3 mb-0 {% if migration.failed_records > 0 %}text-danger{% endif %}">{{ migration.failed_records }}</div>
+                    <small class="text-muted">Failed Records</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Progress</span>
+                        <span>{% if migration.total_objects > 0 %}{{ (migration.completed_objects / migration.total_objects * 100)|int }}%{% else %}0%{% endif %}</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        {% set pct = (migration.completed_objects / migration.total_objects * 100)|int if migration.total_objects > 0 else 0 %}
+                        <div class="progress-bar bg-success" style="width: {{ pct }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#objects">Objects ({{ migration_objects|length }})</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#errors">Errors ({{ errors|length }})</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#reconciliation">Reconciliation</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#details">Details</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="objects">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Object</th>
+                                    <th>ERP Table</th>
+                                    <th>Source</th>
+                                    <th>Target</th>
+                                    <th>Inserted</th>
+                                    <th>Errors</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for obj in migration_objects %}
+                                <tr>
+                                    <td>{{ obj.sequence_order + 1 }}</td>
+                                    <td><strong>{{ obj.object_name }}</strong></td>
+                                    <td>
+                                        {% if obj.erp_table_exists %}
+                                        <span class="text-success">{{ obj.erp_table_name }}</span>
+                                        {% else %}
+                                        <span class="text-warning">Not Created</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "{:,}".format(obj.source_count) }}</td>
+                                    <td>{{ "{:,}".format(obj.target_count) }}</td>
+                                    <td>{{ "{:,}".format(obj.inserted_count) }}</td>
+                                    <td>
+                                        {% if obj.error_count > 0 %}
+                                        <span class="text-danger">{{ obj.error_count }}</span>
+                                        {% else %}
+                                        0
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if obj.status == 'Complete' %}bg-success
+                                            {% elif obj.status == 'Running' or obj.status == 'Extracting' %}bg-info
+                                            {% elif obj.status == 'Error' %}bg-danger
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ obj.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">No objects in migration</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="errors">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Object</th>
+                                    <th>SF Record ID</th>
+                                    <th>Error Type</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for err in errors %}
+                                <tr>
+                                    <td>{{ err.object_name or '-' }}</td>
+                                    <td><code>{{ err.sf_record_id or '-' }}</code></td>
+                                    <td><span class="badge bg-danger">{{ err.error_type }}</span></td>
+                                    <td class="text-break" style="max-width: 300px;">{{ err.error_message }}</td>
+                                    <td>
+                                        <span class="badge {% if err.resolution_status == 'Resolved' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                            {{ err.resolution_status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ err.created_at[:16] if err.created_at else '' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No errors recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="reconciliation">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Object</th>
+                                    <th>SF Count</th>
+                                    <th>ERP Count</th>
+                                    <th>Count Match</th>
+                                    <th>Checksum Match</th>
+                                    <th>Discrepancies</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rec in reconciliation %}
+                                <tr>
+                                    <td><strong>{{ rec.object_name }}</strong></td>
+                                    <td>{{ "{:,}".format(rec.sf_record_count) }}</td>
+                                    <td>{{ "{:,}".format(rec.erp_record_count) }}</td>
+                                    <td>
+                                        {% if rec.count_match %}
+                                        <i class="bi bi-check-circle text-success"></i>
+                                        {% else %}
+                                        <i class="bi bi-x-circle text-danger"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if rec.checksum_match %}
+                                        <i class="bi bi-check-circle text-success"></i>
+                                        {% else %}
+                                        <i class="bi bi-x-circle text-danger"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rec.discrepancy_count }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if rec.reconciliation_status == 'Validated' %}bg-success
+                                            {% elif rec.reconciliation_status == 'Failed' %}bg-danger
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ rec.reconciliation_status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">Reconciliation not yet run</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="details">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Migration Info</h6>
+                            <table class="table table-sm">
+                                <tr><th width="40%">Type</th><td>{{ migration.migration_type }}</td></tr>
+                                <tr><th>Connection</th><td>{{ migration.connection_name }}</td></tr>
+                                <tr><th>Created By</th><td>{{ migration.created_by_name }}</td></tr>
+                                <tr><th>Created At</th><td>{{ migration.created_at if migration.created_at else '-' }}</td></tr>
+                                <tr><th>Start Time</th><td>{{ migration.start_time if migration.start_time else '-' }}</td></tr>
+                                <tr><th>End Time</th><td>{{ migration.end_time if migration.end_time else '-' }}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Approval</h6>
+                            <table class="table table-sm">
+                                <tr><th width="40%">Approved By</th><td>{{ migration.approved_by or '-' }}</td></tr>
+                                <tr><th>Approved At</th><td>{{ migration.approved_at if migration.approved_at else '-' }}</td></tr>
+                                <tr><th>Validation Status</th><td>{{ migration.validation_status }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

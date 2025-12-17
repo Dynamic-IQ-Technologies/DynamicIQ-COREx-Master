@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Salesforce Migrations - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Salesforce Migrations</h2>
+            <p class="text-muted mb-0">Data migration definitions and execution history</p>
+        </div>
+        <div>
+            <a href="{{ url_for('sf_migration_routes.dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Dashboard
+            </a>
+            <a href="{{ url_for('sf_migration_routes.new_migration') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> New Migration
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Migration Name</th>
+                            <th>Connection</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Objects</th>
+                            <th>Records</th>
+                            <th>Created</th>
+                            <th width="100">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mig in migrations %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('sf_migration_routes.view_migration', id=mig.id) }}">
+                                    <strong>{{ mig.migration_name }}</strong>
+                                </a>
+                            </td>
+                            <td>{{ mig.connection_name }}</td>
+                            <td><span class="badge bg-light text-dark">{{ mig.migration_type }}</span></td>
+                            <td>
+                                <span class="badge 
+                                    {% if mig.status == 'Complete' %}bg-success
+                                    {% elif mig.status == 'Running' %}bg-info
+                                    {% elif mig.status == 'Ready' %}bg-primary
+                                    {% elif mig.status == 'Error' %}bg-danger
+                                    {% elif mig.status == 'Pending Approval' %}bg-warning text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ mig.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress me-2" style="width: 60px; height: 6px;">
+                                        {% set pct = (mig.completed_objects / mig.total_objects * 100)|int if mig.total_objects > 0 else 0 %}
+                                        <div class="progress-bar" style="width: {{ pct }}%"></div>
+                                    </div>
+                                    <small>{{ mig.completed_objects }}/{{ mig.total_objects }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {{ "{:,}".format(mig.migrated_records) }}
+                                {% if mig.failed_records > 0 %}
+                                <span class="text-danger">({{ mig.failed_records }} errors)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ mig.created_at[:10] if mig.created_at else '' }}
+                                <br><small class="text-muted">{{ mig.created_by_name }}</small>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('sf_migration_routes.view_migration', id=mig.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                No migrations yet. <a href="{{ url_for('sf_migration_routes.new_migration') }}">Create your first migration</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

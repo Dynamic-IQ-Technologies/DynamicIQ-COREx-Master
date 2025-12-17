@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{{ object.object_name }} - SF Object - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{{ object.object_name }}</h2>
+            <p class="text-muted mb-0">
+                {{ object.object_label }} | 
+                <span class="badge {% if object.is_custom %}bg-info{% else %}bg-secondary{% endif %}">{{ object.object_type }}</span>
+                | {{ "{:,}".format(object.record_count) }} records
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('sf_migration_routes.view_connection', id=object.connection_id) }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+            {% if not object.erp_table_exists %}
+            <button type="button" class="btn btn-info me-2" onclick="previewSchema()">
+                <i class="bi bi-eye me-1"></i> Preview Schema
+            </button>
+            <form action="{{ url_for('sf_migration_routes.create_schema', id=object.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-table me-1"></i> Create ERP Table
+                </button>
+            </form>
+            {% else %}
+            <span class="badge bg-success fs-6">
+                <i class="bi bi-check-lg me-1"></i> Table: {{ object.erp_table_name }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Object Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th width="40%">API Name</th><td>{{ object.object_name }}</td></tr>
+                        <tr><th>Label</th><td>{{ object.object_label }}</td></tr>
+                        <tr><th>Type</th><td>{{ object.object_type }}</td></tr>
+                        <tr><th>Key Prefix</th><td><code>{{ object.key_prefix or '-' }}</code></td></tr>
+                        <tr><th>Queryable</th><td>{% if object.is_queryable %}<i class="bi bi-check text-success"></i>{% else %}<i class="bi bi-x text-danger"></i>{% endif %}</td></tr>
+                        <tr><th>Record Count</th><td>{{ "{:,}".format(object.record_count) }}</td></tr>
+                        <tr><th>Migration Priority</th><td>{{ object.migration_priority }}</td></tr>
+                        <tr><th>ERP Table</th><td>{{ object.erp_table_name or 'Not Created' }}</td></tr>
+                        <tr><th>Discovered</th><td>{{ object.discovered_at[:16] if object.discovered_at else '-' }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Field Mappings ({{ fields|length }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>SF Field</th>
+                                    <th>SF Type</th>
+                                    <th>ERP Column</th>
+                                    <th>ERP Type</th>
+                                    <th>Required</th>
+                                    <th>Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field in fields %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ field.field_name }}</strong>
+                                        <br><small class="text-muted">{{ field.field_label }}</small>
+                                    </td>
+                                    <td><code>{{ field.sf_data_type }}</code></td>
+                                    <td><code>{{ field.erp_column_name }}</code></td>
+                                    <td>{{ field.erp_column_type }}</td>
+                                    <td>
+                                        {% if field.is_required %}
+                                        <i class="bi bi-check text-success"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if field.is_reference %}
+                                        <span class="badge bg-info">{{ field.reference_to }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="schemaPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Schema Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="schemaSql" class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow: auto;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewSchema() {
+    fetch('/salesforce-migration/objects/{{ object.id }}/preview-schema')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('schemaSql').textContent = data.sql;
+                new bootstrap.Modal(document.getElementById('schemaPreviewModal')).show();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+}
+</script>
+{% endblock %}

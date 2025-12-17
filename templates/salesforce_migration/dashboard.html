@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Salesforce Migration Agent - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-cloud-arrow-down me-2"></i>Salesforce Data Migration Agent</h2>
+            <p class="text-muted mb-0">Autonomous migration with zero data loss tolerance</p>
+        </div>
+        <div>
+            <a href="{{ url_for('sf_migration_routes.new_connection') }}" class="btn btn-primary me-2">
+                <i class="bi bi-plus-lg me-1"></i> New Connection
+            </a>
+            <a href="{{ url_for('sf_migration_routes.audit_log') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-journal-text me-1"></i> Audit Log
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-primary mb-2">{{ stats.total_connections }}</div>
+                    <p class="text-muted mb-0 small">Connections</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-success mb-2">{{ stats.active_connections }}</div>
+                    <p class="text-muted mb-0 small">Active</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-info mb-2">{{ stats.total_objects }}</div>
+                    <p class="text-muted mb-0 small">Objects Discovered</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-warning mb-2">{{ stats.total_migrations }}</div>
+                    <p class="text-muted mb-0 small">Migrations</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 {% if stats.total_errors > 0 %}text-danger{% else %}text-success{% endif %} mb-2">{{ stats.total_errors }}</div>
+                    <p class="text-muted mb-0 small">Open Errors</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 bg-primary text-white">
+                <div class="card-body text-center d-flex align-items-center justify-content-center">
+                    <a href="{{ url_for('sf_migration_routes.new_migration') }}" class="text-white text-decoration-none">
+                        <i class="bi bi-rocket-takeoff display-6"></i>
+                        <p class="mb-0 small mt-2">Start Migration</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Salesforce Connections</h5>
+                    <a href="{{ url_for('sf_migration_routes.list_connections') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Connection</th>
+                                    <th>Status</th>
+                                    <th>Objects</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for conn in connections %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ conn.connection_name }}</strong>
+                                        <br><small class="text-muted">{{ conn.instance_url }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if conn.status == 'Connected' %}bg-success{% elif conn.status == 'Error' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ conn.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ conn.object_count }}</td>
+                                    <td>
+                                        <a href="{{ url_for('sf_migration_routes.view_connection', id=conn.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        No connections configured. <a href="{{ url_for('sf_migration_routes.new_connection') }}">Add one now</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Migrations</h5>
+                    <a href="{{ url_for('sf_migration_routes.list_migrations') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Migration</th>
+                                    <th>Connection</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mig in migrations %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('sf_migration_routes.view_migration', id=mig.id) }}">
+                                            <strong>{{ mig.migration_name }}</strong>
+                                        </a>
+                                        <br><small class="text-muted">{{ mig.created_at[:10] if mig.created_at else '' }}</small>
+                                    </td>
+                                    <td>{{ mig.connection_name }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if mig.status == 'Complete' %}bg-success
+                                            {% elif mig.status == 'Running' %}bg-info
+                                            {% elif mig.status == 'Error' %}bg-danger
+                                            {% elif mig.status == 'Ready' %}bg-primary
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ mig.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if mig.total_objects > 0 %}
+                                        <div class="progress" style="height: 6px; width: 80px;">
+                                            <div class="progress-bar" style="width: {{ (mig.completed_objects / mig.total_objects * 100)|int }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ mig.completed_objects }}/{{ mig.total_objects }}</small>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        No migrations yet. <a href="{{ url_for('sf_migration_routes.new_migration') }}">Create one now</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Migration Phases</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col">
+                    <div class="p-3 border rounded">
+                        <i class="bi bi-search display-6 text-primary"></i>
+                        <p class="mb-0 mt-2 fw-bold">1. Discovery</p>
+                        <small class="text-muted">Auto-discover objects</small>
+                    </div>
+                </div>
+                <div class="col d-flex align-items-center justify-content-center">
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="p-3 border rounded">
+                        <i class="bi bi-table display-6 text-info"></i>
+                        <p class="mb-0 mt-2 fw-bold">2. Schema</p>
+                        <small class="text-muted">Create ERP tables</small>
+                    </div>
+                </div>
+                <div class="col d-flex align-items-center justify-content-center">
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="p-3 border rounded">
+                        <i class="bi bi-shuffle display-6 text-warning"></i>
+                        <p class="mb-0 mt-2 fw-bold">3. Mapping</p>
+                        <small class="text-muted">Field transformations</small>
+                    </div>
+                </div>
+                <div class="col d-flex align-items-center justify-content-center">
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="p-3 border rounded">
+                        <i class="bi bi-cloud-download display-6 text-success"></i>
+                        <p class="mb-0 mt-2 fw-bold">4. ETL</p>
+                        <small class="text-muted">Extract & Load</small>
+                    </div>
+                </div>
+                <div class="col d-flex align-items-center justify-content-center">
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="p-3 border rounded">
+                        <i class="bi bi-check2-circle display-6 text-success"></i>
+                        <p class="mb-0 mt-2 fw-bold">5. Validate</p>
+                        <small class="text-muted">Reconcile & Certify</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

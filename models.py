@@ -2406,6 +2406,231 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_sr_schedule ON schedule_recommendations(schedule_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_scl_schedule_wc ON schedule_capacity_load(schedule_id, work_center_id)')
         
+        # Salesforce Data Migration Agent tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_connections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                connection_name TEXT NOT NULL,
+                instance_url TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                client_secret_encrypted TEXT,
+                access_token_encrypted TEXT,
+                refresh_token_encrypted TEXT,
+                token_expiry TIMESTAMP,
+                api_version TEXT DEFAULT 'v59.0',
+                sandbox INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Disconnected',
+                last_connected_at TIMESTAMP,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_object_metadata (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                connection_id INTEGER NOT NULL,
+                object_name TEXT NOT NULL,
+                object_label TEXT,
+                object_type TEXT DEFAULT 'Standard',
+                is_custom INTEGER DEFAULT 0,
+                is_queryable INTEGER DEFAULT 1,
+                record_count INTEGER DEFAULT 0,
+                key_prefix TEXT,
+                erp_table_name TEXT,
+                erp_table_exists INTEGER DEFAULT 0,
+                migration_priority INTEGER DEFAULT 100,
+                migration_status TEXT DEFAULT 'Pending',
+                discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (connection_id) REFERENCES sf_connections(id) ON DELETE CASCADE,
+                UNIQUE(connection_id, object_name)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_field_metadata (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                object_metadata_id INTEGER NOT NULL,
+                field_name TEXT NOT NULL,
+                field_label TEXT,
+                field_type TEXT NOT NULL,
+                sf_data_type TEXT,
+                length INTEGER,
+                precision_val INTEGER,
+                scale INTEGER,
+                is_required INTEGER DEFAULT 0,
+                is_unique INTEGER DEFAULT 0,
+                is_reference INTEGER DEFAULT 0,
+                reference_to TEXT,
+                picklist_values TEXT,
+                erp_column_name TEXT,
+                erp_column_type TEXT,
+                transformation_rule TEXT,
+                mapping_status TEXT DEFAULT 'Auto',
+                FOREIGN KEY (object_metadata_id) REFERENCES sf_object_metadata(id) ON DELETE CASCADE,
+                UNIQUE(object_metadata_id, field_name)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_migrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_name TEXT NOT NULL,
+                connection_id INTEGER NOT NULL,
+                migration_type TEXT DEFAULT 'Full',
+                status TEXT DEFAULT 'Draft',
+                total_objects INTEGER DEFAULT 0,
+                completed_objects INTEGER DEFAULT 0,
+                total_records INTEGER DEFAULT 0,
+                migrated_records INTEGER DEFAULT 0,
+                failed_records INTEGER DEFAULT 0,
+                validation_status TEXT DEFAULT 'Pending',
+                start_time TIMESTAMP,
+                end_time TIMESTAMP,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                FOREIGN KEY (connection_id) REFERENCES sf_connections(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_migration_objects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_id INTEGER NOT NULL,
+                object_metadata_id INTEGER NOT NULL,
+                sequence_order INTEGER DEFAULT 0,
+                source_count INTEGER DEFAULT 0,
+                target_count INTEGER DEFAULT 0,
+                inserted_count INTEGER DEFAULT 0,
+                updated_count INTEGER DEFAULT 0,
+                skipped_count INTEGER DEFAULT 0,
+                error_count INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Pending',
+                schema_created INTEGER DEFAULT 0,
+                schema_approved INTEGER DEFAULT 0,
+                start_time TIMESTAMP,
+                end_time TIMESTAMP,
+                error_message TEXT,
+                FOREIGN KEY (migration_id) REFERENCES sf_migrations(id) ON DELETE CASCADE,
+                FOREIGN KEY (object_metadata_id) REFERENCES sf_object_metadata(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_migration_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_object_id INTEGER NOT NULL,
+                batch_number INTEGER NOT NULL,
+                batch_size INTEGER NOT NULL,
+                offset_val INTEGER DEFAULT 0,
+                records_processed INTEGER DEFAULT 0,
+                records_success INTEGER DEFAULT 0,
+                records_failed INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Pending',
+                start_time TIMESTAMP,
+                end_time TIMESTAMP,
+                error_message TEXT,
+                FOREIGN KEY (migration_object_id) REFERENCES sf_migration_objects(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_migration_errors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_id INTEGER NOT NULL,
+                migration_object_id INTEGER,
+                batch_id INTEGER,
+                sf_record_id TEXT,
+                error_type TEXT NOT NULL,
+                error_code TEXT,
+                error_message TEXT NOT NULL,
+                field_name TEXT,
+                record_data TEXT,
+                resolution_status TEXT DEFAULT 'Open',
+                resolution_notes TEXT,
+                resolved_by INTEGER,
+                resolved_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (migration_id) REFERENCES sf_migrations(id) ON DELETE CASCADE,
+                FOREIGN KEY (migration_object_id) REFERENCES sf_migration_objects(id),
+                FOREIGN KEY (batch_id) REFERENCES sf_migration_batches(id),
+                FOREIGN KEY (resolved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_reconciliation_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_id INTEGER NOT NULL,
+                migration_object_id INTEGER,
+                object_name TEXT NOT NULL,
+                sf_record_count INTEGER DEFAULT 0,
+                erp_record_count INTEGER DEFAULT 0,
+                count_match INTEGER DEFAULT 0,
+                checksum_sf TEXT,
+                checksum_erp TEXT,
+                checksum_match INTEGER DEFAULT 0,
+                sample_verified INTEGER DEFAULT 0,
+                discrepancy_count INTEGER DEFAULT 0,
+                discrepancy_details TEXT,
+                reconciliation_status TEXT DEFAULT 'Pending',
+                validated_at TIMESTAMP,
+                validated_by INTEGER,
+                FOREIGN KEY (migration_id) REFERENCES sf_migrations(id) ON DELETE CASCADE,
+                FOREIGN KEY (migration_object_id) REFERENCES sf_migration_objects(id),
+                FOREIGN KEY (validated_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_audit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_id INTEGER,
+                connection_id INTEGER,
+                event_type TEXT NOT NULL,
+                event_category TEXT NOT NULL,
+                event_description TEXT NOT NULL,
+                object_name TEXT,
+                record_count INTEGER,
+                user_id INTEGER,
+                ip_address TEXT,
+                event_data TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (migration_id) REFERENCES sf_migrations(id),
+                FOREIGN KEY (connection_id) REFERENCES sf_connections(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sf_id_mappings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_id INTEGER NOT NULL,
+                object_name TEXT NOT NULL,
+                sf_id TEXT NOT NULL,
+                erp_id INTEGER NOT NULL,
+                erp_table TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (migration_id) REFERENCES sf_migrations(id) ON DELETE CASCADE,
+                UNIQUE(migration_id, object_name, sf_id)
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_obj_meta_conn ON sf_object_metadata(connection_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_field_meta_obj ON sf_field_metadata(object_metadata_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_mig_obj ON sf_migration_objects(migration_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_mig_batch ON sf_migration_batches(migration_object_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_mig_err ON sf_migration_errors(migration_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_recon ON sf_reconciliation_results(migration_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_audit ON sf_audit_events(migration_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sf_id_map ON sf_id_mappings(migration_id, object_name)')
+        
         conn.commit()
         conn.close()
     

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log - Salesforce Migration - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Salesforce Migration Audit Log</h2>
+            <p class="text-muted mb-0">Complete audit trail for all migration activities</p>
+        </div>
+        <a href="{{ url_for('sf_migration_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Event Type</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Connection</th>
+                            <th>Migration</th>
+                            <th>User</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td><small>{{ event.created_at }}</small></td>
+                            <td>
+                                <span class="badge 
+                                    {% if 'ERROR' in event.event_type %}bg-danger
+                                    {% elif 'COMPLETE' in event.event_type or 'SUCCESS' in event.event_type %}bg-success
+                                    {% elif 'STARTED' in event.event_type or 'RUNNING' in event.event_type %}bg-info
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ event.event_type }}
+                                </span>
+                            </td>
+                            <td>{{ event.event_category }}</td>
+                            <td>{{ event.event_description }}</td>
+                            <td>{{ event.connection_name or '-' }}</td>
+                            <td>{{ event.migration_name or '-' }}</td>
+                            <td>{{ event.username or 'System' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No audit events recorded yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
