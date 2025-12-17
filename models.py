@@ -1929,6 +1929,113 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_suppliers_rfq ON rfq_suppliers(rfq_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_quotes_rfq ON rfq_quotes(rfq_id)')
         
+        # Organizational Analyzer tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS org_kpi_definitions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kpi_code TEXT UNIQUE NOT NULL,
+                kpi_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                description TEXT,
+                calculation_method TEXT,
+                target_value REAL,
+                warning_threshold REAL,
+                critical_threshold REAL,
+                unit TEXT,
+                is_active INTEGER DEFAULT 1,
+                display_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS org_kpi_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kpi_id INTEGER NOT NULL,
+                recorded_date DATE NOT NULL,
+                value REAL NOT NULL,
+                trend TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (kpi_id) REFERENCES org_kpi_definitions(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS org_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alert_type TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT,
+                kpi_id INTEGER,
+                current_value REAL,
+                threshold_value REAL,
+                is_acknowledged INTEGER DEFAULT 0,
+                acknowledged_by INTEGER,
+                acknowledged_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (kpi_id) REFERENCES org_kpi_definitions(id),
+                FOREIGN KEY (acknowledged_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS org_recommendations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recommendation_type TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                business_impact TEXT,
+                risk_level TEXT,
+                time_to_value TEXT,
+                confidence_score REAL,
+                status TEXT DEFAULT 'Pending',
+                generated_by TEXT,
+                reviewed_by INTEGER,
+                reviewed_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (reviewed_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS org_forecasts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                forecast_type TEXT NOT NULL,
+                scenario TEXT NOT NULL,
+                horizon_days INTEGER NOT NULL,
+                forecast_date DATE NOT NULL,
+                metric_name TEXT NOT NULL,
+                predicted_value REAL,
+                lower_bound REAL,
+                upper_bound REAL,
+                confidence_level REAL,
+                assumptions TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS org_health_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                score_date DATE NOT NULL,
+                overall_score REAL NOT NULL,
+                financial_score REAL,
+                operational_score REAL,
+                workforce_score REAL,
+                strategic_score REAL,
+                customer_score REAL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_org_kpi_history_date ON org_kpi_history(recorded_date)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_org_alerts_severity ON org_alerts(severity, is_acknowledged)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_org_forecasts_type ON org_forecasts(forecast_type, scenario)')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         
