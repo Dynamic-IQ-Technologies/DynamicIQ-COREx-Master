@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ndt_wo.ndt_wo_number }} - NDT Work Order - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{{ ndt_wo.ndt_wo_number }}</h2>
+            <p class="text-muted mb-0">
+                <span class="badge 
+                    {% if ndt_wo.status == 'Approved' %}bg-success
+                    {% elif ndt_wo.status == 'Rejected' %}bg-danger
+                    {% elif ndt_wo.status == 'In Inspection' %}bg-info
+                    {% elif ndt_wo.status == 'Under Review' %}bg-warning text-dark
+                    {% else %}bg-secondary{% endif %}" data-status="{{ ndt_wo.status }}">
+                    {{ ndt_wo.status }}
+                </span>
+                <span class="ms-2">{{ ndt_wo.order_type }}</span>
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('ndt_routes.wo_list') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+            {% if ndt_wo.status in ['Draft', 'Scheduled'] %}
+            <a href="{{ url_for('ndt_routes.wo_edit', id=ndt_wo.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Work Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th width="40%">Customer</th><td>{{ ndt_wo.customer_name or '-' }}</td></tr>
+                        <tr><th>Product</th><td>{{ ndt_wo.product_code or ndt_wo.part_description or '-' }}</td></tr>
+                        <tr><th>Serial #</th><td>{{ ndt_wo.serial_number or '-' }}</td></tr>
+                        <tr><th>Heat/Lot #</th><td>{{ ndt_wo.heat_number or '-' }}</td></tr>
+                        <tr><th>NDT Methods</th><td><strong>{{ ndt_wo.ndt_methods }}</strong></td></tr>
+                        <tr><th>Code/Standard</th><td>{{ ndt_wo.applicable_code or '-' }}</td></tr>
+                        <tr><th>Location</th><td>{{ ndt_wo.inspection_location or '-' }}</td></tr>
+                        <tr><th>Priority</th><td>
+                            <span class="badge {% if ndt_wo.priority == 'Urgent' %}bg-danger{% elif ndt_wo.priority == 'High' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ ndt_wo.priority }}
+                            </span>
+                        </td></tr>
+                        <tr><th>Technician</th><td>{{ ndt_wo.technician_name or 'Unassigned' }}</td></tr>
+                        {% if ndt_wo.reviewer_name %}
+                        <tr><th>Reviewer</th><td>{{ ndt_wo.reviewer_name }}</td></tr>
+                        {% endif %}
+                        <tr><th>Planned Start</th><td>{{ ndt_wo.planned_start_date or '-' }}</td></tr>
+                        <tr><th>Planned End</th><td>{{ ndt_wo.planned_end_date or '-' }}</td></tr>
+                        {% if ndt_wo.actual_start_date %}
+                        <tr><th>Actual Start</th><td>{{ ndt_wo.actual_start_date }}</td></tr>
+                        {% endif %}
+                        {% if ndt_wo.actual_end_date %}
+                        <tr><th>Actual End</th><td>{{ ndt_wo.actual_end_date }}</td></tr>
+                        {% endif %}
+                    </table>
+                    {% if ndt_wo.acceptance_criteria %}
+                    <hr>
+                    <strong>Acceptance Criteria:</strong>
+                    <p class="mb-0 text-muted small">{{ ndt_wo.acceptance_criteria }}</p>
+                    {% endif %}
+                    {% if ndt_wo.notes %}
+                    <hr>
+                    <strong>Notes:</strong>
+                    <p class="mb-0 text-muted small">{{ ndt_wo.notes }}</p>
+                    {% endif %}
+                    {% if ndt_wo.rejection_reason %}
+                    <hr>
+                    <div class="alert alert-danger mb-0">
+                        <strong>Rejection Reason:</strong><br>
+                        {{ ndt_wo.rejection_reason }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Status Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('ndt_routes.wo_update_status', id=ndt_wo.id) }}" method="POST">
+                        {% if ndt_wo.status == 'Draft' %}
+                        <button type="submit" name="status" value="Scheduled" class="btn btn-primary w-100 mb-2">
+                            <i class="bi bi-calendar-check me-1"></i> Schedule Inspection
+                        </button>
+                        {% elif ndt_wo.status == 'Scheduled' %}
+                        <button type="submit" name="status" value="In Inspection" class="btn btn-info w-100 mb-2 text-white">
+                            <i class="bi bi-play-fill me-1"></i> Start Inspection
+                        </button>
+                        <button type="submit" name="status" value="Draft" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Return to Draft
+                        </button>
+                        {% elif ndt_wo.status == 'In Inspection' %}
+                        <button type="submit" name="status" value="Results Recorded" class="btn btn-primary w-100"
+                                {% if not inspection_results %}disabled title="Add inspection results first"{% endif %}>
+                            <i class="bi bi-clipboard-data me-1"></i> Submit Results
+                        </button>
+                        {% elif ndt_wo.status == 'Results Recorded' %}
+                        <button type="submit" name="status" value="Under Review" class="btn btn-warning w-100 text-dark">
+                            <i class="bi bi-person-check me-1"></i> Submit for Level III Review
+                        </button>
+                        {% elif ndt_wo.status == 'Under Review' %}
+                        <div class="mb-3">
+                            <label class="form-label">Reviewer (Level III)</label>
+                            <select name="reviewer_id" class="form-select" required>
+                                <option value="">-- Select Reviewer --</option>
+                                {% for t in level3_technicians %}
+                                <option value="{{ t.id }}">{{ t.technician_number }} - {{ t.first_name }} {{ t.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" name="status" value="Approved" class="btn btn-success w-100 mb-2">
+                            <i class="bi bi-check-circle me-1"></i> Approve
+                        </button>
+                        <div class="mb-2">
+                            <textarea name="reason" class="form-control" rows="2" placeholder="Rejection reason (required for reject)"></textarea>
+                        </div>
+                        <button type="submit" name="status" value="Rejected" class="btn btn-danger w-100">
+                            <i class="bi bi-x-circle me-1"></i> Reject
+                        </button>
+                        {% elif ndt_wo.status in ['Approved', 'Rejected'] %}
+                        <button type="submit" name="status" value="Closed" class="btn btn-secondary w-100">
+                            <i class="bi bi-archive me-1"></i> Close Work Order
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Inspection Results</h5>
+                    {% if ndt_wo.status == 'In Inspection' %}
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addResultModal">
+                        <i class="bi bi-plus-lg me-1"></i> Add Result
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Date</th>
+                                    <th>Technician</th>
+                                    <th>Area</th>
+                                    <th>Result</th>
+                                    <th>Defects</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in inspection_results %}
+                                <tr>
+                                    <td><strong>{{ result.method }}</strong></td>
+                                    <td>{{ result.inspection_date }}</td>
+                                    <td>{{ result.technician_name }} ({{ result.technician_number }})</td>
+                                    <td>{{ result.area_inspected or '-' }}</td>
+                                    <td>
+                                        <span class="badge {% if result.result == 'Pass' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ result.result }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if result.defect_type %}
+                                            {{ result.defect_type }} {% if result.defect_size %}({{ result.defect_size }}){% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No inspection results recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Status History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Changed By</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for h in status_history %}
+                                <tr>
+                                    <td>{{ h.created_at[:16] }}</td>
+                                    <td>{{ h.old_status or '-' }}</td>
+                                    <td><strong>{{ h.new_status }}</strong></td>
+                                    <td>{{ h.username }}</td>
+                                    <td>{{ h.change_reason or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% if ndt_wo.so_number or ndt_wo.mfg_wo_number %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Linked Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if ndt_wo.so_number %}
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded">
+                                <strong>Sales Order:</strong> {{ ndt_wo.so_number }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if ndt_wo.mfg_wo_number %}
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded">
+                                <strong>Manufacturing WO:</strong> {{ ndt_wo.mfg_wo_number }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addResultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('ndt_routes.add_result', id=ndt_wo.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Inspection Result</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Method <span class="text-danger">*</span></label>
+                            <select name="method" id="resultMethod" class="form-select" required>
+                                {% for m in ndt_wo.ndt_methods.split(',') %}
+                                <option value="{{ m.strip() }}">{{ m.strip() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Inspection Date <span class="text-danger">*</span></label>
+                            <input type="date" name="inspection_date" class="form-control" required value="{{ today }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Technician <span class="text-danger">*</span></label>
+                            <select name="technician_id" id="resultTechnician" class="form-select" required>
+                                <option value="">-- Select --</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.id }}">{{ t.first_name }} {{ t.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Equipment Used</label>
+                            <input type="text" name="equipment_used" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Calibration Reference</label>
+                            <input type="text" name="calibration_reference" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Procedure Reference</label>
+                            <input type="text" name="procedure_reference" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Area Inspected</label>
+                            <input type="text" name="area_inspected" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <hr>
+                            <h6>Findings</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Defect Type</label>
+                            <input type="text" name="defect_type" class="form-control" placeholder="e.g., Crack, Porosity">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Defect Size</label>
+                            <input type="text" name="defect_size" class="form-control" placeholder="e.g., 2mm x 5mm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Defect Location</label>
+                            <input type="text" name="defect_location" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Indication Details</label>
+                            <textarea name="indication_details" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Result <span class="text-danger">*</span></label>
+                            <select name="result" class="form-select" required>
+                                <option value="Pass">Pass</option>
+                                <option value="Fail">Fail</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Remarks</label>
+                            <textarea name="remarks" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

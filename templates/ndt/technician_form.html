@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{% if technician %}Edit{% else %}New{% endif %} Technician - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">{% if technician %}Edit Technician{% else %}New Technician{% endif %}</h2>
+                <a href="{{ url_for('ndt_routes.technicians_list') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Back
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" name="first_name" class="form-control" required
+                                       value="{{ technician.first_name if technician else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" name="last_name" class="form-control" required
+                                       value="{{ technician.last_name if technician else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control"
+                                       value="{{ technician.email if technician else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone</label>
+                                <input type="text" name="phone" class="form-control"
+                                       value="{{ technician.phone if technician else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Employer</label>
+                                <input type="text" name="employer" class="form-control"
+                                       value="{{ technician.employer if technician else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <select name="contract_status" class="form-select">
+                                    <option value="Active" {% if technician and technician.contract_status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Inactive" {% if technician and technician.contract_status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                    <option value="On Leave" {% if technician and technician.contract_status == 'On Leave' %}selected{% endif %}>On Leave</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notes</label>
+                                <textarea name="notes" class="form-control" rows="3">{{ technician.notes if technician else '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{{ url_for('ndt_routes.technicians_list') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> {% if technician %}Update{% else %}Create{% endif %} Technician
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

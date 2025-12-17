@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{{ technician.technician_number }} - NDT Technician - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{{ technician.first_name }} {{ technician.last_name }}</h2>
+            <p class="text-muted mb-0">{{ technician.technician_number }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('ndt_routes.technicians_list') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+            <a href="{{ url_for('ndt_routes.technician_edit', id=technician.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Technician Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr><th width="40%">Status</th><td><span class="badge {% if technician.contract_status == 'Active' %}bg-success{% else %}bg-secondary{% endif %}">{{ technician.contract_status }}</span></td></tr>
+                        <tr><th>Email</th><td>{{ technician.email or '-' }}</td></tr>
+                        <tr><th>Phone</th><td>{{ technician.phone or '-' }}</td></tr>
+                        <tr><th>Employer</th><td>{{ technician.employer or '-' }}</td></tr>
+                        <tr><th>Created</th><td>{{ technician.created_at[:10] if technician.created_at else '-' }}</td></tr>
+                    </table>
+                    {% if technician.notes %}
+                    <div class="mt-3">
+                        <strong>Notes:</strong>
+                        <p class="mb-0 text-muted">{{ technician.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Certifications</h5>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addCertModal">
+                        <i class="bi bi-plus-lg me-1"></i> Add Certification
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Level</th>
+                                    <th>Cert #</th>
+                                    <th>Issued</th>
+                                    <th>Expires</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cert in certifications %}
+                                <tr>
+                                    <td><strong>{{ cert.method }}</strong></td>
+                                    <td>{{ cert.level }}</td>
+                                    <td>{{ cert.certification_number or '-' }}</td>
+                                    <td>{{ cert.issued_date or '-' }}</td>
+                                    <td>{{ cert.expiration_date }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if cert.status != 'Active' else 'success' }}">{{ cert.status }}</span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">No certifications on record</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Recent NDT Work Orders</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>NDT WO #</th>
+                                    <th>Customer</th>
+                                    <th>Methods</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wo in work_orders %}
+                                <tr onclick="window.location='{{ url_for('ndt_routes.wo_view', id=wo.id) }}'" style="cursor: pointer;">
+                                    <td>{{ wo.ndt_wo_number }}</td>
+                                    <td>{{ wo.customer_name or '-' }}</td>
+                                    <td>{{ wo.ndt_methods }}</td>
+                                    <td><span class="badge bg-secondary">{{ wo.status }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">No work orders assigned</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addCertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('ndt_routes.certification_add', id=technician.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Certification</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Method <span class="text-danger">*</span></label>
+                        <select name="method" class="form-select" required>
+                            {% for method in ndt_methods %}
+                            <option value="{{ method }}">{{ method }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Level <span class="text-danger">*</span></label>
+                        <select name="level" class="form-select" required>
+                            {% for level in levels %}
+                            <option value="{{ level }}">{{ level }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Certification Number</label>
+                        <input type="text" name="certification_number" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <label class="form-label">Issued Date</label>
+                            <input type="date" name="issued_date" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Expiration Date <span class="text-danger">*</span></label>
+                            <input type="date" name="expiration_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label class="form-label">Issuing Body</label>
+                        <input type="text" name="issuing_body" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Certification</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function today() {
+    return new Date().toISOString().split('T')[0];
+}
+</script>
+{% endblock %}

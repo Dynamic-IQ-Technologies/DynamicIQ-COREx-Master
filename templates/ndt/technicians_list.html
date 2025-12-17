@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}NDT Technicians - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">NDT Technicians</h2>
+            <p class="text-muted mb-0">Manage technician registry and certifications</p>
+        </div>
+        <div>
+            <a href="{{ url_for('ndt_routes.dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Dashboard
+            </a>
+            <a href="{{ url_for('ndt_routes.technician_new') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> New Technician
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="techniciansTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Technician #</th>
+                            <th>Name</th>
+                            <th>Employer</th>
+                            <th>Certifications</th>
+                            <th>Status</th>
+                            <th>Next Expiry</th>
+                            <th width="100">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tech in technicians %}
+                        <tr>
+                            <td><strong>{{ tech.technician_number }}</strong></td>
+                            <td>{{ tech.first_name }} {{ tech.last_name }}</td>
+                            <td>{{ tech.employer or '-' }}</td>
+                            <td>
+                                {% if tech.certifications %}
+                                    {{ tech.certifications }}
+                                {% else %}
+                                    <span class="text-muted">No certifications</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if tech.contract_status == 'Active' %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ tech.contract_status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if tech.next_expiry %}
+                                    {% if tech.has_expired %}
+                                        <span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Expired</span>
+                                    {% else %}
+                                        {{ tech.next_expiry }}
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('ndt_routes.technician_view', id=tech.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('ndt_routes.technician_edit', id=tech.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No technicians found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2036,6 +2036,140 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_org_alerts_severity ON org_alerts(severity, is_acknowledged)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_org_forecasts_type ON org_forecasts(forecast_type, scenario)')
         
+        # NDT Module Tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_technicians (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                technician_number TEXT UNIQUE NOT NULL,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                email TEXT,
+                phone TEXT,
+                employer TEXT,
+                contract_status TEXT DEFAULT 'Active',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_certifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                technician_id INTEGER NOT NULL,
+                method TEXT NOT NULL,
+                level TEXT NOT NULL,
+                certification_number TEXT,
+                issued_date DATE,
+                expiration_date DATE NOT NULL,
+                issuing_body TEXT,
+                document_path TEXT,
+                status TEXT DEFAULT 'Active',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (technician_id) REFERENCES ndt_technicians(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_work_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ndt_wo_number TEXT UNIQUE NOT NULL,
+                order_type TEXT DEFAULT 'Standalone',
+                customer_id INTEGER,
+                sales_order_id INTEGER,
+                work_order_id INTEGER,
+                product_id INTEGER,
+                serial_number TEXT,
+                heat_number TEXT,
+                part_description TEXT,
+                ndt_methods TEXT NOT NULL,
+                applicable_code TEXT,
+                acceptance_criteria TEXT,
+                inspection_location TEXT,
+                priority TEXT DEFAULT 'Normal',
+                status TEXT DEFAULT 'Draft',
+                planned_start_date DATE,
+                planned_end_date DATE,
+                actual_start_date DATE,
+                actual_end_date DATE,
+                assigned_technician_id INTEGER,
+                reviewer_id INTEGER,
+                notes TEXT,
+                rejection_reason TEXT,
+                disposition TEXT,
+                rework_wo_id INTEGER,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id),
+                FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (assigned_technician_id) REFERENCES ndt_technicians(id),
+                FOREIGN KEY (reviewer_id) REFERENCES ndt_technicians(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_inspection_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ndt_wo_id INTEGER NOT NULL,
+                method TEXT NOT NULL,
+                inspection_date DATE NOT NULL,
+                technician_id INTEGER NOT NULL,
+                equipment_used TEXT,
+                calibration_reference TEXT,
+                procedure_reference TEXT,
+                area_inspected TEXT,
+                defect_type TEXT,
+                defect_size TEXT,
+                defect_location TEXT,
+                indication_details TEXT,
+                result TEXT NOT NULL,
+                remarks TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ndt_wo_id) REFERENCES ndt_work_orders(id),
+                FOREIGN KEY (technician_id) REFERENCES ndt_technicians(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ndt_wo_id INTEGER NOT NULL,
+                result_id INTEGER,
+                attachment_type TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size INTEGER,
+                description TEXT,
+                uploaded_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ndt_wo_id) REFERENCES ndt_work_orders(id),
+                FOREIGN KEY (result_id) REFERENCES ndt_inspection_results(id),
+                FOREIGN KEY (uploaded_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_status_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ndt_wo_id INTEGER NOT NULL,
+                old_status TEXT,
+                new_status TEXT NOT NULL,
+                changed_by INTEGER NOT NULL,
+                change_reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ndt_wo_id) REFERENCES ndt_work_orders(id),
+                FOREIGN KEY (changed_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_certifications_expiry ON ndt_certifications(expiration_date)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_status ON ndt_work_orders(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_customer ON ndt_work_orders(customer_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_results_wo ON ndt_inspection_results(ndt_wo_id)')
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         

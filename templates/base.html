@@ -669,6 +669,12 @@
             </li>
             {% endif %}
             <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.dashboard') }}">
+                    <i class="bi bi-search"></i>
+                    <span>NDT Operations</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Material Issues</span>

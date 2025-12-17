@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}NDT Operations Dashboard - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">NDT Operations Dashboard</h2>
+            <p class="text-muted mb-0">Non-Destructive Testing Management</p>
+        </div>
+        <div>
+            <a href="{{ url_for('ndt_routes.wo_new') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> New NDT Work Order
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-muted mb-1">Open NDT Work Orders</h6>
+                            <h2 class="mb-0">{{ open_wo }}</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded p-2">
+                            <i class="bi bi-clipboard-check text-primary fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-muted mb-1">In Inspection</h6>
+                            <h2 class="mb-0">{{ in_inspection }}</h2>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded p-2">
+                            <i class="bi bi-search text-info fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Approval</h6>
+                            <h2 class="mb-0">{{ pending_approval }}</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 rounded p-2">
+                            <i class="bi bi-hourglass-split text-warning fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 {% if overdue > 0 %}border-danger{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-muted mb-1">Overdue</h6>
+                            <h2 class="mb-0 {% if overdue > 0 %}text-danger{% endif %}">{{ overdue }}</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 rounded p-2">
+                            <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Compliance & Risk</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Expired Certifications</span>
+                                    <span class="badge bg-danger">{{ expired_certs }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Expiring (30 days)</span>
+                                    <span class="badge bg-warning text-dark">{{ expiring_certs }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Level III Review</span>
+                                    <span class="badge bg-info">{{ level3_review }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Rejected - No Disposition</span>
+                                    <span class="badge bg-danger">{{ rejected_pending }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Performance Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center">
+                                <h4 class="text-success mb-1">{{ "%.1f"|format(first_pass_yield) }}%</h4>
+                                <small class="text-muted">First Pass Yield</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center">
+                                <h4 class="text-danger mb-1">{{ "%.1f"|format(rejection_rate) }}%</h4>
+                                <small class="text-muted">Rejection Rate</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center">
+                                <h4 class="text-primary mb-1">{{ "%.1f"|format(avg_cycle_time) }}</h4>
+                                <small class="text-muted">Avg Cycle Time (days)</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center">
+                                <h4 class="text-info mb-1">{{ completed_30d }}</h4>
+                                <small class="text-muted">Completed (30 days)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Recent NDT Work Orders</h5>
+                    <a href="{{ url_for('ndt_routes.wo_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>NDT WO #</th>
+                                    <th>Customer</th>
+                                    <th>Methods</th>
+                                    <th>Technician</th>
+                                    <th>Status</th>
+                                    <th>Planned End</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wo in recent_wo %}
+                                <tr onclick="window.location='{{ url_for('ndt_routes.wo_view', id=wo.id) }}'" style="cursor: pointer;">
+                                    <td><strong>{{ wo.ndt_wo_number }}</strong></td>
+                                    <td>{{ wo.customer_name or '-' }}</td>
+                                    <td>{{ wo.ndt_methods }}</td>
+                                    <td>{{ wo.technician_name or '-' }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if wo.status == 'Approved' %}bg-success
+                                            {% elif wo.status == 'Rejected' %}bg-danger
+                                            {% elif wo.status == 'In Inspection' %}bg-info
+                                            {% elif wo.status == 'Under Review' %}bg-warning text-dark
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ wo.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ wo.planned_end_date or '-' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No NDT work orders found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>Technician Utilization</h5>
+                </div>
+                <div class="card-body">
+                    {% for tech in technician_utilization %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>{{ tech.name }}</span>
+                        <span class="badge bg-primary">{{ tech.work_orders }} WOs</span>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No technician data available</p>
+                    {% endfor %}
+                    <hr>
+                    <a href="{{ url_for('ndt_routes.technicians_list') }}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="bi bi-person-badge me-1"></i> Manage Technicians
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

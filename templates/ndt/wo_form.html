@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}{% if ndt_wo %}Edit {{ ndt_wo.ndt_wo_number }}{% else %}New NDT Work Order{% endif %} - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">{% if ndt_wo %}Edit {{ ndt_wo.ndt_wo_number }}{% else %}New NDT Work Order{% endif %}</h2>
+        <a href="{% if ndt_wo %}{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}{% else %}{{ url_for('ndt_routes.wo_list') }}{% endif %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+
+    <form method="POST">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Order Type</label>
+                                <select name="order_type" class="form-select">
+                                    <option value="Standalone" {% if ndt_wo and ndt_wo.order_type == 'Standalone' %}selected{% endif %}>Standalone</option>
+                                    <option value="Sales Order Linked" {% if ndt_wo and ndt_wo.order_type == 'Sales Order Linked' %}selected{% endif %}>Linked to Sales Order</option>
+                                    <option value="Work Order Linked" {% if ndt_wo and ndt_wo.order_type == 'Work Order Linked' %}selected{% endif %}>Linked to Work Order</option>
+                                    <option value="RMA/Field" {% if ndt_wo and ndt_wo.order_type == 'RMA/Field' %}selected{% endif %}>RMA / Field Inspection</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Customer</label>
+                                <select name="customer_id" class="form-select">
+                                    <option value="">-- Select Customer --</option>
+                                    {% for c in customers %}
+                                    <option value="{{ c.id }}" {% if ndt_wo and ndt_wo.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Linked Sales Order</label>
+                                <select name="sales_order_id" class="form-select">
+                                    <option value="">-- None --</option>
+                                    {% for so in sales_orders %}
+                                    <option value="{{ so.id }}" {% if ndt_wo and ndt_wo.sales_order_id == so.id %}selected{% endif %}>{{ so.so_number }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Linked Work Order</label>
+                                <select name="work_order_id" class="form-select">
+                                    <option value="">-- None --</option>
+                                    {% for wo in work_orders %}
+                                    <option value="{{ wo.id }}" {% if ndt_wo and ndt_wo.work_order_id == wo.id %}selected{% endif %}>{{ wo.wo_number }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Part Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Product</label>
+                                <select name="product_id" class="form-select">
+                                    <option value="">-- Select Product --</option>
+                                    {% for p in products %}
+                                    <option value="{{ p.id }}" {% if ndt_wo and ndt_wo.product_id == p.id %}selected{% endif %}>{{ p.code }} - {{ p.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Part Description (if not in system)</label>
+                                <input type="text" name="part_description" class="form-control" value="{{ ndt_wo.part_description if ndt_wo else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" name="serial_number" class="form-control" value="{{ ndt_wo.serial_number if ndt_wo else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Heat/Lot Number</label>
+                                <input type="text" name="heat_number" class="form-control" value="{{ ndt_wo.heat_number if ndt_wo else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Inspection Requirements</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">NDT Methods <span class="text-danger">*</span></label>
+                                <div class="d-flex flex-wrap gap-3">
+                                    {% set selected_methods = ndt_wo.ndt_methods.split(',') if ndt_wo and ndt_wo.ndt_methods else [] %}
+                                    {% for method in ndt_methods %}
+                                    <div class="form-check">
+                                        <input type="checkbox" name="ndt_methods" value="{{ method }}" 
+                                               class="form-check-input" id="method_{{ method }}"
+                                               {% if method in selected_methods %}checked{% endif %}>
+                                        <label class="form-check-label" for="method_{{ method }}">{{ method }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Applicable Code/Standard</label>
+                                <select name="applicable_code" class="form-select">
+                                    <option value="">-- Select Code --</option>
+                                    {% for code in ndt_codes %}
+                                    <option value="{{ code }}" {% if ndt_wo and ndt_wo.applicable_code == code %}selected{% endif %}>{{ code }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Inspection Location</label>
+                                <input type="text" name="inspection_location" class="form-control" value="{{ ndt_wo.inspection_location if ndt_wo else '' }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Acceptance Criteria</label>
+                                <textarea name="acceptance_criteria" class="form-control" rows="3">{{ ndt_wo.acceptance_criteria if ndt_wo else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Schedule & Assignment</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Priority</label>
+                            <select name="priority" class="form-select">
+                                <option value="Low" {% if ndt_wo and ndt_wo.priority == 'Low' %}selected{% endif %}>Low</option>
+                                <option value="Normal" {% if not ndt_wo or ndt_wo.priority == 'Normal' %}selected{% endif %}>Normal</option>
+                                <option value="High" {% if ndt_wo and ndt_wo.priority == 'High' %}selected{% endif %}>High</option>
+                                <option value="Urgent" {% if ndt_wo and ndt_wo.priority == 'Urgent' %}selected{% endif %}>Urgent</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Planned Start Date</label>
+                            <input type="date" name="planned_start_date" class="form-control" value="{{ ndt_wo.planned_start_date if ndt_wo else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Planned End Date</label>
+                            <input type="date" name="planned_end_date" class="form-control" value="{{ ndt_wo.planned_end_date if ndt_wo else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Assigned Technician</label>
+                            <select name="assigned_technician_id" class="form-select">
+                                <option value="">-- Unassigned --</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.id }}" {% if ndt_wo and ndt_wo.assigned_technician_id == t.id %}selected{% endif %}>{{ t.technician_number }} - {{ t.first_name }} {{ t.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Notes</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea name="notes" class="form-control" rows="4" placeholder="Additional notes...">{{ ndt_wo.notes if ndt_wo else '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-lg me-1"></i> {% if ndt_wo %}Update{% else %}Create{% endif %} NDT Work Order
+                    </button>
+                    <a href="{% if ndt_wo %}{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}{% else %}{{ url_for('ndt_routes.wo_list') }}{% endif %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

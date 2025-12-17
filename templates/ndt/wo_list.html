@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}NDT Work Orders - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">NDT Work Orders</h2>
+            <p class="text-muted mb-0">Manage non-destructive testing work orders</p>
+        </div>
+        <div>
+            <a href="{{ url_for('ndt_routes.dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-speedometer2 me-1"></i> Dashboard
+            </a>
+            <a href="{{ url_for('ndt_routes.wo_new') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> New NDT Work Order
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Statuses</option>
+                        {% for status in ndt_statuses %}
+                        <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Customer</label>
+                    <select name="customer" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Customers</option>
+                        {% for c in customers %}
+                        <option value="{{ c.id }}" {% if customer_filter|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Method</label>
+                    <select name="method" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Methods</option>
+                        {% for method in ndt_methods %}
+                        <option value="{{ method }}" {% if method_filter == method %}selected{% endif %}>{{ method }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{{ url_for('ndt_routes.wo_list') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg me-1"></i> Clear Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="woTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>NDT WO #</th>
+                            <th>Type</th>
+                            <th>Customer</th>
+                            <th>Part</th>
+                            <th>Methods</th>
+                            <th>Technician</th>
+                            <th>Status</th>
+                            <th>Planned End</th>
+                            <th width="80">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wo in work_orders %}
+                        <tr>
+                            <td><strong>{{ wo.ndt_wo_number }}</strong></td>
+                            <td><span class="badge bg-light text-dark">{{ wo.order_type }}</span></td>
+                            <td>{{ wo.customer_name or '-' }}</td>
+                            <td>
+                                {% if wo.product_code %}
+                                    {{ wo.product_code }}
+                                {% elif wo.part_description %}
+                                    {{ wo.part_description[:30] }}...
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ wo.ndt_methods }}</td>
+                            <td>{{ wo.technician_name or '-' }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if wo.status == 'Approved' %}bg-success
+                                    {% elif wo.status == 'Rejected' %}bg-danger
+                                    {% elif wo.status == 'In Inspection' %}bg-info
+                                    {% elif wo.status == 'Under Review' %}bg-warning text-dark
+                                    {% elif wo.status == 'Results Recorded' %}bg-primary
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ wo.status }}
+                                </span>
+                            </td>
+                            <td>{{ wo.planned_end_date or '-' }}</td>
+                            <td>
+                                <a href="{{ url_for('ndt_routes.wo_view', id=wo.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No NDT work orders found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
