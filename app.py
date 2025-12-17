@@ -50,6 +50,7 @@ from routes.erp_helper_routes import erp_helper_bp
 from routes.ndt_routes import ndt_bp
 from routes.master_scheduler_routes import master_scheduler_bp
 from routes.salesforce_migration_routes import sf_migration_bp
+from routes.business_analytics_routes import business_analytics_bp
 import os
 
 app = Flask(__name__)
@@ -118,6 +119,7 @@ app.register_blueprint(erp_helper_bp)
 app.register_blueprint(ndt_bp)
 app.register_blueprint(master_scheduler_bp)
 app.register_blueprint(sf_migration_bp)
+app.register_blueprint(business_analytics_bp)
 
 @app.context_processor
 def inject_user():

@@ -366,43 +366,48 @@ def revenue_tracker():
     
     conn.close()
     
+    sales_dict = dict(sales_data) if sales_data else {}
+    ops_dict = dict(operations_data) if operations_data else {}
+    ndt_dict = dict(ndt_data) if ndt_data else {}
+    consulting_dict = dict(consulting_data) if consulting_data else {}
+    
     departments = {
         'sales': {
             'name': 'Sales',
             'icon': 'bi-cart-check',
             'color': '#28a745',
-            'data': sales_data,
-            'breakdown': sales_by_type,
-            'revenue': sales_data['total_revenue'] if sales_data else 0,
-            'orders': sales_data['order_count'] if sales_data else 0
+            'data': sales_dict,
+            'breakdown': [dict(r) for r in sales_by_type],
+            'revenue': sales_dict.get('total_revenue', 0) or 0,
+            'orders': sales_dict.get('order_count', 0) or 0
         },
         'operations': {
             'name': 'Operations',
             'icon': 'bi-gear-wide-connected',
             'color': '#007bff',
-            'data': operations_data,
-            'breakdown': wo_by_status,
+            'data': ops_dict,
+            'breakdown': [dict(r) for r in wo_by_status],
             'revenue': wo_revenue['invoiced_revenue'] if wo_revenue else 0,
-            'cost': operations_data['total_cost'] if operations_data else 0,
-            'orders': operations_data['order_count'] if operations_data else 0
+            'cost': ops_dict.get('total_cost', 0) or 0,
+            'orders': ops_dict.get('order_count', 0) or 0
         },
         'ndt': {
             'name': 'NDT',
             'icon': 'bi-search',
             'color': '#6f42c1',
-            'data': ndt_data,
-            'breakdown': ndt_by_method,
+            'data': ndt_dict,
+            'breakdown': [dict(r) for r in ndt_by_method],
             'revenue': ndt_revenue['invoiced_revenue'] if ndt_revenue else 0,
-            'orders': ndt_data['order_count'] if ndt_data else 0
+            'orders': ndt_dict.get('order_count', 0) or 0
         },
         'consulting': {
             'name': 'Consulting',
             'icon': 'bi-people',
             'color': '#fd7e14',
-            'data': consulting_data,
-            'breakdown': consulting_by_type,
-            'revenue': consulting_data['total_revenue'] if consulting_data else 0,
-            'orders': consulting_data['order_count'] if consulting_data else 0
+            'data': consulting_dict,
+            'breakdown': [dict(r) for r in consulting_by_type],
+            'revenue': consulting_dict.get('total_revenue', 0) or 0,
+            'orders': consulting_dict.get('order_count', 0) or 0
         }
     }
     

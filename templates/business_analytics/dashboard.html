@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+
+{% block title %}Business Analytics AI - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-robot me-2"></i>Business Analytics AI Super Agent</h2>
+            <p class="text-muted mb-0">Autonomous Process Monitoring, Analysis & Optimization</p>
+        </div>
+        <div>
+            <button class="btn btn-primary me-2" onclick="generateExecutiveSummary()">
+                <i class="bi bi-file-text me-1"></i> Executive Summary
+            </button>
+            <button class="btn btn-outline-primary" onclick="showAnalysisModal()">
+                <i class="bi bi-chat-dots me-1"></i> Ask AI Agent
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">Revenue (MTD)</h6>
+                            <h4 class="mb-0">{{ "${:,.0f}".format(kpis.revenue.current) }}</h4>
+                        </div>
+                        <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="{% if kpis.revenue.change >= 0 %}text-white{% else %}text-warning{% endif %}">
+                        <i class="bi bi-{% if kpis.revenue.change >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                        {{ "{:.1f}".format(kpis.revenue.change) }}% vs last month
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">Work Orders</h6>
+                            <h4 class="mb-0">{{ kpis.operations.in_progress }}</h4>
+                        </div>
+                        <i class="bi bi-gear" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="text-white">
+                        {{ kpis.operations.overdue }} overdue | {{ "{:.0f}".format(kpis.operations.completion_rate) }}% complete
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">Low Stock</h6>
+                            <h4 class="mb-0">{{ kpis.inventory.low_stock }}</h4>
+                        </div>
+                        <i class="bi bi-box-seam" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="text-white">
+                        {{ kpis.inventory.out_of_stock }} out of stock
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">Pending Orders</h6>
+                            <h4 class="mb-0">{{ kpis.sales.pending }}</h4>
+                        </div>
+                        <i class="bi bi-cart3" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="text-white">
+                        {{ kpis.sales.shipped }} shipped
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-white-50 mb-1">A/R Outstanding</h6>
+                            <h4 class="mb-0">{{ "${:,.0f}".format(kpis.finance.accounts_receivable) }}</h4>
+                        </div>
+                        <i class="bi bi-cash-stack" style="font-size: 2rem; opacity: 0.3;"></i>
+                    </div>
+                    <small class="text-white">
+                        A/P: {{ "${:,.0f}".format(kpis.finance.accounts_payable) }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-0 shadow-sm h-100 {% if process_health.overall >= 80 %}bg-success{% elif process_health.overall >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                <div class="card-body text-white text-center">
+                    <h6 class="text-white-50 mb-1">Process Health</h6>
+                    <h2 class="mb-0">{{ "{:.0f}".format(process_health.overall) }}%</h2>
+                    <small class="text-white">Overall Score</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Active Alerts</h5>
+                    <span class="badge bg-danger">{{ alerts|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for alert in alerts %}
+                        <div class="list-group-item border-0 d-flex align-items-start">
+                            <span class="badge bg-{{ alert.type }} me-2 mt-1">{{ alert.priority|upper }}</span>
+                            <div>
+                                <small class="text-muted">{{ alert.category }}</small>
+                                <p class="mb-0">{{ alert.message }}</p>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item border-0 text-center text-muted py-4">
+                            <i class="bi bi-check-circle display-6 text-success mb-2"></i>
+                            <p class="mb-0">No active alerts</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-activity me-2 text-primary"></i>Process Health</h5>
+                </div>
+                <div class="card-body">
+                    {% for component in process_health.components %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>{{ component.name }}</span>
+                            <span class="fw-bold">{{ "{:.0f}".format(component.score) }}%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ component.score }}%; background-color: {{ component.color }};"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-lightning me-2 text-warning"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary text-start" onclick="analyzeProcess('operations')">
+                            <i class="bi bi-gear me-2"></i> Analyze Operations Bottlenecks
+                        </button>
+                        <button class="btn btn-outline-success text-start" onclick="analyzeProcess('inventory')">
+                            <i class="bi bi-box me-2"></i> Predict Inventory Requirements
+                        </button>
+                        <button class="btn btn-outline-info text-start" onclick="analyzeProcess('sales')">
+                            <i class="bi bi-graph-up me-2"></i> Sales Performance Analysis
+                        </button>
+                        <button class="btn btn-outline-warning text-start" onclick="analyzeProcess('finance')">
+                            <i class="bi bi-cash me-2"></i> Financial Health Check
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Revenue Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueTrendChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI Insights</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshInsights()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="card-body" id="aiInsightsContainer">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary mb-2" role="status" id="insightsLoader" style="display: none;"></div>
+                        <p class="text-muted" id="insightsPlaceholder">Click to generate AI insights</p>
+                    </div>
+                    <div id="aiInsightsContent" style="display: none; max-height: 300px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-robot me-2"></i>AI Analytics Agent</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Ask the AI Agent</label>
+                    <textarea id="analysisQuery" class="form-control" rows="3" 
+                              placeholder="e.g., Analyze production workflow delays and provide a ranked list of root causes..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Analysis Type</label>
+                    <select id="analysisType" class="form-select">
+                        <option value="general">General Analysis</option>
+                        <option value="operations">Operations</option>
+                        <option value="sales">Sales</option>
+                        <option value="inventory">Inventory</option>
+                        <option value="finance">Finance</option>
+                    </select>
+                </div>
+                <div id="analysisResult" class="bg-light rounded p-3" style="display: none; max-height: 400px; overflow-y: auto;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="runAnalysis()" id="analyzeBtn">
+                    <i class="bi bi-play me-1"></i> Analyze
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="summaryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-text me-2"></i>Executive Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="summaryContent" class="py-3" style="white-space: pre-wrap;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Generating executive summary...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printSummary()">
+                    <i class="bi bi-printer me-1"></i> Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const trends = {{ trends | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('revenueTrendChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trends.map(t => t.month),
+            datasets: [{
+                label: 'Revenue',
+                data: trends.map(t => t.revenue),
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Orders',
+                data: trends.map(t => t.orders * 1000),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true,
+                tension: 0.4,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                },
+                y1: {
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(value) {
+                            return (value / 1000).toFixed(0) + ' orders';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+function showAnalysisModal() {
+    new bootstrap.Modal(document.getElementById('analysisModal')).show();
+}
+
+function runAnalysis() {
+    const query = document.getElementById('analysisQuery').value;
+    const type = document.getElementById('analysisType').value;
+    const btn = document.getElementById('analyzeBtn');
+    const result = document.getElementById('analysisResult');
+    
+    if (!query.trim()) {
+        alert('Please enter a query');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
+    result.style.display = 'block';
+    result.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+    
+    fetch('/business-analytics/api/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: query, type: type})
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play me-1"></i> Analyze';
+        
+        if (data.success) {
+            result.innerHTML = '<div class="markdown-content" style="white-space: pre-wrap;">' + data.analysis + '</div>';
+        } else {
+            result.innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play me-1"></i> Analyze';
+        result.innerHTML = '<div class="alert alert-danger">Error: ' + err.message + '</div>';
+    });
+}
+
+function generateExecutiveSummary() {
+    new bootstrap.Modal(document.getElementById('summaryModal')).show();
+    
+    fetch('/business-analytics/api/executive-summary')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('summaryContent').innerHTML = 
+                    '<div style="white-space: pre-wrap;">' + data.summary + '</div>';
+            } else {
+                document.getElementById('summaryContent').innerHTML = 
+                    '<div class="alert alert-danger">' + data.error + '</div>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('summaryContent').innerHTML = 
+                '<div class="alert alert-danger">Error generating summary</div>';
+        });
+}
+
+function analyzeProcess(area) {
+    document.getElementById('analysisType').value = area;
+    
+    const prompts = {
+        'operations': 'Analyze production workflow delays and identify bottlenecks. Provide a ranked list of root causes and recommended actions.',
+        'inventory': 'Predict inventory shortages for the next 90 days and recommend optimal stock levels and purchase orders.',
+        'sales': 'Analyze sales performance trends, identify top opportunities, and recommend actions to improve conversion rates.',
+        'finance': 'Analyze current financial health, identify cost overruns, and recommend cash flow optimization strategies.'
+    };
+    
+    document.getElementById('analysisQuery').value = prompts[area] || '';
+    showAnalysisModal();
+}
+
+function refreshInsights() {
+    const loader = document.getElementById('insightsLoader');
+    const placeholder = document.getElementById('insightsPlaceholder');
+    const content = document.getElementById('aiInsightsContent');
+    
+    loader.style.display = 'block';
+    placeholder.style.display = 'none';
+    content.style.display = 'none';
+    
+    fetch('/business-analytics/api/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            query: 'Provide 3-5 quick actionable insights based on current ERP data. Focus on opportunities and risks.',
+            type: 'general'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        loader.style.display = 'none';
+        
+        if (data.success) {
+            content.style.display = 'block';
+            content.innerHTML = '<div style="white-space: pre-wrap; font-size: 0.9rem;">' + data.analysis + '</div>';
+        } else {
+            placeholder.style.display = 'block';
+            placeholder.textContent = 'Error: ' + data.error;
+        }
+    })
+    .catch(err => {
+        loader.style.display = 'none';
+        placeholder.style.display = 'block';
+        placeholder.textContent = 'Error loading insights';
+    });
+}
+
+function printSummary() {
+    const content = document.getElementById('summaryContent').innerHTML;
+    const win = window.open('', '', 'width=800,height=600');
+    win.document.write('<html><head><title>Executive Summary</title></head><body>');
+    win.document.write('<h1>Executive Summary - ' + new Date().toLocaleDateString() + '</h1>');
+    win.document.write(content);
+    win.document.write('</body></html>');
+    win.document.close();
+    win.print();
+}
+</script>
+{% endblock %}

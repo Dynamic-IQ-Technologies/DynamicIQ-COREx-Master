@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category|title }} Details - Business Analytics - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-bar-chart me-2"></i>{{ category|title }} KPI Details</h2>
+            <p class="text-muted mb-0">Detailed breakdown and analysis</p>
+        </div>
+        <a href="{{ url_for('business_analytics_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% if category == 'revenue' %}
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Revenue by Sales Type</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sales Type</th>
+                                <th class="text-center">Orders</th>
+                                <th class="text-end">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in details.by_type %}
+                            <tr>
+                                <td>{{ row.sales_type }}</td>
+                                <td class="text-center">{{ row.orders }}</td>
+                                <td class="text-end">{{ "${:,.2f}".format(row.revenue) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Top 10 Customers by Revenue</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Customer</th>
+                                <th class="text-center">Orders</th>
+                                <th class="text-end">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in details.by_customer %}
+                            <tr>
+                                <td>{{ row.name }}</td>
+                                <td class="text-center">{{ row.orders }}</td>
+                                <td class="text-end">{{ "${:,.2f}".format(row.revenue) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif category == 'inventory' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Low Stock Items</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th class="text-center">On Hand</th>
+                        <th class="text-center">Reorder Point</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in details.low_stock_items %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td><code>{{ item.sku }}</code></td>
+                        <td class="text-center">{{ item.quantity_on_hand }}</td>
+                        <td class="text-center">{{ item.reorder_point }}</td>
+                        <td class="text-center">
+                            {% if item.quantity_on_hand == 0 %}
+                            <span class="badge bg-danger">Out of Stock</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Low Stock</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">No low stock items</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% elif category == 'finance' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Accounts Receivable Aging</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Aging Bucket</th>
+                        <th class="text-center">Invoices</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in details.ar_aging %}
+                    <tr>
+                        <td>{{ row.aging_bucket }}</td>
+                        <td class="text-center">{{ row.count }}</td>
+                        <td class="text-end">{{ "${:,.2f}".format(row.amount) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="text-center text-muted">No outstanding invoices</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="alert alert-info">
+        Details for {{ category }} coming soon.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

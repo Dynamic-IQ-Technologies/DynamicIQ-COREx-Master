@@ -336,6 +336,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     tension: 0.4
                 },
                 {
+                    label: 'NDT',
+                    data: {{ trend_data.ndt | tojson }},
+                    borderColor: '#6f42c1',
+                    backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
                     label: 'Consulting',
                     data: {{ trend_data.consulting | tojson }},
                     borderColor: '#fd7e14',
