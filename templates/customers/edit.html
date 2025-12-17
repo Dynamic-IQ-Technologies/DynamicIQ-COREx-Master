@@ -234,9 +234,85 @@
                     {% endif %}
                 </div>
             </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-globe me-2"></i>Customer Portal</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Generate a unique web link for this customer to view their order status online.
+                    </p>
+                    
+                    {% if customer.portal_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Portal Status</label>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            {% if customer.portal_enabled %}
+                            <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary fs-6"><i class="bi bi-pause-circle me-1"></i>Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Portal Link</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="portalLink" 
+                                   value="{{ request.host_url }}portal/{{ customer.portal_token }}" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyPortalLink()">
+                                <i class="bi bi-clipboard me-1"></i>Copy
+                            </button>
+                        </div>
+                        <small class="text-muted">Share this link with your customer so they can track their orders.</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2 flex-wrap">
+                        <form method="POST" action="{{ url_for('customer_routes.toggle_portal', customer_id=customer.id) }}" class="d-inline">
+                            {% if customer.portal_enabled %}
+                            <button type="submit" class="btn btn-outline-warning">
+                                <i class="bi bi-pause-fill me-1"></i>Disable Portal
+                            </button>
+                            {% else %}
+                            <button type="submit" class="btn btn-outline-success">
+                                <i class="bi bi-play-fill me-1"></i>Enable Portal
+                            </button>
+                            {% endif %}
+                        </form>
+                        <form method="POST" action="{{ url_for('customer_routes.regenerate_portal_link', customer_id=customer.id) }}" 
+                              class="d-inline" onsubmit="return confirm('Regenerate portal link? The current link will stop working.');">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-repeat me-1"></i>Regenerate Link
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="bi bi-link-45deg text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-3">No portal link has been generated yet.</p>
+                        <form method="POST" action="{{ url_for('customer_routes.generate_portal_link', customer_id=customer.id) }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-link me-1"></i>Generate Portal Link
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function copyPortalLink() {
+    var linkInput = document.getElementById('portalLink');
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(linkInput.value);
+    alert('Portal link copied to clipboard!');
+}
+</script>
 
 <div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog">

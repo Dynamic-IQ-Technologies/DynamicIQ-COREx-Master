@@ -1310,6 +1310,8 @@ class Database:
                 tax_exempt INTEGER DEFAULT 0,
                 notes TEXT,
                 status TEXT DEFAULT 'Active',
+                portal_token TEXT UNIQUE,
+                portal_enabled INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')

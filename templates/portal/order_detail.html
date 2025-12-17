@@ -1,0 +1,144 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Order {{ order.so_number }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('portal.customer_portal', token=token) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Orders
+    </a>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-semibold">Order {{ order.so_number }}</h5>
+                    {% if order.status == 'Completed' or order.status == 'Shipped' %}
+                    <span class="badge bg-success fs-6">{{ order.status }}</span>
+                    {% elif order.status == 'In Production' %}
+                    <span class="badge bg-primary fs-6">{{ order.status }}</span>
+                    {% elif order.status == 'Approved' %}
+                    <span class="badge bg-info fs-6">{{ order.status }}</span>
+                    {% elif order.status in ['Draft', 'Quoted', 'Pending Approval'] %}
+                    <span class="badge bg-warning text-dark fs-6">{{ order.status }}</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6">{{ order.status }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Order Date:</strong> {{ order.order_date or 'N/A' }}</p>
+                        <p class="mb-1"><strong>PO Reference:</strong> {{ order.customer_po or 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Expected Ship Date:</strong> {{ order.expected_ship_date or 'TBD' }}</p>
+                        <p class="mb-1"><strong>Order Type:</strong> {{ order.order_type or 'Standard' }}</p>
+                    </div>
+                </div>
+
+                {% if stages %}
+                <h6 class="fw-semibold mb-3">Order Progress</h6>
+                <div class="d-flex mb-4" style="overflow-x: auto;">
+                    {% for stage in stages %}
+                    <div class="progress-step {{ 'completed' if stage.stage_status == 'Complete' else 'in-progress' if stage.stage_status == 'In Progress' else '' }}">
+                        <div class="step-circle">
+                            {% if stage.stage_status == 'Complete' %}
+                            <i class="bi bi-check"></i>
+                            {% else %}
+                            {{ loop.index }}
+                            {% endif %}
+                        </div>
+                        <div class="step-label">{{ stage.stage_name }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <h6 class="fw-semibold mb-3">Order Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase small">Line</th>
+                                <th class="text-uppercase small">Product</th>
+                                <th class="text-uppercase small">Description</th>
+                                <th class="text-uppercase small text-end">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in order_lines %}
+                            <tr>
+                                <td>{{ line.line_number }}</td>
+                                <td class="fw-medium">{{ line.product_code }}</td>
+                                <td>{{ line.product_name }}</td>
+                                <td class="text-end">{{ line.quantity }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {% if work_orders %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-gear me-2"></i>Production Status</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for wo in work_orders %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-0 fw-medium">{{ wo.wo_number }}</p>
+                                <small class="text-muted">{{ wo.product_name }}</small>
+                            </div>
+                            {% if wo.status == 'Completed' %}
+                            <span class="badge bg-success">{{ wo.status }}</span>
+                            {% elif wo.status == 'Released' or wo.status == 'In Progress' %}
+                            <span class="badge bg-primary">{{ wo.status }}</span>
+                            {% elif wo.status == 'Planned' or wo.status == 'Pending' %}
+                            <span class="badge bg-warning text-dark">{{ wo.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ wo.status }}</span>
+                            {% endif %}
+                        </div>
+                        {% if wo.planned_start_date or wo.planned_end_date %}
+                        <small class="text-muted">
+                            {% if wo.planned_start_date %}Start: {{ wo.planned_start_date }}{% endif %}
+                            {% if wo.planned_end_date %} | End: {{ wo.planned_end_date }}{% endif %}
+                        </small>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-question-circle me-2"></i>Need Help?</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    For questions about this order, please contact our customer service team.
+                </p>
+                {% if order.notes %}
+                <div class="border-top pt-3">
+                    <p class="text-muted small mb-1"><strong>Order Notes:</strong></p>
+                    <p class="text-muted small mb-0">{{ order.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

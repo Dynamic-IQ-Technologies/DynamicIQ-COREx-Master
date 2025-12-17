@@ -3,6 +3,7 @@ from models import Database
 from auth import login_required, role_required
 import csv
 import io
+import secrets
 from datetime import datetime
 
 customer_bp = Blueprint('customer_routes', __name__)
@@ -304,4 +305,86 @@ def set_customer_primary_contact(customer_id, contact_id):
     conn.commit()
     conn.close()
     flash('Primary contact updated', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+
+@customer_bp.route('/customers/<int:customer_id>/portal/generate', methods=['POST'])
+@role_required('Admin', 'Planner')
+def generate_portal_link(customer_id):
+    """Generate a new portal token for a customer"""
+    db = Database()
+    conn = db.get_connection()
+    
+    customer = conn.execute('SELECT id FROM customers WHERE id = ?', (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        flash('Customer not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    token = secrets.token_urlsafe(32)
+    
+    conn.execute('''
+        UPDATE customers 
+        SET portal_token = ?, portal_enabled = 1
+        WHERE id = ?
+    ''', (token, customer_id))
+    conn.commit()
+    conn.close()
+    
+    flash('Portal link generated successfully', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+
+@customer_bp.route('/customers/<int:customer_id>/portal/toggle', methods=['POST'])
+@role_required('Admin', 'Planner')
+def toggle_portal(customer_id):
+    """Enable or disable the customer portal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    customer = conn.execute('SELECT id, portal_enabled FROM customers WHERE id = ?', (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        flash('Customer not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    new_status = 0 if customer['portal_enabled'] else 1
+    
+    conn.execute('''
+        UPDATE customers 
+        SET portal_enabled = ?
+        WHERE id = ?
+    ''', (new_status, customer_id))
+    conn.commit()
+    conn.close()
+    
+    status_text = 'enabled' if new_status else 'disabled'
+    flash(f'Customer portal {status_text}', 'success')
+    return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+
+@customer_bp.route('/customers/<int:customer_id>/portal/regenerate', methods=['POST'])
+@role_required('Admin', 'Planner')
+def regenerate_portal_link(customer_id):
+    """Regenerate the portal token (invalidates old link)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    customer = conn.execute('SELECT id FROM customers WHERE id = ?', (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        flash('Customer not found', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+    
+    token = secrets.token_urlsafe(32)
+    
+    conn.execute('''
+        UPDATE customers 
+        SET portal_token = ?
+        WHERE id = ?
+    ''', (token, customer_id))
+    conn.commit()
+    conn.close()
+    
+    flash('Portal link regenerated. Previous link is now invalid.', 'warning')
     return redirect(url_for('customer_routes.edit_customer', id=customer_id))

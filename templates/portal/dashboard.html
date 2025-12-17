@@ -1,0 +1,107 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Order Status{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100" style="border-top: 3px solid var(--primary);">
+            <div class="card-body text-center">
+                <h2 class="display-5 fw-bold text-primary mb-0">{{ stats.total }}</h2>
+                <p class="text-muted mb-0">Total Orders</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100" style="border-top: 3px solid var(--warning);">
+            <div class="card-body text-center">
+                <h2 class="display-5 fw-bold text-warning mb-0">{{ stats.active }}</h2>
+                <p class="text-muted mb-0">In Progress</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100" style="border-top: 3px solid var(--info);">
+            <div class="card-body text-center">
+                <h2 class="display-5 fw-bold text-info mb-0">{{ stats.pending_quote }}</h2>
+                <p class="text-muted mb-0">Pending Quote</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100" style="border-top: 3px solid var(--success);">
+            <div class="card-body text-center">
+                <h2 class="display-5 fw-bold text-success mb-0">{{ stats.completed }}</h2>
+                <p class="text-muted mb-0">Completed</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-2"></i>Your Orders</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-uppercase small">Order #</th>
+                        <th class="text-uppercase small">Date</th>
+                        <th class="text-uppercase small">Status</th>
+                        <th class="text-uppercase small">Expected Ship</th>
+                        <th class="text-uppercase small">Items</th>
+                        <th class="text-uppercase small"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td class="fw-medium">{{ order.so_number }}</td>
+                        <td>{{ order.order_date or 'N/A' }}</td>
+                        <td>
+                            {% if order.status == 'Completed' or order.status == 'Shipped' %}
+                            <span class="badge bg-success status-badge">{{ order.status }}</span>
+                            {% elif order.status == 'In Production' %}
+                            <span class="badge bg-primary status-badge">{{ order.status }}</span>
+                            {% elif order.status == 'Approved' %}
+                            <span class="badge bg-info status-badge">{{ order.status }}</span>
+                            {% elif order.status in ['Draft', 'Quoted', 'Pending Approval'] %}
+                            <span class="badge bg-warning text-dark status-badge">{{ order.status }}</span>
+                            {% elif order.status == 'Cancelled' %}
+                            <span class="badge bg-danger status-badge">{{ order.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary status-badge">{{ order.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ order.expected_ship_date or 'TBD' }}</td>
+                        <td>{{ order.line_count }} item{% if order.line_count != 1 %}s{% endif %}</td>
+                        <td>
+                            <a href="{{ url_for('portal.portal_order_detail', token=token, order_id=order.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye me-1"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+            <p class="text-muted mt-2 mb-0">No orders found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <p class="text-muted small">
+        <i class="bi bi-info-circle me-1"></i>
+        This page shows the current status of your orders. For questions, please contact us.
+    </p>
+</div>
+{% endblock %}
