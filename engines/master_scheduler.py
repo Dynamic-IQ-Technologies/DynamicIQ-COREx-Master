@@ -90,13 +90,13 @@ class MasterSchedulerEngine:
             })
         
         sales_orders = self.conn.execute('''
-            SELECT so.id, so.order_number, so.order_date, so.due_date,
-                   so.status, so.priority, c.name as customer_name,
+            SELECT so.id, so.so_number, so.order_date, so.expected_ship_date,
+                   so.status, c.name as customer_name,
                    'Sales Order' as order_type
             FROM sales_orders so
             LEFT JOIN customers c ON so.customer_id = c.id
             WHERE so.status IN ('Confirmed', 'In Progress', 'Processing')
-            AND (so.due_date >= ? OR so.due_date IS NULL)
+            AND (so.expected_ship_date >= ? OR so.expected_ship_date IS NULL)
             AND so.order_date <= ?
         ''', (date_from, date_to)).fetchall()
         
@@ -112,15 +112,15 @@ class MasterSchedulerEngine:
                 orders.append({
                     'order_type': 'Sales Order',
                     'order_id': so['id'],
-                    'order_number': so['order_number'],
+                    'order_number': so['so_number'],
                     'product_id': line['product_id'],
                     'product_code': line['code'],
                     'product_name': line['name'],
                     'quantity': line['quantity'],
-                    'due_date': so['due_date'],
+                    'due_date': so['expected_ship_date'],
                     'start_date': so['order_date'],
-                    'priority': so['priority'] or 'Medium',
-                    'priority_score': self.PRIORITY_MAP.get(so['priority'] or 'Medium', 50),
+                    'priority': 'Medium',
+                    'priority_score': self.PRIORITY_MAP.get('Medium', 50),
                     'status': so['status'],
                     'customer_name': so['customer_name']
                 })
