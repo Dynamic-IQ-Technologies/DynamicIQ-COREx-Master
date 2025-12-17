@@ -436,6 +436,151 @@ def delete_line(id, line_id):
     
     return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
 
+@salesorder_bp.route('/sales-orders/<int:id>/edit-line/<int:line_id>', methods=['POST'])
+@role_required('Admin', 'Planner')
+def edit_line(id, line_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get current line to verify it exists and belongs to this SO
+        current_line = conn.execute('''
+            SELECT * FROM sales_order_lines WHERE id = ? AND so_id = ?
+        ''', (line_id, id)).fetchone()
+        
+        if not current_line:
+            flash('Line item not found.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # Parse form values
+        quantity_str = request.form.get('quantity', '0').strip()
+        quantity = float(quantity_str) if quantity_str else current_line['quantity']
+        
+        unit_price_str = request.form.get('unit_price', '0').strip()
+        unit_price = float(unit_price_str) if unit_price_str else current_line['unit_price']
+        
+        discount_str = request.form.get('discount_percent', '0').strip()
+        discount_percent = float(discount_str) if discount_str else 0.0
+        
+        line_status = request.form.get('line_status', current_line['line_status'])
+        description = request.form.get('description', current_line['description'])
+        serial_number = request.form.get('serial_number', current_line['serial_number'])
+        line_notes = request.form.get('line_notes', current_line['line_notes'])
+        
+        # Validations
+        if unit_price < 0:
+            flash('Unit price cannot be negative.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        if quantity <= 0:
+            flash('Quantity must be greater than zero.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        if discount_percent > 100:
+            flash('Discount cannot exceed 100%.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+        
+        # Calculate line total
+        line_total = (quantity * unit_price) * (1 - discount_percent / 100)
+        
+        # Exchange-specific fields
+        core_charge = 0.0
+        if current_line['line_type'] == 'Exchange':
+            core_charge_str = request.form.get('core_charge', '0').strip()
+            core_charge = float(core_charge_str) if core_charge_str else 0.0
+        
+        # Managed Repair-specific fields
+        repair_nte = 0.0
+        quoted_tat = None
+        if current_line['line_type'] == 'Managed Repair':
+            repair_nte_str = request.form.get('repair_nte', '0').strip()
+            repair_nte = float(repair_nte_str) if repair_nte_str else 0.0
+            quoted_tat = request.form.get('quoted_tat') or current_line['quoted_tat']
+        
+        # Update the line item
+        conn.execute('''
+            UPDATE sales_order_lines SET
+                quantity = ?,
+                unit_price = ?,
+                discount_percent = ?,
+                line_total = ?,
+                line_status = ?,
+                description = ?,
+                serial_number = ?,
+                line_notes = ?,
+                core_charge = ?,
+                repair_nte = ?,
+                quoted_tat = ?,
+                modified_by = ?,
+                modified_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND so_id = ?
+        ''', (
+            quantity, unit_price, discount_percent, line_total,
+            line_status, description, serial_number, line_notes,
+            core_charge, repair_nte, quoted_tat,
+            session.get('user_id'), line_id, id
+        ))
+        
+        # Recalculate order totals
+        recalculate_totals(conn, id)
+        
+        conn.commit()
+        flash('Line item updated successfully!', 'success')
+        
+    except ValueError as e:
+        conn.rollback()
+        flash('Please enter valid numeric values.', 'danger')
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred while updating the line item.', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+
+@salesorder_bp.route('/sales-orders/<int:id>/get-line/<int:line_id>')
+@login_required
+def get_line(id, line_id):
+    """API endpoint to get line item details for editing"""
+    db = Database()
+    conn = db.get_connection()
+    
+    line = conn.execute('''
+        SELECT sol.*, p.code, p.name as product_name
+        FROM sales_order_lines sol
+        JOIN products p ON sol.product_id = p.id
+        WHERE sol.id = ? AND sol.so_id = ?
+    ''', (line_id, id)).fetchone()
+    
+    conn.close()
+    
+    if not line:
+        return jsonify({'error': 'Line not found'}), 404
+    
+    return jsonify({
+        'id': line['id'],
+        'line_number': line['line_number'],
+        'product_id': line['product_id'],
+        'product_code': line['code'],
+        'product_name': line['product_name'],
+        'quantity': line['quantity'],
+        'unit_price': line['unit_price'],
+        'discount_percent': line['discount_percent'] or 0,
+        'line_total': line['line_total'],
+        'line_type': line['line_type'],
+        'line_status': line['line_status'],
+        'description': line['description'] or '',
+        'serial_number': line['serial_number'] or '',
+        'line_notes': line['line_notes'] or '',
+        'core_charge': line['core_charge'] or 0,
+        'repair_nte': line['repair_nte'] or 0,
+        'quoted_tat': line['quoted_tat'] or ''
+    })
+
 @salesorder_bp.route('/sales-orders/<int:id>/confirm', methods=['POST'])
 @role_required('Admin', 'Planner')
 def confirm_order(id):
