@@ -789,7 +789,7 @@ def part_analyzer_analyze():
                 SELECT pol.*, po.po_number, po.status as po_status, 
                        po.order_date, s.name as supplier_name
                 FROM purchase_order_lines pol
-                JOIN purchase_orders po ON pol.purchase_order_id = po.id
+                JOIN purchase_orders po ON pol.po_id = po.id
                 LEFT JOIN suppliers s ON po.supplier_id = s.id
                 WHERE pol.product_id = ?
                 ORDER BY po.order_date DESC LIMIT 20
@@ -799,7 +799,7 @@ def part_analyzer_analyze():
                        AVG(pol.unit_price) as avg_price,
                        COUNT(DISTINCT po.supplier_id) as supplier_count
                 FROM purchase_order_lines pol
-                JOIN purchase_orders po ON pol.purchase_order_id = po.id
+                JOIN purchase_orders po ON pol.po_id = po.id
                 WHERE pol.product_id = ?
             ''', (product_id,)).fetchone()
             cross_module_data['purchase_orders'] = {
@@ -812,7 +812,7 @@ def part_analyzer_analyze():
                 SELECT sol.*, so.order_number, so.status as order_status,
                        so.order_date, c.name as customer_name
                 FROM sales_order_lines sol
-                JOIN sales_orders so ON sol.sales_order_id = so.id
+                JOIN sales_orders so ON sol.so_id = so.id
                 LEFT JOIN customers c ON so.customer_id = c.id
                 WHERE sol.product_id = ?
                 ORDER BY so.order_date DESC LIMIT 20
@@ -822,7 +822,7 @@ def part_analyzer_analyze():
                        AVG(sol.unit_price) as avg_sell_price,
                        COUNT(DISTINCT so.customer_id) as customer_count
                 FROM sales_order_lines sol
-                JOIN sales_orders so ON sol.sales_order_id = so.id
+                JOIN sales_orders so ON sol.so_id = so.id
                 WHERE sol.product_id = ?
             ''', (product_id,)).fetchone()
             cross_module_data['sales_orders'] = {
