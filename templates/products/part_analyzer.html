@@ -115,7 +115,124 @@
                     </button>
                 </div>
                 <div class="card-body">
-                    <div id="analysisResult" class="analysis-content" style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.6; max-height: 600px; overflow-y: auto;"></div>
+                    <div id="analysisResult" class="analysis-content" style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.6; max-height: 400px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4" id="transactionHistoryCard" style="display: none;">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Transaction History</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" id="txnTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="wo-tab" data-bs-toggle="tab" data-bs-target="#wo-pane" type="button" role="tab">
+                                <i class="bi bi-clipboard-check me-1"></i>Work Orders <span class="badge bg-info" id="woCount">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="po-tab" data-bs-toggle="tab" data-bs-target="#po-pane" type="button" role="tab">
+                                <i class="bi bi-cart me-1"></i>Purchase Orders <span class="badge bg-warning text-dark" id="poCount">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="so-tab" data-bs-toggle="tab" data-bs-target="#so-pane" type="button" role="tab">
+                                <i class="bi bi-receipt me-1"></i>Sales Orders <span class="badge bg-success" id="soCount">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="bom-tab" data-bs-toggle="tab" data-bs-target="#bom-pane" type="button" role="tab">
+                                <i class="bi bi-diagram-3 me-1"></i>BOM Usage <span class="badge bg-secondary" id="bomCount">0</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content pt-3" id="txnTabContent">
+                        <div class="tab-pane fade show active" id="wo-pane" role="tabpanel">
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>WO Number</th>
+                                            <th>Customer</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="woTableBody">
+                                        <tr><td colspan="4" class="text-center text-muted">No work orders found</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="po-pane" role="tabpanel">
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>PO Number</th>
+                                            <th>Supplier</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="poTableBody">
+                                        <tr><td colspan="6" class="text-center text-muted">No purchase orders found</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="so-pane" role="tabpanel">
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>SO Number</th>
+                                            <th>Customer</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="soTableBody">
+                                        <tr><td colspan="6" class="text-center text-muted">No sales orders found</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="bom-pane" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-arrow-up-circle me-1"></i>Used In (Parent Assemblies)</h6>
+                                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover">
+                                            <thead class="table-light sticky-top">
+                                                <tr><th>Code</th><th>Name</th><th>Qty</th></tr>
+                                            </thead>
+                                            <tbody id="bomUsedInBody">
+                                                <tr><td colspan="3" class="text-center text-muted">Not used in any assemblies</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-arrow-down-circle me-1"></i>Contains (Components)</h6>
+                                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover">
+                                            <thead class="table-light sticky-top">
+                                                <tr><th>Code</th><th>Name</th><th>Qty</th></tr>
+                                            </thead>
+                                            <tbody id="bomContainsBody">
+                                                <tr><td colspan="3" class="text-center text-muted">No components</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -196,6 +313,7 @@ function analyzePart() {
     
     document.getElementById('welcomeCard').style.display = 'none';
     document.getElementById('analysisCard').style.display = 'none';
+    document.getElementById('transactionHistoryCard').style.display = 'none';
     document.getElementById('loadingCard').style.display = 'block';
     
     const formData = new FormData();
@@ -223,9 +341,11 @@ function analyzePart() {
             document.getElementById('partCost').textContent = data.product.cost ? '$' + parseFloat(data.product.cost).toFixed(2) : '-';
             
             buildQuickStats(data.cross_module_data);
+            buildTransactionHistory(data.cross_module_data);
             
             document.getElementById('analysisResult').textContent = data.analysis;
             document.getElementById('analysisCard').style.display = 'block';
+            document.getElementById('transactionHistoryCard').style.display = 'block';
         } else {
             document.getElementById('welcomeCard').style.display = 'block';
             alert('Error: ' + data.error);
@@ -314,6 +434,97 @@ function buildQuickStats(data) {
         document.getElementById('quickStatsContent').innerHTML = statsHtml.join('');
         document.getElementById('quickStatsCard').style.display = 'block';
     }
+}
+
+function buildTransactionHistory(data) {
+    // Work Orders
+    if (data.work_orders && data.work_orders.recent) {
+        const wos = data.work_orders.recent;
+        document.getElementById('woCount').textContent = wos.length;
+        if (wos.length > 0) {
+            document.getElementById('woTableBody').innerHTML = wos.map(wo => `
+                <tr>
+                    <td><a href="/work-orders/${wo.id}">${wo.wo_number || '-'}</a></td>
+                    <td>${wo.customer_name || '-'}</td>
+                    <td><span class="badge bg-${getStatusColor(wo.status)}">${wo.status || '-'}</span></td>
+                    <td>${wo.created_at ? new Date(wo.created_at).toLocaleDateString() : '-'}</td>
+                </tr>
+            `).join('');
+        }
+    }
+    
+    // Purchase Orders
+    if (data.purchase_orders && data.purchase_orders.recent) {
+        const pos = data.purchase_orders.recent;
+        document.getElementById('poCount').textContent = pos.length;
+        if (pos.length > 0) {
+            document.getElementById('poTableBody').innerHTML = pos.map(po => `
+                <tr>
+                    <td><a href="/purchase-orders/${po.po_id}">${po.po_number || '-'}</a></td>
+                    <td>${po.supplier_name || '-'}</td>
+                    <td>${po.quantity || 0}</td>
+                    <td>$${parseFloat(po.unit_price || 0).toFixed(2)}</td>
+                    <td><span class="badge bg-${getStatusColor(po.po_status)}">${po.po_status || '-'}</span></td>
+                    <td>${po.order_date || '-'}</td>
+                </tr>
+            `).join('');
+        }
+    }
+    
+    // Sales Orders
+    if (data.sales_orders && data.sales_orders.recent) {
+        const sos = data.sales_orders.recent;
+        document.getElementById('soCount').textContent = sos.length;
+        if (sos.length > 0) {
+            document.getElementById('soTableBody').innerHTML = sos.map(so => `
+                <tr>
+                    <td><a href="/sales/${so.so_id}">${so.so_number || '-'}</a></td>
+                    <td>${so.customer_name || '-'}</td>
+                    <td>${so.quantity || 0}</td>
+                    <td>$${parseFloat(so.unit_price || 0).toFixed(2)}</td>
+                    <td><span class="badge bg-${getStatusColor(so.order_status)}">${so.order_status || '-'}</span></td>
+                    <td>${so.order_date || '-'}</td>
+                </tr>
+            `).join('');
+        }
+    }
+    
+    // BOM Usage
+    if (data.bom) {
+        const usedIn = data.bom.used_in || [];
+        const contains = data.bom.contains || [];
+        document.getElementById('bomCount').textContent = usedIn.length + contains.length;
+        
+        if (usedIn.length > 0) {
+            document.getElementById('bomUsedInBody').innerHTML = usedIn.map(b => `
+                <tr>
+                    <td><a href="/products/${b.parent_product_id}">${b.parent_code || '-'}</a></td>
+                    <td>${b.parent_name || '-'}</td>
+                    <td>${b.quantity || 0}</td>
+                </tr>
+            `).join('');
+        }
+        
+        if (contains.length > 0) {
+            document.getElementById('bomContainsBody').innerHTML = contains.map(b => `
+                <tr>
+                    <td><a href="/products/${b.child_product_id}">${b.child_code || '-'}</a></td>
+                    <td>${b.child_name || '-'}</td>
+                    <td>${b.quantity || 0}</td>
+                </tr>
+            `).join('');
+        }
+    }
+}
+
+function getStatusColor(status) {
+    if (!status) return 'secondary';
+    const s = status.toLowerCase();
+    if (s.includes('complete') || s.includes('closed') || s.includes('shipped')) return 'success';
+    if (s.includes('progress') || s.includes('open') || s.includes('active')) return 'primary';
+    if (s.includes('pending') || s.includes('draft')) return 'warning';
+    if (s.includes('cancel') || s.includes('reject')) return 'danger';
+    return 'secondary';
 }
 
 function copyAnalysis() {
