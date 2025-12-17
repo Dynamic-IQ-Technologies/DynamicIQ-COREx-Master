@@ -37,6 +37,9 @@ from engines.ai_executor import (
 from engines.performance_profiler import (
     PerformanceProfiler, get_profiler
 )
+from security_utils.crypto import (
+    CryptoSecurityManager, get_security_manager, AccessLevel
+)
 
 
 class ExchangeOrchestrator:
@@ -63,6 +66,7 @@ class ExchangeOrchestrator:
         self.event_engine = get_event_engine()
         self.ai_modifier = get_ai_modifier()
         self.profiler = get_profiler()
+        self.security_manager = get_security_manager()
         self._lock = threading.RLock()
         self._execution_queue: List[Tuple[int, str, int]] = []
         self._cache_preload_registry: Dict[str, bool] = {}
@@ -184,8 +188,39 @@ class ExchangeOrchestrator:
             result['dependencies_resolved'] = len(dependencies)
             self.profiler.record_query('graph')
         
-        result['status'] = 'completed'
+        with self._lock:
+            self._execution_queue.append((execution_priority, entity_type, entity_id))
+            self._execution_queue.sort(key=lambda x: x[0])
+            result['queue_position'] = next(
+                (i for i, (p, e, eid) in enumerate(self._execution_queue) 
+                 if e == entity_type and eid == entity_id), -1
+            )
         
+        with self.profiler.measure_latency('security_audit'):
+            audit_entry = self.security_manager.create_audit_entry(
+                chain_id=chain_id,
+                action_type=operation_type,
+                actor_id=actor_id,
+                target_entity=entity_type,
+                target_id=entity_id,
+                payload={
+                    'risk_level': risk_level.value,
+                    'risk_score': risk_score,
+                    'modifications': [m.id for m in modifications],
+                    'event_id': event.event_id
+                }
+            )
+            result['audit_entry_id'] = audit_entry.entry_id
+            result['audit_signature'] = audit_entry.signature[:16] + '...'
+        
+        self.profiler.record_metric(
+            metric_type='orchestration',
+            metric_name='operation_completed',
+            value=1.0,
+            context={'chain_id': chain_id, 'operation': operation_type}
+        )
+        
+        result['status'] = 'completed'
         result['performance_metrics'] = self._collect_operation_metrics()
         
         return result
@@ -342,6 +377,7 @@ class ExchangeOrchestrator:
             'graph_metrics': self.graph.get_metrics(),
             'event_engine_metrics': self.event_engine.get_metrics(),
             'ai_modifier_metrics': self.ai_modifier.get_metrics(),
+            'security_metrics': self.security_manager.get_metrics(),
             'profiler_metrics': self.profiler.get_performance_report(),
             'cache_registry_size': len(self._cache_preload_registry),
             'execution_queue_depth': len(self._execution_queue)
