@@ -117,14 +117,27 @@
 
         <div class="col-md-6">
             <div class="card mb-3">
-                <div class="card-header">
-                    <h5>Customer Information</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Customer Information</h5>
+                    {% if sales_order.customer_id %}
+                    <a href="{{ url_for('customer_routes.view_customer', id=sales_order.customer_id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-person"></i> View Customer
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <table class="table table-borderless table-sm">
                         <tr>
                             <th width="40%">Customer:</th>
-                            <td>{{ sales_order.customer_number }}</td>
+                            <td>
+                                {% if sales_order.customer_id %}
+                                <a href="{{ url_for('customer_routes.view_customer', id=sales_order.customer_id) }}">
+                                    {{ sales_order.customer_number }}
+                                </a>
+                                {% else %}
+                                {{ sales_order.customer_number }}
+                                {% endif %}
+                            </td>
                         </tr>
                         <tr>
                             <th>Name:</th>

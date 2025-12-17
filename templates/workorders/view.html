@@ -41,8 +41,12 @@
                     <div class="col-md-6">
                         <p><strong>Product:</strong> {{ workorder.code }} - {{ workorder.name }}</p>
                         <p><strong>Quantity:</strong> {{ workorder.quantity }} {{ workorder.unit_of_measure }}</p>
-                        {% if workorder.customer_number %}
-                        <p><strong>Customer:</strong> {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
+                        {% if workorder.customer_id %}
+                        <p><strong>Customer:</strong> 
+                            <a href="{{ url_for('customer_routes.view_customer', id=workorder.customer_id) }}" class="text-decoration-none">
+                                {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
+                                <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8em;"></i>
+                            </a>
                             {% if workorder.customer_email or workorder.customer_phone %}
                             <br><small class="text-muted">
                                 {% if workorder.customer_email %}{{ workorder.customer_email }}{% endif %}
