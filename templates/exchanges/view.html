@@ -177,8 +177,15 @@
         
         <div class="col-lg-8">
             <ul class="nav nav-tabs" role="tablist">
+                {% if exchange.repair_work_order_id %}
                 <li class="nav-item">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#agreements-tab">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#workorder-tab">
+                        <i class="bi bi-tools me-1"></i> Work Order
+                    </button>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <button class="nav-link {% if not exchange.repair_work_order_id %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#agreements-tab">
                         <i class="bi bi-file-earmark-text me-1"></i> Agreements ({{ agreements|length }})
                     </button>
                 </li>
@@ -200,7 +207,73 @@
             </ul>
             
             <div class="tab-content mt-3">
-                <div class="tab-pane fade show active" id="agreements-tab">
+                {% if exchange.repair_work_order_id %}
+                <div class="tab-pane fade show active" id="workorder-tab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-tools me-2"></i>{{ exchange.repair_wo_number }}
+                                <span class="badge ms-2
+                                    {% if exchange.repair_wo_status == 'Draft' %}bg-secondary
+                                    {% elif exchange.repair_wo_status == 'In Progress' %}bg-primary
+                                    {% elif exchange.repair_wo_status == 'Completed' %}bg-success
+                                    {% elif exchange.repair_wo_status == 'Released' %}bg-info
+                                    {% else %}bg-warning{% endif %}">
+                                    {{ exchange.repair_wo_status }}
+                                </span>
+                            </h5>
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=exchange.repair_work_order_id) }}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Open Work Order
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-3">Work Order Details</h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-5">WO Number:</dt>
+                                        <dd class="col-7">{{ exchange.repair_wo_number }}</dd>
+                                        <dt class="col-5">Status:</dt>
+                                        <dd class="col-7">{{ exchange.repair_wo_status }}</dd>
+                                        <dt class="col-5">Product:</dt>
+                                        <dd class="col-7">{{ exchange.product_code }} - {{ exchange.product_name }}</dd>
+                                        <dt class="col-5">Customer:</dt>
+                                        <dd class="col-7">{{ exchange.customer_name }}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-3">Core Information</h6>
+                                    <dl class="row mb-0">
+                                        {% if core %}
+                                        <dt class="col-5">Core Serial:</dt>
+                                        <dd class="col-7">{{ core.core_serial_number or '-' }}</dd>
+                                        <dt class="col-5">Condition:</dt>
+                                        <dd class="col-7">{{ core.condition_on_receipt or '-' }}</dd>
+                                        <dt class="col-5">Received:</dt>
+                                        <dd class="col-7">{{ core.received_date or '-' }}</dd>
+                                        <dt class="col-5">Location:</dt>
+                                        <dd class="col-7">{{ core.receiving_location or '-' }}</dd>
+                                        {% else %}
+                                        <dd class="col-12 text-muted">No core information available</dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=exchange.repair_work_order_id) }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-eye me-1"></i> View Full Details
+                                </a>
+                                <a href="{{ url_for('workorder_routes.edit_workorder', id=exchange.repair_work_order_id) }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-pencil me-1"></i> Edit Work Order
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="tab-pane fade {% if not exchange.repair_work_order_id %}show active{% endif %}" id="agreements-tab">
                     <div class="card border-0 shadow-sm">
                         <div class="card-body">
                             {% if agreements %}
