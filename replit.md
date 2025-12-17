@@ -19,7 +19,7 @@ The backend is developed with Flask, using Blueprints and an SQLite database. It
 **Key Modules and Features:**
 -   **Products & BOM**: Manages product data, multi-level BOMs with revision control, and UOM conversion.
 -   **Inventory**: Tracks stock levels, supports serialized products, and handles adjustments.
--   **Work Orders**: Manages production orders with disposition types, customer association, status tracking, cost allocation, integrated task/labor planning, and material allocation.
+-   **Work Orders**: Manages production orders with disposition types, customer association, status tracking, cost allocation, integrated task/labor planning, material allocation, configurable workflow stages with color-coded badges, and mass update functionality for bulk operations (Admin/Planner roles).
 -   **Task Templates**: Reusable task template system for standardizing work order tasks.
 -   **Purchase Orders**: Supports multi-line procurement, supplier relationships, dynamic line item management, and partial/full receiving with UOM conversion. Includes Quick Add Product modal and Mass Update functionality.
 -   **Tools Management**: Comprehensive tool and equipment tracking system including calibration scheduling, location management, and checkout/checkin workflow.
