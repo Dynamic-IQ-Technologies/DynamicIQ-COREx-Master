@@ -28,10 +28,12 @@ def list_workorders():
     
     # Build dynamic query
     query = '''
-        SELECT wo.*, p.code, p.name, c.customer_number, c.name as customer_full_name
+        SELECT wo.*, p.code, p.name, c.customer_number, c.name as customer_full_name,
+               wos.name as stage_name, wos.color as stage_color
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
+        LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
         WHERE 1=1
     '''
     params = []
@@ -1234,6 +1236,10 @@ def api_mass_update_workorders():
                 update_fields.append('planned_end_date = ?')
                 update_values.append(updates['planned_end_date'] or None)
             
+            if 'stage_id' in updates:
+                update_fields.append('stage_id = ?')
+                update_values.append(int(updates['stage_id']) if updates['stage_id'] else None)
+            
             if update_fields:
                 update_values.append(wo_id)
                 conn.execute(f'''
@@ -1268,3 +1274,146 @@ def api_mass_update_workorders():
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Work Order Stages Management Routes
+@workorder_bp.route('/workorder-stages')
+@role_required('Admin')
+def list_stages():
+    """List all work order stages"""
+    db = Database()
+    conn = db.get_connection()
+    
+    stages = conn.execute('''
+        SELECT wos.*, 
+               (SELECT COUNT(*) FROM work_orders WHERE stage_id = wos.id) as usage_count
+        FROM work_order_stages wos
+        ORDER BY wos.sequence, wos.name
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('workorders/stages.html', stages=stages)
+
+
+@workorder_bp.route('/workorder-stages/create', methods=['POST'])
+@role_required('Admin')
+def create_stage():
+    """Create a new work order stage"""
+    from flask import jsonify
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        color = request.form.get('color', '#6c757d')
+        
+        if not name:
+            flash('Stage name is required', 'error')
+            return redirect(url_for('workorder_routes.list_stages'))
+        
+        # Get next sequence number
+        max_seq = conn.execute('SELECT MAX(sequence) as max_seq FROM work_order_stages').fetchone()
+        sequence = (max_seq['max_seq'] or 0) + 1
+        
+        conn.execute('''
+            INSERT INTO work_order_stages (name, description, color, sequence, is_active)
+            VALUES (?, ?, ?, ?, 1)
+        ''', (name, description, color, sequence))
+        
+        conn.commit()
+        flash(f'Stage "{name}" created successfully', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error creating stage: {str(e)}', 'error')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.list_stages'))
+
+
+@workorder_bp.route('/workorder-stages/<int:id>/update', methods=['POST'])
+@role_required('Admin')
+def update_stage(id):
+    """Update a work order stage"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        color = request.form.get('color', '#6c757d')
+        sequence = request.form.get('sequence', 0)
+        is_active = 1 if request.form.get('is_active') else 0
+        
+        if not name:
+            flash('Stage name is required', 'error')
+            return redirect(url_for('workorder_routes.list_stages'))
+        
+        conn.execute('''
+            UPDATE work_order_stages 
+            SET name = ?, description = ?, color = ?, sequence = ?, is_active = ?
+            WHERE id = ?
+        ''', (name, description, color, sequence, is_active, id))
+        
+        conn.commit()
+        flash(f'Stage "{name}" updated successfully', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating stage: {str(e)}', 'error')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.list_stages'))
+
+
+@workorder_bp.route('/workorder-stages/<int:id>/delete', methods=['POST'])
+@role_required('Admin')
+def delete_stage(id):
+    """Delete a work order stage"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Check if stage is in use
+        usage = conn.execute('SELECT COUNT(*) as count FROM work_orders WHERE stage_id = ?', (id,)).fetchone()
+        
+        if usage['count'] > 0:
+            flash(f'Cannot delete stage - it is used by {usage["count"]} work orders', 'error')
+        else:
+            stage = conn.execute('SELECT name FROM work_order_stages WHERE id = ?', (id,)).fetchone()
+            conn.execute('DELETE FROM work_order_stages WHERE id = ?', (id,))
+            conn.commit()
+            flash(f'Stage "{stage["name"]}" deleted successfully', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting stage: {str(e)}', 'error')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.list_stages'))
+
+
+@workorder_bp.route('/api/workorder-stages')
+@login_required
+def api_list_stages():
+    """API endpoint to get all active stages"""
+    from flask import jsonify
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    stages = conn.execute('''
+        SELECT id, name, description, color, sequence
+        FROM work_order_stages
+        WHERE is_active = 1
+        ORDER BY sequence, name
+    ''').fetchall()
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'stages': [dict(s) for s in stages]
+    })

@@ -192,7 +192,7 @@
                         <th data-sort-type="number">Quantity</th>
                         <th data-sort-type="string">Disposition</th>
                         <th data-sort-type="string">Status</th>
-                        <th data-sort-type="string">Operational Status</th>
+                        <th data-sort-type="string">Stage</th>
                         <th data-sort-type="string">Priority</th>
                         <th data-sort-type="date">Planned Start</th>
                         <th data-sortable="false">Actions</th>
@@ -232,8 +232,8 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if wo.operational_status %}
-                                <span class="badge bg-secondary">{{ wo.operational_status }}</span>
+                                {% if wo.stage_name %}
+                                <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }};">{{ wo.stage_name }}</span>
                                 {% else %}
                                 <span class="text-muted">-</span>
                                 {% endif %}
@@ -324,16 +324,11 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="updateOperationalStatus" onchange="toggleField('operational_status')">
-                                    <label class="form-check-label fw-bold" for="updateOperationalStatus">Update Operational Status</label>
+                                    <input class="form-check-input" type="checkbox" id="updateStage" onchange="toggleField('stage')">
+                                    <label class="form-check-label fw-bold" for="updateStage">Update Stage</label>
                                 </div>
-                                <select class="form-select mt-2" id="massOperationalStatus" disabled>
-                                    <option value="">Select Operational Status</option>
-                                    <option value="On Schedule">On Schedule</option>
-                                    <option value="Delayed">Delayed</option>
-                                    <option value="At Risk">At Risk</option>
-                                    <option value="On Hold">On Hold</option>
-                                    <option value="Expedited">Expedited</option>
+                                <select class="form-select mt-2" id="massStage" disabled>
+                                    <option value="">Select Stage</option>
                                 </select>
                             </div>
                         </div>
@@ -423,7 +418,7 @@ function toggleField(fieldName) {
     const fieldMap = {
         'status': 'massStatus',
         'priority': 'massPriority',
-        'operational_status': 'massOperationalStatus',
+        'stage': 'massStage',
         'disposition': 'massDisposition',
         'planned_start_date': 'massPlannedStartDate',
         'planned_end_date': 'massPlannedEndDate'
@@ -439,10 +434,23 @@ function toggleField(fieldName) {
 
 function openMassUpdateModal() {
     document.getElementById('massUpdateForm').reset();
-    ['massStatus', 'massPriority', 'massOperationalStatus', 'massDisposition', 'massPlannedStartDate', 'massPlannedEndDate'].forEach(id => {
+    ['massStatus', 'massPriority', 'massStage', 'massDisposition', 'massPlannedStartDate', 'massPlannedEndDate'].forEach(id => {
         const field = document.getElementById(id);
         if (field) field.disabled = true;
     });
+    
+    // Load stages
+    fetch('/api/workorder-stages')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const sel = document.getElementById('massStage');
+                sel.innerHTML = '<option value="">Select Stage</option>';
+                data.stages.forEach(s => {
+                    sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+            }
+        });
     
     const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
     const count = checkboxes.length;
@@ -473,8 +481,8 @@ async function executeMassUpdate() {
     if (document.getElementById('updatePriority').checked && document.getElementById('massPriority').value) {
         updates.priority = document.getElementById('massPriority').value;
     }
-    if (document.getElementById('updateOperationalStatus').checked && document.getElementById('massOperationalStatus').value) {
-        updates.operational_status = document.getElementById('massOperationalStatus').value;
+    if (document.getElementById('updateStage').checked && document.getElementById('massStage').value) {
+        updates.stage_id = document.getElementById('massStage').value;
     }
     if (document.getElementById('updateDisposition').checked && document.getElementById('massDisposition').value) {
         updates.disposition = document.getElementById('massDisposition').value;
