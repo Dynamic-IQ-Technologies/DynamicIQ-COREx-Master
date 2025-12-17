@@ -238,7 +238,7 @@ def calculate_customer_kpis(conn):
     ''').fetchone()['count']
     
     avg_feedback = conn.execute('''
-        SELECT COALESCE(AVG(satisfaction_rating), 0) as avg FROM customer_feedback
+        SELECT COALESCE(AVG(rating), 0) as avg FROM customer_feedback
     ''').fetchone()['avg']
     
     overdue_orders = conn.execute('''
