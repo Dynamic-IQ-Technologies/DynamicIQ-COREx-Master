@@ -61,7 +61,7 @@ def list_tools():
     }
     
     conn.close()
-    return render_template('tools/list.html', tools=tools, stats=stats)
+    return render_template('tools/list.html', tools=tools, stats=stats, now=datetime.now().strftime('%Y-%m-%d'))
 
 @tools_bp.route('/tools/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
