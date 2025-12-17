@@ -131,7 +131,8 @@ def dashboard():
     ''').fetchone()
     
     # === ACCOUNTS PAYABLE ===
-    ap_stats = conn.execute('''
+    # Get vendor invoices outstanding
+    vi_stats = conn.execute('''
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) as open_count,
@@ -139,6 +140,24 @@ def dashboard():
             COALESCE(SUM(CASE WHEN status IN ('Open', 'Approved') THEN total_amount - COALESCE(amount_paid, 0) ELSE 0 END), 0) as ap_outstanding
         FROM vendor_invoices
     ''').fetchone()
+    
+    # Also get open purchase orders value (not yet invoiced)
+    po_outstanding = conn.execute('''
+        SELECT 
+            COUNT(DISTINCT po.id) as open_count,
+            COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_value
+        FROM purchase_orders po
+        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.status IN ('Sent', 'Approved', 'Partial')
+    ''').fetchone()
+    
+    # Combine A/P stats
+    ap_stats = {
+        'total': (vi_stats['total'] or 0) + (po_outstanding['open_count'] or 0),
+        'open_count': (vi_stats['open_count'] or 0) + (po_outstanding['open_count'] or 0),
+        'approved': vi_stats['approved'] or 0,
+        'ap_outstanding': (vi_stats['ap_outstanding'] or 0) + (po_outstanding['total_value'] or 0)
+    }
     
     # === SERVICE WORK ORDERS ===
     swo_stats = conn.execute('''
