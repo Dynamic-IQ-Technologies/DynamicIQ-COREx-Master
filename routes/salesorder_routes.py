@@ -733,7 +733,7 @@ def release_to_shipping(id):
         # Get sales order details with customer info
         so = conn.execute('''
             SELECT so.*, c.name as customer_name, c.customer_number,
-                   c.email, c.phone, c.billing_address, c.shipping_address, c.city, c.state, c.postal_code, c.country
+                   c.email, c.phone, c.billing_address, c.shipping_address
             FROM sales_orders so
             JOIN customers c ON so.customer_id = c.id
             WHERE so.id = ?
@@ -781,15 +781,13 @@ def release_to_shipping(id):
         conn.execute('''
             INSERT INTO shipments (
                 shipment_number, shipment_type, reference_type, reference_id,
-                status, shipment_stage, ship_to_name, ship_to_address, ship_to_city,
-                ship_to_state, ship_to_postal_code, ship_to_country,
+                status, shipment_stage, ship_to_name, ship_to_address,
                 released_by, released_at, created_by, created_at
             ) VALUES (?, 'Outbound', 'Sales Order', ?, 'Pending', 'Pending',
-                      ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+                      ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
         ''', (
             shipment_number, id,
-            so['customer_name'], so['shipping_address'] or so['billing_address'], so['city'],
-            so['state'], so['postal_code'], so['country'],
+            so['customer_name'], so['shipping_address'] or so['billing_address'],
             session.get('user_id'), session.get('user_id')
         ))
         
