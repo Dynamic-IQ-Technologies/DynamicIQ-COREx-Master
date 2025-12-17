@@ -36,6 +36,7 @@ The backend is developed with Flask, using Blueprints and an SQLite database. It
 -   **Customer Service Module**: Internal dashboard for customer order and work order visibility, including a confirmation workflow, at-risk order tracking, communications log, activity timeline, escalation management, SLA configuration, customer feedback, and a secure Customer Portal.
 -   **Organizational Analyzer Module**: AI-powered executive intelligence dashboard providing CEO-level organizational insights with KPIs, AI-powered recommendations, alerts, and forecasting capabilities.
 -   **Financial Analyzer Module**: Super AI CFO providing executive-level financial intelligence including cash position, burn rate, runway analysis, revenue/margins, operational efficiency metrics, risk indicators (A/R aging, concentration risk), AI-powered CFO analysis with health scoring, scenario modeling (growth, cost reduction, stress testing), and 90-day financial outlook.
+-   **ERP Copilot (AI Helper)**: Floating, context-aware AI assistant embedded throughout the application. Provides user guidance, natural language ERP queries, process enforcement, workflow explanations, smart recommendations, and audit support. Features role-aware assistance (Admin, Sales, Planner, etc.), customer-friendly mode for portal users, and guarded action execution with confirmation prompts. Accessible via floating button (bottom-right) on all authenticated pages.
 
 ### System Design Choices
 
