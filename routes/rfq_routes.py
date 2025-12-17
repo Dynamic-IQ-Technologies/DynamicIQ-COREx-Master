@@ -49,7 +49,8 @@ def list_rfqs():
     }
     
     conn.close()
-    return render_template('rfqs/list.html', rfqs=rfqs, stats=stats)
+    from datetime import date
+    return render_template('rfqs/list.html', rfqs=rfqs, stats=stats, now=date.today().isoformat())
 
 @rfq_bp.route('/rfqs/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
