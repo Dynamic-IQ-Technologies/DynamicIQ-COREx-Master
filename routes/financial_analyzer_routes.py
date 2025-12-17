@@ -39,22 +39,22 @@ def calculate_cash_metrics(conn):
     
     cash_in_mtd = conn.execute('''
         SELECT COALESCE(SUM(amount_paid), 0) as total FROM invoices 
-        WHERE status IN ('Paid', 'Partial') AND updated_at >= ?
+        WHERE status IN ('Paid', 'Partial') AND invoice_date >= ?
     ''', (month_start,)).fetchone()['total']
     
     cash_in_last_month = conn.execute('''
         SELECT COALESCE(SUM(amount_paid), 0) as total FROM invoices 
-        WHERE status IN ('Paid', 'Partial') AND updated_at >= ? AND updated_at < ?
+        WHERE status IN ('Paid', 'Partial') AND invoice_date >= ? AND invoice_date < ?
     ''', (last_month_start, month_start)).fetchone()['total']
     
     cash_out_mtd = conn.execute('''
         SELECT COALESCE(SUM(amount_paid), 0) as total FROM vendor_invoices 
-        WHERE status IN ('Paid', 'Partial') AND updated_at >= ?
+        WHERE status IN ('Paid', 'Partial') AND invoice_date >= ?
     ''', (month_start,)).fetchone()['total']
     
     cash_out_last_month = conn.execute('''
         SELECT COALESCE(SUM(amount_paid), 0) as total FROM vendor_invoices 
-        WHERE status IN ('Paid', 'Partial') AND updated_at >= ? AND updated_at < ?
+        WHERE status IN ('Paid', 'Partial') AND invoice_date >= ? AND invoice_date < ?
     ''', (last_month_start, month_start)).fetchone()['total']
     
     ar_outstanding = conn.execute('''
