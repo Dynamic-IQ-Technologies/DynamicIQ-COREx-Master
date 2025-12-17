@@ -518,3 +518,152 @@ def void_invoice(id):
         conn.close()
     
     return redirect(url_for('invoice_routes.view_invoice', id=id))
+
+
+@invoice_bp.route('/invoices/create-from-ndt/<int:ndt_wo_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Accountant', 'Planner')
+def create_from_ndt_wo(ndt_wo_id):
+    """Create invoice or quote from NDT Work Order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        try:
+            invoice_date = request.form.get('invoice_date') or datetime.now().strftime('%Y-%m-%d')
+            payment_terms = int(request.form.get('payment_terms', 30))
+            document_type = request.form.get('document_type', 'Invoice')
+            
+            inv_date = datetime.strptime(invoice_date, '%Y-%m-%d')
+            due_date = (inv_date + timedelta(days=payment_terms)).strftime('%Y-%m-%d')
+            
+            ndt_wo = conn.execute('''
+                SELECT nw.*, c.name as customer_name, c.payment_terms as customer_payment_terms
+                FROM ndt_work_orders nw
+                LEFT JOIN customers c ON nw.customer_id = c.id
+                WHERE nw.id = ?
+            ''', (ndt_wo_id,)).fetchone()
+            
+            if not ndt_wo:
+                flash('NDT Work Order not found', 'danger')
+                conn.close()
+                return redirect(url_for('invoice_routes.list_invoices'))
+            
+            if not ndt_wo['customer_id']:
+                flash('NDT Work Order has no customer assigned', 'danger')
+                conn.close()
+                return redirect(url_for('ndt_routes.wo_view', id=ndt_wo_id))
+            
+            prefix = 'QUO' if document_type == 'Quote' else 'INV'
+            last_inv = conn.execute(f'''
+                SELECT invoice_number FROM invoices 
+                WHERE invoice_number LIKE '{prefix}-%'
+                ORDER BY id DESC LIMIT 1
+            ''').fetchone()
+            
+            if last_inv:
+                last_num = int(last_inv['invoice_number'].split('-')[1])
+                invoice_number = f'{prefix}-{last_num + 1:06d}'
+            else:
+                invoice_number = f'{prefix}-000001'
+            
+            subtotal = 0
+            line_items = []
+            
+            for i in range(1, 11):
+                desc = request.form.get(f'line_desc_{i}')
+                qty = request.form.get(f'line_qty_{i}')
+                price = request.form.get(f'line_price_{i}')
+                
+                if desc and qty and price:
+                    qty = float(qty)
+                    price = float(price)
+                    line_total = qty * price
+                    subtotal += line_total
+                    line_items.append({
+                        'line_number': len(line_items) + 1,
+                        'description': desc,
+                        'quantity': qty,
+                        'unit_price': price,
+                        'line_total': line_total
+                    })
+            
+            tax_rate = float(request.form.get('tax_rate', 0))
+            tax_amount = subtotal * (tax_rate / 100)
+            total_amount = subtotal + tax_amount
+            
+            invoice_type = f'NDT {document_type}'
+            
+            cursor = conn.execute('''
+                INSERT INTO invoices (
+                    invoice_number, invoice_type, customer_id, 
+                    invoice_date, due_date, payment_terms, status,
+                    subtotal, tax_rate, tax_amount, discount_amount, total_amount,
+                    balance_due, notes, source_type, source_id, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                invoice_number, invoice_type, ndt_wo['customer_id'],
+                invoice_date, due_date, payment_terms, 'Draft',
+                subtotal, tax_rate, tax_amount, 0, total_amount,
+                total_amount, request.form.get('notes', ''), 
+                'ndt_work_order', ndt_wo_id, session['user_id']
+            ))
+            
+            invoice_id = cursor.lastrowid
+            
+            for line in line_items:
+                conn.execute('''
+                    INSERT INTO invoice_lines (
+                        invoice_id, line_number, description,
+                        quantity, unit_price, discount_percent, line_total,
+                        reference_type, reference_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    invoice_id, line['line_number'], line['description'],
+                    line['quantity'], line['unit_price'], 0, line['line_total'],
+                    'ndt_work_order', ndt_wo_id
+                ))
+            
+            conn.commit()
+            flash(f'{document_type} {invoice_number} created successfully!', 'success')
+            return redirect(url_for('invoice_routes.view_invoice', id=invoice_id))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error creating document: {str(e)}', 'danger')
+        finally:
+            conn.close()
+        
+        return redirect(url_for('ndt_routes.wo_view', id=ndt_wo_id))
+    
+    ndt_wo = conn.execute('''
+        SELECT nw.*, c.name as customer_name, c.customer_number, c.payment_terms
+        FROM ndt_work_orders nw
+        LEFT JOIN customers c ON nw.customer_id = c.id
+        WHERE nw.id = ?
+    ''', (ndt_wo_id,)).fetchone()
+    
+    if not ndt_wo:
+        flash('NDT Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    if not ndt_wo['customer_id']:
+        flash('NDT Work Order has no customer assigned. Please assign a customer first.', 'warning')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_edit', id=ndt_wo_id))
+    
+    inspection_results = conn.execute('''
+        SELECT ir.*, t.first_name || ' ' || t.last_name as technician_name
+        FROM ndt_inspection_results ir
+        LEFT JOIN ndt_technicians t ON ir.technician_id = t.id
+        WHERE ir.ndt_wo_id = ?
+        ORDER BY ir.method
+    ''', (ndt_wo_id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('invoices/create_from_ndt.html',
+                         ndt_wo=ndt_wo,
+                         inspection_results=inspection_results,
+                         today=datetime.now().strftime('%Y-%m-%d'))

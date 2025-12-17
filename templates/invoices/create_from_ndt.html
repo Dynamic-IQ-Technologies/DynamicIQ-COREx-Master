@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Create Quote/Invoice from NDT Work Order - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Create Quote/Invoice</h2>
+            <p class="text-muted mb-0">From NDT Work Order: <strong>{{ ndt_wo.ndt_wo_number }}</strong></p>
+        </div>
+        <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to NDT WO
+        </a>
+    </div>
+
+    <form method="POST" id="invoiceForm">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Document Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Document Type</label>
+                                <select name="document_type" class="form-select" required>
+                                    <option value="Quote">Quote</option>
+                                    <option value="Invoice">Invoice</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Date</label>
+                                <input type="date" name="invoice_date" class="form-control" value="{{ today }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Payment Terms (days)</label>
+                                <input type="number" name="payment_terms" class="form-control" value="{{ ndt_wo.payment_terms or 30 }}" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Line Items</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLineItem()">
+                            <i class="bi bi-plus me-1"></i> Add Line
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="lineItemsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="5%">#</th>
+                                        <th width="50%">Description</th>
+                                        <th width="15%">Qty</th>
+                                        <th width="15%">Unit Price</th>
+                                        <th width="15%">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lineItemsBody">
+                                    {% if inspection_results %}
+                                    {% for result in inspection_results %}
+                                    <tr class="line-item-row">
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <input type="text" name="line_desc_{{ loop.index }}" class="form-control form-control-sm" 
+                                                   value="NDT {{ result.method }} Inspection - {{ result.area_inspected or 'Full Part' }}" required>
+                                        </td>
+                                        <td>
+                                            <input type="number" name="line_qty_{{ loop.index }}" class="form-control form-control-sm line-qty" 
+                                                   value="1" step="0.01" min="0" required onchange="calculateTotals()">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="line_price_{{ loop.index }}" class="form-control form-control-sm line-price" 
+                                                   value="250.00" step="0.01" min="0" required onchange="calculateTotals()">
+                                        </td>
+                                        <td class="line-total text-end">$250.00</td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% else %}
+                                    <tr class="line-item-row">
+                                        <td>1</td>
+                                        <td>
+                                            <input type="text" name="line_desc_1" class="form-control form-control-sm" 
+                                                   value="NDT Inspection Services - {{ ndt_wo.ndt_methods }}" required>
+                                        </td>
+                                        <td>
+                                            <input type="number" name="line_qty_1" class="form-control form-control-sm line-qty" 
+                                                   value="1" step="0.01" min="0" required onchange="calculateTotals()">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="line_price_1" class="form-control form-control-sm line-price" 
+                                                   value="500.00" step="0.01" min="0" required onchange="calculateTotals()">
+                                        </td>
+                                        <td class="line-total text-end">$500.00</td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Notes</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes or terms...">NDT Work Order: {{ ndt_wo.ndt_wo_number }}
+Methods: {{ ndt_wo.ndt_methods }}
+{% if ndt_wo.serial_number %}Serial #: {{ ndt_wo.serial_number }}{% endif %}
+{% if ndt_wo.applicable_code %}Code/Standard: {{ ndt_wo.applicable_code }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Customer</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>{{ ndt_wo.customer_name }}</strong></p>
+                        <p class="text-muted mb-0 small">{{ ndt_wo.customer_number }}</p>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">NDT Work Order Info</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-0">
+                            <tr><th width="40%">WO Number</th><td>{{ ndt_wo.ndt_wo_number }}</td></tr>
+                            <tr><th>Status</th><td><span class="badge bg-secondary">{{ ndt_wo.status }}</span></td></tr>
+                            <tr><th>Methods</th><td><strong>{{ ndt_wo.ndt_methods }}</strong></td></tr>
+                            <tr><th>Product</th><td>{{ ndt_wo.product_code or ndt_wo.part_description or '-' }}</td></tr>
+                            <tr><th>Serial #</th><td>{{ ndt_wo.serial_number or '-' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Totals</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <strong id="subtotal">$0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Tax Rate (%):</span>
+                            <input type="number" name="tax_rate" class="form-control form-control-sm" style="width: 80px;" 
+                                   value="0" step="0.01" min="0" onchange="calculateTotals()">
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Tax Amount:</span>
+                            <strong id="taxAmount">$0.00</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <span class="h5 mb-0">Total:</span>
+                            <strong class="h5 mb-0 text-primary" id="grandTotal">$0.00</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-file-earmark-plus me-1"></i> Create Document
+                    </button>
+                    <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lineCount = {{ inspection_results|length or 1 }};
+
+function addLineItem() {
+    lineCount++;
+    const tbody = document.getElementById('lineItemsBody');
+    const newRow = document.createElement('tr');
+    newRow.className = 'line-item-row';
+    newRow.innerHTML = `
+        <td>${lineCount}</td>
+        <td>
+            <input type="text" name="line_desc_${lineCount}" class="form-control form-control-sm" placeholder="Description" required>
+        </td>
+        <td>
+            <input type="number" name="line_qty_${lineCount}" class="form-control form-control-sm line-qty" value="1" step="0.01" min="0" required onchange="calculateTotals()">
+        </td>
+        <td>
+            <input type="number" name="line_price_${lineCount}" class="form-control form-control-sm line-price" value="0" step="0.01" min="0" required onchange="calculateTotals()">
+        </td>
+        <td class="line-total text-end">$0.00</td>
+    `;
+    tbody.appendChild(newRow);
+}
+
+function calculateTotals() {
+    let subtotal = 0;
+    const rows = document.querySelectorAll('.line-item-row');
+    
+    rows.forEach(row => {
+        const qty = parseFloat(row.querySelector('.line-qty')?.value) || 0;
+        const price = parseFloat(row.querySelector('.line-price')?.value) || 0;
+        const lineTotal = qty * price;
+        subtotal += lineTotal;
+        
+        const lineTotalCell = row.querySelector('.line-total');
+        if (lineTotalCell) {
+            lineTotalCell.textContent = '$' + lineTotal.toFixed(2);
+        }
+    });
+    
+    const taxRate = parseFloat(document.querySelector('[name="tax_rate"]').value) || 0;
+    const taxAmount = subtotal * (taxRate / 100);
+    const grandTotal = subtotal + taxAmount;
+    
+    document.getElementById('subtotal').textContent = '$' + subtotal.toFixed(2);
+    document.getElementById('taxAmount').textContent = '$' + taxAmount.toFixed(2);
+    document.getElementById('grandTotal').textContent = '$' + grandTotal.toFixed(2);
+}
+
+document.addEventListener('DOMContentLoaded', calculateTotals);
+</script>
+{% endblock %}
