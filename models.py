@@ -3817,6 +3817,167 @@ def init_qms_tables(cursor):
         )
     ''')
     
+    # ============== Exchange Management Tables ==============
+    
+    # Exchange Master Records
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_master (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exchange_id TEXT UNIQUE NOT NULL,
+            sales_order_id INTEGER NOT NULL,
+            customer_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            shipped_serial_number TEXT,
+            expected_core_serial TEXT,
+            exchange_type TEXT DEFAULT 'Standard',
+            core_due_date DATE,
+            core_value REAL DEFAULT 0,
+            exchange_fee REAL DEFAULT 0,
+            deposit_amount REAL DEFAULT 0,
+            penalty_amount REAL DEFAULT 0,
+            status TEXT DEFAULT 'Open',
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            closed_at TIMESTAMP,
+            closed_by INTEGER,
+            closure_notes TEXT,
+            FOREIGN KEY (sales_order_id) REFERENCES sales_orders(id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (created_by) REFERENCES users(id),
+            FOREIGN KEY (closed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Exchange Core Tracking
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_cores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exchange_id INTEGER NOT NULL,
+            core_status TEXT DEFAULT 'Awaiting Core',
+            core_serial_number TEXT,
+            shipped_by_customer_date DATE,
+            received_date DATE,
+            received_by INTEGER,
+            condition_on_receipt TEXT,
+            inspection_notes TEXT,
+            days_outstanding INTEGER DEFAULT 0,
+            ownership_responsibility TEXT DEFAULT 'Customer',
+            financial_exposure REAL DEFAULT 0,
+            dispute_reason TEXT,
+            dispute_date DATE,
+            resolution_notes TEXT,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (exchange_id) REFERENCES exchange_master(id) ON DELETE CASCADE,
+            FOREIGN KEY (received_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Exchange Linked Purchase Orders
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_purchase_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exchange_id INTEGER NOT NULL,
+            purchase_order_id INTEGER NOT NULL,
+            po_exchange_fee REAL DEFAULT 0,
+            po_core_charge REAL DEFAULT 0,
+            po_penalty REAL DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (exchange_id) REFERENCES exchange_master(id) ON DELETE CASCADE,
+            FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id)
+        )
+    ''')
+    
+    # Exchange Agreements
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_agreements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exchange_id INTEGER NOT NULL,
+            agreement_number TEXT UNIQUE NOT NULL,
+            version INTEGER DEFAULT 1,
+            customer_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            part_number TEXT,
+            serial_number TEXT,
+            core_due_date DATE,
+            exchange_terms TEXT,
+            penalty_terms TEXT,
+            legal_clauses TEXT,
+            status TEXT DEFAULT 'Draft',
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            generated_by INTEGER,
+            sent_to_customer INTEGER DEFAULT 0,
+            sent_date TIMESTAMP,
+            signed_date DATE,
+            document_filename TEXT,
+            FOREIGN KEY (exchange_id) REFERENCES exchange_master(id) ON DELETE CASCADE,
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (generated_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Exchange Audit Log (immutable)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exchange_id INTEGER NOT NULL,
+            action_type TEXT NOT NULL,
+            previous_status TEXT,
+            new_status TEXT,
+            action_details TEXT,
+            performed_by INTEGER,
+            performed_by_name TEXT,
+            performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            requires_justification INTEGER DEFAULT 0,
+            justification TEXT,
+            approved_by INTEGER,
+            FOREIGN KEY (exchange_id) REFERENCES exchange_master(id),
+            FOREIGN KEY (performed_by) REFERENCES users(id),
+            FOREIGN KEY (approved_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Exchange AI Coordinator Analyses
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_ai_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            analysis_type TEXT NOT NULL,
+            exchange_id INTEGER,
+            customer_id INTEGER,
+            risk_level TEXT,
+            risk_score REAL,
+            findings TEXT,
+            recommendations TEXT,
+            predicted_outcome TEXT,
+            confidence_score REAL,
+            analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (exchange_id) REFERENCES exchange_master(id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
+        )
+    ''')
+    
+    # Exchange Alerts
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exchange_id INTEGER NOT NULL,
+            alert_type TEXT NOT NULL,
+            severity TEXT DEFAULT 'Medium',
+            title TEXT NOT NULL,
+            message TEXT,
+            is_read INTEGER DEFAULT 0,
+            is_resolved INTEGER DEFAULT 0,
+            resolved_by INTEGER,
+            resolved_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (exchange_id) REFERENCES exchange_master(id),
+            FOREIGN KEY (resolved_by) REFERENCES users(id)
+        )
+    ''')
+    
     # Create indexes for QMS tables
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')
@@ -3826,5 +3987,10 @@ def init_qms_tables(cursor):
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_capa_status ON qms_capa(status)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_ack_user ON qms_acknowledgments(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_audit_doc ON qms_audit_trail(document_type, document_id)')
+        # Exchange indexes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_status ON exchange_master(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_customer ON exchange_master(customer_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_core_status ON exchange_cores(core_status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_alerts_unread ON exchange_alerts(is_read, is_resolved)')
     except:
         pass

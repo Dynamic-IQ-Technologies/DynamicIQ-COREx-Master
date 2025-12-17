@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exchange.exchange_id }} - Exchange Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-arrow-left-right me-2"></i>{{ exchange.exchange_id }}
+                {% if exchange.status == 'Open' %}
+                <span class="badge bg-primary ms-2">{{ exchange.status }}</span>
+                {% elif exchange.status == 'Closed' %}
+                <span class="badge bg-success ms-2">{{ exchange.status }}</span>
+                {% elif exchange.status == 'Escalated' %}
+                <span class="badge bg-danger ms-2">{{ exchange.status }}</span>
+                {% else %}
+                <span class="badge bg-secondary ms-2">{{ exchange.status }}</span>
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">{{ exchange.customer_name }} - {{ exchange.product_code }}</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#generateAgreementModal">
+                <i class="bi bi-file-earmark-text me-1"></i> Generate Agreement
+            </button>
+            <button type="button" class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#linkPOModal">
+                <i class="bi bi-link-45deg me-1"></i> Link PO
+            </button>
+            <a href="{{ url_for('exchange.exchange_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Exchange Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-5">Sales Order:</dt>
+                        <dd class="col-7">
+                            {% if exchange.so_number %}
+                            <a href="{{ url_for('sales.view_order', order_id=exchange.sales_order_id) }}">{{ exchange.so_number }}</a>
+                            {% else %}-{% endif %}
+                        </dd>
+                        <dt class="col-5">Customer:</dt>
+                        <dd class="col-7">{{ exchange.customer_name }}</dd>
+                        <dt class="col-5">Product:</dt>
+                        <dd class="col-7">{{ exchange.product_code }} - {{ exchange.product_name }}</dd>
+                        <dt class="col-5">Shipped Serial:</dt>
+                        <dd class="col-7">{{ exchange.shipped_serial_number or '-' }}</dd>
+                        <dt class="col-5">Expected Core:</dt>
+                        <dd class="col-7">{{ exchange.expected_core_serial or 'Any' }}</dd>
+                        <dt class="col-5">Exchange Type:</dt>
+                        <dd class="col-7">{{ exchange.exchange_type }}</dd>
+                        <dt class="col-5">Created:</dt>
+                        <dd class="col-7">{{ exchange.created_at[:10] if exchange.created_at else '-' }}</dd>
+                        <dt class="col-5">Created By:</dt>
+                        <dd class="col-7">{{ exchange.created_by_name or '-' }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Financial</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-6">Core Value:</dt>
+                        <dd class="col-6 text-end fw-bold">${{ "{:,.2f}".format(exchange.core_value or 0) }}</dd>
+                        <dt class="col-6">Exchange Fee:</dt>
+                        <dd class="col-6 text-end">${{ "{:,.2f}".format(exchange.exchange_fee or 0) }}</dd>
+                        <dt class="col-6">Deposit:</dt>
+                        <dd class="col-6 text-end">${{ "{:,.2f}".format(exchange.deposit_amount or 0) }}</dd>
+                        <dt class="col-6">Penalties:</dt>
+                        <dd class="col-6 text-end text-danger">${{ "{:,.2f}".format(exchange.penalty_amount or 0) }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            {% if core %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-box me-2"></i>Core Status</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateCoreModal">
+                        Update
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        {% if core.core_status == 'Core Overdue' %}
+                        <span class="badge bg-danger fs-6 px-3 py-2">{{ core.core_status }}</span>
+                        {% elif core.core_status == 'Awaiting Core' %}
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2">{{ core.core_status }}</span>
+                        {% elif core.core_status == 'Core Received' %}
+                        <span class="badge bg-success fs-6 px-3 py-2">{{ core.core_status }}</span>
+                        {% elif core.core_status == 'Core Disputed' %}
+                        <span class="badge bg-info fs-6 px-3 py-2">{{ core.core_status }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary fs-6 px-3 py-2">{{ core.core_status }}</span>
+                        {% endif %}
+                    </div>
+                    <dl class="row mb-0">
+                        <dt class="col-6">Due Date:</dt>
+                        <dd class="col-6">{{ exchange.core_due_date or '-' }}</dd>
+                        <dt class="col-6">Days Outstanding:</dt>
+                        <dd class="col-6 {% if core.days_outstanding and core.days_outstanding > 30 %}text-danger fw-bold{% endif %}">
+                            {{ core.days_outstanding or 0 }}
+                        </dd>
+                        <dt class="col-6">Core Serial:</dt>
+                        <dd class="col-6">{{ core.core_serial_number or '-' }}</dd>
+                        <dt class="col-6">Shipped Date:</dt>
+                        <dd class="col-6">{{ core.shipped_by_customer_date or '-' }}</dd>
+                        <dt class="col-6">Received Date:</dt>
+                        <dd class="col-6">{{ core.received_date or '-' }}</dd>
+                        <dt class="col-6">Ownership:</dt>
+                        <dd class="col-6">{{ core.ownership_responsibility }}</dd>
+                        <dt class="col-6">Exposure:</dt>
+                        <dd class="col-6 text-danger">${{ "{:,.2f}".format(core.financial_exposure or 0) }}</dd>
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-8">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#agreements-tab">
+                        <i class="bi bi-file-earmark-text me-1"></i> Agreements ({{ agreements|length }})
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pos-tab">
+                        <i class="bi bi-cart me-1"></i> Linked POs ({{ linked_pos|length }})
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#alerts-tab">
+                        <i class="bi bi-bell me-1"></i> Alerts ({{ alerts|length }})
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#audit-tab">
+                        <i class="bi bi-clock-history me-1"></i> Audit Log
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="tab-content mt-3">
+                <div class="tab-pane fade show active" id="agreements-tab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            {% if agreements %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Agreement #</th>
+                                            <th>Version</th>
+                                            <th>Status</th>
+                                            <th>Generated</th>
+                                            <th>Sent</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for agr in agreements %}
+                                        <tr>
+                                            <td>{{ agr.agreement_number }}</td>
+                                            <td>v{{ agr.version }}</td>
+                                            <td><span class="badge bg-{% if agr.status == 'Active' %}success{% elif agr.status == 'Draft' %}warning{% else %}secondary{% endif %}">{{ agr.status }}</span></td>
+                                            <td>{{ agr.generated_at[:10] if agr.generated_at else '-' }}</td>
+                                            <td>{% if agr.sent_to_customer %}<i class="bi bi-check-circle text-success"></i>{% else %}-{% endif %}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></button>
+                                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-envelope"></i></button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center py-4 mb-0">No agreements generated yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="pos-tab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            {% if linked_pos %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>PO Number</th>
+                                            <th>Supplier</th>
+                                            <th>Exchange Fee</th>
+                                            <th>Core Charge</th>
+                                            <th>Penalty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for po in linked_pos %}
+                                        <tr>
+                                            <td><a href="{{ url_for('purchase_order.view_purchase_order', po_id=po.purchase_order_id) }}">{{ po.po_number }}</a></td>
+                                            <td>{{ po.supplier_name or '-' }}</td>
+                                            <td>${{ "{:,.2f}".format(po.po_exchange_fee or 0) }}</td>
+                                            <td>${{ "{:,.2f}".format(po.po_core_charge or 0) }}</td>
+                                            <td>${{ "{:,.2f}".format(po.po_penalty or 0) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center py-4 mb-0">No purchase orders linked</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="alerts-tab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            {% if alerts %}
+                            {% for alert in alerts %}
+                            <div class="alert alert-{% if alert.severity == 'High' %}danger{% elif alert.severity == 'Medium' %}warning{% else %}info{% endif %} d-flex align-items-center">
+                                <i class="bi bi-{% if alert.severity == 'High' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                                <div class="flex-grow-1">
+                                    <strong>{{ alert.title }}</strong>
+                                    <p class="mb-0 small">{{ alert.message }}</p>
+                                </div>
+                                <small class="text-muted">{{ alert.created_at[:10] if alert.created_at else '' }}</small>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <p class="text-muted text-center py-4 mb-0">No alerts</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="audit-tab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            {% if audit_log %}
+                            <div class="timeline">
+                                {% for log in audit_log %}
+                                <div class="d-flex mb-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="bg-primary bg-opacity-10 rounded-circle p-2">
+                                            <i class="bi bi-clock text-primary"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <div class="d-flex justify-content-between">
+                                            <strong>{{ log.action_type }}</strong>
+                                            <small class="text-muted">{{ log.performed_at }}</small>
+                                        </div>
+                                        <p class="mb-0 small text-muted">
+                                            {{ log.action_details or '' }}
+                                            {% if log.previous_status and log.new_status %}
+                                            - Status: {{ log.previous_status }} to {{ log.new_status }}
+                                            {% endif %}
+                                        </p>
+                                        <small class="text-muted">By {{ log.performed_by_name }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center py-4 mb-0">No audit history</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="updateCoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Core Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="updateCoreForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">New Status</label>
+                        <select name="core_status" class="form-select" required>
+                            {% for status in core_statuses %}
+                            <option value="{{ status }}" {% if core and core.core_status == status %}selected{% endif %}>{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Justification (if manual override)</label>
+                        <textarea name="justification" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="generateAgreementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Exchange Agreement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="generateAgreementForm">
+                <div class="modal-body">
+                    <p class="text-muted">Generate an Exchange Agreement document for this transaction. The agreement will include customer details, part information, core terms, and penalties.</p>
+                    <div class="alert alert-info py-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Agreement will be saved as a draft and can be edited before sending.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Generate Agreement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="linkPOModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Link Purchase Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="linkPOForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Purchase Order</label>
+                        <select name="purchase_order_id" class="form-select" required id="poSelect">
+                            <option value="">Select PO...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Exchange Fee</label>
+                        <input type="number" step="0.01" name="po_exchange_fee" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Core Charge</label>
+                        <input type="number" step="0.01" name="po_core_charge" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Link PO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('updateCoreForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("exchange.update_core_status", exchange_id=exchange.id) }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('generateAgreementForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("exchange.generate_agreement", exchange_id=exchange.id) }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Agreement ' + data.agreement_number + ' generated successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('linkPOForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("exchange.link_purchase_order", exchange_id=exchange.id) }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('linkPOModal').addEventListener('show.bs.modal', function() {
+    fetch('/purchase-orders/api/list')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('poSelect');
+            select.innerHTML = '<option value="">Select PO...</option>';
+            if (data.purchase_orders) {
+                data.purchase_orders.forEach(po => {
+                    select.innerHTML += `<option value="${po.id}">${po.po_number} - ${po.supplier_name || 'N/A'}</option>`;
+                });
+            }
+        });
+});
+</script>
+{% endblock %}

@@ -819,6 +819,12 @@
                     <span>Sales Orders</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('exchange.exchange_dashboard') }}">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Exchange Management</span>
+                </a>
+            </li>
             {% if session.role in ['Admin', 'Accountant', 'Planner'] %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('invoice_routes.list_invoices') }}">

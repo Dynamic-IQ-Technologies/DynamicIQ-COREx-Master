@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}AI Exchange Coordinator - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-robot me-2"></i>AI Exchange Coordinator</h1>
+            <p class="text-muted mb-0">Autonomous monitoring, risk prediction, and proactive recommendations</p>
+        </div>
+        <a href="{{ url_for('exchange.exchange_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-cpu me-2"></i>Run Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">The AI Coordinator analyzes all active exchanges and provides:</p>
+                    <ul class="text-muted small">
+                        <li>Risk assessment for each exchange</li>
+                        <li>Customer behavior analysis</li>
+                        <li>Financial exposure summary</li>
+                        <li>Proactive follow-up recommendations</li>
+                        <li>Escalation triggers</li>
+                    </ul>
+                    <button type="button" class="btn btn-primary w-100" id="runAnalysisBtn">
+                        <i class="bi bi-play-fill me-1"></i> Run Risk Assessment
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Analyses</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for analysis in recent_analyses %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-{% if analysis.risk_level == 'High' %}danger{% elif analysis.risk_level == 'Medium' %}warning{% else %}success{% endif %}">
+                                    {{ analysis.risk_level or 'Mixed' }}
+                                </span>
+                                <small class="text-muted">{{ analysis.analyzed_at[:16] if analysis.analyzed_at else '' }}</small>
+                            </div>
+                            <small class="text-muted">{{ analysis.analysis_type }}</small>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center text-muted py-4">
+                            No analyses yet
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm" id="analysisCard" style="display: none;">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>AI Analysis Report</h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyAnalysis()">
+                        <i class="bi bi-clipboard me-1"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="analysisResult" style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.6; max-height: 600px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm" id="loadingCard" style="display: none;">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="text-muted">AI Coordinator Analyzing...</h5>
+                    <p class="text-muted small">Evaluating all active exchanges, customer history, and financial exposure.</p>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm" id="welcomeCard">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-robot display-1 text-primary mb-3"></i>
+                    <h4>AI Exchange Coordinator Manager</h4>
+                    <p class="text-muted mb-4">Your autonomous exchange monitoring and risk management assistant</p>
+                    <div class="row g-3 text-start mx-auto" style="max-width: 500px;">
+                        <div class="col-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-shield-exclamation text-danger me-2 fs-5"></i>
+                                <div>
+                                    <strong>Risk Detection</strong>
+                                    <p class="small text-muted mb-0">Identify high-risk exchanges</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-graph-up-arrow text-success me-2 fs-5"></i>
+                                <div>
+                                    <strong>Predictive Analysis</strong>
+                                    <p class="small text-muted mb-0">Forecast customer behavior</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-bell text-warning me-2 fs-5"></i>
+                                <div>
+                                    <strong>Proactive Alerts</strong>
+                                    <p class="small text-muted mb-0">Early warning notifications</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-lightbulb text-info me-2 fs-5"></i>
+                                <div>
+                                    <strong>Recommendations</strong>
+                                    <p class="small text-muted mb-0">Actionable next steps</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('runAnalysisBtn').addEventListener('click', function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
+    
+    document.getElementById('welcomeCard').style.display = 'none';
+    document.getElementById('analysisCard').style.display = 'none';
+    document.getElementById('loadingCard').style.display = 'block';
+    
+    const formData = new FormData();
+    formData.append('analysis_type', 'risk_assessment');
+    
+    fetch('{{ url_for("exchange.ai_coordinator") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Run Risk Assessment';
+        document.getElementById('loadingCard').style.display = 'none';
+        
+        if (data.success) {
+            document.getElementById('analysisResult').textContent = data.analysis;
+            document.getElementById('analysisCard').style.display = 'block';
+        } else {
+            document.getElementById('welcomeCard').style.display = 'block';
+            alert('Error: ' + (data.error || 'Analysis failed'));
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Run Risk Assessment';
+        document.getElementById('loadingCard').style.display = 'none';
+        document.getElementById('welcomeCard').style.display = 'block';
+        alert('Error: ' + error);
+    });
+});
+
+function copyAnalysis() {
+    const text = document.getElementById('analysisResult').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Analysis copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

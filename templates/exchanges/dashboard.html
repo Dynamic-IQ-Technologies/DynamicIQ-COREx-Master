@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Exchange Management - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-arrow-left-right me-2"></i>Exchange Management</h1>
+            <p class="text-muted mb-0">Track and manage all exchange transactions and core returns</p>
+        </div>
+        <div>
+            <a href="{{ url_for('exchange.ai_coordinator') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-robot me-1"></i> AI Coordinator
+            </a>
+            <a href="{{ url_for('exchange.aging_report') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-graph-up me-1"></i> Aging Report
+            </a>
+            <a href="{{ url_for('exchange.create_exchange') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> New Exchange
+            </a>
+        </div>
+    </div>
+    
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-folder-open text-primary fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ open_count }}</h3>
+                            <small class="text-muted">Open Exchanges</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-hourglass-split text-warning fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ pending_core }}</h3>
+                            <small class="text-muted">Awaiting Core</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ overdue_count }}</h3>
+                            <small class="text-muted">Overdue Cores</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-currency-dollar text-info fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">${{ "{:,.0f}".format(total_exposure) }}</h3>
+                            <small class="text-muted">Financial Exposure</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Core Aging Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="p-2 bg-success bg-opacity-10 rounded">
+                                <div class="fs-4 fw-bold text-success">{{ aging_0_30 }}</div>
+                                <small class="text-muted">0-30 Days</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-2 bg-warning bg-opacity-10 rounded">
+                                <div class="fs-4 fw-bold text-warning">{{ aging_31_60 }}</div>
+                                <small class="text-muted">31-60 Days</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-2 bg-orange bg-opacity-10 rounded" style="background-color: rgba(255, 140, 0, 0.1);">
+                                <div class="fs-4 fw-bold" style="color: #ff8c00;">{{ aging_61_90 }}</div>
+                                <small class="text-muted">61-90 Days</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-2 bg-danger bg-opacity-10 rounded">
+                                <div class="fs-4 fw-bold text-danger">{{ aging_90_plus }}</div>
+                                <small class="text-muted">90+ Days</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-bell me-2"></i>Alerts</h5>
+                    {% if unread_alerts > 0 %}
+                    <span class="badge bg-danger">{{ unread_alerts }} new</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if overdue_count > 0 %}
+                    <div class="alert alert-danger py-2 mb-2">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        {{ overdue_count }} core(s) are overdue and require immediate attention
+                    </div>
+                    {% endif %}
+                    {% if total_exposure > 50000 %}
+                    <div class="alert alert-warning py-2 mb-2">
+                        <i class="bi bi-currency-dollar me-2"></i>
+                        Total financial exposure exceeds $50,000
+                    </div>
+                    {% endif %}
+                    {% if overdue_count == 0 and total_exposure <= 50000 %}
+                    <p class="text-muted mb-0 text-center py-3">No active alerts</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Exchange Transactions</h5>
+                </div>
+                <div class="col-auto">
+                    <form method="get" class="row g-2">
+                        <div class="col-auto">
+                            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">All Statuses</option>
+                                {% for status in exchange_statuses %}
+                                <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <select name="core_status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">All Core Statuses</option>
+                                {% for cs in core_statuses %}
+                                <option value="{{ cs }}" {% if core_status_filter == cs %}selected{% endif %}>{{ cs }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <select name="customer_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">All Customers</option>
+                                {% for c in customers %}
+                                <option value="{{ c.id }}" {% if customer_filter == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Exchange ID</th>
+                            <th>SO Number</th>
+                            <th>Customer</th>
+                            <th>Product</th>
+                            <th>Core Status</th>
+                            <th>Days Out</th>
+                            <th>Core Value</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ex in exchanges %}
+                        <tr>
+                            <td><a href="{{ url_for('exchange.view_exchange', exchange_id=ex.id) }}">{{ ex.exchange_id }}</a></td>
+                            <td>{{ ex.so_number or '-' }}</td>
+                            <td>{{ ex.customer_name }}</td>
+                            <td>{{ ex.product_code }}</td>
+                            <td>
+                                {% if ex.core_status == 'Core Overdue' %}
+                                <span class="badge bg-danger">{{ ex.core_status }}</span>
+                                {% elif ex.core_status == 'Awaiting Core' %}
+                                <span class="badge bg-warning text-dark">{{ ex.core_status }}</span>
+                                {% elif ex.core_status == 'Core Received' %}
+                                <span class="badge bg-success">{{ ex.core_status }}</span>
+                                {% elif ex.core_status == 'Core Disputed' %}
+                                <span class="badge bg-info">{{ ex.core_status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ ex.core_status or 'N/A' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if ex.days_outstanding and ex.days_outstanding > 0 %}
+                                <span class="{% if ex.days_outstanding > 60 %}text-danger fw-bold{% elif ex.days_outstanding > 30 %}text-warning{% endif %}">
+                                    {{ ex.days_outstanding }}
+                                </span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>${{ "{:,.2f}".format(ex.core_value or 0) }}</td>
+                            <td>
+                                {% if ex.status == 'Open' %}
+                                <span class="badge bg-primary">{{ ex.status }}</span>
+                                {% elif ex.status == 'Closed' %}
+                                <span class="badge bg-success">{{ ex.status }}</span>
+                                {% elif ex.status == 'Escalated' %}
+                                <span class="badge bg-danger">{{ ex.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ ex.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('exchange.view_exchange', exchange_id=ex.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No exchanges found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

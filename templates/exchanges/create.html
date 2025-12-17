@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Create Exchange - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1"><i class="bi bi-plus-circle me-2"></i>Create Exchange</h1>
+            <p class="text-muted mb-0">Create a new exchange transaction</p>
+        </div>
+        <a href="{{ url_for('exchange.exchange_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('exchange.create_exchange') }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Sales Order</label>
+                                <select name="sales_order_id" class="form-select" id="salesOrderSelect">
+                                    <option value="">Select Sales Order (optional)</option>
+                                    {% for so in sales_orders %}
+                                    <option value="{{ so.id }}" data-customer="{{ so.customer_id }}">{{ so.so_number }} - {{ so.customer_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Link to existing exchange-type sales order</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" class="form-select" required id="customerSelect">
+                                    <option value="">Select Customer</option>
+                                    {% for c in customers %}
+                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Product <span class="text-danger">*</span></label>
+                                <select name="product_id" class="form-select" required>
+                                    <option value="">Select Product</option>
+                                    {% for p in products %}
+                                    <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Exchange Type</label>
+                                <select name="exchange_type" class="form-select">
+                                    <option value="Standard">Standard Exchange</option>
+                                    <option value="Advance">Advance Exchange</option>
+                                    <option value="Repair">Repair Exchange</option>
+                                    <option value="Outright with Core">Outright with Core</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Shipped Serial Number</label>
+                                <input type="text" name="shipped_serial_number" class="form-control" placeholder="Serial # of shipped unit">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Expected Core Serial</label>
+                                <input type="text" name="expected_core_serial" class="form-control" placeholder="Expected core serial (or leave blank for any)">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Core Due Date <span class="text-danger">*</span></label>
+                                <input type="date" name="core_due_date" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Core Value <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" step="0.01" name="core_value" class="form-control" required value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Exchange Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" step="0.01" name="exchange_fee" class="form-control" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Deposit Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" step="0.01" name="deposit_amount" class="form-control" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Financial Exposure</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text" class="form-control" id="exposureDisplay" readonly value="0.00">
+                                </div>
+                                <small class="text-muted">Core Value - Deposit</small>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('exchange.exchange_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Create Exchange
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Exchange Guidelines</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Core due date is typically 10-30 days from shipment
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Core value should reflect fair market value
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Deposits reduce financial exposure
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                            High-risk customers may require full deposit
+                        </li>
+                        <li class="mb-0">
+                            <i class="bi bi-shield-check text-primary me-2"></i>
+                            All exchanges are tracked for SOX compliance
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('salesOrderSelect').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    if (selected.dataset.customer) {
+        document.getElementById('customerSelect').value = selected.dataset.customer;
+    }
+});
+
+function updateExposure() {
+    const coreValue = parseFloat(document.querySelector('[name="core_value"]').value) || 0;
+    const deposit = parseFloat(document.querySelector('[name="deposit_amount"]').value) || 0;
+    document.getElementById('exposureDisplay').value = (coreValue - deposit).toFixed(2);
+}
+
+document.querySelector('[name="core_value"]').addEventListener('input', updateExposure);
+document.querySelector('[name="deposit_amount"]').addEventListener('input', updateExposure);
+</script>
+{% endblock %}
