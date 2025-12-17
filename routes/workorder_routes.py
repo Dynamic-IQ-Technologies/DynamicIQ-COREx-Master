@@ -99,6 +99,7 @@ def list_workorders():
     dispositions = conn.execute('SELECT DISTINCT disposition FROM work_orders WHERE disposition IS NOT NULL ORDER BY disposition').fetchall()
     priorities = conn.execute('SELECT DISTINCT priority FROM work_orders WHERE priority IS NOT NULL ORDER BY priority').fetchall()
     operational_statuses = conn.execute('SELECT DISTINCT operational_status FROM work_orders WHERE operational_status IS NOT NULL ORDER BY operational_status').fetchall()
+    stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
     conn.close()
     
@@ -109,6 +110,7 @@ def list_workorders():
                          dispositions=dispositions,
                          priorities=priorities,
                          operational_statuses=operational_statuses,
+                         stages=stages,
                          filters={
                              'status': status_filter,
                              'disposition': disposition_filter,
@@ -1193,6 +1195,34 @@ def work_order_traveler(id):
                          tasks=tasks,
                          company_settings=company_settings,
                          now=datetime.now)
+
+
+@workorder_bp.route('/api/workorders/<int:id>/update-stage', methods=['POST'])
+@login_required
+def api_update_workorder_stage(id):
+    """API endpoint to update a single work order's stage"""
+    from flask import jsonify
+    
+    data = request.get_json()
+    stage_id = data.get('stage_id')
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        if stage_id:
+            stage_id = int(stage_id)
+        else:
+            stage_id = None
+        
+        conn.execute('UPDATE work_orders SET stage_id = ? WHERE id = ?', (stage_id, id))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @workorder_bp.route('/api/workorders/mass-update', methods=['POST'])

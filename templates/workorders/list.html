@@ -232,11 +232,13 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if wo.stage_name %}
-                                <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }};">{{ wo.stage_name }}</span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
+                                <select class="form-select form-select-sm stage-select" data-wo-id="{{ wo.id }}" 
+                                        style="min-width: 120px; {% if wo.stage_color %}background-color: {{ wo.stage_color }}; color: white;{% endif %}">
+                                    <option value="">No Stage</option>
+                                    {% for stage in stages %}
+                                    <option value="{{ stage.id }}" data-color="{{ stage.color }}" {% if stage.id == wo.stage_id %}selected{% endif %}>{{ stage.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </td>
                             <td>{{ wo.priority }}</td>
                             <td>{{ wo.planned_start_date }}</td>
@@ -392,6 +394,39 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof TableUtils !== 'undefined') {
         TableUtils.initSortable('#workordersTable');
     }
+    
+    // Inline stage editing
+    document.querySelectorAll('.stage-select').forEach(select => {
+        select.addEventListener('change', async function() {
+            const woId = this.dataset.woId;
+            const stageId = this.value;
+            const selectedOption = this.options[this.selectedIndex];
+            const stageColor = selectedOption.dataset.color || '';
+            
+            try {
+                const response = await fetch(`/api/workorders/${woId}/update-stage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stage_id: stageId || null })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    if (stageColor) {
+                        this.style.backgroundColor = stageColor;
+                        this.style.color = 'white';
+                    } else {
+                        this.style.backgroundColor = '';
+                        this.style.color = '';
+                    }
+                } else {
+                    alert('Error updating stage: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error updating stage: ' + error.message);
+            }
+        });
+    });
 });
 
 function updateSelectedCount() {
