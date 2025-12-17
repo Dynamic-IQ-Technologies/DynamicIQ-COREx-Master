@@ -1815,8 +1815,28 @@ class Database:
         # Migrate work_orders table - add so_id and customer_id columns for sales order linking
         self._migrate_work_orders_so_link(cursor)
         
+        # Migrate customers table - add portal columns
+        self._migrate_customers_portal(cursor)
+        
         conn.commit()
         conn.close()
+    
+    def _migrate_customers_portal(self, cursor):
+        """Add portal columns to customers table"""
+        cursor.execute("PRAGMA table_info(customers)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        if 'portal_token' not in existing_columns:
+            try:
+                cursor.execute("ALTER TABLE customers ADD COLUMN portal_token TEXT UNIQUE")
+            except sqlite3.OperationalError:
+                pass
+        
+        if 'portal_enabled' not in existing_columns:
+            try:
+                cursor.execute("ALTER TABLE customers ADD COLUMN portal_enabled INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
     
     def _migrate_sales_order_lines(self, cursor):
         """Add new columns to sales_order_lines table for enhanced functionality"""
