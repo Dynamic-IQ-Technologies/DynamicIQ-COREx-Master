@@ -105,7 +105,7 @@ class MasterSchedulerEngine:
                 SELECT sol.product_id, sol.quantity, p.code, p.name
                 FROM sales_order_lines sol
                 JOIN products p ON sol.product_id = p.id
-                WHERE sol.sales_order_id = ?
+                WHERE sol.so_id = ?
             ''', (so['id'],)).fetchall()
             
             for line in lines:
