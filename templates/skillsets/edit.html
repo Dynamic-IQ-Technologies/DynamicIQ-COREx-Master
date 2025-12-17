@@ -40,6 +40,45 @@
                 <textarea class="form-control" id="description" name="description" rows="3">{{ skillset.description or '' }}</textarea>
             </div>
 
+            <div class="card bg-light mb-3">
+                <div class="card-header"><i class="bi bi-graph-up"></i> Capacity Planning Settings</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="required_level" class="form-label">Minimum Required Level</label>
+                                <select class="form-select" id="required_level" name="required_level">
+                                    <option value="Apprentice" {% if skillset.required_level == 'Apprentice' %}selected{% endif %}>Apprentice</option>
+                                    <option value="Intermediate" {% if skillset.required_level == 'Intermediate' or not skillset.required_level %}selected{% endif %}>Intermediate</option>
+                                    <option value="Advanced" {% if skillset.required_level == 'Advanced' %}selected{% endif %}>Advanced</option>
+                                    <option value="Expert" {% if skillset.required_level == 'Expert' %}selected{% endif %}>Expert</option>
+                                </select>
+                                <small class="text-muted">Minimum proficiency level needed for this skill</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="target_headcount" class="form-label">Target Headcount</label>
+                                <input type="number" class="form-control" id="target_headcount" name="target_headcount" value="{{ skillset.target_headcount or 0 }}" min="0">
+                                <small class="text-muted">Ideal number of qualified workers</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="criticality" class="form-label">Criticality</label>
+                                <select class="form-select" id="criticality" name="criticality">
+                                    <option value="Low" {% if skillset.criticality == 'Low' %}selected{% endif %}>Low</option>
+                                    <option value="Medium" {% if skillset.criticality == 'Medium' or not skillset.criticality %}selected{% endif %}>Medium</option>
+                                    <option value="High" {% if skillset.criticality == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Critical" {% if skillset.criticality == 'Critical' %}selected{% endif %}>Critical</option>
+                                </select>
+                                <small class="text-muted">Business importance of this skill</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label for="status" class="form-label">Status</label>
                 <select class="form-select" id="status" name="status">

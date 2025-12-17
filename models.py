@@ -495,9 +495,30 @@ class Database:
                 description TEXT,
                 category TEXT,
                 status TEXT DEFAULT 'Active',
+                required_level TEXT DEFAULT 'Intermediate',
+                target_headcount INTEGER DEFAULT 0,
+                criticality TEXT DEFAULT 'Medium',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        
+        # Add capacity planning columns to skillsets if they don't exist
+        skillset_columns = [row[1] for row in cursor.execute('PRAGMA table_info(skillsets)').fetchall()]
+        if 'required_level' not in skillset_columns:
+            try:
+                cursor.execute('ALTER TABLE skillsets ADD COLUMN required_level TEXT DEFAULT "Intermediate"')
+            except sqlite3.OperationalError:
+                pass
+        if 'target_headcount' not in skillset_columns:
+            try:
+                cursor.execute('ALTER TABLE skillsets ADD COLUMN target_headcount INTEGER DEFAULT 0')
+            except sqlite3.OperationalError:
+                pass
+        if 'criticality' not in skillset_columns:
+            try:
+                cursor.execute('ALTER TABLE skillsets ADD COLUMN criticality TEXT DEFAULT "Medium"')
+            except sqlite3.OperationalError:
+                pass
         
         # Create labor_resource_skills junction table for multi-skillset assignment
         cursor.execute('''

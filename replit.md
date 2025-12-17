@@ -49,7 +49,7 @@ The backend is developed with Flask, using Blueprints and an SQLite database. It
 -   **Reporting System**: Provides various reports including inventory valuation, work order cost analysis, and material requirements.
 -   **Accounting System**: Features a Chart of Accounts (COA), General Ledger (GL), Manual Journal Entries, automatic GL posting, and financial reports.
 -   **Time Clock Station**: Dedicated employee time tracking system with simplified employee code authentication (no PIN for fast shop floor access), clock in/out functionality, work order and task assignment with automatic labor cost tracking. Clock-out calculates hours worked and updates work_order_tasks.actual_hours and actual_labor_cost.
--   **Labor Resources & Skillset Management**: Comprehensive multi-skillset assignment system for tracking employee competencies.
+-   **Labor Resources & Skillset Management**: Comprehensive multi-skillset assignment system for tracking employee competencies with strategic capacity planning. Skillsets include required proficiency levels (Apprentice/Intermediate/Advanced/Expert), target headcount, and criticality ratings. Dashboard displays capacity KPIs (total skillsets, fully staffed, understaffed, critical gaps) with visual progress bars and gap indicators.
 
 ## External Dependencies
 
