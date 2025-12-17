@@ -210,12 +210,14 @@ def view_exchange(exchange_id):
     exchange = conn.execute('''
         SELECT em.*, c.name as customer_name, c.email as customer_email,
                p.code as product_code, p.name as product_name,
-               so.so_number, u.username as created_by_name
+               so.so_number, u.username as created_by_name,
+               wo.wo_number as repair_wo_number, wo.status as repair_wo_status
         FROM exchange_master em
         JOIN customers c ON em.customer_id = c.id
         JOIN products p ON em.product_id = p.id
         LEFT JOIN sales_orders so ON em.sales_order_id = so.id
         LEFT JOIN users u ON em.created_by = u.id
+        LEFT JOIN work_orders wo ON em.repair_work_order_id = wo.id
         WHERE em.id = ?
     ''', (exchange_id,)).fetchone()
     

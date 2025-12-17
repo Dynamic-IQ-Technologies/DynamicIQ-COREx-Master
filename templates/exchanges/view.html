@@ -21,6 +21,16 @@
             <p class="text-muted mb-0">{{ exchange.customer_name }} - {{ exchange.product_code }}</p>
         </div>
         <div>
+            {% if core and core.core_status != 'Core Received' %}
+            <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#receiveCoreModal">
+                <i class="bi bi-box-arrow-in-down me-1"></i> Receive Core
+            </button>
+            {% endif %}
+            {% if core and core.core_status == 'Core Received' and not exchange.repair_work_order_id %}
+            <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#createRepairWOModal">
+                <i class="bi bi-tools me-1"></i> Create Repair WO
+            </button>
+            {% endif %}
             <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#generateAgreementModal">
                 <i class="bi bi-file-earmark-text me-1"></i> Generate Agreement
             </button>
@@ -122,7 +132,44 @@
                         <dd class="col-6">{{ core.ownership_responsibility }}</dd>
                         <dt class="col-6">Exposure:</dt>
                         <dd class="col-6 text-danger">${{ "{:,.2f}".format(core.financial_exposure or 0) }}</dd>
+                        {% if core.condition_on_receipt %}
+                        <dt class="col-6">Condition:</dt>
+                        <dd class="col-6">{{ core.condition_on_receipt }}</dd>
+                        {% endif %}
+                        {% if core.receiving_location %}
+                        <dt class="col-6">Location:</dt>
+                        <dd class="col-6">{{ core.receiving_location }}</dd>
+                        {% endif %}
                     </dl>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if exchange.repair_work_order_id %}
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Repair Work Order</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">
+                                <a href="{{ url_for('work_order.view_work_order', wo_id=exchange.repair_work_order_id) }}">
+                                    {{ exchange.repair_wo_number }}
+                                </a>
+                            </h6>
+                            <span class="badge 
+                                {% if exchange.repair_wo_status == 'Draft' %}bg-secondary
+                                {% elif exchange.repair_wo_status == 'In Progress' %}bg-primary
+                                {% elif exchange.repair_wo_status == 'Completed' %}bg-success
+                                {% else %}bg-info{% endif %}">
+                                {{ exchange.repair_wo_status }}
+                            </span>
+                        </div>
+                        <a href="{{ url_for('work_order.view_work_order', wo_id=exchange.repair_work_order_id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i> View WO
+                        </a>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -378,6 +425,124 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Link PO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="receiveCoreModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-box-arrow-in-down me-2"></i>Receive Core</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('exchange.receive_core', exchange_id=exchange.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Record receipt of the core unit from customer. This will update inventory and audit trail.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Core Serial Number</label>
+                            <input type="text" name="core_serial_number" class="form-control" 
+                                   value="{{ exchange.expected_core_serial or '' }}" required>
+                            <small class="text-muted">Expected: {{ exchange.expected_core_serial or 'Any' }}</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Quantity Received</label>
+                            <input type="number" name="quantity_received" class="form-control" value="1" min="1" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Condition on Receipt</label>
+                            <select name="condition_on_receipt" class="form-select" required>
+                                <option value="">Select condition...</option>
+                                <option value="Serviceable">Serviceable</option>
+                                <option value="Repairable">Repairable</option>
+                                <option value="Beyond Repair">Beyond Repair</option>
+                                <option value="As Removed">As Removed</option>
+                                <option value="Scrap">Scrap</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Receiving Location</label>
+                            <input type="text" name="receiving_location" class="form-control" placeholder="e.g., Warehouse A, Bay 3">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Inspection Notes</label>
+                        <textarea name="inspection_notes" class="form-control" rows="3" placeholder="Document any visible damage, missing parts, or other observations..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-lg me-1"></i> Confirm Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createRepairWOModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-tools me-2"></i>Create Repair Work Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('exchange.create_repair_work_order', exchange_id=exchange.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Create a repair work order for the received core. The WO will be automatically linked to this exchange.
+                    </div>
+                    <dl class="row mb-3 bg-light p-2 rounded">
+                        <dt class="col-4">Product:</dt>
+                        <dd class="col-8">{{ exchange.product_code }} - {{ exchange.product_name }}</dd>
+                        <dt class="col-4">Customer:</dt>
+                        <dd class="col-8">{{ exchange.customer_name }}</dd>
+                        {% if core %}
+                        <dt class="col-4">Core S/N:</dt>
+                        <dd class="col-8">{{ core.core_serial_number or 'N/A' }}</dd>
+                        <dt class="col-4">Condition:</dt>
+                        <dd class="col-8">{{ core.condition_on_receipt or 'N/A' }}</dd>
+                        {% endif %}
+                    </dl>
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select name="priority" class="form-select">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Planned Start Date</label>
+                            <input type="date" name="planned_start_date" class="form-control" value="{{ exchange.created_at[:10] if exchange.created_at else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Planned End Date</label>
+                            <input type="date" name="planned_end_date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Additional Notes</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Any special instructions or requirements..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-1"></i> Create Work Order
+                    </button>
                 </div>
             </form>
         </div>
