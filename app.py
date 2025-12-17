@@ -48,6 +48,7 @@ from routes.org_analyzer_routes import org_analyzer_bp
 from routes.financial_analyzer_routes import financial_analyzer_bp
 from routes.erp_helper_routes import erp_helper_bp
 from routes.ndt_routes import ndt_bp
+from routes.master_scheduler_routes import master_scheduler_bp
 import os
 
 app = Flask(__name__)
@@ -114,6 +115,7 @@ app.register_blueprint(org_analyzer_bp)
 app.register_blueprint(financial_analyzer_bp)
 app.register_blueprint(erp_helper_bp)
 app.register_blueprint(ndt_bp)
+app.register_blueprint(master_scheduler_bp)
 
 @app.context_processor
 def inject_user():

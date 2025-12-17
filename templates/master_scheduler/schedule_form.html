@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Create Master Schedule{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h4 class="mb-0"><i class="bi bi-calendar-plus me-2"></i>Create Master Schedule</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('master_scheduler_routes.create_schedule') }}">
+                        <div class="mb-3">
+                            <label class="form-label">Schedule Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g., Q1 2025 Production Schedule">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Optional description of the schedule"></textarea>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Horizon Start Date</label>
+                                <input type="date" name="horizon_start" class="form-control" value="{{ today }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Horizon End Date</label>
+                                <input type="date" name="horizon_end" class="form-control" value="{{ end_date }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Time Bucket</label>
+                            <select name="time_bucket" class="form-select">
+                                <option value="Daily" selected>Daily</option>
+                                <option value="Weekly">Weekly</option>
+                            </select>
+                            <small class="text-muted">Daily provides more granular scheduling; Weekly is better for longer horizons</small>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>What happens next:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>All open work orders and sales orders within the date range will be loaded</li>
+                                <li>Capacity will be calculated for all active work centers</li>
+                                <li>Material availability will be checked against BOMs</li>
+                                <li>Exceptions and recommendations will be generated</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('master_scheduler_routes.dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-lightning me-1"></i>Generate Schedule
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

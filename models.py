@@ -2185,6 +2185,210 @@ class Database:
         # Migrate customers table - add portal columns
         self._migrate_customers_portal(cursor)
         
+        # AI Super Master Scheduler tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS master_schedules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_number TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                schedule_type TEXT DEFAULT 'MPS',
+                horizon_start DATE NOT NULL,
+                horizon_end DATE NOT NULL,
+                time_bucket TEXT DEFAULT 'Daily',
+                status TEXT DEFAULT 'Draft',
+                created_by INTEGER,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                is_active INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS master_schedule_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
+                order_type TEXT NOT NULL,
+                order_id INTEGER NOT NULL,
+                order_number TEXT NOT NULL,
+                product_id INTEGER,
+                product_code TEXT,
+                product_name TEXT,
+                quantity REAL NOT NULL,
+                scheduled_start DATE NOT NULL,
+                scheduled_end DATE NOT NULL,
+                original_due_date DATE,
+                priority INTEGER DEFAULT 50,
+                priority_class TEXT DEFAULT 'Normal',
+                work_center_id INTEGER,
+                assigned_hours REAL DEFAULT 0,
+                sequence_number INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Scheduled',
+                is_locked INTEGER DEFAULT 0,
+                lock_reason TEXT,
+                atp_date DATE,
+                ctp_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_exceptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER,
+                exception_type TEXT NOT NULL,
+                severity TEXT DEFAULT 'Warning',
+                order_type TEXT,
+                order_id INTEGER,
+                order_number TEXT,
+                work_center_id INTEGER,
+                exception_date DATE,
+                title TEXT NOT NULL,
+                description TEXT,
+                impact_assessment TEXT,
+                days_late INTEGER,
+                capacity_gap REAL,
+                material_shortage TEXT,
+                is_resolved INTEGER DEFAULT 0,
+                resolved_by INTEGER,
+                resolved_at TIMESTAMP,
+                resolution_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id),
+                FOREIGN KEY (resolved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_recommendations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER,
+                exception_id INTEGER,
+                recommendation_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                action_required TEXT,
+                impacted_orders TEXT,
+                cost_impact REAL,
+                time_impact_days REAL,
+                risk_level TEXT DEFAULT 'Medium',
+                priority_score INTEGER DEFAULT 50,
+                ai_confidence REAL,
+                ai_reasoning TEXT,
+                status TEXT DEFAULT 'Pending',
+                reviewed_by INTEGER,
+                reviewed_at TIMESTAMP,
+                decision TEXT,
+                decision_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (exception_id) REFERENCES schedule_exceptions(id),
+                FOREIGN KEY (reviewed_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_scenarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
+                scenario_name TEXT NOT NULL,
+                scenario_type TEXT DEFAULT 'Optimization',
+                description TEXT,
+                baseline_otd REAL,
+                projected_otd REAL,
+                baseline_utilization REAL,
+                projected_utilization REAL,
+                orders_affected INTEGER,
+                overtime_hours REAL,
+                cost_delta REAL,
+                risk_score REAL,
+                ai_analysis TEXT,
+                scenario_data TEXT,
+                is_selected INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_overrides (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
+                schedule_item_id INTEGER,
+                override_type TEXT NOT NULL,
+                original_value TEXT,
+                new_value TEXT,
+                justification TEXT NOT NULL,
+                risk_acknowledged INTEGER DEFAULT 0,
+                risk_description TEXT,
+                overridden_by INTEGER NOT NULL,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                status TEXT DEFAULT 'Pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (schedule_item_id) REFERENCES master_schedule_items(id),
+                FOREIGN KEY (overridden_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_capacity_load (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
+                work_center_id INTEGER NOT NULL,
+                load_date DATE NOT NULL,
+                available_hours REAL DEFAULT 0,
+                planned_hours REAL DEFAULT 0,
+                overtime_hours REAL DEFAULT 0,
+                utilization_pct REAL DEFAULT 0,
+                status TEXT DEFAULT 'Normal',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id),
+                UNIQUE(schedule_id, work_center_id, load_date)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_material_requirements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
+                schedule_item_id INTEGER,
+                product_id INTEGER NOT NULL,
+                product_code TEXT,
+                product_name TEXT,
+                required_qty REAL NOT NULL,
+                available_qty REAL DEFAULT 0,
+                shortage_qty REAL DEFAULT 0,
+                required_date DATE NOT NULL,
+                po_id INTEGER,
+                po_expected_date DATE,
+                status TEXT DEFAULT 'Open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (schedule_id) REFERENCES master_schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (schedule_item_id) REFERENCES master_schedule_items(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (po_id) REFERENCES purchase_orders(id)
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_msi_schedule ON master_schedule_items(schedule_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_msi_order ON master_schedule_items(order_type, order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_msi_dates ON master_schedule_items(scheduled_start, scheduled_end)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_se_schedule ON schedule_exceptions(schedule_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sr_schedule ON schedule_recommendations(schedule_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_scl_schedule_wc ON schedule_capacity_load(schedule_id, work_center_id)')
+        
         conn.commit()
         conn.close()
     

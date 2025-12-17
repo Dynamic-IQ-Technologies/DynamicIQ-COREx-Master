@@ -692,6 +692,14 @@
                     <span>Capacity Planning</span>
                 </a>
             </li>
+            {% if session.role in ['Admin', 'Planner'] %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('master_scheduler_routes.dashboard') }}">
+                    <i class="bi bi-calendar-week"></i>
+                    <span>Master Scheduler</span>
+                </a>
+            </li>
+            {% endif %}
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('shipping')">

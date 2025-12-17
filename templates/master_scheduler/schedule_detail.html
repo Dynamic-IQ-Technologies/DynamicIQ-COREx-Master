@@ -1,0 +1,712 @@
+{% extends "base.html" %}
+
+{% block title %}{{ schedule.schedule_number }} - Master Schedule{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('master_scheduler_routes.dashboard') }}">Master Scheduler</a></li>
+                    <li class="breadcrumb-item active">{{ schedule.schedule_number }}</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">{{ schedule.name }}</h2>
+            <small class="text-muted">{{ schedule.horizon_start }} to {{ schedule.horizon_end }} | {{ schedule.time_bucket }} buckets</small>
+        </div>
+        <div>
+            {% if not schedule.is_active %}
+            <form method="POST" action="{{ url_for('master_scheduler_routes.activate_schedule', id=schedule.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle me-1"></i>Activate
+                </button>
+            </form>
+            {% endif %}
+            <button class="btn btn-outline-primary ms-2" id="regenerateBtn">
+                <i class="bi bi-arrow-clockwise me-1"></i>Regenerate
+            </button>
+            <button class="btn btn-primary ms-2" id="aiAnalyzeBtn">
+                <i class="bi bi-stars me-1"></i>AI Analysis
+            </button>
+        </div>
+    </div>
+
+    {% if summary %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-primary">{{ summary.items.total or 0 }}</h3>
+                    <small class="text-muted">Total Orders</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 {{ 'text-success' if summary.otd_rate >= 95 else 'text-warning' if summary.otd_rate >= 85 else 'text-danger' }}">{{ summary.otd_rate }}%</h3>
+                    <small class="text-muted">OTD Rate</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 {{ 'text-danger' if summary.late_orders > 0 else 'text-success' }}">{{ summary.late_orders }}</h3>
+                    <small class="text-muted">Late Orders</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-danger">{{ summary.exceptions.critical or 0 }}</h3>
+                    <small class="text-muted">Critical Issues</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-warning">{{ summary.exceptions.warnings or 0 }}</h3>
+                    <small class="text-muted">Warnings</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-info">{{ summary.recommendations.pending or 0 }}</h3>
+                    <small class="text-muted">Pending Actions</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <ul class="nav nav-tabs mb-4" id="scheduleTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button">
+                <i class="bi bi-list-check me-1"></i>Scheduled Orders
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="exceptions-tab" data-bs-toggle="tab" data-bs-target="#exceptions" type="button">
+                <i class="bi bi-exclamation-triangle me-1"></i>Exceptions
+                {% if exceptions %}<span class="badge bg-danger ms-1">{{ exceptions|length }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button">
+                <i class="bi bi-stars me-1"></i>Recommendations
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="capacity-tab" data-bs-toggle="tab" data-bs-target="#capacity" type="button">
+                <i class="bi bi-bar-chart me-1"></i>Capacity View
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="scenarios-tab" data-bs-toggle="tab" data-bs-target="#scenarios" type="button">
+                <i class="bi bi-diagram-3 me-1"></i>Scenarios
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="scheduleTabContent">
+        <div class="tab-pane fade show active" id="orders" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Order</th>
+                                    <th>Type</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>Scheduled Start</th>
+                                    <th>Scheduled End</th>
+                                    <th>Priority</th>
+                                    <th>ATP</th>
+                                    <th>CTP</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr class="{{ 'table-danger' if item.is_locked else '' }}">
+                                    <td>{{ item.sequence_number }}</td>
+                                    <td><strong>{{ item.order_number }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ item.order_type }}</span></td>
+                                    <td>{{ item.product_code or '-' }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>{{ item.scheduled_start }}</td>
+                                    <td>{{ item.scheduled_end }}</td>
+                                    <td><span class="badge bg-{{ 'danger' if item.priority_class == 'Critical' else 'warning text-dark' if item.priority_class == 'High' else 'secondary' }}">{{ item.priority_class }}</span></td>
+                                    <td>{{ item.atp_date or '-' }}</td>
+                                    <td>{{ item.ctp_date or '-' }}</td>
+                                    <td>
+                                        {% if item.is_locked %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-lock me-1"></i>Locked</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ item.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary override-btn" data-id="{{ item.id }}" data-order="{{ item.order_number }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="12" class="text-center py-4 text-muted">
+                                        No scheduled orders
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="exceptions" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Severity</th>
+                                    <th>Type</th>
+                                    <th>Title</th>
+                                    <th>Order</th>
+                                    <th>Work Center</th>
+                                    <th>Impact</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exc in exceptions %}
+                                <tr class="{{ 'table-success' if exc.is_resolved else '' }}">
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if exc.severity == 'Critical' else 'warning text-dark' if exc.severity == 'Warning' else 'info' }}">
+                                            {{ exc.severity }}
+                                        </span>
+                                    </td>
+                                    <td>{{ exc.exception_type }}</td>
+                                    <td>{{ exc.title }}</td>
+                                    <td>{{ exc.order_number or '-' }}</td>
+                                    <td>{{ exc.work_center_code or '-' }}</td>
+                                    <td>
+                                        {% if exc.days_late %}
+                                        <span class="text-danger">{{ exc.days_late }} days late</span>
+                                        {% elif exc.capacity_gap %}
+                                        <span class="text-warning">{{ exc.capacity_gap|round(1) }}h gap</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if exc.is_resolved %}
+                                        <span class="badge bg-success">Resolved</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Open</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not exc.is_resolved %}
+                                        <button class="btn btn-sm btn-outline-success resolve-exc" data-id="{{ exc.id }}">
+                                            <i class="bi bi-check"></i> Resolve
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4 text-muted">
+                                        <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                                        No exceptions detected
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="recommendations" role="tabpanel">
+            <div class="row g-4">
+                {% for rec in recommendations %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white border-0">
+                            <span class="badge bg-{{ 'danger' if rec.risk_level == 'High' else 'warning text-dark' if rec.risk_level == 'Medium' else 'success' }}">{{ rec.recommendation_type }}</span>
+                            <span class="badge bg-secondary float-end">Score: {{ rec.priority_score }}</span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ rec.title }}</h6>
+                            <p class="card-text text-muted small">{{ rec.description }}</p>
+                            {% if rec.action_required %}
+                            <div class="alert alert-light py-2 small">
+                                <strong>Action:</strong> {{ rec.action_required }}
+                            </div>
+                            {% endif %}
+                            <div class="d-flex justify-content-between small text-muted">
+                                {% if rec.cost_impact %}
+                                <span><i class="bi bi-currency-dollar"></i> ${{ rec.cost_impact|round(0) }}</span>
+                                {% endif %}
+                                {% if rec.time_impact_days %}
+                                <span><i class="bi bi-clock"></i> {{ rec.time_impact_days }} days</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-0">
+                            {% if rec.status == 'Pending' %}
+                            <button class="btn btn-sm btn-success me-1 accept-rec" data-id="{{ rec.id }}">
+                                <i class="bi bi-check"></i> Accept
+                            </button>
+                            <button class="btn btn-sm btn-danger reject-rec" data-id="{{ rec.id }}">
+                                <i class="bi bi-x"></i> Reject
+                            </button>
+                            {% else %}
+                            <span class="badge bg-{{ 'success' if rec.status == 'Accepted' else 'secondary' }}">{{ rec.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-stars fs-1 d-block mb-3"></i>
+                    <h5>No recommendations yet</h5>
+                    <p>Click "AI Analysis" to generate recommendations</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="capacity" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Capacity Load vs Available</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        {% for bottleneck in bottlenecks %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">{{ bottleneck.code }}</h6>
+                                    <span class="badge bg-{{ 'danger' if bottleneck.peak_utilization > 100 else 'warning text-dark' if bottleneck.peak_utilization > 85 else 'success' }}">
+                                        Peak: {{ bottleneck.peak_utilization|round(1) }}%
+                                    </span>
+                                </div>
+                                <p class="text-muted small mb-2">{{ bottleneck.name }}</p>
+                                <div class="progress mb-2" style="height: 20px;">
+                                    <div class="progress-bar bg-{{ 'danger' if bottleneck.avg_utilization > 100 else 'warning' if bottleneck.avg_utilization > 85 else 'success' }}" 
+                                         style="width: {{ [bottleneck.avg_utilization, 100]|min }}%">
+                                        {{ bottleneck.avg_utilization|round(1) }}%
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between small text-muted">
+                                    <span>Available: {{ bottleneck.total_available|round(1) }}h</span>
+                                    <span>Planned: {{ bottleneck.total_planned|round(1) }}h</span>
+                                </div>
+                                {% if bottleneck.critical_days > 0 %}
+                                <div class="alert alert-danger py-1 mt-2 small mb-0">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{{ bottleneck.critical_days }} critical days
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-12 text-center py-5 text-muted">
+                            <i class="bi bi-bar-chart fs-1 d-block mb-3"></i>
+                            <h5>No bottlenecks detected</h5>
+                            <p>All work centers are within normal capacity</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="scenarios" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newScenarioModal">
+                        <i class="bi bi-plus-lg me-1"></i>Create Scenario
+                    </button>
+                </div>
+            </div>
+            <div class="row g-4">
+                {% for scenario in scenarios %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm h-100 {{ 'border-success border-2' if scenario.is_selected else '' }}">
+                        <div class="card-header bg-white border-0">
+                            <h6 class="mb-0">{{ scenario.scenario_name }}</h6>
+                            <small class="text-muted">{{ scenario.scenario_type }}</small>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small">{{ scenario.description or 'No description' }}</p>
+                            {% if scenario.projected_otd %}
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Current OTD</small>
+                                    <strong>{{ scenario.baseline_otd|round(1) }}%</strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Projected OTD</small>
+                                    <strong class="text-{{ 'success' if scenario.projected_otd > scenario.baseline_otd else 'danger' }}">
+                                        {{ scenario.projected_otd|round(1) }}%
+                                    </strong>
+                                </div>
+                            </div>
+                            {% if scenario.cost_delta %}
+                            <div class="alert alert-light py-2 mt-3 text-center small">
+                                Cost Impact: <strong class="text-{{ 'danger' if scenario.cost_delta > 0 else 'success' }}">
+                                    ${{ scenario.cost_delta|abs|round(0) }} {{ 'increase' if scenario.cost_delta > 0 else 'savings' }}
+                                </strong>
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <button class="btn btn-sm btn-outline-primary w-100 analyze-scenario" data-id="{{ scenario.id }}">
+                                <i class="bi bi-stars me-1"></i>Analyze Scenario
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-diagram-3 fs-1 d-block mb-3"></i>
+                    <h5>No scenarios created</h5>
+                    <p>Create what-if scenarios to compare scheduling options</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="overrideModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Schedule Override</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Override for order: <strong id="overrideOrderNumber"></strong></p>
+                <input type="hidden" id="overrideItemId">
+                
+                <div class="mb-3">
+                    <label class="form-label">Override Type</label>
+                    <select id="overrideType" class="form-select">
+                        <option value="Date Change">Date Change</option>
+                        <option value="Priority Change">Priority Change</option>
+                        <option value="Work Center Change">Work Center Change</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">New Value</label>
+                    <input type="text" id="overrideNewValue" class="form-control" placeholder="Enter new value">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Justification (Required)</label>
+                    <textarea id="overrideJustification" class="form-control" rows="3" placeholder="Explain why this override is necessary"></textarea>
+                </div>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="overrideRiskAck">
+                    <label class="form-check-label" for="overrideRiskAck">
+                        I acknowledge this override may introduce scheduling risks
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="submitOverride">
+                    <i class="bi bi-pencil me-1"></i>Apply Override
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="newScenarioModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-diagram-3 me-2"></i>Create Scenario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Scenario Name</label>
+                    <input type="text" id="scenarioName" class="form-control" placeholder="e.g., Overtime Option">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Type</label>
+                    <select id="scenarioType" class="form-select">
+                        <option value="Overtime">Overtime Scenario</option>
+                        <option value="Resequencing">Resequencing</option>
+                        <option value="Resource Shift">Resource Reallocation</option>
+                        <option value="Expedite">Expedite Orders</option>
+                        <option value="Optimization">General Optimization</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea id="scenarioDesc" class="form-control" rows="3" placeholder="Describe the scenario parameters"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="createScenario">Create Scenario</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="aiAnalysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-stars me-2"></i>AI Schedule Analysis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="aiAnalysisContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Analyzing schedule data...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('regenerateBtn').addEventListener('click', function() {
+    if (!confirm('This will regenerate the schedule. Locked items will be preserved. Continue?')) return;
+    
+    fetch('{{ url_for("master_scheduler_routes.regenerate_schedule", id=schedule.id) }}', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Schedule regenerated: ${data.data.orders_scheduled} orders, ${data.data.exceptions_detected} exceptions`);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('aiAnalyzeBtn').addEventListener('click', function() {
+    const modal = new bootstrap.Modal(document.getElementById('aiAnalysisModal'));
+    modal.show();
+    
+    fetch('{{ url_for("master_scheduler_routes.ai_analyze_schedule", id=schedule.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const d = data.data;
+            let html = `
+                <div class="alert alert-${d.health_score >= 80 ? 'success' : d.health_score >= 60 ? 'warning' : 'danger'}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Schedule Health Score</h6>
+                            <p class="mb-0">${d.executive_summary}</p>
+                        </div>
+                        <div class="text-center">
+                            <h2 class="mb-0">${d.health_score}</h2>
+                            <small>/100</small>
+                        </div>
+                    </div>
+                </div>
+                
+                ${d.critical_issues && d.critical_issues.length > 0 ? `
+                <h6 class="mt-4 mb-3"><i class="bi bi-exclamation-octagon me-2 text-danger"></i>Critical Issues</h6>
+                <div class="list-group mb-4">
+                    ${d.critical_issues.map(i => `
+                        <div class="list-group-item list-group-item-${i.severity === 'Critical' ? 'danger' : 'warning'}">
+                            <strong>${i.issue}</strong>
+                            <p class="mb-0 small">${i.impact}</p>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+                
+                <h6 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Capacity Insights</h6>
+                <p class="text-muted">${d.capacity_insights || 'No capacity insights available'}</p>
+                
+                <h6 class="mb-3"><i class="bi bi-truck me-2"></i>OTD Forecast</h6>
+                <p class="text-muted">${d.otd_forecast || 'No OTD forecast available'}</p>
+                
+                ${d.next_actions && d.next_actions.length > 0 ? `
+                <h6 class="mt-4 mb-3"><i class="bi bi-list-check me-2"></i>Recommended Actions</h6>
+                <ol class="list-group list-group-numbered">
+                    ${d.next_actions.map(a => `<li class="list-group-item">${a}</li>`).join('')}
+                </ol>
+                ` : ''}
+            `;
+            document.getElementById('aiAnalysisContent').innerHTML = html;
+        } else {
+            document.getElementById('aiAnalysisContent').innerHTML = `
+                <div class="alert alert-danger">Error: ${data.error}</div>
+            `;
+        }
+    });
+});
+
+document.querySelectorAll('.resolve-exc').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const notes = prompt('Resolution notes (optional):');
+        
+        const formData = new FormData();
+        formData.append('resolution_notes', notes || '');
+        
+        fetch(`/master-scheduler/exceptions/${id}/resolve`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+
+document.querySelectorAll('.accept-rec').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/master-scheduler/recommendations/${id}/decision`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({decision: 'Accepted', notes: ''})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+
+document.querySelectorAll('.reject-rec').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/master-scheduler/recommendations/${id}/decision`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({decision: 'Rejected', notes: ''})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+
+document.querySelectorAll('.override-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('overrideItemId').value = this.dataset.id;
+        document.getElementById('overrideOrderNumber').textContent = this.dataset.order;
+        new bootstrap.Modal(document.getElementById('overrideModal')).show();
+    });
+});
+
+document.getElementById('submitOverride').addEventListener('click', function() {
+    const itemId = document.getElementById('overrideItemId').value;
+    const overrideType = document.getElementById('overrideType').value;
+    const newValue = document.getElementById('overrideNewValue').value;
+    const justification = document.getElementById('overrideJustification').value;
+    const riskAck = document.getElementById('overrideRiskAck').checked;
+    
+    if (!justification) {
+        alert('Justification is required');
+        return;
+    }
+    
+    fetch(`/master-scheduler/items/${itemId}/override`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            override_type: overrideType,
+            new_value: newValue,
+            justification: justification,
+            risk_acknowledged: riskAck
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Override applied successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('createScenario').addEventListener('click', function() {
+    const name = document.getElementById('scenarioName').value;
+    const type = document.getElementById('scenarioType').value;
+    const desc = document.getElementById('scenarioDesc').value;
+    
+    fetch('{{ url_for("master_scheduler_routes.create_scenario", id=schedule.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name, type: type, description: desc})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) location.reload();
+    });
+});
+
+document.querySelectorAll('.analyze-scenario').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const scenarioId = this.dataset.id;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analyzing...';
+        
+        fetch(`/master-scheduler/schedules/{{ schedule.id }}/scenarios/${scenarioId}/analyze`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else {
+                alert('Error: ' + data.error);
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-stars me-1"></i>Analyze Scenario';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

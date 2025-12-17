@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}AI Super Master Scheduler - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-calendar-week me-2"></i>AI Super Master Scheduler</h2>
+            <p class="text-muted mb-0">Single source of truth for all master scheduling decisions</p>
+        </div>
+        <div>
+            <a href="{{ url_for('master_scheduler_routes.create_schedule') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>New Schedule
+            </a>
+            {% if active_schedule %}
+            <button class="btn btn-outline-primary ms-2" id="aiAnalyzeBtn">
+                <i class="bi bi-stars me-1"></i>AI Analysis
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-clipboard-check fs-4 text-primary"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ total_orders }}</h3>
+                            <small class="text-muted">Active Orders</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle {{ 'bg-success' if otd_rate >= 95 else 'bg-warning' if otd_rate >= 85 else 'bg-danger' }} bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-speedometer2 fs-4 {{ 'text-success' if otd_rate >= 95 else 'text-warning' if otd_rate >= 85 else 'text-danger' }}"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ otd_rate }}%</h3>
+                            <small class="text-muted">On-Time Delivery</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle {{ 'bg-danger' if late_orders > 0 else 'bg-success' }} bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-exclamation-triangle fs-4 {{ 'text-danger' if late_orders > 0 else 'text-success' }}"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ late_orders }}</h3>
+                            <small class="text-muted">Late Orders</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-gear-wide-connected fs-4 text-info"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ work_centers|length }}</h3>
+                            <small class="text-muted">Work Centers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if active_schedule %}
+    <div class="alert alert-info d-flex align-items-center mb-4">
+        <i class="bi bi-info-circle me-2"></i>
+        <div>
+            <strong>Active Schedule:</strong> {{ active_schedule.schedule_number }} - {{ active_schedule.name }}
+            <span class="ms-3 badge bg-success">{{ active_schedule.status }}</span>
+            <a href="{{ url_for('master_scheduler_routes.view_schedule', id=active_schedule.id) }}" class="ms-3">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-octagon me-2"></i>At-Risk Orders</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Product</th>
+                                    <th>Due Date</th>
+                                    <th>Days</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in at_risk_orders %}
+                                <tr>
+                                    <td><strong>{{ order.order_number }}</strong></td>
+                                    <td>{{ order.product_code or '-' }}</td>
+                                    <td>{{ order.scheduled_end }}</td>
+                                    <td>
+                                        {% if order.days_remaining < 0 %}
+                                        <span class="badge bg-danger">{{ order.days_remaining|int|abs }} overdue</span>
+                                        {% elif order.days_remaining <= 2 %}
+                                        <span class="badge bg-warning text-dark">{{ order.days_remaining|int }} days</span>
+                                        {% else %}
+                                        <span class="badge bg-info">{{ order.days_remaining|int }} days</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-{{ 'danger' if order.priority_class == 'Critical' else 'warning text-dark' if order.priority_class == 'High' else 'secondary' }}">{{ order.priority_class }}</span></td>
+                                    <td><span class="badge bg-{{ 'danger' if order.risk_status == 'Past Due' else 'warning text-dark' if order.risk_status == 'Critical' else 'info' }}">{{ order.risk_status }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                                        No at-risk orders detected
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Bottleneck Radar</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for wc in work_centers %}
+                        {% set utilization = (wc.current_load / (wc.default_hours_per_day * wc.default_days_per_week * wc.efficiency_factor * 4) * 100) if wc.default_hours_per_day else 0 %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>{{ wc.code }}</strong>
+                                    <span class="badge bg-{{ 'danger' if utilization > 100 else 'warning text-dark' if utilization > 85 else 'success' }}">
+                                        {{ utilization|round(1) }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-{{ 'danger' if utilization > 100 else 'warning' if utilization > 85 else 'success' }}" 
+                                         style="width: {{ [utilization, 100]|min }}%"></div>
+                                </div>
+                                <small class="text-muted d-block mt-1">{{ wc.name }}</small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-12 text-center py-4 text-muted">
+                            <i class="bi bi-gear fs-3 d-block mb-2"></i>
+                            No active work centers
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-stars me-2"></i>AI Recommendations</h5>
+                    <span class="badge bg-primary">{{ recommendations|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for rec in recommendations %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-{{ 'danger' if rec.risk_level == 'High' else 'warning text-dark' if rec.risk_level == 'Medium' else 'secondary' }} mb-1">{{ rec.recommendation_type }}</span>
+                                    <h6 class="mb-1">{{ rec.title }}</h6>
+                                    <small class="text-muted">{{ rec.description[:80] }}...</small>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-success me-1 accept-rec" data-id="{{ rec.id }}">
+                                    <i class="bi bi-check"></i> Accept
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger reject-rec" data-id="{{ rec.id }}">
+                                    <i class="bi bi-x"></i> Reject
+                                </button>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center py-4 text-muted">
+                            <i class="bi bi-stars fs-3 d-block mb-2"></i>
+                            No pending recommendations
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Exceptions</h5>
+                    <span class="badge bg-danger">{{ exceptions|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for exc in exceptions %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-{{ 'x-circle text-danger' if exc.severity == 'Critical' else 'exclamation-triangle text-warning' if exc.severity == 'Warning' else 'info-circle text-info' }} me-2 mt-1"></i>
+                                <div>
+                                    <span class="badge bg-{{ 'danger' if exc.severity == 'Critical' else 'warning text-dark' if exc.severity == 'Warning' else 'info' }} mb-1">{{ exc.exception_type }}</span>
+                                    <p class="mb-0 small">{{ exc.title }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center py-4 text-muted">
+                            <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                            No open exceptions
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Schedules</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for sched in recent_schedules %}
+                        <a href="{{ url_for('master_scheduler_routes.view_schedule', id=sched.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ sched.schedule_number }}</strong>
+                                    <small class="text-muted d-block">{{ sched.name }}</small>
+                                </div>
+                                <span class="badge bg-{{ 'success' if sched.is_active else 'secondary' }}">
+                                    {{ 'Active' if sched.is_active else sched.status }}
+                                </span>
+                            </div>
+                        </a>
+                        {% else %}
+                        <div class="list-group-item text-center py-4 text-muted">
+                            <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
+                            No schedules created yet
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="aiAnalysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-stars me-2"></i>AI Schedule Analysis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="aiAnalysisContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Analyzing schedule data...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if active_schedule %}
+document.getElementById('aiAnalyzeBtn').addEventListener('click', function() {
+    const modal = new bootstrap.Modal(document.getElementById('aiAnalysisModal'));
+    modal.show();
+    
+    fetch('{{ url_for("master_scheduler_routes.ai_analyze_schedule", id=active_schedule.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const d = data.data;
+            let html = `
+                <div class="alert alert-${d.health_score >= 80 ? 'success' : d.health_score >= 60 ? 'warning' : 'danger'}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Schedule Health Score</h6>
+                            <p class="mb-0">${d.executive_summary}</p>
+                        </div>
+                        <div class="text-center">
+                            <h2 class="mb-0">${d.health_score}</h2>
+                            <small>/100</small>
+                        </div>
+                    </div>
+                </div>
+                
+                ${d.critical_issues && d.critical_issues.length > 0 ? `
+                <h6 class="mt-4 mb-3"><i class="bi bi-exclamation-octagon me-2 text-danger"></i>Critical Issues</h6>
+                <div class="list-group mb-4">
+                    ${d.critical_issues.map(i => `
+                        <div class="list-group-item list-group-item-${i.severity === 'Critical' ? 'danger' : 'warning'}">
+                            <strong>${i.issue}</strong>
+                            <p class="mb-0 small">${i.impact}</p>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+                
+                <h6 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Capacity Insights</h6>
+                <p class="text-muted">${d.capacity_insights || 'No capacity insights available'}</p>
+                
+                <h6 class="mb-3"><i class="bi bi-truck me-2"></i>OTD Forecast</h6>
+                <p class="text-muted">${d.otd_forecast || 'No OTD forecast available'}</p>
+                
+                ${d.next_actions && d.next_actions.length > 0 ? `
+                <h6 class="mt-4 mb-3"><i class="bi bi-list-check me-2"></i>Recommended Actions</h6>
+                <ol class="list-group list-group-numbered">
+                    ${d.next_actions.map(a => `<li class="list-group-item">${a}</li>`).join('')}
+                </ol>
+                ` : ''}
+            `;
+            document.getElementById('aiAnalysisContent').innerHTML = html;
+        } else {
+            document.getElementById('aiAnalysisContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Error: ${data.error || 'Failed to analyze schedule'}
+                </div>
+            `;
+        }
+    })
+    .catch(err => {
+        document.getElementById('aiAnalysisContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Error: ${err.message}
+            </div>
+        `;
+    });
+});
+{% endif %}
+
+document.querySelectorAll('.accept-rec').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/master-scheduler/recommendations/${id}/decision`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({decision: 'Accepted', notes: ''})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+
+document.querySelectorAll('.reject-rec').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/master-scheduler/recommendations/${id}/decision`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({decision: 'Rejected', notes: ''})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+</script>
+{% endblock %}
