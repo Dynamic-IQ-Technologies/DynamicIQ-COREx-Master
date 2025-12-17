@@ -81,8 +81,8 @@ def create_rfq():
         rfq_id = cursor.lastrowid
         conn.commit()
         
-        AuditLogger.log(conn, 'rfqs', rfq_id, 'CREATE', session.get('user_id'),
-                       None, {'rfq_number': rfq_number, 'title': request.form['title']})
+        AuditLogger.log_change(conn, 'rfqs', rfq_id, 'CREATE', session.get('user_id'),
+                              {'rfq_number': rfq_number, 'title': request.form['title']})
         conn.commit()
         
         flash(f'RFQ {rfq_number} created successfully!', 'success')
@@ -367,7 +367,8 @@ def delete_rfq(rfq_id):
     
     rfq = conn.execute('SELECT * FROM rfqs WHERE id = ?', (rfq_id,)).fetchone()
     if rfq:
-        AuditLogger.log(conn, 'rfqs', rfq_id, 'DELETE', session.get('user_id'), dict(rfq), None)
+        AuditLogger.log_change(conn, 'rfqs', rfq_id, 'DELETE', session.get('user_id'),
+                              {'rfq_number': rfq['rfq_number']})
         conn.execute('DELETE FROM rfqs WHERE id = ?', (rfq_id,))
         conn.commit()
         flash('RFQ deleted successfully!', 'success')

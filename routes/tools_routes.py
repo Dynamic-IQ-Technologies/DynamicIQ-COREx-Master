@@ -85,8 +85,8 @@ def create_tool():
         tool_id = cursor.lastrowid
         conn.commit()
         
-        AuditLogger.log(conn, 'tools', tool_id, 'CREATE', session.get('user_id'), 
-                       None, {'tool_number': tool_number, 'name': request.form['name']})
+        AuditLogger.log_change(conn, 'tools', tool_id, 'CREATE', session.get('user_id'),
+                              {'tool_number': tool_number, 'name': request.form['name']})
         conn.commit()
         
         flash(f'Tool {tool_number} created successfully!', 'success')
@@ -169,8 +169,8 @@ def edit_tool(tool_id):
             tool_id
         ))
         
-        AuditLogger.log(conn, 'tools', tool_id, 'UPDATE', session.get('user_id'),
-                       old_values, {'name': request.form['name']})
+        AuditLogger.log_change(conn, 'tools', tool_id, 'UPDATE', session.get('user_id'),
+                              {'name': request.form['name']})
         conn.commit()
         
         flash('Tool updated successfully!', 'success')
@@ -259,8 +259,8 @@ def delete_tool(tool_id):
     
     tool = conn.execute('SELECT * FROM tools WHERE id = ?', (tool_id,)).fetchone()
     if tool:
-        AuditLogger.log(conn, 'tools', tool_id, 'DELETE', session.get('user_id'),
-                       dict(tool), None)
+        AuditLogger.log_change(conn, 'tools', tool_id, 'DELETE', session.get('user_id'),
+                              {'tool_number': tool['tool_number']})
         conn.execute('DELETE FROM tools WHERE id = ?', (tool_id,))
         conn.commit()
         flash('Tool deleted successfully!', 'success')
