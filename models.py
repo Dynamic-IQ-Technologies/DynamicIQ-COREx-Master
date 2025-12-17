@@ -118,6 +118,18 @@ class Database:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_stages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                color TEXT DEFAULT '#6c757d',
+                sequence INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS purchase_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 po_number TEXT UNIQUE NOT NULL,
@@ -2185,6 +2197,9 @@ class Database:
         # Migrate customers table - add portal columns
         self._migrate_customers_portal(cursor)
         
+        # Migrate work_orders table - add stage_id column for work order stages
+        self._migrate_work_orders_stages(cursor)
+        
         # AI Super Master Scheduler tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS master_schedules (
@@ -2488,6 +2503,34 @@ class Database:
         # Add customer_id column if it doesn't exist
         if 'customer_id' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN customer_id INTEGER REFERENCES customers(id)")
+    
+    def _migrate_work_orders_stages(self, cursor):
+        """Add stage_id column to work_orders table for tracking work order stages"""
+        
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(work_orders)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add stage_id column if it doesn't exist
+        if 'stage_id' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN stage_id INTEGER REFERENCES work_order_stages(id)")
+        
+        # Seed default stages if none exist
+        cursor.execute("SELECT COUNT(*) FROM work_order_stages")
+        if cursor.fetchone()[0] == 0:
+            default_stages = [
+                ('Received', 'Work order received and logged', '#17a2b8', 1),
+                ('Inspection', 'Initial inspection in progress', '#ffc107', 2),
+                ('Awaiting Parts', 'Waiting for parts/materials', '#fd7e14', 3),
+                ('In Work', 'Active work in progress', '#007bff', 4),
+                ('Quality Check', 'Quality assurance review', '#6f42c1', 5),
+                ('Ready to Ship', 'Completed and ready for shipping', '#28a745', 6)
+            ]
+            for name, desc, color, seq in default_stages:
+                cursor.execute('''
+                    INSERT INTO work_order_stages (name, description, color, sequence, is_active)
+                    VALUES (?, ?, ?, ?, 1)
+                ''', (name, desc, color, seq))
     
     def seed_chart_of_accounts(self):
         conn = self.get_connection()
