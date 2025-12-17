@@ -317,6 +317,18 @@
                     <span>Material Requirements</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('rfq_routes.list_rfqs') }}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>RFQs</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('tools_routes.list_tools') }}">
+                    <i class="bi bi-wrench"></i>
+                    <span>Tools</span>
+                </a>
+            </li>
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">

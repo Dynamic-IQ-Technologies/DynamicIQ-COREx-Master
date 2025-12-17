@@ -42,6 +42,8 @@ from routes.supplier_discovery_routes import supplier_discovery_bp
 from routes.capacity_routes import capacity_bp
 from routes.customer_service_routes import customer_service_bp
 from routes.portal_routes import portal_bp
+from routes.tools_routes import tools_bp
+from routes.rfq_routes import rfq_bp
 import os
 
 app = Flask(__name__)
@@ -102,6 +104,8 @@ app.register_blueprint(supplier_discovery_bp)
 app.register_blueprint(capacity_bp)
 app.register_blueprint(customer_service_bp)
 app.register_blueprint(portal_bp)
+app.register_blueprint(tools_bp)
+app.register_blueprint(rfq_bp)
 
 @app.context_processor
 def inject_user():
