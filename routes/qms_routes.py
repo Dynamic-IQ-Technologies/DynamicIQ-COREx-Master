@@ -1985,7 +1985,7 @@ Create a detailed work instruction with the following sections and output as JSO
 
 @qms_bp.route('/work-instructions/auto-generate/bulk', methods=['POST'])
 @login_required
-def wi_bulk_generate():
+def wi_auto_generate_bulk():
     """Bulk generate work instructions for multiple transactions"""
     data = request.get_json()
     transactions = data.get('transactions', [])
