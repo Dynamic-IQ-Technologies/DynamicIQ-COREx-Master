@@ -137,10 +137,11 @@ def view_customer(id):
     ''', (id,)).fetchone()
     financials['last_year_sales'] = last_year_sales['total'] if last_year_sales else 0
     
-    # Pending invoice amount (balance due)
+    # Pending invoice amount (balance due) - exclude Draft and Cancelled orders
     pending_invoices = conn.execute('''
         SELECT COALESCE(SUM(balance_due), 0) as total
         FROM sales_orders WHERE customer_id = ? AND balance_due > 0
+        AND status NOT IN ('Cancelled', 'Draft')
     ''', (id,)).fetchone()
     financials['pending_invoices'] = pending_invoices['total'] if pending_invoices else 0
     
