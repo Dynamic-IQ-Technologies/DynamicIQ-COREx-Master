@@ -1640,13 +1640,44 @@ def turn_into_stock(id):
             conn.close()
             return redirect(url_for('workorder_routes.view_workorder', id=id))
         
-        # Update disposition
-        old_disposition = wo['disposition']
+        # Calculate total work order cost
+        material_cost = float(wo['material_cost'] or 0)
+        labor_cost = float(wo['labor_cost'] or 0)
+        overhead_cost = float(wo['overhead_cost'] or 0)
+        
+        # Get misc/service PO costs (received only)
+        misc_cost_result = conn.execute('''
+            SELECT COALESCE(SUM(psl.total_cost), 0) as misc_cost
+            FROM purchase_order_service_lines psl
+            WHERE psl.work_order_id = ? AND psl.status = 'Received'
+        ''', (id,)).fetchone()
+        misc_cost = float(misc_cost_result['misc_cost'] or 0) if misc_cost_result else 0
+        
+        total_wo_cost = material_cost + labor_cost + overhead_cost + misc_cost
+        wo_quantity = float(wo['quantity'] or 1)
+        
+        # Calculate unit cost
+        unit_cost = total_wo_cost / wo_quantity if wo_quantity > 0 else 0
+        
+        # Create inventory record with work order quantity and calculated unit cost
+        serial_number = wo.get('serial_number') or None
+        is_serialized = 1 if serial_number else 0
+        
+        cursor = conn.execute('''
+            INSERT INTO inventory (
+                product_id, quantity, unit_cost, condition, status, 
+                warehouse_location, is_serialized, serial_number, last_received_date
+            ) VALUES (?, ?, ?, 'New', 'Available', 'Main', ?, ?, date('now'))
+        ''', (wo['product_id'], wo_quantity, unit_cost, is_serialized, serial_number))
+        
+        inventory_id = cursor.lastrowid
+        
+        # Link work order to inventory
         conn.execute('''
             UPDATE work_orders 
-            SET disposition = 'Turned into Stock'
+            SET disposition = 'Turned into Stock', inventory_id = ?
             WHERE id = ?
-        ''', (id,))
+        ''', (inventory_id, id))
         
         # Log activity
         from models import AuditLogger
@@ -1656,13 +1687,22 @@ def turn_into_stock(id):
             record_id=id,
             action_type='UPDATE',
             modified_by=session.get('user_id'),
-            changed_fields={'disposition': {'old': old_disposition, 'new': 'Turned into Stock'}},
+            changed_fields={
+                'disposition': {'old': wo['disposition'], 'new': 'Turned into Stock'},
+                'inventory_id': {'old': None, 'new': inventory_id}
+            },
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent')
         )
         
+        # Also log inventory creation
+        AuditLogger.log(conn, 'inventory', inventory_id, 'CREATE',
+                       {'product_id': wo['product_id'], 'quantity': wo_quantity, 
+                        'unit_cost': unit_cost, 'from_work_order': wo['wo_number']},
+                       session.get('user_id'))
+        
         conn.commit()
-        flash(f'Work Order {wo["wo_number"]} marked as turned into stock. Product {wo["product_code"]} added to finished goods inventory.', 'success')
+        flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory with Qty: {wo_quantity}, Unit Cost: ${unit_cost:.2f} (Total WO Cost: ${total_wo_cost:.2f})', 'success')
         
     except Exception as e:
         conn.rollback()
