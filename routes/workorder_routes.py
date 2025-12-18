@@ -1656,8 +1656,8 @@ def generate_8130(id):
     wo = conn.execute('''
         SELECT wo.*, p.code as product_code, p.name as product_name,
                c.name as customer_name,
-               cs.company_name, cs.address as company_address, 
-               cs.city as company_city, cs.state as company_state, cs.zip as company_zip
+               cs.company_name, cs.address_line1 as company_address, 
+               cs.city as company_city, cs.state as company_state, cs.postal_code as company_zip
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id

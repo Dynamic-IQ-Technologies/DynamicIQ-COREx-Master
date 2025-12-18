@@ -42,8 +42,8 @@ class FAA8130Service:
             SELECT wo.*, 
                    p.code as product_code, p.name as product_name, p.description as product_description,
                    c.name as customer_name, c.shipping_address as customer_address,
-                   cs.company_name, cs.address as company_address, cs.city as company_city,
-                   cs.state as company_state, cs.zip as company_zip, cs.country as company_country
+                   cs.company_name, cs.address_line1 as company_address, cs.city as company_city,
+                   cs.state as company_state, cs.postal_code as company_zip, cs.country as company_country
             FROM work_orders wo
             JOIN products p ON wo.product_id = p.id
             LEFT JOIN customers c ON wo.customer_id = c.id
