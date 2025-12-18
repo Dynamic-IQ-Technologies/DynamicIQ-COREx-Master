@@ -1587,7 +1587,7 @@ def create_exchange_po(id):
                 
                 # Get Part Number and Serial Number from sales order line
                 part_number = line['product_code'] or 'N/A'
-                serial_number = line.get('serial_number') or ''
+                serial_number = line['serial_number'] if line['serial_number'] else ''
                 
                 # Create description with Exchange Part Number and Serial Number
                 line_description = f"Exchange Fee for P/N: {part_number}"
