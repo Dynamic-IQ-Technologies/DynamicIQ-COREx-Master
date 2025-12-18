@@ -37,8 +37,16 @@ def register():
         
         try:
             User.create(username, email, password, 'Production Staff')
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('auth_routes.login'))
+            user = User.get_by_username(username)
+            if user:
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['role'] = user['role']
+                flash(f'Welcome to Dynamic.IQ-MRPx, {user["username"]}!', 'success')
+                return redirect(url_for('main_routes.dashboard'))
+            else:
+                flash('Registration successful! Please log in.', 'success')
+                return redirect(url_for('auth_routes.login'))
         except Exception as e:
             flash(f'Registration failed: {str(e)}', 'danger')
     
