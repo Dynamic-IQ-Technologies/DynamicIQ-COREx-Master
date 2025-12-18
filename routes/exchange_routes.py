@@ -119,7 +119,7 @@ def exchange_dashboard():
     unread_alerts = conn.execute("SELECT COUNT(*) as cnt FROM exchange_alerts WHERE is_read = 0").fetchone()['cnt']
     
     exchange_pos = conn.execute('''
-        SELECT po.id, po.po_number, po.status, po.order_date, po.expected_date,
+        SELECT po.id, po.po_number, po.status, po.order_date, po.expected_delivery_date,
                po.exchange_owner_type, po.exchange_owner_id, po.exchange_reference_id,
                po.exchange_status, po.source_sales_order_id,
                s.name as supplier_name,
@@ -130,8 +130,8 @@ def exchange_dashboard():
                END as owner_name,
                COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount,
                CASE 
-                   WHEN po.expected_date < date('now') AND po.status NOT IN ('Received', 'Closed', 'Cancelled') 
-                   THEN julianday('now') - julianday(po.expected_date)
+                   WHEN po.expected_delivery_date < date('now') AND po.status NOT IN ('Received', 'Closed', 'Cancelled') 
+                   THEN julianday('now') - julianday(po.expected_delivery_date)
                    ELSE 0
                END as days_overdue
         FROM purchase_orders po
@@ -142,7 +142,7 @@ def exchange_dashboard():
         LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
         WHERE po.is_exchange = 1
         GROUP BY po.id
-        ORDER BY po.expected_date ASC, po.created_at DESC
+        ORDER BY po.expected_delivery_date ASC, po.created_at DESC
     ''').fetchall()
     
     exchange_po_stats = {
@@ -274,7 +274,7 @@ def view_exchange(exchange_id):
     dual_exchange_pos = []
     if exchange['sales_order_id']:
         dual_exchange_pos = conn.execute('''
-            SELECT po.id, po.po_number, po.status, po.order_date, po.expected_date,
+            SELECT po.id, po.po_number, po.status, po.order_date, po.expected_delivery_date,
                    po.exchange_owner_type, po.exchange_owner_id, po.exchange_reference_id,
                    po.exchange_status,
                    s.name as supplier_name,
