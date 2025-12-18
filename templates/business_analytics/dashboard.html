@@ -21,92 +21,108 @@
 
     <div class="row g-3 mb-4">
         <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">Revenue (MTD)</h6>
-                            <h4 class="mb-0">{{ "${:,.0f}".format(kpis.revenue.current) }}</h4>
+            <a href="{{ url_for('accounting_routes.revenue_tracker') }}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); cursor: pointer;">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Revenue (MTD)</h6>
+                                <h4 class="mb-0">{{ "${:,.0f}".format(kpis.revenue.current) }}</h4>
+                            </div>
+                            <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.3;"></i>
                         </div>
-                        <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <small class="{% if kpis.revenue.change >= 0 %}text-white{% else %}text-warning{% endif %}">
+                            <i class="bi bi-{% if kpis.revenue.change >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                            {{ "{:.1f}".format(kpis.revenue.change) }}% vs last month
+                        </small>
+                        <div class="text-white-50 mt-1"><small><i class="bi bi-box-arrow-up-right"></i> View Details</small></div>
                     </div>
-                    <small class="{% if kpis.revenue.change >= 0 %}text-white{% else %}text-warning{% endif %}">
-                        <i class="bi bi-{% if kpis.revenue.change >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
-                        {{ "{:.1f}".format(kpis.revenue.change) }}% vs last month
-                    </small>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">Work Orders</h6>
-                            <h4 class="mb-0">{{ kpis.operations.in_progress }}</h4>
+            <a href="{{ url_for('workorder_routes.list_workorders') }}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #007bff 0%, #6610f2 100%); cursor: pointer;">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Work Orders</h6>
+                                <h4 class="mb-0">{{ kpis.operations.in_progress }}</h4>
+                            </div>
+                            <i class="bi bi-gear" style="font-size: 2rem; opacity: 0.3;"></i>
                         </div>
-                        <i class="bi bi-gear" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <small class="text-white">
+                            {{ kpis.operations.overdue }} overdue | {{ "{:.0f}".format(kpis.operations.completion_rate) }}% complete
+                        </small>
+                        <div class="text-white-50 mt-1"><small><i class="bi bi-box-arrow-up-right"></i> View Details</small></div>
                     </div>
-                    <small class="text-white">
-                        {{ kpis.operations.overdue }} overdue | {{ "{:.0f}".format(kpis.operations.completion_rate) }}% complete
-                    </small>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">Low Stock</h6>
-                            <h4 class="mb-0">{{ kpis.inventory.low_stock }}</h4>
+            <a href="{{ url_for('inventory_routes.list_inventory') }}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%); cursor: pointer;">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Low Stock</h6>
+                                <h4 class="mb-0">{{ kpis.inventory.low_stock }}</h4>
+                            </div>
+                            <i class="bi bi-box-seam" style="font-size: 2rem; opacity: 0.3;"></i>
                         </div>
-                        <i class="bi bi-box-seam" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <small class="text-white">
+                            {{ kpis.inventory.out_of_stock }} out of stock
+                        </small>
+                        <div class="text-white-50 mt-1"><small><i class="bi bi-box-arrow-up-right"></i> View Details</small></div>
                     </div>
-                    <small class="text-white">
-                        {{ kpis.inventory.out_of_stock }} out of stock
-                    </small>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">Pending Orders</h6>
-                            <h4 class="mb-0">{{ kpis.sales.pending }}</h4>
+            <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); cursor: pointer;">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Pending Orders</h6>
+                                <h4 class="mb-0">{{ kpis.sales.pending }}</h4>
+                            </div>
+                            <i class="bi bi-cart3" style="font-size: 2rem; opacity: 0.3;"></i>
                         </div>
-                        <i class="bi bi-cart3" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <small class="text-white">
+                            {{ kpis.sales.shipped }} shipped
+                        </small>
+                        <div class="text-white-50 mt-1"><small><i class="bi bi-box-arrow-up-right"></i> View Details</small></div>
                     </div>
-                    <small class="text-white">
-                        {{ kpis.sales.shipped }} shipped
-                    </small>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">A/R Outstanding</h6>
-                            <h4 class="mb-0">{{ "${:,.0f}".format(kpis.finance.accounts_receivable) }}</h4>
+            <a href="{{ url_for('invoice_routes.list_invoices') }}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); cursor: pointer;">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-white-50 mb-1">A/R Outstanding</h6>
+                                <h4 class="mb-0">{{ "${:,.0f}".format(kpis.finance.accounts_receivable) }}</h4>
+                            </div>
+                            <i class="bi bi-cash-stack" style="font-size: 2rem; opacity: 0.3;"></i>
                         </div>
-                        <i class="bi bi-cash-stack" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <small class="text-white">
+                            A/P: {{ "${:,.0f}".format(kpis.finance.accounts_payable) }}
+                        </small>
+                        <div class="text-white-50 mt-1"><small><i class="bi bi-box-arrow-up-right"></i> View Details</small></div>
                     </div>
-                    <small class="text-white">
-                        A/P: {{ "${:,.0f}".format(kpis.finance.accounts_payable) }}
-                    </small>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-2">
-            <div class="card border-0 shadow-sm h-100 {% if process_health.overall >= 80 %}bg-success{% elif process_health.overall >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+            <div class="card border-0 shadow-sm h-100 kpi-card {% if process_health.overall >= 80 %}bg-success{% elif process_health.overall >= 60 %}bg-warning{% else %}bg-danger{% endif %}" style="cursor: pointer;" onclick="showHealthDetails()">
                 <div class="card-body text-white text-center">
                     <h6 class="text-white-50 mb-1">Process Health</h6>
                     <h2 class="mb-0">{{ "{:.0f}".format(process_health.overall) }}%</h2>
                     <small class="text-white">Overall Score</small>
+                    <div class="text-white-50 mt-1"><small><i class="bi bi-box-arrow-up-right"></i> View Details</small></div>
                 </div>
             </div>
         </div>
@@ -457,5 +473,35 @@ function printSummary() {
     win.document.close();
     win.print();
 }
+
+function showHealthDetails() {
+    const healthData = {{ process_health | tojson | safe }};
+    let html = '<h5>Process Health Breakdown</h5><table class="table table-striped"><thead><tr><th>Component</th><th>Score</th><th>Status</th></tr></thead><tbody>';
+    healthData.components.forEach(c => {
+        const status = c.score >= 80 ? '<span class="badge bg-success">Healthy</span>' : 
+                      c.score >= 60 ? '<span class="badge bg-warning">Attention</span>' : 
+                      '<span class="badge bg-danger">Critical</span>';
+        html += `<tr><td>${c.name}</td><td><strong>${c.score.toFixed(0)}%</strong></td><td>${status}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div class="alert alert-info mt-3"><strong>Overall Score: ${healthData.overall.toFixed(0)}%</strong><br>`;
+    html += healthData.overall >= 80 ? 'System is operating within normal parameters.' :
+            healthData.overall >= 60 ? 'Some areas require attention. Review component details.' :
+            'Critical issues detected. Immediate action recommended.';
+    html += '</div>';
+    
+    document.getElementById('analysisResult').innerHTML = html;
+    document.getElementById('analysisResultCard').style.display = 'block';
+    document.getElementById('analysisResultCard').scrollIntoView({behavior: 'smooth'});
+}
 </script>
+<style>
+.kpi-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+</style>
 {% endblock %}
