@@ -19,10 +19,11 @@ def list_inventory():
     search_part = request.args.get('search_part', '').strip()
     
     # Build query with filters
+    # Use inventory.unit_cost if set, otherwise fall back to product cost
     query = '''
         SELECT i.*, p.code, p.name, p.unit_of_measure, 
-               COALESCE(p.cost, 0) as cost,
-               (i.quantity * COALESCE(p.cost, 0)) as inventory_value
+               COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
+               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE 1=1
