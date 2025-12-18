@@ -1050,3 +1050,100 @@ def api_mass_update_purchaseorders():
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@po_bp.route('/purchaseorders/<int:id>/cancel', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def cancel_purchaseorder(id):
+    """Cancel a purchase order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase order not found', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if po['status'] == 'Received':
+            flash('Cannot cancel a fully received purchase order', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Cancelled':
+            flash('Purchase order is already cancelled', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        conn.execute('''
+            UPDATE purchase_orders 
+            SET status = 'Cancelled', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (id,))
+        
+        AuditLogger.log_change(
+            conn, 'purchase_orders', id, 'CANCEL', session.get('user_id'),
+            {'po_number': po['po_number'], 'previous_status': po['status']}
+        )
+        
+        conn.commit()
+        flash(f'Purchase Order {po["po_number"]} has been cancelled', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error cancelling purchase order: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+
+
+@po_bp.route('/purchaseorders/<int:id>/delete', methods=['POST'])
+@role_required('Admin')
+def delete_purchaseorder(id):
+    """Delete a purchase order (Admin only)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase order not found', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if po['status'] == 'Received':
+            flash('Cannot delete a received purchase order. Cancel it instead.', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        received_qty = conn.execute('''
+            SELECT SUM(received_quantity) as total FROM purchase_order_lines WHERE po_id = ?
+        ''', (id,)).fetchone()
+        
+        if received_qty and received_qty['total'] and received_qty['total'] > 0:
+            flash('Cannot delete a purchase order with received items. Cancel it instead.', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        AuditLogger.log_change(
+            conn, 'purchase_orders', id, 'DELETE', session.get('user_id'),
+            {'po_number': po['po_number'], 'supplier_id': po['supplier_id'], 'status': po['status']}
+        )
+        
+        conn.execute('DELETE FROM purchase_order_lines WHERE po_id = ?', (id,))
+        conn.execute('DELETE FROM purchase_orders WHERE id = ?', (id,))
+        
+        conn.commit()
+        flash(f'Purchase Order {po["po_number"]} has been deleted', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.list_purchaseorders'))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error deleting purchase order: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))

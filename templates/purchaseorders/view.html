@@ -32,7 +32,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Purchase Order {{ po.po_number }}</h2>
     <div>
-        {% if session.role in ['Admin', 'Procurement'] and po.status != 'Received' %}
+        {% if session.role in ['Admin', 'Procurement'] and po.status not in ['Received', 'Cancelled'] %}
         <a href="{{ url_for('po_routes.edit_purchaseorder', id=po.id) }}" class="btn btn-warning me-2">
             <i class="bi bi-pencil"></i> Edit
         </a>
@@ -43,6 +43,20 @@
         <a href="{{ url_for('po_routes.download_purchaseorder', id=po.id) }}" class="btn btn-success me-2">
             <i class="bi bi-download"></i> Download
         </a>
+        {% if session.role in ['Admin', 'Procurement'] and po.status not in ['Received', 'Cancelled'] %}
+        <form method="POST" action="{{ url_for('po_routes.cancel_purchaseorder', id=po.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-danger me-2" onclick="return confirm('Are you sure you want to cancel this purchase order?')">
+                <i class="bi bi-x-circle"></i> Cancel
+            </button>
+        </form>
+        {% endif %}
+        {% if session.role == 'Admin' and po.status not in ['Received'] %}
+        <form method="POST" action="{{ url_for('po_routes.delete_purchaseorder', id=po.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-danger me-2" onclick="return confirm('Are you sure you want to permanently delete this purchase order? This action cannot be undone.')">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </form>
+        {% endif %}
         <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Back to List
         </a>
@@ -67,6 +81,8 @@
                         <span class="badge bg-success">{{ po.status }}</span>
                         {% elif po.status == 'Ordered' %}
                         <span class="badge bg-info">{{ po.status }}</span>
+                        {% elif po.status == 'Cancelled' %}
+                        <span class="badge bg-danger">{{ po.status }}</span>
                         {% else %}
                         <span class="badge bg-warning">{{ po.status }}</span>
                         {% endif %}
