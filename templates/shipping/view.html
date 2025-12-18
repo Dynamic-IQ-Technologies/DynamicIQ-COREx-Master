@@ -15,6 +15,11 @@
                 <i class="bi bi-truck"></i> Ship Now
             </button>
         </form>
+        <form method="POST" action="{{ url_for('shipping_routes.cancel_shipment', id=shipment.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel and delete this shipment? This action cannot be undone.')">
+                <i class="bi bi-x-circle"></i> Cancel Shipment
+            </button>
+        </form>
         {% elif shipment.status == 'Shipped' %}
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#deliverModal">
             <i class="bi bi-check-circle"></i> Mark Delivered

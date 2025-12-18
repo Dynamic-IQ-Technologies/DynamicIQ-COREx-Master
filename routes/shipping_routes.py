@@ -453,6 +453,59 @@ def deliver_shipment(id):
     
     return redirect(url_for('shipping_routes.view_shipment', id=id))
 
+@shipping_bp.route('/shipments/<int:id>/cancel', methods=['POST'])
+@role_required('Admin', 'Planner')
+def cancel_shipment(id):
+    """Cancel a pending shipment"""
+    from models import AuditLogger
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        shipment = conn.execute('SELECT * FROM shipments WHERE id = ?', (id,)).fetchone()
+        
+        if not shipment:
+            flash('Shipment not found.', 'danger')
+            conn.close()
+            return redirect(url_for('shipping_routes.list_shipments'))
+        
+        if shipment['status'] != 'Pending':
+            flash('Only pending shipments can be cancelled.', 'warning')
+            conn.close()
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
+        
+        # Delete shipment lines first
+        conn.execute('DELETE FROM shipment_lines WHERE shipment_id = ?', (id,))
+        
+        # Delete the shipment
+        conn.execute('DELETE FROM shipments WHERE id = ?', (id,))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='shipments',
+            record_id=id,
+            action_type='Deleted',
+            modified_by=session.get('user_id'),
+            changed_fields={'shipment_number': shipment['shipment_number'], 'status': 'Cancelled/Deleted'},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        flash(f'Shipment {shipment["shipment_number"]} has been cancelled and deleted.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error cancelling shipment: {str(e)}', 'danger')
+        conn.close()
+        return redirect(url_for('shipping_routes.view_shipment', id=id))
+    finally:
+        conn.close()
+    
+    return redirect(url_for('shipping_routes.list_shipments'))
+
+
 @shipping_bp.route('/shipments/dashboard')
 @login_required
 def dashboard():
