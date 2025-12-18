@@ -194,6 +194,26 @@ def view_product(id):
         ORDER BY um.uom_code
     ''', (id,)).fetchall()
     
+    alternates = conn.execute('''
+        SELECT pa.*, p.code as alternate_code, p.name as alternate_name, 
+               p.product_type as alternate_type, p.unit_of_measure as alternate_uom,
+               i.quantity as alternate_qty_on_hand
+        FROM product_alternates pa
+        JOIN products p ON pa.alternate_product_id = p.id
+        LEFT JOIN inventory i ON p.id = i.product_id
+        WHERE pa.product_id = ? AND pa.is_active = 1
+        ORDER BY pa.priority, p.code
+    ''', (id,)).fetchall()
+    
+    reverse_alternates = conn.execute('''
+        SELECT pa.*, p.code as primary_code, p.name as primary_name,
+               p.product_type as primary_type
+        FROM product_alternates pa
+        JOIN products p ON pa.product_id = p.id
+        WHERE pa.alternate_product_id = ? AND pa.is_active = 1
+        ORDER BY p.code
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('products/view.html',
@@ -203,7 +223,9 @@ def view_product(id):
                           bom_components=bom_components,
                           recent_work_orders=recent_work_orders,
                           recent_po_lines=recent_po_lines,
-                          uom_conversions=uom_conversions)
+                          uom_conversions=uom_conversions,
+                          alternates=alternates,
+                          reverse_alternates=reverse_alternates)
 
 @product_bp.route('/products/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
@@ -909,6 +931,101 @@ Format the response with clear sections using plain text only. Use dashes for li
             'analysis': analysis
         })
         
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+@product_bp.route('/products/<int:id>/alternates', methods=['GET'])
+@login_required
+def get_alternates(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    alternates = conn.execute('''
+        SELECT pa.*, p.code as alternate_code, p.name as alternate_name, 
+               p.product_type as alternate_type, p.unit_of_measure as alternate_uom,
+               i.quantity as alternate_qty_on_hand
+        FROM product_alternates pa
+        JOIN products p ON pa.alternate_product_id = p.id
+        LEFT JOIN inventory i ON p.id = i.product_id
+        WHERE pa.product_id = ? AND pa.is_active = 1
+        ORDER BY pa.priority, p.code
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    return jsonify([dict(a) for a in alternates])
+
+@product_bp.route('/products/<int:id>/alternates', methods=['POST'])
+@role_required('Admin', 'Planner')
+def add_alternate(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    data = request.get_json() if request.is_json else request.form
+    alternate_product_id = int(data.get('alternate_product_id'))
+    relationship_type = data.get('relationship_type', 'Interchangeable')
+    priority = int(data.get('priority', 1))
+    notes = data.get('notes', '')
+    bidirectional = data.get('bidirectional', False)
+    
+    if alternate_product_id == id:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Cannot add product as its own alternate'})
+    
+    try:
+        conn.execute('''
+            INSERT INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, DATE('now'), 1)
+        ''', (id, alternate_product_id, relationship_type, priority, notes, session.get('username', '')))
+        
+        if bidirectional:
+            conn.execute('''
+                INSERT OR IGNORE INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, DATE('now'), 1)
+            ''', (alternate_product_id, id, relationship_type, priority, notes, session.get('username', '')))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Alternate added successfully'})
+    except Exception as e:
+        conn.close()
+        if 'UNIQUE constraint' in str(e):
+            return jsonify({'success': False, 'error': 'This alternate relationship already exists'})
+        return jsonify({'success': False, 'error': str(e)})
+
+@product_bp.route('/products/alternates/<int:alternate_id>', methods=['DELETE'])
+@role_required('Admin', 'Planner')
+def remove_alternate(alternate_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('UPDATE product_alternates SET is_active = 0 WHERE id = ?', (alternate_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Alternate removed successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+@product_bp.route('/products/alternates/<int:alternate_id>', methods=['PUT'])
+@role_required('Admin', 'Planner')
+def update_alternate(alternate_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    data = request.get_json()
+    
+    try:
+        conn.execute('''
+            UPDATE product_alternates 
+            SET relationship_type = ?, priority = ?, notes = ?
+            WHERE id = ?
+        ''', (data.get('relationship_type'), int(data.get('priority', 1)), data.get('notes', ''), alternate_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Alternate updated successfully'})
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)})

@@ -60,6 +60,24 @@ class Database:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS product_alternates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                alternate_product_id INTEGER NOT NULL,
+                relationship_type TEXT DEFAULT 'Interchangeable',
+                priority INTEGER DEFAULT 1,
+                notes TEXT,
+                approved_by TEXT,
+                approved_date DATE,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+                FOREIGN KEY (alternate_product_id) REFERENCES products(id) ON DELETE CASCADE,
+                UNIQUE(product_id, alternate_product_id)
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS suppliers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 code TEXT UNIQUE NOT NULL,

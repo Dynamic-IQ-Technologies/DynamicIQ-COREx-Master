@@ -394,6 +394,12 @@
             </button>
         </li>
         {% endif %}
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAlternates" type="button">
+                <i class="bi bi-shuffle me-1"></i> Alternates
+                {% if alternates or reverse_alternates %}<span class="badge bg-warning text-dark ms-1">{{ (alternates|length) + (reverse_alternates|length) }}</span>{% endif %}
+            </button>
+        </li>
     </ul>
     
     <div class="tab-content p-3">
@@ -587,6 +593,261 @@
             </div>
         </div>
         {% endif %}
+        
+        <div class="tab-pane fade" id="tabAlternates">
+            {% if session.role in ['Admin', 'Planner'] %}
+            <div class="mb-3">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAlternateModal">
+                    <i class="bi bi-plus-circle me-1"></i> Add Alternate Part
+                </button>
+            </div>
+            {% endif %}
+            
+            {% if alternates %}
+            <h6 class="text-muted mb-2"><i class="bi bi-arrow-right me-1"></i> Approved Alternates for this Part</h6>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Priority</th>
+                            <th>Alternate Code</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Relationship</th>
+                            <th>Qty On Hand</th>
+                            <th>Approved By</th>
+                            <th>Notes</th>
+                            {% if session.role in ['Admin', 'Planner'] %}<th>Actions</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alt in alternates %}
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ alt.priority }}</span></td>
+                            <td>
+                                <a href="{{ url_for('product_routes.view_product', id=alt.alternate_product_id) }}" class="text-primary fw-medium">
+                                    {{ alt.alternate_code }}
+                                </a>
+                            </td>
+                            <td>{{ alt.alternate_name }}</td>
+                            <td>
+                                <span class="badge {% if alt.alternate_type == 'Finished Good' %}bg-success{% elif alt.alternate_type == 'Raw Material' %}bg-primary{% else %}bg-info{% endif %}">
+                                    {{ alt.alternate_type }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if alt.relationship_type == 'Interchangeable' %}bg-success{% elif alt.relationship_type == 'Supersedes' %}bg-warning text-dark{% elif alt.relationship_type == 'Form-Fit-Function' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ alt.relationship_type }}
+                                </span>
+                            </td>
+                            <td>{{ alt.alternate_qty_on_hand or 0 }}</td>
+                            <td>{{ alt.approved_by or '-' }}</td>
+                            <td>{{ alt.notes or '-' }}</td>
+                            {% if session.role in ['Admin', 'Planner'] %}
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAlternate({{ alt.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            {% if reverse_alternates %}
+            <h6 class="text-muted mb-2"><i class="bi bi-arrow-left me-1"></i> This Part is an Alternate For</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Primary Part Code</th>
+                            <th>Primary Part Name</th>
+                            <th>Type</th>
+                            <th>Relationship</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alt in reverse_alternates %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('product_routes.view_product', id=alt.product_id) }}" class="text-primary fw-medium">
+                                    {{ alt.primary_code }}
+                                </a>
+                            </td>
+                            <td>{{ alt.primary_name }}</td>
+                            <td>
+                                <span class="badge {% if alt.primary_type == 'Finished Good' %}bg-success{% elif alt.primary_type == 'Raw Material' %}bg-primary{% else %}bg-info{% endif %}">
+                                    {{ alt.primary_type }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if alt.relationship_type == 'Interchangeable' %}bg-success{% elif alt.relationship_type == 'Supersedes' %}bg-warning text-dark{% elif alt.relationship_type == 'Form-Fit-Function' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ alt.relationship_type }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            {% if not alternates and not reverse_alternates %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-shuffle display-6"></i>
+                <p class="mt-2 mb-0">No alternate parts defined</p>
+                {% if session.role in ['Admin', 'Planner'] %}
+                <p class="small">Click "Add Alternate Part" to link interchangeable or substitute parts</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<div class="modal fade" id="addAlternateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shuffle me-2"></i>Add Alternate Part</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAlternateForm">
+                    <div class="mb-3">
+                        <label class="form-label">Alternate Part <span class="text-danger">*</span></label>
+                        <select class="form-select" id="alternateProductId" required>
+                            <option value="">Select a product...</option>
+                        </select>
+                        <div class="form-text">Search and select the part that can be used as an alternate</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Relationship Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="relationshipType" required>
+                            <option value="Interchangeable">Interchangeable - Can be used in place of each other</option>
+                            <option value="Supersedes">Supersedes - Replaces the original part</option>
+                            <option value="Form-Fit-Function">Form-Fit-Function - Equivalent in form, fit, and function</option>
+                            <option value="Conditional">Conditional - Alternate with conditions/restrictions</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" id="alternatePriority">
+                            <option value="1">1 - Highest Priority (Preferred)</option>
+                            <option value="2">2 - Secondary</option>
+                            <option value="3">3 - Tertiary</option>
+                            <option value="4">4 - Low Priority</option>
+                            <option value="5">5 - Last Resort</option>
+                        </select>
+                        <div class="form-text">Lower numbers = higher preference when selecting alternates</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="alternateNotes" rows="2" placeholder="Any conditions, restrictions, or notes about this alternate..."></textarea>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="bidirectional" checked>
+                        <label class="form-check-label" for="bidirectional">
+                            <strong>Bidirectional</strong> - Also add this part as an alternate for the selected part
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAlternate()">
+                    <i class="bi bi-check-lg me-1"></i> Add Alternate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadProductsForAlternate();
+});
+
+function loadProductsForAlternate() {
+    fetch('/products/list-json')
+        .then(response => response.json())
+        .then(products => {
+            const select = document.getElementById('alternateProductId');
+            const currentProductId = {{ product.id }};
+            products.forEach(p => {
+                if (p.id !== currentProductId) {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.code} - ${p.name}`;
+                    select.appendChild(option);
+                }
+            });
+        });
+}
+
+function saveAlternate() {
+    const alternateProductId = document.getElementById('alternateProductId').value;
+    const relationshipType = document.getElementById('relationshipType').value;
+    const priority = document.getElementById('alternatePriority').value;
+    const notes = document.getElementById('alternateNotes').value;
+    const bidirectional = document.getElementById('bidirectional').checked;
+    
+    if (!alternateProductId) {
+        showToast('Please select an alternate product', 'error');
+        return;
+    }
+    
+    fetch('/products/{{ product.id }}/alternates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            alternate_product_id: alternateProductId,
+            relationship_type: relationshipType,
+            priority: priority,
+            notes: notes,
+            bidirectional: bidirectional
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Alternate part added successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addAlternateModal')).hide();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.error || 'Failed to add alternate', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error adding alternate: ' + error, 'error');
+    });
+}
+
+function removeAlternate(alternateId) {
+    if (!confirm('Are you sure you want to remove this alternate relationship?')) return;
+    
+    fetch('/products/alternates/' + alternateId, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Alternate removed successfully', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.error || 'Failed to remove alternate', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error removing alternate: ' + error, 'error');
+    });
+}
+</script>
 {% endblock %}
