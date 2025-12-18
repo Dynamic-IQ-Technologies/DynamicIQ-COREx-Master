@@ -418,8 +418,10 @@ def get_finance_kpis(conn):
     ''').fetchone()
     
     ap = conn.execute('''
-        SELECT COALESCE(SUM(total_amount), 0) as ap
-        FROM purchase_orders WHERE status NOT IN ('Cancelled', 'Received')
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as ap
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.status NOT IN ('Cancelled', 'Received')
     ''').fetchone()
     
     return {
@@ -591,9 +593,15 @@ def gather_analysis_context(conn, analysis_type):
         ''').fetchone())
     
     if analysis_type in ['general', 'finance']:
+        ap_result = conn.execute('''
+            SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total 
+            FROM purchase_orders po
+            LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+            WHERE po.status NOT IN ('Cancelled', 'Received')
+        ''').fetchone()
         context['finance'] = {
             'ar': conn.execute('SELECT COALESCE(SUM(balance_due), 0) as total FROM invoices WHERE status != "Paid"').fetchone()['total'],
-            'ap': conn.execute('SELECT COALESCE(SUM(total_amount), 0) as total FROM purchase_orders WHERE status NOT IN ("Cancelled", "Received")').fetchone()['total']
+            'ap': ap_result['total']
         }
     
     return context
