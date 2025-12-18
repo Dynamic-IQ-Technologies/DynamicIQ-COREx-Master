@@ -174,9 +174,9 @@
                         <div class="mb-3">
                             <label class="form-label">Line Type <span class="text-danger">*</span></label>
                             <select class="form-select form-select-sm" name="line_type" id="line_type" required>
-                                <option value="Outright">Outright Sale</option>
-                                <option value="Exchange">Exchange</option>
-                                <option value="Managed Repair">Managed Repair</option>
+                                <option value="Outright" {% if sales_order.sales_type == 'Outright Sale' %}selected{% endif %}>Outright Sale</option>
+                                <option value="Exchange" {% if sales_order.sales_type == 'Exchange' %}selected{% endif %}>Exchange</option>
+                                <option value="Managed Repair" {% if sales_order.sales_type == 'Managed Repair' %}selected{% endif %}>Managed Repair</option>
                             </select>
                         </div>
                     </div>
