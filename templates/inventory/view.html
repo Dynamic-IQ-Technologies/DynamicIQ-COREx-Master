@@ -70,7 +70,7 @@
                 <h5 class="mb-0">Cost & Value</h5>
             </div>
             <div class="card-body">
-                <p><strong>Unit Cost:</strong> {{ inventory.cost|currency }}</p>
+                <p><strong>Unit Cost:</strong> {{ inventory.display_unit_cost|currency }}</p>
                 <p><strong>Current Quantity:</strong> {{ inventory.quantity }}</p>
                 <hr>
                 <p><strong>Total Inventory Value:</strong> <br>
