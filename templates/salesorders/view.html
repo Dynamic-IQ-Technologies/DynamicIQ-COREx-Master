@@ -665,14 +665,14 @@ function openAllocationModal(lineId, productCode, requestedQty) {
                                 </span>
                             </td>
                             <td>
-                                ${inv.is_serialized ? `<span class="badge bg-info">${inv.serial_number}</span>` : '-'}
+                                ${inv.serial_number ? `<span class="badge bg-info">${inv.serial_number}</span>` : '-'}
                             </td>
                             <td><strong>${inv.available_qty}</strong></td>
                             <td>
                                 <input type="number" class="form-control form-control-sm allocate-qty-input" 
                                        id="qty_${inv.id}" value="${maxQty}" 
                                        min="1" max="${inv.available_qty}" step="0.01" style="width: 80px;"
-                                       ${inv.is_serialized ? 'readonly' : ''}>
+                                       ${inv.serial_number ? 'readonly' : ''}>
                             </td>
                         </tr>
                     `;
