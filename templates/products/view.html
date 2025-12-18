@@ -66,6 +66,24 @@
                         <td>{{ product.unit_of_measure }}</td>
                     </tr>
                     <tr>
+                        <th>Product Category</th>
+                        <td>{{ product.product_category or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Manufacturer</th>
+                        <td>{{ product.manufacturer or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Lead Time</th>
+                        <td>
+                            {% if product.lead_time %}
+                            <span class="badge bg-info">{{ product.lead_time }} days</span>
+                            {% else %}
+                            <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Listing Price</th>
                         <td>{{ (product.cost or 0)|currency }}</td>
                     </tr>

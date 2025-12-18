@@ -91,8 +91,8 @@ def create_product():
         conn = db.get_connection()
         
         conn.execute('''
-            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, lead_time, product_category, manufacturer, cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             request.form['code'],
             request.form['name'],
@@ -100,6 +100,9 @@ def create_product():
             request.form['unit_of_measure'],
             request.form['product_type'],
             request.form.get('part_category', 'Other'),
+            int(request.form.get('lead_time', 0) or 0),
+            request.form.get('product_category', ''),
+            request.form.get('manufacturer', ''),
             0.0
         ))
         
@@ -210,7 +213,7 @@ def edit_product(id):
         
         conn.execute('''
             UPDATE products 
-            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, part_category=?
+            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, part_category=?, lead_time=?, product_category=?, manufacturer=?
             WHERE id=?
         ''', (
             request.form['code'],
@@ -219,6 +222,9 @@ def edit_product(id):
             request.form['unit_of_measure'],
             request.form['product_type'],
             request.form.get('part_category', 'Other'),
+            int(request.form.get('lead_time', 0) or 0),
+            request.form.get('product_category', ''),
+            request.form.get('manufacturer', ''),
             id
         ))
         

@@ -313,7 +313,10 @@ class Database:
         product_columns = [col[1] for col in cursor.fetchall()]
         
         product_new_columns = [
-            ('part_category', 'TEXT DEFAULT "Other"')
+            ('part_category', 'TEXT DEFAULT "Other"'),
+            ('lead_time', 'INTEGER DEFAULT 0'),
+            ('product_category', 'TEXT'),
+            ('manufacturer', 'TEXT')
         ]
         
         for col_name, col_type in product_new_columns:
