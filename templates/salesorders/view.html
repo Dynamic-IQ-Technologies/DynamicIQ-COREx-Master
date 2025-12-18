@@ -72,6 +72,12 @@
                             <th>Sales Type:</th>
                             <td><span class="badge bg-info">{{ sales_order.sales_type }}</span></td>
                         </tr>
+                        {% if sales_order.sales_type == 'Exchange' and sales_order.exchange_type %}
+                        <tr>
+                            <th>Exchange Type:</th>
+                            <td><span class="badge bg-primary">{{ sales_order.exchange_type }}</span></td>
+                        </tr>
+                        {% endif %}
                         <tr>
                             <th>Status:</th>
                             <td>

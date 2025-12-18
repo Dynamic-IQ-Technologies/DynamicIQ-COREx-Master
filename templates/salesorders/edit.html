@@ -24,13 +24,25 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Sales Type</label>
                             <input type="text" class="form-control" value="{{ sales_order.sales_type }}" readonly>
-                            <small class="text-muted">Sales type cannot be changed after order creation</small>
+                            <small class="text-muted">Cannot be changed</small>
                         </div>
                     </div>
+                    {% if sales_order.sales_type == 'Exchange' %}
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Exchange Type</label>
+                            <select class="form-select" name="exchange_type">
+                                <option value="">Select Exchange Type</option>
+                                <option value="Single Exchange" {% if sales_order.exchange_type == 'Single Exchange' %}selected{% endif %}>Single Exchange</option>
+                                <option value="Dual Exchange" {% if sales_order.exchange_type == 'Dual Exchange' %}selected{% endif %}>Dual Exchange</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <div class="row">

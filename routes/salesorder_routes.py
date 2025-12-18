@@ -66,19 +66,23 @@ def create_sales_order():
             expected_ship_date = request.form.get('expected_ship_date') or None
             expected_return_date = request.form.get('expected_return_date') or None
             
+            # Get exchange_type if Exchange type order
+            exchange_type = request.form.get('exchange_type') if sales_type == 'Exchange' else None
+            
             # Insert sales order
             cursor = conn.execute('''
                 INSERT INTO sales_orders (
                     so_number, customer_id, sales_type, order_date, expected_ship_date,
                     status, core_charge, repair_charge, expected_return_date, 
-                    service_notes, notes, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    service_notes, notes, created_by, exchange_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 so_number, customer_id, sales_type, order_date, expected_ship_date,
                 'Draft', 0, 0, expected_return_date,
                 request.form.get('service_notes', ''),
                 request.form.get('notes', ''),
-                session.get('user_id')
+                session.get('user_id'),
+                exchange_type
             ))
             
             so_id = cursor.lastrowid
@@ -162,15 +166,19 @@ def edit_sales_order(id):
             tax_rate_str = request.form.get('tax_rate', '0').strip()
             tax_rate = float(tax_rate_str) if tax_rate_str else 0.0
             
+            exchange_type = request.form.get('exchange_type')
+            
             conn.execute('''
                 UPDATE sales_orders SET
                     customer_id = ?,
                     expected_ship_date = ?,
-                    expected_return_date = ?, service_notes = ?, notes = ?, tax_rate = ?
+                    expected_return_date = ?, service_notes = ?, notes = ?, tax_rate = ?,
+                    exchange_type = ?
                 WHERE id = ?
             ''', (
                 customer_id, expected_ship_date, expected_return_date,
-                request.form.get('service_notes', ''), request.form.get('notes', ''), tax_rate, id
+                request.form.get('service_notes', ''), request.form.get('notes', ''), tax_rate,
+                exchange_type, id
             ))
             
             # Recalculate totals with tax rate

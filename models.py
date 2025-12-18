@@ -2329,6 +2329,9 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_customer ON ndt_work_orders(customer_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_results_wo ON ndt_inspection_results(ndt_wo_id)')
         
+        # Migrate sales_orders table - add exchange_type column
+        self._migrate_sales_orders_exchange_type(cursor)
+        
         # Migrate sales_order_lines table - add new columns if they don't exist
         self._migrate_sales_order_lines(cursor)
         
@@ -3020,6 +3023,17 @@ class Database:
         
         conn.commit()
         conn.close()
+    
+    def _migrate_sales_orders_exchange_type(self, cursor):
+        """Add exchange_type column to sales_orders table"""
+        cursor.execute("PRAGMA table_info(sales_orders)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        if 'exchange_type' not in existing_columns:
+            try:
+                cursor.execute("ALTER TABLE sales_orders ADD COLUMN exchange_type TEXT")
+            except sqlite3.OperationalError:
+                pass
     
     def _migrate_customers_portal(self, cursor):
         """Add portal columns to customers table"""

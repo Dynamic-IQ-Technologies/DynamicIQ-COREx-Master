@@ -33,6 +33,19 @@
                     </div>
                 </div>
 
+                <div class="row" id="exchange_type_section" style="display: none;">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Exchange Type</label>
+                            <select class="form-select" name="exchange_type" id="exchange_type">
+                                <option value="">Select Exchange Type</option>
+                                <option value="Single Exchange">Single Exchange</option>
+                                <option value="Dual Exchange">Dual Exchange</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
@@ -82,6 +95,7 @@ document.getElementById('sales_type').addEventListener('change', function() {
     const type = this.value;
     const returnDateSection = document.getElementById('return_date_section');
     const serviceNotesSection = document.getElementById('service_notes_section');
+    const exchangeTypeSection = document.getElementById('exchange_type_section');
     
     if (type === 'Exchange' || type === 'Managed Repair') {
         returnDateSection.style.display = 'block';
@@ -89,6 +103,12 @@ document.getElementById('sales_type').addEventListener('change', function() {
     } else {
         returnDateSection.style.display = 'none';
         serviceNotesSection.style.display = 'none';
+    }
+    
+    if (type === 'Exchange') {
+        exchangeTypeSection.style.display = 'flex';
+    } else {
+        exchangeTypeSection.style.display = 'none';
     }
 });
 </script>
