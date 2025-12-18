@@ -39,6 +39,37 @@
     .kpi-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        cursor: pointer;
+    }
+    
+    .kpi-detail-table {
+        width: 100%;
+    }
+    
+    .kpi-detail-table th {
+        background: #f8fafc;
+        padding: 0.75rem;
+        font-weight: 600;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .kpi-detail-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .kpi-detail-table tr:hover {
+        background: #f8fafc;
+    }
+    
+    .detail-modal .modal-header {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    
+    .detail-modal .modal-body {
+        max-height: 500px;
+        overflow-y: auto;
     }
     
     .kpi-card.security-posture {
@@ -243,7 +274,8 @@
 
     <div class="row g-3 mb-4">
         <div class="col-lg-3 col-md-6">
-            <div class="kpi-card security-posture text-white d-flex justify-content-between align-items-center">
+            <div class="kpi-card security-posture text-white d-flex justify-content-between align-items-center" 
+                 data-bs-toggle="modal" data-bs-target="#securityPostureModal" title="Click for details">
                 <div>
                     <div class="kpi-label">Security Posture</div>
                     <div class="kpi-value">{{ security_posture.overall }}%</div>
@@ -253,19 +285,19 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="kpi-card alerts text-white d-flex justify-content-between align-items-center">
+            <div class="kpi-card alerts text-white d-flex justify-content-between align-items-center"
+                 data-bs-toggle="modal" data-bs-target="#alertsModal" title="Click for details">
                 <div>
                     <div class="kpi-label">Active Alerts</div>
                     <div class="kpi-value">{{ active_alerts|length }}</div>
-                    <a href="{{ url_for('it_manager_routes.alerts') }}" class="text-white-50 small text-decoration-none">
-                        View all alerts <i class="bi bi-arrow-right"></i>
-                    </a>
+                    <span class="text-white-50 small">Click for details <i class="bi bi-arrow-right"></i></span>
                 </div>
                 <i class="bi bi-exclamation-triangle kpi-icon"></i>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="kpi-card high-risk text-white d-flex justify-content-between align-items-center">
+            <div class="kpi-card high-risk text-white d-flex justify-content-between align-items-center"
+                 data-bs-toggle="modal" data-bs-target="#highRiskModal" title="Click for details">
                 <div>
                     <div class="kpi-label">High-Risk Users</div>
                     <div class="kpi-value">{{ user_risk_summary.high_risk }}</div>
@@ -275,7 +307,8 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="kpi-card logins text-white d-flex justify-content-between align-items-center">
+            <div class="kpi-card logins text-white d-flex justify-content-between align-items-center"
+                 data-bs-toggle="modal" data-bs-target="#loginsModal" title="Click for details">
                 <div>
                     <div class="kpi-label">Failed Logins (24h)</div>
                     <div class="kpi-value">{{ access_metrics.failed_logins_24h }}</div>
@@ -505,6 +538,277 @@
                 <button type="button" class="btn btn-primary" onclick="submitQuery()" id="submitBtn">
                     <i class="bi bi-send me-1"></i> Ask
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade detail-modal" id="securityPostureModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+                <h5 class="modal-title text-white"><i class="bi bi-shield-check me-2"></i>Security Posture Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <h1 class="display-3 fw-bold text-success">{{ security_posture.overall }}%</h1>
+                    <span class="badge bg-success fs-6">{{ security_posture.status }}</span>
+                </div>
+                <h6 class="fw-bold mb-3">Component Breakdown</h6>
+                <table class="kpi-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for component, score in security_posture.components.items() %}
+                        <tr>
+                            <td class="text-capitalize">{{ component.replace('_', ' ') }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width: 100px; height: 8px; background: #e2e8f0; border-radius: 4px;">
+                                        <div style="width: {{ score }}%; height: 100%; border-radius: 4px;" 
+                                             class="{% if score >= 80 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}"></div>
+                                    </div>
+                                    <span class="fw-bold">{{ score }}%</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if score >= 80 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {% if score >= 80 %}Healthy{% elif score >= 60 %}Needs Attention{% else %}Critical{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade detail-modal" id="alertsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header" style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);">
+                <h5 class="modal-title text-white"><i class="bi bi-exclamation-triangle me-2"></i>Active Alerts Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <h1 class="display-3 fw-bold text-danger">{{ active_alerts|length }}</h1>
+                    <span class="text-muted">Active Security Alerts</span>
+                </div>
+                {% if active_alerts %}
+                <table class="kpi-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Alert</th>
+                            <th>Description</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in active_alerts %}
+                        <tr>
+                            <td>
+                                <span class="badge {% if alert.severity == 'Critical' %}bg-danger{% elif alert.severity == 'High' %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ alert.severity }}
+                                </span>
+                            </td>
+                            <td class="fw-semibold">{{ alert.title }}</td>
+                            <td class="small text-muted">{{ alert.description[:50] }}...</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success" onclick="resolveAlert({{ alert.id }})">
+                                    <i class="bi bi-check"></i> Resolve
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-shield-check display-4 text-success"></i>
+                    <p class="mt-2 text-muted">No active security alerts. System is secure.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <a href="{{ url_for('it_manager_routes.alerts') }}" class="btn btn-primary">View All Alerts</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade detail-modal" id="highRiskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);">
+                <h5 class="modal-title text-white"><i class="bi bi-person-exclamation me-2"></i>User Risk Analysis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row text-center mb-4">
+                    <div class="col-4">
+                        <div class="p-3 rounded" style="background: #fef2f2;">
+                            <h2 class="fw-bold text-danger mb-0">{{ user_risk_summary.high_risk }}</h2>
+                            <small class="text-muted">High Risk</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3 rounded" style="background: #fffbeb;">
+                            <h2 class="fw-bold text-warning mb-0">{{ user_risk_summary.medium_risk }}</h2>
+                            <small class="text-muted">Medium Risk</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3 rounded" style="background: #f0fdf4;">
+                            <h2 class="fw-bold text-success mb-0">{{ user_risk_summary.low_risk }}</h2>
+                            <small class="text-muted">Low Risk</small>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="fw-bold mb-3">Risk Distribution</h6>
+                <table class="kpi-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Risk Level</th>
+                            <th>Count</th>
+                            <th>Percentage</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge bg-danger">High Risk</span></td>
+                            <td>{{ user_risk_summary.high_risk }}</td>
+                            <td>{% if user_risk_summary.total_users > 0 %}{{ ((user_risk_summary.high_risk / user_risk_summary.total_users) * 100)|round(1) }}%{% else %}0%{% endif %}</td>
+                            <td>{% if user_risk_summary.high_risk > 0 %}<span class="text-danger">Requires Attention</span>{% else %}<span class="text-success">Clear</span>{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-warning">Medium Risk</span></td>
+                            <td>{{ user_risk_summary.medium_risk }}</td>
+                            <td>{% if user_risk_summary.total_users > 0 %}{{ ((user_risk_summary.medium_risk / user_risk_summary.total_users) * 100)|round(1) }}%{% else %}0%{% endif %}</td>
+                            <td>{% if user_risk_summary.medium_risk > 2 %}<span class="text-warning">Monitor</span>{% else %}<span class="text-success">Acceptable</span>{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">Low Risk</span></td>
+                            <td>{{ user_risk_summary.low_risk }}</td>
+                            <td>{% if user_risk_summary.total_users > 0 %}{{ ((user_risk_summary.low_risk / user_risk_summary.total_users) * 100)|round(1) }}%{% else %}0%{% endif %}</td>
+                            <td><span class="text-success">Healthy</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="mt-3 p-3 bg-light rounded">
+                    <strong>Total Users:</strong> {{ user_risk_summary.total_users }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ url_for('it_manager_routes.access_governance') }}" class="btn btn-primary">Manage Users</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade detail-modal" id="loginsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);">
+                <h5 class="modal-title text-white"><i class="bi bi-shield-x me-2"></i>Login Activity (24h)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row text-center mb-4">
+                    <div class="col-6">
+                        <div class="p-3 rounded" style="background: #fef2f2;">
+                            <h2 class="fw-bold text-danger mb-0">{{ access_metrics.failed_logins_24h }}</h2>
+                            <small class="text-muted">Failed Logins</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded" style="background: #f0fdf4;">
+                            <h2 class="fw-bold text-success mb-0">{{ access_metrics.logins_24h - access_metrics.failed_logins_24h }}</h2>
+                            <small class="text-muted">Successful Logins</small>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="fw-bold mb-3">Login Statistics</h6>
+                <table class="kpi-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Total Login Attempts (24h)</td>
+                            <td class="fw-bold">{{ access_metrics.logins_24h }}</td>
+                            <td><span class="badge bg-info">Tracked</span></td>
+                        </tr>
+                        <tr>
+                            <td>Failed Login Attempts</td>
+                            <td class="fw-bold text-danger">{{ access_metrics.failed_logins_24h }}</td>
+                            <td>
+                                {% if access_metrics.failed_logins_24h > 10 %}
+                                <span class="badge bg-danger">High - Review Required</span>
+                                {% elif access_metrics.failed_logins_24h > 5 %}
+                                <span class="badge bg-warning">Moderate</span>
+                                {% else %}
+                                <span class="badge bg-success">Normal</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Successful Logins</td>
+                            <td class="fw-bold text-success">{{ access_metrics.logins_24h - access_metrics.failed_logins_24h }}</td>
+                            <td><span class="badge bg-success">Verified</span></td>
+                        </tr>
+                        <tr>
+                            <td>Success Rate</td>
+                            <td class="fw-bold">
+                                {% if access_metrics.logins_24h > 0 %}
+                                {{ (((access_metrics.logins_24h - access_metrics.failed_logins_24h) / access_metrics.logins_24h) * 100)|round(1) }}%
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if access_metrics.logins_24h > 0 %}
+                                    {% set success_rate = ((access_metrics.logins_24h - access_metrics.failed_logins_24h) / access_metrics.logins_24h) * 100 %}
+                                    {% if success_rate >= 95 %}
+                                    <span class="badge bg-success">Excellent</span>
+                                    {% elif success_rate >= 80 %}
+                                    <span class="badge bg-warning">Fair</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Needs Review</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="badge bg-secondary">No Data</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="mt-3 p-3 bg-light rounded">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <small>Failed login attempts are monitored for potential security threats. High numbers may indicate brute-force attack attempts.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
