@@ -50,7 +50,8 @@ class FAA8130Service:
             LEFT JOIN company_settings cs ON cs.id = 1
             WHERE wo.id = ?
         ''', (work_order_id,)).fetchone()
-        return wo
+        # Convert sqlite3.Row to dict for .get() support
+        return dict(wo) if wo else None
     
     @staticmethod
     def get_existing_certificate(conn, work_order_id):
@@ -308,7 +309,7 @@ class FAA8130Service:
         }
         
         # Generate PDF
-        pdf_path, pdf_hash = FAA8130Service.generate_pdf(certificate_data, dict(wo_data))
+        pdf_path, pdf_hash = FAA8130Service.generate_pdf(certificate_data, wo_data)
         
         # Insert certificate record
         cursor = conn.execute('''
