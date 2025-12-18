@@ -1876,7 +1876,7 @@ def download_8130(id):
 
 @workorder_bp.route('/workorders/<int:id>/create-service-po', methods=['GET', 'POST'])
 @login_required
-@role_required(['Admin', 'Procurement Staff', 'Production Staff'])
+@role_required('Admin', 'Procurement Staff', 'Production Staff')
 def create_service_po(id):
     """Create a Purchase Order for miscellaneous charges/services linked to a work order"""
     db = Database()
