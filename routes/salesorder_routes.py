@@ -1524,17 +1524,32 @@ def create_exchange_po(id):
             ))
             po_id = cursor.lastrowid
             
-            # Copy line items from Sales Order to PO
+            # Create Exchange Fee line items with Part Number and Serial Number references
             for idx, line in enumerate(lines, 1):
-                # Get exchange fee or use unit price as default
+                # Get exchange fee from form
                 exchange_fee = float(request.form.get(f'exchange_fee_{line["id"]}', line['unit_price'] or 0))
+                
+                # Get Part Number and Serial Number from sales order line
+                part_number = line['product_code'] or 'N/A'
+                serial_number = line.get('serial_number') or ''
+                
+                # Create description that clearly identifies this as an Exchange Fee
+                line_description = f"Exchange Fee - P/N: {part_number}"
+                if serial_number:
+                    line_description += f", S/N: {serial_number}"
                 
                 conn.execute('''
                     INSERT INTO purchase_order_lines (
                         po_id, line_number, product_id, quantity, unit_price,
+                        description, exchange_fee_flag, source_so_line_id,
+                        reference_part_number, reference_serial_number,
                         created_at
-                    ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ''', (po_id, idx, line['product_id'], line['quantity'], exchange_fee))
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (
+                    po_id, idx, line['product_id'], 1, exchange_fee,
+                    line_description, 1, line['id'],
+                    part_number, serial_number
+                ))
             
             # Log to audit trail
             from models import AuditLogger

@@ -237,8 +237,14 @@
                 <thead>
                     <tr>
                         <th>#</th>
+                        {% if po.is_exchange %}
+                        <th>Description</th>
+                        <th>Ref Part Number</th>
+                        <th>Ref Serial Number</th>
+                        {% else %}
                         <th>Product Code</th>
                         <th>Product Name</th>
+                        {% endif %}
                         <th>UOM</th>
                         <th>Quantity</th>
                         <th>Base Qty (Base UOM)</th>
@@ -257,8 +263,31 @@
                     {% set line_total = line_qty * line_price %}
                     <tr>
                         <td>{{ line.line_number }}</td>
+                        {% if po.is_exchange %}
+                        <td>
+                            {% if line.exchange_fee_flag %}
+                            <span class="badge bg-warning text-dark me-1">Exchange Fee</span>
+                            {% endif %}
+                            {{ line.description or line.product_name }}
+                        </td>
+                        <td>
+                            {% if line.reference_part_number %}
+                            <strong>{{ line.reference_part_number }}</strong>
+                            {% else %}
+                            {{ line.product_code }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if line.reference_serial_number %}
+                            <code>{{ line.reference_serial_number }}</code>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        {% else %}
                         <td>{{ line.product_code }}</td>
                         <td>{{ line.product_name }}</td>
+                        {% endif %}
                         <td>{{ line.uom_code or line.unit_of_measure }}</td>
                         <td>{{ "%.2f"|format(line_qty) if line_qty != line_qty|int else line_qty|int }}</td>
                         <td>

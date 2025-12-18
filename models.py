@@ -199,10 +199,20 @@ class Database:
                 unit_price REAL NOT NULL,
                 uom_id INTEGER,
                 received_quantity REAL DEFAULT 0,
+                description TEXT,
+                exchange_fee_flag INTEGER DEFAULT 0,
+                source_so_line_id INTEGER,
+                reference_part_number TEXT,
+                reference_serial_number TEXT,
+                base_quantity REAL DEFAULT 0,
+                base_uom_id INTEGER,
+                conversion_factor_used REAL DEFAULT 1.0,
+                base_received_quantity REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
                 FOREIGN KEY (product_id) REFERENCES products(id),
                 FOREIGN KEY (uom_id) REFERENCES uom_master(id),
+                FOREIGN KEY (source_so_line_id) REFERENCES sales_order_lines(id),
                 UNIQUE(po_id, line_number)
             )
         ''')
@@ -443,7 +453,12 @@ class Database:
             ('base_quantity', 'REAL DEFAULT 0'),
             ('base_uom_id', 'INTEGER'),
             ('conversion_factor_used', 'REAL DEFAULT 1.0'),
-            ('base_received_quantity', 'REAL DEFAULT 0')
+            ('base_received_quantity', 'REAL DEFAULT 0'),
+            ('description', 'TEXT'),
+            ('exchange_fee_flag', 'INTEGER DEFAULT 0'),
+            ('source_so_line_id', 'INTEGER'),
+            ('reference_part_number', 'TEXT'),
+            ('reference_serial_number', 'TEXT')
         ]
         
         for col_name, col_type in pol_conversion_columns:
