@@ -78,6 +78,23 @@ class Database:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS product_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                file_name TEXT NOT NULL,
+                original_name TEXT NOT NULL,
+                file_type TEXT,
+                file_size INTEGER,
+                file_category TEXT DEFAULT 'General',
+                description TEXT,
+                uploaded_by TEXT,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 1,
+                FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS suppliers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 code TEXT UNIQUE NOT NULL,

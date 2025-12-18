@@ -214,6 +214,21 @@ def view_product(id):
         ORDER BY p.code
     ''', (id,)).fetchall()
     
+    product_files = conn.execute('''
+        SELECT * FROM product_files 
+        WHERE product_id = ? AND is_active = 1
+        ORDER BY uploaded_at DESC
+    ''', (id,)).fetchall()
+    
+    audit_trail = conn.execute('''
+        SELECT at.*, u.username 
+        FROM audit_trail at
+        LEFT JOIN users u ON at.modified_by = u.id
+        WHERE at.record_type = 'product' AND at.record_id = ?
+        ORDER BY at.timestamp DESC
+        LIMIT 50
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('products/view.html',
@@ -225,7 +240,9 @@ def view_product(id):
                           recent_po_lines=recent_po_lines,
                           uom_conversions=uom_conversions,
                           alternates=alternates,
-                          reverse_alternates=reverse_alternates)
+                          reverse_alternates=reverse_alternates,
+                          product_files=product_files,
+                          audit_trail=audit_trail)
 
 @product_bp.route('/products/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
@@ -1026,6 +1043,121 @@ def update_alternate(alternate_id):
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'message': 'Alternate updated successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+UPLOAD_FOLDER = 'uploads/product_files'
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'txt', 'csv', 'dwg', 'dxf', 'stp', 'step', 'igs', 'iges'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@product_bp.route('/products/<int:id>/files', methods=['POST'])
+@role_required('Admin', 'Planner')
+def upload_product_file(id):
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'})
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'})
+    
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': 'File type not allowed'})
+    
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    
+    import uuid
+    from datetime import datetime
+    
+    original_name = file.filename
+    ext = original_name.rsplit('.', 1)[1].lower() if '.' in original_name else ''
+    unique_name = f"{id}_{uuid.uuid4().hex[:8]}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{ext}"
+    
+    file_path = os.path.join(UPLOAD_FOLDER, unique_name)
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+    
+    file_category = request.form.get('category', 'General')
+    description = request.form.get('description', '')
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.execute('''
+            INSERT INTO product_files (product_id, file_name, original_name, file_type, file_size, file_category, description, uploaded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (id, unique_name, original_name, ext, file_size, file_category, description, session.get('username', '')))
+        
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product',
+            record_id=id,
+            action_type='File Uploaded',
+            modified_by=session.get('user_id'),
+            changes={'file_uploaded': original_name, 'category': file_category},
+            ip_address=request.remote_addr
+        )
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'File uploaded successfully'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+@product_bp.route('/products/files/<int:file_id>/download')
+@login_required
+def download_product_file(file_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    file_record = conn.execute('SELECT * FROM product_files WHERE id = ?', (file_id,)).fetchone()
+    conn.close()
+    
+    if not file_record:
+        flash('File not found', 'danger')
+        return redirect(url_for('product_routes.list_products'))
+    
+    file_path = os.path.join(UPLOAD_FOLDER, file_record['file_name'])
+    
+    if not os.path.exists(file_path):
+        flash('File not found on server', 'danger')
+        return redirect(url_for('product_routes.view_product', id=file_record['product_id']))
+    
+    from flask import send_file
+    return send_file(file_path, as_attachment=True, download_name=file_record['original_name'])
+
+@product_bp.route('/products/files/<int:file_id>', methods=['DELETE'])
+@role_required('Admin', 'Planner')
+def delete_product_file(file_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    file_record = conn.execute('SELECT * FROM product_files WHERE id = ?', (file_id,)).fetchone()
+    
+    if not file_record:
+        conn.close()
+        return jsonify({'success': False, 'error': 'File not found'})
+    
+    try:
+        conn.execute('UPDATE product_files SET is_active = 0 WHERE id = ?', (file_id,))
+        
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product',
+            record_id=file_record['product_id'],
+            action_type='File Deleted',
+            modified_by=session.get('user_id'),
+            changes={'file_deleted': file_record['original_name']},
+            ip_address=request.remote_addr
+        )
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'File deleted successfully'})
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)})
