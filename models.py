@@ -3056,6 +3056,10 @@ class Database:
         # Add created_by column if it doesn't exist
         if 'created_by' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN created_by INTEGER REFERENCES users(id)")
+        
+        # Add inventory_id column if it doesn't exist (to reference created inventory)
+        if 'inventory_id' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN inventory_id INTEGER REFERENCES inventory(id)")
     
     def _migrate_work_orders_stages(self, cursor):
         """Add stage_id column to work_orders table for tracking work order stages"""

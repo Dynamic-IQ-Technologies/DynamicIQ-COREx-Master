@@ -84,6 +84,13 @@
                         <p><strong>Customer:</strong> {{ workorder.customer_name }}</p>
                         {% endif %}
                         <p><strong>Disposition:</strong> <span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></p>
+                        {% if workorder.inventory_id %}
+                        <p><strong>Inventory Created:</strong> 
+                            <a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-success">
+                                <i class="bi bi-box-seam me-1"></i>View Inventory Record
+                            </a>
+                        </p>
+                        {% endif %}
                         <p><strong>Status:</strong> <span class="badge bg-info">{{ workorder.status }}</span></p>
                         <p><strong>Priority:</strong> {{ workorder.priority }}</p>
                         {% if workorder.stage_name %}

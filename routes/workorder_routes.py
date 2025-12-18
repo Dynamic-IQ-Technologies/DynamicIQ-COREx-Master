@@ -571,6 +571,7 @@ def update_workorder_status(id):
                     SELECT * FROM inventory WHERE product_id = ?
                 ''', (wo['product_id'],)).fetchone()
                 
+                inventory_id = None
                 if inventory:
                     # Update existing inventory
                     new_quantity = inventory['quantity'] + wo['quantity']
@@ -580,17 +581,25 @@ def update_workorder_status(id):
                             last_updated = CURRENT_TIMESTAMP
                         WHERE product_id = ?
                     ''', (new_quantity, wo['product_id']))
+                    inventory_id = inventory['id']
                 else:
                     # Create new inventory record
                     product = conn.execute('''
                         SELECT unit_of_measure FROM products WHERE id = ?
                     ''', (wo['product_id'],)).fetchone()
                     
-                    conn.execute('''
+                    cursor = conn.execute('''
                         INSERT INTO inventory (product_id, quantity, unit_of_measure, location)
                         VALUES (?, ?, ?, ?)
                     ''', (wo['product_id'], wo['quantity'], 
                           product['unit_of_measure'], 'Finished Goods'))
+                    inventory_id = cursor.lastrowid
+                
+                # Link work order to created/updated inventory record
+                if inventory_id:
+                    conn.execute('''
+                        UPDATE work_orders SET inventory_id = ? WHERE id = ?
+                    ''', (inventory_id, id))
                 
                 # Update product cost based on actual production cost
                 unit_cost = total_wip_cost / wo['quantity'] if wo['quantity'] > 0 else 0
