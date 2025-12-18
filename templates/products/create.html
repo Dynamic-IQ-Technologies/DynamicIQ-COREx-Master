@@ -94,6 +94,41 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-info-square me-2"></i>Part Information</h5>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="applicability" class="form-label">Applicability</label>
+                        <input type="text" class="form-control" id="applicability" name="applicability" placeholder="e.g., Boeing 737, Airbus A320">
+                        <div class="form-text">Aircraft or equipment this part applies to</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="shelf_life_cycle" class="form-label">Shelf Life Cycle</label>
+                        <input type="text" class="form-control" id="shelf_life_cycle" name="shelf_life_cycle" placeholder="e.g., 24 months, Unlimited">
+                        <div class="form-text">Storage duration before expiration</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="eccn" class="form-label">ECCN</label>
+                        <input type="text" class="form-control" id="eccn" name="eccn" placeholder="e.g., EAR99, 9A991.d">
+                        <div class="form-text">Export Control Classification Number</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="part_notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="part_notes" name="part_notes" rows="3" placeholder="Additional part information, special handling instructions, etc."></textarea>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('product_routes.list_products') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Product</button>

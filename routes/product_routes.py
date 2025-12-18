@@ -91,8 +91,9 @@ def create_product():
         conn = db.get_connection()
         
         conn.execute('''
-            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, lead_time, product_category, manufacturer, cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, lead_time, product_category, manufacturer, cost,
+                                  applicability, shelf_life_cycle, eccn, part_notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             request.form['code'],
             request.form['name'],
@@ -103,7 +104,11 @@ def create_product():
             int(request.form.get('lead_time', 0) or 0),
             request.form.get('product_category', ''),
             request.form.get('manufacturer', ''),
-            0.0
+            0.0,
+            request.form.get('applicability', ''),
+            request.form.get('shelf_life_cycle', ''),
+            request.form.get('eccn', ''),
+            request.form.get('part_notes', '')
         ))
         
         product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -213,7 +218,8 @@ def edit_product(id):
         
         conn.execute('''
             UPDATE products 
-            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, part_category=?, lead_time=?, product_category=?, manufacturer=?
+            SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, part_category=?, lead_time=?, product_category=?, manufacturer=?,
+                applicability=?, shelf_life_cycle=?, eccn=?, part_notes=?
             WHERE id=?
         ''', (
             request.form['code'],
@@ -225,6 +231,10 @@ def edit_product(id):
             int(request.form.get('lead_time', 0) or 0),
             request.form.get('product_category', ''),
             request.form.get('manufacturer', ''),
+            request.form.get('applicability', ''),
+            request.form.get('shelf_life_cycle', ''),
+            request.form.get('eccn', ''),
+            request.form.get('part_notes', ''),
             id
         ))
         

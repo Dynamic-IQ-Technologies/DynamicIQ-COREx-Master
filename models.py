@@ -322,7 +322,11 @@ class Database:
             ('part_category', 'TEXT DEFAULT "Other"'),
             ('lead_time', 'INTEGER DEFAULT 0'),
             ('product_category', 'TEXT'),
-            ('manufacturer', 'TEXT')
+            ('manufacturer', 'TEXT'),
+            ('applicability', 'TEXT'),
+            ('shelf_life_cycle', 'TEXT'),
+            ('eccn', 'TEXT'),
+            ('part_notes', 'TEXT')
         ]
         
         for col_name, col_type in product_new_columns:
