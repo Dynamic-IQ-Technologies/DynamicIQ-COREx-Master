@@ -267,10 +267,9 @@ def revenue_tracker():
     
     ndt_costs = conn.execute(f'''
         SELECT 
-            COALESCE(SUM(nr.labor_hours * COALESCE(lr.hourly_rate, 75)), 0) as labor_cost
-        FROM ndt_results nr
-        JOIN ndt_work_orders nwo ON nr.ndt_work_order_id = nwo.id
-        LEFT JOIN labor_resources lr ON nr.technician_id = lr.id
+            COALESCE(COUNT(DISTINCT nr.id) * 75.0, 0) as labor_cost
+        FROM ndt_inspection_results nr
+        JOIN ndt_work_orders nwo ON nr.ndt_wo_id = nwo.id
         WHERE 1=1 {date_filter_ndt.replace('created_at', 'nwo.created_at')}
     ''', params_ndt).fetchone()
     
