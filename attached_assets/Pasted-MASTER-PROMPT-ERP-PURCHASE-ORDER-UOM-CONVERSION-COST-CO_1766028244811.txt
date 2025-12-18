@@ -1,0 +1,217 @@
+MASTER PROMPT — ERP PURCHASE ORDER UOM CONVERSION & COST CONTROL
+
+ROLE & CONTEXT
+
+You are a Senior ERP Architect and Inventory Costing SME specializing in Aerospace, MRO, and Regulated Manufacturing ERP systems.
+You are updating an existing ERP Purchase Order and Receiving module to support robust Unit of Measure (UOM) conversion logic that guarantees accurate inventory quantities, unit costs, and financial valuation with zero unintended variances.
+
+🔹 OBJECTIVE
+
+Enhance the Purchase Order and Receiving workflow to:
+
+Allow purchasing, receiving, and stocking of materials using different Units of Measure
+
+Automatically convert quantities and costs correctly
+
+Preserve true unit cost, extended cost, and inventory valuation
+
+Prevent artificial price, quantity, or GL variances
+
+🔹 FUNCTIONAL REQUIREMENTS
+1️⃣ UOM MASTER DATA STRUCTURE
+
+Implement a centralized Unit of Measure framework with:
+
+Base (Stocking) UOM per Item (immutable once inventory exists)
+
+Alternate UOMs (Purchasing, Receiving, Handling, Packaging)
+
+Conversion Factors:
+
+Directional (e.g., BOX → EA)
+
+High precision (minimum 6 decimal places)
+
+Effective date control (optional but supported)
+
+Validation preventing circular or conflicting conversions
+
+2️⃣ PURCHASE ORDER LINE LOGIC
+
+Each PO Line must store both:
+
+Ordered Quantity + Ordered UOM
+
+Converted Quantity + Base (Stock) UOM
+
+Unit Price per Ordered UOM
+
+Calculated Unit Price per Base UOM
+
+Extended Cost (must remain invariant)
+
+Formula Requirements:
+
+Base Quantity = Ordered Quantity × Conversion Factor
+Base Unit Cost = PO Line Extended Cost ÷ Base Quantity
+
+
+⚠️ Extended Cost must never change due to UOM conversion.
+
+3️⃣ RECEIVING TRANSACTION LOGIC
+
+Receiving must support:
+
+Receiving in PO UOM or any valid alternate UOM
+
+Partial receipts in mixed UOMs
+
+Automatic normalization to Base UOM for inventory
+
+Receiving validation rules:
+
+Converted received quantity must never exceed open PO quantity (base UOM)
+
+Cumulative received quantity tracked in both:
+
+Transaction UOM
+
+Base UOM (authoritative)
+
+4️⃣ COST PRESERVATION & VARIANCE CONTROL
+
+The system must:
+
+Lock PO extended cost at approval
+
+Allocate cost proportionally during partial receipts
+
+Prevent:
+
+Unit cost drift
+
+Rounding-based GL variances
+
+Phantom PPV (Purchase Price Variance)
+
+Variance logic rules:
+
+UOM conversion must not generate:
+
+PPV
+
+IPV
+
+Inventory revaluation
+
+Variances only allowed from:
+
+Price changes
+
+Quantity discrepancies beyond tolerance
+
+Manual cost overrides (with approval)
+
+5️⃣ INVENTORY POSTING & GL INTEGRATION
+
+On receipt:
+
+Inventory increases only in Base UOM
+
+Inventory valuation uses Base Unit Cost
+
+GL postings must reconcile exactly to PO extended cost
+
+Support perpetual inventory accounting
+
+6️⃣ ROUNDING & PRECISION RULES
+
+Quantities: minimum 6 decimal places
+
+Costs: minimum 6 decimal places internal / 2–4 external
+
+Rounding applied only:
+
+At final GL posting
+
+Never during conversion calculations
+
+7️⃣ USER INTERFACE & CONTROLS
+
+UI must display:
+
+Ordered Qty / UOM
+
+Received Qty / UOM
+
+Converted Base Qty
+
+Base Unit Cost (read-only)
+
+Remaining Open Quantity (Base UOM)
+
+Controls:
+
+Warning when receiving in non-PO UOM
+
+Tooltip explaining applied conversion factor
+
+Hard stop if UOM conversion is undefined
+
+8️⃣ AUDITABILITY & TRACEABILITY
+
+Every transaction must store:
+
+Original UOM
+
+Conversion factor used
+
+Converted quantity
+
+Calculated unit cost
+
+Source document reference
+
+Audit reports must reconcile:
+
+PO Extended Cost = Sum of Receipt Inventory Value
+
+9️⃣ EDGE CASE HANDLING
+
+Include logic for:
+
+Over-receipts (tolerance-based)
+
+Returns to vendor (reverse conversion accurately)
+
+Lot / Serial tracking with converted quantities
+
+Multi-currency PO (conversion applied before currency translation)
+
+🔹 ACCEPTANCE CRITERIA
+
+The implementation is successful when:
+
+Materials can be purchased in BOX, received in CASE, stocked in EA
+
+Inventory valuation remains mathematically exact
+
+No unintended PPV or inventory adjustments are generated
+
+Financial auditors can trace every conversion and cost
+
+🔹 OUTPUT EXPECTATIONS
+
+Deliver:
+
+Updated PO + Receiving business logic
+
+Data model changes (UOM tables, conversion tables)
+
+Validation rules
+
+Posting logic pseudocode
+
+UI behavior updates
+
+Test scenarios validating zero-variance behavior
