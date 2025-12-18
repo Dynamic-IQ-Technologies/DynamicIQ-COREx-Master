@@ -361,7 +361,8 @@ class Database:
             ('applicability', 'TEXT'),
             ('shelf_life_cycle', 'TEXT'),
             ('eccn', 'TEXT'),
-            ('part_notes', 'TEXT')
+            ('part_notes', 'TEXT'),
+            ('is_serialized', 'INTEGER DEFAULT 0')
         ]
         
         for col_name, col_type in product_new_columns:
