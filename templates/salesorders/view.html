@@ -53,8 +53,27 @@
                 </form>
                 {% endif %}
             {% endif %}
+            {% if session.role in ['Admin', 'Planner'] and sales_order.sales_type == 'Exchange' and sales_order.exchange_type == 'Dual Exchange' %}
+                {% if not exchange_pos %}
+                <a href="{{ url_for('salesorder_routes.create_exchange_po', id=sales_order.id) }}" class="btn btn-warning">
+                    <i class="bi bi-arrow-left-right"></i> Create Exchange PO
+                </a>
+                {% endif %}
+            {% endif %}
         </div>
     </div>
+
+    {% if sales_order.sales_type == 'Exchange' and sales_order.exchange_type == 'Dual Exchange' %}
+    <div class="alert alert-primary mb-4">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Dual Exchange Transaction:</strong> This order is part of a dual exchange workflow.
+        {% if exchange_pos %}
+        An Exchange Purchase Order has been created.
+        {% else %}
+        Click "Create Exchange PO" to generate the linked Exchange Fee Purchase Order.
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="row">
         <div class="col-md-6">
@@ -379,6 +398,67 @@
             {% endif %}
         </div>
     </div>
+
+    {% if exchange_pos %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Linked Exchange Purchase Orders</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>PO Number</th>
+                            <th>Supplier</th>
+                            <th>Exchange Owner</th>
+                            <th>Reference ID</th>
+                            <th>Status</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for po in exchange_pos %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="fw-bold text-decoration-none">
+                                    {{ po.po_number }}
+                                </a>
+                            </td>
+                            <td>{{ po.supplier_name }}</td>
+                            <td>
+                                <span class="badge {% if po.exchange_owner_type == 'Customer' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ po.exchange_owner_type }}
+                                </span>
+                                {{ po.owner_name or '-' }}
+                            </td>
+                            <td><code>{{ po.exchange_reference_id }}</code></td>
+                            <td>
+                                {% if po.status == 'Draft' %}
+                                <span class="badge bg-secondary">{{ po.status }}</span>
+                                {% elif po.status == 'Pending' %}
+                                <span class="badge bg-warning">{{ po.status }}</span>
+                                {% elif po.status == 'Received' %}
+                                <span class="badge bg-success">{{ po.status }}</span>
+                                {% else %}
+                                <span class="badge bg-info">{{ po.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold">{{ po.total_amount|currency }}</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row">
         <div class="col-md-6">

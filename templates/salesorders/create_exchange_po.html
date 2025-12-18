@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Create Exchange Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-arrow-left-right"></i> Create Exchange Purchase Order</h2>
+        <a href="{{ url_for('salesorder_routes.view_sales_order', id=sales_order.id) }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Sales Order
+        </a>
+    </div>
+
+    <div class="alert alert-info mb-4">
+        <i class="bi bi-info-circle"></i>
+        <strong>Dual Exchange Transaction:</strong> You are creating an Exchange Fee Purchase Order linked to Sales Order 
+        <strong>{{ sales_order.so_number }}</strong> for customer <strong>{{ sales_order.customer_name }}</strong>.
+    </div>
+
+    <form method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-receipt"></i> Source Sales Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th width="35%">SO Number:</th>
+                                <td><strong>{{ sales_order.so_number }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Customer:</th>
+                                <td>{{ sales_order.customer_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Sales Type:</th>
+                                <td><span class="badge bg-info">{{ sales_order.sales_type }}</span></td>
+                            </tr>
+                            <tr>
+                                <th>Exchange Type:</th>
+                                <td><span class="badge bg-primary">{{ sales_order.exchange_type }}</span></td>
+                            </tr>
+                            <tr>
+                                <th>Order Date:</th>
+                                <td>{{ sales_order.order_date }}</td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td><span class="badge bg-secondary">{{ sales_order.status }}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-person-gear"></i> Exchange Owner Selection</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Select who owns the unit being exchanged:</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Owner Type <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="exchange_owner_type" id="owner_customer" value="Customer" required>
+                                <label class="btn btn-outline-primary" for="owner_customer">
+                                    <i class="bi bi-person"></i> Customer
+                                </label>
+                                <input type="radio" class="btn-check" name="exchange_owner_type" id="owner_supplier" value="Supplier">
+                                <label class="btn btn-outline-primary" for="owner_supplier">
+                                    <i class="bi bi-truck"></i> Supplier
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3" id="customer_select_div" style="display: none;">
+                            <label class="form-label">Select Customer</label>
+                            <select class="form-select" id="customer_owner" name="exchange_owner_id_customer">
+                                <option value="">-- Select Customer --</option>
+                                {% for c in customers %}
+                                <option value="{{ c.id }}" {% if c.id == sales_order.customer_id %}selected{% endif %}>
+                                    {{ c.customer_number }} - {{ c.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3" id="supplier_select_div" style="display: none;">
+                            <label class="form-label">Select Supplier</label>
+                            <select class="form-select" id="supplier_owner" name="exchange_owner_id_supplier">
+                                <option value="">-- Select Supplier --</option>
+                                {% for s in suppliers %}
+                                <option value="{{ s.id }}">{{ s.code }} - {{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <input type="hidden" name="exchange_owner_id" id="exchange_owner_id">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Purchase Order Supplier</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Select Supplier for PO <span class="text-danger">*</span></label>
+                        <select class="form-select" name="supplier_id" required>
+                            <option value="">-- Select Supplier --</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.id }}">{{ s.code }} - {{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">This supplier will receive the Exchange Fee PO</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Exchange Line Items</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Part Number</th>
+                                <th>Description</th>
+                                <th>Serial Number</th>
+                                <th class="text-center">Qty</th>
+                                <th>UOM</th>
+                                <th class="text-end">SO Unit Price</th>
+                                <th class="text-end">Exchange Fee</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in lines %}
+                            <tr>
+                                <td>{{ line.line_number }}</td>
+                                <td><strong>{{ line.product_code }}</strong></td>
+                                <td>{{ line.product_name }}</td>
+                                <td>
+                                    {% if line.serial_number %}
+                                    <span class="badge bg-info"><i class="bi bi-hash"></i> {{ line.serial_number }}</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ line.quantity }}</td>
+                                <td>{{ line.unit_of_measure or 'EA' }}</td>
+                                <td class="text-end">{{ "%.2f"|format(line.unit_price or 0) }}</td>
+                                <td class="text-end" style="width: 150px;">
+                                    <input type="number" class="form-control form-control-sm text-end exchange-fee-input" 
+                                           name="exchange_fee_{{ line.id }}" value="{{ "%.2f"|format(line.unit_price or 0) }}"
+                                           step="0.01" min="0" data-qty="{{ line.quantity }}">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-secondary">
+                                <td colspan="7" class="text-end fw-bold">Total Exchange Fee:</td>
+                                <td class="text-end fw-bold" id="total_exchange_fee">$0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('salesorder_routes.view_sales_order', id=sales_order.id) }}" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-circle"></i> Create Exchange Purchase Order
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ownerCustomer = document.getElementById('owner_customer');
+    const ownerSupplier = document.getElementById('owner_supplier');
+    const customerDiv = document.getElementById('customer_select_div');
+    const supplierDiv = document.getElementById('supplier_select_div');
+    const customerSelect = document.getElementById('customer_owner');
+    const supplierSelect = document.getElementById('supplier_owner');
+    const hiddenOwnerId = document.getElementById('exchange_owner_id');
+    
+    function updateOwnerSelection() {
+        if (ownerCustomer.checked) {
+            customerDiv.style.display = 'block';
+            supplierDiv.style.display = 'none';
+            hiddenOwnerId.value = customerSelect.value;
+        } else if (ownerSupplier.checked) {
+            customerDiv.style.display = 'none';
+            supplierDiv.style.display = 'block';
+            hiddenOwnerId.value = supplierSelect.value;
+        }
+    }
+    
+    ownerCustomer.addEventListener('change', updateOwnerSelection);
+    ownerSupplier.addEventListener('change', updateOwnerSelection);
+    customerSelect.addEventListener('change', function() { hiddenOwnerId.value = this.value; });
+    supplierSelect.addEventListener('change', function() { hiddenOwnerId.value = this.value; });
+    
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('.exchange-fee-input').forEach(input => {
+            const fee = parseFloat(input.value) || 0;
+            const qty = parseFloat(input.dataset.qty) || 1;
+            total += fee * qty;
+        });
+        document.getElementById('total_exchange_fee').textContent = '$' + total.toFixed(2);
+    }
+    
+    document.querySelectorAll('.exchange-fee-input').forEach(input => {
+        input.addEventListener('input', calculateTotal);
+    });
+    
+    calculateTotal();
+});
+</script>
+{% endblock %}

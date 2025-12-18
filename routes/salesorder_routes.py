@@ -146,10 +146,29 @@ def view_sales_order(id):
         ORDER BY payment_date DESC
     ''', ('SalesOrder', id)).fetchall()
     
+    # Get linked Exchange POs (for Dual Exchange orders)
+    exchange_pos = []
+    if sales_order['sales_type'] == 'Exchange' and sales_order['exchange_type'] == 'Dual Exchange':
+        exchange_pos = conn.execute('''
+            SELECT po.*, s.name as supplier_name,
+                   CASE 
+                       WHEN po.exchange_owner_type = 'Customer' THEN c.name
+                       WHEN po.exchange_owner_type = 'Supplier' THEN sup.name
+                   END as owner_name,
+                   (SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) 
+                    FROM purchase_order_lines pol WHERE pol.po_id = po.id) as total_amount
+            FROM purchase_orders po
+            JOIN suppliers s ON po.supplier_id = s.id
+            LEFT JOIN customers c ON po.exchange_owner_type = 'Customer' AND po.exchange_owner_id = c.id
+            LEFT JOIN suppliers sup ON po.exchange_owner_type = 'Supplier' AND po.exchange_owner_id = sup.id
+            WHERE po.source_sales_order_id = ? AND po.is_exchange = 1
+            ORDER BY po.created_at DESC
+        ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('salesorders/view.html', 
-                         sales_order=sales_order, lines=lines, payments=payments)
+                         sales_order=sales_order, lines=lines, payments=payments, exchange_pos=exchange_pos)
 
 @salesorder_bp.route('/sales-orders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
@@ -1368,3 +1387,211 @@ def recalculate_totals(conn, so_id, tax_rate=None):
             subtotal = ?, tax_amount = ?, total_amount = ?, balance_due = ?
         WHERE id = ?
     ''', (subtotal, tax_amount, total_amount, balance_due, so_id))
+
+
+@salesorder_bp.route('/sales-orders/<int:id>/create-exchange-po', methods=['GET', 'POST'])
+@role_required('Admin', 'Planner')
+def create_exchange_po(id):
+    """Create Exchange Fee Purchase Order from Dual Exchange Sales Order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get sales order with exchange type validation
+        sales_order = conn.execute('''
+            SELECT so.*, c.name as customer_name, c.customer_number
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            WHERE so.id = ?
+        ''', (id,)).fetchone()
+        
+        if not sales_order:
+            flash('Sales order not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        # Validate exchange type is Dual Exchange
+        if sales_order['sales_type'] != 'Exchange' or sales_order['exchange_type'] != 'Dual Exchange':
+            flash('Exchange Purchase Orders can only be created for Dual Exchange sales orders', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Check if Exchange PO already exists for this SO
+        existing_po = conn.execute('''
+            SELECT po_number FROM purchase_orders 
+            WHERE source_sales_order_id = ? AND is_exchange = 1
+        ''', (id,)).fetchone()
+        
+        if existing_po:
+            flash(f'An Exchange PO ({existing_po["po_number"]}) already exists for this Sales Order', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Get sales order lines for the exchange
+        lines = conn.execute('''
+            SELECT sol.*, p.code as product_code, p.name as product_name, p.description as product_description
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ?
+            ORDER BY sol.line_number
+        ''', (id,)).fetchall()
+        
+        if not lines:
+            flash('No line items found for this sales order', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        # Get suppliers and customers for owner selection
+        suppliers = conn.execute('SELECT id, code, name FROM suppliers WHERE is_active = 1 ORDER BY name').fetchall()
+        customers = conn.execute('SELECT id, customer_number, name FROM customers WHERE is_active = 1 ORDER BY name').fetchall()
+        
+        if request.method == 'POST':
+            # Validate required fields
+            owner_type = request.form.get('exchange_owner_type')
+            owner_id = request.form.get('exchange_owner_id')
+            supplier_id = request.form.get('supplier_id')
+            
+            if not owner_type or not owner_id:
+                flash('Please select the owner of the exchanged unit', 'danger')
+                return render_template('salesorders/create_exchange_po.html',
+                    sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
+            
+            if not supplier_id:
+                flash('Please select a supplier for the Purchase Order', 'danger')
+                return render_template('salesorders/create_exchange_po.html',
+                    sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
+            
+            # Validate owner exists based on owner_type
+            if owner_type == 'Customer':
+                owner_exists = conn.execute('SELECT id FROM customers WHERE id = ?', (owner_id,)).fetchone()
+            elif owner_type == 'Supplier':
+                owner_exists = conn.execute('SELECT id FROM suppliers WHERE id = ?', (owner_id,)).fetchone()
+            else:
+                owner_exists = None
+            
+            if not owner_exists:
+                flash('Invalid exchange owner selection. Please select a valid customer or supplier.', 'danger')
+                return render_template('salesorders/create_exchange_po.html',
+                    sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
+            
+            # Re-check for existing Exchange PO within transaction to prevent race conditions
+            existing_po_recheck = conn.execute('''
+                SELECT po_number FROM purchase_orders 
+                WHERE source_sales_order_id = ? AND is_exchange = 1
+            ''', (id,)).fetchone()
+            
+            if existing_po_recheck:
+                flash(f'An Exchange PO ({existing_po_recheck["po_number"]}) was already created for this Sales Order', 'warning')
+                conn.close()
+                return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+            
+            # Generate PO number
+            last_po = conn.execute('''
+                SELECT po_number FROM purchase_orders 
+                WHERE po_number LIKE 'PO-%'
+                ORDER BY CAST(SUBSTR(po_number, 4) AS INTEGER) DESC 
+                LIMIT 1
+            ''').fetchone()
+            
+            if last_po:
+                try:
+                    last_number = int(last_po['po_number'].split('-')[1])
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            
+            po_number = f'PO-{next_number:06d}'
+            
+            # Generate unique exchange reference ID
+            import uuid
+            exchange_reference_id = f'EXC-{uuid.uuid4().hex[:8].upper()}'
+            
+            # Create Exchange Fee Purchase Order
+            cursor = conn.execute('''
+                INSERT INTO purchase_orders (
+                    po_number, supplier_id, status, order_date, notes,
+                    po_type, is_exchange, exchange_owner_type, exchange_owner_id,
+                    exchange_reference_id, source_sales_order_id, exchange_status,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (
+                po_number, supplier_id, 'Draft', datetime.now().strftime('%Y-%m-%d'),
+                f'Exchange Fee PO for Sales Order {sales_order["so_number"]}',
+                'Exchange Fee', 1, owner_type, int(owner_id),
+                exchange_reference_id, id, 'Open'
+            ))
+            po_id = cursor.lastrowid
+            
+            # Copy line items from Sales Order to PO
+            for idx, line in enumerate(lines, 1):
+                # Get exchange fee or use unit price as default
+                exchange_fee = float(request.form.get(f'exchange_fee_{line["id"]}', line['unit_price'] or 0))
+                
+                conn.execute('''
+                    INSERT INTO purchase_order_lines (
+                        po_id, line_number, product_id, quantity, unit_price,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (po_id, idx, line['product_id'], line['quantity'], exchange_fee))
+            
+            # Log to audit trail
+            from models import AuditLogger
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='purchase_orders',
+                record_id=po_id,
+                action_type='CREATE',
+                modified_by=session.get('user_id'),
+                changed_fields={
+                    'action': 'Exchange PO Created',
+                    'source_sales_order': sales_order['so_number'],
+                    'exchange_reference_id': exchange_reference_id,
+                    'exchange_owner_type': owner_type,
+                    'po_type': 'Exchange Fee'
+                }
+            )
+            
+            conn.commit()
+            flash(f'Exchange Purchase Order {po_number} created successfully', 'success')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=po_id))
+        
+        conn.close()
+        return render_template('salesorders/create_exchange_po.html',
+            sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
+    
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error creating Exchange PO: {str(e)}', 'danger')
+        return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
+
+@salesorder_bp.route('/api/exchange-owner-details/<owner_type>/<int:owner_id>')
+@login_required
+def get_exchange_owner_details(owner_type, owner_id):
+    """API to get owner details for exchange selection"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        if owner_type == 'Customer':
+            owner = conn.execute('''
+                SELECT id, customer_number as code, name, email, phone
+                FROM customers WHERE id = ?
+            ''', (owner_id,)).fetchone()
+        elif owner_type == 'Supplier':
+            owner = conn.execute('''
+                SELECT id, code, name, email, phone
+                FROM suppliers WHERE id = ?
+            ''', (owner_id,)).fetchone()
+        else:
+            return jsonify({'error': 'Invalid owner type'}), 400
+        
+        if owner:
+            return jsonify(dict(owner))
+        return jsonify({'error': 'Owner not found'}), 404
+    finally:
+        conn.close()

@@ -3169,6 +3169,25 @@ class Database:
         # Add po_type column if it doesn't exist (to distinguish service/misc POs)
         if 'po_type' not in existing_columns:
             cursor.execute("ALTER TABLE purchase_orders ADD COLUMN po_type TEXT DEFAULT 'Material'")
+        
+        # Exchange PO fields for Dual Exchange workflow
+        if 'is_exchange' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN is_exchange INTEGER DEFAULT 0")
+        
+        if 'exchange_owner_type' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN exchange_owner_type TEXT")
+        
+        if 'exchange_owner_id' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN exchange_owner_id INTEGER")
+        
+        if 'exchange_reference_id' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN exchange_reference_id TEXT")
+        
+        if 'source_sales_order_id' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN source_sales_order_id INTEGER REFERENCES sales_orders(id)")
+        
+        if 'exchange_status' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN exchange_status TEXT")
     
     def _migrate_work_orders_stages(self, cursor):
         """Add stage_id column to work_orders table for tracking work order stages"""

@@ -1,0 +1,159 @@
+ERP SYSTEM UPDATE PROMPT
+
+Module: Sales Order → Purchase Order (Dual Exchange Flow)
+
+Role
+
+You are a Senior ERP Systems Architect and Full-Stack Engineer specializing in order management, exchange workflows, and accounting logic.
+
+Your task is to update an existing ERP application to support a Dual Exchange process that automatically creates a Purchase Order Exchange directly from a Sales Order.
+
+Business Requirement Overview
+
+When a Sales Order has an Exchange Type = "Dual Exchange", the system must:
+
+Allow the user to generate a Purchase Order Exchange directly from the Sales Order
+
+Allow selection of the customer or supplier who owns the exchanged unit
+
+Treat the generated Purchase Order as an Exchange Fee transaction
+
+Ensure the Purchase Order tracks and retains full part traceability
+
+Functional Requirements
+1. Sales Order Enhancements
+
+Add or validate field:
+
+exchange_type (Enum)
+
+Values: None, Single Exchange, Dual Exchange
+
+If exchange_type = "Dual Exchange":
+
+Display action button:
+“Create Purchase Order Exchange”
+
+2. Purchase Order Exchange Creation Logic
+
+When the user selects Create Purchase Order Exchange:
+
+Automatically generate a Purchase Order with:
+
+po_type = "Exchange Fee"
+
+source_sales_order_id (linked reference)
+
+exchange_reference_id (unique exchange identifier)
+
+Prompt user to select:
+
+Owner of the exchanged unit
+
+Customer
+
+Supplier
+
+3. Exchange Purchase Order Data Mapping
+
+The Purchase Order must inherit and lock the following information from the Sales Order line item(s):
+
+Field	Requirement
+Part Number	Required
+Part Description	Required
+Serial Number	Required
+Quantity	Required
+Unit of Measure	Required
+Exchange Type	Dual Exchange
+Source Sales Order	Mandatory link
+Exchange Owner	Customer / Supplier
+Exchange Status	Open / In Progress / Completed
+4. Accounting & Classification Rules
+
+The Purchase Order:
+
+Must be classified as an Exchange Fee
+
+Must NOT affect standard inventory receiving
+
+Must be posted to a dedicated Exchange Clearing / Fee Account
+
+The transaction must remain auditable and traceable
+
+5. Traceability & Compliance
+
+Ensure:
+
+One-to-one relationship between Sales Order ↔ Exchange PO
+
+Full audit log of:
+
+Who created the exchange
+
+When it was created
+
+Source Sales Order
+
+Exchange PO must be non-editable for part identity fields once created
+
+6. UI / UX Requirements
+
+Sales Order View:
+
+Show Exchange Type clearly
+
+Show linked Exchange Purchase Order(s)
+
+Purchase Order View:
+
+Display banner:
+“Exchange Fee – Dual Exchange Transaction”
+
+Display originating Sales Order reference
+
+7. Data Model Updates (If Needed)
+
+Add or validate:
+
+SalesOrder.exchange_type
+PurchaseOrder.po_type
+PurchaseOrder.exchange_owner_type
+PurchaseOrder.exchange_reference_id
+PurchaseOrder.source_sales_order_id
+PurchaseOrder.is_exchange (boolean)
+
+8. Validation Rules
+
+Prevent creation of Exchange PO if:
+
+Exchange Type ≠ Dual Exchange
+
+Required part details are missing
+
+Prevent duplicate Exchange PO for the same Sales Order line
+
+9. Deliverables
+
+Updated backend logic
+
+Updated database schema (if required)
+
+UI workflow changes
+
+Validation and error handling
+
+Inline comments explaining exchange logic
+
+Quality Standard
+
+This implementation must be:
+
+ERP-grade
+
+Audit-ready
+
+Scalable
+
+Safe for financial posting
+
+Aligned with real-world aviation / parts exchange workflows

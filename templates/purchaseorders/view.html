@@ -3,6 +3,32 @@
 {% block title %}Purchase Order {{ po.po_number }} - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
+{% if po.is_exchange %}
+<div class="alert alert-warning border-2 mb-4" style="border-left: 5px solid #f59e0b !important;">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-arrow-left-right me-2"></i>Exchange Fee - Dual Exchange Transaction</h4>
+            <p class="mb-0">
+                This purchase order is an Exchange Fee linked to Sales Order 
+                {% if source_sales_order %}
+                <a href="{{ url_for('salesorder_routes.view_sales_order', id=source_sales_order.id) }}" class="fw-bold">
+                    {{ source_sales_order.so_number }}
+                </a> ({{ source_sales_order.customer_name }})
+                {% else %}
+                <span class="text-muted">N/A</span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-warning text-dark fs-6">{{ po.po_type or 'Exchange Fee' }}</span>
+            {% if po.exchange_reference_id %}
+            <br><small class="text-muted">Ref: <code>{{ po.exchange_reference_id }}</code></small>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Purchase Order {{ po.po_number }}</h2>
     <div>
@@ -102,6 +128,104 @@
         </div>
     </div>
 </div>
+
+{% if po.is_exchange %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-person-gear"></i> Exchange Owner Information</h5>
+            </div>
+            <div class="card-body">
+                {% if exchange_owner %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Owner Type:</strong></div>
+                            <div class="col-7">
+                                <span class="badge {% if po.exchange_owner_type == 'Customer' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ po.exchange_owner_type }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Code:</strong></div>
+                            <div class="col-7">{{ exchange_owner.code }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Name:</strong></div>
+                            <div class="col-7"><strong>{{ exchange_owner.name }}</strong></div>
+                        </div>
+                        {% if exchange_owner.email %}
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Email:</strong></div>
+                            <div class="col-7"><a href="mailto:{{ exchange_owner.email }}">{{ exchange_owner.email }}</a></div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        {% if exchange_owner.phone %}
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Phone:</strong></div>
+                            <div class="col-7">{{ exchange_owner.phone }}</div>
+                        </div>
+                        {% endif %}
+                        {% if po.exchange_status %}
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Exchange Status:</strong></div>
+                            <div class="col-7">
+                                {% if po.exchange_status == 'Completed' %}
+                                <span class="badge bg-success">{{ po.exchange_status }}</span>
+                                {% elif po.exchange_status == 'In Progress' %}
+                                <span class="badge bg-primary">{{ po.exchange_status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ po.exchange_status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Owner Type:</strong></div>
+                            <div class="col-7">
+                                <span class="badge {% if po.exchange_owner_type == 'Customer' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ po.exchange_owner_type or 'Not Set' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        {% if po.exchange_status %}
+                        <div class="row mb-2">
+                            <div class="col-5"><strong>Exchange Status:</strong></div>
+                            <div class="col-7">
+                                {% if po.exchange_status == 'Completed' %}
+                                <span class="badge bg-success">{{ po.exchange_status }}</span>
+                                {% elif po.exchange_status == 'In Progress' %}
+                                <span class="badge bg-primary">{{ po.exchange_status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ po.exchange_status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <p class="text-muted mb-0"><i class="bi bi-info-circle"></i> Owner details not available</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="card mb-4">
     <div class="card-header">

@@ -87,6 +87,17 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
     - Audit trail tracking all actions (capture, AI extraction, manual edits, conversion)
     - Key tables: `part_intake_records`, `part_intake_extracted_data`, `part_intake_supplier_xref`, `part_intake_audit`
     - Routes module: `routes/part_intake_routes.py`
+-   **Dual Exchange Workflow**: Sales Order to Purchase Order exchange automation for aviation parts exchange programs. Features include:
+    - Sales Orders with Exchange Type = "Dual Exchange" can generate linked Exchange Fee Purchase Orders
+    - Exchange owner selection (Customer or Supplier) with validation
+    - Unique exchange reference ID generation for traceability
+    - One-to-one relationship enforcement (prevents duplicate Exchange POs per Sales Order)
+    - Exchange Fee banner on PO view with source Sales Order reference
+    - Exchange Owner Information section on PO view
+    - Linked Exchange POs table on Sales Order view
+    - Audit trail logging for Exchange PO creation
+    - Database fields: `purchase_orders.is_exchange`, `exchange_owner_type`, `exchange_owner_id`, `exchange_reference_id`, `source_sales_order_id`, `exchange_status`
+    - Routes: `salesorder_routes.create_exchange_po`, `salesorder_routes.get_exchange_owner_details`
 
 ## External Dependencies
 

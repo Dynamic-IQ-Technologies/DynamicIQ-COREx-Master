@@ -295,13 +295,37 @@ def view_purchaseorder(id):
         ORDER BY vi.created_at DESC
     ''', (id,)).fetchall()
     
+    # Get source sales order for Exchange POs
+    source_sales_order = None
+    exchange_owner = None
+    if po['is_exchange'] and po['source_sales_order_id']:
+        source_sales_order = conn.execute('''
+            SELECT so.*, c.name as customer_name, c.customer_number
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            WHERE so.id = ?
+        ''', (po['source_sales_order_id'],)).fetchone()
+        
+        # Get exchange owner details
+        if po['exchange_owner_type'] == 'Customer':
+            exchange_owner = conn.execute('''
+                SELECT id, customer_number as code, name, email, phone
+                FROM customers WHERE id = ?
+            ''', (po['exchange_owner_id'],)).fetchone()
+        elif po['exchange_owner_type'] == 'Supplier':
+            exchange_owner = conn.execute('''
+                SELECT id, code, name, email, phone
+                FROM suppliers WHERE id = ?
+            ''', (po['exchange_owner_id'],)).fetchone()
+    
     conn.close()
     
     # Get current date for overdue badge
     from datetime import date
     today = date.today().strftime('%Y-%m-%d')
     
-    return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records, today=today)
+    return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records, 
+                          today=today, source_sales_order=source_sales_order, exchange_owner=exchange_owner)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
