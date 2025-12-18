@@ -119,7 +119,7 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">Inventory Record Details</h5>
     </div>
@@ -132,6 +132,201 @@
             <div class="col-md-6">
                 <p><strong>Created:</strong> {{ inventory.created_at or 'N/A' }}</p>
                 <p><strong>Last Updated:</strong> {{ inventory.last_updated or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Associated Transactions</h5>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs" id="transactionTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="receiving-tab" data-bs-toggle="tab" data-bs-target="#receiving" type="button">
+                    <i class="bi bi-inbox-fill me-1"></i> Receiving ({{ receiving_history|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button">
+                    <i class="bi bi-box-arrow-right me-1"></i> Material Issues ({{ material_issues|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns" type="button">
+                    <i class="bi bi-box-arrow-in-left me-1"></i> Material Returns ({{ material_returns|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="allocations-tab" data-bs-toggle="tab" data-bs-target="#allocations" type="button">
+                    <i class="bi bi-cart-check me-1"></i> Sales Allocations ({{ sales_allocations|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="adjustments-tab" data-bs-toggle="tab" data-bs-target="#adjustments" type="button">
+                    <i class="bi bi-arrow-left-right me-1"></i> Adjustments ({{ adjustments|length }})
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content pt-3" id="transactionTabContent">
+            <div class="tab-pane fade show active" id="receiving" role="tabpanel">
+                {% if receiving_history %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Receipt #</th>
+                                <th>PO Number</th>
+                                <th>Supplier</th>
+                                <th>Qty Received</th>
+                                <th>Date</th>
+                                <th>Condition</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in receiving_history %}
+                            <tr>
+                                <td><span class="badge bg-info">{{ item.receipt_number }}</span></td>
+                                <td><a href="{{ url_for('po_routes.view_purchaseorder', id=item.po_id) }}">{{ item.po_number }}</a></td>
+                                <td>{{ item.supplier_name or '-' }}</td>
+                                <td>{{ item.quantity_received }}</td>
+                                <td>{{ item.receipt_date }}</td>
+                                <td><span class="badge bg-secondary">{{ item.condition or 'New' }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No receiving history found for this product.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="issues" role="tabpanel">
+                {% if material_issues %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Issue #</th>
+                                <th>Work Order</th>
+                                <th>Qty Issued</th>
+                                <th>Date</th>
+                                <th>Location</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in material_issues %}
+                            <tr>
+                                <td><span class="badge bg-warning text-dark">{{ item.issue_number }}</span></td>
+                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=item.work_order_id) }}">{{ item.wo_number }}</a></td>
+                                <td>{{ item.quantity_issued }}</td>
+                                <td>{{ item.issue_date }}</td>
+                                <td>{{ item.warehouse_location or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No material issues found for this product.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="returns" role="tabpanel">
+                {% if material_returns %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Return #</th>
+                                <th>Work Order</th>
+                                <th>Qty Returned</th>
+                                <th>Date</th>
+                                <th>Condition</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in material_returns %}
+                            <tr>
+                                <td><span class="badge bg-success">{{ item.return_number }}</span></td>
+                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=item.work_order_id) }}">{{ item.wo_number }}</a></td>
+                                <td>{{ item.quantity_returned }}</td>
+                                <td>{{ item.return_date }}</td>
+                                <td><span class="badge bg-secondary">{{ item.condition or 'Serviceable' }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No material returns found for this product.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="allocations" role="tabpanel">
+                {% if sales_allocations %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>SO Number</th>
+                                <th>Customer</th>
+                                <th>Qty Ordered</th>
+                                <th>Qty Allocated</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in sales_allocations %}
+                            <tr>
+                                <td><a href="{{ url_for('salesorder_routes.view_sales_order', id=item.so_id) }}">{{ item.so_number }}</a></td>
+                                <td>{{ item.customer_name or '-' }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.allocated_quantity }}</td>
+                                <td><span class="badge bg-info">{{ item.allocation_status or 'Allocated' }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No sales allocations found for this product.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="adjustments" role="tabpanel">
+                {% if adjustments %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Adjustment #</th>
+                                <th>Type</th>
+                                <th>Before</th>
+                                <th>Adjusted</th>
+                                <th>After</th>
+                                <th>Date</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in adjustments %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ item.adjustment_number }}</span></td>
+                                <td>{{ item.adjustment_type or '-' }}</td>
+                                <td>{{ item.quantity_before }}</td>
+                                <td class="{% if item.quantity_adjusted > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if item.quantity_adjusted > 0 %}+{% endif %}{{ item.quantity_adjusted }}
+                                </td>
+                                <td>{{ item.quantity_after }}</td>
+                                <td>{{ item.adjustment_date }}</td>
+                                <td>{{ item.reason or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No adjustments found for this product.</p>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -78,13 +78,74 @@ def view_inventory(id):
         WHERE i.id = ?
     ''', (id,)).fetchone()
     
-    conn.close()
-    
     if not inventory:
+        conn.close()
         flash('Inventory record not found', 'danger')
         return redirect(url_for('inventory_routes.list_inventory'))
     
-    return render_template('inventory/view.html', inventory=inventory)
+    product_id = inventory['product_id']
+    
+    # Get related Purchase Orders (receiving transactions)
+    receiving_history = conn.execute('''
+        SELECT rt.*, po.po_number, s.name as supplier_name
+        FROM receiving_transactions rt
+        JOIN purchase_orders po ON rt.po_id = po.id
+        LEFT JOIN suppliers s ON po.supplier_id = s.id
+        WHERE rt.product_id = ?
+        ORDER BY rt.receipt_date DESC
+        LIMIT 10
+    ''', (product_id,)).fetchall()
+    
+    # Get related Work Orders (material issues)
+    material_issues = conn.execute('''
+        SELECT mi.*, wo.wo_number
+        FROM material_issues mi
+        JOIN work_orders wo ON mi.work_order_id = wo.id
+        WHERE mi.product_id = ?
+        ORDER BY mi.issue_date DESC
+        LIMIT 10
+    ''', (product_id,)).fetchall()
+    
+    # Get related Work Orders (material returns)
+    material_returns = conn.execute('''
+        SELECT mr.*, wo.wo_number
+        FROM material_returns mr
+        JOIN work_orders wo ON mr.work_order_id = wo.id
+        WHERE mr.product_id = ?
+        ORDER BY mr.return_date DESC
+        LIMIT 10
+    ''', (product_id,)).fetchall()
+    
+    # Get related Sales Order allocations
+    sales_allocations = conn.execute('''
+        SELECT sol.*, so.so_number, c.name as customer_name
+        FROM sales_order_lines sol
+        JOIN sales_orders so ON sol.so_id = so.id
+        LEFT JOIN customers c ON so.customer_id = c.id
+        WHERE sol.product_id = ? AND sol.allocated_quantity > 0
+        ORDER BY so.order_date DESC
+        LIMIT 10
+    ''', (product_id,)).fetchall()
+    
+    # Get inventory adjustments
+    adjustments = conn.execute('''
+        SELECT ia.*, u.username as adjusted_by_name
+        FROM inventory_adjustments ia
+        LEFT JOIN users u ON ia.adjusted_by = u.id
+        WHERE ia.product_id = ?
+        ORDER BY ia.adjustment_date DESC
+        LIMIT 10
+    ''', (product_id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('inventory/view.html', 
+                          inventory=inventory,
+                          receiving_history=receiving_history,
+                          material_issues=material_issues,
+                          material_returns=material_returns,
+                          sales_allocations=sales_allocations,
+                          adjustments=adjustments)
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
