@@ -606,14 +606,25 @@ Return ONLY valid JSON, no markdown formatting."""
         
         for json_key, db_field in field_mapping.items():
             if json_key in extracted_data and extracted_data[json_key]:
-                update_fields.append(f'{db_field} = ?')
                 value = extracted_data[json_key]
-                if json_key in ['packaging_quantity', 'sourcing_price']:
+                if json_key == 'packaging_quantity':
                     try:
                         value = float(value)
                     except:
                         value = 1.0
-                update_values.append(value)
+                    update_fields.append(f'{db_field} = ?')
+                    update_values.append(value)
+                elif json_key == 'sourcing_price':
+                    try:
+                        clean_val = str(value).replace('$', '').replace(',', '').strip()
+                        value = float(clean_val)
+                        update_fields.append(f'{db_field} = ?')
+                        update_values.append(value)
+                    except:
+                        pass
+                else:
+                    update_fields.append(f'{db_field} = ?')
+                    update_values.append(value)
         
         if 'technical_attributes' in extracted_data:
             update_fields.append('technical_attributes = ?')
