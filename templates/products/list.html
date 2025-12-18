@@ -131,8 +131,8 @@
                             {% if session.role in ['Admin', 'Planner'] %}
                             <a href="{{ url_for('product_routes.edit_product', id=product.id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
                             {% if session.role == 'Admin' %}
-                            <form method="POST" action="{{ url_for('product_routes.delete_product', id=product.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')"><i class="bi bi-trash"></i></button>
+                            <form method="POST" action="{{ url_for('product_routes.delete_product', id=product.id) }}" style="display:inline;" id="deleteProductForm{{ product.id }}">
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDeleteProduct({{ product.id }}, '{{ product.code }}')"><i class="bi bi-trash"></i></button>
                             </form>
                             {% endif %}
                             {% endif %}
@@ -257,5 +257,17 @@ document.addEventListener('DOMContentLoaded', function() {
         TableUtils.initSortable('#productsTable');
     }
 });
+
+async function confirmDeleteProduct(productId, productCode) {
+    const confirmed = await showConfirm(`Are you sure you want to delete product "${productCode}"?`, {
+        title: 'Delete Product',
+        type: 'danger',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+    if (confirmed) {
+        document.getElementById('deleteProductForm' + productId).submit();
+    }
+}
 </script>
 {% endblock %}

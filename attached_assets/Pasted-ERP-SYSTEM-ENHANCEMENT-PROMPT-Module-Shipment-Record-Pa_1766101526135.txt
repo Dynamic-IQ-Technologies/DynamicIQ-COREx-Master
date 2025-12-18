@@ -1,0 +1,241 @@
+ERP SYSTEM ENHANCEMENT PROMPT
+
+Module: Shipment Record Page → Packing Slip, C of C, Commercial Shipping Package
+
+Role
+
+You are a Senior ERP Architect and Logistics Systems Engineer specializing in shipping, export documentation, and compliance-ready ERP workflows.
+
+Your task is to enhance the Shipment Record Page so users can properly generate and manage shipping documents directly from the shipment record, including:
+
+Packing Slip
+
+Certificate of Conformance (C of C)
+
+Commercial Shipping Package
+
+Business Objective
+
+Enable shipping teams to:
+
+Generate all required shipping documents from a single shipment record
+
+Ensure documents are accurate, compliant, and traceable
+
+Maintain professional, customer-ready documentation aligned with ERP best practices
+
+Functional Requirements
+1. Shipment Record Page Enhancements
+
+Add a Documents & Shipping Actions section on the Shipment Record Page with buttons:
+
+Generate Packing Slip
+
+Generate Certificate of Conformance (C of C)
+
+Generate Commercial Shipping Package
+
+Each document must be generated directly from shipment data.
+
+2. Packing Slip Creation
+
+The Packing Slip must automatically pull from the shipment record:
+
+Packing Slip Content
+
+Company Header & Logo
+
+Packing Slip Number (system-generated)
+
+Shipment Number
+
+Sales Order Reference
+
+Customer Name & Ship-To Address
+
+Ship Date
+
+Carrier & Tracking Number
+
+Line Item Details
+
+Part Number
+
+Description
+
+Serial Number / Lot Number (if applicable)
+
+Quantity Shipped
+
+Unit of Measure
+
+Box / Package Reference (if applicable)
+
+Packing Slip must be:
+
+Editable before finalization
+
+Locked after shipment is marked Shipped
+
+3. Certificate of Conformance (C of C) Creation
+
+The system must generate a C of C document using shipment and quality data.
+
+C of C Content
+
+Certificate Title: Certificate of Conformance
+
+Company Information
+
+Shipment Number
+
+Sales Order Number
+
+Customer Name
+
+Statement of Conformance (configurable template text)
+
+Part Numbers & Descriptions
+
+Serial / Lot Numbers
+
+Quantity Shipped
+
+Compliance Standards / Specifications
+
+Authorized Signatory
+
+Date Issued
+
+C of C must:
+
+Be linked to shipment and sales order
+
+Support electronic signature
+
+Be version-controlled and audit-logged
+
+4. Commercial Shipping Package
+
+Generate a Commercial Shipping Package that consolidates required documents for domestic or international shipments.
+
+Package Contents
+
+Packing Slip (PDF)
+
+Certificate of Conformance (PDF)
+
+Commercial Invoice (if applicable)
+
+Export / Compliance Documents (optional)
+
+Commercial Invoice Content (if enabled)
+
+Seller & Buyer Information
+
+Invoice Number
+
+HS Code
+
+Country of Origin
+
+Unit Price & Total Value
+
+Incoterms
+
+Currency
+
+5. Document Management & Storage
+
+All generated documents must:
+
+Be stored under the Shipment Record
+
+Be downloadable as PDF
+
+Display generation status (Draft / Final)
+
+Allow regeneration until shipment is finalized
+
+Maintain previous versions for audit purposes
+
+6. Validation & Control Rules
+
+Prevent document generation if:
+
+Shipment has no line items
+
+Required shipping fields are missing
+
+Prevent document edits after shipment is marked Completed
+
+Ensure document data matches shipment quantities exactly
+
+7. UI / UX Requirements
+
+Clean, professional document action panel
+
+Status indicators:
+
+Packing Slip: Draft / Final
+
+C of C: Signed / Unsigned
+
+One-click document generation
+
+Preview before finalizing
+
+8. Data Model Enhancements
+
+Add or validate:
+
+Shipment.id
+Shipment.status
+Shipment.carrier
+Shipment.tracking_number
+
+ShipmentDocument.id
+ShipmentDocument.shipment_id
+ShipmentDocument.document_type
+ShipmentDocument.version
+ShipmentDocument.status
+ShipmentDocument.file_url
+ShipmentDocument.generated_at
+
+9. Audit & Compliance
+
+Log:
+
+Who generated each document
+
+Date and time
+
+Document version history
+
+Ensure documents are immutable after finalization
+
+10. Deliverables
+
+Shipment page UI enhancements
+
+Document generation logic
+
+PDF templates (Packing Slip, C of C, Commercial Package)
+
+Backend validation and audit logging
+
+Clean, maintainable code with comments
+
+Quality Standards
+
+This solution must be:
+
+ERP-grade
+
+Shipping & compliance ready
+
+Customer-facing professional
+
+Audit-ready
+
+Scalable

@@ -387,8 +387,8 @@
                                         <i class="bi bi-pencil"></i> Edit Requirement
                                     </a></li>
                                     <li>
-                                        <form method="POST" action="{{ url_for('workorder_routes.delete_material_requirement', wo_id=workorder.id, req_id=req.id) }}" style="display:inline;" onsubmit="return confirm('Delete this material requirement?')">
-                                            <button type="submit" class="dropdown-item text-danger">
+                                        <form method="POST" action="{{ url_for('workorder_routes.delete_material_requirement', wo_id=workorder.id, req_id=req.id) }}" style="display:inline;" id="deleteMaterialForm{{ req.id }}">
+                                            <button type="button" class="dropdown-item text-danger" onclick="confirmDeleteMaterial({{ req.id }})">
                                                 <i class="bi bi-trash"></i> Delete
                                             </button>
                                         </form>
@@ -744,4 +744,18 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 {% endif %}
+
+<script>
+async function confirmDeleteMaterial(reqId) {
+    const confirmed = await showConfirm('Delete this material requirement?', {
+        title: 'Delete Material',
+        type: 'warning',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+    if (confirmed) {
+        document.getElementById('deleteMaterialForm' + reqId).submit();
+    }
+}
+</script>
 {% endblock %}

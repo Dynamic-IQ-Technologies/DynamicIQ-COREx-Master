@@ -49,15 +49,15 @@
         </button>
         {% endif %}
         {% if session.role in ['Admin', 'Procurement'] and po.status not in ['Received', 'Cancelled'] %}
-        <form method="POST" action="{{ url_for('po_routes.cancel_purchaseorder', id=po.id) }}" class="d-inline">
-            <button type="submit" class="btn btn-outline-danger me-2" onclick="return confirm('Are you sure you want to cancel this purchase order?')">
+        <form method="POST" action="{{ url_for('po_routes.cancel_purchaseorder', id=po.id) }}" class="d-inline" id="cancelPoForm">
+            <button type="button" class="btn btn-outline-danger me-2" onclick="confirmCancelPO()">
                 <i class="bi bi-x-circle"></i> Cancel
             </button>
         </form>
         {% endif %}
         {% if session.role == 'Admin' and po.status not in ['Received'] %}
-        <form method="POST" action="{{ url_for('po_routes.delete_purchaseorder', id=po.id) }}" class="d-inline">
-            <button type="submit" class="btn btn-danger me-2" onclick="return confirm('Are you sure you want to permanently delete this purchase order? This action cannot be undone.')">
+        <form method="POST" action="{{ url_for('po_routes.delete_purchaseorder', id=po.id) }}" class="d-inline" id="deletePoForm">
+            <button type="button" class="btn btn-danger me-2" onclick="confirmDeletePO()">
                 <i class="bi bi-trash"></i> Delete
             </button>
         </form>
@@ -519,5 +519,31 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+async function confirmCancelPO() {
+    const confirmed = await showConfirm('Are you sure you want to cancel this purchase order?', {
+        title: 'Cancel Purchase Order',
+        type: 'warning',
+        confirmText: 'Cancel PO',
+        cancelText: 'Keep It'
+    });
+    if (confirmed) {
+        document.getElementById('cancelPoForm').submit();
+    }
+}
+
+async function confirmDeletePO() {
+    const confirmed = await showConfirm('Are you sure you want to permanently delete this purchase order? This action cannot be undone.', {
+        title: 'Delete Purchase Order',
+        type: 'danger',
+        confirmText: 'Delete',
+        cancelText: 'Keep It'
+    });
+    if (confirmed) {
+        document.getElementById('deletePoForm').submit();
+    }
+}
+</script>
 
 {% endblock %}

@@ -20,8 +20,8 @@
                     </button>
                 </form>
                 {% elif sales_order.status == 'Confirmed' %}
-                <form method="POST" action="{{ url_for('salesorder_routes.release_to_shipping', id=sales_order.id) }}" style="display: inline;">
-                    <button type="submit" class="btn btn-primary" onclick="return confirm('Release this order to shipping? This will create a pending shipment for warehouse processing.')">
+                <form method="POST" action="{{ url_for('salesorder_routes.release_to_shipping', id=sales_order.id) }}" style="display: inline;" id="releaseToShippingForm">
+                    <button type="button" class="btn btn-primary" onclick="confirmReleaseToShipping()">
                         <i class="bi bi-box-seam"></i> Release to Shipping
                     </button>
                 </form>
@@ -46,8 +46,8 @@
             {% endif %}
             {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
                 {% if sales_order.status in ['Invoiced', 'Completed'] %}
-                <form method="POST" action="{{ url_for('salesorder_routes.close_order', id=sales_order.id) }}" style="display: inline;">
-                    <button type="submit" class="btn btn-dark" onclick="return confirm('Close this order? This action finalizes the order.')">
+                <form method="POST" action="{{ url_for('salesorder_routes.close_order', id=sales_order.id) }}" style="display: inline;" id="closeOrderForm">
+                    <button type="button" class="btn btn-dark" onclick="confirmCloseOrder()">
                         <i class="bi bi-lock"></i> Close Order
                     </button>
                 </form>
@@ -727,7 +727,7 @@ function selectInventoryRow(inventoryId, availableQty, serialNumber, rowElement)
 function submitAllocation() {
     const inventoryId = document.getElementById('selectedInventoryId').value;
     if (!inventoryId) {
-        alert('Please select inventory to allocate.');
+        showAlert('Please select inventory to allocate.', {type: 'warning', title: 'Selection Required'});
         return;
     }
     
@@ -738,6 +738,30 @@ function submitAllocation() {
     }
     
     document.getElementById('allocationForm').submit();
+}
+
+async function confirmReleaseToShipping() {
+    const confirmed = await showConfirm('Release this order to shipping? This will create a pending shipment for warehouse processing.', {
+        title: 'Release to Shipping',
+        type: 'info',
+        confirmText: 'Release',
+        cancelText: 'Cancel'
+    });
+    if (confirmed) {
+        document.getElementById('releaseToShippingForm').submit();
+    }
+}
+
+async function confirmCloseOrder() {
+    const confirmed = await showConfirm('Close this order? This action finalizes the order and cannot be undone.', {
+        title: 'Close Order',
+        type: 'warning',
+        confirmText: 'Close Order',
+        cancelText: 'Cancel'
+    });
+    if (confirmed) {
+        document.getElementById('closeOrderForm').submit();
+    }
 }
 </script>
 

@@ -12,6 +12,15 @@ Preferred communication style: Simple, everyday language.
 
 The system features a professional, elegant user interface built on Bootstrap 5, Bootstrap Icons, and custom CSS design tokens. It utilizes the Inter font family and a refined slate-based color palette for a cohesive executive look. Key UI elements include an Executive Dashboard with KPI cards, Chart.js visualizations, and responsive grid layouts.
 
+**Professional Notification System (December 2025):**
+-   Custom confirmation modals replace browser default `confirm()` dialogs
+-   Custom alert modals replace browser default `alert()` dialogs
+-   Elegant dark blue gradient header with icon indicators
+-   Type-specific styling: info, warning, danger, success, question
+-   Global functions available: `showConfirm(message, options)` and `showAlert(message, options)`
+-   Options include: title, type, confirmText, cancelText
+-   Toast notifications for success/error feedback with `showToast(message, type, title)`
+
 ### Technical Implementations
 
 The backend is developed with Flask, using Blueprints and an SQLite database. It implements session-based authentication and comprehensive role-based access control. The `MRPEngine` handles core MRP logic. An Audit Trail System logs CUD operations. The frontend uses Jinja2 for templating.

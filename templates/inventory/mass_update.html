@@ -127,17 +127,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
         const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
         if (checkedCount === 0) {
-            e.preventDefault();
-            alert('Please select at least one item to update.');
+            showAlert('Please select at least one item to update.', {type: 'warning', title: 'Selection Required'});
             return false;
         }
         
-        if (!confirm(`Are you sure you want to update ${checkedCount} inventory item(s)?`)) {
-            e.preventDefault();
-            return false;
+        const confirmed = await showConfirm(`Are you sure you want to update ${checkedCount} inventory item(s)?`, {
+            title: 'Confirm Mass Update',
+            type: 'warning',
+            confirmText: 'Update Items',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
+            form.submit();
         }
     });
 });
