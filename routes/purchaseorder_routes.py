@@ -225,7 +225,7 @@ def create_purchaseorder():
     
     suppliers = conn.execute('SELECT * FROM suppliers ORDER BY code').fetchall()
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
-    uoms = conn.execute('SELECT * FROM uom_master WHERE is_active = 1 ORDER BY uom_code').fetchall()
+    uoms = conn.execute("SELECT id, uom_code, uom_name, uom_type FROM unit_of_measure WHERE status = 'Active' ORDER BY uom_code").fetchall()
     
     # Convert Row objects to dictionaries for JSON serialization
     products_list = [dict(p) for p in products]
@@ -546,7 +546,7 @@ def edit_purchaseorder(id):
     
     suppliers = conn.execute('SELECT * FROM suppliers ORDER BY code').fetchall()
     products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
-    uoms = conn.execute('SELECT * FROM uom_master WHERE is_active = 1 ORDER BY uom_code').fetchall()
+    uoms = conn.execute("SELECT id, uom_code, uom_name, uom_type FROM unit_of_measure WHERE status = 'Active' ORDER BY uom_code").fetchall()
     
     # Convert Row objects to dictionaries for JSON serialization
     products_list = [dict(p) for p in products]

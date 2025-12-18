@@ -516,6 +516,7 @@ def extract_with_ai(id):
         from openai import OpenAI
         client = OpenAI(
             api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
         )
         
         source_content = intake['raw_content'] or intake['source_url'] or ''
