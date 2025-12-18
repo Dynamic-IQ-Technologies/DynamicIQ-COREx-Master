@@ -306,13 +306,16 @@ function checkDuplicates() {
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            alert('Error: ' + data.error);
+            showToast(data.error, 'error', 'Duplicate Check Failed');
         } else {
-            alert(`Found ${data.match_count} potential matches. Match type: ${data.match_type}`);
-            location.reload();
+            const matchMsg = data.match_count > 0 
+                ? `Found ${data.match_count} potential match${data.match_count > 1 ? 'es' : ''}. Match type: ${data.match_type}`
+                : 'No duplicate matches found. This part appears to be unique.';
+            showToast(matchMsg, data.match_count > 0 ? 'warning' : 'success', 'Duplicate Check Complete');
+            setTimeout(() => location.reload(), 2000);
         }
     })
-    .catch(err => alert('Error checking duplicates'))
+    .catch(err => showToast('Error checking for duplicates. Please try again.', 'error'))
     .finally(() => {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-search"></i> Check Duplicates';
@@ -331,13 +334,13 @@ function extractWithAI() {
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            alert('Error: ' + data.error);
+            showToast(data.error, 'error', 'AI Extraction Failed');
         } else {
-            alert('AI extraction completed! The page will reload to show updated data.');
-            location.reload();
+            showToast('AI extraction completed successfully! Refreshing to show updated data...', 'success', 'AI Extraction Complete');
+            setTimeout(() => location.reload(), 2000);
         }
     })
-    .catch(err => alert('Error during AI extraction'))
+    .catch(err => showToast('Error during AI extraction. Please try again.', 'error'))
     .finally(() => {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-robot"></i> AI Extract';

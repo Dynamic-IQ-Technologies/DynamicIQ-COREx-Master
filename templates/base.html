@@ -1472,5 +1472,77 @@
     {% endif %}
     
     {% block scripts %}{% endblock %}
+    
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div id="appToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i id="toastIcon" class="bi bi-info-circle-fill me-2"></i>
+                <strong class="me-auto" id="toastTitle">Notification</strong>
+                <small id="toastTime">Just now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                Message content here.
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        #appToast {
+            min-width: 350px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: none;
+        }
+        #appToast .toast-header {
+            border-radius: 12px 12px 0 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 12px 16px;
+        }
+        #appToast .toast-body {
+            padding: 16px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        #appToast.toast-success .toast-header { background: linear-gradient(135deg, #d4edda, #c3e6cb); }
+        #appToast.toast-success #toastIcon { color: #28a745; }
+        #appToast.toast-error .toast-header { background: linear-gradient(135deg, #f8d7da, #f5c6cb); }
+        #appToast.toast-error #toastIcon { color: #dc3545; }
+        #appToast.toast-warning .toast-header { background: linear-gradient(135deg, #fff3cd, #ffeeba); }
+        #appToast.toast-warning #toastIcon { color: #ffc107; }
+        #appToast.toast-info .toast-header { background: linear-gradient(135deg, #cce5ff, #b8daff); }
+        #appToast.toast-info #toastIcon { color: #17a2b8; }
+    </style>
+    
+    <script>
+    function showToast(message, type = 'info', title = null) {
+        const toast = document.getElementById('appToast');
+        const toastBody = document.getElementById('toastBody');
+        const toastTitle = document.getElementById('toastTitle');
+        const toastIcon = document.getElementById('toastIcon');
+        
+        toast.className = 'toast toast-' + type;
+        toastBody.textContent = message;
+        
+        const icons = {
+            'success': 'bi-check-circle-fill',
+            'error': 'bi-exclamation-triangle-fill',
+            'warning': 'bi-exclamation-circle-fill',
+            'info': 'bi-info-circle-fill'
+        };
+        const titles = {
+            'success': 'Success',
+            'error': 'Error',
+            'warning': 'Warning',
+            'info': 'Information'
+        };
+        
+        toastIcon.className = 'bi ' + (icons[type] || icons['info']) + ' me-2';
+        toastTitle.textContent = title || titles[type] || 'Notification';
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+        bsToast.show();
+    }
+    </script>
 </body>
 </html>
