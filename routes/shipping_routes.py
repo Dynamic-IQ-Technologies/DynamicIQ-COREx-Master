@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime
+from utils.shipping_documents import ShippingDocumentGenerator
 
 shipping_bp = Blueprint('shipping_routes', __name__)
 
@@ -783,3 +784,375 @@ def confirm_shipment(id):
         conn.close()
     
     return redirect(url_for('shipping_routes.list_pending_shipments'))
+
+
+@shipping_bp.route('/shipments/<int:id>/documents')
+@login_required
+def get_shipment_documents(id):
+    """Get all documents for a shipment"""
+    db = Database()
+    conn = db.get_connection()
+    
+    documents = conn.execute('''
+        SELECT sd.*, u.username as generated_by_name, u2.username as finalized_by_name
+        FROM shipment_documents sd
+        LEFT JOIN users u ON sd.generated_by = u.id
+        LEFT JOIN users u2 ON sd.finalized_by = u2.id
+        WHERE sd.shipment_id = ?
+        ORDER BY sd.document_type, sd.version DESC
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    return jsonify({'documents': [dict(d) for d in documents]})
+
+
+@shipping_bp.route('/shipments/<int:id>/generate-packing-slip', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def generate_packing_slip(id):
+    """Generate a packing slip for the shipment"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        shipment = conn.execute('SELECT * FROM shipments WHERE id = ?', (id,)).fetchone()
+        if not shipment:
+            flash('Shipment not found.', 'danger')
+            return redirect(url_for('shipping_routes.list_shipments'))
+        
+        lines = conn.execute('''
+            SELECT sl.*, p.code, p.name as product_name, p.unit_of_measure
+            FROM shipment_lines sl
+            JOIN products p ON sl.product_id = p.id
+            WHERE sl.shipment_id = ?
+            ORDER BY sl.line_number
+        ''', (id,)).fetchall()
+        
+        if not lines:
+            flash('Cannot generate packing slip: No line items on this shipment.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
+        
+        sales_order = None
+        if shipment['reference_type'] == 'Sales Order' and shipment['reference_id']:
+            sales_order = conn.execute('SELECT * FROM sales_orders WHERE id = ?', 
+                                       (shipment['reference_id'],)).fetchone()
+        
+        existing = conn.execute('''
+            SELECT MAX(version) as max_ver FROM shipment_documents 
+            WHERE shipment_id = ? AND document_type = 'Packing Slip'
+        ''', (id,)).fetchone()
+        
+        new_version = (existing['max_ver'] or 0) + 1
+        doc_number = f"PS-{shipment['shipment_number']}-V{new_version}"
+        
+        shipment_dict = dict(shipment)
+        shipment_dict['document_number'] = doc_number
+        
+        generator = ShippingDocumentGenerator()
+        pdf_buffer = generator.generate_packing_slip(
+            shipment_dict, 
+            [dict(l) for l in lines],
+            dict(sales_order) if sales_order else None
+        )
+        
+        conn.execute('''
+            INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
+                                           status, generated_by, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (id, 'Packing Slip', doc_number, new_version, 'Draft', session.get('user_id')))
+        
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='shipment_documents',
+            record_id=id,
+            action_type='CREATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'document_type': 'Packing Slip', 'version': new_version}
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f'{doc_number}.pdf'
+        )
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error generating packing slip: {str(e)}', 'danger')
+        return redirect(url_for('shipping_routes.view_shipment', id=id))
+
+
+@shipping_bp.route('/shipments/<int:id>/generate-coc', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def generate_certificate_of_conformance(id):
+    """Generate a Certificate of Conformance for the shipment"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        shipment = conn.execute('SELECT * FROM shipments WHERE id = ?', (id,)).fetchone()
+        if not shipment:
+            flash('Shipment not found.', 'danger')
+            return redirect(url_for('shipping_routes.list_shipments'))
+        
+        lines = conn.execute('''
+            SELECT sl.*, p.code, p.name as product_name, p.unit_of_measure
+            FROM shipment_lines sl
+            JOIN products p ON sl.product_id = p.id
+            WHERE sl.shipment_id = ?
+            ORDER BY sl.line_number
+        ''', (id,)).fetchall()
+        
+        if not lines:
+            flash('Cannot generate C of C: No line items on this shipment.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
+        
+        sales_order = None
+        customer = None
+        if shipment['reference_type'] == 'Sales Order' and shipment['reference_id']:
+            sales_order = conn.execute('SELECT * FROM sales_orders WHERE id = ?', 
+                                       (shipment['reference_id'],)).fetchone()
+            if sales_order and sales_order['customer_id']:
+                customer = conn.execute('SELECT * FROM customers WHERE id = ?',
+                                        (sales_order['customer_id'],)).fetchone()
+        
+        existing = conn.execute('''
+            SELECT MAX(version) as max_ver FROM shipment_documents 
+            WHERE shipment_id = ? AND document_type = 'Certificate of Conformance'
+        ''', (id,)).fetchone()
+        
+        new_version = (existing['max_ver'] or 0) + 1
+        doc_number = f"COC-{shipment['shipment_number']}-V{new_version}"
+        
+        shipment_dict = dict(shipment)
+        shipment_dict['document_number'] = doc_number
+        
+        signatory = request.form.get('signatory', 'Quality Assurance')
+        
+        generator = ShippingDocumentGenerator()
+        pdf_buffer = generator.generate_certificate_of_conformance(
+            shipment_dict, 
+            [dict(l) for l in lines],
+            dict(sales_order) if sales_order else None,
+            dict(customer) if customer else None,
+            signatory
+        )
+        
+        conn.execute('''
+            INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
+                                           status, signed_by, generated_by, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (id, 'Certificate of Conformance', doc_number, new_version, 'Unsigned', 
+              signatory, session.get('user_id')))
+        
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='shipment_documents',
+            record_id=id,
+            action_type='CREATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'document_type': 'Certificate of Conformance', 'version': new_version}
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f'{doc_number}.pdf'
+        )
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error generating Certificate of Conformance: {str(e)}', 'danger')
+        return redirect(url_for('shipping_routes.view_shipment', id=id))
+
+
+@shipping_bp.route('/shipments/<int:id>/generate-commercial-invoice', methods=['POST'])
+@role_required('Admin', 'Planner', 'Accountant')
+def generate_commercial_invoice(id):
+    """Generate a Commercial Invoice for the shipment"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        shipment = conn.execute('SELECT * FROM shipments WHERE id = ?', (id,)).fetchone()
+        if not shipment:
+            flash('Shipment not found.', 'danger')
+            return redirect(url_for('shipping_routes.list_shipments'))
+        
+        lines = conn.execute('''
+            SELECT sl.*, p.code, p.name as product_name, p.unit_of_measure, p.cost as unit_price,
+                   p.hs_code, p.country_of_origin
+            FROM shipment_lines sl
+            JOIN products p ON sl.product_id = p.id
+            WHERE sl.shipment_id = ?
+            ORDER BY sl.line_number
+        ''', (id,)).fetchall()
+        
+        if not lines:
+            flash('Cannot generate commercial invoice: No line items on this shipment.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
+        
+        sales_order = None
+        customer = None
+        if shipment['reference_type'] == 'Sales Order' and shipment['reference_id']:
+            sales_order = conn.execute('SELECT * FROM sales_orders WHERE id = ?', 
+                                       (shipment['reference_id'],)).fetchone()
+            if sales_order and sales_order['customer_id']:
+                customer = conn.execute('SELECT * FROM customers WHERE id = ?',
+                                        (sales_order['customer_id'],)).fetchone()
+        
+        existing = conn.execute('''
+            SELECT MAX(version) as max_ver FROM shipment_documents 
+            WHERE shipment_id = ? AND document_type = 'Commercial Invoice'
+        ''', (id,)).fetchone()
+        
+        new_version = (existing['max_ver'] or 0) + 1
+        doc_number = f"CI-{shipment['shipment_number']}-V{new_version}"
+        
+        shipment_dict = dict(shipment)
+        shipment_dict['document_number'] = doc_number
+        
+        generator = ShippingDocumentGenerator()
+        pdf_buffer = generator.generate_commercial_invoice(
+            shipment_dict, 
+            [dict(l) for l in lines],
+            dict(sales_order) if sales_order else None,
+            dict(customer) if customer else None
+        )
+        
+        conn.execute('''
+            INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
+                                           status, generated_by, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (id, 'Commercial Invoice', doc_number, new_version, 'Draft', session.get('user_id')))
+        
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='shipment_documents',
+            record_id=id,
+            action_type='CREATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'document_type': 'Commercial Invoice', 'version': new_version}
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f'{doc_number}.pdf'
+        )
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error generating commercial invoice: {str(e)}', 'danger')
+        return redirect(url_for('shipping_routes.view_shipment', id=id))
+
+
+@shipping_bp.route('/shipments/<int:id>/finalize-document/<int:doc_id>', methods=['POST'])
+@role_required('Admin', 'Planner')
+def finalize_document(id, doc_id):
+    """Finalize a document (lock from further edits)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        shipment = conn.execute('SELECT * FROM shipments WHERE id = ?', (id,)).fetchone()
+        if not shipment:
+            return jsonify({'success': False, 'error': 'Shipment not found'}), 404
+        
+        document = conn.execute('SELECT * FROM shipment_documents WHERE id = ? AND shipment_id = ?', 
+                                (doc_id, id)).fetchone()
+        if not document:
+            return jsonify({'success': False, 'error': 'Document not found'}), 404
+        
+        if document['status'] == 'Final':
+            return jsonify({'success': False, 'error': 'Document is already finalized'}), 400
+        
+        conn.execute('''
+            UPDATE shipment_documents 
+            SET status = 'Final', finalized_by = ?, finalized_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (session.get('user_id'), doc_id))
+        
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='shipment_documents',
+            record_id=doc_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'status': 'Final'}
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Document finalized successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@shipping_bp.route('/shipments/<int:id>/sign-coc/<int:doc_id>', methods=['POST'])
+@role_required('Admin', 'Planner')
+def sign_certificate(id, doc_id):
+    """Electronically sign a Certificate of Conformance"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        document = conn.execute('''
+            SELECT * FROM shipment_documents 
+            WHERE id = ? AND shipment_id = ? AND document_type = 'Certificate of Conformance'
+        ''', (doc_id, id)).fetchone()
+        
+        if not document:
+            return jsonify({'success': False, 'error': 'Document not found'}), 404
+        
+        signature = request.form.get('signature', '')
+        if not signature:
+            return jsonify({'success': False, 'error': 'Signature is required'}), 400
+        
+        conn.execute('''
+            UPDATE shipment_documents 
+            SET status = 'Signed', electronic_signature = ?, signed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (signature, doc_id))
+        
+        from models import AuditTrail
+        AuditTrail.log_change(
+            conn=conn,
+            record_type='shipment_documents',
+            record_id=doc_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'status': 'Signed', 'signed_by': signature}
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Certificate signed successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
