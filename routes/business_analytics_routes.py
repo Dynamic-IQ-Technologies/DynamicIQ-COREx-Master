@@ -477,7 +477,7 @@ def get_active_alerts(conn):
     
     pending_po = conn.execute('''
         SELECT COUNT(*) as count FROM purchase_orders
-        WHERE status = 'Pending' AND expected_date < date('now')
+        WHERE status = 'Pending' AND expected_delivery_date < date('now')
     ''').fetchone()
     if pending_po['count'] > 0:
         alerts.append({
