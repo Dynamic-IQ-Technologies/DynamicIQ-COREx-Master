@@ -163,6 +163,40 @@
             </div>
         </div>
 
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> Shipping Documents</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <form method="POST" action="{{ url_for('shipping_routes.generate_packing_slip', id=shipment.id) }}" target="_blank">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-box-seam"></i> Generate Packing Slip
+                        </button>
+                    </form>
+                    
+                    <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#cocModal">
+                        <i class="bi bi-file-earmark-check"></i> Generate Certificate of Conformance
+                    </button>
+                    
+                    <form method="POST" action="{{ url_for('shipping_routes.generate_commercial_invoice', id=shipment.id) }}" target="_blank">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-receipt"></i> Generate Commercial Invoice
+                        </button>
+                    </form>
+                </div>
+                
+                <hr>
+                
+                <h6 class="text-muted mb-2">Document History</h6>
+                <div id="documentHistory" class="small">
+                    <div class="text-center text-muted py-2">
+                        <i class="bi bi-hourglass-split"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {% if shipment.special_instructions %}
         <div class="card">
             <div class="card-header">
@@ -201,6 +235,34 @@
     </div>
 </div>
 
+<!-- C of C Modal -->
+<div class="modal fade" id="cocModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('shipping_routes.generate_certificate_of_conformance', id=shipment.id) }}" target="_blank">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-check"></i> Certificate of Conformance</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Signatory Name</label>
+                        <input type="text" class="form-control" name="signatory" 
+                               placeholder="Quality Assurance Representative" required>
+                        <div class="form-text">This name will appear on the certificate signature line.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-pdf"></i> Generate C of C
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 async function confirmShipNow() {
     const confirmed = await showConfirm('Mark this shipment as shipped?', {
@@ -224,6 +286,59 @@ async function confirmCancelShipment() {
     if (confirmed) {
         document.getElementById('cancelShipmentForm').submit();
     }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDocumentHistory();
+});
+
+function loadDocumentHistory() {
+    const historyContainer = document.getElementById('documentHistory');
+    
+    fetch('{{ url_for("shipping_routes.get_shipment_documents", id=shipment.id) }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.documents && data.documents.length > 0) {
+                let html = '<ul class="list-unstyled mb-0">';
+                data.documents.forEach(doc => {
+                    const statusBadge = getStatusBadge(doc.status);
+                    const dateStr = formatDate(doc.generated_at);
+                    html += `
+                        <li class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                            <div>
+                                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                <strong>${doc.document_number}</strong>
+                                <br><small class="text-muted">${doc.document_type} - ${dateStr}</small>
+                            </div>
+                            <div>${statusBadge}</div>
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+                historyContainer.innerHTML = html;
+            } else {
+                historyContainer.innerHTML = '<p class="text-muted mb-0 text-center">No documents generated yet</p>';
+            }
+        })
+        .catch(err => {
+            historyContainer.innerHTML = '<p class="text-muted mb-0">Unable to load history</p>';
+        });
+}
+
+function getStatusBadge(status) {
+    switch(status) {
+        case 'Draft': return '<span class="badge bg-secondary">Draft</span>';
+        case 'Final': return '<span class="badge bg-success">Final</span>';
+        case 'Signed': return '<span class="badge bg-primary">Signed</span>';
+        case 'Unsigned': return '<span class="badge bg-warning text-dark">Unsigned</span>';
+        default: return `<span class="badge bg-secondary">${status}</span>`;
+    }
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 </script>
 {% endblock %}
