@@ -168,6 +168,11 @@
                     <i class="bi bi-arrow-left-right me-1"></i> Adjustments ({{ adjustments|length }})
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="wo-turnins-tab" data-bs-toggle="tab" data-bs-target="#wo-turnins" type="button">
+                    <i class="bi bi-gear-fill me-1"></i> WO Turn-ins ({{ wo_turnins|length }})
+                </button>
+            </li>
         </ul>
         <div class="tab-content pt-3" id="transactionTabContent">
             <div class="tab-pane fade show active" id="receiving" role="tabpanel">
@@ -326,6 +331,38 @@
                 </div>
                 {% else %}
                 <p class="text-muted text-center py-3">No adjustments found for this product.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="wo-turnins" role="tabpanel">
+                {% if wo_turnins %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Total Cost</th>
+                                <th>Date Completed</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in wo_turnins %}
+                            <tr>
+                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=item.id) }}">{{ item.wo_number }}</a></td>
+                                <td>{{ item.product_code }} - {{ item.product_name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ ((item.material_cost or 0) + (item.labor_cost or 0) + (item.overhead_cost or 0))|currency }}</td>
+                                <td>{{ item.actual_end_date or '-' }}</td>
+                                <td><span class="badge bg-success">{{ item.disposition }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No work order turn-ins found for this inventory.</p>
                 {% endif %}
             </div>
         </div>
