@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database, AuditLogger
 from auth import login_required, role_required
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
+import os
 
 rfq_bp = Blueprint('rfq_routes', __name__)
 
@@ -376,3 +378,216 @@ def delete_rfq(rfq_id):
     
     conn.close()
     return redirect(url_for('rfq_routes.list_rfqs'))
+
+
+@rfq_bp.route('/rfqs/<int:rfq_id>/send-to-supplier', methods=['GET', 'POST'])
+@role_required('Admin', 'Procurement')
+def send_to_supplier(rfq_id):
+    """Generate secure web link for supplier to submit quote"""
+    db = Database()
+    conn = db.get_connection()
+    
+    rfq = conn.execute('SELECT * FROM rfqs WHERE id = ?', (rfq_id,)).fetchone()
+    if not rfq:
+        flash('RFQ not found', 'danger')
+        conn.close()
+        return redirect(url_for('rfq_routes.list_rfqs'))
+    
+    if request.method == 'POST':
+        supplier_id = request.form.get('supplier_id')
+        allow_multiple = request.form.get('allow_multiple_submissions') == '1'
+        
+        if not supplier_id:
+            flash('Please select a supplier', 'danger')
+            conn.close()
+            return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
+        
+        existing_token = conn.execute('''
+            SELECT token FROM rfq_supplier_tokens
+            WHERE rfq_id = ? AND supplier_id = ? AND expires_at > ?
+        ''', (rfq_id, supplier_id, datetime.now().isoformat())).fetchone()
+        
+        if existing_token:
+            flash('A valid link already exists for this supplier', 'warning')
+            conn.close()
+            return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))
+        
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.fromisoformat(rfq['due_date']) if rfq['due_date'] else datetime.now() + timedelta(days=30)
+        
+        conn.execute('''
+            INSERT INTO rfq_supplier_tokens (rfq_id, supplier_id, token, expires_at, allow_multiple_submissions)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (rfq_id, supplier_id, token, expires_at.isoformat(), 1 if allow_multiple else 0))
+        
+        existing_link = conn.execute('''
+            SELECT id FROM rfq_suppliers WHERE rfq_id = ? AND supplier_id = ?
+        ''', (rfq_id, supplier_id)).fetchone()
+        
+        if not existing_link:
+            conn.execute('''
+                INSERT INTO rfq_suppliers (rfq_id, supplier_id, sent_date, response_status)
+                VALUES (?, ?, ?, 'Pending')
+            ''', (rfq_id, supplier_id, datetime.now().isoformat()))
+        else:
+            conn.execute('''
+                UPDATE rfq_suppliers SET sent_date = ?, response_status = 'Pending'
+                WHERE rfq_id = ? AND supplier_id = ?
+            ''', (datetime.now().isoformat(), rfq_id, supplier_id))
+        
+        if rfq['status'] == 'Draft':
+            conn.execute("UPDATE rfqs SET status = 'Issued' WHERE id = ?", (rfq_id,))
+        
+        AuditLogger.log_change(conn, 'rfqs', rfq_id, 'SEND_TO_SUPPLIER', session.get('user_id'),
+                              {'supplier_id': supplier_id, 'token_generated': True})
+        
+        conn.commit()
+        
+        base_url = os.environ.get('REPLIT_DEV_DOMAIN', request.host_url.rstrip('/'))
+        if not base_url.startswith('http'):
+            base_url = f'https://{base_url}'
+        supplier_link = f"{base_url}/rfq/submit/{token}"
+        
+        flash(f'Supplier link generated successfully! Copy and send to supplier: {supplier_link}', 'success')
+        conn.close()
+        return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))
+    
+    suppliers = conn.execute('SELECT id, code, name, email FROM suppliers ORDER BY name').fetchall()
+    
+    existing_suppliers = conn.execute('''
+        SELECT rs.*, s.name as supplier_name, rst.token, rst.expires_at
+        FROM rfq_suppliers rs
+        JOIN suppliers s ON rs.supplier_id = s.id
+        LEFT JOIN rfq_supplier_tokens rst ON rst.rfq_id = rs.rfq_id AND rst.supplier_id = rs.supplier_id
+        WHERE rs.rfq_id = ?
+    ''', (rfq_id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('rfqs/send_to_supplier.html',
+                          rfq=rfq,
+                          suppliers=[dict(s) for s in suppliers],
+                          existing_suppliers=[dict(s) for s in existing_suppliers])
+
+
+@rfq_bp.route('/rfqs/<int:rfq_id>/supplier-responses')
+@login_required
+def view_supplier_responses(rfq_id):
+    """View all supplier responses for an RFQ"""
+    db = Database()
+    conn = db.get_connection()
+    
+    rfq = conn.execute('SELECT * FROM rfqs WHERE id = ?', (rfq_id,)).fetchone()
+    if not rfq:
+        flash('RFQ not found', 'danger')
+        conn.close()
+        return redirect(url_for('rfq_routes.list_rfqs'))
+    
+    responses = conn.execute('''
+        SELECT rsr.*, s.name as supplier_name, s.code as supplier_code
+        FROM rfq_supplier_responses rsr
+        JOIN suppliers s ON rsr.supplier_id = s.id
+        WHERE rsr.rfq_id = ?
+        ORDER BY rsr.submitted_at DESC
+    ''', (rfq_id,)).fetchall()
+    
+    lines = conn.execute('SELECT * FROM rfq_lines WHERE rfq_id = ? ORDER BY line_number', (rfq_id,)).fetchall()
+    
+    response_details = {}
+    for response in responses:
+        response_lines = conn.execute('''
+            SELECT rrl.*, rl.description, rl.quantity
+            FROM rfq_response_lines rrl
+            JOIN rfq_lines rl ON rrl.rfq_line_id = rl.id
+            WHERE rrl.response_id = ?
+        ''', (response['id'],)).fetchall()
+        response_details[response['id']] = [dict(rl) for rl in response_lines]
+    
+    conn.close()
+    
+    return render_template('rfqs/supplier_responses.html',
+                          rfq=rfq,
+                          responses=[dict(r) for r in responses],
+                          lines=[dict(l) for l in lines],
+                          response_details=response_details)
+
+
+@rfq_bp.route('/rfqs/<int:rfq_id>/convert-to-po/<int:response_id>', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def convert_response_to_po(rfq_id, response_id):
+    """Convert selected RFQ response to Purchase Order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        response = conn.execute('''
+            SELECT rsr.*, s.name as supplier_name
+            FROM rfq_supplier_responses rsr
+            JOIN suppliers s ON rsr.supplier_id = s.id
+            WHERE rsr.id = ? AND rsr.rfq_id = ?
+        ''', (response_id, rfq_id)).fetchone()
+        
+        if not response:
+            flash('Response not found', 'danger')
+            conn.close()
+            return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))
+        
+        rfq = conn.execute('SELECT * FROM rfqs WHERE id = ?', (rfq_id,)).fetchone()
+        
+        result = conn.execute('''
+            SELECT po_number FROM purchase_orders 
+            WHERE po_number LIKE 'PO-%' 
+            ORDER BY id DESC LIMIT 1
+        ''').fetchone()
+        
+        if result:
+            try:
+                last_num = int(result['po_number'].split('-')[1])
+                po_number = f"PO-{last_num + 1:05d}"
+            except:
+                po_number = "PO-00001"
+        else:
+            po_number = "PO-00001"
+        
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO purchase_orders (po_number, supplier_id, status, order_date, notes)
+            VALUES (?, ?, 'Draft', ?, ?)
+        ''', (po_number, response['supplier_id'], datetime.now().strftime('%Y-%m-%d'),
+              f'Created from RFQ {rfq["rfq_number"]}'))
+        po_id = cursor.lastrowid
+        
+        response_lines = conn.execute('''
+            SELECT rrl.*, rl.product_id, rl.description, rl.quantity, rl.uom_id
+            FROM rfq_response_lines rrl
+            JOIN rfq_lines rl ON rrl.rfq_line_id = rl.id
+            WHERE rrl.response_id = ?
+        ''', (response_id,)).fetchall()
+        
+        line_num = 1
+        for rl in response_lines:
+            conn.execute('''
+                INSERT INTO purchase_order_lines (po_id, line_number, product_id, description, 
+                    quantity, unit_price, uom_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (po_id, line_num, rl['product_id'], rl['description'], 
+                  rl['quantity'], rl['unit_price'], rl['uom_id']))
+            line_num += 1
+        
+        conn.execute("UPDATE rfq_supplier_responses SET status = 'Converted to PO' WHERE id = ?", (response_id,))
+        conn.execute("UPDATE rfqs SET status = 'Closed' WHERE id = ?", (rfq_id,))
+        
+        AuditLogger.log_change(conn, 'purchase_orders', po_id, 'CREATE', session.get('user_id'),
+                              {'source': 'RFQ', 'rfq_id': rfq_id, 'rfq_number': rfq['rfq_number']})
+        
+        conn.commit()
+        
+        flash(f'Purchase Order {po_number} created from RFQ response!', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.view_purchaseorder', id=po_id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error creating PO: {str(e)}', 'danger')
+        return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))

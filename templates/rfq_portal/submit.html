@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ token_data.rfq_number }} - Submit Quote</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+        .header-brand {
+            color: #f8fafc;
+        }
+        .header-brand .iq {
+            color: #f97316;
+        }
+        .line-item-card {
+            border-left: 4px solid #3b82f6;
+        }
+        .required-field::after {
+            content: " *";
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark py-3" style="background: #0f172a;">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1 header-brand">
+                Dynamic.<span class="iq">IQ</span>-MRPx
+            </span>
+            <span class="text-light">Supplier Quote Submission</span>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Request for Quotation: {{ token_data.rfq_number }}
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h5>{{ token_data.title }}</h5>
+                                {% if token_data.description %}
+                                <p class="text-muted">{{ token_data.description }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <p class="mb-1"><strong>Supplier:</strong> {{ token_data.supplier_name }}</p>
+                                {% if token_data.due_date %}
+                                <p class="mb-1"><strong>Due Date:</strong> {{ token_data.due_date }}</p>
+                                {% endif %}
+                                <p class="mb-1"><strong>Currency:</strong> {{ token_data.currency or 'USD' }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if token_data.buyer_name or token_data.buyer_email %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-person-circle me-2"></i>
+                            <strong>Buyer Contact:</strong>
+                            {% if token_data.buyer_name %}{{ token_data.buyer_name }}{% endif %}
+                            {% if token_data.buyer_email %} - {{ token_data.buyer_email }}{% endif %}
+                            {% if token_data.buyer_phone %} - {{ token_data.buyer_phone }}{% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if token_data.terms_conditions %}
+                        <div class="alert alert-secondary">
+                            <strong>Terms & Conditions:</strong>
+                            <p class="mb-0 small">{{ token_data.terms_conditions }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <form method="POST" id="quoteForm">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Line Items - Enter Your Pricing</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for line in lines %}
+                            <div class="card line-item-card mb-3">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Line {{ line.line_number }}: {{ line.part_number or 'N/A' }}</h6>
+                                            <p class="mb-1">{{ line.description }}</p>
+                                            <p class="mb-1">
+                                                <span class="badge bg-secondary">Qty: {{ line.quantity }} {{ line.uom_code or 'EA' }}</span>
+                                                {% if line.required_condition %}
+                                                <span class="badge bg-info">{{ line.required_condition }}</span>
+                                                {% endif %}
+                                            </p>
+                                            {% if line.target_delivery_date %}
+                                            <p class="mb-0 small text-muted">Target Delivery: {{ line.target_delivery_date }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <label class="form-label small required-field">Unit Price ($)</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control unit-price" 
+                                                           name="unit_price_{{ line.id }}" 
+                                                           value="{{ existing_line_responses.get(line.id, {}).get('unit_price', '') }}"
+                                                           data-qty="{{ line.quantity }}" required>
+                                                </div>
+                                                <div class="col-6">
+                                                    <label class="form-label small required-field">Lead Time (days)</label>
+                                                    <input type="number" min="1" class="form-control" 
+                                                           name="lead_time_{{ line.id }}"
+                                                           value="{{ existing_line_responses.get(line.id, {}).get('lead_time_days', '') }}"
+                                                           required>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small">Notes (optional)</label>
+                                                    <input type="text" class="form-control form-control-sm" 
+                                                           name="notes_{{ line.id }}"
+                                                           value="{{ existing_line_responses.get(line.id, {}).get('notes', '') }}"
+                                                           placeholder="Additional notes for this line">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-card-text me-2"></i>Quote Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Quote Valid Until</label>
+                                    <input type="date" class="form-control" name="valid_until"
+                                           value="{{ existing_response.valid_until if existing_response else '' }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Total Quote Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="text" class="form-control" id="totalAmount" readonly value="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Additional Notes / Comments</label>
+                                    <textarea class="form-control" name="notes" rows="3" 
+                                              placeholder="Any additional information about your quote...">{{ existing_response.notes if existing_response else '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-send me-2"></i>Submit Quote
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="py-4 mt-4 text-center text-light">
+        <p class="mb-0 small">Powered by Dynamic.IQ-MRPx</p>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.unit-price').forEach(function(input) {
+            input.addEventListener('input', calculateTotal);
+        });
+        
+        function calculateTotal() {
+            let total = 0;
+            document.querySelectorAll('.unit-price').forEach(function(input) {
+                const price = parseFloat(input.value) || 0;
+                const qty = parseFloat(input.dataset.qty) || 1;
+                total += price * qty;
+            });
+            document.getElementById('totalAmount').value = total.toFixed(2);
+        }
+        
+        calculateTotal();
+    </script>
+</body>
+</html>

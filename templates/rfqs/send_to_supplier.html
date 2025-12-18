@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Send RFQ to Supplier - {{ rfq.rfq_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-send me-2"></i>Send RFQ to Supplier
+            </h1>
+            <p class="text-muted mb-0">{{ rfq.rfq_number }} - {{ rfq.title }}</p>
+        </div>
+        <a href="{{ url_for('rfq_routes.view_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to RFQ
+        </a>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Generate Supplier Link</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Select Supplier</label>
+                            <select name="supplier_id" class="form-select" required>
+                                <option value="">-- Select a Supplier --</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}">{{ supplier.code }} - {{ supplier.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="allow_multiple_submissions" value="1" id="allowMultiple">
+                                <label class="form-check-label" for="allowMultiple">
+                                    Allow multiple quote submissions
+                                </label>
+                                <div class="form-text">Enable this if you want the supplier to be able to update their quote before the due date.</div>
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-link-45deg me-1"></i> Generate Secure Link
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Select a supplier and generate a secure link</li>
+                        <li class="mb-2">Copy the link and send it to the supplier via email</li>
+                        <li class="mb-2">Supplier clicks the link and fills in pricing and lead times</li>
+                        <li class="mb-2">When submitted, the quote appears in your RFQ responses</li>
+                        <li class="mb-0">Compare quotes and convert the best one to a Purchase Order</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>Invited Suppliers</h5>
+                </div>
+                <div class="card-body">
+                    {% if existing_suppliers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th>Sent Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for es in existing_suppliers %}
+                                <tr>
+                                    <td>{{ es.supplier_name }}</td>
+                                    <td>{{ es.sent_date[:10] if es.sent_date else '-' }}</td>
+                                    <td>
+                                        {% if es.response_status == 'Received' %}
+                                        <span class="badge bg-success">{{ es.response_status }}</span>
+                                        {% elif es.response_status == 'Pending' %}
+                                        <span class="badge bg-warning text-dark">{{ es.response_status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ es.response_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if es.token %}
+                                        <button class="btn btn-sm btn-outline-primary copy-link-btn" 
+                                                data-token="{{ es.token }}" title="Copy Link">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4 mb-0">No suppliers invited yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.copy-link-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const token = this.dataset.token;
+        const link = window.location.origin + '/rfq/submit/' + token;
+        navigator.clipboard.writeText(link).then(function() {
+            alert('Link copied to clipboard!');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,228 @@
+ERP SYSTEM UI & FUNCTIONAL UPDATE PROMPT
+
+Module: Work Order Record Page (Accordion Layout + Task-Level Material Requirements)
+
+Role
+
+You are a Senior ERP Architect and Full-Stack UI/UX Engineer specializing in manufacturing, MRO, and work order execution systems.
+
+Your task is to redesign and enhance the Work Order Record Page to be:
+
+Professional
+
+Well-structured
+
+Easy to manage
+
+Scalable for complex work orders
+
+The page must use an accordion-based layout and allow material requirements to be added at the task level.
+
+Business Objective
+
+Improve work order usability and execution accuracy by:
+
+Organizing information into logical, collapsible sections
+
+Reducing visual clutter
+
+Enabling precise material planning tied directly to work order tasks
+
+Functional Requirements
+1. Accordion-Based Page Structure
+
+Redesign the Work Order Record Page using expandable accordion sections.
+
+Required Accordion Sections
+
+Work Order Overview
+
+Work Order Number
+
+Status
+
+Priority
+
+Assigned Department
+
+Start / Due Dates
+
+Asset / Part Being Worked
+
+Customer / Project Information
+
+Customer Name
+
+Project / Contract Reference
+
+Contact Information
+
+Work Order Tasks
+
+Task Number
+
+Task Description
+
+Task Type (Inspection, Repair, Overhaul, etc.)
+
+Assigned Technician / Team
+
+Task Status
+
+Estimated & Actual Labor Hours
+
+Material Requirements (Task-Level)
+
+Nested under each Work Order Task
+
+Expandable per task
+
+Labor & Time Tracking
+
+Technician entries
+
+Clock-in / Clock-out
+
+Labor cost summary
+
+Documents & Attachments
+
+Drawings
+
+Manuals
+
+Certifications
+
+Photos
+
+Notes & Activity Log
+
+Internal notes
+
+Status change history
+
+Audit trail
+
+2. Task-Level Material Requirements
+
+Enhance the Work Order Tasks section to allow materials to be assigned per task, not just at the work order level.
+
+Material Requirement Fields
+
+Each task must allow adding multiple material lines with:
+
+Field	Requirement
+Part Number	Required
+Description	Auto-populated
+Required Quantity	Required
+Issued Quantity	System-tracked
+Unit of Measure	Required
+Lot / Serial Number	Optional
+Warehouse / Location	Required
+Material Status	Planned / Issued / Consumed
+Required By Date	Optional
+3. Material Behavior & Logic
+
+Materials added at task level must:
+
+Roll up to the Work Order material summary
+
+Be reserved or allocated from inventory (if enabled)
+
+Be consumed when task is completed
+
+Prevent task completion if required materials are not issued (configurable)
+
+4. UI / UX Design Requirements
+
+Clean, modern ERP UI
+
+Accordion sections:
+
+Collapsible / expandable
+
+Default-open for Overview and Tasks
+
+Inline add/edit for:
+
+Tasks
+
+Material lines
+
+Visual indicators:
+
+Task status
+
+Material shortages
+
+Sticky action bar:
+
+Save
+
+Change Status
+
+Complete Work Order
+
+5. Data Model Enhancements
+
+Add or validate:
+
+WorkOrder.id
+WorkOrderTask.id
+WorkOrderTask.work_order_id
+WorkOrderTask.task_status
+
+WorkOrderTaskMaterial.id
+WorkOrderTaskMaterial.task_id
+WorkOrderTaskMaterial.part_number
+WorkOrderTaskMaterial.required_qty
+WorkOrderTaskMaterial.issued_qty
+WorkOrderTaskMaterial.uom
+WorkOrderTaskMaterial.location
+WorkOrderTaskMaterial.material_status
+
+6. Validation Rules
+
+Cannot issue more material than required
+
+Cannot complete task if required materials are not fulfilled (if enabled)
+
+Material consumption must be logged and auditable
+
+7. Audit & Traceability
+
+Track:
+
+Who added materials
+
+When materials were issued
+
+Changes to task status
+
+Maintain historical records for compliance and reporting
+
+8. Deliverables
+
+Updated Work Order UI with accordion layout
+
+Task-level material management functionality
+
+Backend logic for material tracking
+
+Inventory integration
+
+Clean, maintainable code with comments
+
+Quality Standards
+
+This enhancement must be:
+
+ERP-grade
+
+Manufacturing / MRO ready
+
+Audit-ready
+
+User-friendly
+
+Scalable for large work orders

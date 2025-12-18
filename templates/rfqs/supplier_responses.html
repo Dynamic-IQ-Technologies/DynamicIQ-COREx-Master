@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Responses - {{ rfq.rfq_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-inbox me-2"></i>Supplier Responses
+            </h1>
+            <p class="text-muted mb-0">{{ rfq.rfq_number }} - {{ rfq.title }}</p>
+        </div>
+        <a href="{{ url_for('rfq_routes.view_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to RFQ
+        </a>
+    </div>
+    
+    {% if responses %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-primary">{{ responses|length }}</h3>
+                    <small class="text-muted">Total Responses</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    {% set min_price = responses|map(attribute='total_amount')|min %}
+                    <h3 class="mb-0 text-success">${{ "{:,.2f}".format(min_price or 0) }}</h3>
+                    <small class="text-muted">Lowest Quote</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    {% set max_price = responses|map(attribute='total_amount')|max %}
+                    <h3 class="mb-0 text-danger">${{ "{:,.2f}".format(max_price or 0) }}</h3>
+                    <small class="text-muted">Highest Quote</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    {% set avg_price = responses|map(attribute='total_amount')|sum / responses|length if responses else 0 %}
+                    <h3 class="mb-0 text-info">${{ "{:,.2f}".format(avg_price) }}</h3>
+                    <small class="text-muted">Average Quote</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent">
+            <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Quote Comparison</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Submitted</th>
+                            <th>Total Amount</th>
+                            <th>Valid Until</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for response in responses|sort(attribute='total_amount') %}
+                        <tr class="{% if loop.first %}table-success{% endif %}">
+                            <td>
+                                <strong>{{ response.supplier_name }}</strong>
+                                <br><small class="text-muted">{{ response.supplier_code }}</small>
+                            </td>
+                            <td>{{ response.submitted_at[:16] if response.submitted_at else '-' }}</td>
+                            <td>
+                                <span class="fw-bold">${{ "{:,.2f}".format(response.total_amount or 0) }}</span>
+                                {% if loop.first %}
+                                <span class="badge bg-success ms-1">Lowest</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ response.valid_until or '-' }}</td>
+                            <td>
+                                {% if response.status == 'Converted to PO' %}
+                                <span class="badge bg-primary">{{ response.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ response.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#details{{ response.id }}">
+                                    <i class="bi bi-eye"></i> Details
+                                </button>
+                                {% if response.status != 'Converted to PO' %}
+                                <form method="POST" action="{{ url_for('rfq_routes.convert_response_to_po', rfq_id=rfq.id, response_id=response.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success" 
+                                            onclick="return confirm('Convert this quote to a Purchase Order?')">
+                                        <i class="bi bi-cart-plus"></i> Create PO
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="details{{ response.id }}">
+                            <td colspan="6" class="bg-light">
+                                <div class="p-3">
+                                    <h6>Line Item Details</h6>
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Description</th>
+                                                <th>Qty</th>
+                                                <th>Unit Price</th>
+                                                <th>Lead Time</th>
+                                                <th>Extended</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for rl in response_details.get(response.id, []) %}
+                                            <tr>
+                                                <td>{{ rl.description }}</td>
+                                                <td>{{ rl.quantity }}</td>
+                                                <td>${{ "{:,.2f}".format(rl.unit_price) }}</td>
+                                                <td>{{ rl.lead_time_days }} days</td>
+                                                <td>${{ "{:,.2f}".format(rl.unit_price * rl.quantity) }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    {% if response.notes %}
+                                    <div class="mt-3">
+                                        <strong>Notes:</strong> {{ response.notes }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+            <h4 class="mt-3">No Responses Yet</h4>
+            <p class="text-muted">Suppliers haven't submitted any quotes yet.</p>
+            <a href="{{ url_for('rfq_routes.send_to_supplier', rfq_id=rfq.id) }}" class="btn btn-primary">
+                <i class="bi bi-send me-1"></i> Send RFQ to Suppliers
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

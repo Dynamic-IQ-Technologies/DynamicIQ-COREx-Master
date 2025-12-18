@@ -2089,6 +2089,72 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_suppliers_rfq ON rfq_suppliers(rfq_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_quotes_rfq ON rfq_quotes(rfq_id)')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_supplier_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_id INTEGER NOT NULL,
+                supplier_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                is_used INTEGER DEFAULT 0,
+                allow_multiple_submissions INTEGER DEFAULT 0,
+                submission_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_accessed_at TIMESTAMP,
+                FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_supplier_responses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_id INTEGER NOT NULL,
+                supplier_id INTEGER NOT NULL,
+                token_id INTEGER,
+                status TEXT DEFAULT 'Submitted',
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_until DATE,
+                notes TEXT,
+                total_amount REAL DEFAULT 0,
+                ip_address TEXT,
+                user_agent TEXT,
+                FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+                FOREIGN KEY (token_id) REFERENCES rfq_supplier_tokens(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_response_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                response_id INTEGER NOT NULL,
+                rfq_line_id INTEGER NOT NULL,
+                unit_price REAL NOT NULL,
+                lead_time_days INTEGER NOT NULL,
+                notes TEXT,
+                FOREIGN KEY (response_id) REFERENCES rfq_supplier_responses(id) ON DELETE CASCADE,
+                FOREIGN KEY (rfq_line_id) REFERENCES rfq_lines(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS rfq_response_attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                response_id INTEGER NOT NULL,
+                file_name TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_type TEXT,
+                file_size INTEGER,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (response_id) REFERENCES rfq_supplier_responses(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_tokens_token ON rfq_supplier_tokens(token)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_tokens_rfq ON rfq_supplier_tokens(rfq_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_responses_rfq ON rfq_supplier_responses(rfq_id)')
+        
         # Organizational Analyzer tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS org_kpi_definitions (
@@ -2353,6 +2419,8 @@ class Database:
         
         # Migrate purchase_orders table - add work_order_id for linking to work orders
         self._migrate_purchase_orders_wo_link(cursor)
+        
+        self._migrate_rfq_enhancements(cursor)
         
         # Purchase Order Service Lines - for miscellaneous charges and services linked to work orders
         cursor.execute('''
@@ -3217,6 +3285,40 @@ class Database:
                     INSERT INTO work_order_stages (name, description, color, sequence, is_active)
                     VALUES (?, ?, ?, ?, 1)
                 ''', (name, desc, color, seq))
+    
+    def _migrate_rfq_enhancements(self, cursor):
+        """Add buyer contact and condition columns to RFQ tables for supplier portal"""
+        
+        cursor.execute("PRAGMA table_info(rfqs)")
+        rfq_columns = {row[1] for row in cursor.fetchall()}
+        
+        rfq_new_columns = [
+            ('buyer_name', 'TEXT'),
+            ('buyer_email', 'TEXT'),
+            ('buyer_phone', 'TEXT')
+        ]
+        
+        for col_name, col_type in rfq_new_columns:
+            if col_name not in rfq_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE rfqs ADD COLUMN {col_name} {col_type}')
+                except:
+                    pass
+        
+        cursor.execute("PRAGMA table_info(rfq_lines)")
+        line_columns = {row[1] for row in cursor.fetchall()}
+        
+        line_new_columns = [
+            ('required_condition', 'TEXT DEFAULT "New"'),
+            ('target_delivery_date', 'DATE')
+        ]
+        
+        for col_name, col_type in line_new_columns:
+            if col_name not in line_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE rfq_lines ADD COLUMN {col_name} {col_type}')
+                except:
+                    pass
     
     def seed_chart_of_accounts(self):
         conn = self.get_connection()
