@@ -1993,21 +1993,35 @@ Create a detailed work instruction with the following sections and output as JSO
 def wi_auto_generate_bulk():
     """Bulk generate work instructions for multiple transactions"""
     data = request.get_json()
-    transactions = data.get('transactions', [])
+    module_name = data.get('module')
     sop_id = data.get('sop_id')
     
+    # If module is provided, get all transactions for that module
+    if module_name and module_name in ERP_TRANSACTION_CAPABILITIES:
+        transactions = [
+            {'code': t['code'], 'name': t['name'], 'description': t['description'], 'module': module_name}
+            for t in ERP_TRANSACTION_CAPABILITIES[module_name]
+        ]
+    else:
+        transactions = data.get('transactions', [])
+    
+    if not transactions:
+        return jsonify({'success': False, 'error': 'No transactions to generate', 'generated_count': 0})
+    
     results = []
+    generated_count = 0
     
     for txn in transactions:
         try:
-            # Make internal request to generate each one
             response = wi_generate_single(
                 txn['code'], txn['name'], txn['description'], 
-                txn['module'], sop_id
+                txn.get('module', module_name), sop_id
             )
+            if response.get('success'):
+                generated_count += 1
             results.append({
                 'code': txn['code'],
-                'success': response['success'],
+                'success': response.get('success', False),
                 'wi_number': response.get('wi_number'),
                 'error': response.get('error')
             })
@@ -2021,8 +2035,9 @@ def wi_auto_generate_bulk():
     return jsonify({
         'success': True,
         'results': results,
-        'generated': sum(1 for r in results if r['success']),
-        'failed': sum(1 for r in results if not r['success'])
+        'generated_count': generated_count,
+        'generated': generated_count,
+        'failed': len(transactions) - generated_count
     })
 
 
