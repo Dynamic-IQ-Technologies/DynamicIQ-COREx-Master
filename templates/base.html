@@ -1128,6 +1128,16 @@
         <i class="bi bi-robot"></i>
         <span class="notification-badge" id="helperBadge" style="display: none;">!</span>
     </button>
+    <script>
+        (function() {
+            var btns = document.querySelectorAll('.erp-helper-btn');
+            if (btns.length > 1) {
+                for (var i = 1; i < btns.length; i++) {
+                    btns[i].remove();
+                }
+            }
+        })();
+    </script>
     
     <div class="erp-helper-panel" id="erpHelperPanel">
         <div class="erp-helper-header">
