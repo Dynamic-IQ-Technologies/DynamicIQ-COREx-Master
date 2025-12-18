@@ -78,6 +78,15 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
 -   **Labor Resources & Skillset Management**: Comprehensive multi-skillset assignment system for tracking employee competencies and strategic capacity planning.
 -   **Service/Misc PO for Work Orders**: Create purchase orders for miscellaneous charges and outside services (heat treatment, plating, NDT, etc.) directly linked to work orders. Includes service line tracking, receiving workflow, and automatic integration into work order cost calculations. Supports categories: Outside Processing, Heat Treatment, Plating/Coating, Testing/Inspection, Machining, NDT Services, Calibration, Engineering Services, Expedite Fee, Freight/Shipping, Tooling, Consulting.
 -   **UOM Conversion System**: High-precision unit of measure conversion for purchase orders using Python Decimal for accuracy. Features include: base quantity tracking, conversion factor audit trails, extended cost calculations, and proper cost allocation on receiving. Key tables: `uom_master`, `uom_conversions`. Utility module: `utils/uom_conversion.py`.
+-   **Part Intake System**: AI-powered supplier web part capture system for converting supplier catalog data into ERP products. Features include:
+    - Web URL/PDF/file capture with metadata extraction
+    - AI extraction using GPT-4o with confidence scoring
+    - Automatic data normalization and technical attribute parsing
+    - Duplicate detection by MPN, supplier cross-reference, and description similarity
+    - Conversion workflow: create new product or link to existing
+    - Audit trail tracking all actions (capture, AI extraction, manual edits, conversion)
+    - Key tables: `part_intake_records`, `part_intake_extracted_data`, `part_intake_supplier_xref`, `part_intake_audit`
+    - Routes module: `routes/part_intake_routes.py`
 
 ## External Dependencies
 
