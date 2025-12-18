@@ -16,6 +16,7 @@ def list_inventory():
     # Get filter parameters
     filter_serialized = request.args.get('filter_serialized', 'all')
     search_serial = request.args.get('search_serial', '').strip()
+    search_part = request.args.get('search_part', '').strip()
     
     # Build query with filters
     query = '''
@@ -39,6 +40,12 @@ def list_inventory():
         query += ' AND i.serial_number LIKE ?'
         params.append(f'%{search_serial}%')
     
+    # Apply part number search
+    if search_part:
+        query += ' AND (p.code LIKE ? OR p.name LIKE ?)'
+        params.append(f'%{search_part}%')
+        params.append(f'%{search_part}%')
+    
     query += ' ORDER BY p.code'
     
     inventory = conn.execute(query, params).fetchall()
@@ -52,6 +59,7 @@ def list_inventory():
                          inventory=inventory,
                          filter_serialized=filter_serialized,
                          search_serial=search_serial,
+                         search_part=search_part,
                          total_value=total_value)
 
 @inventory_bp.route('/inventory/<int:id>/view')
