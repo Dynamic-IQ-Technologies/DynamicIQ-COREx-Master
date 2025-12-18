@@ -118,6 +118,40 @@ def exchange_dashboard():
     
     unread_alerts = conn.execute("SELECT COUNT(*) as cnt FROM exchange_alerts WHERE is_read = 0").fetchone()['cnt']
     
+    exchange_pos = conn.execute('''
+        SELECT po.id, po.po_number, po.status, po.order_date, po.expected_date,
+               po.exchange_owner_type, po.exchange_owner_id, po.exchange_reference_id,
+               po.exchange_status, po.source_sales_order_id,
+               s.name as supplier_name,
+               so.so_number,
+               CASE 
+                   WHEN po.exchange_owner_type = 'Customer' THEN c.name
+                   WHEN po.exchange_owner_type = 'Supplier' THEN sup.name
+               END as owner_name,
+               COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount,
+               CASE 
+                   WHEN po.expected_date < date('now') AND po.status NOT IN ('Received', 'Closed', 'Cancelled') 
+                   THEN julianday('now') - julianday(po.expected_date)
+                   ELSE 0
+               END as days_overdue
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        LEFT JOIN sales_orders so ON po.source_sales_order_id = so.id
+        LEFT JOIN customers c ON po.exchange_owner_type = 'Customer' AND po.exchange_owner_id = c.id
+        LEFT JOIN suppliers sup ON po.exchange_owner_type = 'Supplier' AND po.exchange_owner_id = sup.id
+        LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
+        WHERE po.is_exchange = 1
+        GROUP BY po.id
+        ORDER BY po.expected_date ASC, po.created_at DESC
+    ''').fetchall()
+    
+    exchange_po_stats = {
+        'total': len(exchange_pos),
+        'customer_owned': sum(1 for p in exchange_pos if p['exchange_owner_type'] == 'Customer'),
+        'supplier_owned': sum(1 for p in exchange_pos if p['exchange_owner_type'] == 'Supplier'),
+        'overdue': sum(1 for p in exchange_pos if p['days_overdue'] and p['days_overdue'] > 0)
+    }
+    
     conn.close()
     
     return render_template('exchanges/dashboard.html',
@@ -136,7 +170,9 @@ def exchange_dashboard():
                           core_statuses=CORE_STATUSES,
                           status_filter=status_filter,
                           customer_filter=customer_filter,
-                          core_status_filter=core_status_filter)
+                          core_status_filter=core_status_filter,
+                          exchange_pos=[dict(e) for e in exchange_pos],
+                          exchange_po_stats=exchange_po_stats)
 
 
 @exchange_bp.route('/create', methods=['GET', 'POST'])
@@ -235,6 +271,27 @@ def view_exchange(exchange_id):
         WHERE epo.exchange_id = ?
     ''', (exchange_id,)).fetchall()
     
+    dual_exchange_pos = []
+    if exchange['sales_order_id']:
+        dual_exchange_pos = conn.execute('''
+            SELECT po.id, po.po_number, po.status, po.order_date, po.expected_date,
+                   po.exchange_owner_type, po.exchange_owner_id, po.exchange_reference_id,
+                   po.exchange_status,
+                   s.name as supplier_name,
+                   CASE 
+                       WHEN po.exchange_owner_type = 'Customer' THEN c.name
+                       WHEN po.exchange_owner_type = 'Supplier' THEN sup.name
+                   END as owner_name,
+                   COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount
+            FROM purchase_orders po
+            JOIN suppliers s ON po.supplier_id = s.id
+            LEFT JOIN customers c ON po.exchange_owner_type = 'Customer' AND po.exchange_owner_id = c.id
+            LEFT JOIN suppliers sup ON po.exchange_owner_type = 'Supplier' AND po.exchange_owner_id = sup.id
+            LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
+            WHERE po.source_sales_order_id = ? AND po.is_exchange = 1
+            GROUP BY po.id
+        ''', (exchange['sales_order_id'],)).fetchall()
+    
     agreements = conn.execute('''
         SELECT * FROM exchange_agreements WHERE exchange_id = ? ORDER BY version DESC
     ''', (exchange_id,)).fetchall()
@@ -253,6 +310,7 @@ def view_exchange(exchange_id):
                           exchange=dict(exchange),
                           core=dict(core) if core else None,
                           linked_pos=[dict(p) for p in linked_pos],
+                          dual_exchange_pos=[dict(p) for p in dual_exchange_pos],
                           agreements=[dict(a) for a in agreements],
                           audit_log=[dict(a) for a in audit_log],
                           alerts=[dict(a) for a in alerts],

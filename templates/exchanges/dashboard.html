@@ -158,6 +158,119 @@
         </div>
     </div>
     
+    {% if exchange_pos %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Exchange PO Obligations</h5>
+                    <small class="text-muted">Track who owes exchanges and when they are due</small>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-primary me-1">{{ exchange_po_stats.total }} Total</span>
+                    <span class="badge bg-info me-1">{{ exchange_po_stats.customer_owned }} Customer Owned</span>
+                    <span class="badge bg-secondary me-1">{{ exchange_po_stats.supplier_owned }} Supplier Owned</span>
+                    {% if exchange_po_stats.overdue > 0 %}
+                    <span class="badge bg-danger">{{ exchange_po_stats.overdue }} Overdue</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Exchange Ref</th>
+                            <th>PO Number</th>
+                            <th>Source SO</th>
+                            <th>Supplier</th>
+                            <th>Owner Type</th>
+                            <th>Owed To/By</th>
+                            <th>Due Date</th>
+                            <th>Days Overdue</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for epo in exchange_pos %}
+                        <tr class="{% if epo.days_overdue and epo.days_overdue > 0 %}table-danger{% endif %}">
+                            <td>
+                                <span class="badge bg-info">{{ epo.exchange_reference_id or 'N/A' }}</span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('po_routes.view_purchaseorder', id=epo.id) }}" class="fw-semibold">
+                                    {{ epo.po_number }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if epo.source_sales_order_id %}
+                                <a href="{{ url_for('salesorder_routes.view_sales_order', id=epo.source_sales_order_id) }}">
+                                    {{ epo.so_number }}
+                                </a>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>{{ epo.supplier_name }}</td>
+                            <td>
+                                {% if epo.exchange_owner_type == 'Customer' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-person me-1"></i>Customer Owned
+                                </span>
+                                {% elif epo.exchange_owner_type == 'Supplier' %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-building me-1"></i>Supplier Owned
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Not Set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if epo.owner_name %}
+                                <strong>{{ epo.owner_name }}</strong>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ epo.expected_date or '-' }}</td>
+                            <td>
+                                {% if epo.days_overdue and epo.days_overdue > 0 %}
+                                <span class="text-danger fw-bold">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{{ epo.days_overdue|int }} days
+                                </span>
+                                {% else %}
+                                <span class="text-success">On Time</span>
+                                {% endif %}
+                            </td>
+                            <td>${{ "{:,.2f}".format(epo.total_amount or 0) }}</td>
+                            <td>
+                                {% if epo.status == 'Received' %}
+                                <span class="badge bg-success">{{ epo.status }}</span>
+                                {% elif epo.status == 'Pending' %}
+                                <span class="badge bg-warning text-dark">{{ epo.status }}</span>
+                                {% elif epo.status == 'Approved' %}
+                                <span class="badge bg-primary">{{ epo.status }}</span>
+                                {% elif epo.status == 'Cancelled' %}
+                                <span class="badge bg-dark">{{ epo.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ epo.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('po_routes.view_purchaseorder', id=epo.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-transparent">
             <div class="row align-items-center">

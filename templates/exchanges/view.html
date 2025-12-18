@@ -329,7 +329,66 @@
                 </div>
                 
                 <div class="tab-pane fade" id="pos-tab">
+                    {% if dual_exchange_pos %}
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-warning bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Dual Exchange POs - Ownership Obligations</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Exchange Ref</th>
+                                            <th>PO Number</th>
+                                            <th>Supplier</th>
+                                            <th>Owner Type</th>
+                                            <th>Owed To/By</th>
+                                            <th>Due Date</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for depo in dual_exchange_pos %}
+                                        <tr>
+                                            <td><span class="badge bg-info">{{ depo.exchange_reference_id or 'N/A' }}</span></td>
+                                            <td><a href="{{ url_for('po_routes.view_purchaseorder', id=depo.id) }}">{{ depo.po_number }}</a></td>
+                                            <td>{{ depo.supplier_name or '-' }}</td>
+                                            <td>
+                                                {% if depo.exchange_owner_type == 'Customer' %}
+                                                <span class="badge bg-success"><i class="bi bi-person me-1"></i>Customer Owned</span>
+                                                {% elif depo.exchange_owner_type == 'Supplier' %}
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-building me-1"></i>Supplier Owned</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Not Set</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><strong>{{ depo.owner_name or '-' }}</strong></td>
+                                            <td>{{ depo.expected_date or '-' }}</td>
+                                            <td>${{ "{:,.2f}".format(depo.total_amount or 0) }}</td>
+                                            <td>
+                                                {% if depo.status == 'Received' %}
+                                                <span class="badge bg-success">{{ depo.status }}</span>
+                                                {% elif depo.status == 'Approved' %}
+                                                <span class="badge bg-primary">{{ depo.status }}</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">{{ depo.status }}</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-transparent">
+                            <h6 class="mb-0"><i class="bi bi-cart me-2"></i>Linked Purchase Orders</h6>
+                        </div>
                         <div class="card-body">
                             {% if linked_pos %}
                             <div class="table-responsive">
@@ -346,7 +405,7 @@
                                     <tbody>
                                         {% for po in linked_pos %}
                                         <tr>
-                                            <td><a href="{{ url_for('purchase_order.view_purchase_order', po_id=po.purchase_order_id) }}">{{ po.po_number }}</a></td>
+                                            <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.purchase_order_id) }}">{{ po.po_number }}</a></td>
                                             <td>{{ po.supplier_name or '-' }}</td>
                                             <td>${{ "{:,.2f}".format(po.po_exchange_fee or 0) }}</td>
                                             <td>${{ "{:,.2f}".format(po.po_core_charge or 0) }}</td>

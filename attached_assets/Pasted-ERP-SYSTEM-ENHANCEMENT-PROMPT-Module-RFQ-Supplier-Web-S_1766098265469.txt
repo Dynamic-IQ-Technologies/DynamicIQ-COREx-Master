@@ -1,0 +1,224 @@
+ERP SYSTEM ENHANCEMENT PROMPT
+
+Module: RFQ → Supplier Web Submission Portal
+
+Role
+
+You are a Senior ERP Architect and Procurement Systems Engineer specializing in RFQ workflows, supplier collaboration portals, and secure external data submission.
+
+Your task is to enhance an existing ERP application to allow RFQs to be shared with suppliers via a secure web link, enabling suppliers to submit pricing and lead time directly into the ERP system without requiring system login.
+
+Business Objective
+
+Enable procurement teams to:
+
+Generate RFQs from the ERP
+
+Share RFQs externally via secure web links
+
+Allow suppliers to submit:
+
+Pricing
+
+Lead Time
+
+Automatically capture, track, and compare supplier responses within the ERP
+
+Functional Requirements
+1. RFQ Creation Enhancements
+
+RFQ must include:
+
+RFQ Number (system-generated)
+
+RFQ Issue Date
+
+RFQ Expiration Date
+
+Buyer Contact Information
+
+Line Items:
+
+Part Number
+
+Description
+
+Quantity
+
+Required Condition
+
+Target Delivery Date
+
+2. Supplier Web Link Generation
+
+Add action button:
+“Send RFQ to Supplier”
+
+System generates:
+
+A unique, secure, tokenized web link per supplier
+
+Link expiration tied to RFQ expiration date
+
+Link must be:
+
+Read-only for RFQ details
+
+Write-enabled only for supplier pricing and lead time fields
+
+3. Supplier Web Submission Portal
+
+Suppliers accessing the link must be able to:
+
+View RFQ details (non-editable):
+
+RFQ Number
+
+Line Items
+
+Quantity
+
+Requested Delivery Date
+
+Submit:
+
+Unit Price (per line item)
+
+Total Price (auto-calculated)
+
+Lead Time (in days)
+
+Validity Date of Quote
+
+Optional Notes / Comments
+
+Upload supporting documents (optional):
+
+Quote PDF
+
+Compliance or certification files
+
+4. Data Capture & ERP Integration
+
+Upon supplier submission:
+
+Responses are saved directly to the ERP RFQ record
+
+Each supplier response must include:
+
+Supplier ID
+
+Submission timestamp
+
+Submitted pricing
+
+Submitted lead time
+
+Status automatically updates to:
+
+Response Received
+
+5. RFQ Comparison & Awarding
+
+ERP must allow buyers to:
+
+Compare supplier responses side-by-side
+
+Sort by:
+
+Price
+
+Lead Time
+
+Submission Date
+
+Enable action:
+“Convert Selected RFQ Response to Purchase Order”
+
+6. Security & Compliance
+
+Web links must:
+
+Be unique per supplier
+
+Expire automatically
+
+Prevent multiple submissions unless explicitly allowed
+
+All supplier inputs must be:
+
+Validated server-side
+
+Logged for audit purposes
+
+7. UI / UX Requirements
+Internal ERP:
+
+RFQ screen shows:
+
+Suppliers invited
+
+Submission status per supplier
+
+Direct link to submitted quotes
+
+Supplier Portal:
+
+Clean, mobile-friendly web form
+
+No login required
+
+Clear submission confirmation message
+
+8. Data Model Enhancements
+
+Add or validate:
+
+RFQ.id
+RFQ.expiration_date
+RFQ.status
+RFQLineItem.id
+SupplierRFQResponse.id
+SupplierRFQResponse.supplier_id
+SupplierRFQResponse.rfq_id
+SupplierRFQResponse.unit_price
+SupplierRFQResponse.lead_time_days
+SupplierRFQResponse.valid_until
+SupplierRFQResponse.submitted_at
+SupplierRFQResponse.document_attachments
+
+9. Validation Rules
+
+Prevent submissions after RFQ expiration
+
+Require pricing and lead time for each line item
+
+Prevent duplicate submissions per supplier (unless allowed)
+
+10. Deliverables
+
+RFQ web link generation logic
+
+Supplier-facing RFQ response page
+
+Backend API for quote submission
+
+ERP-side RFQ response tracking
+
+Audit logging and validation rules
+
+Quality Standards
+
+This solution must be:
+
+Secure
+
+ERP-grade
+
+Audit-ready
+
+Scalable
+
+Supplier-friendly
+
+Compliant with procurement best practices
