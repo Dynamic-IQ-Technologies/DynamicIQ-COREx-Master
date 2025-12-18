@@ -88,9 +88,10 @@
                         <th>Product Code</th>
                         <th>Product Name</th>
                         <th>Qty Received</th>
+                        <th>Base Qty</th>
                         <th>Condition</th>
                         <th>Warehouse</th>
-                        <th>Unit Price</th>
+                        <th>Unit Cost</th>
                         <th>Total Value</th>
                     </tr>
                 </thead>
@@ -98,7 +99,19 @@
                     <tr>
                         <td>{{ receipt.product_code }}</td>
                         <td>{{ receipt.product_name }}</td>
-                        <td>{{ "%.2f"|format(receipt.quantity_received) }} {{ receipt.unit_of_measure }}</td>
+                        <td>{{ "%.2f"|format(receipt.quantity_received) }} {{ receipt.receiving_uom_code or receipt.unit_of_measure }}</td>
+                        <td>
+                            {% if receipt.base_quantity_received %}
+                            <span class="text-primary fw-bold">{{ "%.4f"|format(receipt.base_quantity_received) }} {{ receipt.unit_of_measure }}</span>
+                            {% if receipt.conversion_factor_used and receipt.conversion_factor_used != 1.0 %}
+                            <div class="text-muted small">
+                                <i class="bi bi-info-circle"></i> Factor: {{ "%.4f"|format(receipt.conversion_factor_used) }}
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">{{ "%.2f"|format(receipt.quantity_received) }}</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if receipt.condition == 'New' %}
                             <span class="badge bg-success">{{ receipt.condition }}</span>
@@ -109,8 +122,8 @@
                             {% endif %}
                         </td>
                         <td>{{ receipt.warehouse_location }}</td>
-                        <td>{{ receipt.unit_price|currency }}</td>
-                        <td class="fw-bold">{{ (receipt.quantity_received * receipt.unit_price)|currency }}</td>
+                        <td>{{ (receipt.unit_cost_at_receipt or receipt.unit_price)|currency }}</td>
+                        <td class="fw-bold">{{ ((receipt.base_quantity_received or receipt.quantity_received) * (receipt.unit_cost_at_receipt or receipt.unit_price))|currency }}</td>
                     </tr>
                 </tbody>
             </table>

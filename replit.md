@@ -77,6 +77,7 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
 -   **Time Clock Station**: Dedicated employee time tracking system with simplified employee code authentication and automatic labor cost tracking.
 -   **Labor Resources & Skillset Management**: Comprehensive multi-skillset assignment system for tracking employee competencies and strategic capacity planning.
 -   **Service/Misc PO for Work Orders**: Create purchase orders for miscellaneous charges and outside services (heat treatment, plating, NDT, etc.) directly linked to work orders. Includes service line tracking, receiving workflow, and automatic integration into work order cost calculations. Supports categories: Outside Processing, Heat Treatment, Plating/Coating, Testing/Inspection, Machining, NDT Services, Calibration, Engineering Services, Expedite Fee, Freight/Shipping, Tooling, Consulting.
+-   **UOM Conversion System**: High-precision unit of measure conversion for purchase orders using Python Decimal for accuracy. Features include: base quantity tracking, conversion factor audit trails, extended cost calculations, and proper cost allocation on receiving. Key tables: `uom_master`, `uom_conversions`. Utility module: `utils/uom_conversion.py`.
 
 ## External Dependencies
 

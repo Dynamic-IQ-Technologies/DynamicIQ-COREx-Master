@@ -120,7 +120,8 @@
                         <th>Base Qty (Base UOM)</th>
                         <th>Received</th>
                         <th>Unit Price</th>
-                        <th>Line Total</th>
+                        <th>Base Unit Cost</th>
+                        <th>Extended Cost</th>
                         <th>In Stock</th>
                     </tr>
                 </thead>
@@ -158,7 +159,15 @@
                             {% endif %}
                         </td>
                         <td>{{ line_price|currency }}</td>
-                        <td class="fw-bold">{{ line_total|currency }}</td>
+                        <td>
+                            {% if line.base_unit_price %}
+                            {{ line.base_unit_price|currency }}
+                            <div class="text-muted small">(per {{ line.base_uom_code or line.unit_of_measure }})</div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ (line.extended_cost or line_total)|currency }}</td>
                         <td>
                             {% if line.inventory_quantity is not none %}
                             {{ line.inventory_quantity|int }}
@@ -167,12 +176,12 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% set ns.total = ns.total + line_total %}
+                    {% set ns.total = ns.total + (line.extended_cost or line_total) %}
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr class="table-light">
-                        <td colspan="8" class="text-end"><strong>Total Order Value:</strong></td>
+                        <td colspan="9" class="text-end"><strong>Total Order Value:</strong></td>
                         <td colspan="2" class="fw-bold text-primary">{{ ns.total|currency }}</td>
                     </tr>
                 </tfoot>

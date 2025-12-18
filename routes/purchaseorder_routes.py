@@ -145,12 +145,15 @@ def create_purchaseorder():
                 
                 po_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
                 
-                # Insert line items with UOM conversion
+                # Insert line items with UOM conversion and cost preservation
                 for line_num, line_data in sorted(lines.items()):
                     product_id = int(line_data['product_id'])
                     quantity = float(line_data['quantity'])
                     unit_price = float(line_data['unit_price'])
                     uom_id = int(line_data['uom_id']) if line_data.get('uom_id') else None
+                    
+                    # Calculate extended cost (invariant - never changes due to UOM conversion)
+                    extended_cost = round(quantity * unit_price, 6)
                     
                     # Calculate base quantity and get conversion info
                     base_quantity = quantity
@@ -164,11 +167,15 @@ def create_purchaseorder():
                             base_uom_id = base_uom
                             base_quantity = calculate_base_quantity(quantity, conversion_factor)
                     
+                    # Calculate base unit price from extended cost and base quantity
+                    base_unit_price = round(extended_cost / base_quantity, 6) if base_quantity > 0 else 0
+                    
                     conn.execute('''
                         INSERT INTO purchase_order_lines
                         (po_id, line_number, product_id, quantity, unit_price, uom_id,
-                         base_quantity, base_uom_id, conversion_factor_used)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         base_quantity, base_uom_id, conversion_factor_used,
+                         extended_cost, base_unit_price)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         po_id,
                         int(line_num),
@@ -178,7 +185,9 @@ def create_purchaseorder():
                         uom_id,
                         base_quantity,
                         base_uom_id,
-                        conversion_factor
+                        conversion_factor,
+                        extended_cost,
+                        base_unit_price
                     ))
                 
                 # Log audit trail

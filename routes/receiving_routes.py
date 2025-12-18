@@ -110,16 +110,32 @@ def create_receiving():
             
             receipt_number = f'RCV-{next_number:06d}'
             
-            # Create receiving transaction
+            # Calculate UOM conversion info for audit trail
+            conversion_factor = po_line['conversion_factor_used'] if po_line['conversion_factor_used'] else 1.0
+            base_quantity_for_receipt = quantity_received * conversion_factor
+            receiving_uom_id = po_line['uom_id']  # Receiving in PO UOM by default
+            
+            # Calculate unit cost at receipt from PO line (preserves cost allocation)
+            base_unit_price = po_line.get('base_unit_price')
+            if base_unit_price is None and po_line['unit_price']:
+                # Fallback calculation if base_unit_price not set
+                extended = po_line['quantity'] * po_line['unit_price']
+                base_qty = po_line['base_quantity'] or po_line['quantity']
+                base_unit_price = extended / base_qty if base_qty > 0 else po_line['unit_price']
+            unit_cost_at_receipt = round(base_unit_price or 0, 6)
+            
+            # Create receiving transaction with UOM audit trail
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO receiving_transactions 
                 (receipt_number, po_id, product_id, quantity_received, receipt_date, 
                  packing_slip_number, shipment_tracking, warehouse_location, bin_location, 
-                 receiver_name, condition, remarks, received_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 receiver_name, condition, remarks, received_by,
+                 po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (receipt_number, po_id, product_id, quantity_received, receipt_date,
-                  packing_slip, tracking, warehouse, bin_location, receiver, condition, remarks, session['user_id']))
+                  packing_slip, tracking, warehouse, bin_location, receiver, condition, remarks, session['user_id'],
+                  po_line_id, receiving_uom_id, conversion_factor, base_quantity_for_receipt, unit_cost_at_receipt))
             
             receipt_id = cursor.lastrowid
             
@@ -177,20 +193,8 @@ def create_receiving():
             if all_lines_received == 0:
                 conn.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', ('Received', po_id))
             
-            # Calculate base quantity for inventory using conversion factor
-            conversion_factor = po_line['conversion_factor_used'] if po_line['conversion_factor_used'] else 1.0
-            base_quantity_received = quantity_received * conversion_factor
-            
-            # Calculate unit cost based on PO line price and conversion factor
-            # This ensures inventory cost reflects actual purchase cost, not product master cost
-            unit_cost_in_base_uom = po_line['unit_price'] / conversion_factor if conversion_factor > 0 else po_line['unit_price']
-            
-            # Update product cost to reflect actual purchase cost
-            conn.execute('''
-                UPDATE products
-                SET cost = ?
-                WHERE id = ?
-            ''', (unit_cost_in_base_uom, product_id))
+            # Use the already calculated conversion values from earlier
+            # base_quantity_for_receipt and unit_cost_at_receipt already computed above
             
             # Update inventory with base quantity
             inventory = conn.execute('''
@@ -198,25 +202,26 @@ def create_receiving():
             ''', (product_id,)).fetchone()
             
             if inventory:
-                new_qty = inventory['quantity'] + base_quantity_received
+                new_qty = inventory['quantity'] + base_quantity_for_receipt
                 conn.execute('''
                     UPDATE inventory 
                     SET quantity = ?,
+                        unit_cost = ?,
                         last_received_date = ?,
                         last_updated = CURRENT_TIMESTAMP
                     WHERE product_id = ?
-                ''', (new_qty, receipt_date, product_id))
+                ''', (new_qty, unit_cost_at_receipt, receipt_date, product_id))
             else:
                 # Create inventory record with location info using base quantity
                 conn.execute('''
                     INSERT INTO inventory 
-                    (product_id, quantity, condition, warehouse_location, bin_location, last_received_date, status)
-                    VALUES (?, ?, ?, ?, ?, ?, 'Available')
-                ''', (product_id, base_quantity_received, condition, warehouse, bin_location, receipt_date))
+                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'Available')
+                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date))
             
             # Update base received quantity on PO line
             base_received_so_far = po_line['base_received_quantity'] if po_line['base_received_quantity'] else 0
-            new_base_received = base_received_so_far + base_quantity_received
+            new_base_received = base_received_so_far + base_quantity_for_receipt
             conn.execute('''
                 UPDATE purchase_order_lines 
                 SET base_received_quantity = ?
@@ -402,13 +407,16 @@ def view_receiving(receipt_number):
             u.username as received_by_name,
             pol.unit_price,
             pol.quantity as po_quantity,
-            COALESCE(pol.received_quantity, 0) as po_received_quantity
+            COALESCE(pol.received_quantity, 0) as po_received_quantity,
+            ruom.uom_code as receiving_uom_code,
+            ruom.uom_name as receiving_uom_name
         FROM receiving_transactions rt
         JOIN purchase_orders po ON rt.po_id = po.id
         JOIN products p ON rt.product_id = p.id
         JOIN suppliers s ON po.supplier_id = s.id
         LEFT JOIN users u ON rt.received_by = u.id
         LEFT JOIN purchase_order_lines pol ON pol.po_id = rt.po_id AND pol.product_id = rt.product_id
+        LEFT JOIN uom_master ruom ON rt.receiving_uom_id = ruom.id
         WHERE rt.receipt_number = ?
     ''', (receipt_number,)).fetchone()
     
