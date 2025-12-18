@@ -803,7 +803,7 @@
                         {% for log in audit_trail %}
                         <tr>
                             <td>
-                                <small>{{ log.timestamp[:19] if log.timestamp else '-' }}</small>
+                                <small>{{ log.modified_at[:19] if log.modified_at else '-' }}</small>
                             </td>
                             <td>
                                 <span class="badge {% if log.action_type == 'Created' %}bg-success{% elif log.action_type == 'Updated' %}bg-warning text-dark{% elif log.action_type == 'Deleted' %}bg-danger{% elif 'File' in (log.action_type or '') %}bg-info{% else %}bg-secondary{% endif %}">
@@ -812,9 +812,9 @@
                             </td>
                             <td>{{ log.username or 'System' }}</td>
                             <td>
-                                {% if log.changes %}
+                                {% if log.changed_fields %}
                                 <small class="text-muted" style="max-width: 300px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    {{ log.changes[:100] }}{% if log.changes|length > 100 %}...{% endif %}
+                                    {{ log.changed_fields[:100] }}{% if log.changed_fields|length > 100 %}...{% endif %}
                                 </small>
                                 {% else %}
                                 <span class="text-muted">-</span>

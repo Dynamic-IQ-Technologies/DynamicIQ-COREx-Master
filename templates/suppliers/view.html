@@ -275,20 +275,20 @@
                 <tbody>
                     {% for entry in audit_trail %}
                     <tr>
-                        <td><small>{{ entry.timestamp }}</small></td>
+                        <td><small>{{ entry.modified_at }}</small></td>
                         <td>
-                            {% if entry.action == 'CREATE' %}
+                            {% if entry.action_type == 'CREATE' %}
                             <span class="badge bg-success">Created</span>
-                            {% elif entry.action == 'UPDATE' %}
+                            {% elif entry.action_type == 'UPDATE' %}
                             <span class="badge bg-warning">Updated</span>
-                            {% elif entry.action == 'DELETE' %}
+                            {% elif entry.action_type == 'DELETE' %}
                             <span class="badge bg-danger">Deleted</span>
                             {% else %}
-                            <span class="badge bg-secondary">{{ entry.action }}</span>
+                            <span class="badge bg-secondary">{{ entry.action_type }}</span>
                             {% endif %}
                         </td>
                         <td>{{ entry.username or 'System' }}</td>
-                        <td><small class="text-muted">{{ entry.change_details[:100] }}{% if entry.change_details|length > 100 %}...{% endif %}</small></td>
+                        <td><small class="text-muted">{{ entry.changed_fields[:100] if entry.changed_fields else '-' }}{% if entry.changed_fields and entry.changed_fields|length > 100 %}...{% endif %}</small></td>
                         <td><small class="text-muted">{{ entry.ip_address or '-' }}</small></td>
                     </tr>
                     {% endfor %}
