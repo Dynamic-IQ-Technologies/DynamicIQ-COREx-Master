@@ -435,7 +435,7 @@ def get_workforce_kpis(conn):
     labor_stats = conn.execute('''
         SELECT 
             COUNT(*) as total_resources,
-            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active
+            SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active
         FROM labor_resources
     ''').fetchone()
     
