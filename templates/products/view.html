@@ -256,6 +256,16 @@
                     <div class="info-label">Manufacturer</div>
                     <div class="info-value">{{ product.manufacturer or '-' }}</div>
                 </div>
+                <div class="info-item">
+                    <div class="info-label">Serialized Part</div>
+                    <div class="info-value">
+                        {% if product.is_serialized %}
+                        <span class="badge bg-primary"><i class="bi bi-hash me-1"></i>Yes - Serial Tracking Required</span>
+                        {% else %}
+                        <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
