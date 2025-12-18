@@ -1564,6 +1564,80 @@ class Database:
             )
         ''')
         
+        # Create FAA Form 8130-3 certificates table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS faa_8130_certificates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                certificate_number TEXT UNIQUE NOT NULL,
+                work_order_id INTEGER NOT NULL,
+                issue_date DATE NOT NULL,
+                
+                -- Block 1: Approving Civil Aviation Authority
+                issuing_authority TEXT DEFAULT 'FAA',
+                
+                -- Block 2: Authorized Release Certificate
+                form_tracking_number TEXT,
+                
+                -- Block 4: Organization Name and Address
+                organization_name TEXT,
+                organization_address TEXT,
+                
+                -- Block 5: Work Order/Contract/Invoice
+                work_order_reference TEXT,
+                
+                -- Block 6: Item (part details)
+                part_name TEXT,
+                part_number TEXT,
+                part_description TEXT,
+                
+                -- Block 7: Quantity
+                quantity INTEGER,
+                
+                -- Block 8: Serial/Batch Number
+                serial_number TEXT,
+                batch_number TEXT,
+                
+                -- Block 9: Status/Work
+                status_work TEXT,
+                
+                -- Block 11: Approval/Authorization Number
+                approval_number TEXT,
+                
+                -- Block 12: Remarks
+                remarks TEXT,
+                
+                -- Block 13: Certifying Staff
+                certifier_name TEXT,
+                certifier_certificate_number TEXT,
+                certifier_signature_date DATE,
+                
+                -- Block 14: Authorized Signature
+                authorized_signature_name TEXT,
+                authorized_signature_number TEXT,
+                authorized_signature_date DATE,
+                
+                -- Block 19: Receiving Organization (optional)
+                receiving_organization TEXT,
+                receiving_address TEXT,
+                
+                -- File storage
+                pdf_file_path TEXT,
+                pdf_file_hash TEXT,
+                
+                -- Metadata
+                status TEXT DEFAULT 'Issued',
+                voided_at TIMESTAMP,
+                voided_by INTEGER,
+                void_reason TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (voided_by) REFERENCES users(id)
+            )
+        ''')
+        
         # Create MRO capabilities tracking table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS mro_capabilities (
