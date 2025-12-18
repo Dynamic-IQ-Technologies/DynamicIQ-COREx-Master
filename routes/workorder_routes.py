@@ -1719,10 +1719,11 @@ def generate_8130(id):
             conn.close()
             return redirect(url_for('workorder_routes.generate_8130', id=id))
     
-    # Build organization address
+    # Build organization address from company settings
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
     org_address = ''
-    if wo.get('company_address'):
-        org_address = f"{wo['company_address']}, {wo.get('company_city', '')}, {wo.get('company_state', '')} {wo.get('company_zip', '')}"
+    if company and company['address_line1']:
+        org_address = f"{company['address_line1']}, {company['city'] or ''}, {company['state'] or ''} {company['postal_code'] or ''}"
     
     conn.close()
     return render_template('workorders/generate_8130.html', 
