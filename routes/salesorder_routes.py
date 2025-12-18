@@ -1244,10 +1244,49 @@ def deallocate_line(line_id):
             changed_fields=changed_fields
         )
         
+        # Check for linked Exchange PO and cancel it
+        cancelled_po_number = None
+        linked_exchange_po = conn.execute('''
+            SELECT po.id, po.po_number, po.status
+            FROM purchase_orders po
+            JOIN purchase_order_lines pol ON pol.po_id = po.id
+            WHERE pol.source_so_line_id = ?
+            AND po.is_exchange = 1
+            AND po.status NOT IN ('Cancelled', 'Received', 'Closed')
+        ''', (line_id,)).fetchone()
+        
+        if linked_exchange_po:
+            # Cancel the Exchange PO
+            conn.execute('''
+                UPDATE purchase_orders
+                SET status = 'Cancelled',
+                    exchange_status = 'Cancelled - Deallocated',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (linked_exchange_po['id'],))
+            
+            cancelled_po_number = linked_exchange_po['po_number']
+            
+            # Log the Exchange PO cancellation
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='purchase_orders',
+                record_id=linked_exchange_po['id'],
+                action_type='UPDATE',
+                modified_by=session.get('user_id'),
+                changed_fields={
+                    'status': f"{linked_exchange_po['status']} -> Cancelled",
+                    'exchange_status': 'Cancelled - Deallocated',
+                    'action': 'Auto-cancelled due to SO line deallocation',
+                    'source_so_line_id': line_id
+                }
+            )
+        
         conn.commit()
         
         serial_msg = f' (S/N: {serial_number})' if serial_number else ''
-        flash(f'Successfully deallocated {allocated_qty} units of {line["code"]} from line {line["line_number"]}{serial_msg}. Line can now be deleted.', 'success')
+        po_msg = f' Linked Exchange PO {cancelled_po_number} was automatically cancelled.' if cancelled_po_number else ''
+        flash(f'Successfully deallocated {allocated_qty} units of {line["code"]} from line {line["line_number"]}{serial_msg}.{po_msg} A new Exchange PO can now be created.', 'success')
         
     except Exception as e:
         conn.rollback()
@@ -1416,14 +1455,15 @@ def create_exchange_po(id):
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
-        # Check if Exchange PO already exists for this SO
+        # Check if active Exchange PO already exists for this SO (exclude cancelled ones)
         existing_po = conn.execute('''
             SELECT po_number FROM purchase_orders 
             WHERE source_sales_order_id = ? AND is_exchange = 1
+            AND status NOT IN ('Cancelled')
         ''', (id,)).fetchone()
         
         if existing_po:
-            flash(f'An Exchange PO ({existing_po["po_number"]}) already exists for this Sales Order', 'warning')
+            flash(f'An active Exchange PO ({existing_po["po_number"]}) already exists for this Sales Order', 'warning')
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
@@ -1474,14 +1514,15 @@ def create_exchange_po(id):
                 return render_template('salesorders/create_exchange_po.html',
                     sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
             
-            # Re-check for existing Exchange PO within transaction to prevent race conditions
+            # Re-check for existing active Exchange PO within transaction to prevent race conditions
             existing_po_recheck = conn.execute('''
                 SELECT po_number FROM purchase_orders 
                 WHERE source_sales_order_id = ? AND is_exchange = 1
+                AND status NOT IN ('Cancelled')
             ''', (id,)).fetchone()
             
             if existing_po_recheck:
-                flash(f'An Exchange PO ({existing_po_recheck["po_number"]}) was already created for this Sales Order', 'warning')
+                flash(f'An active Exchange PO ({existing_po_recheck["po_number"]}) already exists for this Sales Order', 'warning')
                 conn.close()
                 return redirect(url_for('salesorder_routes.view_sales_order', id=id))
             
