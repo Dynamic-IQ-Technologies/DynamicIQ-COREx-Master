@@ -546,6 +546,12 @@ Existing MPN: {intake['manufacturer_part_number'] or 'Unknown'}
 
 {all_content}
 
+IMPORTANT: For sourcing_price, look for ANY price information in the source content including:
+- Unit price, list price, catalog price
+- Price breaks (use the single unit price or lowest quantity price)
+- Any dollar amounts that represent the part cost
+- If no price is found but you know approximate market pricing for this type of part, provide an estimate
+
 Extract and return a JSON object with the following fields (include confidence score 0-100 for each):
 - supplier_name: The supplier/distributor name
 - supplier_part_number: The supplier's part number
@@ -557,7 +563,7 @@ Extract and return a JSON object with the following fields (include confidence s
 - base_uom: Base unit of measure (EA, KG, M, etc.)
 - purchase_uom: Purchase unit of measure
 - packaging_quantity: Quantity per package
-- sourcing_price: Unit cost/price of the part (numeric value only, no currency symbols)
+- sourcing_price: Unit cost/price of the part (numeric value only, no currency symbols). If price data is found anywhere in the content, extract it. If not found, return null.
 - technical_attributes: JSON object with specs (dimensions, material, ratings, etc.)
 - compliance_indicators: Any compliance info (RoHS, certifications, etc.)
 
