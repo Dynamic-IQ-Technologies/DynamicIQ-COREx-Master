@@ -85,6 +85,13 @@
                             <label class="form-label">Packaging Quantity</label>
                             <input type="number" class="form-control" name="packaging_quantity" value="{{ intake.packaging_quantity or 1 }}" min="1" step="0.01">
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sourcing Price (Unit Cost)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" name="sourcing_price" value="{{ intake.sourcing_price or '' }}" step="0.01" min="0">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

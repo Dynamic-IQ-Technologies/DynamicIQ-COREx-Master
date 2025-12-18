@@ -85,14 +85,17 @@ def capture_part():
         source_type = request.form.get('source_type', 'URL')
         source_url = request.form.get('source_url', '')
         
+        sourcing_price = request.form.get('sourcing_price', '')
+        sourcing_price_val = float(sourcing_price) if sourcing_price else None
+        
         conn.execute('''
             INSERT INTO part_intake_records (
                 intake_number, source_type, source_url, status,
                 supplier_name, supplier_part_number, oem_name, manufacturer_part_number,
                 short_description, long_description, category, base_uom, purchase_uom,
-                packaging_quantity, technical_attributes, compliance_indicators,
+                packaging_quantity, sourcing_price, technical_attributes, compliance_indicators,
                 captured_by, notes
-            ) VALUES (?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             intake_number,
             source_type,
@@ -107,6 +110,7 @@ def capture_part():
             request.form.get('base_uom', 'EA'),
             request.form.get('purchase_uom', 'EA'),
             float(request.form.get('packaging_quantity', 1) or 1),
+            sourcing_price_val,
             request.form.get('technical_attributes', ''),
             request.form.get('compliance_indicators', ''),
             session.get('user_id'),
@@ -202,11 +206,14 @@ def edit_intake(id):
     if request.method == 'POST':
         old_data = dict(intake)
         
+        sourcing_price = request.form.get('sourcing_price', '')
+        sourcing_price_val = float(sourcing_price) if sourcing_price else None
+        
         conn.execute('''
             UPDATE part_intake_records SET
                 supplier_name = ?, supplier_part_number = ?, oem_name = ?, manufacturer_part_number = ?,
                 short_description = ?, long_description = ?, category = ?, base_uom = ?, purchase_uom = ?,
-                packaging_quantity = ?, technical_attributes = ?, compliance_indicators = ?, notes = ?
+                packaging_quantity = ?, sourcing_price = ?, technical_attributes = ?, compliance_indicators = ?, notes = ?
             WHERE id = ?
         ''', (
             request.form.get('supplier_name', ''),
@@ -219,6 +226,7 @@ def edit_intake(id):
             request.form.get('base_uom', 'EA'),
             request.form.get('purchase_uom', 'EA'),
             float(request.form.get('packaging_quantity', 1) or 1),
+            sourcing_price_val,
             request.form.get('technical_attributes', ''),
             request.form.get('compliance_indicators', ''),
             request.form.get('notes', ''),
@@ -549,6 +557,7 @@ Extract and return a JSON object with the following fields (include confidence s
 - base_uom: Base unit of measure (EA, KG, M, etc.)
 - purchase_uom: Purchase unit of measure
 - packaging_quantity: Quantity per package
+- sourcing_price: Unit cost/price of the part (numeric value only, no currency symbols)
 - technical_attributes: JSON object with specs (dimensions, material, ratings, etc.)
 - compliance_indicators: Any compliance info (RoHS, certifications, etc.)
 
@@ -591,14 +600,15 @@ Return ONLY valid JSON, no markdown formatting."""
             'category': 'category',
             'base_uom': 'base_uom',
             'purchase_uom': 'purchase_uom',
-            'packaging_quantity': 'packaging_quantity'
+            'packaging_quantity': 'packaging_quantity',
+            'sourcing_price': 'sourcing_price'
         }
         
         for json_key, db_field in field_mapping.items():
             if json_key in extracted_data and extracted_data[json_key]:
                 update_fields.append(f'{db_field} = ?')
                 value = extracted_data[json_key]
-                if json_key == 'packaging_quantity':
+                if json_key in ['packaging_quantity', 'sourcing_price']:
                     try:
                         value = float(value)
                     except:

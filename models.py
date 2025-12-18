@@ -4168,6 +4168,7 @@ def init_qms_tables(cursor):
             base_uom TEXT,
             purchase_uom TEXT,
             packaging_quantity REAL,
+            sourcing_price REAL,
             technical_attributes TEXT,
             compliance_indicators TEXT,
             image_urls TEXT,
@@ -4235,6 +4236,12 @@ def init_qms_tables(cursor):
             FOREIGN KEY (created_by) REFERENCES users(id)
         )
     ''')
+    
+    # Add sourcing_price column to part_intake_records if missing
+    try:
+        cursor.execute('ALTER TABLE part_intake_records ADD COLUMN sourcing_price REAL')
+    except:
+        pass
     
     # Part Intake indexes
     try:

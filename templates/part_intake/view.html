@@ -83,6 +83,10 @@
                                 <th>Packaging Qty:</th>
                                 <td>{{ intake.packaging_quantity or 1 }}</td>
                             </tr>
+                            <tr>
+                                <th>Sourcing Price:</th>
+                                <td class="text-success fw-bold">{{ '$ {:,.2f}'.format(intake.sourcing_price) if intake.sourcing_price else '-' }}</td>
+                            </tr>
                         </table>
                     </div>
                 </div>
