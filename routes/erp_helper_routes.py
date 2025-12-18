@@ -5,6 +5,7 @@ from decimal import Decimal
 import json
 import os
 from openai import OpenAI
+from routes.it_manager_routes import track_ai_agent_action
 
 erp_helper_bp = Blueprint('erp_helper_routes', __name__)
 
@@ -290,9 +291,12 @@ def chat():
             )
             
             assistant_message = response.choices[0].message.content
+            track_ai_agent_action('ERP Copilot', 'chat', approved=True)
         except ValueError as ve:
+            track_ai_agent_action('ERP Copilot', 'chat', approved=False)
             return jsonify({'error': 'AI service not configured. Please contact administrator.'}), 503
         except Exception as ai_error:
+            track_ai_agent_action('ERP Copilot', 'chat', approved=False)
             return jsonify({'error': 'AI service temporarily unavailable. Please try again.'}), 503
         
         return jsonify({

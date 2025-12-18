@@ -9,6 +9,14 @@ from datetime import datetime, timedelta
 import json
 import os
 
+def track_business_analytics_action(action_type='query', approved=True):
+    """Track Business Analytics AI agent action"""
+    try:
+        from routes.it_manager_routes import track_ai_agent_action
+        track_ai_agent_action('Business Analytics', action_type, approved)
+    except:
+        pass
+
 business_analytics_bp = Blueprint('business_analytics_routes', __name__, url_prefix='/business-analytics')
 
 def get_openai_client():
@@ -130,6 +138,7 @@ Provide a comprehensive analysis with:
         )
         
         analysis = response.choices[0].message.content
+        track_business_analytics_action('analyze', approved=True)
         
         return jsonify({
             'success': True,
@@ -139,6 +148,7 @@ Provide a comprehensive analysis with:
         })
         
     except Exception as e:
+        track_business_analytics_action('analyze', approved=False)
         return jsonify({'success': False, 'error': str(e)})
 
 @business_analytics_bp.route('/api/predict', methods=['POST'])

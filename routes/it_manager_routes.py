@@ -520,20 +520,89 @@ def get_ai_agent_status(conn):
     ''').fetchall()
     
     if not agents:
-        return get_default_ai_agents()
+        seed_ai_agents(conn)
+        agents = conn.execute('''
+            SELECT * FROM it_ai_agent_monitoring
+            ORDER BY trust_score ASC LIMIT 5
+        ''').fetchall()
     
-    return [dict(a) for a in agents]
+    return [dict(a) for a in agents] if agents else get_default_ai_agents()
+
+def seed_ai_agents(conn):
+    """Seed AI agents table with default data"""
+    default_agents = [
+        ('ERP Copilot', 'Assistant', 'Active', 95, 'Low'),
+        ('Supplier Discovery', 'Discovery', 'Active', 92, 'Low'),
+        ('Market Analyzer', 'Analytics', 'Active', 90, 'Low'),
+        ('Financial Analyzer', 'Analytics', 'Active', 88, 'Low'),
+        ('Master Scheduler', 'Planning', 'Active', 91, 'Low'),
+        ('Business Analytics', 'Analytics', 'Active', 89, 'Low'),
+        ('Organizational Analyzer', 'Executive', 'Active', 87, 'Low'),
+        ('Part Analyzer', 'Engineering', 'Active', 86, 'Low'),
+        ('Customer Service', 'Support', 'Active', 93, 'Low'),
+        ('Capacity Planner', 'Planning', 'Active', 90, 'Low')
+    ]
+    
+    for agent in default_agents:
+        try:
+            conn.execute('''
+                INSERT INTO it_ai_agent_monitoring 
+                (agent_name, agent_type, status, trust_score, risk_level, total_actions, approved_actions, blocked_actions)
+                VALUES (?, ?, ?, ?, ?, 0, 0, 0)
+            ''', agent)
+        except:
+            pass
+    conn.commit()
+
+def track_ai_agent_action(agent_name, action_type='query', approved=True):
+    """Track an AI agent action for KPI calculation"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        existing = conn.execute(
+            'SELECT id FROM it_ai_agent_monitoring WHERE agent_name = ?', 
+            (agent_name,)
+        ).fetchone()
+        
+        if not existing:
+            seed_ai_agents(conn)
+        
+        if approved:
+            conn.execute('''
+                UPDATE it_ai_agent_monitoring 
+                SET total_actions = total_actions + 1,
+                    approved_actions = approved_actions + 1,
+                    last_action_at = CURRENT_TIMESTAMP,
+                    last_action_type = ?
+                WHERE agent_name = ?
+            ''', (action_type, agent_name))
+        else:
+            conn.execute('''
+                UPDATE it_ai_agent_monitoring 
+                SET total_actions = total_actions + 1,
+                    blocked_actions = blocked_actions + 1,
+                    last_action_at = CURRENT_TIMESTAMP,
+                    last_action_type = ?
+                WHERE agent_name = ?
+            ''', (action_type, agent_name))
+        
+        conn.commit()
+    except Exception as e:
+        print(f"Error tracking AI agent action: {e}")
+    finally:
+        conn.close()
 
 def get_default_ai_agents():
     """Return default AI agents for display"""
     return [
-        {'agent_name': 'ERP Copilot', 'agent_type': 'Assistant', 'status': 'Active', 'trust_score': 95, 'risk_level': 'Low'},
-        {'agent_name': 'Supplier Discovery', 'agent_type': 'Discovery', 'status': 'Active', 'trust_score': 92, 'risk_level': 'Low'},
-        {'agent_name': 'Market Analyzer', 'agent_type': 'Analytics', 'status': 'Active', 'trust_score': 90, 'risk_level': 'Low'},
-        {'agent_name': 'Financial Analyzer', 'agent_type': 'Analytics', 'status': 'Active', 'trust_score': 88, 'risk_level': 'Low'},
-        {'agent_name': 'Master Scheduler', 'agent_type': 'Planning', 'status': 'Active', 'trust_score': 91, 'risk_level': 'Low'},
-        {'agent_name': 'Business Analytics', 'agent_type': 'Analytics', 'status': 'Active', 'trust_score': 89, 'risk_level': 'Low'},
-        {'agent_name': 'Organizational Analyzer', 'agent_type': 'Executive', 'status': 'Active', 'trust_score': 87, 'risk_level': 'Low'}
+        {'agent_name': 'ERP Copilot', 'agent_type': 'Assistant', 'status': 'Active', 'trust_score': 95, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0},
+        {'agent_name': 'Supplier Discovery', 'agent_type': 'Discovery', 'status': 'Active', 'trust_score': 92, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0},
+        {'agent_name': 'Market Analyzer', 'agent_type': 'Analytics', 'status': 'Active', 'trust_score': 90, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0},
+        {'agent_name': 'Financial Analyzer', 'agent_type': 'Analytics', 'status': 'Active', 'trust_score': 88, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0},
+        {'agent_name': 'Master Scheduler', 'agent_type': 'Planning', 'status': 'Active', 'trust_score': 91, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0},
+        {'agent_name': 'Business Analytics', 'agent_type': 'Analytics', 'status': 'Active', 'trust_score': 89, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0},
+        {'agent_name': 'Organizational Analyzer', 'agent_type': 'Executive', 'status': 'Active', 'trust_score': 87, 'risk_level': 'Low', 'total_actions': 0, 'approved_actions': 0, 'blocked_actions': 0}
     ]
 
 def get_recent_incidents(conn):

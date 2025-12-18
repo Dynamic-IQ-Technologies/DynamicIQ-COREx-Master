@@ -11,6 +11,14 @@ import os
 from models import Database
 from engines.master_scheduler import MasterSchedulerEngine
 
+def track_master_scheduler_action(action_type='query', approved=True):
+    """Track Master Scheduler AI agent action"""
+    try:
+        from routes.it_manager_routes import track_ai_agent_action
+        track_ai_agent_action('Master Scheduler', action_type, approved)
+    except:
+        pass
+
 try:
     from openai import OpenAI
     client = OpenAI(
@@ -464,10 +472,12 @@ Be specific, quantitative, and actionable. No generic responses."""
                 ))
             conn.commit()
         
+        track_master_scheduler_action('analyze', approved=True)
         conn.close()
         return jsonify({'success': True, 'data': analysis})
         
     except Exception as e:
+        track_master_scheduler_action('analyze', approved=False)
         conn.close()
         return jsonify({'success': False, 'error': str(e)})
 
