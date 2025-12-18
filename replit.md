@@ -76,6 +76,7 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
 -   **Accounting System**: Features a Chart of Accounts (COA), General Ledger (GL), Manual Journal Entries, automatic GL posting, and financial reports.
 -   **Time Clock Station**: Dedicated employee time tracking system with simplified employee code authentication and automatic labor cost tracking.
 -   **Labor Resources & Skillset Management**: Comprehensive multi-skillset assignment system for tracking employee competencies and strategic capacity planning.
+-   **Service/Misc PO for Work Orders**: Create purchase orders for miscellaneous charges and outside services (heat treatment, plating, NDT, etc.) directly linked to work orders. Includes service line tracking, receiving workflow, and automatic integration into work order cost calculations. Supports categories: Outside Processing, Heat Treatment, Plating/Coating, Testing/Inspection, Machining, NDT Services, Calibration, Engineering Services, Expedite Fee, Freight/Shipping, Tooling, Consulting.
 
 ## External Dependencies
 
