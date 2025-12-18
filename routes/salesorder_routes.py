@@ -1442,8 +1442,8 @@ def create_exchange_po(id):
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
         # Get suppliers and customers for owner selection
-        suppliers = conn.execute('SELECT id, code, name FROM suppliers WHERE is_active = 1 ORDER BY name').fetchall()
-        customers = conn.execute('SELECT id, customer_number, name FROM customers WHERE is_active = 1 ORDER BY name').fetchall()
+        suppliers = conn.execute('SELECT id, code, name FROM suppliers ORDER BY name').fetchall()
+        customers = conn.execute('SELECT id, customer_number, name FROM customers ORDER BY name').fetchall()
         
         if request.method == 'POST':
             # Validate required fields
