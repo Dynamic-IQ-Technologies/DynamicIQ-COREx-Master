@@ -98,6 +98,16 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
     - Audit trail logging for Exchange PO creation
     - Database fields: `purchase_orders.is_exchange`, `exchange_owner_type`, `exchange_owner_id`, `exchange_reference_id`, `source_sales_order_id`, `exchange_status`
     - Routes: `salesorder_routes.create_exchange_po`, `salesorder_routes.get_exchange_owner_details`
+-   **Exchange PO Obligations Tracking**: Comprehensive tracking of exchange obligations in the Exchange Management dashboard:
+    - Exchange PO Obligations table shows all Exchange POs with owner information
+    - Tracks who owes the exchange (Customer Owned vs Supplier Owned)
+    - Shows owner name (the specific customer or supplier responsible)
+    - Due date tracking with overdue indicators
+    - Days overdue calculation with visual alerts
+    - Linked source Sales Order references
+    - Exchange reference ID display
+    - Stats summary: Total, Customer Owned, Supplier Owned, Overdue counts
+    - Integration with Exchange detail view showing Dual Exchange POs in POs tab
 
 ## External Dependencies
 
