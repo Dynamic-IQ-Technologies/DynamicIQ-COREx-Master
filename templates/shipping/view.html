@@ -294,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function loadDocumentHistory() {
     const historyContainer = document.getElementById('documentHistory');
+    const shipmentId = {{ shipment.id }};
     
     fetch('{{ url_for("shipping_routes.get_shipment_documents", id=shipment.id) }}')
         .then(response => response.json())
@@ -303,14 +304,22 @@ function loadDocumentHistory() {
                 data.documents.forEach(doc => {
                     const statusBadge = getStatusBadge(doc.status);
                     const dateStr = formatDate(doc.generated_at);
+                    const downloadUrl = `/shipments/${shipmentId}/documents/${doc.id}/download`;
                     html += `
-                        <li class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                        <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
                             <div>
-                                <i class="bi bi-file-earmark-pdf text-danger"></i>
-                                <strong>${doc.document_number}</strong>
+                                <a href="${downloadUrl}" target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                    <strong>${doc.document_number}</strong>
+                                </a>
                                 <br><small class="text-muted">${doc.document_type} - ${dateStr}</small>
                             </div>
-                            <div>${statusBadge}</div>
+                            <div class="d-flex align-items-center gap-2">
+                                ${statusBadge}
+                                <a href="${downloadUrl}" target="_blank" class="btn btn-sm btn-outline-secondary" title="View/Download">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
                         </li>
                     `;
                 });

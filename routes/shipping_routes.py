@@ -3,6 +3,7 @@ from models import Database
 from auth import login_required, role_required
 from datetime import datetime
 from utils.shipping_documents import ShippingDocumentGenerator
+import os
 
 shipping_bp = Blueprint('shipping_routes', __name__)
 
@@ -854,17 +855,23 @@ def generate_packing_slip(id):
             dict(sales_order) if sales_order else None
         )
         
-        conn.execute('''
+        file_path = f"static/documents/{doc_number}.pdf"
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        cursor = conn.execute('''
             INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
-                                           status, generated_by, generated_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (id, 'Packing Slip', doc_number, new_version, 'Draft', session.get('user_id')))
+                                           status, file_path, generated_by, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (id, 'Packing Slip', doc_number, new_version, 'Draft', file_path, session.get('user_id')))
+        doc_id = cursor.lastrowid
         
         from models import AuditTrail
         AuditTrail.log_change(
             conn=conn,
             record_type='shipment_documents',
-            record_id=id,
+            record_id=doc_id,
             action_type='CREATE',
             modified_by=session.get('user_id'),
             changed_fields={'document_type': 'Packing Slip', 'version': new_version}
@@ -873,6 +880,7 @@ def generate_packing_slip(id):
         conn.commit()
         conn.close()
         
+        pdf_buffer.seek(0)
         return send_file(
             pdf_buffer,
             mimetype='application/pdf',
@@ -943,18 +951,24 @@ def generate_certificate_of_conformance(id):
             signatory
         )
         
-        conn.execute('''
+        file_path = f"static/documents/{doc_number}.pdf"
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        cursor = conn.execute('''
             INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
-                                           status, signed_by, generated_by, generated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                           status, file_path, signed_by, generated_by, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (id, 'Certificate of Conformance', doc_number, new_version, 'Unsigned', 
-              signatory, session.get('user_id')))
+              file_path, signatory, session.get('user_id')))
+        doc_id = cursor.lastrowid
         
         from models import AuditTrail
         AuditTrail.log_change(
             conn=conn,
             record_type='shipment_documents',
-            record_id=id,
+            record_id=doc_id,
             action_type='CREATE',
             modified_by=session.get('user_id'),
             changed_fields={'document_type': 'Certificate of Conformance', 'version': new_version}
@@ -963,6 +977,7 @@ def generate_certificate_of_conformance(id):
         conn.commit()
         conn.close()
         
+        pdf_buffer.seek(0)
         return send_file(
             pdf_buffer,
             mimetype='application/pdf',
@@ -1031,17 +1046,23 @@ def generate_commercial_invoice(id):
             dict(customer) if customer else None
         )
         
-        conn.execute('''
+        file_path = f"static/documents/{doc_number}.pdf"
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        cursor = conn.execute('''
             INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
-                                           status, generated_by, generated_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (id, 'Commercial Invoice', doc_number, new_version, 'Draft', session.get('user_id')))
+                                           status, file_path, generated_by, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (id, 'Commercial Invoice', doc_number, new_version, 'Draft', file_path, session.get('user_id')))
+        doc_id = cursor.lastrowid
         
         from models import AuditTrail
         AuditTrail.log_change(
             conn=conn,
             record_type='shipment_documents',
-            record_id=id,
+            record_id=doc_id,
             action_type='CREATE',
             modified_by=session.get('user_id'),
             changed_fields={'document_type': 'Commercial Invoice', 'version': new_version}
@@ -1050,6 +1071,7 @@ def generate_commercial_invoice(id):
         conn.commit()
         conn.close()
         
+        pdf_buffer.seek(0)
         return send_file(
             pdf_buffer,
             mimetype='application/pdf',
@@ -1156,3 +1178,38 @@ def sign_certificate(id, doc_id):
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@shipping_bp.route('/shipments/<int:id>/documents/<int:doc_id>/download')
+@login_required
+def download_document(id, doc_id):
+    """Download an existing document"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        document = conn.execute('''
+            SELECT * FROM shipment_documents 
+            WHERE id = ? AND shipment_id = ?
+        ''', (doc_id, id)).fetchone()
+        
+        conn.close()
+        
+        if not document:
+            flash('Document not found.', 'danger')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
+        
+        if not document['file_path'] or not os.path.exists(document['file_path']):
+            flash('Document file not available.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
+        
+        return send_file(
+            document['file_path'],
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f"{document['document_number']}.pdf"
+        )
+        
+    except Exception as e:
+        flash(f'Error downloading document: {str(e)}', 'danger')
+        return redirect(url_for('shipping_routes.view_shipment', id=id))
