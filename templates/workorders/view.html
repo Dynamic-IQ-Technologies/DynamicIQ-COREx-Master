@@ -50,6 +50,9 @@
         <a href="{{ url_for('task_routes.list_tasks', wo_id=workorder.id) }}" class="btn btn-primary">
             <i class="bi bi-list-task"></i> View Tasks
         </a>
+        <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="btn btn-secondary">
+            <i class="bi bi-receipt"></i> Service/Misc Costs
+        </a>
     </div>
 </div>
 
@@ -117,11 +120,25 @@
                 <p><strong>Material Cost:</strong> {{ cost_info.material_cost|currency }}</p>
                 <p><strong>Labor Cost:</strong> {{ cost_info.labor_cost|currency }}</p>
                 <p><strong>Overhead Cost:</strong> {{ cost_info.overhead_cost|currency }}</p>
+                {% if misc_cost_info and misc_cost_info.total_misc_cost > 0 %}
+                <p><strong>Service/Misc Cost:</strong> 
+                    <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="text-decoration-none">
+                        {{ misc_cost_info.total_misc_cost|currency }}
+                        <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8em;"></i>
+                    </a>
+                </p>
+                {% endif %}
                 <hr>
-                <p><strong>Total Cost:</strong> {{ cost_info.total_cost|currency }}</p>
+                <p><strong>Total Cost:</strong> {{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</p>
                 {% endif %}
             </div>
         </div>
+        {% if misc_cost_info and misc_cost_info.pending_count > 0 %}
+        <div class="alert alert-info mt-2 mb-0 p-2">
+            <small><i class="bi bi-info-circle me-1"></i>{{ misc_cost_info.pending_count }} pending service line(s) - 
+            <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}">View Details</a></small>
+        </div>
+        {% endif %}
     </div>
 </div>
 

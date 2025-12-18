@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Create Service PO - {{ workorder.wo_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="bi bi-receipt me-2"></i>Create Service Purchase Order</h1>
+        <p class="text-muted mb-0">For Work Order: <strong>{{ workorder.wo_number }}</strong> - {{ workorder.product_code }} {{ workorder.product_name }}</p>
+    </div>
+    <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Work Order
+    </a>
+</div>
+
+<form method="POST" id="servicePoForm">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-truck me-2"></i>Supplier Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="supplier_id" class="form-label">Supplier <span class="text-danger">*</span></label>
+                    <select class="form-select" id="supplier_id" name="supplier_id" required>
+                        <option value="">-- Select Supplier --</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}">{{ supplier.code }} - {{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+                    <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date">
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Additional notes or instructions..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Service Lines</h5>
+            <button type="button" class="btn btn-sm btn-success" onclick="addServiceLine()">
+                <i class="bi bi-plus-lg me-1"></i>Add Line
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="serviceLinesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 20%;">Category <span class="text-danger">*</span></th>
+                            <th style="width: 35%;">Description <span class="text-danger">*</span></th>
+                            <th style="width: 10%;">Qty <span class="text-danger">*</span></th>
+                            <th style="width: 15%;">Unit Cost <span class="text-danger">*</span></th>
+                            <th style="width: 15%;">Total</th>
+                            <th style="width: 5%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="serviceLinesBody">
+                        <tr class="service-line-row">
+                            <td>
+                                <select class="form-select form-select-sm" name="service_category[]" required>
+                                    <option value="">-- Select --</option>
+                                    {% for cat in service_categories %}
+                                    <option value="{{ cat }}">{{ cat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" name="description[]" placeholder="Service description..." required>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm qty-input" name="quantity[]" value="1" min="0.01" step="0.01" required onchange="calculateLineTotal(this)">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm unit-cost-input" name="unit_cost[]" value="0.00" min="0" step="0.01" required onchange="calculateLineTotal(this)">
+                            </td>
+                            <td>
+                                <span class="line-total">$0.00</span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeServiceLine(this)" title="Remove Line">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
+                            <td colspan="2"><strong id="grandTotal">$0.00</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Create Service PO
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const serviceCategories = {{ service_categories | tojson }};
+
+function addServiceLine() {
+    const tbody = document.getElementById('serviceLinesBody');
+    const row = document.createElement('tr');
+    row.className = 'service-line-row';
+    
+    let categoryOptions = '<option value="">-- Select --</option>';
+    serviceCategories.forEach(cat => {
+        categoryOptions += `<option value="${cat}">${cat}</option>`;
+    });
+    
+    row.innerHTML = `
+        <td>
+            <select class="form-select form-select-sm" name="service_category[]" required>
+                ${categoryOptions}
+            </select>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="description[]" placeholder="Service description..." required>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm qty-input" name="quantity[]" value="1" min="0.01" step="0.01" required onchange="calculateLineTotal(this)">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm unit-cost-input" name="unit_cost[]" value="0.00" min="0" step="0.01" required onchange="calculateLineTotal(this)">
+        </td>
+        <td>
+            <span class="line-total">$0.00</span>
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeServiceLine(this)" title="Remove Line">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(row);
+}
+
+function removeServiceLine(button) {
+    const rows = document.querySelectorAll('.service-line-row');
+    if (rows.length > 1) {
+        button.closest('tr').remove();
+        calculateGrandTotal();
+    } else {
+        alert('At least one service line is required.');
+    }
+}
+
+function calculateLineTotal(input) {
+    const row = input.closest('tr');
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const unitCost = parseFloat(row.querySelector('.unit-cost-input').value) || 0;
+    const total = qty * unitCost;
+    row.querySelector('.line-total').textContent = '$' + total.toFixed(2);
+    calculateGrandTotal();
+}
+
+function calculateGrandTotal() {
+    let grandTotal = 0;
+    document.querySelectorAll('.service-line-row').forEach(row => {
+        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+        const unitCost = parseFloat(row.querySelector('.unit-cost-input').value) || 0;
+        grandTotal += qty * unitCost;
+    });
+    document.getElementById('grandTotal').textContent = '$' + grandTotal.toFixed(2);
+}
+
+document.querySelectorAll('.qty-input, .unit-cost-input').forEach(input => {
+    input.addEventListener('input', function() { calculateLineTotal(this); });
+});
+</script>
+{% endblock %}

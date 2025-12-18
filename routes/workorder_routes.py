@@ -341,12 +341,31 @@ def view_workorder(id):
     
     cost_info = mrp.calculate_work_order_cost(id)
     
+    # Get misc/service cost info
+    misc_cost_data = conn.execute('''
+        SELECT 
+            COALESCE(SUM(CASE WHEN status = 'Received' THEN total_cost ELSE 0 END), 0) as total_misc_cost,
+            COALESCE(SUM(total_cost), 0) as total_all_misc_cost,
+            COUNT(CASE WHEN status = 'Pending' THEN 1 END) as pending_count,
+            COUNT(*) as total_lines
+        FROM purchase_order_service_lines
+        WHERE work_order_id = ?
+    ''', (id,)).fetchone()
+    
+    misc_cost_info = {
+        'total_misc_cost': misc_cost_data['total_misc_cost'] if misc_cost_data else 0,
+        'total_all_misc_cost': misc_cost_data['total_all_misc_cost'] if misc_cost_data else 0,
+        'pending_count': misc_cost_data['pending_count'] if misc_cost_data else 0,
+        'total_lines': misc_cost_data['total_lines'] if misc_cost_data else 0
+    }
+    
     conn.close()
     
     return render_template('workorders/view.html', 
                          workorder=workorder, 
                          requirements=requirements,
                          cost_info=cost_info,
+                         misc_cost_info=misc_cost_info,
                          all_products=all_products,
                          task_summary=task_summary,
                          tasks=tasks,
@@ -1813,3 +1832,221 @@ def download_8130(id):
     else:
         flash('Certificate PDF file not found on server.', 'danger')
         return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+
+@workorder_bp.route('/workorders/<int:id>/create-service-po', methods=['GET', 'POST'])
+@login_required
+@role_required(['Admin', 'Procurement Staff', 'Production Staff'])
+def create_service_po(id):
+    """Create a Purchase Order for miscellaneous charges/services linked to a work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    wo = conn.execute('''
+        SELECT wo.*, p.code as product_code, p.name as product_name, c.name as customer_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE wo.id = ?
+    ''', (id,)).fetchone()
+    
+    if not wo:
+        flash('Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if request.method == 'POST':
+        supplier_id = request.form.get('supplier_id')
+        expected_delivery_date = request.form.get('expected_delivery_date')
+        notes = request.form.get('notes', '')
+        
+        service_categories = request.form.getlist('service_category[]')
+        descriptions = request.form.getlist('description[]')
+        quantities = request.form.getlist('quantity[]')
+        unit_costs = request.form.getlist('unit_cost[]')
+        
+        if not supplier_id:
+            flash('Please select a supplier', 'danger')
+            suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
+            conn.close()
+            return render_template('workorders/create_service_po.html', 
+                                 workorder=wo, suppliers=suppliers)
+        
+        if not service_categories or not any(service_categories):
+            flash('Please add at least one service line', 'danger')
+            suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
+            conn.close()
+            return render_template('workorders/create_service_po.html',
+                                 workorder=wo, suppliers=suppliers)
+        
+        try:
+            last_po = conn.execute('''
+                SELECT po_number FROM purchase_orders 
+                ORDER BY id DESC LIMIT 1
+            ''').fetchone()
+            
+            if last_po:
+                try:
+                    last_num = int(last_po['po_number'].replace('PO', ''))
+                    po_number = f"PO{last_num + 1:05d}"
+                except:
+                    po_number = f"PO{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            else:
+                po_number = "PO00001"
+            
+            cursor = conn.execute('''
+                INSERT INTO purchase_orders (po_number, supplier_id, status, order_date, 
+                                            expected_delivery_date, notes, work_order_id, po_type)
+                VALUES (?, ?, 'Draft', ?, ?, ?, ?, 'Service')
+            ''', (po_number, supplier_id, datetime.now().strftime('%Y-%m-%d'),
+                  expected_delivery_date, notes, id))
+            po_id = cursor.lastrowid
+            
+            total_amount = 0
+            for i, (cat, desc, qty, unit_cost) in enumerate(zip(service_categories, descriptions, quantities, unit_costs)):
+                if cat and desc and qty and unit_cost:
+                    qty = float(qty)
+                    cost = float(unit_cost)
+                    line_total = qty * cost
+                    total_amount += line_total
+                    
+                    conn.execute('''
+                        INSERT INTO purchase_order_service_lines 
+                        (po_id, work_order_id, line_number, service_category, description,
+                         quantity, unit_cost, total_cost, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+                    ''', (po_id, id, i + 1, cat, desc, qty, cost, line_total))
+            
+            AuditLogger.log(conn, 'purchase_orders', po_id, 'CREATE',
+                           {'po_number': po_number, 'type': 'Service', 'work_order_id': id, 
+                            'total_amount': total_amount},
+                           session.get('user_id'))
+            
+            conn.commit()
+            flash(f'Service Purchase Order {po_number} created successfully', 'success')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error creating Service PO: {str(e)}', 'danger')
+    
+    suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
+    
+    service_categories = [
+        'Outside Processing',
+        'Heat Treatment',
+        'Plating/Coating',
+        'Testing/Inspection',
+        'Machining',
+        'NDT Services',
+        'Calibration',
+        'Engineering Services',
+        'Expedite Fee',
+        'Freight/Shipping',
+        'Tooling',
+        'Consulting',
+        'Other'
+    ]
+    
+    conn.close()
+    return render_template('workorders/create_service_po.html',
+                          workorder=wo, 
+                          suppliers=suppliers,
+                          service_categories=service_categories)
+
+
+@workorder_bp.route('/workorders/<int:id>/service-pos')
+@login_required
+def list_service_pos(id):
+    """List all service/misc purchase orders linked to a work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    wo = conn.execute('''
+        SELECT wo.*, p.code as product_code, p.name as product_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        WHERE wo.id = ?
+    ''', (id,)).fetchone()
+    
+    if not wo:
+        flash('Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    service_pos = conn.execute('''
+        SELECT po.*, s.name as supplier_name,
+               (SELECT COALESCE(SUM(total_cost), 0) FROM purchase_order_service_lines 
+                WHERE po_id = po.id) as total_amount
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        WHERE po.work_order_id = ?
+        ORDER BY po.created_at DESC
+    ''', (id,)).fetchall()
+    
+    service_lines = conn.execute('''
+        SELECT psl.*, po.po_number, s.name as supplier_name
+        FROM purchase_order_service_lines psl
+        JOIN purchase_orders po ON psl.po_id = po.id
+        JOIN suppliers s ON po.supplier_id = s.id
+        WHERE psl.work_order_id = ?
+        ORDER BY psl.created_at DESC
+    ''', (id,)).fetchall()
+    
+    total_misc_cost = sum(line['total_cost'] for line in service_lines if line['status'] == 'Received')
+    
+    conn.close()
+    return render_template('workorders/service_pos.html',
+                          workorder=wo,
+                          service_pos=service_pos,
+                          service_lines=service_lines,
+                          total_misc_cost=total_misc_cost)
+
+
+@workorder_bp.route('/workorders/receive-service-line/<int:line_id>', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Procurement Staff', 'Receiving Staff'])
+def receive_service_line(line_id):
+    """Mark a service line as received"""
+    db = Database()
+    conn = db.get_connection()
+    
+    line = conn.execute('''
+        SELECT psl.*, po.po_number
+        FROM purchase_order_service_lines psl
+        JOIN purchase_orders po ON psl.po_id = po.id
+        WHERE psl.id = ?
+    ''', (line_id,)).fetchone()
+    
+    if not line:
+        flash('Service line not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    conn.execute('''
+        UPDATE purchase_order_service_lines 
+        SET status = 'Received', received_date = ?, received_by = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (datetime.now().strftime('%Y-%m-%d'), session.get('user_id'), line_id))
+    
+    all_lines = conn.execute('''
+        SELECT COUNT(*) as total, SUM(CASE WHEN status = 'Received' THEN 1 ELSE 0 END) as received
+        FROM purchase_order_service_lines WHERE po_id = ?
+    ''', (line['po_id'],)).fetchone()
+    
+    if all_lines['total'] == all_lines['received']:
+        conn.execute('''
+            UPDATE purchase_orders SET status = 'Received' WHERE id = ?
+        ''', (line['po_id'],))
+    
+    AuditLogger.log(conn, 'purchase_order_service_lines', line_id, 'RECEIVE',
+                   {'service_line_id': line_id, 'po_number': line['po_number']},
+                   session.get('user_id'))
+    
+    conn.commit()
+    flash('Service line marked as received', 'success')
+    conn.close()
+    
+    work_order_id = line['work_order_id']
+    return redirect(url_for('workorder_routes.list_service_pos', id=work_order_id))

@@ -2299,6 +2299,38 @@ class Database:
         # Migrate work_orders table - add stage_id column for work order stages
         self._migrate_work_orders_stages(cursor)
         
+        # Migrate purchase_orders table - add work_order_id for linking to work orders
+        self._migrate_purchase_orders_wo_link(cursor)
+        
+        # Purchase Order Service Lines - for miscellaneous charges and services linked to work orders
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS purchase_order_service_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                po_id INTEGER NOT NULL,
+                work_order_id INTEGER,
+                line_number INTEGER NOT NULL,
+                service_category TEXT NOT NULL,
+                description TEXT NOT NULL,
+                quantity REAL DEFAULT 1,
+                unit_of_measure TEXT DEFAULT 'EA',
+                unit_cost REAL NOT NULL,
+                total_cost REAL NOT NULL,
+                tax_rate REAL DEFAULT 0,
+                status TEXT DEFAULT 'Pending',
+                received_date DATE,
+                received_by INTEGER,
+                invoice_id INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (received_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_service_lines_po ON purchase_order_service_lines(po_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_service_lines_wo ON purchase_order_service_lines(work_order_id)')
+        
         # AI Super Master Scheduler tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS master_schedules (
@@ -3060,6 +3092,21 @@ class Database:
         # Add inventory_id column if it doesn't exist (to reference created inventory)
         if 'inventory_id' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN inventory_id INTEGER REFERENCES inventory(id)")
+    
+    def _migrate_purchase_orders_wo_link(self, cursor):
+        """Add work_order_id column to purchase_orders table for linking to work orders"""
+        
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(purchase_orders)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add work_order_id column if it doesn't exist
+        if 'work_order_id' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN work_order_id INTEGER REFERENCES work_orders(id)")
+        
+        # Add po_type column if it doesn't exist (to distinguish service/misc POs)
+        if 'po_type' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN po_type TEXT DEFAULT 'Material'")
     
     def _migrate_work_orders_stages(self, cursor):
         """Add stage_id column to work_orders table for tracking work order stages"""
