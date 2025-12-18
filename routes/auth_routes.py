@@ -1,7 +1,40 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import User
+import sqlite3
+from datetime import datetime
 
 auth_bp = Blueprint('auth_routes', __name__)
+
+def log_access_event(user_id, username, action_type, success, details=None):
+    """Log access events to IT access audit table"""
+    try:
+        conn = sqlite3.connect('mrp.db')
+        conn.row_factory = sqlite3.Row
+        
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS it_access_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action_type TEXT,
+                success INTEGER DEFAULT 1,
+                ip_address TEXT,
+                details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        ip_address = request.remote_addr if request else 'unknown'
+        
+        conn.execute('''
+            INSERT INTO it_access_audit (user_id, username, action_type, success, ip_address, details, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, username, action_type, 1 if success else 0, ip_address, details, datetime.now()))
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error logging access event: {e}")
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -16,15 +49,21 @@ def login():
             session['username'] = user['username']
             session['role'] = user['role']
             User.update_last_login(user['id'])
+            log_access_event(user['id'], username, 'login', True, 'Successful login')
             flash(f'Welcome back, {user["username"]}!', 'success')
             return redirect(url_for('main_routes.dashboard'))
         else:
+            log_access_event(None, username, 'login', False, 'Invalid credentials')
             flash('Invalid username or password', 'danger')
     
     return render_template('login.html')
 
 @auth_bp.route('/logout')
 def logout():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if user_id:
+        log_access_event(user_id, username, 'logout', True, 'User logged out')
     session.clear()
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('auth_routes.login'))
