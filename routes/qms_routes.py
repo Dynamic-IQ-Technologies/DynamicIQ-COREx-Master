@@ -1675,33 +1675,32 @@ def wi_auto_generate():
 @login_required
 def wi_generate():
     """Generate work instruction using AI"""
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({'success': False, 'error': 'No data provided'})
-    
-    transaction_code = data.get('transaction_code')
-    transaction_name = data.get('transaction_name')
-    transaction_description = data.get('description')
-    module_name = data.get('module')
-    sop_id = data.get('sop_id')
-    additional_context = data.get('additional_context', '')
-    
-    # Validate required fields
-    if not transaction_code or not transaction_name or not module_name:
-        return jsonify({'success': False, 'error': 'Missing required fields: transaction_code, transaction_name, and module are required'})
-    
-    # Validate module exists
-    if module_name not in ERP_TRANSACTION_CAPABILITIES:
-        return jsonify({'success': False, 'error': f'Invalid module: {module_name}'})
-    
-    # Validate OpenAI configuration
-    if not os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'):
-        return jsonify({'success': False, 'error': 'OpenAI API key not configured'})
-    
-    conn = get_db()
-    
     try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'})
+        
+        transaction_code = data.get('transaction_code')
+        transaction_name = data.get('transaction_name')
+        transaction_description = data.get('description')
+        module_name = data.get('module')
+        sop_id = data.get('sop_id')
+        additional_context = data.get('additional_context', '')
+        
+        # Validate required fields
+        if not transaction_code or not transaction_name or not module_name:
+            return jsonify({'success': False, 'error': 'Missing required fields: transaction_code, transaction_name, and module are required'})
+        
+        # Validate module exists
+        if module_name not in ERP_TRANSACTION_CAPABILITIES:
+            return jsonify({'success': False, 'error': f'Invalid module: {module_name}'})
+        
+        # Validate OpenAI configuration
+        if not os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'):
+            return jsonify({'success': False, 'error': 'OpenAI API key not configured'})
+        
+        conn = get_db()
         from openai import OpenAI
         
         client = OpenAI(
@@ -1852,11 +1851,17 @@ Format the output as structured JSON with these keys:
         })
         
     except json.JSONDecodeError as e:
-        conn.close()
+        try:
+            conn.close()
+        except:
+            pass
         return jsonify({'success': False, 'error': f'Failed to parse AI response: {str(e)}'})
     except Exception as e:
-        conn.close()
-        return jsonify({'success': False, 'error': str(e)})
+        try:
+            conn.close()
+        except:
+            pass
+        return jsonify({'success': False, 'error': f'Error generating work instruction: {str(e)}'})
 
 
 @qms_bp.route('/work-instructions/auto-generate/single', methods=['POST'])
