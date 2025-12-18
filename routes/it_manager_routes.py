@@ -615,6 +615,19 @@ def get_recent_incidents(conn):
 
 def get_access_metrics(conn):
     """Get access and authentication metrics"""
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS it_access_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            action_type TEXT,
+            success INTEGER DEFAULT 1,
+            ip_address TEXT,
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     total_logins = conn.execute('''
         SELECT COUNT(*) as count FROM it_access_audit 
         WHERE action_type = 'login' AND created_at >= datetime('now', '-24 hours')
