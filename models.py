@@ -117,6 +117,8 @@ class Database:
                 quantity REAL NOT NULL,
                 status TEXT NOT NULL,
                 priority TEXT DEFAULT 'Medium',
+                serial_number TEXT,
+                description TEXT,
                 planned_start_date DATE,
                 planned_end_date DATE,
                 actual_start_date DATE,

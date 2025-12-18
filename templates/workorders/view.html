@@ -63,6 +63,8 @@
                 <div class="row">
                     <div class="col-md-6">
                         <p><strong>Product:</strong> {{ workorder.code }} - {{ workorder.name }}</p>
+                        <p><strong>Serial Number:</strong> {{ workorder.serial_number or 'N/A' }}</p>
+                        <p><strong>Description:</strong> {{ workorder.description or workorder.product_description or 'N/A' }}</p>
                         <p><strong>Quantity:</strong> {{ workorder.quantity }} {{ workorder.unit_of_measure }}</p>
                         {% if workorder.customer_id %}
                         <p><strong>Customer:</strong> 

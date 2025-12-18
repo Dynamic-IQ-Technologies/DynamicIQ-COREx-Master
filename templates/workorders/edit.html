@@ -48,6 +48,24 @@
             </div>
 
             <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="serial_number" class="form-label">Serial Number</label>
+                        <input type="text" class="form-control" id="serial_number" name="serial_number" 
+                               value="{{ workorder.serial_number or '' }}" placeholder="Enter serial number">
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2" 
+                                  placeholder="Auto-populated from product description">{{ workorder.description or '' }}</textarea>
+                        <small class="text-muted">Auto-populated from product when product is selected</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-md-3">
                     <div class="mb-3">
                         <label for="quantity" class="form-label">Quantity *</label>
@@ -171,4 +189,22 @@
         </form>
     </div>
 </div>
+
+<script>
+const productDescriptions = {
+    {% for product in products %}
+    {{ product.id }}: "{{ (product.description or '')|e }}",
+    {% endfor %}
+};
+
+document.getElementById('product_id').addEventListener('change', function() {
+    const productId = this.value;
+    const descriptionField = document.getElementById('description');
+    if (productId && productDescriptions[productId]) {
+        if (!descriptionField.value.trim()) {
+            descriptionField.value = productDescriptions[productId];
+        }
+    }
+});
+</script>
 {% endblock %}

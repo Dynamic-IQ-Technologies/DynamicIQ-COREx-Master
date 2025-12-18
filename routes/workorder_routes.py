@@ -276,7 +276,7 @@ def view_workorder(id):
     mrp = MRPEngine()
     
     workorder = conn.execute('''
-        SELECT wo.*, p.code, p.name, p.unit_of_measure, 
+        SELECT wo.*, p.code, p.name, p.unit_of_measure, p.description as product_description,
                c.customer_number, c.name as customer_full_name, c.email as customer_email, c.phone as customer_phone,
                wos.name as stage_name, wos.color as stage_color
         FROM work_orders wo
@@ -383,6 +383,14 @@ def edit_workorder(id):
             stage_id = request.form.get('stage_id')
             stage_id = int(stage_id) if stage_id else None
             
+            # Get product description for auto-population if description not provided
+            product_id = int(request.form['product_id'])
+            description = request.form.get('description', '').strip()
+            if not description:
+                product = conn.execute('SELECT description FROM products WHERE id = ?', (product_id,)).fetchone()
+                if product:
+                    description = product['description'] or ''
+            
             # Update work order
             conn.execute('''
                 UPDATE work_orders 
@@ -391,6 +399,8 @@ def edit_workorder(id):
                     disposition = ?,
                     status = ?,
                     priority = ?,
+                    serial_number = ?,
+                    description = ?,
                     planned_start_date = ?,
                     planned_end_date = ?,
                     labor_cost = ?,
@@ -401,11 +411,13 @@ def edit_workorder(id):
                     stage_id = ?
                 WHERE id = ?
             ''', (
-                int(request.form['product_id']),
+                product_id,
                 float(request.form['quantity']),
                 request.form.get('disposition', 'Manufacture'),
                 request.form['status'],
                 request.form.get('priority', 'Medium'),
+                request.form.get('serial_number', '').strip() or None,
+                description or None,
                 request.form.get('planned_start_date') or None,
                 request.form.get('planned_end_date') or None,
                 float(request.form.get('labor_cost', 0)),
