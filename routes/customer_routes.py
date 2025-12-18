@@ -109,8 +109,18 @@ def view_customer(id):
         ORDER BY so.order_date DESC
     ''', (id,)).fetchall()
     
+    # Get audit trail
+    audit_trail = conn.execute('''
+        SELECT at.*, u.username 
+        FROM audit_trail at
+        LEFT JOIN users u ON at.modified_by = u.id
+        WHERE at.record_type = 'customers' AND at.record_id = ?
+        ORDER BY at.timestamp DESC
+        LIMIT 50
+    ''', (id,)).fetchall()
+    
     conn.close()
-    return render_template('customers/view.html', customer=customer, sales_history=sales_history)
+    return render_template('customers/view.html', customer=customer, sales_history=sales_history, audit_trail=audit_trail)
 
 @customer_bp.route('/customers/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')

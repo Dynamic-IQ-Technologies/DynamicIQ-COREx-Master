@@ -104,9 +104,9 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card mb-4">
         <div class="card-header">
-            <h5>Sales History</h5>
+            <h5><i class="bi bi-bag-check me-2"></i>Sales History</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -155,6 +155,59 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="bi bi-clock-history me-2"></i>Audit Trail</h5>
+        </div>
+        <div class="card-body">
+            {% if audit_trail %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Action</th>
+                            <th>User</th>
+                            <th>Changes</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_trail %}
+                        <tr>
+                            <td>
+                                <small>{{ log.timestamp[:19] if log.timestamp else '-' }}</small>
+                            </td>
+                            <td>
+                                <span class="badge {% if log.action_type == 'CREATE' or log.action_type == 'Created' %}bg-success{% elif log.action_type == 'UPDATE' or log.action_type == 'Updated' %}bg-warning text-dark{% elif log.action_type == 'DELETE' or log.action_type == 'Deleted' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ log.action_type }}
+                                </span>
+                            </td>
+                            <td>{{ log.username or 'System' }}</td>
+                            <td>
+                                {% if log.changes %}
+                                <small class="text-muted" style="max-width: 300px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {{ log.changes[:100] }}{% if log.changes|length > 100 %}...{% endif %}
+                                </small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td><small class="text-muted">{{ log.ip_address or '-' }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-clock-history display-6"></i>
+                <p class="mt-2 mb-0">No audit history available</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
