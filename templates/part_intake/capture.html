@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Capture Part from Web - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-cloud-download"></i> Capture Part from Web</h2>
+        <p class="text-muted mb-0">Save parts from supplier websites or enter manually</p>
+    </div>
+    <a href="{{ url_for('part_intake_routes.list_intakes') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Source Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Source Type *</label>
+                            <select class="form-select" name="source_type" id="source_type">
+                                <option value="URL">URL / Website</option>
+                                <option value="Manual">Manual Entry</option>
+                                <option value="PDF">PDF / Document</option>
+                                <option value="Catalog">Catalog</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Source URL</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-globe"></i></span>
+                                <input type="url" class="form-control" name="source_url" id="source_url" placeholder="https://supplier.com/part/12345">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-box-seam"></i> Part Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Supplier Name</label>
+                            <input type="text" class="form-control" name="supplier_name" placeholder="e.g., Aviall, Boeing Distribution">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Supplier Part Number</label>
+                            <input type="text" class="form-control" name="supplier_part_number" placeholder="Supplier's catalog number">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">OEM / Manufacturer Name</label>
+                            <input type="text" class="form-control" name="oem_name" placeholder="e.g., Honeywell, Collins">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Manufacturer Part Number (MPN)</label>
+                            <input type="text" class="form-control" name="manufacturer_part_number" placeholder="OEM's part number">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Short Description *</label>
+                        <input type="text" class="form-control" name="short_description" maxlength="100" placeholder="Brief product description (max 100 chars)" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Long Description</label>
+                        <textarea class="form-control" name="long_description" rows="3" placeholder="Detailed product description"></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Category / Commodity</label>
+                            <input type="text" class="form-control" name="category" placeholder="e.g., Avionics, Hardware">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Base UOM</label>
+                            <select class="form-select" name="base_uom">
+                                <option value="EA" selected>EA - Each</option>
+                                <option value="KG">KG - Kilogram</option>
+                                <option value="LB">LB - Pound</option>
+                                <option value="M">M - Meter</option>
+                                <option value="FT">FT - Foot</option>
+                                <option value="L">L - Liter</option>
+                                <option value="GAL">GAL - Gallon</option>
+                                <option value="BOX">BOX - Box</option>
+                                <option value="SET">SET - Set</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Purchase UOM</label>
+                            <select class="form-select" name="purchase_uom">
+                                <option value="EA" selected>EA - Each</option>
+                                <option value="BOX">BOX - Box</option>
+                                <option value="CASE">CASE - Case</option>
+                                <option value="PKG">PKG - Package</option>
+                                <option value="SET">SET - Set</option>
+                                <option value="KG">KG - Kilogram</option>
+                                <option value="LB">LB - Pound</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Packaging Quantity</label>
+                            <input type="number" class="form-control" name="packaging_quantity" value="1" min="1" step="0.01">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Technical & Compliance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Technical Attributes</label>
+                        <textarea class="form-control" name="technical_attributes" rows="3" placeholder="Dimensions, material, ratings, specifications..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Compliance Indicators</label>
+                        <textarea class="form-control" name="compliance_indicators" rows="2" placeholder="RoHS, certifications, traceability requirements..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card mb-4 bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Enter the source URL or part information</li>
+                        <li class="mb-2">System will check for duplicates</li>
+                        <li class="mb-2">Review and normalize the data</li>
+                        <li class="mb-2">Convert to ERP product when approved</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> Notes</h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" name="notes" rows="4" placeholder="Any additional notes or comments..."></textarea>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-cloud-download"></i> Capture Part
+                </button>
+                <a href="{{ url_for('part_intake_routes.list_intakes') }}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Part Intake - {{ intake.intake_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-pencil"></i> Edit Part Intake - {{ intake.intake_number }}</h2>
+    <a href="{{ url_for('part_intake_routes.view_intake', id=intake.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-box-seam"></i> Part Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Supplier Name</label>
+                            <input type="text" class="form-control" name="supplier_name" value="{{ intake.supplier_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Supplier Part Number</label>
+                            <input type="text" class="form-control" name="supplier_part_number" value="{{ intake.supplier_part_number or '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">OEM / Manufacturer Name</label>
+                            <input type="text" class="form-control" name="oem_name" value="{{ intake.oem_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Manufacturer Part Number (MPN)</label>
+                            <input type="text" class="form-control" name="manufacturer_part_number" value="{{ intake.manufacturer_part_number or '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Short Description</label>
+                        <input type="text" class="form-control" name="short_description" value="{{ intake.short_description or '' }}" maxlength="100">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Long Description</label>
+                        <textarea class="form-control" name="long_description" rows="3">{{ intake.long_description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Category</label>
+                            <input type="text" class="form-control" name="category" value="{{ intake.category or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Base UOM</label>
+                            <select class="form-select" name="base_uom">
+                                <option value="EA" {% if intake.base_uom == 'EA' %}selected{% endif %}>EA - Each</option>
+                                <option value="KG" {% if intake.base_uom == 'KG' %}selected{% endif %}>KG - Kilogram</option>
+                                <option value="LB" {% if intake.base_uom == 'LB' %}selected{% endif %}>LB - Pound</option>
+                                <option value="M" {% if intake.base_uom == 'M' %}selected{% endif %}>M - Meter</option>
+                                <option value="FT" {% if intake.base_uom == 'FT' %}selected{% endif %}>FT - Foot</option>
+                                <option value="L" {% if intake.base_uom == 'L' %}selected{% endif %}>L - Liter</option>
+                                <option value="BOX" {% if intake.base_uom == 'BOX' %}selected{% endif %}>BOX - Box</option>
+                                <option value="SET" {% if intake.base_uom == 'SET' %}selected{% endif %}>SET - Set</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Purchase UOM</label>
+                            <select class="form-select" name="purchase_uom">
+                                <option value="EA" {% if intake.purchase_uom == 'EA' %}selected{% endif %}>EA - Each</option>
+                                <option value="BOX" {% if intake.purchase_uom == 'BOX' %}selected{% endif %}>BOX - Box</option>
+                                <option value="CASE" {% if intake.purchase_uom == 'CASE' %}selected{% endif %}>CASE - Case</option>
+                                <option value="PKG" {% if intake.purchase_uom == 'PKG' %}selected{% endif %}>PKG - Package</option>
+                                <option value="SET" {% if intake.purchase_uom == 'SET' %}selected{% endif %}>SET - Set</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Packaging Quantity</label>
+                            <input type="number" class="form-control" name="packaging_quantity" value="{{ intake.packaging_quantity or 1 }}" min="1" step="0.01">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Technical & Compliance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Technical Attributes</label>
+                        <textarea class="form-control" name="technical_attributes" rows="3">{{ intake.technical_attributes or '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Compliance Indicators</label>
+                        <textarea class="form-control" name="compliance_indicators" rows="2">{{ intake.compliance_indicators or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> Notes</h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" name="notes" rows="4">{{ intake.notes or '' }}</textarea>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-circle"></i> Save Changes
+                </button>
+                <a href="{{ url_for('part_intake_routes.view_intake', id=intake.id) }}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

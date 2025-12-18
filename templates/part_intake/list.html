@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Part Intake - Supplier Web Part Capture{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-cloud-download"></i> Part Intake - Supplier Web Capture</h2>
+        <p class="text-muted mb-0">Capture parts from supplier websites and convert to ERP products</p>
+    </div>
+    <a href="{{ url_for('part_intake_routes.capture_part') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Capture New Part
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center {% if not filters.status %}border-primary{% endif %}">
+            <div class="card-body py-2">
+                <a href="{{ url_for('part_intake_routes.list_intakes') }}" class="text-decoration-none">
+                    <h4 class="mb-0">{{ intakes|length }}</h4>
+                    <small class="text-muted">All</small>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center {% if filters.status == 'Pending' %}border-primary{% endif %}">
+            <div class="card-body py-2">
+                <a href="{{ url_for('part_intake_routes.list_intakes', status='Pending') }}" class="text-decoration-none">
+                    <h4 class="mb-0 text-warning">{{ status_counts.get('Pending', 0) }}</h4>
+                    <small class="text-muted">Pending</small>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center {% if filters.status == 'Reviewed' %}border-primary{% endif %}">
+            <div class="card-body py-2">
+                <a href="{{ url_for('part_intake_routes.list_intakes', status='Reviewed') }}" class="text-decoration-none">
+                    <h4 class="mb-0 text-info">{{ status_counts.get('Reviewed', 0) }}</h4>
+                    <small class="text-muted">Reviewed</small>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center {% if filters.status == 'Converted' %}border-primary{% endif %}">
+            <div class="card-body py-2">
+                <a href="{{ url_for('part_intake_routes.list_intakes', status='Converted') }}" class="text-decoration-none">
+                    <h4 class="mb-0 text-success">{{ status_counts.get('Converted', 0) }}</h4>
+                    <small class="text-muted">Converted</small>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center {% if filters.status == 'Rejected' %}border-primary{% endif %}">
+            <div class="card-body py-2">
+                <a href="{{ url_for('part_intake_routes.list_intakes', status='Rejected') }}" class="text-decoration-none">
+                    <h4 class="mb-0 text-danger">{{ status_counts.get('Rejected', 0) }}</h4>
+                    <small class="text-muted">Rejected</small>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="search" placeholder="Search by part number, description, supplier..." value="{{ filters.search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Pending" {% if filters.status == 'Pending' %}selected{% endif %}>Pending</option>
+                    <option value="Reviewed" {% if filters.status == 'Reviewed' %}selected{% endif %}>Reviewed</option>
+                    <option value="Converted" {% if filters.status == 'Converted' %}selected{% endif %}>Converted</option>
+                    <option value="Rejected" {% if filters.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-primary me-2"><i class="bi bi-filter"></i> Filter</button>
+                <a href="{{ url_for('part_intake_routes.list_intakes') }}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Intake #</th>
+                        <th>Source</th>
+                        <th>Supplier</th>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Match</th>
+                        <th>Captured</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for intake in intakes %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('part_intake_routes.view_intake', id=intake.id) }}">
+                                <strong>{{ intake.intake_number }}</strong>
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge {% if intake.source_type == 'URL' %}bg-info{% elif intake.source_type == 'Manual' %}bg-secondary{% else %}bg-warning{% endif %}">
+                                {{ intake.source_type }}
+                            </span>
+                        </td>
+                        <td>{{ intake.supplier_name or intake.oem_name or '-' }}</td>
+                        <td>
+                            <code>{{ intake.manufacturer_part_number or intake.supplier_part_number or '-' }}</code>
+                        </td>
+                        <td>{{ (intake.short_description or '-')[:50] }}{% if intake.short_description and intake.short_description|length > 50 %}...{% endif %}</td>
+                        <td>
+                            <span class="badge {% if intake.status == 'Pending' %}bg-warning{% elif intake.status == 'Converted' %}bg-success{% elif intake.status == 'Rejected' %}bg-danger{% else %}bg-info{% endif %}">
+                                {{ intake.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if intake.match_type %}
+                            <span class="badge {% if intake.match_type == 'Exact Duplicate' %}bg-danger{% elif intake.match_type == 'Probable Match' %}bg-warning{% elif intake.match_type == 'Similar Alternate' %}bg-info{% else %}bg-secondary{% endif %}">
+                                {{ intake.match_type }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ intake.captured_at[:10] if intake.captured_at else '-' }}</small>
+                            <div class="text-muted small">{{ intake.captured_by_name }}</div>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('part_intake_routes.view_intake', id=intake.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if intake.status not in ['Converted', 'Rejected'] %}
+                                <a href="{{ url_for('part_intake_routes.edit_intake', id=intake.id) }}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('part_intake_routes.convert_to_product', id=intake.id) }}" class="btn btn-outline-success" title="Convert to Product">
+                                    <i class="bi bi-arrow-right-circle"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox display-6"></i>
+                            <p class="mt-2 mb-0">No part intake records found</p>
+                            <a href="{{ url_for('part_intake_routes.capture_part') }}" class="btn btn-primary mt-3">
+                                <i class="bi bi-plus-circle"></i> Capture Your First Part
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4148,6 +4148,104 @@ def init_qms_tables(cursor):
     except:
         pass
     
+    # Part Intake System - Supplier Web Part Capture
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS part_intake_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            intake_number TEXT UNIQUE NOT NULL,
+            source_type TEXT NOT NULL,
+            source_url TEXT,
+            source_file_path TEXT,
+            raw_content TEXT,
+            status TEXT DEFAULT 'Pending',
+            supplier_name TEXT,
+            supplier_part_number TEXT,
+            oem_name TEXT,
+            manufacturer_part_number TEXT,
+            short_description TEXT,
+            long_description TEXT,
+            category TEXT,
+            base_uom TEXT,
+            purchase_uom TEXT,
+            packaging_quantity REAL,
+            technical_attributes TEXT,
+            compliance_indicators TEXT,
+            image_urls TEXT,
+            confidence_scores TEXT,
+            duplicate_check_status TEXT,
+            matched_product_ids TEXT,
+            match_type TEXT,
+            normalized_data TEXT,
+            conversion_status TEXT,
+            converted_product_id INTEGER,
+            converted_by INTEGER,
+            converted_at TIMESTAMP,
+            captured_by INTEGER NOT NULL,
+            captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            approved_by INTEGER,
+            approved_at TIMESTAMP,
+            rejection_reason TEXT,
+            notes TEXT,
+            FOREIGN KEY (converted_product_id) REFERENCES products(id),
+            FOREIGN KEY (converted_by) REFERENCES users(id),
+            FOREIGN KEY (captured_by) REFERENCES users(id),
+            FOREIGN KEY (approved_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Part Intake Audit Trail
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS part_intake_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            intake_id INTEGER NOT NULL,
+            action_type TEXT NOT NULL,
+            action_details TEXT,
+            raw_data_snapshot TEXT,
+            changes_made TEXT,
+            performed_by INTEGER,
+            performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (intake_id) REFERENCES part_intake_records(id),
+            FOREIGN KEY (performed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Part Intake Supplier Cross-Reference
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS part_intake_supplier_xref (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            supplier_id INTEGER,
+            supplier_name TEXT,
+            supplier_part_number TEXT,
+            manufacturer_name TEXT,
+            manufacturer_part_number TEXT,
+            source_url TEXT,
+            source_document TEXT,
+            is_primary INTEGER DEFAULT 0,
+            is_verified INTEGER DEFAULT 0,
+            verified_by INTEGER,
+            verified_at TIMESTAMP,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+            FOREIGN KEY (verified_by) REFERENCES users(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Part Intake indexes
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_intake_status ON part_intake_records(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_intake_mpn ON part_intake_records(manufacturer_part_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_intake_supplier_pn ON part_intake_records(supplier_part_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_intake_xref_product ON part_intake_supplier_xref(product_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_intake_xref_mpn ON part_intake_supplier_xref(manufacturer_part_number)')
+    except:
+        pass
+    
     # Create indexes for QMS tables
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')

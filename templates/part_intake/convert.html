@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Convert to Product - {{ intake.intake_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-arrow-right-circle"></i> Convert to ERP Product</h2>
+        <p class="text-muted mb-0">{{ intake.intake_number }} - {{ intake.short_description }}</p>
+    </div>
+    <a href="{{ url_for('part_intake_routes.view_intake', id=intake.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-5">
+        <div class="card mb-4 bg-light">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Source Data</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr><th>Supplier:</th><td>{{ intake.supplier_name or '-' }}</td></tr>
+                    <tr><th>Supplier P/N:</th><td><code>{{ intake.supplier_part_number or '-' }}</code></td></tr>
+                    <tr><th>OEM:</th><td>{{ intake.oem_name or '-' }}</td></tr>
+                    <tr><th>MPN:</th><td><code class="text-primary">{{ intake.manufacturer_part_number or '-' }}</code></td></tr>
+                    <tr><th>Description:</th><td>{{ intake.short_description or '-' }}</td></tr>
+                    <tr><th>Category:</th><td>{{ intake.category or '-' }}</td></tr>
+                    <tr><th>Base UOM:</th><td>{{ intake.base_uom or 'EA' }}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        {% if matched_products %}
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Existing Matches ({{ matched_products|length }})</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Consider linking to an existing product instead of creating a duplicate.</p>
+                {% for product in matched_products %}
+                <div class="border rounded p-2 mb-2 bg-white">
+                    <strong><code>{{ product.code }}</code></strong> - {{ product.name }}
+                    <br><small class="text-muted">{{ product.product_type }} | {{ product.unit_of_measure }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Product Creation</h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-4" id="conversionTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#createNew">
+                            <i class="bi bi-plus-circle"></i> Create New Product
+                        </a>
+                    </li>
+                    {% if matched_products %}
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#linkExisting">
+                            <i class="bi bi-link"></i> Link to Existing
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="createNew">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="create_new">
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Product Code *</label>
+                                    <input type="text" class="form-control" name="product_code" value="{{ suggested_code }}" required>
+                                    <small class="text-muted">Unique identifier for this product</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Product Name *</label>
+                                    <input type="text" class="form-control" name="product_name" value="{{ intake.short_description }}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Product Type *</label>
+                                    <select class="form-select" name="product_type" required>
+                                        <option value="Raw Material">Raw Material</option>
+                                        <option value="Component">Component</option>
+                                        <option value="Finished Good">Finished Good</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Part Category *</label>
+                                    <select class="form-select" name="part_category" required>
+                                        <option value="Electrical">Electrical</option>
+                                        <option value="Mechanical">Mechanical</option>
+                                        <option value="Structural">Structural</option>
+                                        <option value="Other" selected>Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Lead Time (Days)</label>
+                                    <input type="number" class="form-control" name="lead_time" value="0" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Reorder Point</label>
+                                    <input type="number" class="form-control" name="reorder_point" value="0" step="0.01">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Safety Stock</label>
+                                    <input type="number" class="form-control" name="safety_stock" value="0" step="0.01">
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>What happens next:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>A new product will be created with code <code>{{ suggested_code }}</code></li>
+                                    <li>Supplier cross-reference will be created automatically</li>
+                                    <li>Product will be set to "New - Unapproved" status</li>
+                                    <li>No inventory or costing is created at this stage</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle"></i> Create Product
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    {% if matched_products %}
+                    <div class="tab-pane fade" id="linkExisting">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="link_existing">
+                            
+                            <div class="mb-4">
+                                <label class="form-label">Select Existing Product to Link *</label>
+                                <select class="form-select" name="existing_product_id" required>
+                                    <option value="">-- Select a product --</option>
+                                    {% for product in matched_products %}
+                                    <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>What happens next:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>A supplier cross-reference will be added to the selected product</li>
+                                    <li>Source URL and supplier details will be recorded</li>
+                                    <li>No duplicate product will be created</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-link"></i> Link to Existing Product
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

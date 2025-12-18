@@ -1,0 +1,224 @@
+MASTER PROMPT — SUPPLIER WEB PART CAPTURE → ERP PRODUCT CREATION
+ROLE & CONTEXT
+
+You are a Senior ERP Product Master Architect and Data Governance SME with deep expertise in MRO, Aerospace, Manufacturing, and Regulated ERP systems.
+You are enhancing an ERP application to allow users to save parts from supplier websites or general websites, intelligently extract structured data, validate it, and convert it into a controlled Product (Item/Part) record in the ERP Product Master.
+
+🔹 OBJECTIVE
+
+Enable users to:
+
+Capture part data from supplier websites, PDFs, catalogs, and general web pages
+
+Normalize and validate the data
+
+Convert it into a fully governed ERP Product
+
+Prevent duplicates, bad data, or non-compliant items
+
+🔹 FUNCTIONAL SCOPE
+1️⃣ PART CAPTURE METHODS
+
+The system must support the following capture inputs:
+
+URL to supplier or general website
+
+Uploaded files (PDF, image, datasheet)
+
+Manual copy/paste (fallback)
+
+Browser extension or in-app “Save Part” action (optional future support)
+
+Each capture creates a temporary Part Intake Record (not yet a product).
+
+2️⃣ INTELLIGENT DATA EXTRACTION
+
+From the source, extract and infer:
+
+Supplier Name
+
+Supplier Part Number
+
+OEM / Manufacturer Name
+
+Manufacturer Part Number
+
+Description (short & long)
+
+Category / Commodity
+
+UOM (purchase and base)
+
+Packaging quantity
+
+Technical attributes (dimensions, material, ratings, etc.)
+
+Compliance indicators (RoHS, traceability, certs if stated)
+
+Images (if available)
+
+Source URL + capture timestamp
+
+All extracted data must include a confidence score.
+
+3️⃣ DATA NORMALIZATION & CLEANSING
+
+Before conversion:
+
+Normalize text (case, symbols, whitespace)
+
+Standardize UOMs
+
+Remove marketing language
+
+Enforce ERP naming conventions
+
+Map supplier terminology to ERP taxonomies
+
+No data is written directly to Product Master at this stage.
+
+4️⃣ DUPLICATE & EXISTENCE CHECK
+
+System must automatically:
+
+Search existing Products by:
+
+Manufacturer + Part Number
+
+Supplier + Supplier Part Number
+
+Description similarity (AI fuzzy match)
+
+Identify:
+
+Exact duplicates
+
+Probable matches
+
+Similar alternates
+
+User must choose:
+
+Link to existing product
+
+Create as alternate
+
+Create as new product
+
+5️⃣ PRODUCT CONVERSION WORKFLOW
+
+Conversion must follow a controlled approval workflow:
+
+Required User Confirmation Fields
+
+Final Product Name
+
+Product Type (Inventory / Non-Inventory / Repairable / Service)
+
+Base UOM
+
+Purchasing UOM
+
+Product Category
+
+Traceability level
+
+Shelf life (if applicable)
+
+Serialization / Lot control
+
+Regulatory flags
+
+AI may recommend, but user must approve.
+
+6️⃣ PRODUCT MASTER CREATION RULES
+
+When converting:
+
+Assign unique ERP Product ID
+
+Lock critical identifiers (MPN, base UOM)
+
+Create supplier cross-reference automatically
+
+Store original source as Product Evidence
+
+Initialize product lifecycle status (e.g., New – Unapproved)
+
+No inventory or costing is created at this stage.
+
+7️⃣ AUDITABILITY & GOVERNANCE
+
+Every converted product must retain:
+
+Source URL or document
+
+Extracted raw data snapshot
+
+User who approved creation
+
+Date/time of conversion
+
+Changes made vs original source
+
+This supports SOX / AS9110 / FAA audit requirements.
+
+8️⃣ SECURITY & COMPLIANCE CONTROLS
+
+Prevent automated bulk scraping
+
+Respect robots.txt where applicable
+
+Rate-limit capture actions
+
+Encrypt stored source files
+
+Role-based access to product creation
+
+9️⃣ USER INTERFACE BEHAVIOR
+
+UI should include:
+
+“Save Part from Web” action
+
+Preview pane showing:
+
+Source content
+
+Extracted structured data
+
+Side-by-side comparison with ERP product fields
+
+Highlight missing or low-confidence fields
+
+One-click Convert to Product (approval-gated)
+
+🔹 ACCEPTANCE CRITERIA
+
+The feature is successful when:
+
+Users can capture parts from suppliers like OEMs, distributors, or PDFs
+
+Data is structured, validated, and governed
+
+No duplicate or dirty products enter the system
+
+Product Master remains audit-ready and clean
+
+🔹 OUTPUT EXPECTATIONS
+
+Deliver:
+
+Part Intake data model
+
+Extraction & normalization logic
+
+Duplicate detection rules
+
+Product conversion workflow
+
+UI interaction flow
+
+Audit trail schema
+
+Role-based permissions
