@@ -1075,9 +1075,28 @@
             }
         }
         
-        // Restore collapsed state from localStorage on page load
+        // Save sidebar scroll position before leaving page
+        window.addEventListener('beforeunload', function() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                localStorage.setItem('sidebarScrollTop', sidebar.scrollTop);
+            }
+        });
+        
+        // Also save on link clicks for same-site navigation
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a');
+            if (link && link.href && link.href.startsWith(window.location.origin)) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    localStorage.setItem('sidebarScrollTop', sidebar.scrollTop);
+                }
+            }
+        });
+        
+        // Restore collapsed state and scroll position from localStorage on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const sections = ['mro', 'operations', 'shipping', 'sales', 'service', 'accounting', 'reports', 'administration'];
+            const sections = ['mro', 'operations', 'shipping', 'sales', 'service', 'accounting', 'reports', 'administration', 'procurement', 'quality'];
             sections.forEach(function(section) {
                 const content = document.getElementById(section + '-content');
                 const icon = document.getElementById(section + '-icon');
@@ -1091,6 +1110,15 @@
                     }
                 }
             });
+            
+            // Restore sidebar scroll position after a short delay to ensure layout is complete
+            setTimeout(function() {
+                const sidebar = document.getElementById('sidebar');
+                const savedScroll = localStorage.getItem('sidebarScrollTop');
+                if (sidebar && savedScroll) {
+                    sidebar.scrollTop = parseInt(savedScroll, 10);
+                }
+            }, 50);
         });
     </script>
     <script src="{{ url_for('static', filename='js/table-utils.js') }}"></script>
@@ -1417,8 +1445,11 @@
                 const sectionId = parentContent.id.replace('-content', '');
                 const icon = document.getElementById(sectionId + '-icon');
                 if (icon) {
-                    icon.classList.add('rotated');
+                    icon.classList.remove('bi-chevron-right');
+                    icon.classList.add('bi-chevron-down');
                 }
+                // Save the expanded state
+                localStorage.setItem('section-' + sectionId, 'open');
             }
         }
     </script>
