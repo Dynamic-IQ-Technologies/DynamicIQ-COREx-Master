@@ -318,14 +318,19 @@ def view_purchaseorder(id):
                 FROM suppliers WHERE id = ?
             ''', (po['exchange_owner_id'],)).fetchone()
     
+    # Calculate total for the PO
+    total = sum((line['extended_cost'] or (line['quantity'] * (line['unit_price'] or 0))) for line in lines)
+    
     conn.close()
     
-    # Get current date for overdue badge
+    # Get current date for overdue badge and modal
     from datetime import date
     today = date.today().strftime('%Y-%m-%d')
+    now = datetime.now()
     
     return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records, 
-                          today=today, source_sales_order=source_sales_order, exchange_owner=exchange_owner)
+                          today=today, now=now, total=total, source_sales_order=source_sales_order, 
+                          exchange_owner=exchange_owner)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
@@ -1050,6 +1055,120 @@ def api_mass_update_purchaseorders():
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@po_bp.route('/purchaseorders/<int:id>/receive-exchange', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def receive_exchange_po(id):
+    """Receive an Exchange Fee Purchase Order (no inventory creation)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase order not found', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if not po['is_exchange']:
+            flash('This is not an Exchange Purchase Order. Use standard receiving.', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Received':
+            flash('This Exchange PO has already been received', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Cancelled':
+            flash('Cannot receive a cancelled purchase order', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        receipt_date = request.form.get('receipt_date') or datetime.now().strftime('%Y-%m-%d')
+        remarks = request.form.get('remarks', '')
+        
+        # Update PO status to Received
+        conn.execute('''
+            UPDATE purchase_orders
+            SET status = 'Received',
+                exchange_status = 'Completed',
+                actual_delivery_date = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (receipt_date, id))
+        
+        # Update all PO lines as fully received
+        conn.execute('''
+            UPDATE purchase_order_lines
+            SET received_quantity = quantity
+            WHERE po_id = ?
+        ''', (id,))
+        
+        # Generate receipt number for tracking
+        last_receipt = conn.execute('''
+            SELECT receipt_number FROM receiving_transactions 
+            WHERE receipt_number LIKE 'RCV-%'
+            ORDER BY CAST(SUBSTR(receipt_number, 5) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_receipt:
+            try:
+                last_number = int(last_receipt['receipt_number'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        receipt_number = f'RCV-{next_number:06d}'
+        
+        # Get the first line for the receiving transaction record
+        first_line = conn.execute('''
+            SELECT pol.*, p.id as product_id
+            FROM purchase_order_lines pol
+            JOIN products p ON pol.product_id = p.id
+            WHERE pol.po_id = ?
+            ORDER BY pol.line_number
+            LIMIT 1
+        ''', (id,)).fetchone()
+        
+        if first_line:
+            # Create receiving transaction record (for audit trail, no inventory impact)
+            conn.execute('''
+                INSERT INTO receiving_transactions 
+                (receipt_number, po_id, product_id, quantity_received, receipt_date, 
+                 condition, warehouse_location, bin_location, remarks, received_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (receipt_number, id, first_line['product_id'], first_line['quantity'], 
+                  receipt_date, 'N/A - Exchange Fee', 'N/A', 'N/A', 
+                  f'Exchange Fee Receipt. {remarks}'.strip(), session.get('user_id')))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn, 'purchase_orders', id, 'RECEIVE', session.get('user_id'),
+            {
+                'po_number': po['po_number'],
+                'receipt_date': receipt_date,
+                'receipt_number': receipt_number,
+                'action': 'Exchange PO Received',
+                'remarks': remarks
+            }
+        )
+        
+        conn.commit()
+        flash(f'Exchange PO {po["po_number"]} has been received successfully (Receipt: {receipt_number})', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error receiving Exchange PO: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
 
 
 @po_bp.route('/purchaseorders/<int:id>/cancel', methods=['POST'])
