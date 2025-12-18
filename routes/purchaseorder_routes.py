@@ -1095,8 +1095,7 @@ def receive_exchange_po(id):
             UPDATE purchase_orders
             SET status = 'Received',
                 exchange_status = 'Completed',
-                actual_delivery_date = ?,
-                updated_at = CURRENT_TIMESTAMP
+                actual_delivery_date = ?
             WHERE id = ?
         ''', (receipt_date, id))
         
