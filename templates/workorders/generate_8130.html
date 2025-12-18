@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Generate 8130 - {{ workorder.wo_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Back to Work Order
+        </a>
+        <span class="h2 mb-0">Generate FAA Form 8130-3</span>
+    </div>
+</div>
+
+{% if existing_cert %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> A certificate already exists for this work order: 
+    <strong>{{ existing_cert.certificate_number }}</strong> (Issued: {{ existing_cert.issue_date }})
+    <a href="{{ url_for('workorder_routes.view_8130', id=workorder.id) }}" class="btn btn-sm btn-primary ms-2">View Certificate</a>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-file-earmark-medical"></i> Work Order Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Work Order:</strong> {{ workorder.wo_number }}</p>
+                <p><strong>Product:</strong> {{ workorder.product_code }} - {{ workorder.product_name }}</p>
+                <p><strong>Quantity:</strong> {{ workorder.quantity }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Customer:</strong> {{ workorder.customer_name or 'N/A' }}</p>
+                <p><strong>Status:</strong> <span class="badge bg-success">{{ workorder.status }}</span></p>
+                <p><strong>Disposition:</strong> {{ workorder.disposition or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not existing_cert %}
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Organization Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Issuing Authority</label>
+                        <input type="text" class="form-control" name="issuing_authority" value="FAA / United States">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Organization Name</label>
+                        <input type="text" class="form-control" name="organization_name" value="{{ workorder.company_name or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Organization Address</label>
+                        <textarea class="form-control" name="organization_address" rows="2">{{ org_address }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Approval/Authorization Number</label>
+                        <input type="text" class="form-control" name="approval_number" placeholder="e.g., FAA Repair Station Number">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Part Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Serial Number</label>
+                        <input type="text" class="form-control" name="serial_number" placeholder="Enter serial number if applicable">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Batch Number</label>
+                        <input type="text" class="form-control" name="batch_number" placeholder="Enter batch number if applicable">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status/Work Performed</label>
+                        <select class="form-select" name="status_work">
+                            <option value="Overhauled" {% if workorder.disposition == 'Overhauled' %}selected{% endif %}>Overhauled</option>
+                            <option value="Repaired" {% if workorder.disposition == 'Repaired' %}selected{% endif %}>Repaired</option>
+                            <option value="Inspected/Tested" {% if workorder.disposition == 'Inspected' %}selected{% endif %}>Inspected/Tested</option>
+                            <option value="Modified" {% if workorder.disposition == 'Modified' %}selected{% endif %}>Modified</option>
+                            <option value="New" {% if workorder.disposition == 'Manufacture' or workorder.disposition == 'New' %}selected{% endif %}>New</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Certification Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Certifying Staff (Block 13)</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="certifier_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Certificate Number</label>
+                        <input type="text" class="form-control" name="certifier_certificate_number" placeholder="e.g., A&P License Number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="certifier_signature_date" value="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Authorized Signature (Block 14)</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="authorized_signature_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="authorized_signature_date" value="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Remarks (Block 12)</h5>
+        </div>
+        <div class="card-body">
+            <textarea class="form-control" name="remarks" rows="4" placeholder="Enter any additional remarks or notes..."></textarea>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-end mb-4">
+        <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-secondary me-2">Cancel</a>
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="bi bi-file-earmark-medical"></i> Generate 8130 Certificate
+        </button>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

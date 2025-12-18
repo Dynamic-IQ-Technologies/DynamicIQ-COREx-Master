@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}8130 Certificate - {{ certificate.certificate_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Back to Work Order
+        </a>
+        <span class="h2 mb-0">FAA Form 8130-3 Certificate</span>
+    </div>
+    <div>
+        <a href="{{ url_for('workorder_routes.download_8130', id=workorder.id) }}" class="btn btn-success">
+            <i class="bi bi-download"></i> Download PDF
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-patch-check"></i> Certificate: {{ certificate.certificate_number }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="text-muted">Certificate Information</h6>
+                <table class="table table-sm">
+                    <tr><th width="40%">Certificate Number:</th><td>{{ certificate.certificate_number }}</td></tr>
+                    <tr><th>Issue Date:</th><td>{{ certificate.issue_date }}</td></tr>
+                    <tr><th>Status:</th><td><span class="badge bg-success">{{ certificate.status }}</span></td></tr>
+                    <tr><th>Issuing Authority:</th><td>{{ certificate.issuing_authority }}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted">Work Order Reference</h6>
+                <table class="table table-sm">
+                    <tr><th width="40%">Work Order:</th><td>{{ certificate.work_order_reference }}</td></tr>
+                    <tr><th>Created By:</th><td>{{ certificate.created_by_name or 'System' }}</td></tr>
+                    <tr><th>Created At:</th><td>{{ certificate.created_at }}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="text-muted">Organization (Block 4)</h6>
+                <p><strong>Name:</strong> {{ certificate.organization_name or 'N/A' }}</p>
+                <p><strong>Address:</strong> {{ certificate.organization_address or 'N/A' }}</p>
+                <p><strong>Approval Number:</strong> {{ certificate.approval_number or 'N/A' }}</p>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted">Part Details (Blocks 6-9)</h6>
+                <table class="table table-sm">
+                    <tr><th width="40%">Part Name:</th><td>{{ certificate.part_name }}</td></tr>
+                    <tr><th>Part Number:</th><td>{{ certificate.part_number }}</td></tr>
+                    <tr><th>Quantity:</th><td>{{ certificate.quantity }}</td></tr>
+                    <tr><th>Serial Number:</th><td>{{ certificate.serial_number or 'N/A' }}</td></tr>
+                    <tr><th>Batch Number:</th><td>{{ certificate.batch_number or 'N/A' }}</td></tr>
+                    <tr><th>Status/Work:</th><td>{{ certificate.status_work }}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="text-muted">Certifying Staff (Block 13)</h6>
+                <p><strong>Name:</strong> {{ certificate.certifier_name or 'N/A' }}</p>
+                <p><strong>Certificate Number:</strong> {{ certificate.certifier_certificate_number or 'N/A' }}</p>
+                <p><strong>Date:</strong> {{ certificate.certifier_signature_date or 'N/A' }}</p>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted">Authorized Signature (Block 14)</h6>
+                <p><strong>Name:</strong> {{ certificate.authorized_signature_name or 'N/A' }}</p>
+                <p><strong>Date:</strong> {{ certificate.authorized_signature_date or 'N/A' }}</p>
+            </div>
+        </div>
+        
+        {% if certificate.remarks %}
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <h6 class="text-muted">Remarks (Block 12)</h6>
+                <p>{{ certificate.remarks }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-file-pdf"></i> PDF Document</h5>
+    </div>
+    <div class="card-body text-center">
+        {% if certificate.pdf_file_path %}
+        <p class="text-muted mb-3">The PDF document has been generated and is ready for download.</p>
+        <a href="{{ url_for('workorder_routes.download_8130', id=workorder.id) }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-download"></i> Download FAA Form 8130-3 PDF
+        </a>
+        <p class="text-muted mt-3 small">
+            <i class="bi bi-shield-check"></i> Document Hash: {{ certificate.pdf_file_hash[:16] }}...
+        </p>
+        {% else %}
+        <p class="text-danger">PDF document not available.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

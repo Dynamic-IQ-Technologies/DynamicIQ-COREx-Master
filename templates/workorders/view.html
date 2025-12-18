@@ -30,6 +30,9 @@
             {% else %}
             <span class="btn btn-outline-success disabled"><i class="bi bi-check"></i> In Stock</span>
             {% endif %}
+            <a href="{{ url_for('workorder_routes.generate_8130', id=workorder.id) }}" class="btn btn-warning">
+                <i class="bi bi-file-earmark-medical"></i> Generate 8130
+            </a>
         {% endif %}
         {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
         <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-info">

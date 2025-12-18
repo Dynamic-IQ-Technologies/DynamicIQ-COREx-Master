@@ -1631,3 +1631,163 @@ def turn_into_stock(id):
         conn.close()
     
     return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+
+@workorder_bp.route('/workorders/<int:id>/generate-8130', methods=['GET', 'POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def generate_8130(id):
+    """Generate FAA Form 8130-3 for completed Work Order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get work order details
+    wo = conn.execute('''
+        SELECT wo.*, p.code as product_code, p.name as product_name,
+               c.name as customer_name,
+               cs.company_name, cs.address as company_address, 
+               cs.city as company_city, cs.state as company_state, cs.zip as company_zip
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        LEFT JOIN company_settings cs ON cs.id = 1
+        WHERE wo.id = ?
+    ''', (id,)).fetchone()
+    
+    if not wo:
+        flash('Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if wo['status'] != 'Completed':
+        flash('Only completed work orders can have 8130 certificates generated.', 'warning')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    # Check for existing certificate
+    existing_cert = conn.execute('''
+        SELECT * FROM faa_8130_certificates 
+        WHERE work_order_id = ? AND status = 'Issued'
+    ''', (id,)).fetchone()
+    
+    if request.method == 'POST':
+        if existing_cert:
+            flash(f'Certificate {existing_cert["certificate_number"]} already exists for this work order.', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        try:
+            from services.faa8130_service import FAA8130Service
+            
+            form_data = {
+                'issuing_authority': request.form.get('issuing_authority', 'FAA / United States'),
+                'organization_name': request.form.get('organization_name', ''),
+                'organization_address': request.form.get('organization_address', ''),
+                'serial_number': request.form.get('serial_number', ''),
+                'batch_number': request.form.get('batch_number', ''),
+                'status_work': request.form.get('status_work', wo['disposition'] or 'Overhauled'),
+                'approval_number': request.form.get('approval_number', ''),
+                'remarks': request.form.get('remarks', ''),
+                'certifier_name': request.form.get('certifier_name', ''),
+                'certifier_certificate_number': request.form.get('certifier_certificate_number', ''),
+                'certifier_signature_date': request.form.get('certifier_signature_date', datetime.now().strftime('%Y-%m-%d')),
+                'authorized_signature_name': request.form.get('authorized_signature_name', ''),
+                'authorized_signature_date': request.form.get('authorized_signature_date', datetime.now().strftime('%Y-%m-%d')),
+            }
+            
+            result = FAA8130Service.create_certificate(conn, id, form_data, session.get('user_id'))
+            conn.commit()
+            
+            flash(f'FAA Form 8130-3 Certificate {result["certificate_number"]} generated successfully!', 'success')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_8130', id=id))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error generating certificate: {str(e)}', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.generate_8130', id=id))
+    
+    # Build organization address
+    org_address = ''
+    if wo.get('company_address'):
+        org_address = f"{wo['company_address']}, {wo.get('company_city', '')}, {wo.get('company_state', '')} {wo.get('company_zip', '')}"
+    
+    conn.close()
+    return render_template('workorders/generate_8130.html', 
+                          workorder=wo,
+                          existing_cert=existing_cert,
+                          org_address=org_address)
+
+
+@workorder_bp.route('/workorders/<int:id>/view-8130')
+@login_required
+def view_8130(id):
+    """View existing FAA Form 8130-3 certificate for Work Order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get work order details
+    wo = conn.execute('''
+        SELECT wo.*, p.code as product_code, p.name as product_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        WHERE wo.id = ?
+    ''', (id,)).fetchone()
+    
+    if not wo:
+        flash('Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    # Get certificate
+    certificate = conn.execute('''
+        SELECT c.*, u.username as created_by_name
+        FROM faa_8130_certificates c
+        LEFT JOIN users u ON c.created_by = u.id
+        WHERE c.work_order_id = ? AND c.status = 'Issued'
+        ORDER BY c.created_at DESC
+        LIMIT 1
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not certificate:
+        flash('No 8130 certificate found for this work order.', 'warning')
+        return redirect(url_for('workorder_routes.generate_8130', id=id))
+    
+    return render_template('workorders/view_8130.html', 
+                          workorder=wo,
+                          certificate=certificate)
+
+
+@workorder_bp.route('/workorders/<int:id>/download-8130')
+@login_required
+def download_8130(id):
+    """Download the 8130 PDF file"""
+    from flask import send_file
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    certificate = conn.execute('''
+        SELECT * FROM faa_8130_certificates 
+        WHERE work_order_id = ? AND status = 'Issued'
+        ORDER BY created_at DESC LIMIT 1
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    if not certificate or not certificate['pdf_file_path']:
+        flash('Certificate PDF not found.', 'danger')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    import os
+    if os.path.exists(certificate['pdf_file_path']):
+        return send_file(
+            certificate['pdf_file_path'],
+            as_attachment=True,
+            download_name=f"{certificate['certificate_number']}.pdf"
+        )
+    else:
+        flash('Certificate PDF file not found on server.', 'danger')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
