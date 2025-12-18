@@ -120,6 +120,10 @@
             transition: transform 0.2s ease;
         }
         
+        .sidebar-section-title .toggle-icon.rotated {
+            transform: rotate(180deg);
+        }
+        
         .collapsible-content {
             transition: all 0.3s ease;
         }
@@ -1378,7 +1382,45 @@
         document.addEventListener('DOMContentLoaded', function() {
             detectContext();
             setTimeout(loadInsights, 2000);
+            highlightActiveNavLink();
         });
+        
+        function highlightActiveNavLink() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar-nav-link');
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                const href = link.getAttribute('href');
+                
+                if (href === currentPath) {
+                    link.classList.add('active');
+                    expandParentSection(link);
+                } else if (currentPath.startsWith(href) && href !== '/') {
+                    link.classList.add('active');
+                    expandParentSection(link);
+                }
+            });
+            
+            if (!document.querySelector('.sidebar-nav-link.active')) {
+                const dashboardLink = document.querySelector('.sidebar-nav-link[href="/"]');
+                if (dashboardLink && currentPath === '/') {
+                    dashboardLink.classList.add('active');
+                }
+            }
+        }
+        
+        function expandParentSection(link) {
+            const parentContent = link.closest('.collapsible-content');
+            if (parentContent) {
+                parentContent.style.display = 'block';
+                const sectionId = parentContent.id.replace('-content', '');
+                const icon = document.getElementById(sectionId + '-icon');
+                if (icon) {
+                    icon.classList.add('rotated');
+                }
+            }
+        }
     </script>
     {% endif %}
     
