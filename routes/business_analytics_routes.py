@@ -97,8 +97,15 @@ Guidelines:
 - Provide concise, clear, and actionable insights
 - Prioritize high-impact recommendations
 - Include specific numbers and metrics when available
-- Format responses with clear sections and bullet points
-- Always justify recommendations with data"""
+- Always justify recommendations with data
+
+IMPORTANT FORMATTING RULES:
+- Use ONLY plain text without any special formatting characters
+- Do NOT use markdown symbols like **, *, ###, ---, or bullet symbols
+- Use simple dashes (-) for lists and numbers (1. 2. 3.) for numbered lists
+- Use ALL CAPS for emphasis instead of bold or italic
+- Use blank lines to separate sections
+- Keep output clean and readable without any formatting codes"""
 
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -160,7 +167,8 @@ def predict():
             messages=[
                 {"role": "system", "content": """You are a predictive analytics engine. 
 Analyze historical data and provide forecasts with confidence intervals.
-Return your response in JSON format with keys: forecast, confidence, factors, risks, recommendations."""},
+Return your response in JSON format with keys: forecast, confidence, factors, risks, recommendations.
+Do NOT use markdown formatting - use plain text only within the JSON values."""},
                 {"role": "user", "content": f"""
 Analyze this historical {metric} data and predict the next {horizon} days:
 
@@ -217,7 +225,14 @@ Focus on:
 - Opportunities identified
 - Recommended actions
 
-Keep it brief, impactful, and action-oriented. Use bullet points."""},
+Keep it brief, impactful, and action-oriented.
+
+IMPORTANT FORMATTING RULES:
+- Use ONLY plain text without any special formatting characters
+- Do NOT use markdown symbols like **, *, ###, ---, or bullet symbols
+- Use simple dashes (-) for lists and numbers (1. 2. 3.) for numbered lists
+- Use ALL CAPS for emphasis instead of bold or italic
+- Keep output clean and readable without any formatting codes"""},
                 {"role": "user", "content": f"""
 Generate today's executive summary based on this ERP data:
 
@@ -269,7 +284,14 @@ Analyze ERP workflow data to identify:
 4. Resource optimization
 5. Compliance gaps
 
-Provide specific, actionable recommendations with estimated impact."""},
+Provide specific, actionable recommendations with estimated impact.
+
+IMPORTANT FORMATTING RULES:
+- Use ONLY plain text without any special formatting characters
+- Do NOT use markdown symbols like **, *, ###, ---, or bullet symbols
+- Use simple dashes (-) for lists and numbers (1. 2. 3.) for numbered lists
+- Use ALL CAPS for emphasis instead of bold or italic
+- Keep output clean and readable without any formatting codes"""},
                 {"role": "user", "content": f"""
 Analyze the {process_area} processes and provide optimization recommendations:
 
