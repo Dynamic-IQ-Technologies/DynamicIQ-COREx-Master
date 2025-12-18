@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}{{ supplier.name }} - Supplier Details - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-building me-2"></i>{{ supplier.name }}</h2>
+        <span class="badge bg-primary fs-6">{{ supplier.code }}</span>
+    </div>
+    <div>
+        <a href="{{ url_for('supplier_routes.edit_supplier', id=supplier.id) }}" class="btn btn-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        <a href="{{ url_for('supplier_routes.list_suppliers') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Suppliers
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Financial Summary</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="text-white">
+                        <div class="small opacity-75">Total Purchases (All Time)</div>
+                        <div class="fs-4 fw-bold">{{ financials.total_purchase_amount|currency }}</div>
+                        <div class="small mt-1"><i class="bi bi-file-text"></i> {{ financials.total_po_count }} purchase orders</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    <div class="text-white">
+                        <div class="small opacity-75">YTD Purchases</div>
+                        <div class="fs-4 fw-bold">{{ financials.ytd_purchases|currency }}</div>
+                        {% if financials.last_year_purchases > 0 %}
+                        {% set growth = ((financials.ytd_purchases - financials.last_year_purchases) / financials.last_year_purchases * 100) %}
+                        <div class="small mt-1">
+                            {% if growth >= 0 %}
+                            <i class="bi bi-arrow-up-circle"></i> {{ growth|round(1) }}% vs LY
+                            {% else %}
+                            <i class="bi bi-arrow-down-circle"></i> {{ growth|round(1)|abs }}% vs LY
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="small mt-1"><i class="bi bi-calendar"></i> This year</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, {% if financials.open_po_count > 0 %}#f59e0b{% else %}#6b7280{% endif %} 0%, {% if financials.open_po_count > 0 %}#d97706{% else %}#4b5563{% endif %} 100%);">
+                    <div class="text-white">
+                        <div class="small opacity-75">Open Purchase Orders</div>
+                        <div class="fs-4 fw-bold">{{ financials.open_po_amount|currency }}</div>
+                        <div class="small mt-1"><i class="bi bi-hourglass-split"></i> {{ financials.open_po_count }} open POs</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                    <div class="text-white">
+                        <div class="small opacity-75">Avg PO Value</div>
+                        <div class="fs-4 fw-bold">{{ financials.avg_po_value|currency }}</div>
+                        <div class="small mt-1"><i class="bi bi-calculator"></i> Per order</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-3 mt-2">
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 bg-light">
+                    <div class="small text-muted">Pending Receiving</div>
+                    <div class="fw-bold {% if financials.pending_receiving_amount > 0 %}text-warning{% else %}text-success{% endif %}">
+                        {{ financials.pending_receiving_amount|currency }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 bg-light">
+                    <div class="small text-muted">Last Year Purchases</div>
+                    <div class="fw-bold">{{ financials.last_year_purchases|currency }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 bg-light">
+                    <div class="small text-muted">Supplier Since</div>
+                    <div class="fw-bold">{{ financials.first_po_date or 'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="border rounded p-3 bg-light">
+                    <div class="small text-muted">Last PO Date</div>
+                    <div class="fw-bold">{{ financials.last_po_date or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Supplier Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <th style="width: 35%;">Supplier Code</th>
+                        <td>{{ supplier.code }}</td>
+                    </tr>
+                    <tr>
+                        <th>Name</th>
+                        <td>{{ supplier.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Primary Contact</th>
+                        <td>{{ supplier.contact_person or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email</th>
+                        <td>
+                            {% if supplier.email %}
+                            <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Phone</th>
+                        <td>{{ supplier.phone or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Address</th>
+                        <td>{{ supplier.address or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-people me-2"></i>Contacts ({{ contacts|length }})</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if contacts %}
+                <div class="list-group list-group-flush">
+                    {% for contact in contacts[:5] %}
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-center mb-1">
+                            <strong>{{ contact.contact_name }}</strong>
+                            {% if contact.is_primary %}
+                            <span class="badge bg-success ms-2">Primary</span>
+                            {% endif %}
+                        </div>
+                        {% if contact.title %}
+                        <small class="text-muted d-block">{{ contact.title }}</small>
+                        {% endif %}
+                        <div class="mt-1">
+                            {% if contact.email %}
+                            <small class="me-3"><i class="bi bi-envelope me-1"></i><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></small>
+                            {% endif %}
+                            {% if contact.phone %}
+                            <small><i class="bi bi-telephone me-1"></i>{{ contact.phone }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if contacts|length > 5 %}
+                <div class="text-center py-2 bg-light">
+                    <a href="{{ url_for('supplier_routes.edit_supplier', id=supplier.id) }}">View all {{ contacts|length }} contacts</a>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-people fs-1"></i>
+                    <p class="mt-2 mb-0">No contacts added yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-cart me-2"></i>Purchase Order History</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if purchase_orders %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Order Date</th>
+                        <th>Expected Delivery</th>
+                        <th>Lines</th>
+                        <th class="text-end">Total Amount</th>
+                        <th>Status</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in purchase_orders[:20] %}
+                    <tr>
+                        <td><a href="{{ url_for('po_routes.view_po', id=po.id) }}">{{ po.po_number }}</a></td>
+                        <td>{{ po.order_date or '-' }}</td>
+                        <td>{{ po.expected_delivery_date or '-' }}</td>
+                        <td>{{ po.line_count }}</td>
+                        <td class="text-end">{{ po.total_amount|currency }}</td>
+                        <td>
+                            {% if po.status == 'Open' %}
+                            <span class="badge bg-primary">{{ po.status }}</span>
+                            {% elif po.status == 'Received' or po.status == 'Complete' %}
+                            <span class="badge bg-success">{{ po.status }}</span>
+                            {% elif po.status == 'Partial' %}
+                            <span class="badge bg-warning">{{ po.status }}</span>
+                            {% elif po.status == 'Cancelled' %}
+                            <span class="badge bg-danger">{{ po.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ po.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('po_routes.view_po', id=po.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if purchase_orders|length > 20 %}
+        <div class="text-center py-2 bg-light">
+            <small class="text-muted">Showing 20 of {{ purchase_orders|length }} purchase orders</small>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-cart fs-1"></i>
+            <p class="mt-2 mb-0">No purchase orders found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if audit_trail %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit Trail</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>User</th>
+                        <th>Details</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in audit_trail %}
+                    <tr>
+                        <td><small>{{ entry.timestamp }}</small></td>
+                        <td>
+                            {% if entry.action == 'CREATE' %}
+                            <span class="badge bg-success">Created</span>
+                            {% elif entry.action == 'UPDATE' %}
+                            <span class="badge bg-warning">Updated</span>
+                            {% elif entry.action == 'DELETE' %}
+                            <span class="badge bg-danger">Deleted</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ entry.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ entry.username or 'System' }}</td>
+                        <td><small class="text-muted">{{ entry.change_details[:100] }}{% if entry.change_details|length > 100 %}...{% endif %}</small></td>
+                        <td><small class="text-muted">{{ entry.ip_address or '-' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

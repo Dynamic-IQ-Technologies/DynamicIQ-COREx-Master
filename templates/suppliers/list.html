@@ -48,12 +48,13 @@
                 <tbody>
                     {% for supplier in suppliers %}
                     <tr>
-                        <td>{{ supplier.code }}</td>
-                        <td>{{ supplier.name }}</td>
+                        <td><a href="{{ url_for('supplier_routes.view_supplier', id=supplier.id) }}">{{ supplier.code }}</a></td>
+                        <td><a href="{{ url_for('supplier_routes.view_supplier', id=supplier.id) }}">{{ supplier.name }}</a></td>
                         <td>{{ supplier.contact_person }}</td>
                         <td>{{ supplier.email }}</td>
                         <td>{{ supplier.phone }}</td>
                         <td>
+                            <a href="{{ url_for('supplier_routes.view_supplier', id=supplier.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
                             {% if session.role in ['Admin', 'Procurement'] %}
                             <a href="{{ url_for('supplier_routes.edit_supplier', id=supplier.id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
                             {% if session.role == 'Admin' %}

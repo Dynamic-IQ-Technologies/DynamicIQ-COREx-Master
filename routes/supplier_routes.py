@@ -113,6 +113,130 @@ def edit_supplier(id):
     
     return render_template('suppliers/edit.html', supplier=supplier, contacts=contacts)
 
+@supplier_bp.route('/suppliers/<int:id>')
+@login_required
+def view_supplier(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (id,)).fetchone()
+    
+    if not supplier:
+        flash('Supplier not found', 'danger')
+        conn.close()
+        return redirect(url_for('supplier_routes.list_suppliers'))
+    
+    # Get contacts
+    contacts = conn.execute('''
+        SELECT * FROM supplier_contacts WHERE supplier_id = ? ORDER BY is_primary DESC, contact_name
+    ''', (id,)).fetchall()
+    
+    # Get purchase orders
+    purchase_orders = conn.execute('''
+        SELECT po.*, 
+               COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount,
+               COUNT(pol.id) as line_count
+        FROM purchase_orders po
+        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ?
+        GROUP BY po.id
+        ORDER BY po.order_date DESC
+    ''', (id,)).fetchall()
+    
+    # Get financial metrics
+    financials = {}
+    
+    # Total purchases (all time) - count of POs
+    total_po_count = conn.execute('''
+        SELECT COUNT(*) as count FROM purchase_orders 
+        WHERE supplier_id = ? AND status NOT IN ('Cancelled', 'Draft')
+    ''', (id,)).fetchone()
+    financials['total_po_count'] = total_po_count['count'] if total_po_count else 0
+    
+    # Total purchase amount (all time)
+    total_purchases = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ? AND po.status NOT IN ('Cancelled', 'Draft')
+    ''', (id,)).fetchone()
+    financials['total_purchase_amount'] = total_purchases['total'] if total_purchases else 0
+    
+    # YTD purchases
+    ytd_purchases = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ? AND po.status NOT IN ('Cancelled', 'Draft')
+        AND strftime('%Y', po.order_date) = strftime('%Y', 'now')
+    ''', (id,)).fetchone()
+    financials['ytd_purchases'] = ytd_purchases['total'] if ytd_purchases else 0
+    
+    # Last year purchases
+    last_year_purchases = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ? AND po.status NOT IN ('Cancelled', 'Draft')
+        AND strftime('%Y', po.order_date) = strftime('%Y', 'now', '-1 year')
+    ''', (id,)).fetchone()
+    financials['last_year_purchases'] = last_year_purchases['total'] if last_year_purchases else 0
+    
+    # Open POs (not completed or cancelled)
+    open_pos = conn.execute('''
+        SELECT COUNT(*) as count,
+               COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total
+        FROM purchase_orders po
+        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ? AND po.status IN ('Open', 'Pending', 'Partial')
+        GROUP BY po.supplier_id
+    ''', (id,)).fetchone()
+    financials['open_po_count'] = open_pos['count'] if open_pos else 0
+    financials['open_po_amount'] = open_pos['total'] if open_pos else 0
+    
+    # Average PO value
+    financials['avg_po_value'] = financials['total_purchase_amount'] / financials['total_po_count'] if financials['total_po_count'] > 0 else 0
+    
+    # Last PO date
+    last_po = conn.execute('''
+        SELECT order_date FROM purchase_orders 
+        WHERE supplier_id = ? AND status NOT IN ('Cancelled', 'Draft')
+        ORDER BY order_date DESC LIMIT 1
+    ''', (id,)).fetchone()
+    financials['last_po_date'] = last_po['order_date'] if last_po else None
+    
+    # First PO date (supplier since)
+    first_po = conn.execute('''
+        SELECT order_date FROM purchase_orders 
+        WHERE supplier_id = ? AND status NOT IN ('Cancelled', 'Draft')
+        ORDER BY order_date ASC LIMIT 1
+    ''', (id,)).fetchone()
+    financials['first_po_date'] = first_po['order_date'] if first_po else None
+    
+    # Pending receiving amount (quantity ordered - received)
+    pending_receiving = conn.execute('''
+        SELECT COALESCE(SUM((pol.quantity - pol.received_quantity) * pol.unit_price), 0) as total
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ? AND po.status IN ('Open', 'Pending', 'Partial')
+        AND pol.quantity > pol.received_quantity
+    ''', (id,)).fetchone()
+    financials['pending_receiving_amount'] = pending_receiving['total'] if pending_receiving else 0
+    
+    # Get audit trail
+    audit_trail = conn.execute('''
+        SELECT at.*, u.username 
+        FROM audit_trail at
+        LEFT JOIN users u ON at.modified_by = u.id
+        WHERE at.record_type = 'suppliers' AND at.record_id = ?
+        ORDER BY at.timestamp DESC
+        LIMIT 50
+    ''', (id,)).fetchall()
+    
+    conn.close()
+    return render_template('suppliers/view.html', supplier=supplier, contacts=contacts,
+                          purchase_orders=purchase_orders, financials=financials, audit_trail=audit_trail)
+
 @supplier_bp.route('/suppliers/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
 def delete_supplier(id):
