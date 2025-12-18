@@ -3,14 +3,236 @@
 {% block title %}Secure IT Manager - Dynamic.IQ-MRPx{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+    .it-dashboard {
+        background: #f8fafc;
+        min-height: 100vh;
+        padding: 1.5rem;
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+    
+    .dashboard-header h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+    
+    .dashboard-header p {
+        margin: 0.25rem 0 0 0;
+        opacity: 0.8;
+    }
+    
+    .kpi-card {
+        border-radius: 16px;
+        padding: 1.5rem;
+        height: 100%;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+    }
+    
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .kpi-card.security-posture {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    }
+    
+    .kpi-card.alerts {
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    }
+    
+    .kpi-card.high-risk {
+        background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+    }
+    
+    .kpi-card.logins {
+        background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+    }
+    
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    .kpi-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+    
+    .kpi-sublabel {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-top: 0.5rem;
+    }
+    
+    .kpi-icon {
+        font-size: 2.5rem;
+        opacity: 0.3;
+    }
+    
+    .section-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .section-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .section-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1rem;
+        color: #1e293b;
+    }
+    
+    .section-body {
+        padding: 1.25rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 180px;
+        width: 100%;
+    }
+    
+    .progress-item {
+        margin-bottom: 1rem;
+    }
+    
+    .progress-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.375rem;
+        font-size: 0.875rem;
+    }
+    
+    .progress-bar-wrapper {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+    
+    .compliance-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .compliance-item {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 1rem;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .agent-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .agent-item:last-child {
+        border-bottom: none;
+    }
+    
+    .quick-cmd-btn {
+        border-radius: 10px;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .quick-cmd-btn:hover {
+        transform: translateY(-1px);
+    }
+    
+    .alert-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 0.75rem;
+        background: #fef2f2;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        border-left: 3px solid #ef4444;
+    }
+    
+    .alert-item.warning {
+        background: #fffbeb;
+        border-left-color: #f59e0b;
+    }
+    
+    .alert-item.info {
+        background: #eff6ff;
+        border-left-color: #3b82f6;
+    }
+    
+    .incident-row {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .incident-row:last-child {
+        border-bottom: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: #10b981;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<div class="it-dashboard">
+    <div class="dashboard-header d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="mb-1"><i class="bi bi-shield-lock me-2"></i>Secure IT Manager</h2>
-            <p class="text-muted mb-0">Zero-Trust Security Operations Center</p>
+            <h2><i class="bi bi-shield-lock me-2"></i>Secure IT Manager</h2>
+            <p>Zero-Trust Security Operations Center</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#askAgentModal">
+            <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#askAgentModal">
                 <i class="bi bi-chat-dots me-1"></i> Ask IT Agent
             </button>
             <button class="btn btn-danger" onclick="initiateLockdown()">
@@ -19,75 +241,66 @@
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-lg-3">
-            <div class="card border-0 shadow-sm h-100 {% if security_posture.overall >= 80 %}bg-success{% elif security_posture.overall >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
-                <div class="card-body text-white text-center">
-                    <h6 class="text-white-50 mb-2">Security Posture</h6>
-                    <h1 class="display-4 mb-0">{{ security_posture.overall }}%</h1>
-                    <span class="badge bg-white text-dark mt-2">{{ security_posture.status }}</span>
+    <div class="row g-3 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="kpi-card security-posture text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label">Security Posture</div>
+                    <div class="kpi-value">{{ security_posture.overall }}%</div>
+                    <span class="badge bg-white text-success mt-2">{{ security_posture.status }}</span>
                 </div>
+                <i class="bi bi-shield-check kpi-icon"></i>
             </div>
         </div>
-        <div class="col-lg-3">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">Active Alerts</h6>
-                            <h2 class="mb-0">{{ active_alerts|length }}</h2>
-                        </div>
-                        <i class="bi bi-exclamation-triangle" style="font-size: 2rem; opacity: 0.3;"></i>
-                    </div>
-                    <a href="{{ url_for('it_manager_routes.alerts') }}" class="text-white small">View all alerts <i class="bi bi-arrow-right"></i></a>
+        <div class="col-lg-3 col-md-6">
+            <div class="kpi-card alerts text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label">Active Alerts</div>
+                    <div class="kpi-value">{{ active_alerts|length }}</div>
+                    <a href="{{ url_for('it_manager_routes.alerts') }}" class="text-white-50 small text-decoration-none">
+                        View all alerts <i class="bi bi-arrow-right"></i>
+                    </a>
                 </div>
+                <i class="bi bi-exclamation-triangle kpi-icon"></i>
             </div>
         </div>
-        <div class="col-lg-3">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">High-Risk Users</h6>
-                            <h2 class="mb-0">{{ user_risk_summary.high_risk }}</h2>
-                        </div>
-                        <i class="bi bi-person-exclamation" style="font-size: 2rem; opacity: 0.3;"></i>
-                    </div>
-                    <small class="text-white">of {{ user_risk_summary.total_users }} total users</small>
+        <div class="col-lg-3 col-md-6">
+            <div class="kpi-card high-risk text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label">High-Risk Users</div>
+                    <div class="kpi-value">{{ user_risk_summary.high_risk }}</div>
+                    <div class="kpi-sublabel">of {{ user_risk_summary.total_users }} total users</div>
                 </div>
+                <i class="bi bi-person-exclamation kpi-icon"></i>
             </div>
         </div>
-        <div class="col-lg-3">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="text-white-50 mb-1">Failed Logins (24h)</h6>
-                            <h2 class="mb-0">{{ access_metrics.failed_logins_24h }}</h2>
-                        </div>
-                        <i class="bi bi-shield-x" style="font-size: 2rem; opacity: 0.3;"></i>
-                    </div>
-                    <small class="text-white">{{ access_metrics.logins_24h }} total login attempts</small>
+        <div class="col-lg-3 col-md-6">
+            <div class="kpi-card logins text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label">Failed Logins (24h)</div>
+                    <div class="kpi-value">{{ access_metrics.failed_logins_24h }}</div>
+                    <div class="kpi-sublabel">{{ access_metrics.logins_24h }} total attempts</div>
                 </div>
+                <i class="bi bi-shield-x kpi-icon"></i>
             </div>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
+    <div class="row g-3 mb-4">
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Security Components</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-speedometer2 me-2 text-primary"></i>Security Components</h5>
                 </div>
-                <div class="card-body">
+                <div class="section-body">
                     {% for component, score in security_posture.components.items() %}
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
+                    <div class="progress-item">
+                        <div class="progress-label">
                             <span class="text-capitalize">{{ component.replace('_', ' ') }}</span>
                             <span class="fw-bold {% if score >= 80 %}text-success{% elif score >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ score }}%</span>
                         </div>
-                        <div class="progress" style="height: 8px;">
-                            <div class="progress-bar {% if score >= 80 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-fill {% if score >= 80 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
                                  style="width: {{ score }}%;"></div>
                         </div>
                     </div>
@@ -96,24 +309,22 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Compliance Status</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-clipboard-check me-2 text-primary"></i>Compliance Status</h5>
                     <a href="{{ url_for('it_manager_routes.compliance') }}" class="btn btn-sm btn-outline-primary">View Details</a>
                 </div>
-                <div class="card-body">
-                    <div class="row g-3">
+                <div class="section-body">
+                    <div class="compliance-grid">
                         {% for fw, data in compliance_status.items() %}
-                        <div class="col-6">
-                            <div class="border rounded p-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <strong>{{ fw }}</strong>
-                                    <span class="badge {% if data.score >= 80 %}bg-success{% elif data.score >= 60 %}bg-warning{% else %}bg-secondary{% endif %}">
-                                        {{ data.score|int }}%
-                                    </span>
-                                </div>
-                                <small class="text-muted">{{ data.status }}</small>
+                        <div class="compliance-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ fw }}</strong>
+                                <span class="badge {% if data.score >= 80 %}bg-success{% elif data.score >= 60 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ data.score|int }}%
+                                </span>
                             </div>
+                            <small class="text-muted">{{ data.status }}</small>
                         </div>
                         {% endfor %}
                     </div>
@@ -122,57 +333,56 @@
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
+    <div class="row g-3 mb-4">
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Active Alerts</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Active Alerts</h5>
                     <span class="badge bg-danger">{{ active_alerts|length }}</span>
                 </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
-                        {% for alert in active_alerts %}
-                        <div class="list-group-item border-0 d-flex align-items-start">
-                            <span class="badge {% if alert.severity == 'Critical' %}bg-danger{% elif alert.severity == 'High' %}bg-warning{% else %}bg-info{% endif %} me-2 mt-1">
-                                {{ alert.severity }}
-                            </span>
-                            <div class="flex-grow-1">
-                                <strong>{{ alert.title }}</strong>
-                                <p class="mb-0 small text-muted">{{ alert.description[:80] }}...</p>
+                <div class="section-body" style="max-height: 320px; overflow-y: auto;">
+                    {% for alert in active_alerts %}
+                    <div class="alert-item {% if alert.severity == 'Critical' %}{% elif alert.severity == 'High' %}warning{% else %}info{% endif %}">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="small">{{ alert.title }}</strong>
+                                <span class="badge {% if alert.severity == 'Critical' %}bg-danger{% elif alert.severity == 'High' %}bg-warning{% else %}bg-info{% endif %} ms-2">
+                                    {{ alert.severity }}
+                                </span>
                             </div>
-                            <button class="btn btn-sm btn-outline-success" onclick="resolveAlert({{ alert.id }})">
-                                <i class="bi bi-check"></i>
-                            </button>
+                            <p class="mb-0 small text-muted">{{ alert.description[:60] }}...</p>
                         </div>
-                        {% else %}
-                        <div class="list-group-item border-0 text-center text-muted py-4">
-                            <i class="bi bi-shield-check display-6 text-success mb-2"></i>
-                            <p class="mb-0">No active security alerts</p>
-                        </div>
-                        {% endfor %}
                     </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-shield-check d-block"></i>
+                        <p class="mb-0">No active security alerts</p>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>User Risk Distribution</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-people me-2 text-primary"></i>User Risk Distribution</h5>
                     <a href="{{ url_for('it_manager_routes.access_governance') }}" class="btn btn-sm btn-outline-primary">Manage</a>
                 </div>
-                <div class="card-body">
-                    <canvas id="riskChart" height="200"></canvas>
-                    <div class="row text-center mt-3">
+                <div class="section-body">
+                    <div class="chart-container">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                    <div class="row text-center mt-3 pt-2 border-top">
                         <div class="col-4">
-                            <h4 class="text-danger mb-0">{{ user_risk_summary.high_risk }}</h4>
+                            <h5 class="text-danger mb-0">{{ user_risk_summary.high_risk }}</h5>
                             <small class="text-muted">High Risk</small>
                         </div>
                         <div class="col-4">
-                            <h4 class="text-warning mb-0">{{ user_risk_summary.medium_risk }}</h4>
+                            <h5 class="text-warning mb-0">{{ user_risk_summary.medium_risk }}</h5>
                             <small class="text-muted">Medium</small>
                         </div>
                         <div class="col-4">
-                            <h4 class="text-success mb-0">{{ user_risk_summary.low_risk }}</h4>
+                            <h5 class="text-success mb-0">{{ user_risk_summary.low_risk }}</h5>
                             <small class="text-muted">Low Risk</small>
                         </div>
                     </div>
@@ -180,78 +390,58 @@
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI Agent Trust Scores</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-robot me-2 text-primary"></i>AI Agent Trust Scores</h5>
                     <a href="{{ url_for('it_manager_routes.ai_agents') }}" class="btn btn-sm btn-outline-primary">Monitor</a>
                 </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for agent in ai_agents[:5] %}
-                        <div class="list-group-item border-0 d-flex justify-content-between align-items-center">
-                            <div>
-                                <i class="bi bi-cpu me-2 text-primary"></i>
-                                <span>{{ agent.agent_name }}</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="progress" style="width: 80px; height: 6px;">
-                                    <div class="progress-bar {% if agent.trust_score >= 90 %}bg-success{% elif agent.trust_score >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                         style="width: {{ agent.trust_score }}%;"></div>
-                                </div>
-                                <span class="badge {% if agent.trust_score >= 90 %}bg-success{% elif agent.trust_score >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
-                                    {{ agent.trust_score|int }}
-                                </span>
-                            </div>
+                <div class="section-body p-0">
+                    {% for agent in ai_agents[:5] %}
+                    <div class="agent-item px-3">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-cpu me-2 text-primary"></i>
+                            <span class="small">{{ agent.agent_name }}</span>
                         </div>
-                        {% endfor %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width: 60px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                <div style="width: {{ agent.trust_score }}%; height: 100%; border-radius: 3px;" 
+                                     class="{% if agent.trust_score >= 90 %}bg-success{% elif agent.trust_score >= 70 %}bg-warning{% else %}bg-danger{% endif %}"></div>
+                            </div>
+                            <span class="badge {% if agent.trust_score >= 90 %}bg-success{% elif agent.trust_score >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ agent.trust_score|int }}
+                            </span>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-3">
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Recent Incidents</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-shield-exclamation me-2 text-danger"></i>Recent Incidents</h5>
                     <a href="{{ url_for('it_manager_routes.incidents') }}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
-                <div class="card-body p-0">
+                <div class="section-body p-0">
                     {% if recent_incidents %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Title</th>
-                                    <th>Severity</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for incident in recent_incidents %}
-                                <tr>
-                                    <td><code>{{ incident.incident_number }}</code></td>
-                                    <td>{{ incident.title[:30] }}...</td>
-                                    <td>
-                                        <span class="badge {% if incident.severity == 'Critical' %}bg-danger{% elif incident.severity == 'High' %}bg-warning{% else %}bg-info{% endif %}">
-                                            {{ incident.severity }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge {% if incident.status == 'Open' %}bg-danger{% elif incident.status == 'In Progress' %}bg-warning{% else %}bg-success{% endif %}">
-                                            {{ incident.status }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    {% for incident in recent_incidents %}
+                    <div class="incident-row">
+                        <code class="small">{{ incident.incident_number }}</code>
+                        <span class="flex-grow-1 small">{{ incident.title[:35] }}{% if incident.title|length > 35 %}...{% endif %}</span>
+                        <span class="badge {% if incident.severity == 'Critical' %}bg-danger{% elif incident.severity == 'High' %}bg-warning{% else %}bg-info{% endif %}">
+                            {{ incident.severity }}
+                        </span>
+                        <span class="badge {% if incident.status == 'Open' %}bg-danger{% elif incident.status == 'In Progress' %}bg-warning{% else %}bg-success{% endif %}">
+                            {{ incident.status }}
+                        </span>
                     </div>
+                    {% endfor %}
                     {% else %}
-                    <div class="text-center py-4 text-muted">
-                        <i class="bi bi-shield-check display-6 text-success mb-2"></i>
+                    <div class="empty-state">
+                        <i class="bi bi-shield-check d-block"></i>
                         <p class="mb-0">No security incidents recorded</p>
                     </div>
                     {% endif %}
@@ -259,29 +449,29 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="bi bi-terminal me-2"></i>Quick Commands</h5>
+            <div class="section-card">
+                <div class="section-header">
+                    <h5><i class="bi bi-terminal me-2 text-primary"></i>Quick Commands</h5>
                 </div>
-                <div class="card-body">
+                <div class="section-body">
                     <div class="row g-2">
                         <div class="col-6">
-                            <button class="btn btn-outline-primary w-100" onclick="askQuestion('Who has excessive access right now?')">
+                            <button class="btn btn-outline-primary quick-cmd-btn w-100" onclick="askQuestion('Who has excessive access right now?')">
                                 <i class="bi bi-person-lock me-1"></i> Excessive Access
                             </button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-outline-warning w-100" onclick="askQuestion('Show all high-risk user activity in the last 24 hours')">
+                            <button class="btn btn-outline-warning quick-cmd-btn w-100" onclick="askQuestion('Show all high-risk user activity in the last 24 hours')">
                                 <i class="bi bi-activity me-1"></i> High-Risk Activity
                             </button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-outline-info w-100" onclick="askQuestion('Are we audit-ready for SOC 2?')">
+                            <button class="btn btn-outline-info quick-cmd-btn w-100" onclick="askQuestion('Are we audit-ready for SOC 2?')">
                                 <i class="bi bi-clipboard-check me-1"></i> Audit Readiness
                             </button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-outline-danger w-100" onclick="askQuestion('Which AI agents pose the highest risk?')">
+                            <button class="btn btn-outline-danger quick-cmd-btn w-100" onclick="askQuestion('Which AI agents pose the highest risk?')">
                                 <i class="bi bi-robot me-1"></i> AI Agent Risk
                             </button>
                         </div>
@@ -294,20 +484,20 @@
 
 <div class="modal fade" id="askAgentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
                 <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>IT Security Agent</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Ask the IT Security Agent</label>
+                    <label class="form-label fw-semibold">Ask the IT Security Agent</label>
                     <textarea id="agentQuery" class="form-control" rows="3" 
                               placeholder="e.g., Who has excessive access right now? Are we audit-ready for SOC 2?"></textarea>
                 </div>
                 <div id="agentResponse" class="d-none">
-                    <h6>Response:</h6>
-                    <div id="responseContent" class="border rounded p-3 bg-light" style="white-space: pre-wrap;"></div>
+                    <h6 class="fw-semibold">Response:</h6>
+                    <div id="responseContent" class="border rounded p-3 bg-light" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -333,7 +523,8 @@ if (riskCtx) {
             datasets: [{
                 data: [{{ user_risk_summary.high_risk }}, {{ user_risk_summary.medium_risk }}, {{ user_risk_summary.low_risk }}],
                 backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
-                borderWidth: 0
+                borderWidth: 0,
+                hoverOffset: 4
             }]
         },
         options: {
@@ -342,7 +533,7 @@ if (riskCtx) {
             plugins: {
                 legend: { display: false }
             },
-            cutout: '70%'
+            cutout: '65%'
         }
     });
 }
@@ -373,6 +564,7 @@ async function submitQuery() {
         document.getElementById('agentResponse').classList.remove('d-none');
         document.getElementById('responseContent').textContent = data.response || data.error;
     } catch (error) {
+        document.getElementById('agentResponse').classList.remove('d-none');
         document.getElementById('responseContent').textContent = 'Error: ' + error.message;
     }
     
