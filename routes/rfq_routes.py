@@ -190,7 +190,7 @@ def edit_rfq(rfq_id):
         WHERE rs.rfq_id = ?
     ''', (rfq_id,)).fetchall()
     
-    products = conn.execute('SELECT id, part_number, description FROM products ORDER BY part_number').fetchall()
+    products = conn.execute('SELECT id, code as part_number, name as description FROM products ORDER BY code').fetchall()
     uoms = conn.execute('SELECT id, uom_code, uom_name FROM uom_master WHERE is_active = 1 ORDER BY uom_code').fetchall()
     all_suppliers = conn.execute('SELECT id, code, name FROM suppliers ORDER BY name').fetchall()
     
