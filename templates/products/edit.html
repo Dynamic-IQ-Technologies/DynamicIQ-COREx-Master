@@ -1,141 +1,271 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Product - Dynamic.IQ.MRP{% endblock %}
+{% block title %}Edit Product - Dynamic.IQ-MRPx{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Edit Product</h2>
+<style>
+    .edit-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+    
+    .edit-header h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+    
+    .section-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1.25rem;
+        overflow: hidden;
+    }
+    
+    .section-card .section-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-card .section-header h5 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .section-card .section-header i {
+        font-size: 1.1rem;
+    }
+    
+    .section-card .section-body {
+        padding: 1.25rem;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #374151;
+        margin-bottom: 0.375rem;
+    }
+    
+    .form-label .required {
+        color: #dc2626;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    
+    .sticky-actions {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+        margin: 0 -1.5rem -1.5rem;
+        display: flex;
+        justify-content: space-between;
+        z-index: 10;
+    }
+</style>
 
-<div class="card">
-    <div class="card-body">
-        <form method="POST">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="code" class="form-label">Product Code *</label>
-                        <input type="text" class="form-control" id="code" name="code" value="{{ product.code }}" required>
-                    </div>
+<div class="edit-header d-flex justify-content-between align-items-center">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+                <li class="breadcrumb-item"><a href="{{ url_for('product_routes.list_products') }}" style="color: rgba(255,255,255,0.7);">Products</a></li>
+                <li class="breadcrumb-item active" style="color: rgba(255,255,255,0.5);">Edit</li>
+            </ol>
+        </nav>
+        <h2><i class="bi bi-pencil-square me-2"></i>Edit Product: {{ product.code }}</h2>
+    </div>
+    <a href="{{ url_for('product_routes.view_product', id=product.id) }}" class="btn btn-outline-light">
+        <i class="bi bi-eye me-1"></i> View Product
+    </a>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="section-card">
+                <div class="section-header">
+                    <i class="bi bi-box-seam text-primary"></i>
+                    <h5>Identity & Classification</h5>
                 </div>
-                <div class="col-md-6">
+                <div class="section-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="code" class="form-label">Product Code <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="code" name="code" value="{{ product.code }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Product Name <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ product.name }}" required>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
-                        <label for="name" class="form-label">Product Name *</label>
-                        <input type="text" class="form-control" id="name" name="name" value="{{ product.name }}" required>
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{{ product.description }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="product_type" class="form-label">Product Type <span class="required">*</span></label>
+                                <select class="form-select" id="product_type" name="product_type" required>
+                                    <option value="Raw Material" {% if product.product_type == "Raw Material" %}selected{% endif %}>Raw Material</option>
+                                    <option value="Component" {% if product.product_type == "Component" %}selected{% endif %}>Component</option>
+                                    <option value="Finished Good" {% if product.product_type == "Finished Good" %}selected{% endif %}>Finished Good</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="part_category" class="form-label">Part Category <span class="required">*</span></label>
+                                <select class="form-select" id="part_category" name="part_category" required>
+                                    <option value="Electrical" {% if product.part_category == "Electrical" %}selected{% endif %}>Electrical</option>
+                                    <option value="Mechanical" {% if product.part_category == "Mechanical" %}selected{% endif %}>Mechanical</option>
+                                    <option value="Structural" {% if product.part_category == "Structural" %}selected{% endif %}>Structural</option>
+                                    <option value="Other" {% if product.part_category == "Other" or not product.part_category %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="unit_of_measure" class="form-label">Unit of Measure <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="unit_of_measure" name="unit_of_measure" value="{{ product.unit_of_measure }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-0">
+                                <label for="product_category" class="form-label">Product Category</label>
+                                <input type="text" class="form-control" id="product_category" name="product_category" value="{{ product.product_category or '' }}" placeholder="e.g., Avionics, Engine Parts">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-0">
+                                <label for="manufacturer" class="form-label">Manufacturer</label>
+                                <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ product.manufacturer or '' }}" placeholder="e.g., Boeing, Honeywell">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <div class="mb-3">
-                <label for="description" class="form-label">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="3">{{ product.description }}</textarea>
-            </div>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="product_type" class="form-label">Product Type *</label>
-                        <select class="form-select" id="product_type" name="product_type" required>
-                            <option value="Raw Material" {% if product.product_type == "Raw Material" %}selected{% endif %}>Raw Material</option>
-                            <option value="Component" {% if product.product_type == "Component" %}selected{% endif %}>Component</option>
-                            <option value="Finished Good" {% if product.product_type == "Finished Good" %}selected{% endif %}>Finished Good</option>
-                        </select>
-                    </div>
+            
+            <div class="section-card">
+                <div class="section-header">
+                    <i class="bi bi-shield-check text-success"></i>
+                    <h5>Compliance & Part Information</h5>
                 </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="part_category" class="form-label">Part Category *</label>
-                        <select class="form-select" id="part_category" name="part_category" required>
-                            <option value="Electrical" {% if product.part_category == "Electrical" %}selected{% endif %}>Electrical</option>
-                            <option value="Mechanical" {% if product.part_category == "Mechanical" %}selected{% endif %}>Mechanical</option>
-                            <option value="Structural" {% if product.part_category == "Structural" %}selected{% endif %}>Structural</option>
-                            <option value="Other" {% if product.part_category == "Other" or not product.part_category %}selected{% endif %}>Other</option>
-                        </select>
+                <div class="section-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="applicability" class="form-label">Applicability</label>
+                                <input type="text" class="form-control" id="applicability" name="applicability" value="{{ product.applicability or '' }}" placeholder="e.g., Boeing 737, Airbus A320">
+                                <div class="form-text">Aircraft or equipment this part applies to</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="shelf_life_cycle" class="form-label">Shelf Life Cycle</label>
+                                <input type="text" class="form-control" id="shelf_life_cycle" name="shelf_life_cycle" value="{{ product.shelf_life_cycle or '' }}" placeholder="e.g., 24 months, Unlimited">
+                                <div class="form-text">Storage duration before expiration</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="unit_of_measure" class="form-label">Unit of Measure *</label>
-                        <input type="text" class="form-control" id="unit_of_measure" name="unit_of_measure" value="{{ product.unit_of_measure }}" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eccn" class="form-label">ECCN</label>
+                                <input type="text" class="form-control" id="eccn" name="eccn" value="{{ product.eccn or '' }}" placeholder="e.g., EAR99, 9A991.d">
+                                <div class="form-text">Export Control Classification Number</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lead_time" class="form-label">Lead Time (Days)</label>
+                                <input type="number" class="form-control" id="lead_time" name="lead_time" value="{{ product.lead_time or 0 }}" min="0">
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="product_category" class="form-label">Product Category</label>
-                        <input type="text" class="form-control" id="product_category" name="product_category" value="{{ product.product_category or '' }}" placeholder="e.g., Avionics, Engine Parts">
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="manufacturer" class="form-label">Manufacturer</label>
-                        <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ product.manufacturer or '' }}" placeholder="e.g., Boeing, Honeywell">
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="lead_time" class="form-label">Lead Time (Days)</label>
-                        <input type="number" class="form-control" id="lead_time" name="lead_time" value="{{ product.lead_time or 0 }}" min="0">
+                    <div class="mb-0">
+                        <label for="part_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="part_notes" name="part_notes" rows="3" placeholder="Additional part information, special handling instructions, etc.">{{ product.part_notes or '' }}</textarea>
                     </div>
                 </div>
             </div>
-
-            <div class="row">
-                <div class="col-md-6">
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="section-card">
+                <div class="section-header">
+                    <i class="bi bi-boxes text-warning"></i>
+                    <h5>Inventory Controls</h5>
+                </div>
+                <div class="section-body">
                     <div class="mb-3">
                         <label for="reorder_point" class="form-label">Reorder Point</label>
                         <input type="number" step="0.01" class="form-control" id="reorder_point" name="reorder_point" value="{{ inventory.reorder_point if inventory else 0 }}">
+                        <div class="form-text">Quantity at which to reorder</div>
                     </div>
-                </div>
-                <div class="col-md-6">
                     <div class="mb-3">
                         <label for="safety_stock" class="form-label">Safety Stock</label>
                         <input type="number" step="0.01" class="form-control" id="safety_stock" name="safety_stock" value="{{ inventory.safety_stock if inventory else 0 }}">
+                        <div class="form-text">Minimum buffer quantity</div>
                     </div>
+                    {% if inventory %}
+                    <div class="alert alert-light mb-0">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Current Stock:</span>
+                            <strong class="{% if inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
+                                {{ inventory.quantity }} {{ product.unit_of_measure }}
+                            </strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Status:</span>
+                            {% if inventory.quantity <= inventory.safety_stock %}
+                            <span class="badge bg-danger">Critical</span>
+                            {% elif inventory.quantity <= inventory.reorder_point %}
+                            <span class="badge bg-warning">Low Stock</span>
+                            {% else %}
+                            <span class="badge bg-success">Adequate</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-
-            <hr class="my-4">
-            <h5 class="mb-3"><i class="bi bi-info-square me-2"></i>Part Information</h5>
             
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="applicability" class="form-label">Applicability</label>
-                        <input type="text" class="form-control" id="applicability" name="applicability" value="{{ product.applicability or '' }}" placeholder="e.g., Boeing 737, Airbus A320">
-                        <div class="form-text">Aircraft or equipment this part applies to</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="shelf_life_cycle" class="form-label">Shelf Life Cycle</label>
-                        <input type="text" class="form-control" id="shelf_life_cycle" name="shelf_life_cycle" value="{{ product.shelf_life_cycle or '' }}" placeholder="e.g., 24 months, Unlimited">
-                        <div class="form-text">Storage duration before expiration</div>
+            <div class="section-card">
+                <div class="section-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-lg me-1"></i> Save Changes
+                        </button>
+                        <a href="{{ url_for('product_routes.view_product', id=product.id) }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
                     </div>
                 </div>
             </div>
-
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="eccn" class="form-label">ECCN</label>
-                        <input type="text" class="form-control" id="eccn" name="eccn" value="{{ product.eccn or '' }}" placeholder="e.g., EAR99, 9A991.d">
-                        <div class="form-text">Export Control Classification Number</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label for="part_notes" class="form-label">Notes</label>
-                <textarea class="form-control" id="part_notes" name="part_notes" rows="3" placeholder="Additional part information, special handling instructions, etc.">{{ product.part_notes or '' }}</textarea>
-            </div>
-
-            <div class="d-flex justify-content-between">
-                <a href="{{ url_for('product_routes.list_products') }}" class="btn btn-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Update Product</button>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+</form>
 
 <!-- Unit of Measure Conversions Section -->
 <div class="card mt-4">

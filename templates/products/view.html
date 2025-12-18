@@ -3,365 +3,590 @@
 {% block title %}{{ product.code }} - Product Details{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+    .product-hero {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+    
+    .product-hero h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+    
+    .product-hero .breadcrumb {
+        margin-bottom: 0.5rem;
+    }
+    
+    .product-hero .breadcrumb-item a {
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .product-hero .breadcrumb-item.active {
+        color: rgba(255,255,255,0.5);
+    }
+    
+    .kpi-row {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.25rem;
+        flex-wrap: wrap;
+    }
+    
+    .kpi-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 0.75rem 1.25rem;
+        min-width: 120px;
+    }
+    
+    .kpi-item .kpi-label {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        margin-bottom: 0.25rem;
+    }
+    
+    .kpi-item .kpi-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+    
+    .section-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1.25rem;
+        overflow: hidden;
+    }
+    
+    .section-card .card-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1rem 1.25rem;
+    }
+    
+    .section-card .card-header h5 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .section-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .info-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-weight: 500;
+        color: #1e293b;
+    }
+    
+    .data-tabs .nav-link {
+        color: #64748b;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        border-bottom: 2px solid transparent;
+    }
+    
+    .data-tabs .nav-link:hover {
+        color: #1e293b;
+        border-color: transparent;
+    }
+    
+    .data-tabs .nav-link.active {
+        color: #ea580c;
+        background: transparent;
+        border-bottom: 2px solid #ea580c;
+    }
+    
+    .inventory-gauge {
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .gauge-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    
+    .gauge-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+    }
+    
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-indicator.success {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-indicator.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-indicator.danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+</style>
+
+<div class="product-hero d-flex justify-content-between align-items-start">
     <div>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
+            <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('product_routes.list_products') }}">Products</a></li>
                 <li class="breadcrumb-item active">{{ product.code }}</li>
             </ol>
         </nav>
-        <h2 class="mt-2">{{ product.code }} - {{ product.name }}</h2>
+        <h2>{{ product.code }}</h2>
+        <p class="mb-0 opacity-75">{{ product.name }}</p>
+        
+        <div class="kpi-row">
+            <div class="kpi-item">
+                <div class="kpi-label">Type</div>
+                <div class="kpi-value">{{ product.product_type }}</div>
+            </div>
+            <div class="kpi-item">
+                <div class="kpi-label">On Hand</div>
+                <div class="kpi-value {% if inventory and inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory and inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
+                    {{ inventory.quantity if inventory else 0 }} {{ product.unit_of_measure }}
+                </div>
+            </div>
+            <div class="kpi-item">
+                <div class="kpi-label">Lead Time</div>
+                <div class="kpi-value">{{ product.lead_time or 0 }} days</div>
+            </div>
+            <div class="kpi-item">
+                <div class="kpi-label">Unit Cost</div>
+                <div class="kpi-value">{{ (product.cost or 0)|currency }}</div>
+            </div>
+        </div>
     </div>
-    <div>
+    <div class="d-flex gap-2">
         {% if session.role in ['Admin', 'Planner'] %}
-        <a href="{{ url_for('product_routes.edit_product', id=product.id) }}" class="btn btn-warning">
-            <i class="bi bi-pencil"></i> Edit
+        <a href="{{ url_for('product_routes.edit_product', id=product.id) }}" class="btn btn-light">
+            <i class="bi bi-pencil me-1"></i> Edit
         </a>
         {% endif %}
-        <a href="{{ url_for('product_routes.list_products') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to List
+        <a href="{{ url_for('product_routes.list_products') }}" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left me-1"></i> Back
         </a>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
+    <div class="col-lg-4">
+        <div class="section-card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Product Information</h5>
+                <h5><i class="bi bi-box-seam me-2 text-primary"></i>Product Profile</h5>
             </div>
             <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <th style="width: 35%;">Product Code</th>
-                        <td><strong>{{ product.code }}</strong></td>
-                    </tr>
-                    <tr>
-                        <th>Name</th>
-                        <td>{{ product.name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Description</th>
-                        <td>{{ product.description or '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Product Type</th>
-                        <td>
-                            <span class="badge {% if product.product_type == 'Finished Good' %}bg-success{% elif product.product_type == 'Raw Material' %}bg-primary{% elif product.product_type == 'Component' %}bg-info{% else %}bg-secondary{% endif %}">
-                                {{ product.product_type }}
-                            </span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Part Category</th>
-                        <td>
-                            <span class="badge {% if product.part_category == 'Electrical' %}bg-warning text-dark{% elif product.part_category == 'Mechanical' %}bg-info{% elif product.part_category == 'Structural' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                {{ product.part_category or 'Other' }}
-                            </span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Unit of Measure</th>
-                        <td>{{ product.unit_of_measure }}</td>
-                    </tr>
-                    <tr>
-                        <th>Product Category</th>
-                        <td>{{ product.product_category or '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Manufacturer</th>
-                        <td>{{ product.manufacturer or '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Lead Time</th>
-                        <td>
-                            {% if product.lead_time %}
-                            <span class="badge bg-info">{{ product.lead_time }} days</span>
-                            {% else %}
-                            <span class="text-muted">Not specified</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Listing Price</th>
-                        <td>{{ (product.cost or 0)|currency }}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-info-square"></i> Part Information</h5>
-            </div>
-            <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <th style="width: 35%;">Applicability</th>
-                        <td>{{ product.applicability or '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Shelf Life Cycle</th>
-                        <td>
-                            {% if product.shelf_life_cycle %}
-                            <span class="badge bg-info">{{ product.shelf_life_cycle }}</span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>ECCN</th>
-                        <td>
-                            {% if product.eccn %}
-                            <code>{{ product.eccn }}</code>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Notes</th>
-                        <td>{{ product.part_notes or '-' }}</td>
-                    </tr>
-                </table>
+                <div class="info-item">
+                    <div class="info-label">Product Code</div>
+                    <div class="info-value"><strong>{{ product.code }}</strong></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Description</div>
+                    <div class="info-value">{{ product.description or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Product Type</div>
+                    <div class="info-value">
+                        <span class="badge {% if product.product_type == 'Finished Good' %}bg-success{% elif product.product_type == 'Raw Material' %}bg-primary{% else %}bg-info{% endif %}">
+                            {{ product.product_type }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Part Category</div>
+                    <div class="info-value">
+                        <span class="badge {% if product.part_category == 'Electrical' %}bg-warning text-dark{% elif product.part_category == 'Mechanical' %}bg-info{% elif product.part_category == 'Structural' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ product.part_category or 'Other' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Unit of Measure</div>
+                    <div class="info-value">{{ product.unit_of_measure }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Product Category</div>
+                    <div class="info-value">{{ product.product_category or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Manufacturer</div>
+                    <div class="info-value">{{ product.manufacturer or '-' }}</div>
+                </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6">
-        <div class="card mb-4">
+    <div class="col-lg-4">
+        <div class="section-card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-boxes"></i> Inventory Status</h5>
+                <h5><i class="bi bi-shield-check me-2 text-success"></i>Compliance & Lifecycle</h5>
+            </div>
+            <div class="card-body">
+                <div class="info-item">
+                    <div class="info-label">Applicability</div>
+                    <div class="info-value">{{ product.applicability or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Shelf Life Cycle</div>
+                    <div class="info-value">
+                        {% if product.shelf_life_cycle %}
+                        <span class="badge bg-info">{{ product.shelf_life_cycle }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">ECCN (Export Control)</div>
+                    <div class="info-value">
+                        {% if product.eccn %}
+                        <code class="bg-light px-2 py-1 rounded">{{ product.eccn }}</code>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Lead Time</div>
+                    <div class="info-value">
+                        {% if product.lead_time %}
+                        <span class="badge bg-primary">{{ product.lead_time }} days</span>
+                        {% else %}
+                        <span class="text-muted">Not specified</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Notes</div>
+                    <div class="info-value">{{ product.part_notes or '-' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="section-card">
+            <div class="card-header">
+                <h5><i class="bi bi-boxes me-2 text-warning"></i>Inventory Status</h5>
             </div>
             <div class="card-body">
                 {% if inventory %}
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <th style="width: 35%;">Quantity on Hand</th>
-                        <td>
-                            <span class="fs-5 {% if inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
-                                {{ inventory.quantity }} {{ product.unit_of_measure }}
-                            </span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Reorder Point</th>
-                        <td>{{ inventory.reorder_point }} {{ product.unit_of_measure }}</td>
-                    </tr>
-                    <tr>
-                        <th>Safety Stock</th>
-                        <td>{{ inventory.safety_stock }} {{ product.unit_of_measure }}</td>
-                    </tr>
-                    <tr>
-                        <th>Last Updated</th>
-                        <td>{{ inventory.updated_at or '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Status</th>
-                        <td>
-                            {% if inventory.quantity <= inventory.safety_stock %}
-                            <span class="badge bg-danger">Critical - Below Safety Stock</span>
-                            {% elif inventory.quantity <= inventory.reorder_point %}
-                            <span class="badge bg-warning">Low - Reorder Needed</span>
-                            {% else %}
-                            <span class="badge bg-success">Adequate</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                </table>
+                <div class="inventory-gauge mb-3">
+                    <div class="gauge-value {% if inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
+                        {{ inventory.quantity }}
+                    </div>
+                    <div class="gauge-label">{{ product.unit_of_measure }} On Hand</div>
+                    <div class="mt-2">
+                        {% if inventory.quantity <= inventory.safety_stock %}
+                        <span class="status-indicator danger">
+                            <i class="bi bi-exclamation-triangle"></i> Critical - Below Safety Stock
+                        </span>
+                        {% elif inventory.quantity <= inventory.reorder_point %}
+                        <span class="status-indicator warning">
+                            <i class="bi bi-arrow-down-circle"></i> Low - Reorder Needed
+                        </span>
+                        {% else %}
+                        <span class="status-indicator success">
+                            <i class="bi bi-check-circle"></i> Adequate
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Reorder Point</div>
+                        <div class="info-value">{{ inventory.reorder_point }} {{ product.unit_of_measure }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Safety Stock</div>
+                        <div class="info-value">{{ inventory.safety_stock }} {{ product.unit_of_measure }}</div>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Last Updated</div>
+                    <div class="info-value">{{ inventory.updated_at or '-' }}</div>
+                </div>
                 {% else %}
-                <p class="text-muted mb-0">No inventory record found.</p>
+                <div class="text-center py-4">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <p class="text-muted mt-2 mb-0">No inventory record</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-{% if uom_conversions %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> UOM Conversions</h5>
-    </div>
-    <div class="card-body">
-        <table class="table table-sm table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Target UOM</th>
-                    <th>Conversion Factor</th>
-                    <th>Effective Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for conv in uom_conversions %}
-                <tr>
-                    <td>{{ conv.target_uom }}</td>
-                    <td>1 {{ product.unit_of_measure }} = {{ conv.conversion_factor }} {{ conv.target_uom }}</td>
-                    <td>{{ conv.effective_date or '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="section-card">
+    <ul class="nav nav-tabs data-tabs px-3 pt-2" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabBom" type="button">
+                <i class="bi bi-diagram-3 me-1"></i> Bill of Materials
+                {% if bom_components %}<span class="badge bg-primary ms-1">{{ bom_components|length }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabWhereUsed" type="button">
+                <i class="bi bi-arrow-up-circle me-1"></i> Where Used
+                {% if bom_usage %}<span class="badge bg-info ms-1">{{ bom_usage|length }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabWorkOrders" type="button">
+                <i class="bi bi-clipboard-check me-1"></i> Work Orders
+                {% if recent_work_orders %}<span class="badge bg-secondary ms-1">{{ recent_work_orders|length }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPurchaseOrders" type="button">
+                <i class="bi bi-cart me-1"></i> Purchase Orders
+                {% if recent_po_lines %}<span class="badge bg-secondary ms-1">{{ recent_po_lines|length }}</span>{% endif %}
+            </button>
+        </li>
+        {% if uom_conversions %}
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabUom" type="button">
+                <i class="bi bi-arrow-left-right me-1"></i> UOM Conversions
+            </button>
+        </li>
+        {% endif %}
+    </ul>
+    
+    <div class="tab-content p-3">
+        <div class="tab-pane fade show active" id="tabBom">
+            {% if bom_components %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Find #</th>
+                            <th>Component Code</th>
+                            <th>Component Name</th>
+                            <th>Quantity</th>
+                            <th>UOM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comp in bom_components %}
+                        <tr>
+                            <td>{{ comp.find_number or loop.index }}</td>
+                            <td>
+                                <a href="{{ url_for('product_routes.view_product', id=comp.child_product_id) }}" class="text-primary fw-medium">
+                                    {{ comp.component_code }}
+                                </a>
+                            </td>
+                            <td>{{ comp.component_name }}</td>
+                            <td>{{ comp.quantity }}</td>
+                            <td>{{ comp.unit_of_measure }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-diagram-3 display-6"></i>
+                <p class="mt-2 mb-0">No BOM components defined</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="tab-pane fade" id="tabWhereUsed">
+            {% if bom_usage %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Parent Code</th>
+                            <th>Parent Name</th>
+                            <th>Quantity Per</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usage in bom_usage %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('product_routes.view_product', id=usage.parent_product_id) }}" class="text-primary fw-medium">
+                                    {{ usage.parent_code }}
+                                </a>
+                            </td>
+                            <td>{{ usage.parent_name }}</td>
+                            <td>{{ usage.quantity }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-arrow-up-circle display-6"></i>
+                <p class="mt-2 mb-0">Not used in any parent assemblies</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="tab-pane fade" id="tabWorkOrders">
+            {% if recent_work_orders %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>WO Number</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wo in recent_work_orders %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="text-primary fw-medium">
+                                    {{ wo.wo_number }}
+                                </a>
+                            </td>
+                            <td>{{ wo.quantity }}</td>
+                            <td>
+                                <span class="badge {% if wo.status == 'Completed' %}bg-success{% elif wo.status == 'In Progress' %}bg-primary{% elif wo.status == 'Cancelled' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ wo.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if wo.priority == 'Critical' %}bg-danger{% elif wo.priority == 'High' %}bg-warning{% elif wo.priority == 'Medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ wo.priority }}
+                                </span>
+                            </td>
+                            <td>{{ wo.created_at[:10] if wo.created_at else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <a href="{{ url_for('workorder_routes.list_workorders') }}?search={{ product.code }}" class="btn btn-sm btn-outline-primary">
+                    View All Work Orders
+                </a>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-clipboard-check display-6"></i>
+                <p class="mt-2 mb-0">No recent work orders</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="tab-pane fade" id="tabPurchaseOrders">
+            {% if recent_po_lines %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>PO Number</th>
+                            <th>Supplier</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pol in recent_po_lines %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('po_routes.view_purchaseorder', id=pol.po_id) }}" class="text-primary fw-medium">
+                                    {{ pol.po_number }}
+                                </a>
+                            </td>
+                            <td>{{ pol.supplier_name or '-' }}</td>
+                            <td>{{ pol.quantity }}</td>
+                            <td>{{ (pol.unit_price or 0)|currency }}</td>
+                            <td>{{ ((pol.quantity or 0) * (pol.unit_price or 0))|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="btn btn-sm btn-outline-primary">
+                    View All Purchase Orders
+                </a>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-cart display-6"></i>
+                <p class="mt-2 mb-0">No recent purchase orders</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if uom_conversions %}
+        <div class="tab-pane fade" id="tabUom">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Target UOM</th>
+                            <th>Conversion Factor</th>
+                            <th>Effective Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conv in uom_conversions %}
+                        <tr>
+                            <td>{{ conv.target_uom }}</td>
+                            <td>1 {{ product.unit_of_measure }} = {{ conv.conversion_factor }} {{ conv.target_uom }}</td>
+                            <td>{{ conv.effective_date or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
-{% endif %}
-
-{% if bom_components %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Bill of Materials (Components)</h5>
-        <span class="badge bg-primary">{{ bom_components|length }} component(s)</span>
-    </div>
-    <div class="card-body">
-        <table class="table table-sm table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Find #</th>
-                    <th>Component Code</th>
-                    <th>Component Name</th>
-                    <th>Quantity</th>
-                    <th>UOM</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for comp in bom_components %}
-                <tr>
-                    <td>{{ comp.find_number or loop.index }}</td>
-                    <td>
-                        <a href="{{ url_for('product_routes.view_product', id=comp.child_product_id) }}">
-                            {{ comp.component_code }}
-                        </a>
-                    </td>
-                    <td>{{ comp.component_name }}</td>
-                    <td>{{ comp.quantity }}</td>
-                    <td>{{ comp.unit_of_measure }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-{% if bom_usage %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-arrow-up-circle"></i> Where Used (Parent Assemblies)</h5>
-        <span class="badge bg-info">{{ bom_usage|length }} parent(s)</span>
-    </div>
-    <div class="card-body">
-        <table class="table table-sm table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Parent Code</th>
-                    <th>Parent Name</th>
-                    <th>Quantity Per</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for usage in bom_usage %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('product_routes.view_product', id=usage.parent_product_id) }}">
-                            {{ usage.parent_code }}
-                        </a>
-                    </td>
-                    <td>{{ usage.parent_name }}</td>
-                    <td>{{ usage.quantity }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-{% if recent_work_orders %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Recent Work Orders</h5>
-        <a href="{{ url_for('workorder_routes.list_workorders') }}?search={{ product.code }}" class="btn btn-sm btn-outline-primary">View All</a>
-    </div>
-    <div class="card-body">
-        <table class="table table-sm table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>WO Number</th>
-                    <th>Quantity</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Created</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for wo in recent_work_orders %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">
-                            {{ wo.wo_number }}
-                        </a>
-                    </td>
-                    <td>{{ wo.quantity }}</td>
-                    <td>
-                        <span class="badge {% if wo.status == 'Completed' %}bg-success{% elif wo.status == 'In Progress' %}bg-primary{% elif wo.status == 'Cancelled' %}bg-danger{% else %}bg-secondary{% endif %}">
-                            {{ wo.status }}
-                        </span>
-                    </td>
-                    <td>
-                        {% if wo.priority == 'Critical' %}
-                        <span class="badge bg-danger">Critical</span>
-                        {% elif wo.priority == 'High' %}
-                        <span class="badge bg-warning">High</span>
-                        {% elif wo.priority == 'Medium' %}
-                        <span class="badge bg-info">Medium</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Low</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ wo.created_at[:10] if wo.created_at else '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-{% if recent_po_lines %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-cart"></i> Recent Purchase Orders</h5>
-        <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="btn btn-sm btn-outline-primary">View All</a>
-    </div>
-    <div class="card-body">
-        <table class="table table-sm table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>PO Number</th>
-                    <th>Supplier</th>
-                    <th>Quantity</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pol in recent_po_lines %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('po_routes.view_purchaseorder', id=pol.po_id) }}">
-                            {{ pol.po_number }}
-                        </a>
-                    </td>
-                    <td>{{ pol.supplier_name or '-' }}</td>
-                    <td>{{ pol.quantity }}</td>
-                    <td>{{ (pol.unit_price or 0)|currency }}</td>
-                    <td>{{ ((pol.quantity or 0) * (pol.unit_price or 0))|currency }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
