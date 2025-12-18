@@ -1146,6 +1146,58 @@ def receive_exchange_po(id):
                   receipt_date, 'N/A - Exchange Fee', 'N/A', 'N/A', 
                   f'Exchange Fee Receipt. {remarks}'.strip(), session.get('user_id')))
         
+        # Calculate total value for A/P record
+        po_lines = conn.execute('''
+            SELECT SUM(quantity * unit_price) as total_value
+            FROM purchase_order_lines
+            WHERE po_id = ?
+        ''', (id,)).fetchone()
+        
+        total_value = po_lines['total_value'] or 0
+        
+        # Generate A/P number
+        last_ap = conn.execute('''
+            SELECT invoice_number FROM vendor_invoices 
+            WHERE invoice_number LIKE 'AP-%'
+            ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_ap:
+            try:
+                last_ap_number = int(last_ap['invoice_number'].split('-')[1])
+                next_ap_number = last_ap_number + 1
+            except (ValueError, IndexError):
+                next_ap_number = 1
+        else:
+            next_ap_number = 1
+        
+        ap_number = f'AP-{next_ap_number:07d}'
+        
+        # Calculate due date (30 days payment terms)
+        from datetime import timedelta
+        receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
+        due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Create A/P record for the Exchange Fee
+        conn.execute('''
+            INSERT INTO vendor_invoices 
+            (invoice_number, vendor_id, po_id, invoice_date, due_date, 
+             amount, tax_amount, total_amount, amount_paid, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            ap_number,
+            po['supplier_id'],
+            id,
+            receipt_date,
+            due_date,
+            total_value,
+            0,  # tax_amount
+            total_value,
+            0,  # amount_paid
+            'Pending Invoice'
+        ))
+        
         # Log audit trail
         AuditLogger.log_change(
             conn, 'purchase_orders', id, 'RECEIVE', session.get('user_id'),
@@ -1153,13 +1205,14 @@ def receive_exchange_po(id):
                 'po_number': po['po_number'],
                 'receipt_date': receipt_date,
                 'receipt_number': receipt_number,
+                'ap_number': ap_number,
                 'action': 'Exchange PO Received',
                 'remarks': remarks
             }
         )
         
         conn.commit()
-        flash(f'Exchange PO {po["po_number"]} has been received successfully (Receipt: {receipt_number})', 'success')
+        flash(f'Exchange PO {po["po_number"]} received successfully (Receipt: {receipt_number}, A/P: {ap_number})', 'success')
         conn.close()
         return redirect(url_for('po_routes.view_purchaseorder', id=id))
         
