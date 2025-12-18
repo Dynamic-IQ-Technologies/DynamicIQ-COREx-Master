@@ -112,7 +112,7 @@ def view_rfq(rfq_id):
         return redirect(url_for('rfq_routes.list_rfqs'))
     
     lines = conn.execute('''
-        SELECT rl.*, p.part_number, p.description as product_desc, u.uom_code
+        SELECT rl.*, p.code as part_number, p.name as product_desc, u.uom_code
         FROM rfq_lines rl
         LEFT JOIN products p ON rl.product_id = p.id
         LEFT JOIN uom_master u ON rl.uom_id = u.id
@@ -173,7 +173,7 @@ def edit_rfq(rfq_id):
         return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))
     
     lines = conn.execute('''
-        SELECT rl.*, p.part_number, p.description as product_desc, u.uom_code
+        SELECT rl.*, p.code as part_number, p.name as product_desc, u.uom_code
         FROM rfq_lines rl
         LEFT JOIN products p ON rl.product_id = p.id
         LEFT JOIN uom_master u ON rl.uom_id = u.id
