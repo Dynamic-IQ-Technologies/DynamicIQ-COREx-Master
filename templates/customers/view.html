@@ -18,8 +18,97 @@
     </div>
 
     <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Financial Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <div class="text-white">
+                            <div class="small opacity-75">Total Sales (All Time)</div>
+                            <div class="fs-4 fw-bold">{{ financials.total_sales|currency }}</div>
+                            <div class="small mt-1"><i class="bi bi-cart-check"></i> {{ financials.order_count }} orders</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                        <div class="text-white">
+                            <div class="small opacity-75">YTD Sales</div>
+                            <div class="fs-4 fw-bold">{{ financials.ytd_sales|currency }}</div>
+                            {% if financials.last_year_sales > 0 %}
+                            {% set growth = ((financials.ytd_sales - financials.last_year_sales) / financials.last_year_sales * 100) %}
+                            <div class="small mt-1">
+                                {% if growth >= 0 %}
+                                <i class="bi bi-arrow-up-circle"></i> {{ growth|round(1) }}% vs LY
+                                {% else %}
+                                <i class="bi bi-arrow-down-circle"></i> {{ growth|round(1)|abs }}% vs LY
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <div class="small mt-1"><i class="bi bi-calendar"></i> This year</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, {% if financials.pending_invoices > 0 %}#f59e0b{% else %}#6b7280{% endif %} 0%, {% if financials.pending_invoices > 0 %}#d97706{% else %}#4b5563{% endif %} 100%);">
+                        <div class="text-white">
+                            <div class="small opacity-75">Pending Invoices</div>
+                            <div class="fs-4 fw-bold">{{ financials.pending_invoices|currency }}</div>
+                            <div class="small mt-1"><i class="bi bi-receipt"></i> Outstanding balance</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                        <div class="text-white">
+                            <div class="small opacity-75">Avg Order Value</div>
+                            <div class="fs-4 fw-bold">{{ financials.avg_order_value|currency }}</div>
+                            <div class="small mt-1"><i class="bi bi-calculator"></i> Per order</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-3 mt-2">
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="small text-muted">Credit Limit</div>
+                        <div class="fw-bold">{{ customer.credit_limit|currency }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="small text-muted">Credit Utilization</div>
+                        <div class="fw-bold {% if financials.credit_utilization > 80 %}text-danger{% elif financials.credit_utilization > 50 %}text-warning{% else %}text-success{% endif %}">
+                            {{ financials.credit_utilization|round(1) }}%
+                        </div>
+                        <div class="progress mt-1" style="height: 5px;">
+                            <div class="progress-bar {% if financials.credit_utilization > 80 %}bg-danger{% elif financials.credit_utilization > 50 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ financials.credit_utilization }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="small text-muted">Customer Since</div>
+                        <div class="fw-bold">{{ financials.first_order_date or 'N/A' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="small text-muted">Last Order</div>
+                        <div class="fw-bold">{{ financials.last_order_date or 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header">
-            <h5>Customer Information</h5>
+            <h5><i class="bi bi-person me-2"></i>Customer Information</h5>
         </div>
         <div class="card-body">
             <div class="row">

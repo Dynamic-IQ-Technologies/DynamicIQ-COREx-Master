@@ -109,6 +109,73 @@ def view_customer(id):
         ORDER BY so.order_date DESC
     ''', (id,)).fetchall()
     
+    # Get financial metrics
+    financials = {}
+    
+    # Total sales (all time)
+    total_sales = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM sales_orders WHERE customer_id = ? AND status NOT IN ('Cancelled', 'Draft')
+    ''', (id,)).fetchone()
+    financials['total_sales'] = total_sales['total'] if total_sales else 0
+    
+    # Total sales this year
+    ytd_sales = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM sales_orders 
+        WHERE customer_id = ? AND status NOT IN ('Cancelled', 'Draft')
+        AND strftime('%Y', order_date) = strftime('%Y', 'now')
+    ''', (id,)).fetchone()
+    financials['ytd_sales'] = ytd_sales['total'] if ytd_sales else 0
+    
+    # Total sales last year
+    last_year_sales = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM sales_orders 
+        WHERE customer_id = ? AND status NOT IN ('Cancelled', 'Draft')
+        AND strftime('%Y', order_date) = strftime('%Y', 'now', '-1 year')
+    ''', (id,)).fetchone()
+    financials['last_year_sales'] = last_year_sales['total'] if last_year_sales else 0
+    
+    # Pending invoice amount (balance due)
+    pending_invoices = conn.execute('''
+        SELECT COALESCE(SUM(balance_due), 0) as total
+        FROM sales_orders WHERE customer_id = ? AND balance_due > 0
+    ''', (id,)).fetchone()
+    financials['pending_invoices'] = pending_invoices['total'] if pending_invoices else 0
+    
+    # Total orders count
+    order_count = conn.execute('''
+        SELECT COUNT(*) as count FROM sales_orders 
+        WHERE customer_id = ? AND status NOT IN ('Cancelled', 'Draft')
+    ''', (id,)).fetchone()
+    financials['order_count'] = order_count['count'] if order_count else 0
+    
+    # Average order value
+    financials['avg_order_value'] = financials['total_sales'] / financials['order_count'] if financials['order_count'] > 0 else 0
+    
+    # Last order date
+    last_order = conn.execute('''
+        SELECT order_date FROM sales_orders 
+        WHERE customer_id = ? AND status NOT IN ('Cancelled', 'Draft')
+        ORDER BY order_date DESC LIMIT 1
+    ''', (id,)).fetchone()
+    financials['last_order_date'] = last_order['order_date'] if last_order else None
+    
+    # First order date (customer since)
+    first_order = conn.execute('''
+        SELECT order_date FROM sales_orders 
+        WHERE customer_id = ? AND status NOT IN ('Cancelled', 'Draft')
+        ORDER BY order_date ASC LIMIT 1
+    ''', (id,)).fetchone()
+    financials['first_order_date'] = first_order['order_date'] if first_order else None
+    
+    # Credit utilization
+    if customer['credit_limit'] and customer['credit_limit'] > 0:
+        financials['credit_utilization'] = (financials['pending_invoices'] / customer['credit_limit']) * 100
+    else:
+        financials['credit_utilization'] = 0
+    
     # Get audit trail
     audit_trail = conn.execute('''
         SELECT at.*, u.username 
@@ -120,7 +187,8 @@ def view_customer(id):
     ''', (id,)).fetchall()
     
     conn.close()
-    return render_template('customers/view.html', customer=customer, sales_history=sales_history, audit_trail=audit_trail)
+    return render_template('customers/view.html', customer=customer, sales_history=sales_history, 
+                          audit_trail=audit_trail, financials=financials)
 
 @customer_bp.route('/customers/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
