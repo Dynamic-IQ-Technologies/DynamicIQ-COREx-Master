@@ -15,6 +15,7 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
+            User.update_last_login(user['id'])
             flash(f'Welcome back, {user["username"]}!', 'success')
             return redirect(url_for('main_routes.dashboard'))
         else:
@@ -42,6 +43,7 @@ def register():
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 session['role'] = user['role']
+                User.update_last_login(user['id'])
                 flash(f'Welcome to Dynamic.IQ-MRPx, {user["username"]}!', 'success')
                 return redirect(url_for('main_routes.dashboard'))
             else:

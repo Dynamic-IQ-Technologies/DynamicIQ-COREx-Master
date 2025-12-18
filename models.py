@@ -23,9 +23,15 @@ class Database:
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL,
+                last_login TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN last_login TIMESTAMP')
+        except:
+            pass
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS products (
@@ -3340,9 +3346,18 @@ class User:
     def get_all():
         db = Database()
         conn = db.get_connection()
-        users = conn.execute('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC').fetchall()
+        users = conn.execute('SELECT id, username, email, role, last_login, created_at FROM users ORDER BY created_at DESC').fetchall()
         conn.close()
         return users
+    
+    @staticmethod
+    def update_last_login(user_id):
+        db = Database()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
     
     @staticmethod
     def update_role(user_id, new_role):

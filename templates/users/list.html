@@ -19,6 +19,7 @@
                                 <th data-sort-type="string">Username</th>
                                 <th data-sort-type="string">Email</th>
                                 <th data-sort-type="string">Current Role</th>
+                                <th data-sort-type="date">Last Login</th>
                                 <th data-sort-type="date">Created At</th>
                                 <th data-sortable="false">Actions</th>
                             </tr>
@@ -43,6 +44,14 @@
                                         <span class="badge bg-success">{{ user.role }}</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ user.role }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.last_login %}
+                                        <span class="text-success"><i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i></span>
+                                        {{ user.last_login }}
+                                    {% else %}
+                                        <span class="text-muted">Never logged in</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ user.created_at }}</td>
