@@ -1656,10 +1656,10 @@ def turn_into_stock(id):
         total_wo_cost = material_cost + labor_cost + overhead_cost + misc_cost
         wo_quantity = float(wo['quantity'] or 1)
         
-        # Calculate unit cost
-        unit_cost = total_wo_cost / wo_quantity if wo_quantity > 0 else 0
+        # Unit cost = total work order cost (not divided by quantity)
+        unit_cost = total_wo_cost
         
-        # Create inventory record with work order quantity and calculated unit cost
+        # Create inventory record with work order quantity and total cost as unit cost
         serial_number = wo.get('serial_number') or None
         is_serialized = 1 if serial_number else 0
         
@@ -1702,7 +1702,7 @@ def turn_into_stock(id):
                        session.get('user_id'))
         
         conn.commit()
-        flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory with Qty: {wo_quantity}, Unit Cost: ${unit_cost:.2f} (Total WO Cost: ${total_wo_cost:.2f})', 'success')
+        flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory with Qty: {wo_quantity}, Unit Cost: ${unit_cost:.2f}', 'success')
         
     except Exception as e:
         conn.rollback()
