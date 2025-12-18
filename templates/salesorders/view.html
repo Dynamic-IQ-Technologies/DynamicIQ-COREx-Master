@@ -251,6 +251,14 @@
                                         <i class="bi bi-truck"></i> Released to Shipping
                                     </span>
                                     {% endif %}
+                                    
+                                    {% if line.is_serialized and line.serial_number and line.allocation_status in ['Allocated', 'Partially Allocated'] %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-upc-scan"></i> Allocated S/N: {{ line.serial_number }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                             </div>
