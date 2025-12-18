@@ -377,11 +377,11 @@ def get_inventory_kpis(conn):
     inv_stats = conn.execute('''
         SELECT 
             COUNT(*) as total_products,
-            SUM(CASE WHEN quantity_on_hand <= reorder_point THEN 1 ELSE 0 END) as low_stock,
-            SUM(CASE WHEN quantity_on_hand = 0 THEN 1 ELSE 0 END) as out_of_stock,
-            COALESCE(SUM(quantity_on_hand * unit_cost), 0) as total_value
-        FROM products
-        WHERE is_active = 1
+            SUM(CASE WHEN COALESCE(i.quantity, 0) <= COALESCE(i.reorder_point, 0) THEN 1 ELSE 0 END) as low_stock,
+            SUM(CASE WHEN COALESCE(i.quantity, 0) = 0 THEN 1 ELSE 0 END) as out_of_stock,
+            COALESCE(SUM(COALESCE(i.quantity, 0) * COALESCE(p.cost, 0)), 0) as total_value
+        FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
     ''').fetchone()
     
     return {
@@ -448,8 +448,9 @@ def get_active_alerts(conn):
     alerts = []
     
     low_stock = conn.execute('''
-        SELECT COUNT(*) as count FROM products 
-        WHERE is_active = 1 AND quantity_on_hand <= reorder_point
+        SELECT COUNT(*) as count FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
+        WHERE COALESCE(i.quantity, 0) <= COALESCE(i.reorder_point, 0)
     ''').fetchone()
     if low_stock['count'] > 0:
         alerts.append({
@@ -532,9 +533,10 @@ def get_process_health(conn):
         SELECT 
             CASE 
                 WHEN COUNT(*) = 0 THEN 100
-                ELSE (1.0 - (SUM(CASE WHEN quantity_on_hand <= reorder_point THEN 1 ELSE 0 END) * 1.0 / COUNT(*))) * 100
+                ELSE (1.0 - (SUM(CASE WHEN COALESCE(i.quantity, 0) <= COALESCE(i.reorder_point, 0) THEN 1 ELSE 0 END) * 1.0 / COUNT(*))) * 100
             END as score
-        FROM products WHERE is_active = 1
+        FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
     ''').fetchone()
     scores.append({'name': 'Inventory', 'score': inv_health['score'], 'color': '#28a745'})
     
@@ -582,9 +584,10 @@ def gather_analysis_context(conn, analysis_type):
         context['inventory'] = dict(conn.execute('''
             SELECT 
                 COUNT(*) as total_products,
-                SUM(CASE WHEN quantity_on_hand <= reorder_point THEN 1 ELSE 0 END) as low_stock,
-                COALESCE(SUM(quantity_on_hand * unit_cost), 0) as total_value
-            FROM products WHERE is_active = 1
+                SUM(CASE WHEN COALESCE(i.quantity, 0) <= COALESCE(i.reorder_point, 0) THEN 1 ELSE 0 END) as low_stock,
+                COALESCE(SUM(COALESCE(i.quantity, 0) * COALESCE(p.cost, 0)), 0) as total_value
+            FROM products p
+            LEFT JOIN inventory i ON p.id = i.product_id
         ''').fetchone())
     
     if analysis_type in ['general', 'finance']:
@@ -693,10 +696,11 @@ def get_detailed_operations(conn):
 def get_detailed_inventory(conn):
     """Get detailed inventory breakdown"""
     low_stock = conn.execute('''
-        SELECT name, sku, quantity_on_hand, reorder_point
-        FROM products
-        WHERE is_active = 1 AND quantity_on_hand <= reorder_point
-        ORDER BY quantity_on_hand
+        SELECT p.name, p.code as sku, COALESCE(i.quantity, 0) as quantity_on_hand, COALESCE(i.reorder_point, 0) as reorder_point
+        FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
+        WHERE COALESCE(i.quantity, 0) <= COALESCE(i.reorder_point, 0)
+        ORDER BY i.quantity
         LIMIT 20
     ''').fetchall()
     
