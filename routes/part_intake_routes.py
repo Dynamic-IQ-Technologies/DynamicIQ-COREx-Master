@@ -519,12 +519,24 @@ def extract_with_ai(id):
             base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
         )
         
-        source_content = intake['raw_content'] or intake['source_url'] or ''
+        source_content = intake['raw_content'] or ''
+        existing_desc = intake['short_description'] or ''
+        existing_long_desc = intake['long_description'] or ''
+        
+        all_content = f"""
+Source URL: {intake['source_url'] or 'Not provided'}
+Raw Content: {source_content}
+Existing Short Description: {existing_desc}
+Existing Long Description: {existing_long_desc}
+Existing Supplier: {intake['supplier_name'] or 'Unknown'}
+Existing Supplier Part #: {intake['supplier_part_number'] or 'Unknown'}
+Existing OEM: {intake['oem_name'] or 'Unknown'}
+Existing MPN: {intake['manufacturer_part_number'] or 'Unknown'}
+"""
         
         prompt = f"""Analyze the following supplier/manufacturer part information and extract structured data.
 
-Source: {source_content}
-Source URL: {intake['source_url'] or 'Not provided'}
+{all_content}
 
 Extract and return a JSON object with the following fields (include confidence score 0-100 for each):
 - supplier_name: The supplier/distributor name
@@ -545,7 +557,7 @@ Return ONLY valid JSON, no markdown formatting."""
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an expert at extracting structured part/product data from supplier websites and catalogs. Return only valid JSON."},
+                {"role": "system", "content": "You are an expert at extracting and enriching structured part/product data. Based on the provided information (which may be limited), infer and extract as much relevant data as possible. For part numbers, try to identify patterns. For category, infer from description. Return only valid JSON with your best guesses and confidence scores."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2
