@@ -213,7 +213,7 @@
                 <tbody>
                     {% for po in purchase_orders[:20] %}
                     <tr>
-                        <td><a href="{{ url_for('po_routes.view_po', id=po.id) }}">{{ po.po_number }}</a></td>
+                        <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">{{ po.po_number }}</a></td>
                         <td>{{ po.order_date or '-' }}</td>
                         <td>{{ po.expected_delivery_date or '-' }}</td>
                         <td>{{ po.line_count }}</td>
@@ -232,7 +232,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <a href="{{ url_for('po_routes.view_po', id=po.id) }}" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
                             </a>
                         </td>
