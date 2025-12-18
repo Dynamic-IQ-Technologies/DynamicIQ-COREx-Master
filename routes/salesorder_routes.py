@@ -1524,6 +1524,21 @@ def create_exchange_po(id):
             ))
             po_id = cursor.lastrowid
             
+            # Get or create non-inventory Exchange Fee product
+            exchange_fee_product = conn.execute('''
+                SELECT id FROM products WHERE code = 'EXCHANGE-FEE' AND product_type = 'Non-Inventory'
+            ''').fetchone()
+            
+            if not exchange_fee_product:
+                # Create the Exchange Fee non-inventory product
+                cursor2 = conn.execute('''
+                    INSERT INTO products (code, name, description, unit_of_measure, product_type, cost)
+                    VALUES ('EXCHANGE-FEE', 'Exchange Fee', 'Non-inventory item for exchange fee charges', 'EA', 'Non-Inventory', 0)
+                ''')
+                exchange_fee_product_id = cursor2.lastrowid
+            else:
+                exchange_fee_product_id = exchange_fee_product['id']
+            
             # Create Exchange Fee line items with Part Number and Serial Number references
             for idx, line in enumerate(lines, 1):
                 # Get exchange fee from form
@@ -1533,11 +1548,12 @@ def create_exchange_po(id):
                 part_number = line['product_code'] or 'N/A'
                 serial_number = line.get('serial_number') or ''
                 
-                # Create description that clearly identifies this as an Exchange Fee
-                line_description = f"Exchange Fee - P/N: {part_number}"
+                # Create description with Exchange Part Number and Serial Number
+                line_description = f"Exchange Fee for P/N: {part_number}"
                 if serial_number:
                     line_description += f", S/N: {serial_number}"
                 
+                # Use non-inventory Exchange Fee product (not the actual exchanged part)
                 conn.execute('''
                     INSERT INTO purchase_order_lines (
                         po_id, line_number, product_id, quantity, unit_price,
@@ -1546,7 +1562,7 @@ def create_exchange_po(id):
                         created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ''', (
-                    po_id, idx, line['product_id'], 1, exchange_fee,
+                    po_id, idx, exchange_fee_product_id, 1, exchange_fee,
                     line_description, 1, line['id'],
                     part_number, serial_number
                 ))
