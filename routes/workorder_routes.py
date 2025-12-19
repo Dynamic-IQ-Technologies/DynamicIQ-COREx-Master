@@ -737,6 +737,15 @@ def update_receiving_inspection(id):
         pkg_crate_requirement = request.form.get('pkg_crate_requirement')
         pkg_crate_dimensions = request.form.get('pkg_crate_dimensions')
         
+        # Crate Requirements Assessment checkboxes
+        cra_structural_integrity = 1 if request.form.get('cra_structural_integrity') else 0
+        cra_dimensional_fit = 1 if request.form.get('cra_dimensional_fit') else 0
+        cra_protection_requirements = 1 if request.form.get('cra_protection_requirements') else 0
+        cra_storage_duration = 1 if request.form.get('cra_storage_duration') else 0
+        cra_customer_oem_spec = 1 if request.form.get('cra_customer_oem_spec') else 0
+        cra_return_shipping = 1 if request.form.get('cra_return_shipping') else 0
+        cra_hazmat_handling = 1 if request.form.get('cra_hazmat_handling') else 0
+        
         # Update receiving inspection fields
         conn.execute('''
             UPDATE work_orders SET 
@@ -750,13 +759,22 @@ def update_receiving_inspection(id):
                 ri_d100_requirements = ?,
                 pkg_crate_requirement = ?,
                 pkg_crate_dimensions = ?,
+                cra_structural_integrity = ?,
+                cra_dimensional_fit = ?,
+                cra_protection_requirements = ?,
+                cra_storage_duration = ?,
+                cra_customer_oem_spec = ?,
+                cra_return_shipping = ?,
+                cra_hazmat_handling = ?,
                 ri_inspector_id = ?,
                 ri_inspection_date = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (ri_document_tracing, ri_part_identification, ri_part_matching, 
               ri_traceability, ri_verified_requirements, ri_visual_damages,
               ri_material_discrepancies, ri_d100_requirements, pkg_crate_requirement,
-              pkg_crate_dimensions, session.get('user_id'), id))
+              pkg_crate_dimensions, cra_structural_integrity, cra_dimensional_fit,
+              cra_protection_requirements, cra_storage_duration, cra_customer_oem_spec,
+              cra_return_shipping, cra_hazmat_handling, session.get('user_id'), id))
         
         # Get new record for audit
         new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()

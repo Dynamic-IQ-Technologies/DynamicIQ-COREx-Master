@@ -488,6 +488,75 @@
                         </div>
                     </div>
                     
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <h6 class="fw-semibold mb-3"><i class="bi bi-clipboard-check me-2"></i>Crate Requirements Assessment</h6>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_structural_integrity" id="cra_structural_integrity" value="1" {% if workorder.cra_structural_integrity %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_structural_integrity">
+                                        <strong>Structural Integrity</strong><br>
+                                        <small class="text-muted">Existing crate was inspected and found to have structural deficiencies (cracks, loose joints, or weakened panels). Crate cannot safely support the unit's weight or handling loads. A new crate is required to ensure secure containment and transport.</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_dimensional_fit" id="cra_dimensional_fit" value="1" {% if workorder.cra_dimensional_fit %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_dimensional_fit">
+                                        <strong>Dimensional Fit</strong><br>
+                                        <small class="text-muted">Current crate dimensions are not compatible with the unit configuration. Unit does not fit securely within the crate or exceeds allowable internal clearances. New crate required to ensure proper fit and protection during handling.</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_protection_requirements" id="cra_protection_requirements" value="1" {% if workorder.cra_protection_requirements %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_protection_requirements">
+                                        <strong>Protection Requirements</strong><br>
+                                        <small class="text-muted">Existing crate lacks adequate internal protection for the unit type. Insufficient cushioning, moisture barrier, or vibration control identified. A new crate with proper protective lining and supports is required.</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_storage_duration" id="cra_storage_duration" value="1" {% if workorder.cra_storage_duration %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_storage_duration">
+                                        <strong>Storage Duration</strong><br>
+                                        <small class="text-muted">Unit is scheduled for extended storage and current crate does not provide sufficient environmental protection. A new, sealed crate with moisture barrier or lined interior is required for long-term storage compliance.</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_customer_oem_spec" id="cra_customer_oem_spec" value="1" {% if workorder.cra_customer_oem_spec %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_customer_oem_spec">
+                                        <strong>Customer / OEM Specification</strong><br>
+                                        <small class="text-muted">Current crate design does not comply with customer or OEM packaging requirements as defined in the applicable specification or SOW. A compliant crate must be sourced or fabricated to meet contractual standards.</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_return_shipping" id="cra_return_shipping" value="1" {% if workorder.cra_return_shipping %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_return_shipping">
+                                        <strong>Return Shipping Requirement</strong><br>
+                                        <small class="text-muted">Original crate is not suitable for reuse following inbound shipment or repair cycle. Damage, wear, or missing hardware identified. New crate required for safe return shipment of the unit.</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="cra_hazmat_handling" id="cra_hazmat_handling" value="1" {% if workorder.cra_hazmat_handling %}checked{% endif %}>
+                                    <label class="form-check-label" for="cra_hazmat_handling">
+                                        <strong>Hazardous Material Handling</strong><br>
+                                        <small class="text-muted">Unit contains or was exposed to hazardous materials (e.g., oil, fuel, or batteries). Existing crate does not meet hazardous material containment or labeling requirements. New compliant crate required per IATA/ICAO and DOT regulations.</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     {% if workorder.ri_inspection_date %}
                     <div class="alert alert-info py-2 mb-3">
                         <i class="bi bi-info-circle me-1"></i>
