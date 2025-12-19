@@ -202,20 +202,65 @@
             </div>
 
             {% if is_clocked_in and last_punch %}
-            <div class="text-center mb-3">
-                <small class="text-muted">Clock In Time</small>
-                <div class="punch-time">{{ last_punch.punch_time[11:19] }}</div>
-                <small class="text-muted">Elapsed:</small>
-                <div class="elapsed-time" id="elapsedTime">Calculating...</div>
+            <!-- Enhanced Clock-In Details -->
+            <div class="bg-light rounded p-3 mb-3">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <small class="text-muted d-block"><i class="bi bi-person-fill"></i> Employee</small>
+                        <strong>{{ employee.first_name }} {{ employee.last_name }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block"><i class="bi bi-clock-history"></i> Clock In Time</small>
+                        <strong>{{ last_punch.punch_time[11:16] }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block"><i class="bi bi-stopwatch"></i> Time Elapsed</small>
+                        <strong class="elapsed-time text-success" id="elapsedTime">Calculating...</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block"><i class="bi bi-hourglass-split"></i> Hours Today</small>
+                        <strong class="text-primary">{{ "%.2f"|format(hours_today) }} hrs</strong>
+                    </div>
+                </div>
+                
+                {% if last_punch.work_order_id %}
+                <hr class="my-3">
+                <div class="row g-2">
+                    <div class="col-12">
+                        <small class="text-muted d-block"><i class="bi bi-gear-fill"></i> Work Order</small>
+                        <strong class="text-primary">{{ last_punch.wo_number }}</strong>
+                        {% if last_punch.product_name %}
+                        <span class="text-muted">- {{ last_punch.product_name }}</span>
+                        {% endif %}
+                    </div>
+                    {% if last_punch.task_name %}
+                    <div class="col-12 mt-2">
+                        <small class="text-muted d-block"><i class="bi bi-list-task"></i> Task</small>
+                        <strong>{{ last_punch.task_name }}</strong>
+                    </div>
+                    {% if last_punch.task_description %}
+                    <div class="col-12 mt-1">
+                        <small class="text-muted d-block"><i class="bi bi-card-text"></i> Description</small>
+                        <span class="small">{{ last_punch.task_description }}</span>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% else %}
+                <hr class="my-3">
+                <div class="text-center text-muted">
+                    <i class="bi bi-info-circle"></i> No work order assigned
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-
+            {% else %}
             <div class="row text-center">
                 <div class="col">
                     <small class="text-muted d-block">Hours Today</small>
                     <span class="hours-badge">{{ "%.2f"|format(hours_today) }}</span>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- Punch Form -->
@@ -223,15 +268,6 @@
             <form method="POST" action="{{ url_for('clock_station_routes.clock_punch') }}">
                 {% if is_clocked_in %}
                 <input type="hidden" name="punch_type" value="Clock Out">
-                
-                {% if last_punch and last_punch.work_order_id %}
-                <div class="alert alert-info mb-3">
-                    <small><i class="bi bi-gear"></i> Currently on: <strong>{{ last_punch.wo_number }}</strong></small>
-                    {% if last_punch.task_name %}
-                    <br><small><i class="bi bi-list-task"></i> Task: <strong>{{ last_punch.task_name }}</strong></small>
-                    {% endif %}
-                </div>
-                {% endif %}
 
                 <div class="mb-3">
                     <label class="form-label">Work Order</label>
