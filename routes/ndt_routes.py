@@ -966,7 +966,7 @@ def get_next_ndt_invoice_number(conn):
 
 @ndt_bp.route('/ndt/invoices')
 def invoices_list():
-    """List all NDT invoices"""
+    """List all NDT invoices from both ndt_invoices table and legacy invoices table"""
     if 'user_id' not in session:
         return redirect(url_for('auth_routes.login'))
     
@@ -976,27 +976,59 @@ def invoices_list():
     status_filter = request.args.get('status', '')
     customer_filter = request.args.get('customer', '')
     
-    query = '''
-        SELECT ni.*, c.name as customer_name,
-               nw.ndt_wo_number
+    # Build base query combining both sources
+    base_query = '''
+        SELECT 
+            ni.id, ni.invoice_number, ni.customer_id, ni.ndt_wo_id,
+            ni.invoice_date, ni.due_date, ni.ndt_methods,
+            ni.total_amount, ni.amount_paid, ni.balance_due, ni.status,
+            c.name as customer_name, nw.ndt_wo_number,
+            'ndt_invoices' as source_table
         FROM ndt_invoices ni
         LEFT JOIN customers c ON ni.customer_id = c.id
         LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
         WHERE 1=1
     '''
-    params = []
+    
+    legacy_query = '''
+        SELECT 
+            i.id, i.invoice_number, i.customer_id, i.source_id as ndt_wo_id,
+            i.invoice_date, i.due_date, '' as ndt_methods,
+            i.total_amount, COALESCE(i.amount_paid, 0) as amount_paid, 
+            i.total_amount - COALESCE(i.amount_paid, 0) as balance_due, i.status,
+            c.name as customer_name, nw.ndt_wo_number,
+            'invoices' as source_table
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN ndt_work_orders nw ON i.source_id = nw.id
+        WHERE i.source_type = 'ndt_work_order'
+    '''
+    
+    params_ndt = []
+    params_legacy = []
     
     if status_filter:
-        query += ' AND ni.status = ?'
-        params.append(status_filter)
+        base_query += ' AND ni.status = ?'
+        legacy_query += ' AND i.status = ?'
+        params_ndt.append(status_filter)
+        params_legacy.append(status_filter)
     
     if customer_filter:
-        query += ' AND ni.customer_id = ?'
-        params.append(int(customer_filter))
+        base_query += ' AND ni.customer_id = ?'
+        legacy_query += ' AND i.customer_id = ?'
+        params_ndt.append(int(customer_filter))
+        params_legacy.append(int(customer_filter))
     
-    query += ' ORDER BY ni.invoice_date DESC, ni.id DESC'
+    combined_query = f'''
+        SELECT * FROM (
+            {base_query}
+            UNION ALL
+            {legacy_query}
+        ) combined
+        ORDER BY invoice_date DESC, id DESC
+    '''
     
-    invoices = conn.execute(query, params).fetchall()
+    invoices = conn.execute(combined_query, params_ndt + params_legacy).fetchall()
     
     customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
     
@@ -1006,9 +1038,15 @@ def invoices_list():
     total_paid = sum(inv['amount_paid'] or 0 for inv in invoices)
     total_outstanding = sum(inv['balance_due'] or 0 for inv in invoices)
     
+    # Count overdue from both tables
     overdue_count = conn.execute('''
-        SELECT COUNT(*) as count FROM ndt_invoices 
-        WHERE status NOT IN ('Paid', 'Cancelled') AND due_date < date('now')
+        SELECT COUNT(*) as count FROM (
+            SELECT id FROM ndt_invoices 
+            WHERE status NOT IN ('Paid', 'Cancelled', 'Void') AND due_date < date('now')
+            UNION ALL
+            SELECT id FROM invoices 
+            WHERE source_type = 'ndt_work_order' AND status NOT IN ('Paid', 'Void') AND due_date < date('now')
+        )
     ''').fetchone()['count']
     
     conn.close()

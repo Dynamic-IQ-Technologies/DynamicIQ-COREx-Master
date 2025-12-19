@@ -143,9 +143,15 @@
                             </span>
                         </td>
                         <td>
+                            {% if inv.source_table == 'invoices' %}
+                            <a href="{{ url_for('invoice_routes.view_invoice', id=inv.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% else %}
                             <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
