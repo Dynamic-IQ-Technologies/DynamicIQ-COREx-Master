@@ -84,17 +84,23 @@ def clock_dashboard():
         WHERE id = ?
     ''', (employee_id,)).fetchone()
     
-    # Get current status (last punch) with work order and task info
+    # Get current status (last punch) with work order, task, and NDT work order info
     last_punch = conn.execute('''
         SELECT tcp.punch_type, tcp.punch_time, tcp.location, tcp.notes, tcp.project_name,
-               tcp.work_order_id, tcp.task_id,
+               tcp.work_order_id, tcp.task_id, tcp.ndt_work_order_id,
                wo.wo_number,
                (SELECT name FROM products WHERE id = wo.product_id) as product_name,
                wot.task_name,
-               wot.description as task_description
+               wot.description as task_description,
+               nw.ndt_wo_number,
+               nw.ndt_methods,
+               nw.part_description as ndt_part_description,
+               nw.serial_number as ndt_serial_number,
+               nw.status as ndt_status
         FROM time_clock_punches tcp
         LEFT JOIN work_orders wo ON tcp.work_order_id = wo.id
         LEFT JOIN work_order_tasks wot ON tcp.task_id = wot.id
+        LEFT JOIN ndt_work_orders nw ON tcp.ndt_work_order_id = nw.id
         WHERE tcp.employee_id = ?
         ORDER BY tcp.punch_time DESC
         LIMIT 1
@@ -111,17 +117,20 @@ def clock_dashboard():
     
     hours_today = calculate_hours_from_punches(todays_punches)
     
-    # Get recent punches (last 7 days) with work order and task info
+    # Get recent punches (last 7 days) with work order, task, and NDT info
     week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     recent_punches = conn.execute('''
         SELECT 
             tcp.punch_number, tcp.punch_type, tcp.punch_time, tcp.location, 
             tcp.project_name, tcp.notes,
             wo.wo_number,
-            wot.task_name
+            wot.task_name,
+            nw.ndt_wo_number,
+            nw.ndt_methods as ndt_methods
         FROM time_clock_punches tcp
         LEFT JOIN work_orders wo ON tcp.work_order_id = wo.id
         LEFT JOIN work_order_tasks wot ON tcp.task_id = wot.id
+        LEFT JOIN ndt_work_orders nw ON tcp.ndt_work_order_id = nw.id
         WHERE tcp.employee_id = ? AND DATE(tcp.punch_time) >= ?
         ORDER BY tcp.punch_time DESC
         LIMIT 20
@@ -147,6 +156,43 @@ def clock_dashboard():
         ORDER BY s.skillset_name
     ''', (employee_id,)).fetchall()
     
+    # Check if employee has NDT-related skills
+    has_ndt_skill = False
+    skill_names = [s['skillset_name'].upper() for s in employee_skills]
+    ndt_keywords = ['NDT', 'NON-DESTRUCTIVE', 'NONDESTRUCTIVE', 'ULTRASONIC', 'RADIOGRAPHY', 
+                    'MAGNETIC PARTICLE', 'LIQUID PENETRANT', 'EDDY CURRENT', 'VISUAL INSPECTION']
+    for skill_name in skill_names:
+        for keyword in ndt_keywords:
+            if keyword in skill_name:
+                has_ndt_skill = True
+                break
+        if has_ndt_skill:
+            break
+    
+    # Get NDT work orders if employee has NDT skills
+    ndt_work_orders = []
+    if has_ndt_skill:
+        ndt_work_orders = conn.execute('''
+            SELECT nw.id, nw.ndt_wo_number, nw.ndt_methods, nw.status, nw.priority,
+                   nw.part_description, nw.serial_number,
+                   c.name as customer_name,
+                   p.name as product_name, p.code as product_code
+            FROM ndt_work_orders nw
+            LEFT JOIN customers c ON nw.customer_id = c.id
+            LEFT JOIN products p ON nw.product_id = p.id
+            WHERE nw.status IN ('Scheduled', 'In Inspection')
+            ORDER BY 
+                CASE nw.priority 
+                    WHEN 'Critical' THEN 1 
+                    WHEN 'High' THEN 2 
+                    WHEN 'Normal' THEN 3 
+                    WHEN 'Low' THEN 4 
+                    ELSE 5 
+                END,
+                nw.ndt_wo_number DESC
+            LIMIT 50
+        ''').fetchall()
+    
     # Determine current status
     is_clocked_in = last_punch and last_punch['punch_type'] == 'Clock In'
     
@@ -159,7 +205,9 @@ def clock_dashboard():
                          hours_today=hours_today,
                          recent_punches=recent_punches,
                          work_orders=work_orders,
-                         employee_skills=employee_skills)
+                         employee_skills=employee_skills,
+                         has_ndt_skill=has_ndt_skill,
+                         ndt_work_orders=ndt_work_orders)
 
 @clock_station_bp.route('/clock/punch', methods=['POST'])
 @clock_auth_required
@@ -173,6 +221,7 @@ def clock_punch():
     location = request.form.get('location', '')
     work_order_id_str = request.form.get('work_order_id', '').strip()
     task_id_str = request.form.get('task_id', '').strip()
+    ndt_work_order_id_str = request.form.get('ndt_work_order_id', '').strip()
     notes = request.form.get('notes', '')
     
     # Validate and convert work_order_id
@@ -218,6 +267,22 @@ def clock_punch():
             conn.close()
             return redirect(url_for('clock_station_routes.clock_dashboard'))
     
+    # Validate and convert ndt_work_order_id
+    ndt_work_order_id = None
+    if ndt_work_order_id_str:
+        try:
+            ndt_work_order_id = int(ndt_work_order_id_str)
+            # Verify NDT work order exists
+            ndt_wo_exists = conn.execute('SELECT id FROM ndt_work_orders WHERE id = ?', (ndt_work_order_id,)).fetchone()
+            if not ndt_wo_exists:
+                flash('Invalid NDT work order selected. Please try again.', 'danger')
+                conn.close()
+                return redirect(url_for('clock_station_routes.clock_dashboard'))
+        except (ValueError, TypeError):
+            flash('Invalid NDT work order format. Please try again.', 'danger')
+            conn.close()
+            return redirect(url_for('clock_station_routes.clock_dashboard'))
+    
     # Get client info
     ip_address = request.remote_addr
     device_info = request.user_agent.string[:200] if request.user_agent else ''
@@ -228,15 +293,15 @@ def clock_punch():
     
     punch_time = datetime.now()
     
-    # Insert punch record with work order and task
+    # Insert punch record with work order, task, and NDT work order
     conn.execute('''
         INSERT INTO time_clock_punches (
             punch_number, employee_id, punch_type, punch_time,
-            location, ip_address, device_info, work_order_id, task_id, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            location, ip_address, device_info, work_order_id, task_id, ndt_work_order_id, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         punch_number, employee_id, punch_type, punch_time.strftime('%Y-%m-%d %H:%M:%S'),
-        location, ip_address, device_info, work_order_id, task_id, notes
+        location, ip_address, device_info, work_order_id, task_id, ndt_work_order_id, notes
     ))
     
     # If clocking out with a task, update task actual hours
@@ -273,6 +338,16 @@ def clock_punch():
                     SET labor_cost = COALESCE(labor_cost, 0) + ?
                     WHERE id = ?
                 ''', (round(labor_cost, 2), work_order_id))
+    
+    # If clocking in to NDT work order, update its status to "In Inspection" if scheduled
+    if punch_type == 'Clock In' and ndt_work_order_id:
+        ndt_wo = conn.execute('SELECT status FROM ndt_work_orders WHERE id = ?', (ndt_work_order_id,)).fetchone()
+        if ndt_wo and ndt_wo['status'] == 'Scheduled':
+            conn.execute('''
+                UPDATE ndt_work_orders 
+                SET status = 'In Inspection', actual_start_date = date('now')
+                WHERE id = ?
+            ''', (ndt_work_order_id,))
     
     conn.commit()
     conn.close()

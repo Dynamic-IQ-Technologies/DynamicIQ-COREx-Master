@@ -747,7 +747,7 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
-        # Add work_order_id and task_id columns to time_clock_punches if they don't exist
+        # Add work_order_id, task_id, and ndt_work_order_id columns to time_clock_punches if they don't exist
         tcp_columns = [row[1] for row in cursor.execute('PRAGMA table_info(time_clock_punches)').fetchall()]
         if 'work_order_id' not in tcp_columns:
             try:
@@ -757,6 +757,11 @@ class Database:
         if 'task_id' not in tcp_columns:
             try:
                 cursor.execute('ALTER TABLE time_clock_punches ADD COLUMN task_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        if 'ndt_work_order_id' not in tcp_columns:
+            try:
+                cursor.execute('ALTER TABLE time_clock_punches ADD COLUMN ndt_work_order_id INTEGER')
             except sqlite3.OperationalError:
                 pass
         

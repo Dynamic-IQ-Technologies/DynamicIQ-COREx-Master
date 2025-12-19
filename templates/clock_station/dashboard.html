@@ -246,6 +246,30 @@
                     {% endif %}
                     {% endif %}
                 </div>
+                {% elif last_punch.ndt_work_order_id %}
+                <hr class="my-3">
+                <div class="row g-2">
+                    <div class="col-12">
+                        <span class="badge bg-warning text-dark mb-2"><i class="bi bi-search"></i> NDT Inspection</span>
+                    </div>
+                    <div class="col-12">
+                        <small class="text-muted d-block"><i class="bi bi-file-earmark-text"></i> NDT Work Order</small>
+                        <strong class="text-warning">{{ last_punch.ndt_wo_number }}</strong>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <small class="text-muted d-block"><i class="bi bi-tools"></i> Methods</small>
+                        <strong>{{ last_punch.ndt_methods }}</strong>
+                    </div>
+                    {% if last_punch.ndt_part_description %}
+                    <div class="col-12 mt-2">
+                        <small class="text-muted d-block"><i class="bi bi-box"></i> Part</small>
+                        <span class="small">{{ last_punch.ndt_part_description }}</span>
+                        {% if last_punch.ndt_serial_number %}
+                        <span class="badge bg-secondary ms-1">S/N: {{ last_punch.ndt_serial_number }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
                 {% else %}
                 <hr class="my-3">
                 <div class="text-center text-muted">
@@ -269,6 +293,15 @@
                 {% if is_clocked_in %}
                 <input type="hidden" name="punch_type" value="Clock Out">
 
+                {% if last_punch and last_punch.ndt_work_order_id %}
+                <!-- NDT Work Order Clock Out -->
+                <input type="hidden" name="ndt_work_order_id" value="{{ last_punch.ndt_work_order_id }}">
+                <div class="alert alert-warning mb-3">
+                    <strong><i class="bi bi-search"></i> NDT Work Order:</strong> {{ last_punch.ndt_wo_number }}<br>
+                    <small>{{ last_punch.ndt_methods }}</small>
+                </div>
+                {% else %}
+                <!-- Manufacturing Work Order Clock Out -->
                 <div class="mb-3">
                     <label class="form-label">Work Order</label>
                     <select class="form-select" id="work_order_id_out" name="work_order_id" onchange="loadWorkOrderTasksOut()">
@@ -285,6 +318,7 @@
                         <option value="">No Specific Task</option>
                     </select>
                 </div>
+                {% endif %}
                 
                 <div class="mb-3">
                     <label class="form-label">Work Notes (Optional)</label>
@@ -302,25 +336,67 @@
                     <input type="text" class="form-control" name="location" placeholder="e.g., Main Shop, Office">
                 </div>
 
+                <!-- Work Order Type Selection -->
+                {% if has_ndt_skill and ndt_work_orders %}
                 <div class="mb-3">
-                    <label class="form-label">Work Order (Optional)</label>
-                    <select class="form-select" id="work_order_id" name="work_order_id" onchange="loadWorkOrderTasks()">
-                        <option value="">No Work Order</option>
-                        {% for wo in work_orders %}
-                        <option value="{{ wo.id }}">{{ wo.wo_number }} - {{ wo.product_name }}</option>
-                        {% endfor %}
-                    </select>
+                    <label class="form-label">Work Order Type</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="wo_type" id="wo_type_mfg" value="mfg" checked onchange="toggleWorkOrderType()">
+                        <label class="btn btn-outline-primary" for="wo_type_mfg">
+                            <i class="bi bi-gear"></i> Manufacturing
+                        </label>
+                        <input type="radio" class="btn-check" name="wo_type" id="wo_type_ndt" value="ndt" onchange="toggleWorkOrderType()">
+                        <label class="btn btn-outline-warning" for="wo_type_ndt">
+                            <i class="bi bi-search"></i> NDT Inspection
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Manufacturing Work Orders -->
+                <div id="mfg_wo_section">
+                    <div class="mb-3">
+                        <label class="form-label">Work Order (Optional)</label>
+                        <select class="form-select" id="work_order_id" name="work_order_id" onchange="loadWorkOrderTasks()">
+                            <option value="">No Work Order</option>
+                            {% for wo in work_orders %}
+                            <option value="{{ wo.id }}">{{ wo.wo_number }} - {{ wo.product_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Task (Optional)</label>
+                        <select class="form-select" id="task_id" name="task_id">
+                            <option value="">No Specific Task</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> Only tasks matching your skills will be shown
+                        </small>
+                    </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Task (Optional)</label>
-                    <select class="form-select" id="task_id" name="task_id">
-                        <option value="">No Specific Task</option>
-                    </select>
-                    <small class="form-text text-muted">
-                        <i class="bi bi-info-circle"></i> Only tasks matching your skills will be shown
-                    </small>
+                <!-- NDT Work Orders -->
+                {% if has_ndt_skill and ndt_work_orders %}
+                <div id="ndt_wo_section" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-search text-warning"></i> NDT Work Order</label>
+                        <select class="form-select" id="ndt_work_order_id" name="ndt_work_order_id">
+                            <option value="">Select NDT Work Order</option>
+                            {% for ndt_wo in ndt_work_orders %}
+                            <option value="{{ ndt_wo.id }}">
+                                {{ ndt_wo.ndt_wo_number }} - {{ ndt_wo.ndt_methods }}
+                                {% if ndt_wo.part_description %} | {{ ndt_wo.part_description[:30] }}{% endif %}
+                                {% if ndt_wo.priority == 'Critical' %} [CRITICAL]{% elif ndt_wo.priority == 'High' %} [HIGH]{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> Scheduled and In-Progress NDT inspections
+                        </small>
+                    </div>
                 </div>
+                {% endif %}
 
                 <div class="mb-3">
                     <label class="form-label">Additional Notes (Optional)</label>
@@ -350,6 +426,9 @@
                             <div class="punch-time">{{ punch.punch_time[:10] }} {{ punch.punch_time[11:19] }}</div>
                             {% if punch.wo_number %}
                             <small class="text-muted d-block"><i class="bi bi-gear"></i> WO: {{ punch.wo_number }}</small>
+                            {% endif %}
+                            {% if punch.ndt_wo_number %}
+                            <small class="text-warning d-block"><i class="bi bi-search"></i> NDT: {{ punch.ndt_wo_number }}</small>
                             {% endif %}
                             {% if punch.task_name %}
                             <small class="text-muted d-block"><i class="bi bi-list-task"></i> Task: {{ punch.task_name }}</small>
@@ -415,6 +494,31 @@
         updateElapsedTime();
         setInterval(updateTime, 1000);
         setInterval(updateElapsedTime, 1000);
+
+        // Toggle between Manufacturing and NDT work order sections
+        function toggleWorkOrderType() {
+            const mfgSection = document.getElementById('mfg_wo_section');
+            const ndtSection = document.getElementById('ndt_wo_section');
+            const mfgRadio = document.getElementById('wo_type_mfg');
+            const woSelect = document.getElementById('work_order_id');
+            const taskSelect = document.getElementById('task_id');
+            const ndtSelect = document.getElementById('ndt_work_order_id');
+            
+            if (mfgRadio && mfgRadio.checked) {
+                // Show manufacturing, hide NDT
+                if (mfgSection) mfgSection.style.display = 'block';
+                if (ndtSection) ndtSection.style.display = 'none';
+                // Clear NDT selection
+                if (ndtSelect) ndtSelect.value = '';
+            } else {
+                // Show NDT, hide manufacturing
+                if (mfgSection) mfgSection.style.display = 'none';
+                if (ndtSection) ndtSection.style.display = 'block';
+                // Clear manufacturing selections
+                if (woSelect) woSelect.value = '';
+                if (taskSelect) taskSelect.innerHTML = '<option value="">No Specific Task</option>';
+            }
+        }
 
         // Load tasks when work order is selected (Clock In)
         function loadWorkOrderTasks() {
