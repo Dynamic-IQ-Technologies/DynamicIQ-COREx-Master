@@ -11,13 +11,32 @@ def list_receiving():
     db = Database()
     conn = db.get_connection()
     
-    receipts = conn.execute('''
+    # Get filter parameters
+    supplier_filter = request.args.get('supplier', '')
+    condition_filter = request.args.get('condition', '')
+    warehouse_filter = request.args.get('warehouse', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    search = request.args.get('search', '').strip()
+    sort_by = request.args.get('sort', 'receipt_date')
+    sort_order = request.args.get('order', 'desc')
+    
+    # Validate sort parameters
+    valid_sort_columns = ['receipt_number', 'po_number', 'product_code', 'quantity_received', 'receipt_date', 'supplier_name', 'warehouse_location', 'condition']
+    if sort_by not in valid_sort_columns:
+        sort_by = 'receipt_date'
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    # Build query with filters
+    query = '''
         SELECT 
             rt.*,
             po.po_number,
             p.code as product_code,
             p.name as product_name,
             p.unit_of_measure,
+            s.id as supplier_id,
             s.name as supplier_name,
             u.username as received_by_name
         FROM receiving_transactions rt
@@ -25,11 +44,60 @@ def list_receiving():
         JOIN products p ON rt.product_id = p.id
         JOIN suppliers s ON po.supplier_id = s.id
         LEFT JOIN users u ON rt.received_by = u.id
-        ORDER BY rt.receipt_date DESC, rt.created_at DESC
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    if supplier_filter:
+        query += ' AND s.id = ?'
+        params.append(supplier_filter)
+    
+    if condition_filter:
+        query += ' AND rt.condition = ?'
+        params.append(condition_filter)
+    
+    if warehouse_filter:
+        query += ' AND rt.warehouse_location = ?'
+        params.append(warehouse_filter)
+    
+    if date_from:
+        query += ' AND rt.receipt_date >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND rt.receipt_date <= ?'
+        params.append(date_to)
+    
+    if search:
+        query += ' AND (rt.receipt_number LIKE ? OR po.po_number LIKE ? OR p.code LIKE ? OR p.name LIKE ?)'
+        search_param = f'%{search}%'
+        params.extend([search_param, search_param, search_param, search_param])
+    
+    # Add sorting
+    sort_column_map = {
+        'receipt_number': 'rt.receipt_number',
+        'po_number': 'po.po_number',
+        'product_code': 'p.code',
+        'quantity_received': 'rt.quantity_received',
+        'receipt_date': 'rt.receipt_date',
+        'supplier_name': 's.name',
+        'warehouse_location': 'rt.warehouse_location',
+        'condition': 'rt.condition'
+    }
+    query += f' ORDER BY {sort_column_map.get(sort_by, "rt.receipt_date")} {sort_order.upper()}'
+    
+    receipts = conn.execute(query, params).fetchall()
+    
+    # Get filter options
+    suppliers = conn.execute('SELECT DISTINCT s.id, s.name FROM suppliers s JOIN purchase_orders po ON s.id = po.supplier_id JOIN receiving_transactions rt ON rt.po_id = po.id ORDER BY s.name').fetchall()
+    warehouses = conn.execute('SELECT DISTINCT warehouse_location FROM receiving_transactions WHERE warehouse_location IS NOT NULL ORDER BY warehouse_location').fetchall()
+    conditions = ['New', 'Serviceable', 'Overhauled', 'Repaired']
     
     conn.close()
-    return render_template('receiving/list.html', receipts=receipts)
+    return render_template('receiving/list.html', receipts=receipts, suppliers=suppliers, warehouses=warehouses, 
+                          conditions=conditions, supplier_filter=supplier_filter, condition_filter=condition_filter,
+                          warehouse_filter=warehouse_filter, date_from=date_from, date_to=date_to, search=search,
+                          sort_by=sort_by, sort_order=sort_order)
 
 @receiving_bp.route('/receiving/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement', 'Production Staff')

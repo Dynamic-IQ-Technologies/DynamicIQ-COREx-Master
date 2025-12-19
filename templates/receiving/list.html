@@ -14,25 +14,116 @@
     </div>
 </div>
 
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('receiving_routes.list_receiving') }}">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small">Search</label>
+                    <input type="text" class="form-control form-control-sm" name="search" value="{{ search }}" placeholder="Receipt #, PO, Product...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Supplier</label>
+                    <select class="form-select form-select-sm" name="supplier">
+                        <option value="">All Suppliers</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}" {% if supplier_filter == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Condition</label>
+                    <select class="form-select form-select-sm" name="condition">
+                        <option value="">All Conditions</option>
+                        {% for c in conditions %}
+                        <option value="{{ c }}" {% if condition_filter == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Warehouse</label>
+                    <select class="form-select form-select-sm" name="warehouse">
+                        <option value="">All Warehouses</option>
+                        {% for w in warehouses %}
+                        <option value="{{ w.warehouse_location }}" {% if warehouse_filter == w.warehouse_location %}selected{% endif %}>{{ w.warehouse_location }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small">From</label>
+                    <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small">To</label>
+                    <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> Filter</button>
+                    <a href="{{ url_for('receiving_routes.list_receiving') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i> Clear</a>
+                </div>
+            </div>
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="order" value="{{ sort_order }}">
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
+        <div class="mb-2 small text-muted">
+            Showing {{ receipts|length }} receipt(s)
+        </div>
         <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
+            <table class="table table-striped table-hover">
+                <thead class="table-light">
                     <tr>
-                        <th>Receipt #</th>
-                        <th>PO Number</th>
-                        <th>Product</th>
-                        <th>Qty Received</th>
-                        <th>Receipt Date</th>
-                        <th>Supplier</th>
-                        <th>Warehouse</th>
-                        <th>Condition</th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='receipt_number', order='asc' if sort_by == 'receipt_number' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Receipt # {% if sort_by == 'receipt_number' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='po_number', order='asc' if sort_by == 'po_number' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                PO Number {% if sort_by == 'po_number' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='product_code', order='asc' if sort_by == 'product_code' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Product {% if sort_by == 'product_code' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='quantity_received', order='asc' if sort_by == 'quantity_received' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Qty Received {% if sort_by == 'quantity_received' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='receipt_date', order='asc' if sort_by == 'receipt_date' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Receipt Date {% if sort_by == 'receipt_date' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='supplier_name', order='asc' if sort_by == 'supplier_name' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Supplier {% if sort_by == 'supplier_name' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='warehouse_location', order='asc' if sort_by == 'warehouse_location' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Warehouse {% if sort_by == 'warehouse_location' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('receiving_routes.list_receiving', sort='condition', order='asc' if sort_by == 'condition' and sort_order == 'desc' else 'desc', search=search, supplier=supplier_filter, condition=condition_filter, warehouse=warehouse_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
+                                Condition {% if sort_by == 'condition' %}<i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>{% endif %}
+                            </a>
+                        </th>
                         <th>Received By</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% if receipts %}
                     {% for receipt in receipts %}
                     <tr>
                         <td><a href="{{ url_for('receiving_routes.view_receiving', receipt_number=receipt.receipt_number) }}">{{ receipt.receipt_number }}</a></td>
@@ -65,6 +156,14 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No receipts found matching your filters
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
