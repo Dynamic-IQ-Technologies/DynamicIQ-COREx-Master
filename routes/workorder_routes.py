@@ -341,7 +341,7 @@ def view_workorder(id):
     for task in tasks:
         materials = conn.execute('''
             SELECT tm.*, p.code, p.name, p.unit_of_measure as product_uom,
-                   COALESCE(p.cost, 0) as unit_cost
+                   COALESCE(tm.unit_cost, p.cost, 0) as unit_cost
             FROM work_order_task_materials tm
             JOIN products p ON tm.product_id = p.id
             WHERE tm.task_id = ?
@@ -2523,14 +2523,24 @@ def add_task_material(task_id):
     required_by_date = request.form.get('required_by_date') or None
     notes = request.form.get('notes', '')
     
+    product = conn.execute('''
+        SELECT p.cost, COALESCE(i.unit_cost, 0) as inv_cost 
+        FROM products p 
+        LEFT JOIN inventory i ON i.product_id = p.id
+        WHERE p.id = ?
+    ''', (product_id,)).fetchone()
+    unit_cost = float(product['cost'] or 0) if product else 0
+    if unit_cost == 0 and product:
+        unit_cost = float(product['inv_cost'] or 0)
+    
     try:
         cursor = conn.execute('''
             INSERT INTO work_order_task_materials 
             (task_id, product_id, required_qty, unit_of_measure, warehouse_location, 
-             required_by_date, notes, material_status, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Planned', ?)
+             required_by_date, notes, material_status, unit_cost, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Planned', ?, ?)
         ''', (task_id, product_id, float(required_qty), unit_of_measure, 
-              warehouse_location, required_by_date, notes, session.get('user_id')))
+              warehouse_location, required_by_date, notes, unit_cost, session.get('user_id')))
         
         material_id = cursor.lastrowid
         

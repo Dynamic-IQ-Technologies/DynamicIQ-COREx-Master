@@ -728,6 +728,25 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Add unit_cost column to work_order_task_materials if it doesn't exist
+        wotm_columns = [row[1] for row in cursor.execute('PRAGMA table_info(work_order_task_materials)').fetchall()]
+        if 'unit_cost' not in wotm_columns:
+            try:
+                cursor.execute('ALTER TABLE work_order_task_materials ADD COLUMN unit_cost REAL DEFAULT 0')
+                cursor.execute('''
+                    UPDATE work_order_task_materials 
+                    SET unit_cost = COALESCE(
+                        (SELECT COALESCE(p.cost, i.unit_cost, 0) 
+                         FROM products p 
+                         LEFT JOIN inventory i ON i.product_id = p.id 
+                         WHERE p.id = work_order_task_materials.product_id),
+                        0
+                    )
+                    WHERE unit_cost = 0 OR unit_cost IS NULL
+                ''')
+            except sqlite3.OperationalError:
+                pass
+        
         # Add work_order_id and task_id columns to time_clock_punches if they don't exist
         tcp_columns = [row[1] for row in cursor.execute('PRAGMA table_info(time_clock_punches)').fetchall()]
         if 'work_order_id' not in tcp_columns:
