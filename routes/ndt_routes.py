@@ -649,11 +649,11 @@ def wo_view(id):
     
     # Get labor resources with NDT skills who can clock in
     ndt_resources = conn.execute('''
-        SELECT DISTINCT lr.id, lr.first_name, lr.last_name, lr.employee_code, lr.employment_status
+        SELECT DISTINCT lr.id, lr.first_name, lr.last_name, lr.employee_code, lr.status
         FROM labor_resources lr
         LEFT JOIN labor_resource_skills lrs ON lr.id = lrs.labor_resource_id
         LEFT JOIN skillsets s ON lrs.skillset_id = s.id
-        WHERE lr.employment_status = 'Active'
+        WHERE lr.status = 'Active'
           AND (
               s.skillset_name LIKE '%NDT%' OR s.skillset_name LIKE '%Ultrasonic%' OR s.skillset_name LIKE '%Radiography%'
               OR s.skillset_name LIKE '%Magnetic Particle%' OR s.skillset_name LIKE '%Liquid Penetrant%'
