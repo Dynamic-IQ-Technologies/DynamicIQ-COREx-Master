@@ -423,7 +423,7 @@ def view_workorder(id):
     
     labor_cost_details = conn.execute('''
         SELECT 
-            wot.task_name, wot.task_sequence,
+            wot.task_name, wot.sequence_number,
             COALESCE(lr.first_name || ' ' || lr.last_name, 'Unassigned') as resource_name,
             wot.planned_hours, wot.actual_hours,
             COALESCE(wot.planned_labor_cost, 0) as planned_labor_cost,
@@ -431,17 +431,17 @@ def view_workorder(id):
         FROM work_order_tasks wot
         LEFT JOIN labor_resources lr ON wot.assigned_resource_id = lr.id
         WHERE wot.work_order_id = ?
-        ORDER BY wot.task_sequence
+        ORDER BY wot.sequence_number
     ''', (id,)).fetchall()
     
     overhead_cost_details = conn.execute('''
         SELECT 
-            wot.task_name, wot.task_sequence,
-            COALESCE(wot.planned_overhead_cost, 0) as planned_overhead_cost,
-            COALESCE(wot.actual_overhead_cost, 0) as actual_overhead_cost
+            wot.task_name, wot.sequence_number,
+            0 as planned_overhead_cost,
+            0 as actual_overhead_cost
         FROM work_order_tasks wot
         WHERE wot.work_order_id = ?
-        ORDER BY wot.task_sequence
+        ORDER BY wot.sequence_number
     ''', (id,)).fetchall()
     
     service_cost_details = conn.execute('''

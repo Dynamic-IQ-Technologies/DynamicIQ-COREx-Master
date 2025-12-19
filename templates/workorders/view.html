@@ -1250,7 +1250,7 @@
                                 <tbody>
                                     {% for task in labor_cost_details %}
                                     <tr>
-                                        <td>{{ task.task_sequence }}</td>
+                                        <td>{{ task.sequence_number }}</td>
                                         <td>{{ task.task_name }}</td>
                                         <td>{{ task.resource_name }}</td>
                                         <td class="text-center">{{ "%.2f"|format(task.planned_hours or 0) }}</td>
@@ -1305,7 +1305,7 @@
                                 <tbody>
                                     {% for task in overhead_cost_details %}
                                     <tr>
-                                        <td>{{ task.task_sequence }}</td>
+                                        <td>{{ task.sequence_number }}</td>
                                         <td>{{ task.task_name }}</td>
                                         <td class="text-end">{{ task.planned_overhead_cost|currency }}</td>
                                         <td class="text-end">{{ task.actual_overhead_cost|currency }}</td>
