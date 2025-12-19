@@ -1122,60 +1122,290 @@
     </div>
 
     <div class="tab-pane fade" id="costPane" role="tabpanel">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i> Labor Summary</h6>
+        <!-- Cost Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-3">
+                        <div class="text-primary mb-1"><i class="bi bi-box-seam fs-4"></i></div>
+                        <h5 class="mb-0">{{ cost_info.material_cost|currency }}</h5>
+                        <small class="text-muted">Material Cost</small>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <div class="card text-center bg-light">
-                            <div class="card-body py-2">
-                                <h5 class="mb-0">{{ "%.2f"|format(task_summary.total_planned_hours or 0) }}</h5>
-                                <small class="text-muted">Planned Hours</small>
-                            </div>
-                        </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-3">
+                        <div class="text-success mb-1"><i class="bi bi-person-workspace fs-4"></i></div>
+                        <h5 class="mb-0">{{ cost_info.labor_cost|currency }}</h5>
+                        <small class="text-muted">Labor Cost</small>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card text-center bg-light">
-                            <div class="card-body py-2">
-                                <h5 class="mb-0">{{ "%.2f"|format(task_summary.total_actual_hours or 0) }}</h5>
-                                <small class="text-muted">Actual Hours</small>
-                            </div>
-                        </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-3">
+                        <div class="text-info mb-1"><i class="bi bi-gear fs-4"></i></div>
+                        <h5 class="mb-0">{{ cost_info.overhead_cost|currency }}</h5>
+                        <small class="text-muted">Overhead Cost</small>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card text-center bg-light">
-                            <div class="card-body py-2">
-                                <h5 class="mb-0">{{ (task_summary.total_actual_labor_cost or 0)|currency }}</h5>
-                                <small class="text-muted">Labor Cost</small>
-                            </div>
-                        </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-3">
+                        <div class="text-warning mb-1"><i class="bi bi-tools fs-4"></i></div>
+                        <h5 class="mb-0">{{ (misc_cost_info.total_misc_cost if misc_cost_info else 0)|currency }}</h5>
+                        <small class="text-muted">Service/Misc Cost</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-currency-dollar me-2"></i> Cost Breakdown</h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <table class="table table-sm">
-                            <tr><td>Material Cost</td><td class="text-end">{{ cost_info.material_cost|currency }}</td></tr>
-                            <tr><td>Labor Cost</td><td class="text-end">{{ cost_info.labor_cost|currency }}</td></tr>
-                            <tr><td>Overhead Cost</td><td class="text-end">{{ cost_info.overhead_cost|currency }}</td></tr>
-                            {% if misc_cost_info and misc_cost_info.total_misc_cost > 0 %}
-                            <tr><td>Service/Misc Cost</td><td class="text-end">{{ misc_cost_info.total_misc_cost|currency }}</td></tr>
-                            {% endif %}
-                            <tr class="table-primary"><th>Total Cost</th><th class="text-end">{{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</th></tr>
-                        </table>
+        
+        <!-- Total Cost Banner -->
+        <div class="alert alert-primary d-flex justify-content-between align-items-center mb-4">
+            <span class="fw-semibold"><i class="bi bi-calculator me-2"></i>Total Work Order Cost</span>
+            <span class="fs-4 fw-bold">{{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</span>
+        </div>
+        
+        <!-- Cost Detail Accordions -->
+        <div class="accordion" id="costDetailsAccordion">
+            <!-- Material Cost Details -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#materialCostDetails">
+                        <i class="bi bi-box-seam me-2"></i>Material Cost Details
+                        <span class="badge bg-primary ms-auto me-2">{{ cost_info.material_cost|currency }}</span>
+                    </button>
+                </h2>
+                <div id="materialCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
+                    <div class="accordion-body p-0">
+                        {% if material_cost_details %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Part Number</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Required</th>
+                                        <th class="text-center">Issued</th>
+                                        <th class="text-end">Unit Cost</th>
+                                        <th class="text-end">Total Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mat in material_cost_details %}
+                                    <tr>
+                                        <td><code>{{ mat.code }}</code></td>
+                                        <td>{{ mat.name }}</td>
+                                        <td class="text-center">{{ mat.required_quantity }}</td>
+                                        <td class="text-center">{{ mat.issued_qty }}</td>
+                                        <td class="text-end">{{ (mat.unit_cost or 0)|currency }}</td>
+                                        <td class="text-end">{{ (mat.total_cost or 0)|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="5" class="text-end">Total Material Cost:</th>
+                                        <th class="text-end">{{ cost_info.material_cost|currency }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3"></i>
+                            <p class="mb-0 mt-2">No materials issued to this work order</p>
+                        </div>
+                        {% endif %}
                     </div>
-                    <div class="col-md-6 text-center">
-                        <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-receipt"></i> View Service/Misc Costs
-                        </a>
+                </div>
+            </div>
+            
+            <!-- Labor Cost Details -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#laborCostDetails">
+                        <i class="bi bi-person-workspace me-2"></i>Labor Cost Details
+                        <span class="badge bg-success ms-auto me-2">{{ cost_info.labor_cost|currency }}</span>
+                    </button>
+                </h2>
+                <div id="laborCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
+                    <div class="accordion-body p-0">
+                        {% if labor_cost_details %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Task</th>
+                                        <th>Resource</th>
+                                        <th class="text-center">Planned Hrs</th>
+                                        <th class="text-center">Actual Hrs</th>
+                                        <th class="text-end">Planned Cost</th>
+                                        <th class="text-end">Actual Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in labor_cost_details %}
+                                    <tr>
+                                        <td>{{ task.task_sequence }}</td>
+                                        <td>{{ task.task_name }}</td>
+                                        <td>{{ task.resource_name }}</td>
+                                        <td class="text-center">{{ "%.2f"|format(task.planned_hours or 0) }}</td>
+                                        <td class="text-center">{{ "%.2f"|format(task.actual_hours or 0) }}</td>
+                                        <td class="text-end">{{ task.planned_labor_cost|currency }}</td>
+                                        <td class="text-end">{{ task.actual_labor_cost|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="3" class="text-end">Totals:</th>
+                                        <th class="text-center">{{ "%.2f"|format(task_summary.total_planned_hours or 0) }}</th>
+                                        <th class="text-center">{{ "%.2f"|format(task_summary.total_actual_hours or 0) }}</th>
+                                        <th class="text-end">{{ (task_summary.total_planned_labor_cost or 0)|currency }}</th>
+                                        <th class="text-end">{{ cost_info.labor_cost|currency }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3"></i>
+                            <p class="mb-0 mt-2">No tasks defined for this work order</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Overhead Cost Details -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#overheadCostDetails">
+                        <i class="bi bi-gear me-2"></i>Overhead Cost Details
+                        <span class="badge bg-info ms-auto me-2">{{ cost_info.overhead_cost|currency }}</span>
+                    </button>
+                </h2>
+                <div id="overheadCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
+                    <div class="accordion-body p-0">
+                        {% if overhead_cost_details %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Task</th>
+                                        <th class="text-end">Planned Overhead</th>
+                                        <th class="text-end">Actual Overhead</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in overhead_cost_details %}
+                                    <tr>
+                                        <td>{{ task.task_sequence }}</td>
+                                        <td>{{ task.task_name }}</td>
+                                        <td class="text-end">{{ task.planned_overhead_cost|currency }}</td>
+                                        <td class="text-end">{{ task.actual_overhead_cost|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="2" class="text-end">Total Overhead:</th>
+                                        <th class="text-end">-</th>
+                                        <th class="text-end">{{ cost_info.overhead_cost|currency }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3"></i>
+                            <p class="mb-0 mt-2">No overhead costs recorded</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Service/Misc Cost Details -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#serviceCostDetails">
+                        <i class="bi bi-tools me-2"></i>Service/Misc Cost Details
+                        <span class="badge bg-warning text-dark ms-auto me-2">{{ (misc_cost_info.total_misc_cost if misc_cost_info else 0)|currency }}</span>
+                        {% if misc_cost_info and misc_cost_info.pending_count > 0 %}
+                        <span class="badge bg-secondary me-2">{{ misc_cost_info.pending_count }} Pending</span>
+                        {% endif %}
+                    </button>
+                </h2>
+                <div id="serviceCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
+                    <div class="accordion-body p-0">
+                        {% if service_cost_details %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>PO Number</th>
+                                        <th>Supplier</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-end">Unit Cost</th>
+                                        <th class="text-end">Total</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for svc in service_cost_details %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('po_routes.view_purchaseorder', id=svc.id) }}">{{ svc.po_number }}</a>
+                                        </td>
+                                        <td>{{ svc.supplier_name or '-' }}</td>
+                                        <td><span class="badge bg-secondary">{{ svc.category or 'Other' }}</span></td>
+                                        <td>{{ svc.description }}</td>
+                                        <td class="text-center">{{ svc.quantity }}</td>
+                                        <td class="text-end">{{ (svc.unit_cost or 0)|currency }}</td>
+                                        <td class="text-end">{{ (svc.total_cost or 0)|currency }}</td>
+                                        <td>
+                                            {% if svc.status == 'Received' %}
+                                            <span class="badge bg-success">{{ svc.status }}</span>
+                                            {% elif svc.status == 'Pending' %}
+                                            <span class="badge bg-warning text-dark">{{ svc.status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ svc.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="6" class="text-end">Total (Received Only):</th>
+                                        <th class="text-end">{{ (misc_cost_info.total_misc_cost if misc_cost_info else 0)|currency }}</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="p-3 bg-light border-top">
+                            <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-plus-circle me-1"></i> Manage Service/Misc POs
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3"></i>
+                            <p class="mb-0 mt-2">No service/misc costs linked to this work order</p>
+                            <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="btn btn-sm btn-outline-primary mt-3">
+                                <i class="bi bi-plus-circle me-1"></i> Add Service/Misc PO
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

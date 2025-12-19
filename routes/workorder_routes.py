@@ -406,6 +406,55 @@ def view_workorder(id):
         'total_lines': misc_cost_data['total_lines'] if misc_cost_data else 0
     }
     
+    # Detailed cost breakdowns for Cost tab
+    material_cost_details = conn.execute('''
+        SELECT 
+            p.code, p.name, mr.required_quantity,
+            COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
+                      WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) as issued_qty,
+            p.cost as unit_cost,
+            COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
+                      WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) * COALESCE(p.cost, 0) as total_cost
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        WHERE mr.work_order_id = ?
+        ORDER BY p.code
+    ''', (id,)).fetchall()
+    
+    labor_cost_details = conn.execute('''
+        SELECT 
+            wot.task_name, wot.task_sequence,
+            COALESCE(lr.first_name || ' ' || lr.last_name, 'Unassigned') as resource_name,
+            wot.planned_hours, wot.actual_hours,
+            COALESCE(wot.planned_labor_cost, 0) as planned_labor_cost,
+            COALESCE(wot.actual_labor_cost, 0) as actual_labor_cost
+        FROM work_order_tasks wot
+        LEFT JOIN labor_resources lr ON wot.assigned_resource_id = lr.id
+        WHERE wot.work_order_id = ?
+        ORDER BY wot.task_sequence
+    ''', (id,)).fetchall()
+    
+    overhead_cost_details = conn.execute('''
+        SELECT 
+            wot.task_name, wot.task_sequence,
+            COALESCE(wot.planned_overhead_cost, 0) as planned_overhead_cost,
+            COALESCE(wot.actual_overhead_cost, 0) as actual_overhead_cost
+        FROM work_order_tasks wot
+        WHERE wot.work_order_id = ?
+        ORDER BY wot.task_sequence
+    ''', (id,)).fetchall()
+    
+    service_cost_details = conn.execute('''
+        SELECT 
+            psl.id, psl.category, psl.description, psl.quantity, psl.unit_cost, psl.total_cost, psl.status,
+            po.po_number, s.name as supplier_name
+        FROM purchase_order_service_lines psl
+        JOIN purchase_orders po ON psl.purchase_order_id = po.id
+        LEFT JOIN suppliers s ON po.supplier_id = s.id
+        WHERE psl.work_order_id = ?
+        ORDER BY psl.id
+    ''', (id,)).fetchall()
+    
     stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
     conn.close()
@@ -415,6 +464,10 @@ def view_workorder(id):
                          requirements=requirements,
                          cost_info=cost_info,
                          misc_cost_info=misc_cost_info,
+                         material_cost_details=material_cost_details,
+                         labor_cost_details=labor_cost_details,
+                         overhead_cost_details=overhead_cost_details,
+                         service_cost_details=service_cost_details,
                          all_products=all_products,
                          task_summary=task_summary,
                          tasks=tasks,
