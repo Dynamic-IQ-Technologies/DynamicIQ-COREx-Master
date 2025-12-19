@@ -130,6 +130,19 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
     - Key table: `shipment_documents` with versioning, status, file_path, and electronic signature support
     - Utility module: `utils/shipping_documents.py` (ShippingDocumentGenerator class using ReportLab)
     - Routes module: `routes/shipping_routes.py`
+-   **Work Order Accordion Layout with Task-Level Material Requirements** (December 2025): Redesigned work order record page with collapsible accordion sections and task-level material management. Features include:
+    - Accordion-based page structure with logical collapsible sections: Overview, Customer Info, Tasks, Materials, Labor, Cost, Documents, Audit Trail
+    - KPI summary cards at top showing total tasks, completed count, actual hours, and total cost
+    - Sticky action bar with quick access buttons for common operations
+    - Task cards within accordion with expandable content showing task details and materials
+    - Task-level material requirements nested under each task with inline add/edit/issue/consume functionality
+    - Material status tracking: Planned, Partially Issued, Issued, Consumed
+    - Material shortage indicators with visual pulse animation for unfulfilled requirements
+    - Task status updates with validation (cannot complete task without issuing required materials)
+    - Lot/Serial number tracking on material issuance
+    - Material rollup summary per task showing count, total required, issued, and consumed
+    - Key table: `work_order_task_materials` with task_id, product_id, required_qty, issued_qty, consumed_qty, material_status, lot_number, serial_number
+    - Routes: `add_task_material`, `edit_task_material`, `delete_task_material`, `issue_task_material`, `consume_task_material`, `update_task_status`
 
 ## External Dependencies
 

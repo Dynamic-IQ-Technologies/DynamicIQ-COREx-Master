@@ -2291,7 +2291,16 @@ def issue_task_material(task_id, material_id):
         conn.close()
         return redirect(url_for('workorder_routes.list_workorders'))
     
-    issue_qty = float(request.form.get('issue_qty', 0))
+    try:
+        issue_qty = float(request.form.get('issue_qty', 0))
+    except (ValueError, TypeError):
+        issue_qty = 0
+    
+    if issue_qty <= 0:
+        flash('Issue quantity must be greater than zero', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
     lot_number = request.form.get('lot_number', '')
     serial_number = request.form.get('serial_number', '')
     
@@ -2348,7 +2357,16 @@ def consume_task_material(task_id, material_id):
         conn.close()
         return redirect(url_for('workorder_routes.list_workorders'))
     
-    consume_qty = float(request.form.get('consume_qty', 0))
+    try:
+        consume_qty = float(request.form.get('consume_qty', 0))
+    except (ValueError, TypeError):
+        consume_qty = 0
+    
+    if consume_qty <= 0:
+        flash('Consume quantity must be greater than zero', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
     max_consume = (material['issued_qty'] or 0) - (material['consumed_qty'] or 0)
     
     if consume_qty > max_consume:
