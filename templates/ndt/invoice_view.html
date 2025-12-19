@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}{{ invoice.invoice_number }} - NDT Invoice{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('ndt_routes.invoices_list') }}">NDT Invoices</a></li>
+                <li class="breadcrumb-item active">{{ invoice.invoice_number }}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 mt-2">{{ invoice.invoice_number }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+        {% set status_colors = {
+            'Draft': 'secondary',
+            'Pending': 'warning',
+            'Sent': 'info',
+            'Partially Paid': 'primary',
+            'Paid': 'success',
+            'Overdue': 'danger',
+            'Cancelled': 'dark'
+        } %}
+        <span class="badge bg-{{ status_colors.get(invoice.status, 'secondary') }}" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            {{ invoice.status }}
+        </span>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-receipt"></i> Invoice Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Invoice Number</label>
+                        <div class="fw-bold">{{ invoice.invoice_number }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Customer</label>
+                        <div class="fw-bold">{{ invoice.customer_name or '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Invoice Date</label>
+                        <div>{{ invoice.invoice_date }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Due Date</label>
+                        <div>{{ invoice.due_date }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Payment Terms</label>
+                        <div>Net {{ invoice.payment_terms }} days</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Created By</label>
+                        <div>{{ invoice.created_by_name or '-' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-search"></i> NDT Inspection Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">NDT Work Order</label>
+                        <div>
+                            {% if invoice.ndt_wo_number %}
+                            <a href="{{ url_for('ndt_routes.wo_view', id=invoice.ndt_wo_id) }}" class="badge bg-warning text-dark text-decoration-none">
+                                {{ invoice.ndt_wo_number }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Inspection Methods</label>
+                        <div>{{ invoice.ndt_methods or '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Part Description</label>
+                        <div>{{ invoice.part_description or '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Serial Number</label>
+                        <div>{{ invoice.serial_number or '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Inspection Type</label>
+                        <div>{{ invoice.inspection_type or '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Product</label>
+                        <div>
+                            {% if invoice.product_code %}
+                            {{ invoice.product_code }} - {{ invoice.product_name }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if invoice.notes %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-card-text"></i> Notes</h5>
+            </div>
+            <div class="card-body">
+                {{ invoice.notes }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-currency-dollar"></i> Amount Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal:</span>
+                    <span>{{ "%.2f"|format(invoice.subtotal or 0) }}</span>
+                </div>
+                {% if invoice.tax_amount %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tax ({{ invoice.tax_rate }}%):</span>
+                    <span>{{ "%.2f"|format(invoice.tax_amount) }}</span>
+                </div>
+                {% endif %}
+                {% if invoice.discount_amount %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Discount:</span>
+                    <span class="text-danger">-{{ "%.2f"|format(invoice.discount_amount) }}</span>
+                </div>
+                {% endif %}
+                <hr>
+                <div class="d-flex justify-content-between mb-2">
+                    <strong>Total Amount:</strong>
+                    <strong class="fs-5">{{ "%.2f"|format(invoice.total_amount or 0) }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Amount Paid:</span>
+                    <span class="text-success">{{ "%.2f"|format(invoice.amount_paid or 0) }}</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <strong>Balance Due:</strong>
+                    <strong class="fs-4 text-{{ 'danger' if invoice.balance_due > 0 else 'success' }}">
+                        {{ "%.2f"|format(invoice.balance_due or 0) }}
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> Update Status</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ndt_routes.invoice_update_status', id=invoice.id) }}">
+                    <div class="mb-3">
+                        <select name="status" class="form-select">
+                            {% for status in statuses %}
+                            <option value="{{ status }}" {% if invoice.status == status %}selected{% endif %}>{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check"></i> Update Status
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if invoice.billing_address %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Billing Address</h5>
+            </div>
+            <div class="card-body">
+                <pre class="mb-0" style="font-family: inherit; white-space: pre-wrap;">{{ invoice.billing_address }}</pre>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('ndt_routes.invoices_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+{% endblock %}

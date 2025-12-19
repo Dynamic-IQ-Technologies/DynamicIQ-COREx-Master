@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{% if invoice %}Edit{% else %}New{% endif %} NDT Invoice - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('ndt_routes.invoices_list') }}">NDT Invoices</a></li>
+                <li class="breadcrumb-item active">{% if invoice %}Edit{% else %}New{% endif %}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 mt-2">{% if invoice %}Edit Invoice{% else %}Create NDT Invoice{% endif %}</h1>
+    </div>
+</div>
+
+<form method="POST">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-search"></i> NDT Work Order</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select NDT Work Order (Optional)</label>
+                        <select name="ndt_wo_id" id="ndt_wo_id" class="form-select" onchange="fillFromNDTWO()">
+                            <option value="">-- Select NDT Work Order --</option>
+                            {% for wo in ndt_work_orders %}
+                            <option value="{{ wo.id }}" 
+                                    data-customer-id="{{ wo.customer_id }}"
+                                    data-customer-name="{{ wo.customer_name }}"
+                                    data-methods="{{ wo.ndt_methods }}"
+                                    data-part="{{ wo.part_description }}"
+                                    data-serial="{{ wo.serial_number }}"
+                                    {% if invoice and invoice.ndt_wo_id == wo.id %}selected{% endif %}>
+                                {{ wo.ndt_wo_number }} - {{ wo.ndt_methods }} 
+                                {% if wo.customer_name %}({{ wo.customer_name }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Selecting an NDT WO will auto-fill inspection details</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-receipt"></i> Invoice Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Customer <span class="text-danger">*</span></label>
+                            <select name="customer_id" id="customer_id" class="form-select" required>
+                                <option value="">-- Select Customer --</option>
+                                {% for cust in customers %}
+                                <option value="{{ cust.id }}" {% if invoice and invoice.customer_id == cust.id %}selected{% endif %}>
+                                    {{ cust.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
+                            <input type="date" name="invoice_date" class="form-control" 
+                                   value="{{ invoice.invoice_date if invoice else today }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Terms (Days)</label>
+                            <input type="number" name="payment_terms" class="form-control" 
+                                   value="{{ invoice.payment_terms if invoice else 30 }}" min="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Inspection Type</label>
+                            <input type="text" name="inspection_type" class="form-control" 
+                                   value="{{ invoice.inspection_type if invoice else '' }}"
+                                   placeholder="e.g., Pre-shipment, In-service, Acceptance">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-tools"></i> Inspection Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">NDT Methods</label>
+                            <input type="text" name="ndt_methods" id="ndt_methods" class="form-control" 
+                                   value="{{ invoice.ndt_methods if invoice else '' }}"
+                                   placeholder="e.g., UT, MT, PT, RT">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Serial Number</label>
+                            <input type="text" name="serial_number" id="serial_number" class="form-control" 
+                                   value="{{ invoice.serial_number if invoice else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Part Description</label>
+                            <textarea name="part_description" id="part_description" class="form-control" rows="2">{{ invoice.part_description if invoice else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-card-text"></i> Notes</h5>
+                </div>
+                <div class="card-body">
+                    <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes or remarks...">{{ invoice.notes if invoice else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-currency-dollar"></i> Pricing</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Subtotal <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="subtotal" id="subtotal" class="form-control" 
+                                   step="0.01" min="0" value="{{ invoice.subtotal if invoice else '0.00' }}" 
+                                   required onchange="calculateTotal()">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tax Rate (%)</label>
+                        <input type="number" name="tax_rate" id="tax_rate" class="form-control" 
+                               step="0.01" min="0" max="100" value="{{ invoice.tax_rate if invoice else '0' }}"
+                               onchange="calculateTotal()">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Discount Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="discount_amount" id="discount_amount" class="form-control" 
+                                   step="0.01" min="0" value="{{ invoice.discount_amount if invoice else '0' }}"
+                                   onchange="calculateTotal()">
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tax Amount:</span>
+                        <span id="tax_display">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total:</strong>
+                        <strong class="fs-4" id="total_display">$0.00</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-lg"></i> {% if invoice %}Update{% else %}Create{% endif %} Invoice
+                </button>
+                <a href="{{ url_for('ndt_routes.invoices_list') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x"></i> Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+function fillFromNDTWO() {
+    const select = document.getElementById('ndt_wo_id');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        document.getElementById('customer_id').value = option.dataset.customerId || '';
+        document.getElementById('ndt_methods').value = option.dataset.methods || '';
+        document.getElementById('part_description').value = option.dataset.part || '';
+        document.getElementById('serial_number').value = option.dataset.serial || '';
+    }
+}
+
+function calculateTotal() {
+    const subtotal = parseFloat(document.getElementById('subtotal').value) || 0;
+    const taxRate = parseFloat(document.getElementById('tax_rate').value) || 0;
+    const discount = parseFloat(document.getElementById('discount_amount').value) || 0;
+    
+    const taxAmount = subtotal * (taxRate / 100);
+    const total = subtotal + taxAmount - discount;
+    
+    document.getElementById('tax_display').textContent = '$' + taxAmount.toFixed(2);
+    document.getElementById('total_display').textContent = '$' + total.toFixed(2);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    calculateTotal();
+});
+</script>
+{% endblock %}

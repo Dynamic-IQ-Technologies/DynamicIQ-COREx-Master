@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}NDT Invoices - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">NDT Invoices</h1>
+        <p class="text-muted mb-0">Manage invoices for NDT inspection services</p>
+    </div>
+    <a href="{{ url_for('ndt_routes.invoice_new') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> New Invoice
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 bg-primary text-white">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-receipt"></i> Total Invoices</h6>
+                <h3 class="mb-0">{{ total_invoices }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-info text-white">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-currency-dollar"></i> Total Amount</h6>
+                <h3 class="mb-0">{{ "%.2f"|format(total_amount) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-success text-white">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-check-circle"></i> Paid</h6>
+                <h3 class="mb-0">{{ "%.2f"|format(total_paid) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-{{ 'danger' if overdue_count > 0 else 'warning' }} text-white">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-clock"></i> Outstanding</h6>
+                <h3 class="mb-0">{{ "%.2f"|format(total_outstanding) }}</h3>
+                {% if overdue_count > 0 %}
+                <small>{{ overdue_count }} overdue</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Statuses</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Customer</label>
+                <select name="customer" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Customers</option>
+                    {% for cust in customers %}
+                    <option value="{{ cust.id }}" {% if customer_filter == cust.id|string %}selected{% endif %}>{{ cust.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <a href="{{ url_for('ndt_routes.invoices_list') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Customer</th>
+                        <th>NDT WO</th>
+                        <th>Methods</th>
+                        <th>Invoice Date</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in invoices %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="fw-bold text-decoration-none">
+                                {{ inv.invoice_number }}
+                            </a>
+                        </td>
+                        <td>{{ inv.customer_name or '-' }}</td>
+                        <td>
+                            {% if inv.ndt_wo_number %}
+                            <span class="badge bg-warning text-dark">{{ inv.ndt_wo_number }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inv.ndt_methods or '-' }}</td>
+                        <td>{{ inv.invoice_date }}</td>
+                        <td>
+                            {{ inv.due_date }}
+                            {% if inv.status not in ['Paid', 'Cancelled'] and inv.due_date < today %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ "%.2f"|format(inv.total_amount or 0) }}</td>
+                        <td class="text-end">
+                            {% if inv.balance_due > 0 %}
+                            <span class="text-danger fw-bold">{{ "%.2f"|format(inv.balance_due) }}</span>
+                            {% else %}
+                            <span class="text-success">0.00</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set status_colors = {
+                                'Draft': 'secondary',
+                                'Pending': 'warning',
+                                'Sent': 'info',
+                                'Partially Paid': 'primary',
+                                'Paid': 'success',
+                                'Overdue': 'danger',
+                                'Cancelled': 'dark'
+                            } %}
+                            <span class="badge bg-{{ status_colors.get(inv.status, 'secondary') }}">
+                                {{ inv.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="bi bi-receipt" style="font-size: 2rem;"></i>
+                            <p class="mb-0 mt-2">No NDT invoices found</p>
+                            <a href="{{ url_for('ndt_routes.invoice_new') }}" class="btn btn-primary btn-sm mt-2">
+                                <i class="bi bi-plus-lg"></i> Create First Invoice
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -908,3 +908,219 @@ def api_technicians():
         'number': t['technician_number'],
         'name': f"{t['first_name']} {t['last_name']}"
     } for t in technicians])
+
+
+NDT_INVOICE_STATUSES = ['Draft', 'Pending', 'Sent', 'Partially Paid', 'Paid', 'Overdue', 'Cancelled']
+
+def get_next_ndt_invoice_number(conn):
+    """Generate next NDT invoice number"""
+    result = conn.execute('''
+        SELECT invoice_number FROM ndt_invoices 
+        ORDER BY id DESC LIMIT 1
+    ''').fetchone()
+    if result:
+        try:
+            num = int(result['invoice_number'].replace('NDT-INV-', ''))
+            return f"NDT-INV-{num + 1:05d}"
+        except:
+            pass
+    return "NDT-INV-00001"
+
+
+@ndt_bp.route('/ndt/invoices')
+def invoices_list():
+    """List all NDT invoices"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    status_filter = request.args.get('status', '')
+    customer_filter = request.args.get('customer', '')
+    
+    query = '''
+        SELECT ni.*, c.name as customer_name,
+               nw.ndt_wo_number
+        FROM ndt_invoices ni
+        LEFT JOIN customers c ON ni.customer_id = c.id
+        LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if status_filter:
+        query += ' AND ni.status = ?'
+        params.append(status_filter)
+    
+    if customer_filter:
+        query += ' AND ni.customer_id = ?'
+        params.append(int(customer_filter))
+    
+    query += ' ORDER BY ni.invoice_date DESC, ni.id DESC'
+    
+    invoices = conn.execute(query, params).fetchall()
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    
+    # Calculate summary stats
+    total_invoices = len(invoices)
+    total_amount = sum(inv['total_amount'] or 0 for inv in invoices)
+    total_paid = sum(inv['amount_paid'] or 0 for inv in invoices)
+    total_outstanding = sum(inv['balance_due'] or 0 for inv in invoices)
+    
+    overdue_count = conn.execute('''
+        SELECT COUNT(*) as count FROM ndt_invoices 
+        WHERE status NOT IN ('Paid', 'Cancelled') AND due_date < date('now')
+    ''').fetchone()['count']
+    
+    conn.close()
+    
+    return render_template('ndt/invoices_list.html',
+        invoices=invoices,
+        customers=customers,
+        statuses=NDT_INVOICE_STATUSES,
+        status_filter=status_filter,
+        customer_filter=customer_filter,
+        total_invoices=total_invoices,
+        total_amount=total_amount,
+        total_paid=total_paid,
+        total_outstanding=total_outstanding,
+        overdue_count=overdue_count
+    )
+
+
+@ndt_bp.route('/ndt/invoices/new', methods=['GET', 'POST'])
+def invoice_new():
+    """Create new NDT invoice"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        invoice_number = get_next_ndt_invoice_number(conn)
+        invoice_date = request.form.get('invoice_date', date.today().isoformat())
+        payment_terms = int(request.form.get('payment_terms', 30))
+        
+        invoice_date_obj = datetime.strptime(invoice_date, '%Y-%m-%d')
+        due_date = (invoice_date_obj + timedelta(days=payment_terms)).strftime('%Y-%m-%d')
+        
+        subtotal = float(request.form.get('subtotal', 0))
+        tax_rate = float(request.form.get('tax_rate', 0))
+        tax_amount = subtotal * (tax_rate / 100)
+        discount_amount = float(request.form.get('discount_amount', 0))
+        total_amount = subtotal + tax_amount - discount_amount
+        
+        conn.execute('''
+            INSERT INTO ndt_invoices 
+            (invoice_number, ndt_wo_id, customer_id, invoice_date, due_date, payment_terms,
+             status, ndt_methods, part_description, serial_number, inspection_type,
+             subtotal, tax_rate, tax_amount, discount_amount, total_amount, balance_due,
+             notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, 'Draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            invoice_number,
+            request.form.get('ndt_wo_id') or None,
+            request.form.get('customer_id') or None,
+            invoice_date,
+            due_date,
+            payment_terms,
+            request.form.get('ndt_methods'),
+            request.form.get('part_description'),
+            request.form.get('serial_number'),
+            request.form.get('inspection_type'),
+            subtotal,
+            tax_rate,
+            tax_amount,
+            discount_amount,
+            total_amount,
+            total_amount,
+            request.form.get('notes'),
+            session['user_id']
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'NDT Invoice {invoice_number} created successfully', 'success')
+        return redirect(url_for('ndt_routes.invoices_list'))
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    ndt_work_orders = conn.execute('''
+        SELECT nw.id, nw.ndt_wo_number, nw.ndt_methods, nw.part_description,
+               nw.serial_number, c.name as customer_name, c.id as customer_id
+        FROM ndt_work_orders nw
+        LEFT JOIN customers c ON nw.customer_id = c.id
+        WHERE nw.status IN ('Approved', 'Closed')
+        ORDER BY nw.ndt_wo_number DESC
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('ndt/invoice_form.html',
+        invoice=None,
+        customers=customers,
+        ndt_work_orders=ndt_work_orders,
+        ndt_methods=NDT_METHODS
+    )
+
+
+@ndt_bp.route('/ndt/invoices/<int:id>')
+def invoice_view(id):
+    """View NDT invoice details"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    invoice = conn.execute('''
+        SELECT ni.*, c.name as customer_name, c.billing_address,
+               nw.ndt_wo_number, nw.product_id,
+               p.name as product_name, p.code as product_code,
+               u.username as created_by_name
+        FROM ndt_invoices ni
+        LEFT JOIN customers c ON ni.customer_id = c.id
+        LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
+        LEFT JOIN products p ON nw.product_id = p.id
+        LEFT JOIN users u ON ni.created_by = u.id
+        WHERE ni.id = ?
+    ''', (id,)).fetchone()
+    
+    if not invoice:
+        flash('NDT Invoice not found', 'error')
+        return redirect(url_for('ndt_routes.invoices_list'))
+    
+    conn.close()
+    
+    return render_template('ndt/invoice_view.html',
+        invoice=invoice,
+        statuses=NDT_INVOICE_STATUSES
+    )
+
+
+@ndt_bp.route('/ndt/invoices/<int:id>/status', methods=['POST'])
+def invoice_update_status(id):
+    """Update NDT invoice status"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    new_status = request.form['status']
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    invoice = conn.execute('SELECT * FROM ndt_invoices WHERE id = ?', (id,)).fetchone()
+    if not invoice:
+        conn.close()
+        flash('NDT Invoice not found', 'error')
+        return redirect(url_for('ndt_routes.invoices_list'))
+    
+    conn.execute('UPDATE ndt_invoices SET status = ? WHERE id = ?', (new_status, id))
+    conn.commit()
+    conn.close()
+    
+    flash(f'Invoice status updated to {new_status}', 'success')
+    return redirect(url_for('ndt_routes.invoice_view', id=id))

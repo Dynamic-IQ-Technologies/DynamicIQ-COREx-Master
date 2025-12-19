@@ -716,12 +716,6 @@
                 </a>
             </li>
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.dashboard') }}">
-                    <i class="bi bi-search"></i>
-                    <span>NDT Operations</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Material Issues</span>
@@ -768,6 +762,37 @@
                 </a>
             </li>
             {% endif %}
+        </ul>
+        
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('ndt')">
+            <span>NDT</span>
+            <i class="bi bi-chevron-down toggle-icon" id="ndt-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="ndt-content">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.dashboard') }}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>NDT Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.wo_list') }}">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>NDT Work Orders</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.technicians_list') }}">
+                    <i class="bi bi-people"></i>
+                    <span>Technicians</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.invoices_list') }}">
+                    <i class="bi bi-receipt"></i>
+                    <span>NDT Invoices</span>
+                </a>
+            </li>
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('quality')">

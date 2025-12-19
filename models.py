@@ -2477,6 +2477,42 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_customer ON ndt_work_orders(customer_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_results_wo ON ndt_inspection_results(ndt_wo_id)')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_number TEXT UNIQUE NOT NULL,
+                ndt_wo_id INTEGER,
+                customer_id INTEGER,
+                invoice_date DATE NOT NULL,
+                due_date DATE NOT NULL,
+                payment_terms INTEGER DEFAULT 30,
+                status TEXT DEFAULT 'Draft',
+                ndt_methods TEXT,
+                part_description TEXT,
+                serial_number TEXT,
+                inspection_type TEXT,
+                subtotal REAL DEFAULT 0,
+                tax_rate REAL DEFAULT 0,
+                tax_amount REAL DEFAULT 0,
+                discount_amount REAL DEFAULT 0,
+                total_amount REAL NOT NULL,
+                amount_paid REAL DEFAULT 0,
+                balance_due REAL DEFAULT 0,
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                FOREIGN KEY (ndt_wo_id) REFERENCES ndt_work_orders(id),
+                FOREIGN KEY (customer_id) REFERENCES customers(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_invoices_status ON ndt_invoices(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_invoices_customer ON ndt_invoices(customer_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_invoices_ndt_wo ON ndt_invoices(ndt_wo_id)')
+        
         # Migrate sales_orders table - add exchange_type column
         self._migrate_sales_orders_exchange_type(cursor)
         
