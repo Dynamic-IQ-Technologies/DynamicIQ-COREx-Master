@@ -29,7 +29,8 @@
                                     data-conversion-factor="{{ po.conversion_factor or 1 }}"
                                     data-base-quantity="{{ po.base_quantity or po.quantity }}"
                                     data-has-conversion="{{ 'true' if po.conversion_factor and po.conversion_factor != 1 else 'false' }}"
-                                data-product-type="{{ po.product_type or '' }}">
+                                data-product-type="{{ po.product_type or '' }}"
+                                data-calibration-required="{{ 'true' if po.calibration_required else 'false' }}">
                                 {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining @ {{ po.unit_price|currency }}
                             </option>
                             {% endfor %}
@@ -211,6 +212,43 @@
                 </div>
             </div>
 
+            <div class="card border-warning mb-3" id="calibration_section" style="display:none;">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h6 class="mb-0"><i class="bi bi-tools text-warning me-2"></i>Calibration Requirements</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="last_calibration_date" class="form-label">
+                                    Last Calibration Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="last_calibration_date" name="last_calibration_date">
+                                <div class="form-text">Date of most recent calibration</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="calibration_frequency" class="form-label">
+                                    Calibration Frequency (Days)
+                                </label>
+                                <input type="number" class="form-control" id="calibration_frequency" name="calibration_frequency" min="1" placeholder="e.g., 365">
+                                <div class="form-text">Days between calibrations</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="next_calibration_date" class="form-label">
+                                    Next Calibration Date
+                                </label>
+                                <input type="date" class="form-control" id="next_calibration_date" name="next_calibration_date">
+                                <div class="form-text">Auto-calculated from last date + frequency</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
@@ -252,6 +290,7 @@ let currentBaseUOM = '';
 let currentConversionFactor = 1;
 let hasConversion = false;
 let currentProductType = '';
+let calibrationRequired = false;
 
 function formatCurrency(amount) {
     return '$ ' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -268,6 +307,7 @@ function updatePODetails() {
         currentConversionFactor = parseFloat(option.dataset.conversionFactor) || 1;
         hasConversion = option.dataset.hasConversion === 'true';
         currentProductType = option.dataset.productType || '';
+        calibrationRequired = option.dataset.calibrationRequired === 'true';
         
         // Show/hide expiration date field for Chemical products
         const expirationRow = document.getElementById('expiration_date_row');
@@ -279,6 +319,20 @@ function updatePODetails() {
             expirationRow.style.display = 'none';
             expirationInput.required = false;
             expirationInput.value = '';
+        }
+        
+        // Show/hide calibration section for Calibration Required products
+        const calibrationSection = document.getElementById('calibration_section');
+        const lastCalibrationInput = document.getElementById('last_calibration_date');
+        if (calibrationRequired) {
+            calibrationSection.style.display = 'block';
+            lastCalibrationInput.required = true;
+        } else {
+            calibrationSection.style.display = 'none';
+            lastCalibrationInput.required = false;
+            lastCalibrationInput.value = '';
+            document.getElementById('calibration_frequency').value = '';
+            document.getElementById('next_calibration_date').value = '';
         }
         
         document.getElementById('detail_product').textContent = option.dataset.productCode + ' - ' + option.dataset.productName;
@@ -327,6 +381,19 @@ function updatePODetails() {
         document.getElementById('uom_conversion_details').style.display = 'none';
         document.getElementById('expiration_date_row').style.display = 'none';
         document.getElementById('expiration_date').required = false;
+        document.getElementById('calibration_section').style.display = 'none';
+        document.getElementById('last_calibration_date').required = false;
+    }
+}
+
+function calculateNextCalibrationDate() {
+    const lastCalDate = document.getElementById('last_calibration_date').value;
+    const frequency = parseInt(document.getElementById('calibration_frequency').value) || 0;
+    
+    if (lastCalDate && frequency > 0) {
+        const lastDate = new Date(lastCalDate);
+        lastDate.setDate(lastDate.getDate() + frequency);
+        document.getElementById('next_calibration_date').value = lastDate.toISOString().split('T')[0];
     }
 }
 
@@ -372,6 +439,8 @@ function calculateReceivingCost() {
 // Listen for quantity changes
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('quantity_received').addEventListener('input', calculateReceivingCost);
+    document.getElementById('last_calibration_date').addEventListener('change', calculateNextCalibrationDate);
+    document.getElementById('calibration_frequency').addEventListener('input', calculateNextCalibrationDate);
 });
 </script>
 {% endblock %}

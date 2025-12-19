@@ -131,10 +131,16 @@ def create_receiving():
             # Get expiration date (required for Chemical products)
             expiration_date = request.form.get('expiration_date', '').strip() or None
             
+            # Get calibration fields (required for Calibration Required products)
+            last_calibration_date = request.form.get('last_calibration_date', '').strip() or None
+            calibration_frequency = request.form.get('calibration_frequency', '').strip()
+            calibration_frequency = int(calibration_frequency) if calibration_frequency else None
+            next_calibration_date = request.form.get('next_calibration_date', '').strip() or None
+            
             # Get PO Line details with PO header, product, and UOM conversion info
             po_line = conn.execute('''
                 SELECT pol.*, po.po_number, po.supplier_id, po.order_date,
-                       p.name as product_name, p.code as product_code, p.product_type,
+                       p.name as product_name, p.code as product_code, p.product_type, p.calibration_required,
                        uom.uom_code as order_uom_code, uom.uom_name as order_uom_name,
                        base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name
                 FROM purchase_order_lines pol
@@ -153,6 +159,12 @@ def create_receiving():
             # Validate expiration date required for Chemical products
             if po_line['product_type'] == 'Chemical' and not expiration_date:
                 flash('Expiration date is required for Chemical products.', 'danger')
+                conn.close()
+                return redirect(url_for('receiving_routes.create_receiving'))
+            
+            # Validate last calibration date required for Calibration Required products
+            if po_line['calibration_required'] and not last_calibration_date:
+                flash('Last calibration date is required for products that require calibration.', 'danger')
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
             
@@ -280,33 +292,37 @@ def create_receiving():
             
             if inventory:
                 new_qty = inventory['quantity'] + base_quantity_for_receipt
-                # Update expiration_date only if provided (for Chemical products)
+                # Build update fields dynamically based on what's provided
+                update_fields = ['quantity = ?', 'unit_cost = ?', 'last_received_date = ?', 'last_updated = CURRENT_TIMESTAMP']
+                update_params = [new_qty, unit_cost_at_receipt, receipt_date]
+                
                 if expiration_date:
-                    conn.execute('''
-                        UPDATE inventory 
-                        SET quantity = ?,
-                            unit_cost = ?,
-                            last_received_date = ?,
-                            expiration_date = ?,
-                            last_updated = CURRENT_TIMESTAMP
-                        WHERE product_id = ?
-                    ''', (new_qty, unit_cost_at_receipt, receipt_date, expiration_date, product_id))
-                else:
-                    conn.execute('''
-                        UPDATE inventory 
-                        SET quantity = ?,
-                            unit_cost = ?,
-                            last_received_date = ?,
-                            last_updated = CURRENT_TIMESTAMP
-                        WHERE product_id = ?
-                    ''', (new_qty, unit_cost_at_receipt, receipt_date, product_id))
+                    update_fields.append('expiration_date = ?')
+                    update_params.append(expiration_date)
+                
+                if last_calibration_date:
+                    update_fields.append('last_calibration_date = ?')
+                    update_params.append(last_calibration_date)
+                if calibration_frequency:
+                    update_fields.append('calibration_frequency = ?')
+                    update_params.append(calibration_frequency)
+                if next_calibration_date:
+                    update_fields.append('next_calibration_date = ?')
+                    update_params.append(next_calibration_date)
+                
+                update_params.append(product_id)
+                conn.execute(f'''
+                    UPDATE inventory 
+                    SET {', '.join(update_fields)}
+                    WHERE product_id = ?
+                ''', tuple(update_params))
             else:
                 # Create inventory record with location info using base quantity
                 conn.execute('''
                     INSERT INTO inventory 
-                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, expiration_date, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Available')
-                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date, expiration_date))
+                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, expiration_date, last_calibration_date, calibration_frequency, next_calibration_date, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')
+                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, next_calibration_date))
             
             # Update base received quantity on PO line
             base_received_so_far = po_line['base_received_quantity'] if po_line['base_received_quantity'] else 0
@@ -468,6 +484,7 @@ def create_receiving():
             p.name as product_name,
             p.unit_of_measure,
             p.product_type,
+            p.calibration_required,
             uom.uom_code as order_uom_code,
             uom.uom_name as order_uom_name,
             base_uom.uom_code as base_uom_code,
