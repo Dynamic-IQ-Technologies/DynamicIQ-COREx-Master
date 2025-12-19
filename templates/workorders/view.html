@@ -149,11 +149,6 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customerPane" type="button" role="tab">
-            <i class="bi bi-person-badge"></i> Customer
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
         <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasksPane" type="button" role="tab">
             <i class="bi bi-list-check"></i> Tasks <span class="badge bg-primary">{{ tasks|length }}</span>
         </button>
@@ -184,81 +179,85 @@
 
 <div class="tab-content" id="workOrderTabContent">
     <div class="tab-pane fade show active" id="overviewPane" role="tabpanel">
-        <div class="card">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <table class="table table-sm table-borderless">
-                            <tr><td class="text-muted" style="width:40%">Work Order #</td><td><strong>{{ workorder.wo_number }}</strong></td></tr>
-                            <tr><td class="text-muted">Product</td><td><a href="{{ url_for('product_routes.view_product', id=workorder.product_id) }}">{{ workorder.code }} - {{ workorder.name }}</a></td></tr>
-                            <tr><td class="text-muted">Quantity</td><td>{{ workorder.quantity }} {{ workorder.unit_of_measure }}</td></tr>
-                            <tr><td class="text-muted">Serial Number</td><td>{{ workorder.serial_number or 'N/A' }}</td></tr>
-                            <tr><td class="text-muted">Status</td><td><span class="badge bg-info">{{ workorder.status }}</span></td></tr>
-                            <tr><td class="text-muted">Priority</td><td><span class="badge bg-{% if workorder.priority == 'High' %}danger{% elif workorder.priority == 'Medium' %}warning{% else %}secondary{% endif %}">{{ workorder.priority }}</span></td></tr>
-                            <tr><td class="text-muted">Disposition</td><td><span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></td></tr>
-                        </table>
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-3">
+                    <div class="card-header bg-white py-2">
+                        <h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2"></i>Work Order Details</h6>
                     </div>
-                    <div class="col-md-6">
-                        <table class="table table-sm table-borderless">
-                            <tr><td class="text-muted" style="width:40%">Planned Start</td><td>{{ workorder.planned_start_date or 'Not set' }}</td></tr>
-                            <tr><td class="text-muted">Planned End</td><td>{{ workorder.planned_end_date or 'Not set' }}</td></tr>
-                            <tr><td class="text-muted">Actual Start</td><td>{{ workorder.actual_start_date or 'Not started' }}</td></tr>
-                            <tr><td class="text-muted">Actual End</td><td>{{ workorder.actual_end_date or 'Not completed' }}</td></tr>
-                            {% if workorder.inventory_id %}
-                            <tr><td class="text-muted">Inventory</td><td><a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-box-seam"></i> View Record</a></td></tr>
-                            {% endif %}
-                        </table>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr><td class="text-muted" style="width:40%">Work Order #</td><td><strong>{{ workorder.wo_number }}</strong></td></tr>
+                                    <tr><td class="text-muted">Product</td><td><a href="{{ url_for('product_routes.view_product', id=workorder.product_id) }}">{{ workorder.code }} - {{ workorder.name }}</a></td></tr>
+                                    <tr><td class="text-muted">Quantity</td><td>{{ workorder.quantity }} {{ workorder.unit_of_measure }}</td></tr>
+                                    <tr><td class="text-muted">Serial Number</td><td>{{ workorder.serial_number or 'N/A' }}</td></tr>
+                                    <tr><td class="text-muted">Status</td><td><span class="badge bg-info">{{ workorder.status }}</span></td></tr>
+                                    <tr><td class="text-muted">Priority</td><td><span class="badge bg-{% if workorder.priority == 'High' %}danger{% elif workorder.priority == 'Medium' %}warning{% else %}secondary{% endif %}">{{ workorder.priority }}</span></td></tr>
+                                    <tr><td class="text-muted">Disposition</td><td><span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr><td class="text-muted" style="width:40%">Planned Start</td><td>{{ workorder.planned_start_date or 'Not set' }}</td></tr>
+                                    <tr><td class="text-muted">Planned End</td><td>{{ workorder.planned_end_date or 'Not set' }}</td></tr>
+                                    <tr><td class="text-muted">Actual Start</td><td>{{ workorder.actual_start_date or 'Not started' }}</td></tr>
+                                    <tr><td class="text-muted">Actual End</td><td>{{ workorder.actual_end_date or 'Not completed' }}</td></tr>
+                                    {% if workorder.inventory_id %}
+                                    <tr><td class="text-muted">Inventory</td><td><a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-box-seam"></i> View Record</a></td></tr>
+                                    {% endif %}
+                                </table>
+                            </div>
+                        </div>
+                        {% if session.role in ['Admin', 'Production Staff'] %}
+                        <hr class="my-2">
+                        <form method="POST" action="{{ url_for('workorder_routes.update_workorder_status', id=workorder.id) }}" class="row g-2 align-items-end">
+                            <div class="col-auto">
+                                <label class="form-label small text-muted mb-0">Update Status</label>
+                                <select class="form-select form-select-sm" name="status">
+                                    <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
+                                    <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
+                                    <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                            </div>
+                        </form>
+                        {% endif %}
                     </div>
                 </div>
-                {% if session.role in ['Admin', 'Production Staff'] %}
-                <hr>
-                <form method="POST" action="{{ url_for('workorder_routes.update_workorder_status', id=workorder.id) }}" class="row g-2 align-items-end">
-                    <div class="col-auto">
-                        <label class="form-label small text-muted">Update Status</label>
-                        <select class="form-select form-select-sm" name="status">
-                            <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
-                            <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
-                            <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-                            <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-sm btn-primary">Update</button>
-                    </div>
-                </form>
-                {% endif %}
             </div>
-        </div>
-    </div>
-
-    <div class="tab-pane fade" id="customerPane" role="tabpanel">
-        <div class="card">
-            <div class="card-body">
-                {% if workorder.customer_id %}
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Customer:</strong> 
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-header bg-white py-2">
+                        <h6 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2"></i>Customer Information</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if workorder.customer_id %}
+                        <p class="mb-2"><strong>Customer:</strong><br>
                             <a href="{{ url_for('customer_routes.view_customer', id=workorder.customer_id) }}">
                                 {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
                             </a>
                         </p>
-                        {% if workorder.customer_email %}<p><strong>Email:</strong> {{ workorder.customer_email }}</p>{% endif %}
-                        {% if workorder.customer_phone %}<p><strong>Phone:</strong> {{ workorder.customer_phone }}</p>{% endif %}
-                    </div>
-                    <div class="col-md-6">
+                        {% if workorder.customer_email %}<p class="mb-2"><i class="bi bi-envelope me-1 text-muted"></i> {{ workorder.customer_email }}</p>{% endif %}
+                        {% if workorder.customer_phone %}<p class="mb-2"><i class="bi bi-telephone me-1 text-muted"></i> {{ workorder.customer_phone }}</p>{% endif %}
                         {% if workorder.so_id %}
-                        <p><strong>Sales Order:</strong> <a href="{{ url_for('salesorder_routes.view_salesorder', id=workorder.so_id) }}">View SO</a></p>
+                        <p class="mb-2"><strong>Sales Order:</strong> <a href="{{ url_for('salesorder_routes.view_salesorder', id=workorder.so_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-text"></i> View SO</a></p>
+                        {% endif %}
+                        {% elif workorder.customer_name %}
+                        <p class="mb-2"><strong>Customer:</strong> {{ workorder.customer_name }}</p>
+                        {% else %}
+                        <p class="text-muted mb-0">No customer assigned</p>
                         {% endif %}
                         {% if workorder.notes %}
-                        <p><strong>Notes:</strong> {{ workorder.notes }}</p>
+                        <hr class="my-2">
+                        <p class="mb-0 small"><strong>Notes:</strong><br>{{ workorder.notes }}</p>
                         {% endif %}
                     </div>
                 </div>
-                {% elif workorder.customer_name %}
-                <p><strong>Customer:</strong> {{ workorder.customer_name }}</p>
-                {% else %}
-                <p class="text-muted">No customer assigned</p>
-                {% endif %}
             </div>
         </div>
     </div>
