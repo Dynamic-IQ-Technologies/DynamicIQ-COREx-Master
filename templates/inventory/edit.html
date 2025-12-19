@@ -18,7 +18,7 @@
         
         <form method="POST">
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="quantity" class="form-label">Quantity *</label>
                         <input type="number" step="0.01" class="form-control" id="quantity" name="quantity" 
@@ -26,14 +26,25 @@
                         <small class="text-muted">Current: {{ '%.2f'|format(inventory.quantity) }}</small>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="unit_cost" class="form-label">Unit Cost</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" class="form-control" id="unit_cost" name="unit_cost" 
+                                   value="{{ '%.2f'|format(inventory.unit_cost or inventory.display_unit_cost or 0) }}" min="0">
+                        </div>
+                        <small class="text-muted">Total Value: <span id="total_value">{{ (inventory.quantity * (inventory.unit_cost or inventory.display_unit_cost or 0))|currency }}</span></small>
+                    </div>
+                </div>
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="reorder_point" class="form-label">Reorder Point *</label>
                         <input type="number" step="0.01" class="form-control" id="reorder_point" name="reorder_point" 
                                value="{{ '%.2f'|format(inventory.reorder_point) }}" required min="0">
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="safety_stock" class="form-label">Safety Stock *</label>
                         <input type="number" step="0.01" class="form-control" id="safety_stock" name="safety_stock" 
@@ -240,6 +251,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     isSerializedCheckbox.addEventListener('change', updateSerialNumberField);
     updateSerialNumberField();
+    
+    const quantityInput = document.getElementById('quantity');
+    const unitCostInput = document.getElementById('unit_cost');
+    const totalValueSpan = document.getElementById('total_value');
+    
+    function updateTotalValue() {
+        const qty = parseFloat(quantityInput.value) || 0;
+        const cost = parseFloat(unitCostInput.value) || 0;
+        const total = qty * cost;
+        totalValueSpan.textContent = '$ ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    
+    quantityInput.addEventListener('input', updateTotalValue);
+    unitCostInput.addEventListener('input', updateTotalValue);
 });
 </script>
 {% endblock %}

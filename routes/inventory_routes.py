@@ -251,6 +251,8 @@ def edit_inventory(id):
                 quantity = float(request.form.get('quantity', 0))
                 reorder_point = float(request.form.get('reorder_point', 0))
                 safety_stock = float(request.form.get('safety_stock', 0))
+                unit_cost_str = request.form.get('unit_cost', '').strip()
+                unit_cost = float(unit_cost_str) if unit_cost_str else None
             except (ValueError, TypeError):
                 flash('Invalid numeric value provided', 'danger')
                 conn.close()
@@ -363,6 +365,7 @@ def edit_inventory(id):
                 SET quantity=?, 
                     reorder_point=?, 
                     safety_stock=?, 
+                    unit_cost=?,
                     warehouse_location=?,
                     bin_location=?,
                     condition=?,
@@ -382,7 +385,7 @@ def edit_inventory(id):
                     lot_number=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
-            ''', (quantity, reorder_point, safety_stock, warehouse_location, bin_location, 
+            ''', (quantity, reorder_point, safety_stock, unit_cost, warehouse_location, bin_location, 
                   condition, status, is_serialized, serial_number if serial_number else None,
                   expiration_date, last_inspection_date, next_inspection_date,
                   inspected_by, inspection_notes, trace_tag, trace, trace_type,

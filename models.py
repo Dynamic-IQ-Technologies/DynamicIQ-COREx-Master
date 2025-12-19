@@ -418,6 +418,7 @@ class Database:
             ('last_received_date', 'DATE'),
             ('is_serialized', 'INTEGER DEFAULT 0'),
             ('serial_number', 'TEXT'),
+            ('unit_cost', 'REAL DEFAULT 0'),
             ('expiration_date', 'DATE'),
             ('last_inspection_date', 'DATE'),
             ('next_inspection_date', 'DATE'),
