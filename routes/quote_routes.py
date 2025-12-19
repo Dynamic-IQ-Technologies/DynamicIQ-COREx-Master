@@ -229,11 +229,20 @@ def generate_quote(wo_id):
     # Combine both material lists
     materials = list(wo_materials) + list(task_materials)
     
+    # Get task discrepancies
+    task_discrepancies = conn.execute('''
+        SELECT task_number, task_name, discrepancies, corrective_actions
+        FROM work_order_tasks
+        WHERE work_order_id = ? AND discrepancies IS NOT NULL AND discrepancies != ''
+        ORDER BY sequence_number, id
+    ''', (wo_id,)).fetchall()
+    
     conn.close()
     
     return render_template('quotes/generate.html', 
                          work_order=work_order, 
-                         materials=materials)
+                         materials=materials,
+                         task_discrepancies=task_discrepancies)
 
 @quote_bp.route('/quotes/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
