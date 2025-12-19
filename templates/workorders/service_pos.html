@@ -71,7 +71,7 @@
                     {% for po in service_pos %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('purchase_order_routes.view_purchase_order', id=po.id) }}">
+                            <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}">
                                 {{ po.po_number }}
                             </a>
                         </td>
@@ -94,7 +94,7 @@
                         </td>
                         <td class="text-end">{{ po.total_amount|currency }}</td>
                         <td>
-                            <a href="{{ url_for('purchase_order_routes.view_purchase_order', id=po.id) }}" 
+                            <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" 
                                class="btn btn-sm btn-outline-primary" title="View PO">
                                 <i class="bi bi-eye"></i>
                             </a>
