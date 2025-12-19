@@ -1023,7 +1023,8 @@ def invoices_list():
         total_amount=total_amount,
         total_paid=total_paid,
         total_outstanding=total_outstanding,
-        overdue_count=overdue_count
+        overdue_count=overdue_count,
+        today=date.today().isoformat()
     )
 
 
@@ -1163,7 +1164,8 @@ def invoice_new():
         invoice=None,
         customers=customers,
         ndt_work_orders=ndt_work_orders,
-        ndt_methods=NDT_METHODS
+        ndt_methods=NDT_METHODS,
+        today=date.today().isoformat()
     )
 
 
