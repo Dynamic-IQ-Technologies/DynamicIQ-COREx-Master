@@ -150,6 +150,14 @@ def view_inventory(id):
         ORDER BY wo.actual_end_date DESC
     ''', (id,)).fetchall()
     
+    # Get audit trail for this inventory record
+    audit_trail = conn.execute('''
+        SELECT * FROM audit_trail
+        WHERE record_type = 'inventory' AND record_id = ?
+        ORDER BY modified_at DESC
+        LIMIT 50
+    ''', (str(id),)).fetchall()
+    
     conn.close()
     
     return render_template('inventory/view.html', 
@@ -159,7 +167,8 @@ def view_inventory(id):
                           material_returns=material_returns,
                           sales_allocations=sales_allocations,
                           adjustments=adjustments,
-                          wo_turnins=wo_turnins)
+                          wo_turnins=wo_turnins,
+                          audit_trail=audit_trail)
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')

@@ -437,6 +437,11 @@
                     <i class="bi bi-gear-fill me-1"></i> WO Turn-ins ({{ wo_turnins|length }})
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="audit-trail-tab" data-bs-toggle="tab" data-bs-target="#audit-trail" type="button">
+                    <i class="bi bi-journal-text me-1"></i> Audit Trail ({{ audit_trail|length }})
+                </button>
+            </li>
         </ul>
         <div class="tab-content pt-3" id="transactionTabContent">
             <div class="tab-pane fade show active" id="receiving" role="tabpanel">
@@ -627,6 +632,81 @@
                 </div>
                 {% else %}
                 <p class="text-muted text-center py-3">No work order turn-ins found for this inventory.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="audit-trail" role="tabpanel">
+                {% if audit_trail %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Action</th>
+                                <th>Modified By</th>
+                                <th>Changes</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in audit_trail %}
+                            <tr>
+                                <td>
+                                    {% if entry.modified_at %}
+                                    {{ entry.modified_at|format_date }}
+                                    <small class="text-muted d-block">
+                                        {% set time_parts = entry.modified_at.split(' ') %}
+                                        {% if time_parts|length > 1 %}
+                                        {{ time_parts[1] }}
+                                        {% endif %}
+                                    </small>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.action_type == 'CREATE' %}
+                                    <span class="badge bg-success"><i class="bi bi-plus-circle me-1"></i>Created</span>
+                                    {% elif entry.action_type == 'UPDATE' %}
+                                    <span class="badge bg-primary"><i class="bi bi-pencil me-1"></i>Updated</span>
+                                    {% elif entry.action_type == 'DELETE' %}
+                                    <span class="badge bg-danger"><i class="bi bi-trash me-1"></i>Deleted</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ entry.action_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <i class="bi bi-person me-1"></i>{{ entry.modified_by_name or 'System' }}
+                                </td>
+                                <td>
+                                    {% if entry.changed_fields %}
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#changes-{{ entry.id }}"
+                                            aria-expanded="false">
+                                        <i class="bi bi-eye me-1"></i>View Changes
+                                    </button>
+                                    <div class="collapse mt-2" id="changes-{{ entry.id }}">
+                                        <div class="card card-body small bg-light">
+                                            <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.75rem;">{{ entry.changed_fields }}</pre>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ entry.ip_address or '-' }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-journal-text display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No audit trail entries found for this inventory record.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
