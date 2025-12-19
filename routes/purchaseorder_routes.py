@@ -1,8 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session, jsonify
 from models import Database, CompanySettings, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime
+from utils.uom_conversion import (
+    validate_po_line_conversion, check_conversion_defined, 
+    VarianceType, ConversionResult, get_product_uom_options
+)
+import json
 
 po_bp = Blueprint('po_routes', __name__)
 
@@ -411,6 +416,38 @@ def view_purchaseorder(id):
     else:
         total = sum((line['extended_cost'] or (line['quantity'] * (line['unit_price'] or 0))) for line in lines)
     
+    # Validate UoM conversions for each line and build variance status
+    line_validations = {}
+    overall_variance_ok = True
+    variance_warnings = []
+    
+    for line in lines:
+        if line['product_id'] and line['uom_id']:
+            result = validate_po_line_conversion(
+                line['product_id'], 
+                line['quantity'] or 0, 
+                line['uom_id'], 
+                line['unit_price'] or 0,
+                conn,
+                po_line_id=line['id']
+            )
+            line_validations[line['id']] = {
+                'success': result.success,
+                'variance_type': result.variance_type,
+                'variance_blocked': result.variance_blocked,
+                'error_message': result.error_message
+            }
+            if not result.success or result.variance_blocked:
+                overall_variance_ok = False
+                variance_warnings.append(f"Line {line['line_number']}: {result.error_message or result.variance_type}")
+        else:
+            line_validations[line['id']] = {
+                'success': True,
+                'variance_type': 'NONE',
+                'variance_blocked': False,
+                'error_message': None
+            }
+    
     conn.close()
     
     # Get current date for overdue badge and modal
@@ -420,7 +457,9 @@ def view_purchaseorder(id):
     
     return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records, 
                           today=today, now=now, total=total, source_sales_order=source_sales_order, 
-                          exchange_owner=exchange_owner, service_lines=service_lines)
+                          exchange_owner=exchange_owner, service_lines=service_lines,
+                          line_validations=line_validations, overall_variance_ok=overall_variance_ok,
+                          variance_warnings=variance_warnings)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
@@ -986,6 +1025,78 @@ def api_calculate_conversion():
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+@po_bp.route('/api/validate-po-line-conversion', methods=['POST'])
+@login_required
+def api_validate_po_line_conversion():
+    """
+    API endpoint to validate PO line conversion with variance detection.
+    Implements the UoM Conversion & Variance Control Engine.
+    """
+    data = request.get_json()
+    product_id = data.get('product_id')
+    uom_id = data.get('uom_id')
+    quantity = data.get('quantity', 0)
+    unit_price = data.get('unit_price', 0)
+    
+    if not product_id or not uom_id:
+        return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+    
+    try:
+        quantity = float(quantity)
+        unit_price = float(unit_price)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid quantity or unit price'}), 400
+    
+    # Use the variance control engine
+    result = validate_po_line_conversion(product_id, quantity, uom_id, unit_price)
+    
+    if not result.success:
+        return jsonify({
+            'success': False,
+            'error': result.error_message,
+            'variance_blocked': result.variance_blocked,
+            'variance_type': result.variance_type
+        }), 400
+    
+    return jsonify({
+        'success': True,
+        'original_quantity': float(result.original_quantity) if result.original_quantity else 0,
+        'original_uom_code': result.original_uom_code,
+        'base_quantity': float(result.converted_quantity) if result.converted_quantity else 0,
+        'base_uom_code': result.target_uom_code,
+        'conversion_factor': float(result.conversion_factor) if result.conversion_factor else 1,
+        'extended_cost': float(result.extended_cost) if result.extended_cost else 0,
+        'normalized_unit_cost': float(result.normalized_unit_cost) if result.normalized_unit_cost else 0,
+        'variance_type': result.variance_type,
+        'variance_amount': float(result.variance_amount) if result.variance_amount else 0,
+        'variance_blocked': result.variance_blocked,
+        'rounding_adjustment': float(result.rounding_adjustment) if result.rounding_adjustment else 0
+    })
+
+
+@po_bp.route('/api/check-conversion-defined', methods=['POST'])
+@login_required
+def api_check_conversion_defined():
+    """
+    API endpoint to check if a valid UoM conversion is defined for a product.
+    Used to block PO line creation with undefined conversions.
+    """
+    data = request.get_json()
+    product_id = data.get('product_id')
+    uom_id = data.get('uom_id')
+    
+    if not product_id or not uom_id:
+        return jsonify({'defined': False, 'error': 'Missing required parameters'}), 400
+    
+    is_defined, factor, error = check_conversion_defined(product_id, uom_id)
+    
+    return jsonify({
+        'defined': is_defined,
+        'conversion_factor': float(factor) if factor else None,
+        'error': error
+    })
+
 
 @po_bp.route('/api/quick-add-product', methods=['POST'])
 @role_required('Admin', 'Procurement', 'Planner')

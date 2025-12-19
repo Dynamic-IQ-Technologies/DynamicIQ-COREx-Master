@@ -457,6 +457,132 @@
 </div>
 {% endif %}
 
+<!-- UoM Conversion Audit Trail Section -->
+{% if lines and lines|length > 0 %}
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="bi bi-arrow-left-right text-info"></i> UoM Conversion & Variance Control
+            {% if overall_variance_ok %}
+            <span class="badge bg-success ms-2">Zero Variance</span>
+            {% else %}
+            <span class="badge bg-warning ms-2">Variance Detected</span>
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if variance_warnings and variance_warnings|length > 0 %}
+        <div class="alert alert-warning mb-3">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Conversion Warnings</h6>
+            <ul class="mb-0 small">
+                {% for warning in variance_warnings %}
+                <li>{{ warning }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="border rounded p-3 bg-light">
+                    <h6 class="text-muted mb-2"><i class="bi bi-info-circle"></i> Conversion Rules Applied</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><i class="bi bi-check-circle text-success"></i> All quantities converted to base inventory UoM</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Extended cost preserved as invariant</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Base unit cost normalized from extended</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Conversion factors from product-specific tables</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="border rounded p-3 bg-light">
+                    <h6 class="text-muted mb-2"><i class="bi bi-shield-check"></i> Variance Prevention Status</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        {% if overall_variance_ok %}
+                        <li><i class="bi bi-check-circle text-success"></i> No cost variance from UoM conversion</li>
+                        <li><i class="bi bi-check-circle text-success"></i> No quantity-to-receive mismatch</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Receipt/Invoice matching aligned</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Audit trail fully traceable</li>
+                        {% else %}
+                        <li><i class="bi bi-exclamation-triangle text-warning"></i> Variance detected - review required</li>
+                        <li><i class="bi bi-info-circle text-info"></i> Check line-level status below</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-table"></i> Line Conversion Details</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Line</th>
+                        <th>Product</th>
+                        <th>Order UoM</th>
+                        <th>Order Qty</th>
+                        <th>Factor</th>
+                        <th>Base UoM</th>
+                        <th>Base Qty</th>
+                        <th>Unit Price (Order)</th>
+                        <th>Unit Cost (Base)</th>
+                        <th>Extended Cost</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr>
+                        <td>{{ line.line_number }}</td>
+                        <td><small>{{ line.product_code }}</small></td>
+                        <td><span class="badge bg-secondary">{{ line.uom_code or line.unit_of_measure }}</span></td>
+                        <td>{{ "%.2f"|format(line.quantity) if line.quantity != (line.quantity|int) else line.quantity|int }}</td>
+                        <td>
+                            {% if line.conversion_factor_used and line.conversion_factor_used != 1 %}
+                            <span class="text-info">{{ "%.4f"|format(line.conversion_factor_used) }}</span>
+                            {% else %}
+                            <span class="text-muted">1.0</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-primary">{{ line.base_uom_code or line.unit_of_measure }}</span></td>
+                        <td class="fw-bold">{{ "%.2f"|format(line.base_quantity or line.quantity) if (line.base_quantity or line.quantity) != ((line.base_quantity or line.quantity)|int) else (line.base_quantity or line.quantity)|int }}</td>
+                        <td>{{ (line.unit_price or 0)|currency }}</td>
+                        <td>
+                            {% if line.base_unit_price %}
+                            <span class="text-success">{{ line.base_unit_price|currency }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ (line.extended_cost or (line.quantity * line.unit_price))|currency }}</td>
+                        <td>
+                            {% if line_validations and line.id in line_validations %}
+                                {% set lv = line_validations[line.id] %}
+                                {% if lv.success and not lv.variance_blocked %}
+                                <span class="badge bg-success"><i class="bi bi-check"></i> OK</span>
+                                {% elif lv.variance_type == 'ROUNDING' %}
+                                <span class="badge bg-info" title="Minor rounding adjustment"><i class="bi bi-info-circle"></i> Rounded</span>
+                                {% else %}
+                                <span class="badge bg-warning" title="{{ lv.error_message or lv.variance_type }}"><i class="bi bi-exclamation-triangle"></i> Warning</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i> OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3 small text-muted">
+            <i class="bi bi-info-circle"></i> 
+            <strong>Formula:</strong> Base Qty = Order Qty × Conversion Factor | 
+            Base Unit Cost = Extended Cost ÷ Base Qty
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if po.notes %}
 <div class="card mb-4">
     <div class="card-header">
