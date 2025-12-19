@@ -3711,6 +3711,11 @@ class AuditLogger:
     """Helper class for automatic audit trail logging"""
     
     @staticmethod
+    def log(conn, record_type, record_id, action_type, modified_by, changed_fields=None, ip_address=None, user_agent=None):
+        """Alias for log_change for backward compatibility"""
+        return AuditLogger.log_change(conn, record_type, record_id, action_type, modified_by, changed_fields, ip_address, user_agent)
+    
+    @staticmethod
     def log_change(conn, record_type, record_id, action_type, modified_by, changed_fields=None, ip_address=None, user_agent=None):
         """
         Log a change to the audit trail.
