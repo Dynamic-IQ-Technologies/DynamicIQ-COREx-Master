@@ -206,14 +206,28 @@ def generate_quote(wo_id):
         conn.close()
         return redirect(url_for('workorder_routes.list_workorders'))
     
-    # Get material requirements for the work order
-    materials = conn.execute('''
-        SELECT mr.*, p.code, p.name, p.cost
+    # Get work order level material requirements
+    wo_materials = conn.execute('''
+        SELECT mr.required_quantity, p.code, p.name, p.cost
         FROM material_requirements mr
         JOIN products p ON mr.product_id = p.id
         WHERE mr.work_order_id = ?
         ORDER BY p.code
     ''', (wo_id,)).fetchall()
+    
+    # Get task level materials
+    task_materials = conn.execute('''
+        SELECT tm.required_qty as required_quantity, p.code, p.name, p.cost,
+               wot.task_number, wot.task_name
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        JOIN products p ON tm.product_id = p.id
+        WHERE wot.work_order_id = ?
+        ORDER BY wot.sequence_number, p.code
+    ''', (wo_id,)).fetchall()
+    
+    # Combine both material lists
+    materials = list(wo_materials) + list(task_materials)
     
     conn.close()
     
