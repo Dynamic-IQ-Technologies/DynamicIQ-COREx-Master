@@ -39,16 +39,31 @@
                 </div>
             </div>
             
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i>
-                <strong>Note:</strong> Conversion Factor and Base UOM cannot be modified after creation to prevent accounting discrepancies. 
-                Current values: 
-                <strong>Factor: {{ "%.6f"|format(uom.conversion_factor) }}</strong>
-                {% if uom.base_uom_id %}
-                | <strong>Base UOM: {{ uom.base_uom_id }}</strong>
-                {% else %}
-                | <strong>This is a base unit</strong>
-                {% endif %}
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="conversion_factor" class="form-label">Conversion Factor *</label>
+                    <input type="number" class="form-control" id="conversion_factor" name="conversion_factor" 
+                           value="{{ uom.conversion_factor }}" step="0.000001" min="0.000001" required>
+                    <small class="text-muted">Factor to convert to base UOM (e.g., 12 for dozen to each)</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="base_uom_id" class="form-label">Base UOM</label>
+                    <select class="form-select" id="base_uom_id" name="base_uom_id">
+                        <option value="">None (This is a base unit)</option>
+                        {% for base in base_uoms %}
+                        <option value="{{ base.id }}" {% if uom.base_uom_id == base.id %}selected{% endif %}>
+                            {{ base.uom_code }} - {{ base.uom_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">The base unit this converts to</small>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Warning:</strong> Changing the conversion factor may affect existing purchase orders, inventory valuations, and cost calculations. 
+                Please verify all related transactions after making changes.
             </div>
             
             <div class="mb-3">

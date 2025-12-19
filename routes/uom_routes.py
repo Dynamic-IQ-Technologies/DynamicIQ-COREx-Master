@@ -173,16 +173,39 @@ def edit_uom(id):
             uom_name = request.form['uom_name'].strip()
             uom_type = request.form.get('uom_type', '').strip()
             rounding_precision = int(request.form.get('rounding_precision', 2))
+            conversion_factor = float(request.form.get('conversion_factor', 1.0))
+            base_uom_id = request.form.get('base_uom_id') or None
             description = request.form.get('description', '').strip()
             
-            # Note: conversion_factor and base_uom_id are immutable after creation to prevent accounting issues
+            # Validate conversion factor
+            if conversion_factor <= 0:
+                flash('Conversion factor must be greater than zero.', 'danger')
+                conn.close()
+                return redirect(url_for('uom_routes.edit_uom', id=id))
             
+            # Update unit_of_measure table
             conn.execute('''
                 UPDATE unit_of_measure 
-                SET uom_name = ?, uom_type = ?, rounding_precision = ?, description = ?, 
-                    modified_by = ?, modified_at = CURRENT_TIMESTAMP
+                SET uom_name = ?, uom_type = ?, rounding_precision = ?, conversion_factor = ?, 
+                    base_uom_id = ?, description = ?, modified_by = ?, modified_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            ''', (uom_name, uom_type, rounding_precision, description, session.get('user_id'), id))
+            ''', (uom_name, uom_type, rounding_precision, conversion_factor, base_uom_id, description, session.get('user_id'), id))
+            
+            # Also update uom_master for sync
+            uom_master_base_id = None
+            if base_uom_id:
+                base_uom = conn.execute('SELECT uom_code FROM unit_of_measure WHERE id = ?', (base_uom_id,)).fetchone()
+                if base_uom:
+                    master_base = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (base_uom['uom_code'],)).fetchone()
+                    if master_base:
+                        uom_master_base_id = master_base['id']
+            
+            conn.execute('''
+                UPDATE uom_master 
+                SET uom_name = ?, uom_type = ?, rounding_precision = ?, conversion_factor = ?, 
+                    base_uom_id = ?, description = ?, modified_by = ?, modified_at = CURRENT_TIMESTAMP
+                WHERE uom_code = ?
+            ''', (uom_name, uom_type, rounding_precision, conversion_factor, uom_master_base_id, description, session.get('user_id'), uom['uom_code']))
             
             conn.commit()
             conn.close()
