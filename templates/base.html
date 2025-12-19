@@ -698,6 +698,12 @@
         </div>
         <ul class="sidebar-nav collapsible-content" id="operations-content">
             <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('operations_routes.operations_dashboard') }}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Operations Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('workorder_routes.list_workorders') }}">
                     <i class="bi bi-clipboard-check"></i>
                     <span>Work Orders</span>

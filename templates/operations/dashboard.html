@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}Operations Dashboard - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-speedometer2 me-2"></i>Operations Dashboard</h2>
+        <p class="text-muted mb-0">Real-time visibility into work order stages, progress, TAT, and capacity</p>
+    </div>
+    <div>
+        <span class="badge bg-dark fs-6"><i class="bi bi-calendar3 me-1"></i> {{ today }}</span>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Total Active WOs</h6>
+                        <h2 class="mb-0 fw-bold">{{ wo_overview.active or 0 }}</h2>
+                    </div>
+                    <i class="bi bi-clipboard-data fs-2 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-white-50 mb-1">In Progress</h6>
+                        <h2 class="mb-0 fw-bold">{{ wo_overview.in_progress or 0 }}</h2>
+                    </div>
+                    <i class="bi bi-gear-wide-connected fs-2 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Overdue</h6>
+                        <h2 class="mb-0 fw-bold">{{ tat_metrics.overdue_count or 0 }}</h2>
+                    </div>
+                    <i class="bi bi-exclamation-triangle fs-2 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Due This Week</h6>
+                        <h2 class="mb-0 fw-bold">{{ tat_metrics.due_this_week or 0 }}</h2>
+                    </div>
+                    <i class="bi bi-calendar-week fs-2 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-white-50 mb-1">OTD Rate</h6>
+                        <h2 class="mb-0 fw-bold">{{ otd_rate }}%</h2>
+                    </div>
+                    <i class="bi bi-check-circle fs-2 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Material Shortages</h6>
+                        <h2 class="mb-0 fw-bold">{{ material_shortage.wo_with_shortage or 0 }}</h2>
+                    </div>
+                    <i class="bi bi-box-seam fs-2 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-layers me-2"></i>Work Order Stage Load</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for stage in stage_load %}
+            <div class="col-md-2">
+                <div class="card h-100" style="border-left: 4px solid {{ stage.color or '#6c757d' }};">
+                    <div class="card-body py-3">
+                        <h6 class="text-muted mb-2 small">{{ stage.stage_name }}</h6>
+                        <h3 class="mb-1 fw-bold">{{ stage.wo_count or 0 }}</h3>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span><i class="bi bi-play-circle"></i> {{ stage.in_progress_count or 0 }} active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <p class="text-muted mb-0">No stages configured. <a href="{{ url_for('workorder_routes.manage_stages') }}">Configure stages</a></p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i>ETC - Work Orders by Remaining Time</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Product</th>
+                                <th>Stage</th>
+                                <th>Status</th>
+                                <th>Due Date</th>
+                                <th>Days Left</th>
+                                <th>Remaining Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wo in etc_data %}
+                            <tr>
+                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold">{{ wo.wo_number }}</a></td>
+                                <td><small>{{ wo.product_code }} - {{ wo.product_name[:25] }}{% if wo.product_name|length > 25 %}...{% endif %}</small></td>
+                                <td>
+                                    {% if wo.stage_name %}
+                                    <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }}">{{ wo.stage_name }}</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-{% if wo.status == 'In Progress' %}warning{% elif wo.status == 'Released' %}info{% else %}secondary{% endif %}">{{ wo.status }}</span></td>
+                                <td>{{ wo.planned_end_date or 'Not set' }}</td>
+                                <td>
+                                    {% if wo.days_remaining is not none %}
+                                        {% if wo.days_remaining < 0 %}
+                                        <span class="badge bg-danger">{{ wo.days_remaining|int|abs }} days overdue</span>
+                                        {% elif wo.days_remaining <= 3 %}
+                                        <span class="badge bg-warning text-dark">{{ wo.days_remaining|int }} days</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ wo.days_remaining|int }} days</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-semibold">{{ wo.remaining_hours|round(1) }}h</span>
+                                    <small class="text-muted">/ {{ wo.total_planned_hours|round(1) }}h</small>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">No active work orders</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-stopwatch me-2"></i>TAT Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="mb-1 fw-bold text-primary">{{ (tat_metrics.avg_tat_days or 0)|round(1) }}</h3>
+                            <small class="text-muted">Avg TAT (Days)</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="mb-1 fw-bold text-info">{{ (tat_metrics.avg_planned_tat or 0)|round(1) }}</h3>
+                            <small class="text-muted">Avg Planned TAT</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-list-task me-2"></i>Task Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Overall Completion</span>
+                    <span class="fw-bold">{{ task_completion_pct }}%</span>
+                </div>
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ task_completion_pct }}%"></div>
+                </div>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h5 class="mb-0 fw-bold">{{ task_progress.completed_tasks or 0 }}</h5>
+                        <small class="text-muted">Completed</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 class="mb-0 fw-bold text-warning">{{ task_progress.in_progress_tasks or 0 }}</h5>
+                        <small class="text-muted">In Progress</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 class="mb-0 fw-bold">{{ task_progress.total_tasks or 0 }}</h5>
+                        <small class="text-muted">Total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-pie-chart me-2"></i>By Disposition</h5>
+            </div>
+            <div class="card-body">
+                {% for item in disposition_breakdown %}
+                <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                    <span>{{ item.disposition or 'Not Set' }}</span>
+                    <div>
+                        <span class="badge bg-primary me-1">{{ item.count }} total</span>
+                        <span class="badge bg-success">{{ item.completed }} done</span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No data available</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-diagram-3 me-2"></i>By Category</h5>
+            </div>
+            <div class="card-body">
+                {% for item in category_breakdown %}
+                <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                    <span>{{ item.category }}</span>
+                    <div>
+                        <span class="badge bg-secondary me-1">{{ item.count }} total</span>
+                        <span class="badge bg-warning text-dark">{{ item.active }} active</span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No data available</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-building me-2"></i>By WO Type</h5>
+            </div>
+            <div class="card-body">
+                {% for item in type_breakdown %}
+                <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                    <span>{{ item.wo_type }}</span>
+                    <div>
+                        <span class="badge bg-dark me-1">{{ item.count }} total</span>
+                        <span class="badge bg-info">{{ item.active }} active</span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No data available</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-graph-up me-2"></i>Monthly WO Trend</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="woTrendChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-semibold"><i class="bi bi-people me-2"></i>Labor Utilization</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Resource</th>
+                                <th>Assigned Tasks</th>
+                                <th>Total Hours</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for labor in labor_utilization %}
+                            <tr>
+                                <td>
+                                    <strong>{{ labor.name }}</strong>
+                                    <br><small class="text-muted">{{ labor.employee_id }}</small>
+                                </td>
+                                <td>{{ labor.assigned_tasks }}</td>
+                                <td>{{ labor.total_hours|round(1) }}h</td>
+                                <td>
+                                    {% if labor.currently_clocked > 0 %}
+                                    <span class="badge bg-success"><i class="bi bi-clock"></i> Clocked In</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Available</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">No labor resources configured</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const trendData = {{ monthly_wo_trend|tojson|safe }};
+const labels = trendData.map(d => d.month);
+const createdData = trendData.map(d => d.created);
+const completedData = trendData.map(d => d.completed);
+
+new Chart(document.getElementById('woTrendChart'), {
+    type: 'bar',
+    data: {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Created',
+                data: createdData,
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderColor: 'rgb(59, 130, 246)',
+                borderWidth: 1
+            },
+            {
+                label: 'Completed',
+                data: completedData,
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                borderColor: 'rgb(16, 185, 129)',
+                borderWidth: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
