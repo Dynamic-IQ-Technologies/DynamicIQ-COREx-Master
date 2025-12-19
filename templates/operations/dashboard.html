@@ -124,38 +124,81 @@
     
     .stage-pipeline {
         display: flex;
-        gap: 0.75rem;
+        gap: 1rem;
         flex-wrap: wrap;
         padding: 0.5rem 0;
     }
     .stage-card {
         flex: 1;
-        min-width: 120px;
-        max-width: 180px;
-        background: #f8fafc;
-        border-radius: 8px;
+        min-width: 160px;
+        max-width: 200px;
+        background: #fff;
+        border-radius: 10px;
         padding: 1rem;
-        text-align: center;
-        border-top: 3px solid;
-        transition: transform 0.2s;
+        border-top: 4px solid;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        transition: transform 0.2s, box-shadow 0.2s;
     }
     .stage-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+    .stage-card .stage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
     }
     .stage-card .stage-count {
-        font-size: 1.75rem;
+        font-size: 2rem;
         font-weight: 700;
         color: #1e293b;
+        line-height: 1;
     }
     .stage-card .stage-name {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
+        font-weight: 600;
         color: #64748b;
-        margin-top: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     .stage-card .stage-active {
         font-size: 0.7rem;
         color: #10b981;
         margin-top: 0.25rem;
+    }
+    .stage-card .stage-kpis {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    .stage-card .stage-kpi {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.7rem;
+    }
+    .stage-card .stage-kpi .kpi-label {
+        color: #94a3b8;
+    }
+    .stage-card .stage-kpi .kpi-val {
+        font-weight: 600;
+        color: #334155;
+    }
+    .stage-card .capacity-bar {
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    .stage-card .capacity-bar .capacity-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.3s;
     }
     
     .metric-box {
@@ -318,9 +361,34 @@
             <div class="stage-pipeline">
                 {% for stage in stage_load %}
                 <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};">
-                    <div class="stage-count">{{ stage.wo_count or 0 }}</div>
-                    <div class="stage-name">{{ stage.stage_name }}</div>
-                    <div class="stage-active"><i class="bi bi-play-circle"></i> {{ stage.in_progress_count or 0 }} active</div>
+                    <div class="stage-header">
+                        <div>
+                            <div class="stage-count">{{ stage.wo_count or 0 }}</div>
+                            <div class="stage-name">{{ stage.stage_name }}</div>
+                        </div>
+                        <span class="badge bg-success" style="font-size: 0.65rem;">{{ stage.in_progress_count or 0 }} active</span>
+                    </div>
+                    <div class="stage-kpis">
+                        <div class="stage-kpi">
+                            <span class="kpi-label"><i class="bi bi-clock me-1"></i>Avg TAT</span>
+                            <span class="kpi-val">{{ stage.avg_tat_days }}d</span>
+                        </div>
+                        <div class="stage-kpi">
+                            <span class="kpi-label"><i class="bi bi-hourglass-split me-1"></i>Planned Hrs</span>
+                            <span class="kpi-val">{{ stage.total_planned_hours }}h</span>
+                        </div>
+                        <div class="stage-kpi">
+                            <span class="kpi-label"><i class="bi bi-people me-1"></i>Resources</span>
+                            <span class="kpi-val">{{ stage.assigned_resources }}</span>
+                        </div>
+                        <div class="stage-kpi">
+                            <span class="kpi-label"><i class="bi bi-speedometer me-1"></i>Capacity</span>
+                            <span class="kpi-val">{{ stage.capacity_pct }}%</span>
+                        </div>
+                        <div class="capacity-bar">
+                            <div class="capacity-fill" style="width: {{ stage.capacity_pct }}%; background: {% if stage.capacity_pct >= 80 %}#ef4444{% elif stage.capacity_pct >= 50 %}#f59e0b{% else %}#10b981{% endif %};"></div>
+                        </div>
+                    </div>
                 </div>
                 {% else %}
                 <div class="text-muted">No stages configured. <a href="{{ url_for('workorder_routes.manage_stages') }}">Configure stages</a></div>

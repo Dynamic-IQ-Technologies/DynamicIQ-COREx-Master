@@ -26,7 +26,7 @@ def operations_dashboard():
         FROM work_orders
     ''').fetchone()
     
-    stage_load = conn.execute('''
+    stage_load_raw = conn.execute('''
         SELECT 
             wos.id,
             wos.name as stage_name,
@@ -34,13 +34,54 @@ def operations_dashboard():
             wos.sequence,
             COUNT(wo.id) as wo_count,
             SUM(CASE WHEN wo.status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
-            COALESCE(SUM(wo.quantity), 0) as total_qty
+            COALESCE(SUM(wo.quantity), 0) as total_qty,
+            COALESCE(AVG(
+                CASE WHEN wo.actual_end_date IS NOT NULL AND wo.created_at IS NOT NULL 
+                THEN julianday(wo.actual_end_date) - julianday(date(wo.created_at))
+                ELSE NULL END
+            ), 0) as avg_tat_days,
+            COALESCE((
+                SELECT SUM(wot.planned_hours)
+                FROM work_order_tasks wot
+                WHERE wot.work_order_id IN (
+                    SELECT wo2.id FROM work_orders wo2 
+                    WHERE wo2.stage_id = wos.id 
+                    AND wo2.status NOT IN ('Completed', 'Cancelled')
+                )
+            ), 0) as total_planned_hours,
+            COALESCE((
+                SELECT COUNT(DISTINCT wot.assigned_resource_id)
+                FROM work_order_tasks wot
+                WHERE wot.work_order_id IN (
+                    SELECT wo2.id FROM work_orders wo2 
+                    WHERE wo2.stage_id = wos.id 
+                    AND wo2.status NOT IN ('Completed', 'Cancelled')
+                )
+                AND wot.assigned_resource_id IS NOT NULL
+            ), 0) as assigned_resources
         FROM work_order_stages wos
         LEFT JOIN work_orders wo ON wos.id = wo.stage_id AND wo.status NOT IN ('Completed', 'Cancelled')
         WHERE wos.is_active = 1
         GROUP BY wos.id, wos.name, wos.color, wos.sequence
         ORDER BY wos.sequence
     ''').fetchall()
+    
+    total_resources = conn.execute('SELECT COUNT(*) as count FROM labor_resources WHERE status = "Active"').fetchone()
+    total_resource_count = total_resources['count'] or 1
+    
+    stage_load = [{
+        'id': row['id'],
+        'stage_name': row['stage_name'],
+        'color': row['color'],
+        'sequence': row['sequence'],
+        'wo_count': row['wo_count'],
+        'in_progress_count': row['in_progress_count'],
+        'total_qty': row['total_qty'],
+        'avg_tat_days': round(row['avg_tat_days'], 1) if row['avg_tat_days'] else 0,
+        'total_planned_hours': round(row['total_planned_hours'], 1) if row['total_planned_hours'] else 0,
+        'assigned_resources': row['assigned_resources'] or 0,
+        'capacity_pct': min(100, round((row['assigned_resources'] or 0) / total_resource_count * 100)) if total_resource_count > 0 else 0
+    } for row in stage_load_raw]
     
     tat_metrics = conn.execute('''
         SELECT 
