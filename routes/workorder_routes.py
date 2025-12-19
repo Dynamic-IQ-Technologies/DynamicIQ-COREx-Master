@@ -363,7 +363,7 @@ def view_workorder(id):
     ''').fetchall()
     
     labor_resources = conn.execute('''
-        SELECT id, first_name, last_name, employee_code, department
+        SELECT id, first_name, last_name, employee_code, role
         FROM labor_resources 
         WHERE status = 'Active'
         ORDER BY first_name, last_name
