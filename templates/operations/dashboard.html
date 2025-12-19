@@ -64,38 +64,62 @@
         opacity: 0.3;
     }
     
-    .ops-accordion {
-        margin-bottom: 1rem;
-    }
-    .ops-accordion .accordion-item {
-        border: none;
-        border-radius: 10px !important;
-        margin-bottom: 0.75rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    .horizontal-nav-container {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         overflow: hidden;
     }
-    .ops-accordion .accordion-button {
+    
+    .horizontal-tabs {
+        display: flex;
         background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-        border: none;
+        border-bottom: 1px solid #e2e8f0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .horizontal-tabs::-webkit-scrollbar {
+        height: 4px;
+    }
+    .horizontal-tabs::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 2px;
+    }
+    
+    .horizontal-tabs .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 1.5rem;
+        color: #64748b;
         font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        border: none;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+        transition: all 0.2s;
+        background: transparent;
+    }
+    .horizontal-tabs .nav-link:hover {
         color: #1e293b;
-        padding: 1rem 1.25rem;
-        font-size: 0.95rem;
+        background: rgba(255,255,255,0.5);
     }
-    .ops-accordion .accordion-button:not(.collapsed) {
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    .horizontal-tabs .nav-link.active {
         color: #fff;
-        box-shadow: none;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-bottom-color: #f59e0b;
     }
-    .ops-accordion .accordion-button:not(.collapsed)::after {
-        filter: brightness(0) invert(1);
+    .horizontal-tabs .nav-link i {
+        font-size: 1rem;
     }
-    .ops-accordion .accordion-button:focus {
-        box-shadow: none;
-    }
-    .ops-accordion .accordion-body {
-        background: #fff;
-        padding: 1.25rem;
+    
+    .tab-content-area {
+        padding: 1.5rem;
+        min-height: 400px;
     }
     
     .stage-pipeline {
@@ -167,10 +191,10 @@
         color: #334155;
     }
     
-    .etc-table {
+    .data-table {
         font-size: 0.9rem;
     }
-    .etc-table th {
+    .data-table th {
         background: #f8fafc;
         font-weight: 600;
         color: #64748b;
@@ -180,28 +204,29 @@
         padding: 0.75rem 1rem;
         border: none;
     }
-    .etc-table td {
+    .data-table td {
         padding: 0.75rem 1rem;
         vertical-align: middle;
         border-color: #f1f5f9;
     }
     
-    .labor-table {
-        font-size: 0.9rem;
+    .chart-container {
+        height: 320px;
+        position: relative;
     }
-    .labor-table th {
-        background: #f8fafc;
+    
+    .section-title {
+        font-size: 0.85rem;
         font-weight: 600;
         color: #64748b;
         text-transform: uppercase;
-        font-size: 0.7rem;
         letter-spacing: 0.5px;
-        border: none;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
     }
-    
-    .chart-container {
-        height: 280px;
-        position: relative;
+    .section-title i {
+        margin-right: 0.5rem;
     }
 </style>
 
@@ -252,280 +277,265 @@
     </div>
 </div>
 
-<div class="accordion ops-accordion" id="opsDashboardAccordion">
-    
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#stageLoad" aria-expanded="true">
-                <i class="bi bi-layers me-2"></i>Work Order Stage Pipeline
+<div class="horizontal-nav-container">
+    <ul class="nav horizontal-tabs" id="opsDashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="stages-tab" data-bs-toggle="tab" data-bs-target="#stages-panel" type="button" role="tab">
+                <i class="bi bi-layers"></i> Stage Pipeline
             </button>
-        </h2>
-        <div id="stageLoad" class="accordion-collapse collapse show" data-bs-parent="#opsDashboardAccordion">
-            <div class="accordion-body">
-                <div class="stage-pipeline">
-                    {% for stage in stage_load %}
-                    <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};">
-                        <div class="stage-count">{{ stage.wo_count or 0 }}</div>
-                        <div class="stage-name">{{ stage.stage_name }}</div>
-                        <div class="stage-active"><i class="bi bi-play-circle"></i> {{ stage.in_progress_count or 0 }} active</div>
-                    </div>
-                    {% else %}
-                    <div class="text-muted">No stages configured. <a href="{{ url_for('workorder_routes.manage_stages') }}">Configure stages</a></div>
-                    {% endfor %}
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="etc-tab" data-bs-toggle="tab" data-bs-target="#etc-panel" type="button" role="tab">
+                <i class="bi bi-clock-history"></i> ETC View
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="metrics-tab" data-bs-toggle="tab" data-bs-target="#metrics-panel" type="button" role="tab">
+                <i class="bi bi-bar-chart"></i> Metrics
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="breakdown-tab" data-bs-toggle="tab" data-bs-target="#breakdown-panel" type="button" role="tab">
+                <i class="bi bi-pie-chart"></i> Breakdown
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends-panel" type="button" role="tab">
+                <i class="bi bi-graph-up"></i> Trends
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="labor-tab" data-bs-toggle="tab" data-bs-target="#labor-panel" type="button" role="tab">
+                <i class="bi bi-people"></i> Labor
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content tab-content-area" id="opsDashboardTabContent">
+        
+        <div class="tab-pane fade show active" id="stages-panel" role="tabpanel">
+            <div class="section-title"><i class="bi bi-layers"></i>Work Order Stage Pipeline</div>
+            <div class="stage-pipeline">
+                {% for stage in stage_load %}
+                <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};">
+                    <div class="stage-count">{{ stage.wo_count or 0 }}</div>
+                    <div class="stage-name">{{ stage.stage_name }}</div>
+                    <div class="stage-active"><i class="bi bi-play-circle"></i> {{ stage.in_progress_count or 0 }} active</div>
                 </div>
+                {% else %}
+                <div class="text-muted">No stages configured. <a href="{{ url_for('workorder_routes.manage_stages') }}">Configure stages</a></div>
+                {% endfor %}
             </div>
         </div>
-    </div>
-    
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#etcPanel" aria-expanded="false">
-                <i class="bi bi-clock-history me-2"></i>ETC - Work Orders by Remaining Time
-            </button>
-        </h2>
-        <div id="etcPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
-            <div class="accordion-body p-0">
-                <div class="table-responsive">
-                    <table class="table etc-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Work Order</th>
-                                <th>Product</th>
-                                <th>Stage</th>
-                                <th>Status</th>
-                                <th>Due Date</th>
-                                <th>Days Left</th>
-                                <th>Remaining Hours</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for wo in etc_data %}
-                            <tr>
-                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold text-decoration-none">{{ wo.wo_number }}</a></td>
-                                <td><small class="text-muted">{{ wo.product_code }} - {{ wo.product_name[:25] }}{% if wo.product_name|length > 25 %}...{% endif %}</small></td>
-                                <td>
-                                    {% if wo.stage_name %}
-                                    <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }}">{{ wo.stage_name }}</span>
+        
+        <div class="tab-pane fade" id="etc-panel" role="tabpanel">
+            <div class="section-title"><i class="bi bi-clock-history"></i>Work Orders by Remaining Time (ETC)</div>
+            <div class="table-responsive">
+                <table class="table data-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Work Order</th>
+                            <th>Product</th>
+                            <th>Stage</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Days Left</th>
+                            <th>Remaining Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wo in etc_data %}
+                        <tr>
+                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold text-decoration-none">{{ wo.wo_number }}</a></td>
+                            <td><small class="text-muted">{{ wo.product_code }} - {{ wo.product_name[:25] }}{% if wo.product_name|length > 25 %}...{% endif %}</small></td>
+                            <td>
+                                {% if wo.stage_name %}
+                                <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }}">{{ wo.stage_name }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-{% if wo.status == 'In Progress' %}warning text-dark{% elif wo.status == 'Released' %}info{% else %}secondary{% endif %}">{{ wo.status }}</span></td>
+                            <td>{{ wo.planned_end_date or 'Not set' }}</td>
+                            <td>
+                                {% if wo.days_remaining is not none %}
+                                    {% if wo.days_remaining < 0 %}
+                                    <span class="badge bg-danger">{{ wo.days_remaining|int|abs }}d overdue</span>
+                                    {% elif wo.days_remaining <= 3 %}
+                                    <span class="badge bg-warning text-dark">{{ wo.days_remaining|int }}d</span>
                                     {% else %}
-                                    <span class="text-muted">-</span>
+                                    <span class="badge bg-success">{{ wo.days_remaining|int }}d</span>
                                     {% endif %}
-                                </td>
-                                <td><span class="badge bg-{% if wo.status == 'In Progress' %}warning text-dark{% elif wo.status == 'Released' %}info{% else %}secondary{% endif %}">{{ wo.status }}</span></td>
-                                <td>{{ wo.planned_end_date or 'Not set' }}</td>
-                                <td>
-                                    {% if wo.days_remaining is not none %}
-                                        {% if wo.days_remaining < 0 %}
-                                        <span class="badge bg-danger">{{ wo.days_remaining|int|abs }}d overdue</span>
-                                        {% elif wo.days_remaining <= 3 %}
-                                        <span class="badge bg-warning text-dark">{{ wo.days_remaining|int }}d</span>
-                                        {% else %}
-                                        <span class="badge bg-success">{{ wo.days_remaining|int }}d</span>
-                                        {% endif %}
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="fw-semibold">{{ wo.remaining_hours|round(1) }}h</span>
-                                    <small class="text-muted">/ {{ wo.total_planned_hours|round(1) }}h</small>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">No active work orders</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-semibold">{{ wo.remaining_hours|round(1) }}h</span>
+                                <small class="text-muted">/ {{ wo.total_planned_hours|round(1) }}h</small>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No active work orders</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
-    
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#metricsPanel" aria-expanded="false">
-                <i class="bi bi-bar-chart me-2"></i>Performance Metrics & Task Progress
-            </button>
-        </h2>
-        <div id="metricsPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
-            <div class="accordion-body">
-                <div class="row g-4">
-                    <div class="col-lg-4">
-                        <h6 class="text-muted mb-3"><i class="bi bi-stopwatch me-2"></i>TAT Metrics</h6>
-                        <div class="row g-3">
-                            <div class="col-6">
-                                <div class="metric-box">
-                                    <div class="metric-value">{{ (tat_metrics.avg_tat_days or 0)|round(1) }}</div>
-                                    <div class="metric-label">Avg TAT (Days)</div>
-                                </div>
+        
+        <div class="tab-pane fade" id="metrics-panel" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="section-title"><i class="bi bi-stopwatch"></i>TAT Metrics</div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="metric-box">
+                                <div class="metric-value">{{ (tat_metrics.avg_tat_days or 0)|round(1) }}</div>
+                                <div class="metric-label">Avg TAT (Days)</div>
                             </div>
-                            <div class="col-6">
-                                <div class="metric-box">
-                                    <div class="metric-value" style="color: #10b981;">{{ (tat_metrics.avg_planned_tat or 0)|round(1) }}</div>
-                                    <div class="metric-label">Avg Planned TAT</div>
-                                </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-box">
+                                <div class="metric-value" style="color: #10b981;">{{ (tat_metrics.avg_planned_tat or 0)|round(1) }}</div>
+                                <div class="metric-label">Avg Planned TAT</div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-8">
-                        <h6 class="text-muted mb-3"><i class="bi bi-list-task me-2"></i>Task Progress</h6>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Overall Completion</span>
-                            <span class="fw-bold">{{ task_completion_pct }}%</span>
-                        </div>
-                        <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ task_completion_pct }}%; border-radius: 6px;"></div>
-                        </div>
-                        <div class="row text-center g-3">
-                            <div class="col-4">
-                                <div class="metric-box">
-                                    <div class="metric-value" style="color: #10b981;">{{ task_progress.completed_tasks or 0 }}</div>
-                                    <div class="metric-label">Completed</div>
-                                </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="section-title"><i class="bi bi-list-task"></i>Task Progress</div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Overall Completion</span>
+                        <span class="fw-bold">{{ task_completion_pct }}%</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ task_completion_pct }}%; border-radius: 6px;"></div>
+                    </div>
+                    <div class="row text-center g-3">
+                        <div class="col-4">
+                            <div class="metric-box">
+                                <div class="metric-value" style="color: #10b981;">{{ task_progress.completed_tasks or 0 }}</div>
+                                <div class="metric-label">Completed</div>
                             </div>
-                            <div class="col-4">
-                                <div class="metric-box">
-                                    <div class="metric-value" style="color: #f59e0b;">{{ task_progress.in_progress_tasks or 0 }}</div>
-                                    <div class="metric-label">In Progress</div>
-                                </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="metric-box">
+                                <div class="metric-value" style="color: #f59e0b;">{{ task_progress.in_progress_tasks or 0 }}</div>
+                                <div class="metric-label">In Progress</div>
                             </div>
-                            <div class="col-4">
-                                <div class="metric-box">
-                                    <div class="metric-value">{{ task_progress.total_tasks or 0 }}</div>
-                                    <div class="metric-label">Total Tasks</div>
-                                </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="metric-box">
+                                <div class="metric-value">{{ task_progress.total_tasks or 0 }}</div>
+                                <div class="metric-label">Total Tasks</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#breakdownPanel" aria-expanded="false">
-                <i class="bi bi-pie-chart me-2"></i>Work Order Breakdown Analysis
-            </button>
-        </h2>
-        <div id="breakdownPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
-            <div class="accordion-body">
-                <div class="row g-4">
-                    <div class="col-lg-4">
-                        <h6 class="text-muted mb-3"><i class="bi bi-diagram-2 me-2"></i>By Disposition</h6>
-                        <div class="bg-light rounded p-3">
-                            {% for item in disposition_breakdown %}
-                            <div class="breakdown-item">
-                                <span class="item-name">{{ item.disposition or 'Not Set' }}</span>
-                                <div>
-                                    <span class="badge bg-primary me-1">{{ item.count }}</span>
-                                    <span class="badge bg-success">{{ item.completed }} done</span>
-                                </div>
+        
+        <div class="tab-pane fade" id="breakdown-panel" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="section-title"><i class="bi bi-diagram-2"></i>By Disposition</div>
+                    <div class="bg-light rounded p-3">
+                        {% for item in disposition_breakdown %}
+                        <div class="breakdown-item">
+                            <span class="item-name">{{ item.disposition or 'Not Set' }}</span>
+                            <div>
+                                <span class="badge bg-primary me-1">{{ item.count }}</span>
+                                <span class="badge bg-success">{{ item.completed }} done</span>
                             </div>
-                            {% else %}
-                            <p class="text-muted mb-0">No data available</p>
-                            {% endfor %}
                         </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No data available</p>
+                        {% endfor %}
                     </div>
-                    <div class="col-lg-4">
-                        <h6 class="text-muted mb-3"><i class="bi bi-diagram-3 me-2"></i>By Category</h6>
-                        <div class="bg-light rounded p-3">
-                            {% for item in category_breakdown %}
-                            <div class="breakdown-item">
-                                <span class="item-name">{{ item.category }}</span>
-                                <div>
-                                    <span class="badge bg-secondary me-1">{{ item.count }}</span>
-                                    <span class="badge bg-warning text-dark">{{ item.active }} active</span>
-                                </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="section-title"><i class="bi bi-diagram-3"></i>By Category</div>
+                    <div class="bg-light rounded p-3">
+                        {% for item in category_breakdown %}
+                        <div class="breakdown-item">
+                            <span class="item-name">{{ item.category }}</span>
+                            <div>
+                                <span class="badge bg-secondary me-1">{{ item.count }}</span>
+                                <span class="badge bg-warning text-dark">{{ item.active }} active</span>
                             </div>
-                            {% else %}
-                            <p class="text-muted mb-0">No data available</p>
-                            {% endfor %}
                         </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No data available</p>
+                        {% endfor %}
                     </div>
-                    <div class="col-lg-4">
-                        <h6 class="text-muted mb-3"><i class="bi bi-building me-2"></i>By WO Type</h6>
-                        <div class="bg-light rounded p-3">
-                            {% for item in type_breakdown %}
-                            <div class="breakdown-item">
-                                <span class="item-name">{{ item.wo_type }}</span>
-                                <div>
-                                    <span class="badge bg-dark me-1">{{ item.count }}</span>
-                                    <span class="badge bg-info">{{ item.active }} active</span>
-                                </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="section-title"><i class="bi bi-building"></i>By WO Type</div>
+                    <div class="bg-light rounded p-3">
+                        {% for item in type_breakdown %}
+                        <div class="breakdown-item">
+                            <span class="item-name">{{ item.wo_type }}</span>
+                            <div>
+                                <span class="badge bg-dark me-1">{{ item.count }}</span>
+                                <span class="badge bg-info">{{ item.active }} active</span>
                             </div>
-                            {% else %}
-                            <p class="text-muted mb-0">No data available</p>
-                            {% endfor %}
                         </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No data available</p>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#trendPanel" aria-expanded="false">
-                <i class="bi bi-graph-up me-2"></i>Monthly Trends & Analytics
-            </button>
-        </h2>
-        <div id="trendPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
-            <div class="accordion-body">
-                <div class="chart-container">
-                    <canvas id="woTrendChart"></canvas>
-                </div>
+        
+        <div class="tab-pane fade" id="trends-panel" role="tabpanel">
+            <div class="section-title"><i class="bi bi-graph-up"></i>Monthly Work Order Trends</div>
+            <div class="chart-container">
+                <canvas id="woTrendChart"></canvas>
             </div>
         </div>
-    </div>
-    
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#laborPanel" aria-expanded="false">
-                <i class="bi bi-people me-2"></i>Labor Utilization
-            </button>
-        </h2>
-        <div id="laborPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
-            <div class="accordion-body p-0">
-                <div class="table-responsive">
-                    <table class="table labor-table mb-0">
-                        <thead>
-                            <tr>
-                                <th class="ps-4">Resource</th>
-                                <th>Employee Code</th>
-                                <th>Assigned Tasks</th>
-                                <th>Total Hours</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for labor in labor_utilization %}
-                            <tr>
-                                <td class="ps-4"><strong>{{ labor.name }}</strong></td>
-                                <td><code>{{ labor.employee_code }}</code></td>
-                                <td>{{ labor.assigned_tasks }}</td>
-                                <td>{{ labor.total_hours|round(1) }}h</td>
-                                <td>
-                                    {% if labor.currently_clocked > 0 %}
-                                    <span class="badge bg-success"><i class="bi bi-clock me-1"></i>Clocked In</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Available</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No labor resources configured</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        
+        <div class="tab-pane fade" id="labor-panel" role="tabpanel">
+            <div class="section-title"><i class="bi bi-people"></i>Labor Utilization</div>
+            <div class="table-responsive">
+                <table class="table data-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Employee Code</th>
+                            <th>Assigned Tasks</th>
+                            <th>Total Hours</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for labor in labor_utilization %}
+                        <tr>
+                            <td><strong>{{ labor.name }}</strong></td>
+                            <td><code>{{ labor.employee_code }}</code></td>
+                            <td>{{ labor.assigned_tasks }}</td>
+                            <td>{{ labor.total_hours|round(1) }}h</td>
+                            <td>
+                                {% if labor.currently_clocked > 0 %}
+                                <span class="badge bg-success"><i class="bi bi-clock me-1"></i>Clocked In</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Available</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No labor resources configured</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
+        
     </div>
-    
 </div>
 {% endblock %}
 
@@ -537,58 +547,77 @@ const labels = trendData.map(d => d.month);
 const createdData = trendData.map(d => d.created);
 const completedData = trendData.map(d => d.completed);
 
-new Chart(document.getElementById('woTrendChart'), {
-    type: 'bar',
-    data: {
-        labels: labels,
-        datasets: [
-            {
-                label: 'Created',
-                data: createdData,
-                backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                borderColor: 'rgb(59, 130, 246)',
-                borderWidth: 0,
-                borderRadius: 4
-            },
-            {
-                label: 'Completed',
-                data: completedData,
-                backgroundColor: 'rgba(16, 185, 129, 0.8)',
-                borderColor: 'rgb(16, 185, 129)',
-                borderWidth: 0,
-                borderRadius: 4
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'top',
-                labels: {
-                    usePointStyle: true,
-                    padding: 20
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1
+let chartInstance = null;
+
+function initChart() {
+    const ctx = document.getElementById('woTrendChart');
+    if (!ctx) return;
+    
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+    
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Created',
+                    data: createdData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    borderWidth: 0,
+                    borderRadius: 4
                 },
-                grid: {
-                    color: 'rgba(0,0,0,0.05)'
+                {
+                    label: 'Completed',
+                    data: completedData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderColor: 'rgb(16, 185, 129)',
+                    borderWidth: 0,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
                 }
             },
-            x: {
-                grid: {
-                    display: false
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: 'rgba(0,0,0,0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
                 }
             }
         }
-    }
+    });
+}
+
+document.getElementById('trends-tab').addEventListener('shown.bs.tab', function() {
+    setTimeout(initChart, 100);
 });
+
+if (document.getElementById('trends-panel').classList.contains('active')) {
+    initChart();
+}
 </script>
 {% endblock %}
