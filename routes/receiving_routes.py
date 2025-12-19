@@ -184,7 +184,7 @@ def create_receiving():
             receiving_uom_id = po_line['uom_id']  # Receiving in PO UOM by default
             
             # Calculate unit cost at receipt from PO line (preserves cost allocation)
-            base_unit_price = po_line.get('base_unit_price')
+            base_unit_price = po_line['base_unit_price'] if 'base_unit_price' in po_line.keys() else None
             if base_unit_price is None and po_line['unit_price']:
                 # Fallback calculation if base_unit_price not set
                 extended = po_line['quantity'] * po_line['unit_price']
