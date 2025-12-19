@@ -503,5 +503,17 @@ def view_receiving(receipt_number):
         conn.close()
         return redirect(url_for('receiving_routes.list_receiving'))
     
+    # Get current inventory for the received product
+    inventory = conn.execute('''
+        SELECT 
+            i.*,
+            p.code as product_code,
+            p.name as product_name,
+            p.unit_of_measure
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.product_id = ?
+    ''', (receipt['product_id'],)).fetchone()
+    
     conn.close()
-    return render_template('receiving/view.html', receipt=receipt)
+    return render_template('receiving/view.html', receipt=receipt, inventory=inventory)
