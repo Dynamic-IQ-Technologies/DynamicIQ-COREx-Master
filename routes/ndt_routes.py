@@ -1078,7 +1078,7 @@ def invoice_from_wo(ndt_wo_id):
         'ndt_methods': ndt_wo['ndt_methods'],
         'part_description': ndt_wo['part_description'],
         'serial_number': ndt_wo['serial_number'],
-        'inspection_type': ndt_wo.get('inspection_type', ''),
+        'inspection_type': ndt_wo['inspection_type'] if 'inspection_type' in ndt_wo.keys() else '',
     }
     
     return render_template('ndt/invoice_form.html',
