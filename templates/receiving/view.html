@@ -166,6 +166,7 @@
                     <table class="table table-bordered mb-0">
                         <thead class="table-light">
                             <tr>
+                                <th>Inventory ID</th>
                                 <th>Product Code</th>
                                 <th>Product Name</th>
                                 <th>Qty Added</th>
@@ -179,8 +180,13 @@
                         <tbody>
                             <tr>
                                 <td>
+                                    <a href="{{ url_for('inventory_routes.view_inventory', id=inventory.id) }}" class="text-decoration-none fw-bold">
+                                        <i class="bi bi-box-seam"></i> INV-{{ "%06d"|format(inventory.id) }}
+                                    </a>
+                                </td>
+                                <td>
                                     <a href="{{ url_for('inventory_routes.view_inventory', id=inventory.id) }}" class="text-decoration-none">
-                                        <i class="bi bi-box-seam"></i> {{ inventory.product_code }}
+                                        {{ inventory.product_code }}
                                     </a>
                                 </td>
                                 <td>{{ inventory.product_name }}</td>
