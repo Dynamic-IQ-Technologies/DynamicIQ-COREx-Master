@@ -716,20 +716,6 @@
                 </a>
             </li>
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('clock_station_routes.clock_login') }}">
-                    <i class="bi bi-clock-fill"></i>
-                    <span>Clock Station</span>
-                </a>
-            </li>
-            {% if session.role in ['Admin', 'Planner'] %}
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('clock_station_routes.manager_dashboard') }}">
-                    <i class="bi bi-clipboard-data"></i>
-                    <span>Time Reports</span>
-                </a>
-            </li>
-            {% endif %}
-            <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('ndt_routes.dashboard') }}">
                     <i class="bi bi-search"></i>
                     <span>NDT Operations</span>
@@ -758,6 +744,27 @@
                 <a class="sidebar-nav-link" href="{{ url_for('master_scheduler_routes.dashboard') }}">
                     <i class="bi bi-calendar-week"></i>
                     <span>Master Scheduler</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+        
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('labortracker')">
+            <span>Labor Tracker</span>
+            <i class="bi bi-chevron-down toggle-icon" id="labortracker-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="labortracker-content">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('clock_station_routes.clock_login') }}">
+                    <i class="bi bi-clock-fill"></i>
+                    <span>Clock Station</span>
+                </a>
+            </li>
+            {% if session.role in ['Admin', 'Planner'] %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('clock_station_routes.manager_dashboard') }}">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span>Time Reports</span>
                 </a>
             </li>
             {% endif %}
