@@ -447,7 +447,7 @@ def view_workorder(id):
     service_cost_details = conn.execute('''
         SELECT 
             psl.id, psl.service_category as category, psl.description, psl.quantity, psl.unit_cost, psl.total_cost, psl.status,
-            po.po_number, s.name as supplier_name
+            po.id as po_id, po.po_number, s.name as supplier_name
         FROM purchase_order_service_lines psl
         JOIN purchase_orders po ON psl.po_id = po.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id

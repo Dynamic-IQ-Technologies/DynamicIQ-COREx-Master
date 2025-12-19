@@ -1363,7 +1363,7 @@
                                     {% for svc in service_cost_details %}
                                     <tr>
                                         <td>
-                                            <a href="{{ url_for('po_routes.view_purchaseorder', id=svc.id) }}">{{ svc.po_number }}</a>
+                                            <a href="{{ url_for('po_routes.view_purchaseorder', id=svc.po_id) }}">{{ svc.po_number }}</a>
                                         </td>
                                         <td>{{ svc.supplier_name or '-' }}</td>
                                         <td><span class="badge bg-secondary">{{ svc.category or 'Other' }}</span></td>
