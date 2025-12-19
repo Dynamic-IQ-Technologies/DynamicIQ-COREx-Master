@@ -545,7 +545,7 @@
         }
         
         .footer-links a {
-            color: rgba(255, 255, 255, 0.7);
+            color: #fbbf24;
             text-decoration: none;
             font-weight: 500;
             transition: all 0.2s ease;
@@ -553,10 +553,45 @@
             align-items: center;
             gap: 0.35rem;
             font-size: 0.85rem;
+            cursor: pointer;
         }
         
         .footer-links a:hover {
-            color: #f97316;
+            color: #fcd34d;
+            text-decoration: underline;
+        }
+        
+        .policy-modal .modal-content {
+            border-radius: 16px;
+            border: none;
+        }
+        
+        .policy-modal .modal-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            border-radius: 16px 16px 0 0;
+            padding: 1.25rem 1.5rem;
+        }
+        
+        .policy-modal .modal-body {
+            padding: 1.5rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .policy-modal .modal-body h5 {
+            color: #1e293b;
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .policy-modal .modal-body h5:first-child {
+            margin-top: 0;
+        }
+        
+        .policy-modal .modal-body p, .policy-modal .modal-body li {
+            color: #475569;
+            line-height: 1.7;
         }
         
         .footer-copyright {
@@ -731,15 +766,117 @@
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-links">
-                <a href="#"><i class="bi bi-shield-lock-fill"></i>Security</a>
-                <a href="#"><i class="bi bi-file-lock-fill"></i>Privacy</a>
-                <a href="#"><i class="bi bi-info-circle-fill"></i>Terms</a>
+                <a href="#" data-bs-toggle="modal" data-bs-target="#securityModal"><i class="bi bi-shield-lock-fill"></i>Security</a>
+                <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal"><i class="bi bi-file-lock-fill"></i>Privacy</a>
+                <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal"><i class="bi bi-info-circle-fill"></i>Terms</a>
             </div>
             <div class="footer-copyright">
                 <span class="text-warning">&copy; 2025 Dynamic.IQ Technologies. All rights reserved.</span>
             </div>
         </div>
     </footer>
+    
+    <!-- Security Modal -->
+    <div class="modal fade policy-modal" id="securityModal" tabindex="-1" aria-labelledby="securityModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="securityModalLabel"><i class="bi bi-shield-lock-fill me-2"></i>Security Policy</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h5>Data Protection</h5>
+                    <p>Dynamic.IQ-COREx implements enterprise-grade security measures to protect your manufacturing data. All data transmissions are encrypted using TLS 1.3 protocols, and data at rest is secured with AES-256 encryption.</p>
+                    
+                    <h5>Access Control</h5>
+                    <p>Our role-based access control (RBAC) system ensures that users only have access to the features and data necessary for their role. All access attempts are logged and monitored.</p>
+                    
+                    <h5>Authentication</h5>
+                    <p>We employ secure password hashing using industry-standard algorithms. Session management includes automatic timeout and secure token handling.</p>
+                    
+                    <h5>Audit Trail</h5>
+                    <p>All critical operations within the system are logged with timestamps, user identification, and action details for complete accountability and compliance.</p>
+                    
+                    <h5>Infrastructure Security</h5>
+                    <ul>
+                        <li>Regular security assessments and vulnerability scanning</li>
+                        <li>Automated backup systems with encrypted storage</li>
+                        <li>24/7 system monitoring and intrusion detection</li>
+                        <li>Disaster recovery procedures and business continuity planning</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Privacy Modal -->
+    <div class="modal fade policy-modal" id="privacyModal" tabindex="-1" aria-labelledby="privacyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="privacyModalLabel"><i class="bi bi-file-lock-fill me-2"></i>Privacy Policy</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h5>Information We Collect</h5>
+                    <p>Dynamic.IQ-COREx collects information necessary to provide manufacturing resource planning services, including user account information, business data, and system usage analytics.</p>
+                    
+                    <h5>How We Use Your Information</h5>
+                    <ul>
+                        <li>To provide and maintain the MRP platform services</li>
+                        <li>To improve and optimize system performance</li>
+                        <li>To communicate important updates and notifications</li>
+                        <li>To ensure security and prevent unauthorized access</li>
+                    </ul>
+                    
+                    <h5>Data Retention</h5>
+                    <p>We retain your data for as long as your account is active or as needed to provide services. Business data is retained according to your organization's configured retention policies.</p>
+                    
+                    <h5>Third-Party Sharing</h5>
+                    <p>We do not sell, trade, or rent your personal information to third parties. Data may be shared only with essential service providers under strict confidentiality agreements.</p>
+                    
+                    <h5>Your Rights</h5>
+                    <p>You have the right to access, correct, or delete your personal information. Contact your system administrator for data access requests.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Terms Modal -->
+    <div class="modal fade policy-modal" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="termsModalLabel"><i class="bi bi-info-circle-fill me-2"></i>Terms of Service</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h5>Acceptance of Terms</h5>
+                    <p>By accessing and using Dynamic.IQ-COREx, you agree to be bound by these Terms of Service and all applicable laws and regulations.</p>
+                    
+                    <h5>License Grant</h5>
+                    <p>Subject to these terms, Dynamic.IQ Technologies grants you a limited, non-exclusive, non-transferable license to access and use the platform for your internal business operations.</p>
+                    
+                    <h5>Acceptable Use</h5>
+                    <ul>
+                        <li>Use the system only for lawful business purposes</li>
+                        <li>Maintain the confidentiality of your login credentials</li>
+                        <li>Report any security vulnerabilities immediately</li>
+                        <li>Comply with all applicable export and data protection laws</li>
+                    </ul>
+                    
+                    <h5>Intellectual Property</h5>
+                    <p>All content, features, and functionality of Dynamic.IQ-COREx are owned by Dynamic.IQ Technologies and are protected by international copyright, trademark, and other intellectual property laws.</p>
+                    
+                    <h5>Limitation of Liability</h5>
+                    <p>Dynamic.IQ Technologies shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the platform.</p>
+                    
+                    <h5>Modifications</h5>
+                    <p>We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the new terms.</p>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
