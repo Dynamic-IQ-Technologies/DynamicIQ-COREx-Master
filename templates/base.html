@@ -1817,6 +1817,62 @@
             }, { once: true });
         });
     }
+    
+    // Override native confirm() and alert() for elegant modals
+    const nativeConfirm = window.confirm;
+    const nativeAlert = window.alert;
+    
+    // For synchronous confirm() calls in onclick handlers, intercept and handle elegantly
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('[onclick*="confirm("]');
+        if (btn) {
+            const onclickAttr = btn.getAttribute('onclick');
+            const confirmMatch = onclickAttr.match(/confirm\(['"](.+?)['"]\)/);
+            if (confirmMatch) {
+                e.preventDefault();
+                e.stopPropagation();
+                const message = confirmMatch[1];
+                const form = btn.closest('form');
+                
+                showConfirm(message, { type: 'question', title: 'Please Confirm' }).then(confirmed => {
+                    if (confirmed) {
+                        if (form) {
+                            btn.removeAttribute('onclick');
+                            form.submit();
+                        } else if (btn.href) {
+                            window.location.href = btn.href;
+                        }
+                    }
+                });
+            }
+        }
+    }, true);
+    
+    // Override alert() globally
+    window.alert = function(message) {
+        showAlert(message, { type: 'info', title: 'Notice' });
+    };
+    
+    // Handle forms with onsubmit confirm
+    document.addEventListener('submit', function(e) {
+        const form = e.target;
+        const onsubmitAttr = form.getAttribute('onsubmit');
+        if (onsubmitAttr && onsubmitAttr.includes('confirm(')) {
+            const confirmMatch = onsubmitAttr.match(/confirm\(['"](.+?)['"]\)/);
+            if (confirmMatch && !form.dataset.confirmed) {
+                e.preventDefault();
+                const message = confirmMatch[1];
+                
+                showConfirm(message, { type: 'question', title: 'Please Confirm' }).then(confirmed => {
+                    if (confirmed) {
+                        form.dataset.confirmed = 'true';
+                        form.removeAttribute('onsubmit');
+                        form.submit();
+                    }
+                });
+            }
+        }
+    }, true);
     </script>
 </body>
 </html>
