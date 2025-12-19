@@ -258,7 +258,21 @@ def operations_dashboard():
         AND mr.work_order_id IN (SELECT id FROM work_orders WHERE status NOT IN ('Completed', 'Cancelled'))
     ''').fetchone()
     
-    schedule_data_raw = conn.execute('''
+    sched_status = request.args.get('sched_status', '')
+    sched_stage = request.args.get('sched_stage', '')
+    sched_priority = request.args.get('sched_priority', '')
+    sched_date_from = request.args.get('sched_date_from', '')
+    sched_date_to = request.args.get('sched_date_to', '')
+    sched_sort = request.args.get('sched_sort', 'planned_start_date')
+    sched_order = request.args.get('sched_order', 'asc')
+    
+    valid_sort_cols = ['wo_number', 'planned_start_date', 'planned_end_date', 'priority', 'status']
+    if sched_sort not in valid_sort_cols:
+        sched_sort = 'planned_start_date'
+    if sched_order not in ['asc', 'desc']:
+        sched_order = 'asc'
+    
+    schedule_query = '''
         SELECT 
             wo.id,
             wo.wo_number,
@@ -279,9 +293,40 @@ def operations_dashboard():
         LEFT JOIN customers c ON wo.customer_id = c.id
         WHERE wo.status NOT IN ('Completed', 'Cancelled')
         AND (wo.planned_start_date IS NOT NULL OR wo.planned_end_date IS NOT NULL)
-        ORDER BY wo.planned_start_date, wo.priority DESC
-        LIMIT 50
+    '''
+    sched_params = []
+    
+    if sched_status:
+        schedule_query += ' AND wo.status = ?'
+        sched_params.append(sched_status)
+    
+    if sched_stage:
+        schedule_query += ' AND wo.stage_id = ?'
+        sched_params.append(sched_stage)
+    
+    if sched_priority:
+        schedule_query += ' AND wo.priority = ?'
+        sched_params.append(sched_priority)
+    
+    if sched_date_from:
+        schedule_query += ' AND wo.planned_start_date >= ?'
+        sched_params.append(sched_date_from)
+    
+    if sched_date_to:
+        schedule_query += ' AND wo.planned_end_date <= ?'
+        sched_params.append(sched_date_to)
+    
+    schedule_query += f' ORDER BY wo.{sched_sort} {sched_order.upper()}'
+    schedule_query += ' LIMIT 100'
+    
+    schedule_data_raw = conn.execute(schedule_query, sched_params).fetchall()
+    
+    schedule_stages = conn.execute('''
+        SELECT id, name FROM work_order_stages WHERE is_active = 1 ORDER BY sequence
     ''').fetchall()
+    
+    schedule_statuses = ['Planned', 'Released', 'In Progress']
+    schedule_priorities = ['Low', 'Medium', 'High', 'Critical']
     
     schedule_data = [{
         'id': row['id'],
@@ -298,6 +343,8 @@ def operations_dashboard():
         'stage_color': row['stage_color'],
         'customer_name': row['customer_name']
     } for row in schedule_data_raw]
+    
+    schedule_stages_list = [{'id': s['id'], 'name': s['name']} for s in schedule_stages]
     
     conn.close()
     
@@ -318,4 +365,14 @@ def operations_dashboard():
                          otd_rate=otd_rate,
                          material_shortage=material_shortage,
                          schedule_data=schedule_data,
+                         schedule_stages=schedule_stages_list,
+                         schedule_statuses=schedule_statuses,
+                         schedule_priorities=schedule_priorities,
+                         sched_status=sched_status,
+                         sched_stage=sched_stage,
+                         sched_priority=sched_priority,
+                         sched_date_from=sched_date_from,
+                         sched_date_to=sched_date_to,
+                         sched_sort=sched_sort,
+                         sched_order=sched_order,
                          today=today_str)

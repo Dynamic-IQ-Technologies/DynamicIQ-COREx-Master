@@ -426,6 +426,13 @@
         height: 100%;
         background: #f1f5f9;
     }
+    
+    .schedule-filter-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+    }
 </style>
 
 <div class="ops-header">
@@ -766,11 +773,73 @@
         <div class="tab-pane fade" id="schedule-panel" role="tabpanel">
             <div class="section-title"><i class="bi bi-calendar-range"></i>Production Schedule - Gantt View</div>
             
-            <div class="gantt-legend mb-3">
-                <span class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> Planned</span>
-                <span class="legend-item"><span class="legend-color" style="background: #3b82f6;"></span> Released</span>
-                <span class="legend-item"><span class="legend-color" style="background: #10b981;"></span> In Progress</span>
-                <span class="legend-item"><span class="legend-color" style="background: #ef4444;"></span> Overdue</span>
+            <div class="schedule-filter-bar mb-3">
+                <form method="GET" action="#schedule-panel" class="row g-2 align-items-end" id="scheduleFilterForm">
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Status</label>
+                        <select class="form-select form-select-sm" name="sched_status" onchange="applyScheduleFilter()">
+                            <option value="">All Statuses</option>
+                            {% for status in schedule_statuses %}
+                            <option value="{{ status }}" {% if status == sched_status %}selected{% endif %}>{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Stage</label>
+                        <select class="form-select form-select-sm" name="sched_stage" onchange="applyScheduleFilter()">
+                            <option value="">All Stages</option>
+                            {% for stage in schedule_stages %}
+                            <option value="{{ stage.id }}" {% if stage.id|string == sched_stage %}selected{% endif %}>{{ stage.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Priority</label>
+                        <select class="form-select form-select-sm" name="sched_priority" onchange="applyScheduleFilter()">
+                            <option value="">All Priorities</option>
+                            {% for priority in schedule_priorities %}
+                            <option value="{{ priority }}" {% if priority == sched_priority %}selected{% endif %}>{{ priority }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Date From</label>
+                        <input type="date" class="form-control form-control-sm" name="sched_date_from" value="{{ sched_date_from }}" onchange="applyScheduleFilter()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Date To</label>
+                        <input type="date" class="form-control form-control-sm" name="sched_date_to" value="{{ sched_date_to }}" onchange="applyScheduleFilter()">
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('operations_routes.operations_dashboard') }}#schedule-panel" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-lg me-1"></i>Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="gantt-legend">
+                    <span class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> Planned</span>
+                    <span class="legend-item"><span class="legend-color" style="background: #3b82f6;"></span> Released</span>
+                    <span class="legend-item"><span class="legend-color" style="background: #10b981;"></span> In Progress</span>
+                    <span class="legend-item"><span class="legend-color" style="background: #ef4444;"></span> Overdue</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small text-muted mb-0">Sort by:</label>
+                    <select class="form-select form-select-sm" style="width: auto;" name="sched_sort" onchange="applyScheduleFilter()" form="scheduleFilterForm">
+                        <option value="planned_start_date" {% if sched_sort == 'planned_start_date' %}selected{% endif %}>Start Date</option>
+                        <option value="planned_end_date" {% if sched_sort == 'planned_end_date' %}selected{% endif %}>End Date</option>
+                        <option value="wo_number" {% if sched_sort == 'wo_number' %}selected{% endif %}>WO Number</option>
+                        <option value="priority" {% if sched_sort == 'priority' %}selected{% endif %}>Priority</option>
+                        <option value="status" {% if sched_sort == 'status' %}selected{% endif %}>Status</option>
+                    </select>
+                    <select class="form-select form-select-sm" style="width: auto;" name="sched_order" onchange="applyScheduleFilter()" form="scheduleFilterForm">
+                        <option value="asc" {% if sched_order == 'asc' %}selected{% endif %}>Ascending</option>
+                        <option value="desc" {% if sched_order == 'desc' %}selected{% endif %}>Descending</option>
+                    </select>
+                    <span class="badge bg-secondary">{{ schedule_data|length }} WOs</span>
+                </div>
             </div>
             
             <div class="gantt-container" id="ganttContainer">
@@ -1000,5 +1069,41 @@ function initGantt() {
 document.getElementById('schedule-tab').addEventListener('shown.bs.tab', function() {
     setTimeout(initGantt, 100);
 });
+
+function applyScheduleFilter() {
+    const form = document.getElementById('scheduleFilterForm');
+    const formData = new FormData(form);
+    
+    const url = new URL(window.location.href.split('#')[0]);
+    
+    const schedParams = ['sched_status', 'sched_stage', 'sched_priority', 'sched_date_from', 'sched_date_to', 'sched_sort', 'sched_order'];
+    schedParams.forEach(param => url.searchParams.delete(param));
+    
+    for (const [key, value] of formData.entries()) {
+        if (value) {
+            url.searchParams.set(key, value);
+        }
+    }
+    
+    const sortSelect = document.querySelector('select[name="sched_sort"][form="scheduleFilterForm"]');
+    const orderSelect = document.querySelector('select[name="sched_order"][form="scheduleFilterForm"]');
+    
+    if (sortSelect && sortSelect.value) {
+        url.searchParams.set('sched_sort', sortSelect.value);
+    }
+    if (orderSelect && orderSelect.value) {
+        url.searchParams.set('sched_order', orderSelect.value);
+    }
+    
+    window.location.href = url.toString() + '#schedule-panel';
+}
+
+if (window.location.hash === '#schedule-panel') {
+    const scheduleTab = document.getElementById('schedule-tab');
+    if (scheduleTab) {
+        const tab = new bootstrap.Tab(scheduleTab);
+        tab.show();
+    }
+}
 </script>
 {% endblock %}
