@@ -4,18 +4,25 @@
 
 {% block content %}
 <style>
-.accordion-header-custom {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+.wo-tabs .nav-link {
+    color: #475569;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
-.accordion-button:not(.collapsed) {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    color: white;
+.wo-tabs .nav-link:hover {
+    color: #1e293b;
+    border-bottom-color: #cbd5e1;
 }
-.accordion-button::after {
-    filter: brightness(0) invert(1);
+.wo-tabs .nav-link.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+    background: transparent;
 }
-.accordion-button.collapsed::after {
-    filter: none;
+.wo-tabs .nav-link i {
+    margin-right: 0.5rem;
 }
 .task-card {
     border-left: 4px solid #0d6efd;
@@ -54,6 +61,19 @@
 .kpi-card .kpi-value {
     font-size: 1.75rem;
     font-weight: 700;
+}
+.tab-pane {
+    padding: 1.5rem 0;
+}
+.accordion-button:not(.collapsed) {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: white;
+}
+.accordion-button::after {
+    filter: brightness(0) invert(1);
+}
+.accordion-button.collapsed::after {
+    filter: none;
 }
 </style>
 
@@ -122,15 +142,50 @@
     </div>
 </div>
 
-<div class="accordion" id="workOrderAccordion">
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#overviewSection">
-                <i class="bi bi-info-circle me-2"></i> Work Order Overview
-            </button>
-        </h2>
-        <div id="overviewSection" class="accordion-collapse collapse show" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+<ul class="nav nav-tabs wo-tabs mb-0 border-bottom" id="workOrderTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overviewPane" type="button" role="tab">
+            <i class="bi bi-info-circle"></i> Overview
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="customer-tab" data-bs-toggle="tab" data-bs-target="#customerPane" type="button" role="tab">
+            <i class="bi bi-person-badge"></i> Customer
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasksPane" type="button" role="tab">
+            <i class="bi bi-list-check"></i> Tasks <span class="badge bg-primary">{{ tasks|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materialsPane" type="button" role="tab">
+            <i class="bi bi-boxes"></i> Materials <span class="badge bg-secondary">{{ requirements|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="cost-tab" data-bs-toggle="tab" data-bs-target="#costPane" type="button" role="tab">
+            <i class="bi bi-currency-dollar"></i> Cost
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="docs-tab" data-bs-toggle="tab" data-bs-target="#docsPane" type="button" role="tab">
+            <i class="bi bi-folder"></i> Documents
+        </button>
+    </li>
+    {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#auditPane" type="button" role="tab">
+            <i class="bi bi-journal-text"></i> Audit
+        </button>
+    </li>
+    {% endif %}
+</ul>
+
+<div class="tab-content" id="workOrderTabContent">
+    <div class="tab-pane fade show active" id="overviewPane" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
                         <table class="table table-sm table-borderless">
@@ -176,14 +231,9 @@
         </div>
     </div>
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#customerSection">
-                <i class="bi bi-person-badge me-2"></i> Customer / Project Information
-            </button>
-        </h2>
-        <div id="customerSection" class="accordion-collapse collapse show" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+    <div class="tab-pane fade" id="customerPane" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
                 {% if workorder.customer_id %}
                 <div class="row">
                     <div class="col-md-6">
@@ -213,18 +263,9 @@
         </div>
     </div>
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#tasksSection">
-                <i class="bi bi-list-check me-2"></i> Work Order Tasks
-                <span class="badge bg-primary ms-2">{{ tasks|length }}</span>
-                {% if task_summary and task_summary.total_tasks > 0 %}
-                <span class="badge bg-success ms-1">{{ task_summary.completed_tasks or 0 }} done</span>
-                {% endif %}
-            </button>
-        </h2>
-        <div id="tasksSection" class="accordion-collapse collapse show" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+    <div class="tab-pane fade" id="tasksPane" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
                         {% if task_summary and task_summary.total_tasks > 0 %}
@@ -478,15 +519,9 @@
         </div>
     </div>
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#materialsSection">
-                <i class="bi bi-boxes me-2"></i> Work Order Material Requirements
-                <span class="badge bg-secondary ms-2">{{ requirements|length }}</span>
-            </button>
-        </h2>
-        <div id="materialsSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+    <div class="tab-pane fade" id="materialsPane" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="text-muted">Materials assigned at work order level</span>
                     {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
@@ -568,17 +603,15 @@
         </div>
     </div>
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#laborSection">
-                <i class="bi bi-clock-history me-2"></i> Labor & Time Tracking
-            </button>
-        </h2>
-        <div id="laborSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+    <div class="tab-pane fade" id="costPane" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i> Labor Summary</h6>
+            </div>
+            <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <div class="card text-center">
+                        <div class="card text-center bg-light">
                             <div class="card-body py-2">
                                 <h5 class="mb-0">{{ "%.2f"|format(task_summary.total_planned_hours or 0) }}</h5>
                                 <small class="text-muted">Planned Hours</small>
@@ -586,7 +619,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="card text-center">
+                        <div class="card text-center bg-light">
                             <div class="card-body py-2">
                                 <h5 class="mb-0">{{ "%.2f"|format(task_summary.total_actual_hours or 0) }}</h5>
                                 <small class="text-muted">Actual Hours</small>
@@ -594,7 +627,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="card text-center">
+                        <div class="card text-center bg-light">
                             <div class="card-body py-2">
                                 <h5 class="mb-0">{{ (task_summary.total_actual_labor_cost or 0)|currency }}</h5>
                                 <small class="text-muted">Labor Cost</small>
@@ -602,21 +635,13 @@
                         </div>
                     </div>
                 </div>
-                <p class="text-muted text-center small">
-                    Labor hours are tracked through task completion in the Tasks section above.
-                </p>
             </div>
         </div>
-    </div>
-
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#costSection">
-                <i class="bi bi-currency-dollar me-2"></i> Cost Summary
-            </button>
-        </h2>
-        <div id="costSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-currency-dollar me-2"></i> Cost Breakdown</h6>
+            </div>
+            <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
                         <table class="table table-sm">
@@ -639,14 +664,12 @@
         </div>
     </div>
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#docsSection">
-                <i class="bi bi-folder me-2"></i> Documents & Attachments
-            </button>
-        </h2>
-        <div id="docsSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body">
+    <div class="tab-pane fade" id="docsPane" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-folder me-2"></i> Documents & Attachments</h6>
+            </div>
+            <div class="card-body">
                 {% if documents %}
                 <ul class="list-group">
                     {% for doc in documents %}
@@ -664,14 +687,12 @@
     </div>
 
     {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#auditSection">
-                <i class="bi bi-journal-text me-2"></i> Notes & Activity Log
-            </button>
-        </h2>
-        <div id="auditSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
-            <div class="accordion-body p-0">
+    <div class="tab-pane fade" id="auditPane" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-journal-text me-2"></i> Notes & Activity Log</h6>
+            </div>
+            <div class="card-body p-0">
                 <iframe src="{{ url_for('audit_routes.view_audit_trail', record_type='work_order', record_id=workorder.id) }}" 
                         style="width: 100%; height: 400px; border: none;"></iframe>
             </div>
