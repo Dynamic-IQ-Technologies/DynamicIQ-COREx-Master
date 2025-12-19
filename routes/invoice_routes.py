@@ -9,7 +9,7 @@ invoice_bp = Blueprint('invoice_routes', __name__)
 @login_required
 @role_required('Admin', 'Accountant', 'Planner')
 def list_invoices():
-    """Display invoice dashboard with all invoices"""
+    """Display invoice dashboard with all invoices including NDT invoices"""
     db = Database()
     conn = db.get_connection()
     
@@ -18,17 +18,21 @@ def list_invoices():
     customer_filter = request.args.get('customer_id', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
+    invoice_type = request.args.get('type', 'all')
     
-    # Build query with filters
+    # Build query for regular invoices
     query = '''
         SELECT 
-            i.*,
+            i.id, i.invoice_number, i.invoice_date, i.due_date, i.status,
+            i.total_amount, i.amount_paid, i.balance_due, i.created_at,
             c.name as customer_name,
             c.customer_number,
             so.so_number,
             wo.wo_number,
             u.username as created_by_name,
-            COUNT(il.id) as line_count
+            COUNT(il.id) as line_count,
+            'Standard' as invoice_type,
+            NULL as ndt_wo_number
         FROM invoices i
         JOIN customers c ON i.customer_id = c.id
         LEFT JOIN sales_orders so ON i.so_id = so.id
@@ -52,9 +56,55 @@ def list_invoices():
         query += ' AND i.invoice_date <= ?'
         params.append(date_to)
     
-    query += ' GROUP BY i.id ORDER BY i.invoice_date DESC, i.created_at DESC'
+    query += ' GROUP BY i.id'
     
-    invoices = conn.execute(query, params).fetchall()
+    # Get regular invoices if not filtering to NDT only
+    if invoice_type != 'ndt':
+        invoices = [dict(row) for row in conn.execute(query, params).fetchall()]
+    else:
+        invoices = []
+    
+    # Build query for NDT invoices
+    ndt_query = '''
+        SELECT 
+            ni.id, ni.invoice_number, ni.invoice_date, ni.due_date, ni.status,
+            ni.total_amount, ni.amount_paid, ni.balance_due, ni.created_at,
+            c.name as customer_name,
+            c.customer_number,
+            NULL as so_number,
+            NULL as wo_number,
+            u.username as created_by_name,
+            0 as line_count,
+            'NDT' as invoice_type,
+            nw.ndt_wo_number
+        FROM ndt_invoices ni
+        LEFT JOIN customers c ON ni.customer_id = c.id
+        LEFT JOIN users u ON ni.created_by = u.id
+        LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
+        WHERE 1=1
+    '''
+    
+    ndt_params = []
+    if status_filter != 'all':
+        ndt_query += ' AND ni.status = ?'
+        ndt_params.append(status_filter)
+    if customer_filter:
+        ndt_query += ' AND ni.customer_id = ?'
+        ndt_params.append(int(customer_filter))
+    if date_from:
+        ndt_query += ' AND ni.invoice_date >= ?'
+        ndt_params.append(date_from)
+    if date_to:
+        ndt_query += ' AND ni.invoice_date <= ?'
+        ndt_params.append(date_to)
+    
+    # Get NDT invoices if not filtering to standard only
+    if invoice_type != 'standard':
+        ndt_invoices = [dict(row) for row in conn.execute(ndt_query, ndt_params).fetchall()]
+        invoices.extend(ndt_invoices)
+    
+    # Sort combined list by date descending
+    invoices.sort(key=lambda x: (x['invoice_date'] or '', x['created_at'] or ''), reverse=True)
     
     # Get customers for filter dropdown
     customers = conn.execute('''
@@ -82,6 +132,7 @@ def list_invoices():
                          customer_filter=customer_filter,
                          date_from=date_from,
                          date_to=date_to,
+                         invoice_type=invoice_type,
                          total_invoiced=total_invoiced,
                          total_paid=total_paid,
                          total_outstanding=total_outstanding,

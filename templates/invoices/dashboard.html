@@ -124,6 +124,14 @@
                         <input type="date" name="date_to" class="form-control form-control-sm" 
                                value="{{ date_to }}" onchange="this.form.submit()">
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Type</label>
+                        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="all" {% if invoice_type == 'all' %}selected{% endif %}>All Types</option>
+                            <option value="standard" {% if invoice_type == 'standard' %}selected{% endif %}>Standard</option>
+                            <option value="ndt" {% if invoice_type == 'ndt' %}selected{% endif %}>NDT</option>
+                        </select>
+                    </div>
                     <div class="col-md-3">
                         <label class="form-label small">&nbsp;</label>
                         <div>
@@ -178,7 +186,9 @@
                                 <span class="badge bg-info">{{ invoice.invoice_type }}</span>
                             </td>
                             <td>
-                                {% if invoice.so_number %}
+                                {% if invoice.ndt_wo_number %}
+                                <span class="badge bg-warning text-dark">{{ invoice.ndt_wo_number }}</span>
+                                {% elif invoice.so_number %}
                                 <a href="{{ url_for('salesorder_routes.view_sales_order', id=invoice.so_id) }}">
                                     {{ invoice.so_number }}
                                 </a>
@@ -219,10 +229,17 @@
                                 {% endif %}
                             </td>
                             <td>
+                                {% if invoice.invoice_type == 'NDT' %}
+                                <a href="{{ url_for('ndt_routes.invoice_view', id=invoice.id) }}" 
+                                   class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% else %}
                                 <a href="{{ url_for('invoice_routes.view_invoice', id=invoice.id) }}" 
                                    class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
