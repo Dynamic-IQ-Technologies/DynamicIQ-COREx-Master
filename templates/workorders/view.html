@@ -184,6 +184,59 @@
 
 <div class="tab-content" id="workOrderTabContent">
     <div class="tab-pane fade show active" id="overviewPane" role="tabpanel">
+        {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white py-2">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>Work Order Management</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('workorder_routes.update_workorder_management', id=workorder.id) }}">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Status</label>
+                            <select class="form-select form-select-sm" name="status">
+                                <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
+                                <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
+                                <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Repair Disposition</label>
+                            <select class="form-select form-select-sm" name="disposition">
+                                <option value="">Select Disposition</option>
+                                <option value="Manufacture" {% if workorder.disposition == 'Manufacture' %}selected{% endif %}>Manufacture</option>
+                                <option value="Repair" {% if workorder.disposition == 'Repair' %}selected{% endif %}>Repair</option>
+                                <option value="Overhaul" {% if workorder.disposition == 'Overhaul' %}selected{% endif %}>Overhaul</option>
+                                <option value="Teardown" {% if workorder.disposition == 'Teardown' %}selected{% endif %}>Teardown</option>
+                                <option value="Inspect" {% if workorder.disposition == 'Inspect' %}selected{% endif %}>Inspect</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Repair Category</label>
+                            <select class="form-select form-select-sm" name="repair_category">
+                                <option value="">Select Category</option>
+                                <option value="Major Component" {% if workorder.repair_category == 'Major Component' %}selected{% endif %}>Major Component</option>
+                                <option value="Small Component" {% if workorder.repair_category == 'Small Component' %}selected{% endif %}>Small Component</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Work Order Type</label>
+                            <select class="form-select form-select-sm" name="workorder_type">
+                                <option value="">Select Type</option>
+                                <option value="Internal" {% if workorder.workorder_type == 'Internal' %}selected{% endif %}>Internal</option>
+                                <option value="External" {% if workorder.workorder_type == 'External' %}selected{% endif %}>External</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-light w-100"><i class="bi bi-save me-1"></i> Save Changes</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="row">
             <div class="col-lg-8">
                 <div class="card mb-3">
@@ -200,9 +253,6 @@
                                     <tr><td class="text-muted">Serial Number</td><td>{{ workorder.serial_number or 'N/A' }}</td></tr>
                                     <tr><td class="text-muted">Status</td><td><span class="badge bg-info">{{ workorder.status }}</span></td></tr>
                                     <tr><td class="text-muted">Priority</td><td><span class="badge bg-{% if workorder.priority == 'High' %}danger{% elif workorder.priority == 'Medium' %}warning{% else %}secondary{% endif %}">{{ workorder.priority }}</span></td></tr>
-                                    <tr><td class="text-muted">Disposition</td><td><span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></td></tr>
-                                    <tr><td class="text-muted">Repair Category</td><td><span class="badge bg-secondary">{{ workorder.repair_category or 'Not set' }}</span></td></tr>
-                                    <tr><td class="text-muted">Work Order Type</td><td><span class="badge bg-dark">{{ workorder.workorder_type or 'Not set' }}</span></td></tr>
                                 </table>
                             </div>
                             <div class="col-md-6">
@@ -217,23 +267,6 @@
                                 </table>
                             </div>
                         </div>
-                        {% if session.role in ['Admin', 'Production Staff'] %}
-                        <hr class="my-2">
-                        <form method="POST" action="{{ url_for('workorder_routes.update_workorder_status', id=workorder.id) }}" class="row g-2 align-items-end">
-                            <div class="col-auto">
-                                <label class="form-label small text-muted mb-0">Update Status</label>
-                                <select class="form-select form-select-sm" name="status">
-                                    <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
-                                    <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
-                                    <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-                                    <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
-                                </select>
-                            </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-sm btn-primary">Update</button>
-                            </div>
-                        </form>
-                        {% endif %}
                     </div>
                 </div>
             </div>

@@ -810,6 +810,95 @@ def update_receiving_inspection(id):
     
     return redirect(url_for('workorder_routes.view_workorder', id=id))
 
+@workorder_bp.route('/workorders/<int:id>/management', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def update_workorder_management(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        new_status = request.form.get('status')
+        disposition = request.form.get('disposition') or None
+        repair_category = request.form.get('repair_category') or None
+        workorder_type = request.form.get('workorder_type') or None
+        
+        conn.execute('''
+            UPDATE work_orders 
+            SET status = ?, disposition = ?, repair_category = ?, workorder_type = ?
+            WHERE id = ?
+        ''', (new_status, disposition, repair_category, workorder_type, id))
+        
+        if new_status == 'Completed' and old_record['status'] != 'Completed':
+            conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
+            
+            wo = conn.execute('''
+                SELECT wo.*, p.name as product_name, p.code as product_code
+                FROM work_orders wo
+                JOIN products p ON wo.product_id = p.id
+                WHERE wo.id = ?
+            ''', (id,)).fetchone()
+            
+            material_cost = wo['material_cost'] or 0
+            labor_cost = wo['labor_cost'] or 0
+            overhead_cost = wo['overhead_cost'] or 0
+            total_wip_cost = material_cost + labor_cost + overhead_cost
+            
+            if total_wip_cost > 0:
+                gl_lines = [
+                    {
+                        'account_code': '1150',
+                        'debit': total_wip_cost,
+                        'credit': 0,
+                        'description': f'Completed production - {wo["product_code"]} {wo["product_name"]} ({wo["wo_number"]})'
+                    },
+                    {
+                        'account_code': '1140',
+                        'debit': 0,
+                        'credit': total_wip_cost,
+                        'description': f'WIP transferred to FG - {wo["wo_number"]}'
+                    }
+                ]
+                
+                from models import GLAutoPost
+                from datetime import datetime
+                
+                GLAutoPost.create_gl_entry(
+                    conn=conn,
+                    source_module='Manufacturing',
+                    source_document=wo['wo_number'],
+                    source_id=id,
+                    transaction_date=datetime.now().strftime('%Y-%m-%d'),
+                    description=f'Work Order Completion - {wo["wo_number"]}',
+                    lines=gl_lines,
+                    created_by=session.get('user_id')
+                )
+        
+        new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='work_order',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        conn.commit()
+        flash('Work order updated successfully!', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating work order: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
+
 @workorder_bp.route('/workorders/<int:id>/notes', methods=['POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def update_workorder_notes(id):
