@@ -406,6 +406,8 @@ def view_workorder(id):
         'total_lines': misc_cost_data['total_lines'] if misc_cost_data else 0
     }
     
+    stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
+    
     conn.close()
     
     return render_template('workorders/view.html', 
@@ -421,7 +423,8 @@ def view_workorder(id):
                          task_templates=task_templates,
                          labor_resources=labor_resources,
                          documents=documents,
-                         notes=notes)
+                         notes=notes,
+                         stages=stages)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
@@ -816,15 +819,17 @@ def update_workorder_management(id):
         old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
         
         new_status = request.form.get('status')
+        stage_id = request.form.get('stage_id')
+        stage_id = int(stage_id) if stage_id else None
         disposition = request.form.get('disposition') or None
         repair_category = request.form.get('repair_category') or None
         workorder_type = request.form.get('workorder_type') or None
         
         conn.execute('''
             UPDATE work_orders 
-            SET status = ?, disposition = ?, repair_category = ?, workorder_type = ?
+            SET status = ?, stage_id = ?, disposition = ?, repair_category = ?, workorder_type = ?
             WHERE id = ?
-        ''', (new_status, disposition, repair_category, workorder_type, id))
+        ''', (new_status, stage_id, disposition, repair_category, workorder_type, id))
         
         if new_status == 'Completed' and old_record['status'] != 'Completed':
             conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))

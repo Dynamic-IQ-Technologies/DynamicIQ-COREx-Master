@@ -192,7 +192,7 @@
             <div class="card-body">
                 <form method="POST" action="{{ url_for('workorder_routes.update_workorder_management', id=workorder.id) }}">
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label small text-muted mb-1">Status</label>
                             <select class="form-select form-select-sm" name="status">
                                 <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
@@ -201,10 +201,19 @@
                                 <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted mb-1">Repair Disposition</label>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Stage</label>
+                            <select class="form-select form-select-sm" name="stage_id">
+                                <option value="">Select Stage</option>
+                                {% for stage in stages %}
+                                <option value="{{ stage.id }}" {% if stage.id == workorder.stage_id %}selected{% endif %}>{{ stage.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Disposition</label>
                             <select class="form-select form-select-sm" name="disposition">
-                                <option value="">Select Disposition</option>
+                                <option value="">Select</option>
                                 <option value="Manufacture" {% if workorder.disposition == 'Manufacture' %}selected{% endif %}>Manufacture</option>
                                 <option value="Repair" {% if workorder.disposition == 'Repair' %}selected{% endif %}>Repair</option>
                                 <option value="Overhaul" {% if workorder.disposition == 'Overhaul' %}selected{% endif %}>Overhaul</option>
@@ -215,21 +224,21 @@
                         <div class="col-md-2">
                             <label class="form-label small text-muted mb-1">Repair Category</label>
                             <select class="form-select form-select-sm" name="repair_category">
-                                <option value="">Select Category</option>
+                                <option value="">Select</option>
                                 <option value="Major Component" {% if workorder.repair_category == 'Major Component' %}selected{% endif %}>Major Component</option>
                                 <option value="Small Component" {% if workorder.repair_category == 'Small Component' %}selected{% endif %}>Small Component</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small text-muted mb-1">Work Order Type</label>
+                            <label class="form-label small text-muted mb-1">WO Type</label>
                             <select class="form-select form-select-sm" name="workorder_type">
-                                <option value="">Select Type</option>
+                                <option value="">Select</option>
                                 <option value="Internal" {% if workorder.workorder_type == 'Internal' %}selected{% endif %}>Internal</option>
                                 <option value="External" {% if workorder.workorder_type == 'External' %}selected{% endif %}>External</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <button type="submit" class="btn btn-sm btn-light w-100"><i class="bi bi-save me-1"></i> Save Changes</button>
+                            <button type="submit" class="btn btn-sm btn-light w-100"><i class="bi bi-save me-1"></i> Save</button>
                         </div>
                     </div>
                 </form>
