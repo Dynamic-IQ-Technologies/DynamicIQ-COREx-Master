@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Exchanges Report - Dynamic.IQ-MRPx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-arrow-left-right text-primary"></i> Exchanges Report</h2>
+        <p class="text-muted mb-0">Comprehensive view of all exchange transactions</p>
+    </div>
+    <div>
+        <a href="{{ url_for('salesorder_routes.list_sales_orders', type='Exchange') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Sales Orders
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center bg-primary bg-opacity-10">
+            <div class="card-body py-3">
+                <h3 class="mb-0 text-primary">{{ stats.total_exchanges }}</h3>
+                <small class="text-muted">Total Exchanges</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center bg-info bg-opacity-10">
+            <div class="card-body py-3">
+                <h3 class="mb-0 text-info">{{ stats.total_parts }}</h3>
+                <small class="text-muted">Parts Exchanged</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center bg-warning bg-opacity-10">
+            <div class="card-body py-3">
+                <h3 class="mb-0 text-warning">{{ stats.customer_owed_count }}</h3>
+                <small class="text-muted">Customer Owed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center bg-secondary bg-opacity-10">
+            <div class="card-body py-3">
+                <h3 class="mb-0 text-secondary">{{ stats.supplier_owed_count }}</h3>
+                <small class="text-muted">Supplier Owed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center bg-danger bg-opacity-10">
+            <div class="card-body py-3">
+                <h3 class="mb-0 text-danger">{{ stats.overdue_customer + stats.overdue_supplier }}</h3>
+                <small class="text-muted">Overdue</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-0" id="exchangeTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="byPart-tab" data-bs-toggle="tab" data-bs-target="#byPartPane" type="button" role="tab">
+            <i class="bi bi-box-seam"></i> By Part Number
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="customerOwed-tab" data-bs-toggle="tab" data-bs-target="#customerOwedPane" type="button" role="tab">
+            <i class="bi bi-person-exclamation"></i> Customer Owed 
+            <span class="badge bg-warning text-dark">{{ stats.customer_owed_count }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="supplierOwed-tab" data-bs-toggle="tab" data-bs-target="#supplierOwedPane" type="button" role="tab">
+            <i class="bi bi-truck"></i> Supplier Owed
+            <span class="badge bg-secondary">{{ stats.supplier_owed_count }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="allExchanges-tab" data-bs-toggle="tab" data-bs-target="#allExchangesPane" type="button" role="tab">
+            <i class="bi bi-list-ul"></i> All Exchanges
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="exchangeTabContent">
+    <div class="tab-pane fade show active" id="byPartPane" role="tabpanel">
+        <h5 class="mb-3"><i class="bi bi-bar-chart"></i> Exchange History by Part Number</h5>
+        {% if exchanges_by_part %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="partTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Part Number</th>
+                        <th>Part Name</th>
+                        <th class="text-center">Exchange Count</th>
+                        <th class="text-end">Total Qty</th>
+                        <th class="text-end">Total Value</th>
+                        <th>Related SOs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in exchanges_by_part %}
+                    <tr>
+                        <td><strong class="text-primary">{{ part.part_number }}</strong></td>
+                        <td>{{ part.part_name }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ part.exchange_count }}</span>
+                        </td>
+                        <td class="text-end">{{ "%.0f"|format(part.total_quantity or 0) }}</td>
+                        <td class="text-end">{{ (part.total_value or 0)|currency }}</td>
+                        <td>
+                            <small class="text-muted">{{ part.so_numbers|truncate(50) }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+            <p class="mt-2">No exchange history by part number</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="customerOwedPane" role="tabpanel">
+        <h5 class="mb-3"><i class="bi bi-person-exclamation text-warning"></i> Exchanges Owed by Customers</h5>
+        <p class="text-muted small">These are exchange cores that customers owe back to you.</p>
+        {% if customer_owed %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="customerOwedTable">
+                <thead class="table-warning">
+                    <tr>
+                        <th>Exchange PO</th>
+                        <th>Reference</th>
+                        <th>Customer</th>
+                        <th>Part</th>
+                        <th>Source SO</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ex in customer_owed %}
+                    <tr class="{% if ex.days_overdue and ex.days_overdue > 0 %}table-danger{% endif %}">
+                        <td><strong>{{ ex.po_number }}</strong></td>
+                        <td><code>{{ ex.exchange_reference_id or '-' }}</code></td>
+                        <td>
+                            <span class="fw-bold">{{ ex.owner_name }}</span>
+                            <br><small class="text-muted">{{ ex.owner_code }}</small>
+                        </td>
+                        <td>
+                            {% if ex.part_number %}
+                            <strong>{{ ex.part_number }}</strong>
+                            <br><small class="text-muted">{{ ex.part_name|truncate(30) }}</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ex.source_so }}</td>
+                        <td>
+                            {{ ex.expected_date or '-' }}
+                            {% if ex.days_overdue and ex.days_overdue > 0 %}
+                            <br><span class="badge bg-danger">{{ "%.0f"|format(ex.days_overdue) }} days overdue</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if ex.exchange_status == 'Received' %}success{% elif ex.exchange_status == 'Pending' %}warning{% else %}secondary{% endif %}">
+                                {{ ex.exchange_status or 'Pending' }}
+                            </span>
+                        </td>
+                        <td class="text-end">{{ (ex.total_amount or 0)|currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+            <p class="mt-2">No exchanges currently owed by customers</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="supplierOwedPane" role="tabpanel">
+        <h5 class="mb-3"><i class="bi bi-truck text-secondary"></i> Exchanges Owed by Suppliers</h5>
+        <p class="text-muted small">These are exchange cores that suppliers owe back to you.</p>
+        {% if supplier_owed %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="supplierOwedTable">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Exchange PO</th>
+                        <th>Reference</th>
+                        <th>Supplier</th>
+                        <th>Part</th>
+                        <th>Source SO</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ex in supplier_owed %}
+                    <tr class="{% if ex.days_overdue and ex.days_overdue > 0 %}table-danger{% endif %}">
+                        <td><strong>{{ ex.po_number }}</strong></td>
+                        <td><code>{{ ex.exchange_reference_id or '-' }}</code></td>
+                        <td>
+                            <span class="fw-bold">{{ ex.owner_name }}</span>
+                            <br><small class="text-muted">{{ ex.owner_code }}</small>
+                        </td>
+                        <td>
+                            {% if ex.part_number %}
+                            <strong>{{ ex.part_number }}</strong>
+                            <br><small class="text-muted">{{ ex.part_name|truncate(30) }}</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ex.source_so }}</td>
+                        <td>
+                            {{ ex.expected_date or '-' }}
+                            {% if ex.days_overdue and ex.days_overdue > 0 %}
+                            <br><span class="badge bg-danger">{{ "%.0f"|format(ex.days_overdue) }} days overdue</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if ex.exchange_status == 'Received' %}success{% elif ex.exchange_status == 'Pending' %}warning{% else %}secondary{% endif %}">
+                                {{ ex.exchange_status or 'Pending' }}
+                            </span>
+                        </td>
+                        <td class="text-end">{{ (ex.total_amount or 0)|currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+            <p class="mt-2">No exchanges currently owed by suppliers</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="allExchangesPane" role="tabpanel">
+        <h5 class="mb-3"><i class="bi bi-list-ul"></i> All Exchange Transactions</h5>
+        {% if all_exchanges %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="allExchangesTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>SO Number</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Exchange Type</th>
+                        <th>Part Number</th>
+                        <th>Part Name</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Line Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ex in all_exchanges %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('salesorder_routes.view_sales_order', id=ex.id) }}" class="text-decoration-none">
+                                <strong>{{ ex.so_number }}</strong>
+                            </a>
+                        </td>
+                        <td>{{ ex.order_date }}</td>
+                        <td>
+                            <span class="fw-bold">{{ ex.customer_name }}</span>
+                            <br><small class="text-muted">{{ ex.customer_number }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if ex.exchange_type == 'Dual Exchange' %}primary{% elif ex.exchange_type == 'Outright Exchange' %}info{% else %}secondary{% endif %}">
+                                {{ ex.exchange_type or 'Standard' }}
+                            </span>
+                        </td>
+                        <td><strong class="text-primary">{{ ex.part_number or '-' }}</strong></td>
+                        <td>{{ (ex.part_name or '-')|truncate(30) }}</td>
+                        <td class="text-center">{{ ex.quantity or '-' }}</td>
+                        <td class="text-end">{{ (ex.unit_price or 0)|currency }}</td>
+                        <td class="text-end">{{ (ex.line_total or 0)|currency }}</td>
+                        <td>
+                            <span class="badge bg-{% if ex.status == 'Completed' %}success{% elif ex.status == 'Shipped' %}info{% elif ex.status == 'Draft' %}secondary{% else %}warning{% endif %}">
+                                {{ ex.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+            <p class="mt-2">No exchange transactions found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof initTableSearch === 'function') {
+        initTableSearch('partTable', 'searchPart');
+        initTableSearch('allExchangesTable', 'searchAll');
+    }
+});
+</script>
+{% endblock %}

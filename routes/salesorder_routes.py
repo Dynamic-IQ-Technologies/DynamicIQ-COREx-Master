@@ -1667,3 +1667,130 @@ def get_exchange_owner_details(owner_type, owner_id):
         return jsonify({'error': 'Owner not found'}), 404
     finally:
         conn.close()
+
+
+@salesorder_bp.route('/exchanges-report')
+@login_required
+def exchanges_report():
+    """Comprehensive exchanges report grouped by part number and owner obligations"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        exchanges_by_part = conn.execute('''
+            SELECT 
+                p.code as part_number,
+                p.name as part_name,
+                COUNT(DISTINCT so.id) as exchange_count,
+                SUM(sol.quantity) as total_quantity,
+                SUM(sol.line_total) as total_value,
+                GROUP_CONCAT(DISTINCT so.so_number) as so_numbers
+            FROM sales_orders so
+            JOIN sales_order_lines sol ON so.id = sol.so_id
+            JOIN products p ON sol.product_id = p.id
+            WHERE so.sales_type = 'Exchange'
+            GROUP BY p.id
+            ORDER BY exchange_count DESC, p.code
+        ''').fetchall()
+        
+        customer_owed = conn.execute('''
+            SELECT 
+                po.po_number,
+                po.exchange_reference_id,
+                po.exchange_status,
+                po.order_date,
+                po.expected_date,
+                po.total_amount,
+                so.so_number as source_so,
+                c.name as owner_name,
+                c.customer_number as owner_code,
+                p.code as part_number,
+                p.name as part_name,
+                sol.quantity,
+                CASE 
+                    WHEN po.expected_date < date('now') AND po.exchange_status != 'Received' 
+                    THEN julianday('now') - julianday(po.expected_date)
+                    ELSE 0 
+                END as days_overdue
+            FROM purchase_orders po
+            JOIN sales_orders so ON po.source_sales_order_id = so.id
+            JOIN customers c ON po.exchange_owner_id = c.id
+            LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+            LEFT JOIN products p ON sol.product_id = p.id
+            WHERE po.is_exchange = 1 
+              AND po.exchange_owner_type = 'Customer'
+            ORDER BY days_overdue DESC, po.order_date DESC
+        ''').fetchall()
+        
+        supplier_owed = conn.execute('''
+            SELECT 
+                po.po_number,
+                po.exchange_reference_id,
+                po.exchange_status,
+                po.order_date,
+                po.expected_date,
+                po.total_amount,
+                so.so_number as source_so,
+                s.name as owner_name,
+                s.code as owner_code,
+                p.code as part_number,
+                p.name as part_name,
+                sol.quantity,
+                CASE 
+                    WHEN po.expected_date < date('now') AND po.exchange_status != 'Received' 
+                    THEN julianday('now') - julianday(po.expected_date)
+                    ELSE 0 
+                END as days_overdue
+            FROM purchase_orders po
+            JOIN sales_orders so ON po.source_sales_order_id = so.id
+            JOIN suppliers s ON po.exchange_owner_id = s.id
+            LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+            LEFT JOIN products p ON sol.product_id = p.id
+            WHERE po.is_exchange = 1 
+              AND po.exchange_owner_type = 'Supplier'
+            ORDER BY days_overdue DESC, po.order_date DESC
+        ''').fetchall()
+        
+        all_exchanges = conn.execute('''
+            SELECT 
+                so.id,
+                so.so_number,
+                so.order_date,
+                so.status,
+                so.exchange_type,
+                so.total_amount,
+                c.name as customer_name,
+                c.customer_number,
+                p.code as part_number,
+                p.name as part_name,
+                sol.quantity,
+                sol.unit_price,
+                sol.line_total
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+            LEFT JOIN products p ON sol.product_id = p.id
+            WHERE so.sales_type = 'Exchange'
+            ORDER BY so.order_date DESC, so.id DESC
+        ''').fetchall()
+        
+        stats = {
+            'total_exchanges': len(set(e['so_number'] for e in all_exchanges)) if all_exchanges else 0,
+            'customer_owed_count': len(customer_owed),
+            'supplier_owed_count': len(supplier_owed),
+            'overdue_customer': sum(1 for e in customer_owed if e['days_overdue'] and e['days_overdue'] > 0),
+            'overdue_supplier': sum(1 for e in supplier_owed if e['days_overdue'] and e['days_overdue'] > 0),
+            'total_parts': len(exchanges_by_part)
+        }
+        
+        conn.close()
+        return render_template('salesorders/exchanges_report.html',
+                             exchanges_by_part=exchanges_by_part,
+                             customer_owed=customer_owed,
+                             supplier_owed=supplier_owed,
+                             all_exchanges=all_exchanges,
+                             stats=stats)
+    except Exception as e:
+        conn.close()
+        flash(f'Error generating exchanges report: {str(e)}', 'danger')
+        return redirect(url_for('salesorder_routes.list_sales_orders'))
