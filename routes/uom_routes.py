@@ -71,12 +71,31 @@ def create_uom():
                 conn.close()
                 return redirect(url_for('uom_routes.create_uom'))
             
-            # Insert new UOM
-            conn.execute('''
+            # Insert new UOM into unit_of_measure table
+            cursor = conn.execute('''
                 INSERT INTO unit_of_measure 
                 (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, status, description, created_by)
                 VALUES (?, ?, ?, ?, ?, ?, 'Active', ?, ?)
             ''', (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, description, session.get('user_id')))
+            
+            # Also insert into uom_master for PO compatibility
+            # Get the base_uom_id in uom_master if exists
+            uom_master_base_id = None
+            if base_uom_id:
+                base_uom = conn.execute('SELECT uom_code FROM unit_of_measure WHERE id = ?', (base_uom_id,)).fetchone()
+                if base_uom:
+                    master_base = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (base_uom['uom_code'],)).fetchone()
+                    if master_base:
+                        uom_master_base_id = master_base['id']
+            
+            # Check if already exists in uom_master
+            existing_master = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (uom_code,)).fetchone()
+            if not existing_master:
+                conn.execute('''
+                    INSERT INTO uom_master 
+                    (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, is_active, description, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+                ''', (uom_code, uom_name, uom_type, conversion_factor, uom_master_base_id, rounding_precision, description, session.get('user_id')))
             
             conn.commit()
             conn.close()
@@ -202,12 +221,23 @@ def deactivate_uom(id):
         conn.close()
         return redirect(url_for('uom_routes.view_uom', id=id))
     
-    # Deactivate the UOM
+    # Get UOM code for syncing to uom_master
+    uom = conn.execute('SELECT uom_code FROM unit_of_measure WHERE id = ?', (id,)).fetchone()
+    
+    # Deactivate the UOM in unit_of_measure
     conn.execute('''
         UPDATE unit_of_measure 
         SET status = 'Inactive', modified_by = ?, modified_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (session.get('user_id'), id))
+    
+    # Also deactivate in uom_master if exists
+    if uom:
+        conn.execute('''
+            UPDATE uom_master 
+            SET is_active = 0, modified_by = ?, modified_at = CURRENT_TIMESTAMP
+            WHERE uom_code = ?
+        ''', (session.get('user_id'), uom['uom_code']))
     
     conn.commit()
     conn.close()
@@ -221,11 +251,33 @@ def activate_uom(id):
     db = Database()
     conn = db.get_connection()
     
+    # Get UOM details for syncing
+    uom = conn.execute('SELECT * FROM unit_of_measure WHERE id = ?', (id,)).fetchone()
+    
+    # Activate in unit_of_measure
     conn.execute('''
         UPDATE unit_of_measure 
         SET status = 'Active', modified_by = ?, modified_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (session.get('user_id'), id))
+    
+    # Sync to uom_master - update if exists, insert if not
+    if uom:
+        existing_master = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (uom['uom_code'],)).fetchone()
+        if existing_master:
+            conn.execute('''
+                UPDATE uom_master 
+                SET is_active = 1, modified_by = ?, modified_at = CURRENT_TIMESTAMP
+                WHERE uom_code = ?
+            ''', (session.get('user_id'), uom['uom_code']))
+        else:
+            # Insert into uom_master
+            conn.execute('''
+                INSERT INTO uom_master 
+                (uom_code, uom_name, uom_type, conversion_factor, rounding_precision, is_active, description, created_by)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+            ''', (uom['uom_code'], uom['uom_name'], uom['uom_type'], uom['conversion_factor'], 
+                  uom['rounding_precision'], uom['description'], session.get('user_id')))
     
     conn.commit()
     conn.close()
