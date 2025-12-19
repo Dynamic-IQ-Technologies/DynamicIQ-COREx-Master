@@ -260,10 +260,16 @@ def revenue_tracker():
     ''', params_ndt).fetchone()
     
     ndt_revenue = conn.execute(f'''
-        SELECT COALESCE(SUM(i.total_amount), 0) as invoiced_revenue
-        FROM invoices i
-        WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled' {date_filter_ndt.replace('created_at', 'i.created_at')}
-    ''', params_ndt).fetchone()
+        SELECT COALESCE(SUM(invoiced_revenue), 0) as invoiced_revenue FROM (
+            SELECT SUM(i.total_amount) as invoiced_revenue
+            FROM invoices i
+            WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled' {date_filter_ndt.replace('created_at', 'i.created_at')}
+            UNION ALL
+            SELECT SUM(ni.total_amount) as invoiced_revenue
+            FROM ndt_invoices ni
+            WHERE ni.status NOT IN ('Cancelled', 'Void') {date_filter_ndt.replace('created_at', 'ni.invoice_date')}
+        )
+    ''', params_ndt + params_ndt).fetchone()
     
     ndt_costs = conn.execute(f'''
         SELECT 
@@ -319,14 +325,14 @@ def revenue_tracker():
         trend_date_filter_wo += " AND created_at >= ?"
         trend_date_filter_ndt += " AND created_at >= ?"
         trend_date_filter_swo += " AND created_at >= ?"
-        trend_params.extend([start_date, start_date, start_date, start_date])
+        trend_params.extend([start_date, start_date, start_date, start_date, start_date])
     
     if end_date:
         trend_date_filter_sales += " AND order_date <= ?"
         trend_date_filter_wo += " AND created_at <= ?"
         trend_date_filter_ndt += " AND created_at <= ?"
         trend_date_filter_swo += " AND created_at <= ?"
-        trend_params.extend([end_date, end_date, end_date, end_date])
+        trend_params.extend([end_date, end_date, end_date, end_date, end_date])
     
     monthly_trends = conn.execute(f'''
         SELECT 
@@ -352,6 +358,14 @@ def revenue_tracker():
         FROM invoices i
         WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled' {trend_date_filter_ndt.replace('created_at', 'i.created_at')}
         GROUP BY strftime('%Y-%m', i.created_at)
+        UNION ALL
+        SELECT 
+            strftime('%Y-%m', ni.invoice_date) as month,
+            'NDT' as department,
+            COALESCE(SUM(ni.total_amount), 0) as revenue
+        FROM ndt_invoices ni
+        WHERE ni.status NOT IN ('Cancelled', 'Void') {trend_date_filter_ndt.replace('created_at', 'ni.invoice_date')}
+        GROUP BY strftime('%Y-%m', ni.invoice_date)
         UNION ALL
         SELECT 
             strftime('%Y-%m', created_at) as month,
