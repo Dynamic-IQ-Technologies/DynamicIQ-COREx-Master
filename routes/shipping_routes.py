@@ -833,14 +833,32 @@ def generate_packing_slip(id):
             ORDER BY sl.line_number
         ''', (id,)).fetchall()
         
-        if not lines:
-            flash('Cannot generate packing slip: No line items on this shipment.', 'warning')
-            return redirect(url_for('shipping_routes.view_shipment', id=id))
-        
         sales_order = None
         if shipment['reference_type'] == 'Sales Order' and shipment['reference_id']:
             sales_order = conn.execute('SELECT * FROM sales_orders WHERE id = ?', 
                                        (shipment['reference_id'],)).fetchone()
+            if not lines:
+                lines = conn.execute('''
+                    SELECT sol.id, sol.product_id, sol.quantity, sol.unit_price, 
+                           p.code, p.name as product_name, p.unit_of_measure,
+                           sol.serial_number, sol.lot_number
+                    FROM sales_order_lines sol
+                    JOIN products p ON sol.product_id = p.id
+                    WHERE sol.so_id = ?
+                ''', (shipment['reference_id'],)).fetchall()
+        elif shipment['reference_type'] == 'Work Order' and shipment['reference_id']:
+            if not lines:
+                lines = conn.execute('''
+                    SELECT wo.product_id, 1 as quantity, 0 as unit_price,
+                           p.code, p.name as product_name, p.unit_of_measure
+                    FROM work_orders wo
+                    JOIN products p ON wo.product_id = p.id
+                    WHERE wo.id = ?
+                ''', (shipment['reference_id'],)).fetchall()
+        
+        if not lines:
+            flash('Cannot generate packing slip: No line items on this shipment.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
         
         existing = conn.execute('''
             SELECT MAX(version) as max_ver FROM shipment_documents 
@@ -921,10 +939,6 @@ def generate_certificate_of_conformance(id):
             ORDER BY sl.line_number
         ''', (id,)).fetchall()
         
-        if not lines:
-            flash('Cannot generate C of C: No line items on this shipment.', 'warning')
-            return redirect(url_for('shipping_routes.view_shipment', id=id))
-        
         sales_order = None
         customer = None
         if shipment['reference_type'] == 'Sales Order' and shipment['reference_id']:
@@ -933,6 +947,28 @@ def generate_certificate_of_conformance(id):
             if sales_order and sales_order['customer_id']:
                 customer = conn.execute('SELECT * FROM customers WHERE id = ?',
                                         (sales_order['customer_id'],)).fetchone()
+            if not lines:
+                lines = conn.execute('''
+                    SELECT sol.id, sol.product_id, sol.quantity, sol.unit_price, 
+                           p.code, p.name as product_name, p.unit_of_measure,
+                           sol.serial_number, sol.lot_number
+                    FROM sales_order_lines sol
+                    JOIN products p ON sol.product_id = p.id
+                    WHERE sol.so_id = ?
+                ''', (shipment['reference_id'],)).fetchall()
+        elif shipment['reference_type'] == 'Work Order' and shipment['reference_id']:
+            if not lines:
+                lines = conn.execute('''
+                    SELECT wo.product_id, 1 as quantity, 0 as unit_price,
+                           p.code, p.name as product_name, p.unit_of_measure
+                    FROM work_orders wo
+                    JOIN products p ON wo.product_id = p.id
+                    WHERE wo.id = ?
+                ''', (shipment['reference_id'],)).fetchall()
+        
+        if not lines:
+            flash('Cannot generate C of C: No line items on this shipment.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
         
         existing = conn.execute('''
             SELECT MAX(version) as max_ver FROM shipment_documents 
@@ -1019,10 +1055,6 @@ def generate_commercial_invoice(id):
             ORDER BY sl.line_number
         ''', (id,)).fetchall()
         
-        if not lines:
-            flash('Cannot generate commercial invoice: No line items on this shipment.', 'warning')
-            return redirect(url_for('shipping_routes.view_shipment', id=id))
-        
         sales_order = None
         customer = None
         if shipment['reference_type'] == 'Sales Order' and shipment['reference_id']:
@@ -1031,6 +1063,29 @@ def generate_commercial_invoice(id):
             if sales_order and sales_order['customer_id']:
                 customer = conn.execute('SELECT * FROM customers WHERE id = ?',
                                         (sales_order['customer_id'],)).fetchone()
+            if not lines:
+                lines = conn.execute('''
+                    SELECT sol.id, sol.product_id, sol.quantity, sol.unit_price, 
+                           p.code, p.name as product_name, p.unit_of_measure,
+                           p.hs_code, p.country_of_origin
+                    FROM sales_order_lines sol
+                    JOIN products p ON sol.product_id = p.id
+                    WHERE sol.so_id = ?
+                ''', (shipment['reference_id'],)).fetchall()
+        elif shipment['reference_type'] == 'Work Order' and shipment['reference_id']:
+            if not lines:
+                lines = conn.execute('''
+                    SELECT wo.product_id, 1 as quantity, 0 as unit_price,
+                           p.code, p.name as product_name, p.unit_of_measure,
+                           p.hs_code, p.country_of_origin
+                    FROM work_orders wo
+                    JOIN products p ON wo.product_id = p.id
+                    WHERE wo.id = ?
+                ''', (shipment['reference_id'],)).fetchall()
+        
+        if not lines:
+            flash('Cannot generate commercial invoice: No line items on this shipment.', 'warning')
+            return redirect(url_for('shipping_routes.view_shipment', id=id))
         
         existing = conn.execute('''
             SELECT MAX(version) as max_ver FROM shipment_documents 
