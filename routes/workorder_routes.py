@@ -296,6 +296,7 @@ def view_workorder(id):
             p.code, 
             p.name, 
             p.unit_of_measure,
+            COALESCE(p.cost, 0) as unit_cost,
             COALESCE(
                 (SELECT SUM(mi.quantity_issued) 
                  FROM material_issues mi 
@@ -339,7 +340,8 @@ def view_workorder(id):
     task_material_summary = {}
     for task in tasks:
         materials = conn.execute('''
-            SELECT tm.*, p.code, p.name, p.unit_of_measure as product_uom
+            SELECT tm.*, p.code, p.name, p.unit_of_measure as product_uom,
+                   COALESCE(p.cost, 0) as unit_cost
             FROM work_order_task_materials tm
             JOIN products p ON tm.product_id = p.id
             WHERE tm.task_id = ?

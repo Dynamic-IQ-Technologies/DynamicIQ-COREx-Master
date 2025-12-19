@@ -978,6 +978,7 @@
                 {% endfor %}
                 
                 {% if all_task_materials %}
+                {% set ns = namespace(total_cost=0) %}
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead class="table-light">
@@ -986,22 +987,26 @@
                                 <th>Part #</th>
                                 <th>Description</th>
                                 <th class="text-center">Required</th>
+                                <th class="text-end">Unit Cost</th>
+                                <th class="text-end">Line Cost</th>
                                 <th class="text-center">Issued</th>
                                 <th class="text-center">Consumed</th>
                                 <th>Status</th>
-                                <th>Location</th>
-                                <th>Lot/Serial</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in all_task_materials %}
                             {% set task = item.task %}
                             {% set mat = item.mat %}
+                            {% set line_cost = (mat.required_qty or 0) * (mat.unit_cost or 0) %}
+                            {% set ns.total_cost = ns.total_cost + line_cost %}
                             <tr class="{% if (mat.issued_qty or 0) < (mat.required_qty or 0) %}table-warning{% endif %}">
                                 <td><span class="badge bg-secondary">{{ task.task_number }}</span> {{ task.task_name[:20] }}{% if task.task_name|length > 20 %}...{% endif %}</td>
                                 <td><strong>{{ mat.code }}</strong></td>
                                 <td>{{ mat.name[:30] }}{% if mat.name|length > 30 %}...{% endif %}</td>
                                 <td class="text-center">{{ "%.2f"|format(mat.required_qty or 0) }}</td>
+                                <td class="text-end">{{ (mat.unit_cost or 0)|currency }}</td>
+                                <td class="text-end"><strong>{{ line_cost|currency }}</strong></td>
                                 <td class="text-center">{{ "%.2f"|format(mat.issued_qty or 0) }}</td>
                                 <td class="text-center">{{ "%.2f"|format(mat.consumed_qty or 0) }}</td>
                                 <td>
@@ -1015,15 +1020,16 @@
                                     <span class="badge bg-secondary">{{ mat.material_status or 'Planned' }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ mat.location or '-' }}</td>
-                                <td>
-                                    {% if mat.lot_number %}L: {{ mat.lot_number }}{% endif %}
-                                    {% if mat.serial_number %}S/N: {{ mat.serial_number }}{% endif %}
-                                    {% if not mat.lot_number and not mat.serial_number %}-{% endif %}
-                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="5" class="text-end"><strong>Total Material Cost:</strong></td>
+                                <td class="text-end"><strong>{{ ns.total_cost|currency }}</strong></td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 {% else %}
@@ -1049,16 +1055,18 @@
             </div>
             <div class="card-body">
                 {% if requirements %}
+                {% set wo_ns = namespace(total_cost=0) %}
                 <div class="table-responsive">
                     <table class="table table-sm table-striped">
                         <thead>
                             <tr>
                                 <th>Code</th>
                                 <th>Product</th>
-                                <th>Required</th>
-                                <th>Allocated</th>
-                                <th>Issued</th>
-                                <th>Available</th>
+                                <th class="text-center">Required</th>
+                                <th class="text-end">Unit Cost</th>
+                                <th class="text-end">Line Cost</th>
+                                <th class="text-center">Allocated</th>
+                                <th class="text-center">Issued</th>
                                 <th>Status</th>
                                 {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
                                 <th>Actions</th>
@@ -1067,13 +1075,16 @@
                         </thead>
                         <tbody>
                             {% for req in requirements %}
+                            {% set req_line_cost = (req.required_quantity or 0) * (req.unit_cost or 0) %}
+                            {% set wo_ns.total_cost = wo_ns.total_cost + req_line_cost %}
                             <tr>
                                 <td><strong>{{ req.code }}</strong></td>
                                 <td>{{ req.name }}</td>
-                                <td>{{ "%.2f"|format(req.required_quantity) }}</td>
-                                <td>{{ "%.2f"|format(req.allocated_quantity or 0) }}</td>
-                                <td>{{ "%.2f"|format(req.quantity_issued or 0) }}</td>
-                                <td>{{ "%.2f"|format(req.available_quantity or 0) }}</td>
+                                <td class="text-center">{{ "%.2f"|format(req.required_quantity) }}</td>
+                                <td class="text-end">{{ (req.unit_cost or 0)|currency }}</td>
+                                <td class="text-end"><strong>{{ req_line_cost|currency }}</strong></td>
+                                <td class="text-center">{{ "%.2f"|format(req.allocated_quantity or 0) }}</td>
+                                <td class="text-center">{{ "%.2f"|format(req.quantity_issued or 0) }}</td>
                                 <td>
                                     {% if req.allocation_status == 'Fully Issued' %}
                                     <span class="badge bg-success">Fully Issued</span>
@@ -1110,6 +1121,13 @@
                             </tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="4" class="text-end"><strong>Total Material Cost:</strong></td>
+                                <td class="text-end"><strong>{{ wo_ns.total_cost|currency }}</strong></td>
+                                <td colspan="{% if session.role in ['Admin', 'Planner', 'Production Staff'] %}4{% else %}3{% endif %}"></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 {% else %}
