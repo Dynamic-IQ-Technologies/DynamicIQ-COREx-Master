@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<form method="POST">
+<form method="POST" action="{{ url_for('ndt_routes.invoice_new') }}">
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card mb-4">
@@ -34,7 +34,7 @@
                                     data-methods="{{ wo.ndt_methods }}"
                                     data-part="{{ wo.part_description }}"
                                     data-serial="{{ wo.serial_number }}"
-                                    {% if invoice and invoice.ndt_wo_id == wo.id %}selected{% endif %}>
+                                    {% if invoice and (invoice.ndt_wo_id == wo.id or invoice.get('ndt_wo_id') == wo.id) %}selected{% endif %}>
                                 {{ wo.ndt_wo_number }} - {{ wo.ndt_methods }} 
                                 {% if wo.customer_name %}({{ wo.customer_name }}){% endif %}
                             </option>
@@ -56,7 +56,7 @@
                             <select name="customer_id" id="customer_id" class="form-select" required>
                                 <option value="">-- Select Customer --</option>
                                 {% for cust in customers %}
-                                <option value="{{ cust.id }}" {% if invoice and invoice.customer_id == cust.id %}selected{% endif %}>
+                                <option value="{{ cust.id }}" {% if invoice and (invoice.customer_id == cust.id or invoice.get('customer_id') == cust.id) %}selected{% endif %}>
                                     {{ cust.name }}
                                 </option>
                                 {% endfor %}
@@ -65,17 +65,17 @@
                         <div class="col-md-6">
                             <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
                             <input type="date" name="invoice_date" class="form-control" 
-                                   value="{{ invoice.invoice_date if invoice else today }}" required>
+                                   value="{{ invoice.get('invoice_date', today) if invoice else today }}" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Payment Terms (Days)</label>
                             <input type="number" name="payment_terms" class="form-control" 
-                                   value="{{ invoice.payment_terms if invoice else 30 }}" min="0">
+                                   value="{{ invoice.get('payment_terms', 30) if invoice else 30 }}" min="0">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Inspection Type</label>
                             <input type="text" name="inspection_type" class="form-control" 
-                                   value="{{ invoice.inspection_type if invoice else '' }}"
+                                   value="{{ invoice.get('inspection_type', '') if invoice else '' }}"
                                    placeholder="e.g., Pre-shipment, In-service, Acceptance">
                         </div>
                     </div>
@@ -91,17 +91,17 @@
                         <div class="col-md-6">
                             <label class="form-label">NDT Methods</label>
                             <input type="text" name="ndt_methods" id="ndt_methods" class="form-control" 
-                                   value="{{ invoice.ndt_methods if invoice else '' }}"
+                                   value="{{ invoice.get('ndt_methods', '') if invoice else '' }}"
                                    placeholder="e.g., UT, MT, PT, RT">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Serial Number</label>
                             <input type="text" name="serial_number" id="serial_number" class="form-control" 
-                                   value="{{ invoice.serial_number if invoice else '' }}">
+                                   value="{{ invoice.get('serial_number', '') if invoice else '' }}">
                         </div>
                         <div class="col-12">
                             <label class="form-label">Part Description</label>
-                            <textarea name="part_description" id="part_description" class="form-control" rows="2">{{ invoice.part_description if invoice else '' }}</textarea>
+                            <textarea name="part_description" id="part_description" class="form-control" rows="2">{{ invoice.get('part_description', '') if invoice else '' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -112,7 +112,7 @@
                     <h5 class="mb-0"><i class="bi bi-card-text"></i> Notes</h5>
                 </div>
                 <div class="card-body">
-                    <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes or remarks...">{{ invoice.notes if invoice else '' }}</textarea>
+                    <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes or remarks...">{{ invoice.get('notes', '') if invoice else '' }}</textarea>
                 </div>
             </div>
         </div>
@@ -128,14 +128,14 @@
                         <div class="input-group">
                             <span class="input-group-text">$</span>
                             <input type="number" name="subtotal" id="subtotal" class="form-control" 
-                                   step="0.01" min="0" value="{{ invoice.subtotal if invoice else '0.00' }}" 
+                                   step="0.01" min="0" value="{{ invoice.get('subtotal', '0.00') if invoice else '0.00' }}" 
                                    required onchange="calculateTotal()">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Tax Rate (%)</label>
                         <input type="number" name="tax_rate" id="tax_rate" class="form-control" 
-                               step="0.01" min="0" max="100" value="{{ invoice.tax_rate if invoice else '0' }}"
+                               step="0.01" min="0" max="100" value="{{ invoice.get('tax_rate', '0') if invoice else '0' }}"
                                onchange="calculateTotal()">
                     </div>
                     <div class="mb-3">
@@ -143,7 +143,7 @@
                         <div class="input-group">
                             <span class="input-group-text">$</span>
                             <input type="number" name="discount_amount" id="discount_amount" class="form-control" 
-                                   step="0.01" min="0" value="{{ invoice.discount_amount if invoice else '0' }}"
+                                   step="0.01" min="0" value="{{ invoice.get('discount_amount', '0') if invoice else '0' }}"
                                    onchange="calculateTotal()">
                         </div>
                     </div>

@@ -1027,6 +1027,69 @@ def invoices_list():
     )
 
 
+@ndt_bp.route('/ndt/work-orders/<int:ndt_wo_id>/invoice')
+def invoice_from_wo(ndt_wo_id):
+    """Create NDT invoice pre-filled from work order"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('''
+        SELECT nw.*, c.name as customer_name, c.id as customer_id
+        FROM ndt_work_orders nw
+        LEFT JOIN customers c ON nw.customer_id = c.id
+        WHERE nw.id = ?
+    ''', (ndt_wo_id,)).fetchone()
+    
+    if not ndt_wo:
+        flash('NDT Work Order not found', 'error')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    # Check if invoice already exists for this work order
+    existing_invoice = conn.execute('''
+        SELECT id, invoice_number FROM ndt_invoices WHERE ndt_wo_id = ?
+    ''', (ndt_wo_id,)).fetchone()
+    
+    if existing_invoice:
+        flash(f'Invoice {existing_invoice["invoice_number"]} already exists for this work order', 'warning')
+        conn.close()
+        return redirect(url_for('ndt_routes.invoice_view', id=existing_invoice['id']))
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    ndt_work_orders = conn.execute('''
+        SELECT nw.id, nw.ndt_wo_number, nw.ndt_methods, nw.part_description,
+               nw.serial_number, c.name as customer_name, c.id as customer_id
+        FROM ndt_work_orders nw
+        LEFT JOIN customers c ON nw.customer_id = c.id
+        WHERE nw.status IN ('Approved', 'Closed') OR nw.id = ?
+        ORDER BY nw.ndt_wo_number DESC
+    ''', (ndt_wo_id,)).fetchall()
+    
+    conn.close()
+    
+    # Pre-fill invoice data from work order
+    prefilled_invoice = {
+        'ndt_wo_id': ndt_wo_id,
+        'customer_id': ndt_wo['customer_id'],
+        'ndt_methods': ndt_wo['ndt_methods'],
+        'part_description': ndt_wo['part_description'],
+        'serial_number': ndt_wo['serial_number'],
+        'inspection_type': ndt_wo.get('inspection_type', ''),
+    }
+    
+    return render_template('ndt/invoice_form.html',
+        invoice=prefilled_invoice,
+        customers=customers,
+        ndt_work_orders=ndt_work_orders,
+        ndt_methods=NDT_METHODS,
+        today=date.today().isoformat(),
+        prefilled=True
+    )
+
+
 @ndt_bp.route('/ndt/invoices/new', methods=['GET', 'POST'])
 def invoice_new():
     """Create new NDT invoice"""
