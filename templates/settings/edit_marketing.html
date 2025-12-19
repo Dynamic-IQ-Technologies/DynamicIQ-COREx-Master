@@ -26,9 +26,14 @@
         <h2><i class="bi bi-megaphone me-2"></i>Marketing Presentation Settings</h2>
         <p class="text-muted mb-0">Configure branding and content for autonomous marketing presentation generation</p>
     </div>
-    <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>Back to Settings
-    </a>
+    <div>
+        <a href="{{ url_for('settings_routes.generate_marketing_presentation') }}" class="btn btn-success me-2">
+            <i class="bi bi-magic me-1"></i>Generate Presentation
+        </a>
+        <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Settings
+        </a>
+    </div>
 </div>
 
 <form method="POST">

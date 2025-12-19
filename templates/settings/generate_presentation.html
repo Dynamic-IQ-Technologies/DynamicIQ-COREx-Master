@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Marketing Presentation Generator{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --brand-primary: {{ settings.brand_primary_color or '#1e40af' }};
+        --brand-secondary: {{ settings.brand_secondary_color or '#f97316' }};
+        --brand-accent: {{ settings.brand_accent_color or '#10b981' }};
+    }
+    
+    .presentation-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        min-height: 100vh;
+        padding: 2rem;
+    }
+    
+    .hero-section {
+        background: linear-gradient(135deg, var(--brand-primary) 0%, #1e3a8a 100%);
+        color: white;
+        padding: 4rem 3rem;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 60%;
+        height: 200%;
+        background: rgba(255,255,255,0.05);
+        transform: rotate(15deg);
+    }
+    
+    .hero-headline {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .hero-subheadline {
+        font-size: 1.25rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .value-prop-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        height: 100%;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-top: 4px solid var(--brand-secondary);
+    }
+    
+    .value-prop-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+    }
+    
+    .value-prop-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .value-prop-icon i {
+        font-size: 1.5rem;
+        color: white;
+    }
+    
+    .capability-section {
+        background: white;
+        border-radius: 1rem;
+        padding: 3rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    
+    .capability-category {
+        border-left: 4px solid var(--brand-accent);
+        padding-left: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .capability-category h4 {
+        color: var(--brand-primary);
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .capability-feature {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+    }
+    
+    .capability-feature i {
+        color: var(--brand-accent);
+        margin-right: 0.75rem;
+    }
+    
+    .industry-card {
+        background: linear-gradient(135deg, var(--brand-primary) 0%, #1e3a8a 100%);
+        color: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        height: 100%;
+    }
+    
+    .industry-card h5 {
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    
+    .stat-value {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--brand-secondary);
+        line-height: 1;
+    }
+    
+    .stat-label {
+        color: #64748b;
+        margin-top: 0.5rem;
+    }
+    
+    .testimonial-section {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: white;
+        border-radius: 1rem;
+        padding: 3rem;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    
+    .testimonial-quote {
+        font-size: 1.5rem;
+        font-style: italic;
+        margin-bottom: 1.5rem;
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .testimonial-quote::before {
+        content: '"';
+        position: absolute;
+        left: 0;
+        top: -0.5rem;
+        font-size: 4rem;
+        color: var(--brand-secondary);
+        opacity: 0.5;
+    }
+    
+    .cta-section {
+        background: linear-gradient(135deg, var(--brand-secondary) 0%, #ea580c 100%);
+        color: white;
+        border-radius: 1rem;
+        padding: 3rem;
+        text-align: center;
+    }
+    
+    .cta-section h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+    
+    .cta-button {
+        background: white;
+        color: var(--brand-secondary);
+        padding: 1rem 3rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    
+    .cta-button:hover {
+        transform: scale(1.05);
+    }
+    
+    .section-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--brand-primary);
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid #e2e8f0;
+        border-top-color: var(--brand-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .print-only { display: none; }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block; }
+        .presentation-container { padding: 0; }
+    }
+</style>
+
+<div class="presentation-container" id="presentationContainer">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <div>
+            <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Settings
+            </a>
+        </div>
+        <div>
+            <button class="btn btn-primary me-2" id="generateBtn" onclick="generatePresentation()">
+                <i class="bi bi-magic me-2"></i>Generate Presentation
+            </button>
+            <button class="btn btn-outline-secondary me-2" onclick="window.print()" id="printBtn" disabled>
+                <i class="bi bi-printer me-2"></i>Print
+            </button>
+            <a href="{{ url_for('settings_routes.edit_marketing_settings') }}" class="btn btn-outline-primary">
+                <i class="bi bi-gear me-2"></i>Edit Settings
+            </a>
+        </div>
+    </div>
+    
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner mb-4"></div>
+        <h4 class="text-primary">Generating Your Presentation...</h4>
+        <p class="text-muted">AI is crafting compelling marketing content based on your settings</p>
+    </div>
+    
+    <div id="presentationContent" style="display: none;">
+    </div>
+    
+    <div id="initialState" class="text-center py-5">
+        <div class="card border-0 shadow-sm mx-auto" style="max-width: 600px;">
+            <div class="card-body p-5">
+                <div class="mb-4">
+                    <i class="bi bi-easel2 text-primary" style="font-size: 4rem;"></i>
+                </div>
+                <h3 class="mb-3">Marketing Presentation Generator</h3>
+                <p class="text-muted mb-4">
+                    Generate a professional, AI-powered marketing presentation based on your configured brand settings.
+                    The presentation will include your company's value propositions, capabilities, target industries, and more.
+                </p>
+                <div class="alert alert-info text-start">
+                    <strong>Current Settings:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Company:</strong> {{ settings.company_name or 'Not set' }}</li>
+                        <li><strong>Tagline:</strong> {{ settings.marketing_tagline or 'Not set' }}</li>
+                        <li><strong>Tone:</strong> {{ settings.brand_tone or 'Enterprise' }}</li>
+                        <li><strong>Industries:</strong> {{ settings.target_industries or 'Not set' }}</li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary btn-lg mt-3" onclick="generatePresentation()">
+                    <i class="bi bi-magic me-2"></i>Generate Presentation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function generatePresentation() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const presentationContent = document.getElementById('presentationContent');
+    const initialState = document.getElementById('initialState');
+    const printBtn = document.getElementById('printBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    
+    loadingOverlay.style.display = 'flex';
+    initialState.style.display = 'none';
+    presentationContent.style.display = 'none';
+    generateBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/marketing/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            renderPresentation(data.presentation);
+            presentationContent.style.display = 'block';
+            printBtn.disabled = false;
+        } else {
+            showToast(data.error || 'Failed to generate presentation', 'danger');
+            initialState.style.display = 'block';
+        }
+    } catch (error) {
+        showToast('Error generating presentation: ' + error.message, 'danger');
+        initialState.style.display = 'block';
+    } finally {
+        loadingOverlay.style.display = 'none';
+        generateBtn.disabled = false;
+    }
+}
+
+function renderPresentation(data) {
+    const container = document.getElementById('presentationContent');
+    const company = data.company || {};
+    
+    let html = `
+        <div class="hero-section">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="hero-headline">${data.hero?.headline || 'Transform Your Manufacturing Operations'}</h1>
+                    <p class="hero-subheadline">${data.hero?.subheadline || 'Next-generation ERP for modern manufacturing'}</p>
+                </div>
+                <div class="col-lg-4 text-end">
+                    ${company.logo ? `<img src="/static/uploads/company/${company.logo}" alt="Logo" style="max-height: 100px;">` : ''}
+                    <h4 class="mt-3">${company.name || ''}</h4>
+                    <p class="opacity-75">${company.tagline || ''}</p>
+                </div>
+            </div>
+        </div>
+        
+        <h2 class="section-title">Why Choose Us</h2>
+        <div class="row g-4 mb-5">
+    `;
+    
+    (data.value_propositions || []).forEach(vp => {
+        html += `
+            <div class="col-md-6 col-lg-3">
+                <div class="value-prop-card">
+                    <div class="value-prop-icon">
+                        <i class="bi ${vp.icon || 'bi-star'}"></i>
+                    </div>
+                    <h5>${vp.title}</h5>
+                    <p class="text-muted mb-0">${vp.description}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        
+        <div class="capability-section">
+            <h2 class="section-title mb-4">Platform Capabilities</h2>
+            <div class="row">
+    `;
+    
+    (data.capabilities || []).forEach(cap => {
+        html += `
+            <div class="col-md-6 col-lg-3">
+                <div class="capability-category">
+                    <h4>${cap.category}</h4>
+                    ${(cap.features || []).map(f => `
+                        <div class="capability-feature">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>${f}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+        </div>
+        
+        <h2 class="section-title">Industries We Serve</h2>
+        <div class="row g-4 mb-5">
+    `;
+    
+    (data.industries || []).forEach(ind => {
+        html += `
+            <div class="col-md-6 col-lg-3">
+                <div class="industry-card">
+                    <h5><i class="bi bi-building me-2"></i>${ind.name}</h5>
+                    <p class="opacity-75 mb-0">${ind.use_case}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        
+        <h2 class="section-title">By The Numbers</h2>
+        <div class="row g-4 mb-5">
+    `;
+    
+    (data.stats || []).forEach(stat => {
+        html += `
+            <div class="col-md-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+    `;
+    
+    if (data.testimonial) {
+        html += `
+            <div class="testimonial-section">
+                <p class="testimonial-quote">${data.testimonial.quote}</p>
+                <div>
+                    <strong>${data.testimonial.author}</strong><br>
+                    <span class="opacity-75">${data.testimonial.title}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (data.cta) {
+        html += `
+            <div class="cta-section">
+                <h3>${data.cta.headline}</h3>
+                <button class="cta-button">${data.cta.button_text}</button>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}
