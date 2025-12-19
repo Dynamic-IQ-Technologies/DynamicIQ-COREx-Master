@@ -422,7 +422,13 @@ class Database:
             ('last_inspection_date', 'DATE'),
             ('next_inspection_date', 'DATE'),
             ('inspected_by', 'TEXT'),
-            ('inspection_notes', 'TEXT')
+            ('inspection_notes', 'TEXT'),
+            ('trace_tag', 'TEXT'),
+            ('trace', 'TEXT'),
+            ('trace_type', 'TEXT'),
+            ('msn_esn', 'TEXT'),
+            ('mfr_code', 'TEXT'),
+            ('lot_number', 'TEXT')
         ]
         
         for col_name, col_type in inventory_new_columns:

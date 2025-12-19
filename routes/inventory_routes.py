@@ -328,6 +328,14 @@ def edit_inventory(id):
             inspected_by = request.form.get('inspected_by', '').strip() or None
             inspection_notes = request.form.get('inspection_notes', '').strip() or None
             
+            # Get inventory tracing fields
+            trace_tag = request.form.get('trace_tag', '').strip() or None
+            trace = request.form.get('trace', '').strip() or None
+            trace_type = request.form.get('trace_type', '').strip() or None
+            msn_esn = request.form.get('msn_esn', '').strip() or None
+            mfr_code = request.form.get('mfr_code', '').strip() or None
+            lot_number = request.form.get('lot_number', '').strip() or None
+            
             # Validate serial number for serialized items
             if is_serialized:
                 if not serial_number:
@@ -366,12 +374,19 @@ def edit_inventory(id):
                     next_inspection_date=?,
                     inspected_by=?,
                     inspection_notes=?,
+                    trace_tag=?,
+                    trace=?,
+                    trace_type=?,
+                    msn_esn=?,
+                    mfr_code=?,
+                    lot_number=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, warehouse_location, bin_location, 
                   condition, status, is_serialized, serial_number if serial_number else None,
                   expiration_date, last_inspection_date, next_inspection_date,
-                  inspected_by, inspection_notes, id))
+                  inspected_by, inspection_notes, trace_tag, trace, trace_type,
+                  msn_esn, mfr_code, lot_number, id))
             
             AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
                                   {'quantity': quantity, 'old_quantity': old_record['quantity'],

@@ -151,6 +151,64 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-diagram-3 text-secondary me-2"></i>Inventory Tracing</h5>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="trace_tag" class="form-label">Tag</label>
+                        <input type="text" class="form-control" id="trace_tag" name="trace_tag" 
+                               value="{{ inventory.trace_tag or '' }}" placeholder="Tag identifier">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="trace" class="form-label">Trace</label>
+                        <input type="text" class="form-control" id="trace" name="trace" 
+                               value="{{ inventory.trace or '' }}" placeholder="Trace reference">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="trace_type" class="form-label">Trace Type</label>
+                        <select class="form-select" id="trace_type" name="trace_type">
+                            <option value="" {% if not inventory.trace_type %}selected{% endif %}>-- Select --</option>
+                            <option value="Full Trace" {% if inventory.trace_type == 'Full Trace' %}selected{% endif %}>Full Trace</option>
+                            <option value="Partial Trace" {% if inventory.trace_type == 'Partial Trace' %}selected{% endif %}>Partial Trace</option>
+                            <option value="No Trace" {% if inventory.trace_type == 'No Trace' %}selected{% endif %}>No Trace</option>
+                            <option value="Back to Birth" {% if inventory.trace_type == 'Back to Birth' %}selected{% endif %}>Back to Birth</option>
+                            <option value="FAA 8130-3" {% if inventory.trace_type == 'FAA 8130-3' %}selected{% endif %}>FAA 8130-3</option>
+                            <option value="EASA Form 1" {% if inventory.trace_type == 'EASA Form 1' %}selected{% endif %}>EASA Form 1</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="msn_esn" class="form-label">MSN/ESN</label>
+                        <input type="text" class="form-control" id="msn_esn" name="msn_esn" 
+                               value="{{ inventory.msn_esn or '' }}" placeholder="Machine/Engine Serial Number">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="mfr_code" class="form-label">MFR Code</label>
+                        <input type="text" class="form-control" id="mfr_code" name="mfr_code" 
+                               value="{{ inventory.mfr_code or '' }}" placeholder="Manufacturer code">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="lot_number" class="form-label">Lot Number</label>
+                        <input type="text" class="form-control" id="lot_number" name="lot_number" 
+                               value="{{ inventory.lot_number or '' }}" placeholder="Lot/Batch number">
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>
