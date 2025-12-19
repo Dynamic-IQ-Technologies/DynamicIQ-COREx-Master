@@ -3,134 +3,291 @@
 {% block title %}Operations Dashboard - Dynamic.IQ-COREx{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-1"><i class="bi bi-speedometer2 me-2"></i>Operations Dashboard</h2>
-        <p class="text-muted mb-0">Real-time visibility into work order stages, progress, TAT, and capacity</p>
-    </div>
-    <div>
-        <span class="badge bg-dark fs-6"><i class="bi bi-calendar3 me-1"></i> {{ today }}</span>
+<style>
+    .ops-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+    }
+    .ops-header h2 {
+        color: #fff;
+        margin: 0;
+        font-weight: 600;
+    }
+    .ops-header p {
+        color: #94a3b8;
+        margin: 0.25rem 0 0 0;
+    }
+    .kpi-strip {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+        flex: 1;
+        min-width: 140px;
+        background: #fff;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-left: 4px solid;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .kpi-card.blue { border-color: #3b82f6; }
+    .kpi-card.amber { border-color: #f59e0b; }
+    .kpi-card.red { border-color: #ef4444; }
+    .kpi-card.purple { border-color: #8b5cf6; }
+    .kpi-card.green { border-color: #10b981; }
+    .kpi-card.slate { border-color: #64748b; }
+    .kpi-card .kpi-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+    }
+    .kpi-card .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1;
+    }
+    .kpi-card .kpi-icon {
+        float: right;
+        font-size: 1.5rem;
+        opacity: 0.3;
+    }
+    
+    .ops-accordion {
+        margin-bottom: 1rem;
+    }
+    .ops-accordion .accordion-item {
+        border: none;
+        border-radius: 10px !important;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .ops-accordion .accordion-button {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: none;
+        font-weight: 600;
+        color: #1e293b;
+        padding: 1rem 1.25rem;
+        font-size: 0.95rem;
+    }
+    .ops-accordion .accordion-button:not(.collapsed) {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: #fff;
+        box-shadow: none;
+    }
+    .ops-accordion .accordion-button:not(.collapsed)::after {
+        filter: brightness(0) invert(1);
+    }
+    .ops-accordion .accordion-button:focus {
+        box-shadow: none;
+    }
+    .ops-accordion .accordion-body {
+        background: #fff;
+        padding: 1.25rem;
+    }
+    
+    .stage-pipeline {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.5rem 0;
+    }
+    .stage-card {
+        flex: 1;
+        min-width: 120px;
+        max-width: 180px;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        border-top: 3px solid;
+        transition: transform 0.2s;
+    }
+    .stage-card:hover {
+        transform: translateY(-2px);
+    }
+    .stage-card .stage-count {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .stage-card .stage-name {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+    .stage-card .stage-active {
+        font-size: 0.7rem;
+        color: #10b981;
+        margin-top: 0.25rem;
+    }
+    
+    .metric-box {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    .metric-box .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #3b82f6;
+    }
+    .metric-box .metric-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .breakdown-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .breakdown-item:last-child {
+        border-bottom: none;
+    }
+    .breakdown-item .item-name {
+        font-weight: 500;
+        color: #334155;
+    }
+    
+    .etc-table {
+        font-size: 0.9rem;
+    }
+    .etc-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        padding: 0.75rem 1rem;
+        border: none;
+    }
+    .etc-table td {
+        padding: 0.75rem 1rem;
+        vertical-align: middle;
+        border-color: #f1f5f9;
+    }
+    
+    .labor-table {
+        font-size: 0.9rem;
+    }
+    .labor-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        border: none;
+    }
+    
+    .chart-container {
+        height: 280px;
+        position: relative;
+    }
+</style>
+
+<div class="ops-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="bi bi-speedometer2 me-2"></i>Operations Dashboard</h2>
+            <p>Real-time visibility into work order stages, progress, TAT, and capacity</p>
+        </div>
+        <div>
+            <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                <i class="bi bi-calendar3 me-2"></i>{{ today }}
+            </span>
+        </div>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
-            <div class="card-body text-white">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-white-50 mb-1">Total Active WOs</h6>
-                        <h2 class="mb-0 fw-bold">{{ wo_overview.active or 0 }}</h2>
-                    </div>
-                    <i class="bi bi-clipboard-data fs-2 text-white-50"></i>
-                </div>
-            </div>
-        </div>
+<div class="kpi-strip">
+    <div class="kpi-card blue">
+        <i class="bi bi-clipboard-data kpi-icon"></i>
+        <div class="kpi-label">Active Work Orders</div>
+        <div class="kpi-value">{{ wo_overview.active or 0 }}</div>
     </div>
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-            <div class="card-body text-white">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-white-50 mb-1">In Progress</h6>
-                        <h2 class="mb-0 fw-bold">{{ wo_overview.in_progress or 0 }}</h2>
-                    </div>
-                    <i class="bi bi-gear-wide-connected fs-2 text-white-50"></i>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-card amber">
+        <i class="bi bi-gear-wide-connected kpi-icon"></i>
+        <div class="kpi-label">In Progress</div>
+        <div class="kpi-value">{{ wo_overview.in_progress or 0 }}</div>
     </div>
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-            <div class="card-body text-white">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-white-50 mb-1">Overdue</h6>
-                        <h2 class="mb-0 fw-bold">{{ tat_metrics.overdue_count or 0 }}</h2>
-                    </div>
-                    <i class="bi bi-exclamation-triangle fs-2 text-white-50"></i>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-card red">
+        <i class="bi bi-exclamation-triangle kpi-icon"></i>
+        <div class="kpi-label">Overdue</div>
+        <div class="kpi-value">{{ tat_metrics.overdue_count or 0 }}</div>
     </div>
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
-            <div class="card-body text-white">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-white-50 mb-1">Due This Week</h6>
-                        <h2 class="mb-0 fw-bold">{{ tat_metrics.due_this_week or 0 }}</h2>
-                    </div>
-                    <i class="bi bi-calendar-week fs-2 text-white-50"></i>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-card purple">
+        <i class="bi bi-calendar-week kpi-icon"></i>
+        <div class="kpi-label">Due This Week</div>
+        <div class="kpi-value">{{ tat_metrics.due_this_week or 0 }}</div>
     </div>
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-            <div class="card-body text-white">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-white-50 mb-1">OTD Rate</h6>
-                        <h2 class="mb-0 fw-bold">{{ otd_rate }}%</h2>
-                    </div>
-                    <i class="bi bi-check-circle fs-2 text-white-50"></i>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-card green">
+        <i class="bi bi-check-circle kpi-icon"></i>
+        <div class="kpi-label">On-Time Delivery</div>
+        <div class="kpi-value">{{ otd_rate }}%</div>
     </div>
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
-            <div class="card-body text-white">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-white-50 mb-1">Material Shortages</h6>
-                        <h2 class="mb-0 fw-bold">{{ material_shortage.wo_with_shortage or 0 }}</h2>
-                    </div>
-                    <i class="bi bi-box-seam fs-2 text-white-50"></i>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-card slate">
+        <i class="bi bi-box-seam kpi-icon"></i>
+        <div class="kpi-label">Material Shortages</div>
+        <div class="kpi-value">{{ material_shortage.wo_with_shortage or 0 }}</div>
     </div>
 </div>
 
-<div class="card mb-4 border-0 shadow-sm">
-    <div class="card-header bg-white py-3">
-        <h5 class="mb-0 fw-semibold"><i class="bi bi-layers me-2"></i>Work Order Stage Load</h5>
-    </div>
-    <div class="card-body">
-        <div class="row g-3">
-            {% for stage in stage_load %}
-            <div class="col-md-2">
-                <div class="card h-100" style="border-left: 4px solid {{ stage.color or '#6c757d' }};">
-                    <div class="card-body py-3">
-                        <h6 class="text-muted mb-2 small">{{ stage.stage_name }}</h6>
-                        <h3 class="mb-1 fw-bold">{{ stage.wo_count or 0 }}</h3>
-                        <div class="d-flex justify-content-between small text-muted">
-                            <span><i class="bi bi-play-circle"></i> {{ stage.in_progress_count or 0 }} active</span>
-                        </div>
+<div class="accordion ops-accordion" id="opsDashboardAccordion">
+    
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#stageLoad" aria-expanded="true">
+                <i class="bi bi-layers me-2"></i>Work Order Stage Pipeline
+            </button>
+        </h2>
+        <div id="stageLoad" class="accordion-collapse collapse show" data-bs-parent="#opsDashboardAccordion">
+            <div class="accordion-body">
+                <div class="stage-pipeline">
+                    {% for stage in stage_load %}
+                    <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};">
+                        <div class="stage-count">{{ stage.wo_count or 0 }}</div>
+                        <div class="stage-name">{{ stage.stage_name }}</div>
+                        <div class="stage-active"><i class="bi bi-play-circle"></i> {{ stage.in_progress_count or 0 }} active</div>
                     </div>
+                    {% else %}
+                    <div class="text-muted">No stages configured. <a href="{{ url_for('workorder_routes.manage_stages') }}">Configure stages</a></div>
+                    {% endfor %}
                 </div>
             </div>
-            {% else %}
-            <div class="col-12">
-                <p class="text-muted mb-0">No stages configured. <a href="{{ url_for('workorder_routes.manage_stages') }}">Configure stages</a></p>
-            </div>
-            {% endfor %}
         </div>
     </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i>ETC - Work Orders by Remaining Time</h5>
-            </div>
-            <div class="card-body p-0">
+    
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#etcPanel" aria-expanded="false">
+                <i class="bi bi-clock-history me-2"></i>ETC - Work Orders by Remaining Time
+            </button>
+        </h2>
+        <div id="etcPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
+            <div class="accordion-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                    <table class="table etc-table mb-0">
+                        <thead>
                             <tr>
                                 <th>Work Order</th>
                                 <th>Product</th>
@@ -144,8 +301,8 @@
                         <tbody>
                             {% for wo in etc_data %}
                             <tr>
-                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold">{{ wo.wo_number }}</a></td>
-                                <td><small>{{ wo.product_code }} - {{ wo.product_name[:25] }}{% if wo.product_name|length > 25 %}...{% endif %}</small></td>
+                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold text-decoration-none">{{ wo.wo_number }}</a></td>
+                                <td><small class="text-muted">{{ wo.product_code }} - {{ wo.product_name[:25] }}{% if wo.product_name|length > 25 %}...{% endif %}</small></td>
                                 <td>
                                     {% if wo.stage_name %}
                                     <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }}">{{ wo.stage_name }}</span>
@@ -153,16 +310,16 @@
                                     <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td><span class="badge bg-{% if wo.status == 'In Progress' %}warning{% elif wo.status == 'Released' %}info{% else %}secondary{% endif %}">{{ wo.status }}</span></td>
+                                <td><span class="badge bg-{% if wo.status == 'In Progress' %}warning text-dark{% elif wo.status == 'Released' %}info{% else %}secondary{% endif %}">{{ wo.status }}</span></td>
                                 <td>{{ wo.planned_end_date or 'Not set' }}</td>
                                 <td>
                                     {% if wo.days_remaining is not none %}
                                         {% if wo.days_remaining < 0 %}
-                                        <span class="badge bg-danger">{{ wo.days_remaining|int|abs }} days overdue</span>
+                                        <span class="badge bg-danger">{{ wo.days_remaining|int|abs }}d overdue</span>
                                         {% elif wo.days_remaining <= 3 %}
-                                        <span class="badge bg-warning text-dark">{{ wo.days_remaining|int }} days</span>
+                                        <span class="badge bg-warning text-dark">{{ wo.days_remaining|int }}d</span>
                                         {% else %}
-                                        <span class="badge bg-success">{{ wo.days_remaining|int }} days</span>
+                                        <span class="badge bg-success">{{ wo.days_remaining|int }}d</span>
                                         {% endif %}
                                     {% else %}
                                     <span class="text-muted">-</span>
@@ -185,148 +342,158 @@
         </div>
     </div>
     
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-stopwatch me-2"></i>TAT Metrics</h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="text-center p-3 bg-light rounded">
-                            <h3 class="mb-1 fw-bold text-primary">{{ (tat_metrics.avg_tat_days or 0)|round(1) }}</h3>
-                            <small class="text-muted">Avg TAT (Days)</small>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#metricsPanel" aria-expanded="false">
+                <i class="bi bi-bar-chart me-2"></i>Performance Metrics & Task Progress
+            </button>
+        </h2>
+        <div id="metricsPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
+            <div class="accordion-body">
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <h6 class="text-muted mb-3"><i class="bi bi-stopwatch me-2"></i>TAT Metrics</h6>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="metric-box">
+                                    <div class="metric-value">{{ (tat_metrics.avg_tat_days or 0)|round(1) }}</div>
+                                    <div class="metric-label">Avg TAT (Days)</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-box">
+                                    <div class="metric-value" style="color: #10b981;">{{ (tat_metrics.avg_planned_tat or 0)|round(1) }}</div>
+                                    <div class="metric-label">Avg Planned TAT</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 bg-light rounded">
-                            <h3 class="mb-1 fw-bold text-info">{{ (tat_metrics.avg_planned_tat or 0)|round(1) }}</h3>
-                            <small class="text-muted">Avg Planned TAT</small>
+                    <div class="col-lg-8">
+                        <h6 class="text-muted mb-3"><i class="bi bi-list-task me-2"></i>Task Progress</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Overall Completion</span>
+                            <span class="fw-bold">{{ task_completion_pct }}%</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ task_completion_pct }}%; border-radius: 6px;"></div>
+                        </div>
+                        <div class="row text-center g-3">
+                            <div class="col-4">
+                                <div class="metric-box">
+                                    <div class="metric-value" style="color: #10b981;">{{ task_progress.completed_tasks or 0 }}</div>
+                                    <div class="metric-label">Completed</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="metric-box">
+                                    <div class="metric-value" style="color: #f59e0b;">{{ task_progress.in_progress_tasks or 0 }}</div>
+                                    <div class="metric-label">In Progress</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="metric-box">
+                                    <div class="metric-value">{{ task_progress.total_tasks or 0 }}</div>
+                                    <div class="metric-label">Total Tasks</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-list-task me-2"></i>Task Progress</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Overall Completion</span>
-                    <span class="fw-bold">{{ task_completion_pct }}%</span>
-                </div>
-                <div class="progress mb-3" style="height: 10px;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ task_completion_pct }}%"></div>
-                </div>
-                <div class="row text-center">
-                    <div class="col-4">
-                        <h5 class="mb-0 fw-bold">{{ task_progress.completed_tasks or 0 }}</h5>
-                        <small class="text-muted">Completed</small>
-                    </div>
-                    <div class="col-4">
-                        <h5 class="mb-0 fw-bold text-warning">{{ task_progress.in_progress_tasks or 0 }}</h5>
-                        <small class="text-muted">In Progress</small>
-                    </div>
-                    <div class="col-4">
-                        <h5 class="mb-0 fw-bold">{{ task_progress.total_tasks or 0 }}</h5>
-                        <small class="text-muted">Total</small>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-pie-chart me-2"></i>By Disposition</h5>
-            </div>
-            <div class="card-body">
-                {% for item in disposition_breakdown %}
-                <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
-                    <span>{{ item.disposition or 'Not Set' }}</span>
-                    <div>
-                        <span class="badge bg-primary me-1">{{ item.count }} total</span>
-                        <span class="badge bg-success">{{ item.completed }} done</span>
+    
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#breakdownPanel" aria-expanded="false">
+                <i class="bi bi-pie-chart me-2"></i>Work Order Breakdown Analysis
+            </button>
+        </h2>
+        <div id="breakdownPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
+            <div class="accordion-body">
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <h6 class="text-muted mb-3"><i class="bi bi-diagram-2 me-2"></i>By Disposition</h6>
+                        <div class="bg-light rounded p-3">
+                            {% for item in disposition_breakdown %}
+                            <div class="breakdown-item">
+                                <span class="item-name">{{ item.disposition or 'Not Set' }}</span>
+                                <div>
+                                    <span class="badge bg-primary me-1">{{ item.count }}</span>
+                                    <span class="badge bg-success">{{ item.completed }} done</span>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-0">No data available</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <h6 class="text-muted mb-3"><i class="bi bi-diagram-3 me-2"></i>By Category</h6>
+                        <div class="bg-light rounded p-3">
+                            {% for item in category_breakdown %}
+                            <div class="breakdown-item">
+                                <span class="item-name">{{ item.category }}</span>
+                                <div>
+                                    <span class="badge bg-secondary me-1">{{ item.count }}</span>
+                                    <span class="badge bg-warning text-dark">{{ item.active }} active</span>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-0">No data available</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <h6 class="text-muted mb-3"><i class="bi bi-building me-2"></i>By WO Type</h6>
+                        <div class="bg-light rounded p-3">
+                            {% for item in type_breakdown %}
+                            <div class="breakdown-item">
+                                <span class="item-name">{{ item.wo_type }}</span>
+                                <div>
+                                    <span class="badge bg-dark me-1">{{ item.count }}</span>
+                                    <span class="badge bg-info">{{ item.active }} active</span>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-0">No data available</p>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
-                {% else %}
-                <p class="text-muted mb-0">No data available</p>
-                {% endfor %}
             </div>
         </div>
     </div>
     
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-diagram-3 me-2"></i>By Category</h5>
-            </div>
-            <div class="card-body">
-                {% for item in category_breakdown %}
-                <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
-                    <span>{{ item.category }}</span>
-                    <div>
-                        <span class="badge bg-secondary me-1">{{ item.count }} total</span>
-                        <span class="badge bg-warning text-dark">{{ item.active }} active</span>
-                    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#trendPanel" aria-expanded="false">
+                <i class="bi bi-graph-up me-2"></i>Monthly Trends & Analytics
+            </button>
+        </h2>
+        <div id="trendPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
+            <div class="accordion-body">
+                <div class="chart-container">
+                    <canvas id="woTrendChart"></canvas>
                 </div>
-                {% else %}
-                <p class="text-muted mb-0">No data available</p>
-                {% endfor %}
             </div>
         </div>
     </div>
     
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-building me-2"></i>By WO Type</h5>
-            </div>
-            <div class="card-body">
-                {% for item in type_breakdown %}
-                <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
-                    <span>{{ item.wo_type }}</span>
-                    <div>
-                        <span class="badge bg-dark me-1">{{ item.count }} total</span>
-                        <span class="badge bg-info">{{ item.active }} active</span>
-                    </div>
-                </div>
-                {% else %}
-                <p class="text-muted mb-0">No data available</p>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-graph-up me-2"></i>Monthly WO Trend</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="woTrendChart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold"><i class="bi bi-people me-2"></i>Labor Utilization</h5>
-            </div>
-            <div class="card-body p-0">
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#laborPanel" aria-expanded="false">
+                <i class="bi bi-people me-2"></i>Labor Utilization
+            </button>
+        </h2>
+        <div id="laborPanel" class="accordion-collapse collapse" data-bs-parent="#opsDashboardAccordion">
+            <div class="accordion-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                    <table class="table labor-table mb-0">
+                        <thead>
                             <tr>
-                                <th>Resource</th>
+                                <th class="ps-4">Resource</th>
+                                <th>Employee Code</th>
                                 <th>Assigned Tasks</th>
                                 <th>Total Hours</th>
                                 <th>Status</th>
@@ -335,15 +502,13 @@
                         <tbody>
                             {% for labor in labor_utilization %}
                             <tr>
-                                <td>
-                                    <strong>{{ labor.name }}</strong>
-                                    <br><small class="text-muted">{{ labor.employee_code }}</small>
-                                </td>
+                                <td class="ps-4"><strong>{{ labor.name }}</strong></td>
+                                <td><code>{{ labor.employee_code }}</code></td>
                                 <td>{{ labor.assigned_tasks }}</td>
                                 <td>{{ labor.total_hours|round(1) }}h</td>
                                 <td>
                                     {% if labor.currently_clocked > 0 %}
-                                    <span class="badge bg-success"><i class="bi bi-clock"></i> Clocked In</span>
+                                    <span class="badge bg-success"><i class="bi bi-clock me-1"></i>Clocked In</span>
                                     {% else %}
                                     <span class="badge bg-secondary">Available</span>
                                     {% endif %}
@@ -351,7 +516,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">No labor resources configured</td>
+                                <td colspan="5" class="text-center text-muted py-4">No labor resources configured</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -360,6 +525,7 @@
             </div>
         </div>
     </div>
+    
 </div>
 {% endblock %}
 
@@ -379,16 +545,18 @@ new Chart(document.getElementById('woTrendChart'), {
             {
                 label: 'Created',
                 data: createdData,
-                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
                 borderColor: 'rgb(59, 130, 246)',
-                borderWidth: 1
+                borderWidth: 0,
+                borderRadius: 4
             },
             {
                 label: 'Completed',
                 data: completedData,
-                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
                 borderColor: 'rgb(16, 185, 129)',
-                borderWidth: 1
+                borderWidth: 0,
+                borderRadius: 4
             }
         ]
     },
@@ -397,7 +565,11 @@ new Chart(document.getElementById('woTrendChart'), {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'top'
+                position: 'top',
+                labels: {
+                    usePointStyle: true,
+                    padding: 20
+                }
             }
         },
         scales: {
@@ -405,6 +577,14 @@ new Chart(document.getElementById('woTrendChart'), {
                 beginAtZero: true,
                 ticks: {
                     stepSize: 1
+                },
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
                 }
             }
         }
