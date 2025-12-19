@@ -1,24 +1,142 @@
 {% extends "base.html" %}
 
-{% block title %}Work Order Costs Report - Dynamic.IQ.MRP{% endblock %}
+{% block title %}Work Order Costs Report - Dynamic.IQ-COREx{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Work Order Costs Report</h2>
+<style>
+    .filter-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .sortable:hover {
+        background-color: #e2e8f0;
+    }
+    .sortable i {
+        font-size: 0.75rem;
+        margin-left: 0.25rem;
+        opacity: 0.5;
+    }
+    .sortable.active i {
+        opacity: 1;
+        color: #3b82f6;
+    }
+    .totals-row {
+        background-color: #f1f5f9 !important;
+        font-weight: 600;
+    }
+    .totals-row td {
+        border-top: 2px solid #94a3b8;
+    }
+    .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .cost-cell {
+        text-align: right;
+        font-family: 'SF Mono', 'Consolas', monospace;
+    }
+    .service-cost {
+        color: #7c3aed;
+    }
+</style>
+
+<div class="report-header">
+    <div>
+        <h2><i class="bi bi-currency-dollar me-2"></i>Work Order Costs Report</h2>
+        <p class="text-muted mb-0">Comprehensive cost breakdown including service/misc charges</p>
+    </div>
+    <div>
+        <a href="{{ url_for('report_routes.workorder_costs_report', status=status_filter, date_from=date_from, date_to=date_to, sort_by=sort_by, sort_order=sort_order, export='csv') }}" class="btn btn-outline-success">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </a>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label for="status" class="form-label small text-muted">Status</label>
+            <select class="form-select form-select-sm" id="status" name="status">
+                <option value="">All Statuses</option>
+                {% for status in status_list %}
+                <option value="{{ status }}" {% if status == status_filter %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="date_from" class="form-label small text-muted">Date From</label>
+            <input type="date" class="form-control form-control-sm" id="date_from" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="col-md-2">
+            <label for="date_to" class="form-label small text-muted">Date To</label>
+            <input type="date" class="form-control form-control-sm" id="date_to" name="date_to" value="{{ date_to }}">
+        </div>
+        <div class="col-md-auto">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-funnel me-1"></i>Apply Filter
+            </button>
+            <a href="{{ url_for('report_routes.workorder_costs_report') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-lg me-1"></i>Clear
+            </a>
+        </div>
+        <div class="col-md-auto ms-auto">
+            <span class="badge bg-secondary">{{ workorder_costs|length }} records</span>
+        </div>
+    </form>
+</div>
 
 <div class="card">
-    <div class="card-body">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>WO Number</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Material Cost</th>
-                        <th>Labor Cost</th>
-                        <th>Overhead Cost</th>
-                        <th>Total Cost</th>
-                        <th>Status</th>
+                        <th class="sortable {% if sort_by == 'wo_number' %}active{% endif %}" onclick="sortTable('wo_number')">
+                            WO Number
+                            <i class="bi bi-arrow-{% if sort_by == 'wo_number' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'code' %}active{% endif %}" onclick="sortTable('code')">
+                            Product
+                            <i class="bi bi-arrow-{% if sort_by == 'code' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'quantity' %}active{% endif %}" onclick="sortTable('quantity')">
+                            Qty
+                            <i class="bi bi-arrow-{% if sort_by == 'quantity' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'material_cost' %}active{% endif %}" onclick="sortTable('material_cost')">
+                            Material
+                            <i class="bi bi-arrow-{% if sort_by == 'material_cost' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'labor_cost' %}active{% endif %}" onclick="sortTable('labor_cost')">
+                            Labor
+                            <i class="bi bi-arrow-{% if sort_by == 'labor_cost' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'overhead_cost' %}active{% endif %}" onclick="sortTable('overhead_cost')">
+                            Overhead
+                            <i class="bi bi-arrow-{% if sort_by == 'overhead_cost' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'service_cost' %}active{% endif %}" onclick="sortTable('service_cost')">
+                            Service/Misc
+                            <i class="bi bi-arrow-{% if sort_by == 'service_cost' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'total_cost' %}active{% endif %}" onclick="sortTable('total_cost')">
+                            Total Cost
+                            <i class="bi bi-arrow-{% if sort_by == 'total_cost' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
+                        <th class="sortable {% if sort_by == 'status' %}active{% endif %}" onclick="sortTable('status')">
+                            Status
+                            <i class="bi bi-arrow-{% if sort_by == 'status' %}{% if sort_order == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %}"></i>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -27,16 +145,67 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                         <td>{{ wo.code }} - {{ wo.name }}</td>
                         <td>{{ wo.quantity }}</td>
-                        <td>{{ wo.material_cost|currency }}</td>
-                        <td>{{ wo.labor_cost|currency }}</td>
-                        <td>{{ wo.overhead_cost|currency }}</td>
-                        <td><strong>{{ wo.total_cost|currency }}</strong></td>
-                        <td><span class="badge bg-info">{{ wo.status }}</span></td>
+                        <td class="cost-cell">{{ wo.material_cost|currency }}</td>
+                        <td class="cost-cell">{{ wo.labor_cost|currency }}</td>
+                        <td class="cost-cell">{{ wo.overhead_cost|currency }}</td>
+                        <td class="cost-cell service-cost">{{ wo.service_cost|currency }}</td>
+                        <td class="cost-cell"><strong>{{ wo.total_cost|currency }}</strong></td>
+                        <td>
+                            {% if wo.status == 'Completed' %}
+                            <span class="badge bg-success">{{ wo.status }}</span>
+                            {% elif wo.status == 'In Progress' %}
+                            <span class="badge bg-primary">{{ wo.status }}</span>
+                            {% elif wo.status == 'Cancelled' %}
+                            <span class="badge bg-danger">{{ wo.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ wo.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No work orders found matching the filter criteria
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                {% if workorder_costs %}
+                <tfoot>
+                    <tr class="totals-row">
+                        <td colspan="3"><strong>TOTALS</strong></td>
+                        <td class="cost-cell">{{ totals.material|currency }}</td>
+                        <td class="cost-cell">{{ totals.labor|currency }}</td>
+                        <td class="cost-cell">{{ totals.overhead|currency }}</td>
+                        <td class="cost-cell service-cost">{{ totals.service|currency }}</td>
+                        <td class="cost-cell"><strong>{{ totals.total|currency }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sortTable(column) {
+    const url = new URL(window.location.href);
+    const currentSort = url.searchParams.get('sort_by');
+    const currentOrder = url.searchParams.get('sort_order') || 'desc';
+    
+    url.searchParams.set('sort_by', column);
+    
+    if (currentSort === column) {
+        url.searchParams.set('sort_order', currentOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+        url.searchParams.set('sort_order', 'desc');
+    }
+    
+    window.location.href = url.toString();
+}
+</script>
 {% endblock %}

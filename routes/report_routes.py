@@ -34,17 +34,70 @@ def workorder_costs_report():
     db = Database()
     conn = db.get_connection()
     
-    workorder_costs = conn.execute('''
+    status_filter = request.args.get('status', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    sort_by = request.args.get('sort_by', 'wo_number')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    valid_sort_cols = ['wo_number', 'code', 'quantity', 'material_cost', 'labor_cost', 
+                       'overhead_cost', 'service_cost', 'total_cost', 'status', 'planned_start_date']
+    if sort_by not in valid_sort_cols:
+        sort_by = 'wo_number'
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    query = '''
         SELECT wo.*, p.code, p.name,
-               (wo.material_cost + wo.labor_cost + wo.overhead_cost) as total_cost
+               COALESCE((SELECT SUM(total_cost) FROM purchase_order_service_lines 
+                        WHERE work_order_id = wo.id AND status = 'Received'), 0) as service_cost,
+               (wo.material_cost + wo.labor_cost + wo.overhead_cost + 
+                COALESCE((SELECT SUM(total_cost) FROM purchase_order_service_lines 
+                         WHERE work_order_id = wo.id AND status = 'Received'), 0)) as total_cost
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
-        ORDER BY wo.planned_start_date DESC
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    if status_filter:
+        query += ' AND wo.status = ?'
+        params.append(status_filter)
+    
+    if date_from:
+        query += ' AND wo.planned_start_date >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND wo.planned_start_date <= ?'
+        params.append(date_to)
+    
+    query += f' ORDER BY {sort_by} {sort_order.upper()}'
+    
+    workorder_costs = conn.execute(query, params).fetchall()
+    
+    statuses = conn.execute('SELECT DISTINCT status FROM work_orders ORDER BY status').fetchall()
+    status_list = [s['status'] for s in statuses]
+    
+    totals = {
+        'material': sum(wo['material_cost'] or 0 for wo in workorder_costs),
+        'labor': sum(wo['labor_cost'] or 0 for wo in workorder_costs),
+        'overhead': sum(wo['overhead_cost'] or 0 for wo in workorder_costs),
+        'service': sum(wo['service_cost'] or 0 for wo in workorder_costs),
+        'total': sum(wo['total_cost'] or 0 for wo in workorder_costs)
+    }
     
     conn.close()
     
-    return render_template('reports/workorder_costs.html', workorder_costs=workorder_costs)
+    return render_template('reports/workorder_costs.html', 
+                          workorder_costs=workorder_costs,
+                          status_list=status_list,
+                          status_filter=status_filter,
+                          date_from=date_from,
+                          date_to=date_to,
+                          sort_by=sort_by,
+                          sort_order=sort_order,
+                          totals=totals)
 
 @report_bp.route('/reports/material-usage')
 @login_required
