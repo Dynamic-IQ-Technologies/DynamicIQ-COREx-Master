@@ -1210,11 +1210,15 @@ def wo_clock_in(id):
     
     punch_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
+    # Generate punch number
+    count = conn.execute('SELECT COUNT(*) FROM time_clock_punches').fetchone()[0]
+    punch_number = f"PUNCH-{count + 1:07d}"
+    
     conn.execute('''
         INSERT INTO time_clock_punches 
-        (employee_id, punch_time, punch_type, ndt_work_order_id, notes, location)
-        VALUES (?, ?, 'Clock In', ?, ?, 'NDT Work Order')
-    ''', (employee_id, punch_time, id, notes))
+        (punch_number, employee_id, punch_time, punch_type, ndt_work_order_id, notes, location)
+        VALUES (?, ?, ?, 'Clock In', ?, ?, 'NDT Work Order')
+    ''', (punch_number, employee_id, punch_time, id, notes))
     
     if ndt_wo['status'] == 'Scheduled':
         conn.execute('''
@@ -1278,11 +1282,15 @@ def wo_clock_out(id):
     clock_in_time = datetime.strptime(last_clock_in['punch_time'], '%Y-%m-%d %H:%M:%S')
     hours_worked = (datetime.now() - clock_in_time).total_seconds() / 3600
     
+    # Generate punch number
+    count = conn.execute('SELECT COUNT(*) FROM time_clock_punches').fetchone()[0]
+    punch_number = f"PUNCH-{count + 1:07d}"
+    
     conn.execute('''
         INSERT INTO time_clock_punches 
-        (employee_id, punch_time, punch_type, ndt_work_order_id, hours_worked, location)
-        VALUES (?, ?, 'Clock Out', ?, ?, 'NDT Work Order')
-    ''', (employee_id, punch_time, id, round(hours_worked, 2)))
+        (punch_number, employee_id, punch_time, punch_type, ndt_work_order_id, location)
+        VALUES (?, ?, ?, 'Clock Out', ?, 'NDT Work Order')
+    ''', (punch_number, employee_id, punch_time, id))
     
     conn.commit()
     conn.close()
