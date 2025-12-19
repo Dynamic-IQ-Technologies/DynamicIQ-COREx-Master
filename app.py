@@ -97,6 +97,12 @@ def format_date_filter(value):
     except Exception:
         return str(value) if value else '-'
 
+@app.context_processor
+def inject_now():
+    """Make datetime.now available to all templates."""
+    from datetime import datetime
+    return {'now': datetime.now}
+
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(product_bp)
