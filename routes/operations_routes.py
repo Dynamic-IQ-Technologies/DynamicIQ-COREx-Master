@@ -148,7 +148,15 @@ def operations_dashboard():
             lr.employee_code,
             COUNT(DISTINCT wot.id) as assigned_tasks,
             COALESCE(SUM(wot.actual_hours), 0) as total_hours,
-            (SELECT COUNT(*) FROM labor_issuance li WHERE li.resource_id = lr.id AND li.clock_out IS NULL) as currently_clocked
+            (SELECT COUNT(*) FROM time_clock_punches tcp 
+             WHERE tcp.employee_id = lr.id 
+             AND tcp.punch_type = 'Clock In'
+             AND NOT EXISTS (
+                 SELECT 1 FROM time_clock_punches tcp2 
+                 WHERE tcp2.employee_id = lr.id 
+                 AND tcp2.punch_type = 'Clock Out' 
+                 AND tcp2.punch_time > tcp.punch_time
+             )) as currently_clocked
         FROM labor_resources lr
         LEFT JOIN work_order_tasks wot ON lr.id = wot.assigned_resource_id 
             AND wot.status NOT IN ('Completed', 'Cancelled')
