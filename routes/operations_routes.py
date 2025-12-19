@@ -145,15 +145,15 @@ def operations_dashboard():
         SELECT 
             lr.id,
             lr.first_name || ' ' || lr.last_name as name,
-            lr.employee_id,
+            lr.employee_code,
             COUNT(DISTINCT wot.id) as assigned_tasks,
             COALESCE(SUM(wot.actual_hours), 0) as total_hours,
             (SELECT COUNT(*) FROM labor_issuance li WHERE li.resource_id = lr.id AND li.clock_out IS NULL) as currently_clocked
         FROM labor_resources lr
         LEFT JOIN work_order_tasks wot ON lr.id = wot.assigned_resource_id 
             AND wot.status NOT IN ('Completed', 'Cancelled')
-        WHERE lr.is_active = 1
-        GROUP BY lr.id, lr.first_name, lr.last_name, lr.employee_id
+        WHERE lr.status = 'Active'
+        GROUP BY lr.id, lr.first_name, lr.last_name, lr.employee_code
         ORDER BY assigned_tasks DESC
         LIMIT 10
     ''').fetchall()
