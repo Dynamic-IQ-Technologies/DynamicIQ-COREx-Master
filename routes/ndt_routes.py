@@ -494,8 +494,8 @@ def wo_edit(id):
         flash('NDT Work Order not found', 'error')
         return redirect(url_for('ndt_routes.wo_list'))
     
-    if ndt_wo['status'] not in ['Draft', 'Scheduled']:
-        flash('Cannot edit work order in this status', 'error')
+    if ndt_wo['status'] == 'Closed':
+        flash('Cannot edit closed work order', 'error')
         return redirect(url_for('ndt_routes.wo_view', id=id))
     
     if request.method == 'POST':

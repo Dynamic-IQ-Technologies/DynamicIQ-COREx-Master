@@ -28,7 +28,7 @@
                 <i class="bi bi-receipt me-1"></i> Create NDT Invoice
             </a>
             {% endif %}
-            {% if ndt_wo.status in ['Draft', 'Scheduled'] %}
+            {% if ndt_wo.status != 'Closed' %}
             <a href="{{ url_for('ndt_routes.wo_edit', id=ndt_wo.id) }}" class="btn btn-primary">
                 <i class="bi bi-pencil me-1"></i> Edit
             </a>
