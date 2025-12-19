@@ -65,20 +65,96 @@ def list_purchaseorders():
     db = Database()
     conn = db.get_connection()
     
-    # Get PO headers with supplier info and line counts
-    purchase_orders = conn.execute('''
+    # Get filter parameters
+    status_filter = request.args.get('status', '')
+    supplier_filter = request.args.get('supplier', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    po_type_filter = request.args.get('po_type', '')
+    
+    # Get sort parameters
+    sort_by = request.args.get('sort', 'order_date')
+    sort_dir = request.args.get('dir', 'desc')
+    
+    # Validate sort column
+    valid_sort_columns = {
+        'po_number': 'po.po_number',
+        'supplier_name': 's.name',
+        'total_amount': 'total_amount',
+        'status': 'po.status',
+        'order_date': 'po.order_date',
+        'expected_delivery_date': 'po.expected_delivery_date'
+    }
+    sort_column = valid_sort_columns.get(sort_by, 'po.order_date')
+    sort_direction = 'ASC' if sort_dir.lower() == 'asc' else 'DESC'
+    
+    # Build query with filters
+    query = '''
         SELECT po.*, s.name as supplier_name,
                COUNT(pol.id) as line_count,
                COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
-        GROUP BY po.id
-        ORDER BY po.order_date DESC
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    if status_filter:
+        query += ' AND po.status = ?'
+        params.append(status_filter)
+    
+    if supplier_filter:
+        query += ' AND po.supplier_id = ?'
+        params.append(int(supplier_filter))
+    
+    if date_from:
+        query += ' AND po.order_date >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND po.order_date <= ?'
+        params.append(date_to)
+    
+    if po_type_filter == 'exchange':
+        query += ' AND po.is_exchange = 1'
+    elif po_type_filter == 'standard':
+        query += ' AND (po.is_exchange = 0 OR po.is_exchange IS NULL)'
+    elif po_type_filter == 'service':
+        query += ' AND po.po_type = ?'
+        params.append('Service')
+    
+    query += f' GROUP BY po.id ORDER BY {sort_column} {sort_direction}'
+    
+    purchase_orders = conn.execute(query, params).fetchall()
+    
+    # Get suppliers for filter dropdown
+    suppliers = conn.execute('SELECT id, name FROM suppliers ORDER BY name').fetchall()
+    
+    # Get available statuses
+    statuses = ['Draft', 'Ordered', 'Partially Received', 'Received', 'Cancelled']
+    
+    # Calculate summary stats
+    total_count = len(purchase_orders)
+    total_value = sum(po['total_amount'] or 0 for po in purchase_orders)
+    open_count = sum(1 for po in purchase_orders if po['status'] not in ['Received', 'Cancelled'])
     
     conn.close()
-    return render_template('purchaseorders/list.html', purchase_orders=purchase_orders)
+    return render_template('purchaseorders/list.html', 
+        purchase_orders=purchase_orders,
+        suppliers=suppliers,
+        statuses=statuses,
+        status_filter=status_filter,
+        supplier_filter=supplier_filter,
+        date_from=date_from,
+        date_to=date_to,
+        po_type_filter=po_type_filter,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        total_count=total_count,
+        total_value=total_value,
+        open_count=open_count
+    )
 
 @po_bp.route('/purchaseorders/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')

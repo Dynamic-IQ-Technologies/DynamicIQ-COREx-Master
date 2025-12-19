@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Purchase Orders</h2>
+    <div>
+        <h2 class="mb-1">Purchase Orders</h2>
+        <p class="text-muted mb-0">Manage supplier purchase orders and receiving</p>
+    </div>
     <div>
         {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
         <a href="{{ url_for('po_routes.purchase_suggestions') }}" class="btn btn-info me-2"><i class="bi bi-lightbulb"></i> Suggestions</a>
@@ -18,11 +21,109 @@
     </div>
 </div>
 
-<!-- Quick Filter -->
+<!-- Summary Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 bg-primary text-white">
+            <div class="card-body py-3">
+                <h6 class="mb-1"><i class="bi bi-receipt"></i> Total POs</h6>
+                <h3 class="mb-0">{{ total_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-warning text-dark">
+            <div class="card-body py-3">
+                <h6 class="mb-1"><i class="bi bi-clock-history"></i> Open POs</h6>
+                <h3 class="mb-0">{{ open_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-success text-white">
+            <div class="card-body py-3">
+                <h6 class="mb-1"><i class="bi bi-check-circle"></i> Received</h6>
+                <h3 class="mb-0">{{ total_count - open_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-info text-white">
+            <div class="card-body py-3">
+                <h6 class="mb-1"><i class="bi bi-currency-dollar"></i> Total Value</h6>
+                <h3 class="mb-0">{{ total_value|currency }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-3">
+    <div class="card-header bg-white py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="bi bi-funnel"></i> Filters</span>
+            <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    <div class="collapse show" id="filterCollapse">
+        <div class="card-body py-3">
+            <form method="GET" id="filterForm">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Status</label>
+                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            {% for status in statuses %}
+                            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Supplier</label>
+                        <select name="supplier" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Suppliers</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if supplier_filter == supplier.id|string %}selected{% endif %}>{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">PO Type</label>
+                        <select name="po_type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="standard" {% if po_type_filter == 'standard' %}selected{% endif %}>Standard</option>
+                            <option value="exchange" {% if po_type_filter == 'exchange' %}selected{% endif %}>Exchange</option>
+                            <option value="service" {% if po_type_filter == 'service' %}selected{% endif %}>Service</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Date From</label>
+                        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}" onchange="this.form.submit()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Date To</label>
+                        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}" onchange="this.form.submit()">
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('po_routes.list_purchaseorders') }}" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle"></i> Clear Filters
+                        </a>
+                    </div>
+                </div>
+                <input type="hidden" name="sort" value="{{ sort_by }}">
+                <input type="hidden" name="dir" value="{{ sort_dir }}">
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Search -->
 <div class="mb-3">
     <div class="input-group input-group-sm" style="max-width: 300px;">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
-        <input type="text" class="form-control" id="quickFilter" placeholder="Quick search...">
+        <input type="text" class="form-control" id="quickFilter" placeholder="Quick search in results...">
     </div>
 </div>
 
@@ -30,21 +131,63 @@
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-striped" id="purchaseOrdersTable">
-                <thead>
+                <thead class="table-light">
                     <tr>
                         {% if session.role in ['Admin', 'Procurement'] %}
-                        <th data-sortable="false" style="width: 40px;">
+                        <th style="width: 40px;">
                             <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()">
                         </th>
                         {% endif %}
-                        <th data-sort-type="string">PO Number</th>
-                        <th data-sort-type="string">Supplier</th>
-                        <th data-sort-type="number">Line Items</th>
-                        <th data-sort-type="currency">Total Amount</th>
-                        <th data-sort-type="string">Status</th>
-                        <th data-sort-type="date">Order Date</th>
-                        <th data-sort-type="date">Expected Delivery</th>
-                        <th data-sortable="false">Actions</th>
+                        <th>
+                            <a href="{{ url_for('po_routes.list_purchaseorders', status=status_filter, supplier=supplier_filter, date_from=date_from, date_to=date_to, po_type=po_type_filter, sort='po_number', dir='asc' if sort_by == 'po_number' and sort_dir == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                PO Number
+                                {% if sort_by == 'po_number' %}
+                                <i class="bi bi-chevron-{{ 'up' if sort_dir == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('po_routes.list_purchaseorders', status=status_filter, supplier=supplier_filter, date_from=date_from, date_to=date_to, po_type=po_type_filter, sort='supplier_name', dir='asc' if sort_by == 'supplier_name' and sort_dir == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Supplier
+                                {% if sort_by == 'supplier_name' %}
+                                <i class="bi bi-chevron-{{ 'up' if sort_dir == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>Line Items</th>
+                        <th>
+                            <a href="{{ url_for('po_routes.list_purchaseorders', status=status_filter, supplier=supplier_filter, date_from=date_from, date_to=date_to, po_type=po_type_filter, sort='total_amount', dir='asc' if sort_by == 'total_amount' and sort_dir == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Total Amount
+                                {% if sort_by == 'total_amount' %}
+                                <i class="bi bi-chevron-{{ 'up' if sort_dir == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('po_routes.list_purchaseorders', status=status_filter, supplier=supplier_filter, date_from=date_from, date_to=date_to, po_type=po_type_filter, sort='status', dir='asc' if sort_by == 'status' and sort_dir == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Status
+                                {% if sort_by == 'status' %}
+                                <i class="bi bi-chevron-{{ 'up' if sort_dir == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('po_routes.list_purchaseorders', status=status_filter, supplier=supplier_filter, date_from=date_from, date_to=date_to, po_type=po_type_filter, sort='order_date', dir='asc' if sort_by == 'order_date' and sort_dir == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Order Date
+                                {% if sort_by == 'order_date' %}
+                                <i class="bi bi-chevron-{{ 'up' if sort_dir == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('po_routes.list_purchaseorders', status=status_filter, supplier=supplier_filter, date_from=date_from, date_to=date_to, po_type=po_type_filter, sort='expected_delivery_date', dir='asc' if sort_by == 'expected_delivery_date' and sort_dir == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Expected Delivery
+                                {% if sort_by == 'expected_delivery_date' %}
+                                <i class="bi bi-chevron-{{ 'up' if sort_dir == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
