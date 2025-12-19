@@ -207,6 +207,23 @@
                 <p><strong>Lot Number:</strong> {{ inventory.lot_number or 'N/A' }}</p>
             </div>
         </div>
+        <div class="row mt-2">
+            <div class="col-md-4">
+                <p><strong>Source:</strong> {{ inventory.source or 'N/A' }}</p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Manufactured Date:</strong> 
+                    {% if inventory.manufactured_date %}
+                    {{ inventory.manufactured_date|format_date }}
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Country of Origin:</strong> {{ inventory.country_of_origin or 'N/A' }}</p>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -220,6 +220,30 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="source" class="form-label">Source</label>
+                        <input type="text" class="form-control" id="source" name="source" 
+                               value="{{ inventory.source or '' }}" placeholder="Source of inventory">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="manufactured_date" class="form-label">Manufactured Date</label>
+                        <input type="date" class="form-control" id="manufactured_date" name="manufactured_date" 
+                               value="{{ inventory.manufactured_date or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="country_of_origin" class="form-label">Country of Origin</label>
+                        <input type="text" class="form-control" id="country_of_origin" name="country_of_origin" 
+                               value="{{ inventory.country_of_origin or '' }}" placeholder="e.g., USA, Germany">
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>

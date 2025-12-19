@@ -429,7 +429,10 @@ class Database:
             ('trace_type', 'TEXT'),
             ('msn_esn', 'TEXT'),
             ('mfr_code', 'TEXT'),
-            ('lot_number', 'TEXT')
+            ('lot_number', 'TEXT'),
+            ('source', 'TEXT'),
+            ('manufactured_date', 'DATE'),
+            ('country_of_origin', 'TEXT')
         ]
         
         for col_name, col_type in inventory_new_columns:
