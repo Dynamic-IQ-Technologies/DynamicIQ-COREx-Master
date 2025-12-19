@@ -630,6 +630,38 @@ def wo_view(id):
         AND t.contract_status = 'Active'
     ''').fetchall()
     
+    # Get currently clocked-in employees for this NDT work order
+    clocked_in_employees = conn.execute('''
+        SELECT tcp.id as punch_id, tcp.punch_time, tcp.notes,
+               lr.id as employee_id, lr.first_name, lr.last_name, lr.employee_code
+        FROM time_clock_punches tcp
+        JOIN labor_resources lr ON tcp.employee_id = lr.id
+        WHERE tcp.ndt_work_order_id = ?
+          AND tcp.punch_type = 'Clock In'
+          AND NOT EXISTS (
+              SELECT 1 FROM time_clock_punches tcp2 
+              WHERE tcp2.employee_id = tcp.employee_id 
+              AND tcp2.punch_type = 'Clock Out'
+              AND tcp2.punch_time > tcp.punch_time
+          )
+        ORDER BY tcp.punch_time DESC
+    ''', (id,)).fetchall()
+    
+    # Get labor resources with NDT skills who can clock in
+    ndt_resources = conn.execute('''
+        SELECT DISTINCT lr.id, lr.first_name, lr.last_name, lr.employee_code, lr.employment_status
+        FROM labor_resources lr
+        JOIN labor_resource_skills lrs ON lr.id = lrs.labor_resource_id
+        JOIN skills s ON lrs.skill_id = s.id
+        WHERE lr.employment_status = 'Active'
+          AND (
+              s.name LIKE '%NDT%' OR s.name LIKE '%Ultrasonic%' OR s.name LIKE '%Radiography%'
+              OR s.name LIKE '%Magnetic Particle%' OR s.name LIKE '%Liquid Penetrant%'
+              OR s.name LIKE '%Eddy Current%' OR s.name LIKE '%Visual Inspection%'
+          )
+        ORDER BY lr.last_name, lr.first_name
+    ''').fetchall()
+    
     conn.close()
     
     return render_template('ndt/wo_view.html',
@@ -639,6 +671,8 @@ def wo_view(id):
         status_history=status_history,
         technicians=technicians,
         level3_technicians=level3_technicians,
+        clocked_in_employees=clocked_in_employees,
+        ndt_resources=ndt_resources,
         ndt_methods=NDT_METHODS,
         ndt_statuses=NDT_STATUSES
     )
@@ -1124,3 +1158,132 @@ def invoice_update_status(id):
     
     flash(f'Invoice status updated to {new_status}', 'success')
     return redirect(url_for('ndt_routes.invoice_view', id=id))
+
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/clock-in', methods=['POST'])
+def wo_clock_in(id):
+    """Clock in an NDT resource directly from the work order page"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    employee_id = request.form.get('employee_id')
+    notes = request.form.get('notes', '')
+    
+    if not employee_id:
+        flash('Please select an employee', 'error')
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
+    if not ndt_wo:
+        conn.close()
+        flash('NDT Work Order not found', 'error')
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    employee = conn.execute('SELECT * FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
+    if not employee:
+        conn.close()
+        flash('Employee not found', 'error')
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    existing_punch = conn.execute('''
+        SELECT tcp.id FROM time_clock_punches tcp
+        WHERE tcp.employee_id = ?
+          AND tcp.punch_type = 'Clock In'
+          AND NOT EXISTS (
+              SELECT 1 FROM time_clock_punches tcp2 
+              WHERE tcp2.employee_id = tcp.employee_id 
+              AND tcp2.punch_type = 'Clock Out'
+              AND tcp2.punch_time > tcp.punch_time
+          )
+    ''', (employee_id,)).fetchone()
+    
+    if existing_punch:
+        conn.close()
+        flash(f'{employee["first_name"]} {employee["last_name"]} is already clocked in', 'warning')
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    punch_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    conn.execute('''
+        INSERT INTO time_clock_punches 
+        (employee_id, punch_time, punch_type, ndt_work_order_id, notes, location)
+        VALUES (?, ?, 'Clock In', ?, ?, 'NDT Work Order')
+    ''', (employee_id, punch_time, id, notes))
+    
+    if ndt_wo['status'] == 'Scheduled':
+        conn.execute('''
+            UPDATE ndt_work_orders SET status = 'In Inspection', actual_start_date = ?
+            WHERE id = ? AND status = 'Scheduled'
+        ''', (date.today().isoformat(), id))
+        
+        conn.execute('''
+            INSERT INTO ndt_status_history (ndt_wo_id, old_status, new_status, changed_by, notes)
+            VALUES (?, 'Scheduled', 'In Inspection', ?, 'Auto-updated on clock in')
+        ''', (id, session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'{employee["first_name"]} {employee["last_name"]} clocked in successfully', 'success')
+    return redirect(url_for('ndt_routes.wo_view', id=id))
+
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/clock-out', methods=['POST'])
+def wo_clock_out(id):
+    """Clock out an NDT resource directly from the work order page"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    employee_id = request.form.get('employee_id')
+    
+    if not employee_id:
+        flash('Please select an employee', 'error')
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    employee = conn.execute('SELECT * FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
+    if not employee:
+        conn.close()
+        flash('Employee not found', 'error')
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    last_clock_in = conn.execute('''
+        SELECT tcp.* FROM time_clock_punches tcp
+        WHERE tcp.employee_id = ?
+          AND tcp.ndt_work_order_id = ?
+          AND tcp.punch_type = 'Clock In'
+          AND NOT EXISTS (
+              SELECT 1 FROM time_clock_punches tcp2 
+              WHERE tcp2.employee_id = tcp.employee_id 
+              AND tcp2.punch_type = 'Clock Out'
+              AND tcp2.punch_time > tcp.punch_time
+          )
+        ORDER BY tcp.punch_time DESC LIMIT 1
+    ''', (employee_id, id)).fetchone()
+    
+    if not last_clock_in:
+        conn.close()
+        flash(f'{employee["first_name"]} {employee["last_name"]} is not clocked in to this work order', 'warning')
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    punch_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    clock_in_time = datetime.strptime(last_clock_in['punch_time'], '%Y-%m-%d %H:%M:%S')
+    hours_worked = (datetime.now() - clock_in_time).total_seconds() / 3600
+    
+    conn.execute('''
+        INSERT INTO time_clock_punches 
+        (employee_id, punch_time, punch_type, ndt_work_order_id, hours_worked, location)
+        VALUES (?, ?, 'Clock Out', ?, ?, 'NDT Work Order')
+    ''', (employee_id, punch_time, id, round(hours_worked, 2)))
+    
+    conn.commit()
+    conn.close()
+    
+    hours_display = f'{int(hours_worked)}h {int((hours_worked % 1) * 60)}m'
+    flash(f'{employee["first_name"]} {employee["last_name"]} clocked out ({hours_display})', 'success')
+    return redirect(url_for('ndt_routes.wo_view', id=id))

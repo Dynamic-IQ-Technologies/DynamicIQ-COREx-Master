@@ -148,6 +148,65 @@
                     </form>
                 </div>
             </div>
+
+            {% if ndt_wo.status in ['Scheduled', 'In Inspection'] %}
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock me-2"></i>Time Tracking</h5>
+                </div>
+                <div class="card-body">
+                    {% if clocked_in_employees %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Currently Clocked In</h6>
+                        {% for emp in clocked_in_employees %}
+                        <div class="d-flex justify-content-between align-items-center p-2 border rounded mb-2 bg-light">
+                            <div>
+                                <i class="bi bi-person-fill text-success me-1"></i>
+                                <strong>{{ emp.first_name }} {{ emp.last_name }}</strong>
+                                <small class="text-muted">({{ emp.employee_code }})</small>
+                                <br>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>Since {{ emp.punch_time|replace(':', ':')|truncate(16, True, '') }}
+                                </small>
+                            </div>
+                            <form action="{{ url_for('ndt_routes.wo_clock_out', id=ndt_wo.id) }}" method="POST" class="mb-0">
+                                <input type="hidden" name="employee_id" value="{{ emp.employee_id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-box-arrow-right"></i> Clock Out
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if ndt_resources %}
+                    <form action="{{ url_for('ndt_routes.wo_clock_in', id=ndt_wo.id) }}" method="POST">
+                        <div class="mb-2">
+                            <label class="form-label">Clock In NDT Resource</label>
+                            <select name="employee_id" class="form-select form-select-sm" required>
+                                <option value="">-- Select Employee --</option>
+                                {% for res in ndt_resources %}
+                                {% set is_clocked_in = res.id in (clocked_in_employees|map(attribute='employee_id')|list) %}
+                                {% if not is_clocked_in %}
+                                <option value="{{ res.id }}">{{ res.first_name }} {{ res.last_name }} ({{ res.employee_code }})</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)">
+                        </div>
+                        <button type="submit" class="btn btn-success btn-sm w-100">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Clock In
+                        </button>
+                    </form>
+                    {% else %}
+                    <p class="text-muted small mb-0">No NDT-qualified employees available.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="col-lg-8">
