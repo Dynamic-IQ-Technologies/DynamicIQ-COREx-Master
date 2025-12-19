@@ -259,6 +259,9 @@
             <button class="btn btn-primary me-2" id="generateBtn" onclick="generatePresentation()">
                 <i class="bi bi-magic me-2"></i>Generate Presentation
             </button>
+            <button class="btn btn-success me-2" onclick="downloadPDF()" id="downloadBtn" disabled>
+                <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF
+            </button>
             <button class="btn btn-outline-secondary me-2" onclick="window.print()" id="printBtn" disabled>
                 <i class="bi bi-printer me-2"></i>Print
             </button>
@@ -306,11 +309,14 @@
 </div>
 
 <script>
+let currentPresentationData = null;
+
 async function generatePresentation() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     const presentationContent = document.getElementById('presentationContent');
     const initialState = document.getElementById('initialState');
     const printBtn = document.getElementById('printBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
     const generateBtn = document.getElementById('generateBtn');
     
     loadingOverlay.style.display = 'flex';
@@ -329,9 +335,11 @@ async function generatePresentation() {
         const data = await response.json();
         
         if (data.success) {
+            currentPresentationData = data.presentation;
             renderPresentation(data.presentation);
             presentationContent.style.display = 'block';
             printBtn.disabled = false;
+            downloadBtn.disabled = false;
         } else {
             showToast(data.error || 'Failed to generate presentation', 'danger');
             initialState.style.display = 'block';
@@ -342,6 +350,50 @@ async function generatePresentation() {
     } finally {
         loadingOverlay.style.display = 'none';
         generateBtn.disabled = false;
+    }
+}
+
+async function downloadPDF() {
+    if (!currentPresentationData) {
+        showToast('Please generate a presentation first', 'warning');
+        return;
+    }
+    
+    const downloadBtn = document.getElementById('downloadBtn');
+    const originalContent = downloadBtn.innerHTML;
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating PDF...';
+    
+    try {
+        const response = await fetch('/api/marketing/download-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ presentation: currentPresentationData })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to generate PDF');
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'Marketing_Presentation.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        
+        showToast('PDF downloaded successfully!', 'success');
+    } catch (error) {
+        showToast('Error downloading PDF: ' + error.message, 'danger');
+    } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = originalContent;
     }
 }
 

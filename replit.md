@@ -143,18 +143,21 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
     - Material rollup summary per task showing count, total required, issued, and consumed
     - Key table: `work_order_task_materials` with task_id, product_id, required_qty, issued_qty, consumed_qty, material_status, lot_number, serial_number
     - Routes: `add_task_material`, `edit_task_material`, `delete_task_material`, `issue_task_material`, `consume_task_material`, `update_task_status`
--   **Marketing Presentation Generator Settings** (December 2025): Configuration section in Company Settings for autonomous brand content creation. Features include:
+-   **Marketing Presentation Generator with PDF Download** (December 2025): AI-powered marketing presentation generator with professional PDF export. Features include:
     - Brand colors: Primary, Secondary, and Accent colors with color picker UI
     - Marketing tagline field for value proposition statement
     - Brand tone selection: Enterprise, Innovative, or Authoritative
     - Marketing description for executive-level system summary
     - Target industries field for market focus
     - Key differentiators field for competitive advantages
+    - AI-powered presentation generation using OpenAI GPT-4o
+    - Professional PDF download with branded hero section, value propositions, capabilities, industries, stats, testimonials, and CTA
+    - PDF includes company branding colors, multi-page layout, and elegant typography
     - Color preview panel for visual validation
-    - AI info panel explaining autonomous presentation generation
     - Database columns in `company_settings`: `marketing_tagline`, `brand_primary_color`, `brand_secondary_color`, `brand_accent_color`, `brand_tone`, `marketing_description`, `target_industries`, `key_differentiators`
-    - Routes module: `routes/settings_routes.py` (`edit_marketing_settings`)
-    - Template: `templates/settings/edit_marketing.html`
+    - Routes module: `routes/settings_routes.py` (`edit_marketing_settings`, `generate_presentation`, `download_presentation_pdf`)
+    - Utility module: `utils/presentation_pdf.py` (PresentationPDFGenerator class using ReportLab)
+    - Template: `templates/settings/edit_marketing.html`, `templates/settings/generate_presentation.html`
 
 ## External Dependencies
 

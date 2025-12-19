@@ -1,10 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
 from models import Database, CompanySettings, User
 from auth import login_required, role_required
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 import json
+from utils.presentation_pdf import generate_presentation_pdf
 
 def get_openai_client():
     """Get OpenAI client configured with Replit AI Integrations"""
@@ -430,3 +431,34 @@ For icons, use Bootstrap Icons names (bi-rocket, bi-graph-up, bi-shield-check, b
         elif 'rate_limit' in error_msg.lower() or 'quota' in error_msg.lower():
             return jsonify({'success': False, 'error': 'API rate limit reached. Please try again in a moment.'})
         return jsonify({'success': False, 'error': f'Error generating presentation: {error_msg}'})
+
+
+@settings_bp.route('/api/marketing/download-pdf', methods=['POST'])
+@login_required
+def download_presentation_pdf():
+    """Generate and download presentation as professional PDF"""
+    try:
+        data = request.get_json()
+        presentation_data = data.get('presentation', {})
+        
+        if not presentation_data:
+            return jsonify({'success': False, 'error': 'No presentation data provided'}), 400
+        
+        settings = CompanySettings.get_or_create_default()
+        
+        pdf_buffer = generate_presentation_pdf(presentation_data, settings)
+        
+        company_name = settings.get('company_name', 'Company').replace(' ', '_')
+        filename = f"{company_name}_Marketing_Presentation.pdf"
+        
+        return Response(
+            pdf_buffer.getvalue(),
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Type': 'application/pdf'
+            }
+        )
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error generating PDF: {str(e)}'}), 500
