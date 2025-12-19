@@ -372,7 +372,9 @@ class Database:
             ('shelf_life_cycle', 'TEXT'),
             ('eccn', 'TEXT'),
             ('part_notes', 'TEXT'),
-            ('is_serialized', 'INTEGER DEFAULT 0')
+            ('is_serialized', 'INTEGER DEFAULT 0'),
+            ('calibration_required', 'INTEGER DEFAULT 0'),
+            ('master_plan_part', 'INTEGER DEFAULT 0')
         ]
         
         for col_name, col_type in product_new_columns:
