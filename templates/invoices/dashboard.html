@@ -188,11 +188,11 @@
                             <td>
                                 {% if invoice.ndt_wo_number %}
                                 <span class="badge bg-warning text-dark">{{ invoice.ndt_wo_number }}</span>
-                                {% elif invoice.so_number %}
+                                {% elif invoice.so_number and invoice.so_id %}
                                 <a href="{{ url_for('salesorder_routes.view_sales_order', id=invoice.so_id) }}">
                                     {{ invoice.so_number }}
                                 </a>
-                                {% elif invoice.wo_number %}
+                                {% elif invoice.wo_number and invoice.wo_id %}
                                 <a href="{{ url_for('workorder_routes.view_workorder', id=invoice.wo_id) }}">
                                     {{ invoice.wo_number }}
                                 </a>
