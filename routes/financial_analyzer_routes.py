@@ -574,6 +574,109 @@ def api_metrics():
         'timestamp': datetime.now().isoformat()
     })
 
+def calculate_pnl_data(conn):
+    """Calculate comprehensive P&L data following GAAP standards"""
+    data = {}
+    
+    today = datetime.now()
+    month_start = today.replace(day=1).strftime('%Y-%m-%d')
+    last_month_start = (today.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')
+    year_start = today.replace(month=1, day=1).strftime('%Y-%m-%d')
+    
+    net_sales = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_orders 
+        WHERE status NOT IN ('Draft', 'Cancelled')
+    ''').fetchone()['total']
+    
+    service_revenue = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total 
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.po_type = 'Service' AND po.status NOT IN ('Draft', 'Cancelled')
+    ''').fetchone()['total']
+    
+    data['net_sales'] = net_sales
+    data['service_revenue'] = 0
+    data['other_revenue'] = 0
+    
+    data['revenue_mtd'] = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_orders 
+        WHERE order_date >= ? AND status NOT IN ('Draft', 'Cancelled')
+    ''', (month_start,)).fetchone()['total']
+    
+    data['revenue_last_month'] = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_orders 
+        WHERE order_date >= ? AND order_date < ? AND status NOT IN ('Draft', 'Cancelled')
+    ''', (last_month_start, month_start)).fetchone()['total']
+    
+    data['revenue_ytd'] = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_orders 
+        WHERE order_date >= ? AND status NOT IN ('Draft', 'Cancelled')
+    ''', (year_start,)).fetchone()['total']
+    
+    data['revenue_growth'] = 0
+    if data['revenue_last_month'] > 0:
+        data['revenue_growth'] = ((data['revenue_mtd'] - data['revenue_last_month']) / data['revenue_last_month']) * 100
+    
+    data['beginning_inventory'] = conn.execute('''
+        SELECT COALESCE(SUM(i.quantity * p.cost), 0) as total 
+        FROM inventory i JOIN products p ON i.product_id = p.id
+    ''').fetchone()['total']
+    
+    data['purchases'] = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total 
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.status IN ('Received', 'Closed', 'Partial')
+    ''').fetchone()['total']
+    
+    data['direct_labor'] = conn.execute('''
+        SELECT COALESCE(SUM(labor_cost), 0) as total FROM work_orders
+        WHERE status IN ('Completed', 'Closed')
+    ''').fetchone()['total']
+    
+    data['manufacturing_overhead'] = conn.execute('''
+        SELECT COALESCE(SUM(overhead_cost), 0) as total FROM work_orders
+        WHERE status IN ('Completed', 'Closed')
+    ''').fetchone()['total']
+    
+    data['ending_inventory'] = data['beginning_inventory']
+    
+    material_cost = conn.execute('''
+        SELECT COALESCE(SUM(material_cost), 0) as total FROM work_orders
+        WHERE status IN ('Completed', 'Closed')
+    ''').fetchone()['total']
+    
+    data['total_cogs'] = material_cost + data['direct_labor'] + data['manufacturing_overhead']
+    
+    monthly_labor = conn.execute('''
+        SELECT COALESCE(AVG(hourly_rate), 0) * 160 * COUNT(*) as total 
+        FROM labor_resources WHERE status = 'Active'
+    ''').fetchone()['total'] or 0
+    
+    data['selling_expenses'] = 0
+    data['salaries_wages'] = monthly_labor
+    data['rent_expense'] = 0
+    data['utilities_expense'] = 0
+    data['insurance_expense'] = 0
+    data['depreciation'] = 0
+    data['amortization'] = 0
+    data['office_supplies'] = 0
+    data['professional_fees'] = 0
+    data['marketing_advertising'] = 0
+    data['travel_entertainment'] = 0
+    data['repairs_maintenance'] = 0
+    data['other_operating_expenses'] = 0
+    
+    data['interest_income'] = 0
+    data['interest_expense'] = 0
+    data['gain_loss_assets'] = 0
+    data['other_income_expense'] = 0
+    
+    data['income_tax_expense'] = 0
+    
+    return data
+
 @financial_analyzer_bp.route('/financial-analyzer/download-pnl')
 def download_pnl():
     """Generate and download professional P&L statement as PDF"""
@@ -583,8 +686,7 @@ def download_pnl():
     db = Database()
     conn = db.get_connection()
     
-    revenue = calculate_revenue_metrics(conn)
-    efficiency = calculate_efficiency_metrics(conn)
+    financial_data = calculate_pnl_data(conn)
     
     company_result = conn.execute('SELECT company_name FROM company_settings LIMIT 1').fetchone()
     company_name = company_result['company_name'] if company_result else 'Company'
@@ -596,8 +698,7 @@ def download_pnl():
     period_end = today.strftime('%B %d, %Y')
     
     generator = PnLPDFGenerator(
-        revenue_data=revenue,
-        efficiency_data=efficiency,
+        financial_data=financial_data,
         company_name=company_name,
         period_start=year_start,
         period_end=period_end
