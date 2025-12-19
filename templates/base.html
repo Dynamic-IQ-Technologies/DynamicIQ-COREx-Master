@@ -629,14 +629,6 @@
                     <span>Exchange Management</span>
                 </a>
             </li>
-            {% if session.role in ['Admin', 'Accountant', 'Planner'] %}
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('invoice_routes.list_invoices') }}">
-                    <i class="bi bi-receipt-cutoff"></i>
-                    <span>Invoices</span>
-                </a>
-            </li>
-            {% endif %}
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('procurement')">
@@ -916,6 +908,12 @@
                 <a class="sidebar-nav-link" href="{{ url_for('business_analytics_routes.dashboard') }}">
                     <i class="bi bi-robot"></i>
                     <span>AI Analytics Agent</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('invoice_routes.list_invoices') }}">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Invoices</span>
                 </a>
             </li>
         </ul>
