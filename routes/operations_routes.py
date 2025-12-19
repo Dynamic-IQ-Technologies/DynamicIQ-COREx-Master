@@ -212,7 +212,7 @@ def operations_dashboard():
             FROM inventory 
             GROUP BY product_id
         ) inv ON mr.product_id = inv.product_id
-        WHERE mr.quantity_required > COALESCE(inv.available, 0)
+        WHERE mr.required_quantity > COALESCE(inv.available, 0)
         AND mr.work_order_id IN (SELECT id FROM work_orders WHERE status NOT IN ('Completed', 'Cancelled'))
     ''').fetchone()
     
