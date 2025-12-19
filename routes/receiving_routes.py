@@ -434,7 +434,7 @@ def create_receiving():
             pol.line_number,
             pol.uom_id,
             pol.base_uom_id,
-            pol.conversion_factor,
+            pol.conversion_factor_used as conversion_factor,
             pol.base_quantity,
             COALESCE(pol.received_quantity, 0) as received_so_far,
             (pol.quantity - COALESCE(pol.received_quantity, 0)) as remaining_quantity,
