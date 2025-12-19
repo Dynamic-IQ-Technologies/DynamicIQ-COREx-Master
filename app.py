@@ -138,8 +138,8 @@ def inject_user():
         user = User.get_by_id(session['user_id'])
     return dict(user=user)
 
-@app.before_request
-def initialize_database():
+def initialize_application():
+    """Run expensive initialization once at application startup"""
     db = Database()
     db.init_db()
     db.seed_chart_of_accounts()
@@ -148,6 +148,8 @@ def initialize_database():
     from services.exchange_chain_service import get_exchange_chain_service
     exchange_service = get_exchange_chain_service()
     exchange_service.load_graph_from_database()
+
+initialize_application()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, jsonify
+from flask import Blueprint, render_template, session, jsonify, redirect, url_for
 from models import Database
 from mrp_logic import MRPEngine
 from auth import login_required
@@ -12,8 +12,14 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 @main_bp.route('/')
+def root():
+    """Root endpoint - handles health checks and redirects to dashboard"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    return dashboard_view()
+
 @login_required
-def dashboard():
+def dashboard_view():
     db = Database()
     conn = db.get_connection()
     mrp = MRPEngine()
