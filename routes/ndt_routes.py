@@ -651,13 +651,16 @@ def wo_view(id):
     ndt_resources = conn.execute('''
         SELECT DISTINCT lr.id, lr.first_name, lr.last_name, lr.employee_code, lr.employment_status
         FROM labor_resources lr
-        JOIN labor_resource_skills lrs ON lr.id = lrs.labor_resource_id
-        JOIN skills s ON lrs.skill_id = s.id
+        LEFT JOIN labor_resource_skills lrs ON lr.id = lrs.labor_resource_id
+        LEFT JOIN skillsets s ON lrs.skillset_id = s.id
         WHERE lr.employment_status = 'Active'
           AND (
-              s.name LIKE '%NDT%' OR s.name LIKE '%Ultrasonic%' OR s.name LIKE '%Radiography%'
-              OR s.name LIKE '%Magnetic Particle%' OR s.name LIKE '%Liquid Penetrant%'
-              OR s.name LIKE '%Eddy Current%' OR s.name LIKE '%Visual Inspection%'
+              s.skillset_name LIKE '%NDT%' OR s.skillset_name LIKE '%Ultrasonic%' OR s.skillset_name LIKE '%Radiography%'
+              OR s.skillset_name LIKE '%Magnetic Particle%' OR s.skillset_name LIKE '%Liquid Penetrant%'
+              OR s.skillset_name LIKE '%Eddy Current%' OR s.skillset_name LIKE '%Visual Inspection%'
+              OR lr.skillset LIKE '%NDT%' OR lr.skillset LIKE '%Ultrasonic%' OR lr.skillset LIKE '%Radiography%'
+              OR lr.skillset LIKE '%Magnetic Particle%' OR lr.skillset LIKE '%Liquid Penetrant%'
+              OR lr.skillset LIKE '%Eddy Current%' OR lr.skillset LIKE '%Visual Inspection%'
           )
         ORDER BY lr.last_name, lr.first_name
     ''').fetchall()
