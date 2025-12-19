@@ -1,0 +1,84 @@
+TypeError
+TypeError: Object of type Row is not JSON serializable
+
+Traceback (most recent call last)
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1536, in __call__
+return self.wsgi_app(environ, start_response)
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1514, in wsgi_app
+response = self.handle_exception(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+response = self.full_dispatch_request()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+            request_started.send(self, _async_wrapper=self.ensure_sync)
+            rv = self.preprocess_request()
+            if rv is None:
+                rv = self.dispatch_request()
+        except Exception as e:
+            rv = self.handle_user_exception(e)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        return self.finalize_request(rv)
+ 
+    def finalize_request(
+        self,
+        rv: ft.ResponseReturnValue | HTTPException,
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+rv = self.dispatch_request()
+     ^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/auth.py", line 10, in decorated_function
+return f(*args, **kwargs)
+       ^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/auth.py", line 25, in decorated_function
+return f(*args, **kwargs)
+       ^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/routes/operations_routes.py", line 221, in operations_dashboard
+return render_template('operations/dashboard.html',
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/templating.py", line 150, in render_template
+return _render(app, template, context)
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/templating.py", line 131, in _render
+rv = template.render(context)
+     ^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 1295, in render
+self.environment.handle_exception()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 942, in handle_exception
+raise rewrite_traceback_stack(source=source)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/templates/operations/dashboard.html", line 1, in top-level template code
+{% extends "base.html" %}
+File "/home/runner/workspace/templates/base.html", line 1478, in top-level template code
+{% block scripts %}{% endblock %}
+File "/home/runner/workspace/templates/operations/dashboard.html", line 369, in block 'scripts'
+const trendData = {{ monthly_wo_trend|tojson|safe }};
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/filters.py", line 1721, in do_tojson
+return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+dumps(obj, **kwargs)
+^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/json/provider.py", line 179, in dumps
+return json.dumps(obj, **kwargs)
+       ^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11/json/__init__.py", line 238, in dumps
+**kw).encode(obj)
+      ^^^^^^^^^^^
+File "/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11/json/encoder.py", line 200, in encode
+chunks = self.iterencode(o, _one_shot=True)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11/json/encoder.py", line 258, in iterencode
+return _iterencode(o, 0)
+       ^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/json/provider.py", line 121, in _default
+raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Object of type Row is not JSON serializable
+The debugger caught an exception in your WSGI application. You can now look at the traceback which led to the error.
+To switch between the interactive traceback and the plaintext one, you can click on the "Traceback" headline. From the text traceback you can also create a paste of it.
+

@@ -295,6 +295,17 @@ def view_purchaseorder(id):
         ORDER BY vi.created_at DESC
     ''', (id,)).fetchall()
     
+    # Get service lines for Service POs
+    service_lines = []
+    if po['po_type'] == 'Service':
+        service_lines = conn.execute('''
+            SELECT psl.*, wo.wo_number
+            FROM purchase_order_service_lines psl
+            LEFT JOIN work_orders wo ON psl.work_order_id = wo.id
+            WHERE psl.po_id = ?
+            ORDER BY psl.line_number
+        ''', (id,)).fetchall()
+    
     # Get source sales order for Exchange POs
     source_sales_order = None
     exchange_owner = None
@@ -330,7 +341,7 @@ def view_purchaseorder(id):
     
     return render_template('purchaseorders/view.html', po=po, lines=lines, ap_records=ap_records, 
                           today=today, now=now, total=total, source_sales_order=source_sales_order, 
-                          exchange_owner=exchange_owner)
+                          exchange_owner=exchange_owner, service_lines=service_lines)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
@@ -1220,6 +1231,134 @@ def receive_exchange_po(id):
         conn.rollback()
         conn.close()
         flash(f'Error receiving Exchange PO: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+
+
+@po_bp.route('/purchaseorders/<int:id>/receive-service', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Production Staff')
+def receive_service_po(id):
+    """Receive a Service/Misc Purchase Order (no inventory creation)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase order not found', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if po['po_type'] != 'Service':
+            flash('This is not a Service Purchase Order. Use standard receiving.', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Received':
+            flash('This Service PO has already been received', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Cancelled':
+            flash('Cannot receive a cancelled purchase order', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        receipt_date = request.form.get('receipt_date') or datetime.now().strftime('%Y-%m-%d')
+        remarks = request.form.get('remarks', '')
+        
+        # Update PO status to Received
+        conn.execute('''
+            UPDATE purchase_orders
+            SET status = 'Received',
+                actual_delivery_date = ?
+            WHERE id = ?
+        ''', (receipt_date, id))
+        
+        # Update all service lines as Received
+        conn.execute('''
+            UPDATE purchase_order_service_lines
+            SET status = 'Received',
+                received_date = ?,
+                received_by = ?
+            WHERE po_id = ?
+        ''', (receipt_date, session.get('user_id'), id))
+        
+        # Calculate total value for A/P record from service lines
+        service_total = conn.execute('''
+            SELECT COALESCE(SUM(total_cost), 0) as total_value
+            FROM purchase_order_service_lines
+            WHERE po_id = ?
+        ''', (id,)).fetchone()
+        
+        total_value = service_total['total_value'] or 0
+        
+        # Generate A/P number
+        last_ap = conn.execute('''
+            SELECT invoice_number FROM vendor_invoices 
+            WHERE invoice_number LIKE 'AP-%'
+            ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_ap:
+            try:
+                last_ap_number = int(last_ap['invoice_number'].split('-')[1])
+                next_ap_number = last_ap_number + 1
+            except (ValueError, IndexError):
+                next_ap_number = 1
+        else:
+            next_ap_number = 1
+        
+        ap_number = f'AP-{next_ap_number:07d}'
+        
+        # Calculate due date (30 days payment terms)
+        from datetime import timedelta
+        receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
+        due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Create A/P record for the Service PO
+        conn.execute('''
+            INSERT INTO vendor_invoices 
+            (invoice_number, vendor_id, po_id, invoice_date, due_date, 
+             amount, tax_amount, total_amount, amount_paid, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            ap_number,
+            po['supplier_id'],
+            id,
+            receipt_date,
+            due_date,
+            total_value,
+            0,  # tax_amount
+            total_value,
+            0,  # amount_paid
+            'Pending Invoice'
+        ))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn, 'purchase_orders', id, 'RECEIVE', session.get('user_id'),
+            {
+                'po_number': str(po['po_number']),
+                'receipt_date': str(receipt_date),
+                'ap_number': str(ap_number),
+                'action': 'Service PO Received',
+                'total_value': float(total_value),
+                'remarks': str(remarks) if remarks else ''
+            }
+        )
+        
+        po_number = po['po_number']
+        conn.commit()
+        flash(f'Service PO {po_number} received successfully (A/P: {ap_number})', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error receiving Service PO: {str(e)}', 'danger')
         return redirect(url_for('po_routes.view_purchaseorder', id=id))
 
 

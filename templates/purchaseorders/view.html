@@ -48,6 +48,11 @@
             <i class="bi bi-box-arrow-in-down"></i> Receive
         </button>
         {% endif %}
+        {% if po.po_type == 'Service' and session.role in ['Admin', 'Procurement', 'Production Staff'] and po.status not in ['Received', 'Cancelled'] %}
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#receiveServiceModal">
+            <i class="bi bi-box-arrow-in-down"></i> Receive Service
+        </button>
+        {% endif %}
         {% if session.role in ['Admin', 'Procurement'] and po.status not in ['Received', 'Cancelled'] %}
         <form method="POST" action="{{ url_for('po_routes.cancel_purchaseorder', id=po.id) }}" class="d-inline" id="cancelPoForm">
             <button type="button" class="btn btn-outline-danger me-2" onclick="confirmCancelPO()">
@@ -248,6 +253,93 @@
 </div>
 {% endif %}
 
+{% if po.po_type == 'Service' %}
+<div class="alert alert-info border-2 mb-4" style="border-left: 5px solid #0d6efd !important;">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-tools me-2"></i>Service/Misc Purchase Order</h4>
+            <p class="mb-0">
+                This is a Service PO linked to Work Order 
+                {% if service_lines and service_lines|length > 0 and service_lines[0].wo_number %}
+                <a href="{{ url_for('workorder_routes.view_workorder', id=service_lines[0].work_order_id) }}" class="fw-bold">
+                    {{ service_lines[0].wo_number }}
+                </a>
+                {% else %}
+                <span class="text-muted">N/A</span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-info fs-6">Service PO</span>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-tools"></i> Service Lines</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Work Order</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-end">Unit Cost</th>
+                        <th class="text-end">Total Cost</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set ns = namespace(total=0) %}
+                    {% for line in service_lines %}
+                    {% set ns.total = ns.total + (line.total_cost or 0) %}
+                    <tr>
+                        <td>{{ line.line_number }}</td>
+                        <td><span class="badge bg-secondary">{{ line.service_category }}</span></td>
+                        <td>{{ line.description }}</td>
+                        <td>
+                            {% if line.wo_number %}
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=line.work_order_id) }}">{{ line.wo_number }}</a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ line.quantity }}</td>
+                        <td class="text-end">{{ "${:,.2f}".format(line.unit_cost or 0) }}</td>
+                        <td class="text-end">{{ "${:,.2f}".format(line.total_cost or 0) }}</td>
+                        <td>
+                            {% if line.status == 'Received' %}
+                            <span class="badge bg-success">{{ line.status }}</span>
+                            {% elif line.status == 'Pending' %}
+                            <span class="badge bg-warning text-dark">{{ line.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ line.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">No service lines found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <td colspan="6" class="text-end"><strong>Total Order Value:</strong></td>
+                        <td class="text-end"><strong>{{ "${:,.2f}".format(ns.total) }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0"><i class="bi bi-box"></i> Line Items</h5>
@@ -363,6 +455,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 {% if po.notes %}
 <div class="card mb-4">
@@ -511,6 +604,70 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i> Confirm Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Receive Service PO Modal -->
+{% if po.po_type == 'Service' and po.status not in ['Received', 'Cancelled'] %}
+<div class="modal fade" id="receiveServiceModal" tabindex="-1" aria-labelledby="receiveServiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('po_routes.receive_service_po', id=po.id) }}">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="receiveServiceModalLabel">
+                        <i class="bi bi-box-arrow-in-down me-2"></i>Receive Service PO
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This will mark all service lines as received and create an A/P record for payment. No inventory will be created.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="service_receipt_date" class="form-label">Receipt Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="service_receipt_date" name="receipt_date" 
+                               value="{{ now.strftime('%Y-%m-%d') if now else '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="service_remarks" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="service_remarks" name="remarks" rows="3" 
+                                  placeholder="Optional notes about service completion..."></textarea>
+                    </div>
+                    
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title mb-2">Service PO Details</h6>
+                            <div class="row mb-1">
+                                <div class="col-6"><strong>PO Number:</strong></div>
+                                <div class="col-6">{{ po.po_number }}</div>
+                            </div>
+                            <div class="row mb-1">
+                                <div class="col-6"><strong>Supplier:</strong></div>
+                                <div class="col-6">{{ po.supplier_name or 'N/A' }}</div>
+                            </div>
+                            <div class="row mb-1">
+                                <div class="col-6"><strong>Service Lines:</strong></div>
+                                <div class="col-6">{{ service_lines|length if service_lines else 0 }} line(s)</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6"><strong>Total Amount:</strong></div>
+                                <div class="col-6 fw-bold text-primary">{{ total|currency }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info">
                         <i class="bi bi-check-circle me-1"></i> Confirm Receipt
                     </button>
                 </div>
