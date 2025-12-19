@@ -16,10 +16,11 @@ def root():
     """Root endpoint - handles health checks and redirects to dashboard"""
     if 'user_id' not in session:
         return redirect(url_for('auth_routes.login'))
-    return dashboard_view()
+    return dashboard()
 
+@main_bp.route('/dashboard')
 @login_required
-def dashboard_view():
+def dashboard():
     db = Database()
     conn = db.get_connection()
     mrp = MRPEngine()
