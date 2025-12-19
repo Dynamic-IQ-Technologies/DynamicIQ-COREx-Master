@@ -276,7 +276,14 @@
                 </div>
                 
                 {% if task.description %}
-                <p class="mb-2"><strong>Instructions:</strong> {{ task.description }}</p>
+                <p class="mb-2"><strong>Description:</strong> {{ task.description }}</p>
+                {% endif %}
+                
+                {% if task.task_instructions %}
+                <div style="background: #e7f3ff; border-left: 4px solid #0d6efd; padding: 10px; margin-bottom: 10px;">
+                    <strong><i class="bi bi-info-circle"></i> Task Instructions:</strong><br>
+                    {{ task.task_instructions }}
+                </div>
                 {% endif %}
                 
                 <div class="row">
@@ -301,6 +308,17 @@
                 
                 {% if task.remarks %}
                 <p class="mb-0 mt-2"><small><strong>Remarks:</strong> {{ task.remarks }}</small></p>
+                {% endif %}
+                
+                {% if task.discrepancies %}
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin-top: 10px;">
+                    <strong><i class="bi bi-exclamation-triangle"></i> Discrepancy:</strong><br>
+                    {{ task.discrepancies }}
+                    {% if task.corrective_actions %}
+                    <br><strong style="color: #198754;"><i class="bi bi-check-circle"></i> Corrective Action:</strong><br>
+                    {{ task.corrective_actions }}
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
