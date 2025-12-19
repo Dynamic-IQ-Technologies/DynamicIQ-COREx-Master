@@ -319,7 +319,8 @@ def api_generate_presentation():
         if not api_key:
             return jsonify({'success': False, 'error': 'OpenAI API key not configured. Please set up the AI integration.'})
         
-        settings = CompanySettings.get_or_create_default()
+        settings_row = CompanySettings.get_or_create_default()
+        settings = dict(settings_row) if settings_row else {}
         
         company_name = settings.get('company_name', 'Our Company')
         tagline = settings.get('marketing_tagline', '')
