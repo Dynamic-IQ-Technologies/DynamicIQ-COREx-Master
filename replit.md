@@ -117,6 +117,19 @@ The system implements a novel patent-eligible architecture for ERP exchange mana
     - Exchange reference ID display
     - Stats summary: Total, Customer Owned, Supplier Owned, Overdue counts
     - Integration with Exchange detail view showing Dual Exchange POs in POs tab
+-   **Professional Shipping Document Generation System** (December 2025): Comprehensive PDF document generation for shipments with versioning, persistence, and audit trail. Features include:
+    - Packing Slip generation with line items, ship-to address, package details, and signature lines
+    - Certificate of Conformance (C of C) with compliance standards, signatory name, and certification statement
+    - Commercial Invoice with pricing, HS codes, country of origin, and export declaration
+    - Document versioning (V1, V2, etc.) for each document type per shipment
+    - PDF persistence to `static/documents/` directory with file_path tracking
+    - Document history panel showing all generated documents with status badges
+    - Download/view functionality for previously generated documents
+    - Status tracking: Draft, Final, Unsigned, Signed
+    - Audit trail logging for document creation and status changes
+    - Key table: `shipment_documents` with versioning, status, file_path, and electronic signature support
+    - Utility module: `utils/shipping_documents.py` (ShippingDocumentGenerator class using ReportLab)
+    - Routes module: `routes/shipping_routes.py`
 
 ## External Dependencies
 
