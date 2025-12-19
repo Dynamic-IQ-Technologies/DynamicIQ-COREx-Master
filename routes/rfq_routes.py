@@ -238,6 +238,34 @@ def remove_rfq_line(rfq_id, line_id):
     conn.close()
     return redirect(url_for('rfq_routes.edit_rfq', rfq_id=rfq_id))
 
+@rfq_bp.route('/rfqs/<int:rfq_id>/update_line/<int:line_id>', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def update_rfq_line(rfq_id, line_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    conn.execute('''
+        UPDATE rfq_lines 
+        SET product_id = ?, description = ?, quantity = ?, uom_id = ?, 
+            target_price = ?, required_date = ?, notes = ?
+        WHERE id = ? AND rfq_id = ?
+    ''', (
+        request.form.get('product_id') or None,
+        request.form['description'],
+        float(request.form.get('quantity', 1)),
+        request.form.get('uom_id') or None,
+        float(request.form.get('target_price')) if request.form.get('target_price') else None,
+        request.form.get('required_date') or None,
+        request.form.get('notes', ''),
+        line_id,
+        rfq_id
+    ))
+    conn.commit()
+    
+    flash('Line updated successfully!', 'success')
+    conn.close()
+    return redirect(url_for('rfq_routes.edit_rfq', rfq_id=rfq_id))
+
 @rfq_bp.route('/rfqs/<int:rfq_id>/add_supplier', methods=['POST'])
 @role_required('Admin', 'Procurement')
 def add_rfq_supplier(rfq_id):

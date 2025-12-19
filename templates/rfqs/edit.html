@@ -83,19 +83,52 @@
                         </thead>
                         <tbody>
                             {% for line in lines %}
-                            <tr>
+                            <tr id="line-view-{{ line.id }}">
                                 <td>{{ line.line_number }}</td>
                                 <td>{{ line.description }}</td>
                                 <td>{{ line.part_number or '-' }}</td>
                                 <td>{{ line.quantity }} {{ line.uom_code or 'EA' }}</td>
                                 <td>{{ "$ {:,.2f}".format(line.target_price) if line.target_price else '-' }}</td>
-                                <td>
+                                <td class="text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEditLine({{ line.id }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
                                     <form method="POST" action="{{ url_for('rfq_routes.remove_rfq_line', rfq_id=rfq.id, line_id=line.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this line?')">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
                                 </td>
+                            </tr>
+                            <tr id="line-edit-{{ line.id }}" style="display: none;" class="table-warning">
+                                <form method="POST" action="{{ url_for('rfq_routes.update_rfq_line', rfq_id=rfq.id, line_id=line.id) }}">
+                                    <td>{{ line.line_number }}</td>
+                                    <td>
+                                        <input type="text" name="description" class="form-control form-control-sm" value="{{ line.description }}" required>
+                                    </td>
+                                    <td>
+                                        <select name="product_id" class="form-select form-select-sm">
+                                            <option value="">Manual</option>
+                                            {% for p in products %}
+                                            <option value="{{ p.id }}" {% if line.product_id == p.id %}selected{% endif %}>{{ p.part_number }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantity" class="form-control form-control-sm" value="{{ line.quantity }}" min="0.01" step="any" style="width: 80px;">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="target_price" class="form-control form-control-sm" value="{{ line.target_price or '' }}" step="0.01" min="0" style="width: 100px;">
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <button type="submit" class="btn btn-sm btn-success me-1">
+                                            <i class="bi bi-check"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditLine({{ line.id }})">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </td>
+                                </form>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -240,4 +273,19 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleEditLine(lineId) {
+    const viewRow = document.getElementById('line-view-' + lineId);
+    const editRow = document.getElementById('line-edit-' + lineId);
+    
+    if (editRow.style.display === 'none') {
+        viewRow.style.display = 'none';
+        editRow.style.display = 'table-row';
+    } else {
+        viewRow.style.display = 'table-row';
+        editRow.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}
