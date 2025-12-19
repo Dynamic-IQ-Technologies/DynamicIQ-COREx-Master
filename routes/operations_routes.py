@@ -177,7 +177,7 @@ def operations_dashboard():
         ORDER BY week
     ''').fetchall()
     
-    monthly_wo_trend = conn.execute('''
+    monthly_wo_trend_raw = conn.execute('''
         SELECT 
             strftime('%Y-%m', created_at) as month,
             COUNT(*) as created,
@@ -187,6 +187,7 @@ def operations_dashboard():
         GROUP BY strftime('%Y-%m', created_at)
         ORDER BY month
     ''').fetchall()
+    monthly_wo_trend = [{'month': row['month'], 'created': row['created'], 'completed': row['completed']} for row in monthly_wo_trend_raw]
     
     on_time_delivery = conn.execute('''
         SELECT 
