@@ -278,11 +278,13 @@ def view_workorder(id):
     workorder = conn.execute('''
         SELECT wo.*, p.code, p.name, p.unit_of_measure, p.description as product_description,
                c.customer_number, c.name as customer_full_name, c.email as customer_email, c.phone as customer_phone,
-               wos.name as stage_name, wos.color as stage_color
+               wos.name as stage_name, wos.color as stage_color,
+               u.username as ri_inspector_name
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
         LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
+        LEFT JOIN users u ON wo.ri_inspector_id = u.id
         WHERE wo.id=?
     ''', (id,)).fetchone()
     
@@ -708,6 +710,72 @@ def update_workorder_status(id):
     except Exception as e:
         conn.rollback()
         flash(f'Error updating work order: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+@workorder_bp.route('/workorders/<int:id>/receiving-inspection', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def update_receiving_inspection(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get old record for audit
+        old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        # Get form values
+        ri_document_tracing = request.form.get('ri_document_tracing')
+        ri_part_identification = request.form.get('ri_part_identification')
+        ri_part_matching = request.form.get('ri_part_matching')
+        ri_traceability = request.form.get('ri_traceability')
+        ri_verified_requirements = request.form.get('ri_verified_requirements')
+        ri_visual_damages = request.form.get('ri_visual_damages')
+        ri_material_discrepancies = request.form.get('ri_material_discrepancies')
+        ri_d100_requirements = request.form.get('ri_d100_requirements')
+        
+        # Update receiving inspection fields
+        conn.execute('''
+            UPDATE work_orders SET 
+                ri_document_tracing = ?,
+                ri_part_identification = ?,
+                ri_part_matching = ?,
+                ri_traceability = ?,
+                ri_verified_requirements = ?,
+                ri_visual_damages = ?,
+                ri_material_discrepancies = ?,
+                ri_d100_requirements = ?,
+                ri_inspector_id = ?,
+                ri_inspection_date = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (ri_document_tracing, ri_part_identification, ri_part_matching, 
+              ri_traceability, ri_verified_requirements, ri_visual_damages,
+              ri_material_discrepancies, ri_d100_requirements, session.get('user_id'), id))
+        
+        # Get new record for audit
+        new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        # Log audit trail
+        changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='work_order',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        conn.commit()
+        flash('Receiving inspection updated successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating receiving inspection: {str(e)}', 'danger')
     finally:
         conn.close()
     

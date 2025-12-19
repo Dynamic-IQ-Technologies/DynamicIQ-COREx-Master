@@ -149,6 +149,11 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" id="receiving-tab" data-bs-toggle="tab" data-bs-target="#receivingPane" type="button" role="tab">
+            <i class="bi bi-clipboard-check"></i> Receiving Inspection
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasksPane" type="button" role="tab">
             <i class="bi bi-list-check"></i> Tasks <span class="badge bg-primary">{{ tasks|length }}</span>
         </button>
@@ -258,6 +263,124 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="receivingPane" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-clipboard-check me-2"></i>Receiving Inspection Checklist</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('workorder_routes.update_receiving_inspection', id=workorder.id) }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Document Tracing</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_document_tracing" id="doc_yes" value="Yes" {% if workorder.ri_document_tracing == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="doc_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_document_tracing" id="doc_no" value="No" {% if workorder.ri_document_tracing == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="doc_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_document_tracing" id="doc_na" value="N/A" {% if workorder.ri_document_tracing == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="doc_na">N/A</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Part Identification</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_part_identification" id="part_id_yes" value="Yes" {% if workorder.ri_part_identification == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="part_id_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_part_identification" id="part_id_no" value="No" {% if workorder.ri_part_identification == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="part_id_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_part_identification" id="part_id_na" value="N/A" {% if workorder.ri_part_identification == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="part_id_na">N/A</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Part Matching</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_part_matching" id="match_yes" value="Yes" {% if workorder.ri_part_matching == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="match_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_part_matching" id="match_no" value="No" {% if workorder.ri_part_matching == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="match_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_part_matching" id="match_na" value="N/A" {% if workorder.ri_part_matching == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="match_na">N/A</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Traceability</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_traceability" id="trace_yes" value="Yes" {% if workorder.ri_traceability == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="trace_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_traceability" id="trace_no" value="No" {% if workorder.ri_traceability == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="trace_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_traceability" id="trace_na" value="N/A" {% if workorder.ri_traceability == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="trace_na">N/A</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Verified Requirements</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_verified_requirements" id="verify_yes" value="Yes" {% if workorder.ri_verified_requirements == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="verify_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_verified_requirements" id="verify_no" value="No" {% if workorder.ri_verified_requirements == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="verify_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_verified_requirements" id="verify_na" value="N/A" {% if workorder.ri_verified_requirements == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="verify_na">N/A</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Visual Damages</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_visual_damages" id="damage_yes" value="Yes" {% if workorder.ri_visual_damages == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="damage_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_visual_damages" id="damage_no" value="No" {% if workorder.ri_visual_damages == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="damage_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_visual_damages" id="damage_na" value="N/A" {% if workorder.ri_visual_damages == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="damage_na">N/A</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Material Discrepancies</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_material_discrepancies" id="discrep_yes" value="Yes" {% if workorder.ri_material_discrepancies == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="discrep_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_material_discrepancies" id="discrep_no" value="No" {% if workorder.ri_material_discrepancies == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="discrep_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_material_discrepancies" id="discrep_na" value="N/A" {% if workorder.ri_material_discrepancies == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="discrep_na">N/A</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">D100 Requirements</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ri_d100_requirements" id="d100_yes" value="Yes" {% if workorder.ri_d100_requirements == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="d100_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="ri_d100_requirements" id="d100_no" value="No" {% if workorder.ri_d100_requirements == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="d100_no"><i class="bi bi-x-lg"></i> No</label>
+                                    <input type="radio" class="btn-check" name="ri_d100_requirements" id="d100_na" value="N/A" {% if workorder.ri_d100_requirements == 'N/A' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="d100_na">N/A</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if workorder.ri_inspection_date %}
+                    <div class="alert alert-info py-2 mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Last updated: {{ workorder.ri_inspection_date }}
+                        {% if workorder.ri_inspector_name %} by {{ workorder.ri_inspector_name }}{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Save Inspection
+                    </button>
+                    {% endif %}
+                </form>
             </div>
         </div>
     </div>
