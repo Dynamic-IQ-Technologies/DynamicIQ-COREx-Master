@@ -616,8 +616,8 @@
                             {% set mat = item.mat %}
                             <tr class="{% if (mat.issued_qty or 0) < (mat.required_qty or 0) %}table-warning{% endif %}">
                                 <td><span class="badge bg-secondary">{{ task.task_number }}</span> {{ task.task_name[:20] }}{% if task.task_name|length > 20 %}...{% endif %}</td>
-                                <td><strong>{{ mat.product_code }}</strong></td>
-                                <td>{{ mat.product_name[:30] }}{% if mat.product_name|length > 30 %}...{% endif %}</td>
+                                <td><strong>{{ mat.code }}</strong></td>
+                                <td>{{ mat.name[:30] }}{% if mat.name|length > 30 %}...{% endif %}</td>
                                 <td class="text-center">{{ "%.2f"|format(mat.required_qty or 0) }}</td>
                                 <td class="text-center">{{ "%.2f"|format(mat.issued_qty or 0) }}</td>
                                 <td class="text-center">{{ "%.2f"|format(mat.consumed_qty or 0) }}</td>
