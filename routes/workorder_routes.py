@@ -2398,6 +2398,79 @@ def consume_task_material(task_id, material_id):
     return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
 
 
+@workorder_bp.route('/workorders/<int:wo_id>/bulk-update-tasks', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff')
+def bulk_update_tasks(wo_id):
+    """Mass update multiple tasks at once"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        task_ids = request.form.getlist('task_ids')
+        if not task_ids:
+            flash('No tasks selected', 'warning')
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+        
+        action = request.form.get('bulk_action')
+        new_status = request.form.get('bulk_status')
+        new_assignee = request.form.get('bulk_assignee')
+        
+        updated_count = 0
+        now = datetime.now()
+        
+        for task_id in task_ids:
+            task = conn.execute('SELECT * FROM work_order_tasks WHERE id = ? AND work_order_id = ?', 
+                              (task_id, wo_id)).fetchone()
+            if not task:
+                continue
+            
+            if action == 'status' and new_status:
+                if new_status == 'Completed':
+                    materials = conn.execute('''
+                        SELECT * FROM work_order_task_materials 
+                        WHERE task_id = ? AND (issued_qty IS NULL OR issued_qty < required_qty)
+                    ''', (task_id,)).fetchall()
+                    if materials:
+                        continue
+                
+                if new_status == 'In Progress' and not task['actual_start_date']:
+                    conn.execute('''
+                        UPDATE work_order_tasks 
+                        SET status = ?, actual_start_date = ?
+                        WHERE id = ?
+                    ''', (new_status, now.strftime('%Y-%m-%d %H:%M:%S'), task_id))
+                elif new_status == 'Completed':
+                    conn.execute('''
+                        UPDATE work_order_tasks 
+                        SET status = ?, actual_end_date = ?
+                        WHERE id = ?
+                    ''', (new_status, now.strftime('%Y-%m-%d %H:%M:%S'), task_id))
+                else:
+                    conn.execute('UPDATE work_order_tasks SET status = ? WHERE id = ?', (new_status, task_id))
+                updated_count += 1
+            
+            elif action == 'assignee' and new_assignee:
+                assignee_id = int(new_assignee) if new_assignee != '' else None
+                conn.execute('UPDATE work_order_tasks SET assigned_to = ? WHERE id = ?', (assignee_id, task_id))
+                updated_count += 1
+        
+        conn.commit()
+        
+        if updated_count > 0:
+            flash(f'Successfully updated {updated_count} task(s)', 'success')
+        else:
+            flash('No tasks were updated', 'warning')
+            
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating tasks: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+
 @workorder_bp.route('/workorders/tasks/<int:task_id>/update-status', methods=['POST'])
 @login_required
 @role_required('Admin', 'Production Staff')

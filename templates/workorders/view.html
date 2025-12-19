@@ -288,25 +288,85 @@
                     </div>
                 </div>
 
+                {% if tasks and session.role in ['Admin', 'Production Staff'] %}
+                <div class="card bg-light mb-3" id="bulkActionsPanel" style="display: none;">
+                    <div class="card-body py-2">
+                        <form method="POST" action="{{ url_for('workorder_routes.bulk_update_tasks', wo_id=workorder.id) }}" id="bulkUpdateForm">
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <span class="fw-bold"><i class="bi bi-check2-square"></i> <span id="selectedCount">0</span> selected</span>
+                                <div class="vr"></div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0 small">Action:</label>
+                                    <select class="form-select form-select-sm" name="bulk_action" id="bulkAction" style="width: auto;" onchange="toggleBulkFields()">
+                                        <option value="">Select...</option>
+                                        <option value="status">Update Status</option>
+                                        <option value="assignee">Assign To</option>
+                                    </select>
+                                </div>
+                                <div id="statusField" style="display: none;" class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0 small">Status:</label>
+                                    <select class="form-select form-select-sm" name="bulk_status" style="width: auto;">
+                                        <option value="Not Started">Not Started</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="On Hold">On Hold</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div id="assigneeField" style="display: none;" class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0 small">Assignee:</label>
+                                    <select class="form-select form-select-sm" name="bulk_assignee" style="width: auto;">
+                                        <option value="">Unassigned</option>
+                                        {% for lr in labor_resources %}
+                                        <option value="{{ lr.id }}">{{ lr.first_name }} {{ lr.last_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-check-lg"></i> Apply
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                                    <i class="bi bi-x-lg"></i> Clear
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
                 {% if tasks %}
+                {% if session.role in ['Admin', 'Production Staff'] %}
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="selectAllTasks" onchange="toggleSelectAll(this)">
+                        <label class="form-check-label small text-muted" for="selectAllTasks">Select All Tasks</label>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="accordion" id="tasksAccordion">
                     {% for task in tasks %}
                     <div class="accordion-item task-card mb-2 status-{{ task.status|lower|replace(' ', '-') }}" id="task-{{ task.id }}">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#taskContent{{ task.id }}">
-                                <div class="d-flex align-items-center gap-3 w-100 pe-3">
-                                    <strong class="text-primary">{{ task.task_number }}</strong>
-                                    <span>{{ task.task_name }}</span>
-                                    <span class="badge bg-{% if task.status == 'Completed' %}success{% elif task.status == 'In Progress' %}info{% else %}secondary{% endif %}">{{ task.status }}</span>
-                                    {% if task_material_summary[task.id].shortage %}
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Material Shortage</span>
-                                    {% endif %}
-                                    {% if task_material_summary[task.id].count > 0 %}
-                                    <span class="badge bg-secondary">{{ task_material_summary[task.id].count }} materials</span>
-                                    {% endif %}
-                                    <span class="ms-auto text-muted small">{{ "%.1f"|format(task.actual_hours or 0) }}/{{ "%.1f"|format(task.planned_hours or 0) }}h</span>
+                            <div class="d-flex align-items-center">
+                                {% if session.role in ['Admin', 'Production Staff'] %}
+                                <div class="form-check ms-2 me-2" onclick="event.stopPropagation();">
+                                    <input class="form-check-input task-checkbox" type="checkbox" name="task_ids" value="{{ task.id }}" form="bulkUpdateForm" onchange="updateSelectedCount()">
                                 </div>
-                            </button>
+                                {% endif %}
+                                <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#taskContent{{ task.id }}">
+                                    <div class="d-flex align-items-center gap-3 w-100 pe-3">
+                                        <strong class="text-primary">{{ task.task_number }}</strong>
+                                        <span>{{ task.task_name }}</span>
+                                        <span class="badge bg-{% if task.status == 'Completed' %}success{% elif task.status == 'In Progress' %}info{% else %}secondary{% endif %}">{{ task.status }}</span>
+                                        {% if task_material_summary[task.id].shortage %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Material Shortage</span>
+                                        {% endif %}
+                                        {% if task_material_summary[task.id].count > 0 %}
+                                        <span class="badge bg-secondary">{{ task_material_summary[task.id].count }} materials</span>
+                                        {% endif %}
+                                        <span class="ms-auto text-muted small">{{ "%.1f"|format(task.actual_hours or 0) }}/{{ "%.1f"|format(task.planned_hours or 0) }}h</span>
+                                    </div>
+                                </button>
+                            </div>
                         </h2>
                         <div id="taskContent{{ task.id }}" class="accordion-collapse collapse">
                             <div class="accordion-body">
@@ -1042,6 +1102,43 @@ async function confirmDeleteWOMaterial(reqId) {
     if (confirmed) {
         document.getElementById('deleteMaterialForm' + reqId).submit();
     }
+}
+
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.task-checkbox:checked');
+    const count = checkboxes.length;
+    const countEl = document.getElementById('selectedCount');
+    const panel = document.getElementById('bulkActionsPanel');
+    const selectAllBox = document.getElementById('selectAllTasks');
+    
+    if (countEl) countEl.textContent = count;
+    if (panel) panel.style.display = count > 0 ? 'block' : 'none';
+    
+    const allCheckboxes = document.querySelectorAll('.task-checkbox');
+    if (selectAllBox) {
+        selectAllBox.checked = count > 0 && count === allCheckboxes.length;
+        selectAllBox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+function toggleSelectAll(el) {
+    const checkboxes = document.querySelectorAll('.task-checkbox');
+    checkboxes.forEach(cb => cb.checked = el.checked);
+    updateSelectedCount();
+}
+
+function toggleBulkFields() {
+    const action = document.getElementById('bulkAction').value;
+    document.getElementById('statusField').style.display = action === 'status' ? 'flex' : 'none';
+    document.getElementById('assigneeField').style.display = action === 'assignee' ? 'flex' : 'none';
+}
+
+function clearSelection() {
+    document.querySelectorAll('.task-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllTasks').checked = false;
+    updateSelectedCount();
+    document.getElementById('bulkAction').value = '';
+    toggleBulkFields();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
