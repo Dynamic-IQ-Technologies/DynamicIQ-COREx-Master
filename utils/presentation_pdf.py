@@ -3,15 +3,13 @@ Professional Marketing Presentation PDF Generator
 Creates elegant, branded PDF presentations using ReportLab
 """
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from io import BytesIO
 from datetime import datetime
-import os
 
 
 def hex_to_rgb(hex_color):
@@ -43,55 +41,68 @@ class PresentationPDFGenerator:
         styles.add(ParagraphStyle(
             name='HeroTitle',
             parent=styles['Heading1'],
-            fontSize=32,
+            fontSize=28,
             textColor=colors.white,
             alignment=TA_CENTER,
-            spaceAfter=20,
-            fontName='Helvetica-Bold'
+            spaceAfter=12,
+            fontName='Helvetica-Bold',
+            leading=34
         ))
         
         styles.add(ParagraphStyle(
             name='HeroSubtitle',
             parent=styles['Normal'],
+            fontSize=14,
+            textColor=colors.white,
+            alignment=TA_CENTER,
+            spaceAfter=8,
+            leading=18
+        ))
+        
+        styles.add(ParagraphStyle(
+            name='CompanyName',
+            parent=styles['Normal'],
             fontSize=16,
             textColor=colors.white,
             alignment=TA_CENTER,
-            spaceAfter=30
+            fontName='Helvetica-Bold',
+            spaceAfter=4
         ))
         
         styles.add(ParagraphStyle(
             name='SectionTitle',
             parent=styles['Heading1'],
-            fontSize=24,
+            fontSize=20,
             textColor=colors.Color(*self.primary_color),
             alignment=TA_CENTER,
-            spaceBefore=30,
-            spaceAfter=20,
+            spaceBefore=20,
+            spaceAfter=16,
             fontName='Helvetica-Bold'
         ))
         
         styles.add(ParagraphStyle(
             name='CardTitle',
             parent=styles['Heading2'],
-            fontSize=14,
+            fontSize=13,
             textColor=colors.Color(*self.primary_color),
-            spaceBefore=10,
-            spaceAfter=5,
+            spaceBefore=8,
+            spaceAfter=4,
             fontName='Helvetica-Bold'
         ))
         
         styles.add(ParagraphStyle(
             name='CardBody',
             parent=styles['Normal'],
-            fontSize=11,
+            fontSize=10,
             textColor=colors.Color(0.3, 0.3, 0.3),
-            spaceAfter=10
+            spaceAfter=8,
+            leading=14
         ))
         
         styles.add(ParagraphStyle(
             name='StatNumber',
             parent=styles['Normal'],
-            fontSize=28,
+            fontSize=24,
             textColor=colors.Color(*self.primary_color),
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
@@ -100,7 +111,7 @@ class PresentationPDFGenerator:
         styles.add(ParagraphStyle(
             name='StatLabel',
             parent=styles['Normal'],
-            fontSize=11,
+            fontSize=10,
             textColor=colors.Color(0.4, 0.4, 0.4),
             alignment=TA_CENTER
         ))
@@ -108,27 +119,29 @@ class PresentationPDFGenerator:
         styles.add(ParagraphStyle(
             name='FeatureItem',
             parent=styles['Normal'],
-            fontSize=11,
+            fontSize=10,
             textColor=colors.Color(0.3, 0.3, 0.3),
-            leftIndent=15,
-            spaceAfter=5
+            leftIndent=12,
+            spaceAfter=4,
+            leading=13
         ))
         
         styles.add(ParagraphStyle(
             name='TestimonialQuote',
             parent=styles['Normal'],
-            fontSize=14,
+            fontSize=12,
             textColor=colors.Color(0.3, 0.3, 0.3),
             alignment=TA_CENTER,
             fontName='Helvetica-Oblique',
-            spaceBefore=20,
-            spaceAfter=10
+            spaceBefore=12,
+            spaceAfter=8,
+            leading=16
         ))
         
         styles.add(ParagraphStyle(
             name='TestimonialAuthor',
             parent=styles['Normal'],
-            fontSize=12,
+            fontSize=11,
             textColor=colors.Color(*self.primary_color),
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
@@ -137,17 +150,17 @@ class PresentationPDFGenerator:
         styles.add(ParagraphStyle(
             name='CTATitle',
             parent=styles['Heading1'],
-            fontSize=22,
+            fontSize=18,
             textColor=colors.white,
             alignment=TA_CENTER,
-            spaceAfter=10,
+            spaceAfter=8,
             fontName='Helvetica-Bold'
         ))
         
         styles.add(ParagraphStyle(
             name='CTABody',
             parent=styles['Normal'],
-            fontSize=14,
+            fontSize=12,
             textColor=colors.white,
             alignment=TA_CENTER
         ))
@@ -162,15 +175,6 @@ class PresentationPDFGenerator:
         
         return styles
     
-    def _draw_hero_background(self, canvas, doc):
-        """Draw gradient-like hero background"""
-        canvas.saveState()
-        canvas.setFillColor(colors.Color(*self.primary_color))
-        canvas.rect(0, doc.height + doc.topMargin - 180, doc.width + doc.leftMargin + doc.rightMargin, 220, fill=1, stroke=0)
-        canvas.setFillColor(colors.Color(*self.secondary_color))
-        canvas.rect(0, doc.height + doc.topMargin - 180, doc.width + doc.leftMargin + doc.rightMargin, 40, fill=1, stroke=0)
-        canvas.restoreState()
-    
     def _add_page_number(self, canvas, doc):
         """Add page number and footer to each page"""
         canvas.saveState()
@@ -178,7 +182,7 @@ class PresentationPDFGenerator:
         canvas.setFillColor(colors.Color(0.5, 0.5, 0.5))
         page_num = canvas.getPageNumber()
         text = f"{self.company_name} | Page {page_num}"
-        canvas.drawCentredString(doc.width / 2 + doc.leftMargin, 0.5 * inch, text)
+        canvas.drawCentredString(doc.width / 2 + doc.leftMargin, 0.4 * inch, text)
         canvas.restoreState()
     
     def generate(self):
@@ -187,10 +191,10 @@ class PresentationPDFGenerator:
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
-            rightMargin=0.75*inch,
-            leftMargin=0.75*inch,
-            topMargin=0.75*inch,
-            bottomMargin=0.75*inch
+            rightMargin=0.6*inch,
+            leftMargin=0.6*inch,
+            topMargin=0.5*inch,
+            bottomMargin=0.6*inch
         )
         
         styles = self._create_styles()
@@ -199,79 +203,99 @@ class PresentationPDFGenerator:
         hero = self.data.get('hero', {})
         company = self.data.get('company', {})
         
-        story.append(Spacer(1, 40))
-        story.append(Paragraph(hero.get('headline', 'Transform Your Operations'), styles['HeroTitle']))
-        story.append(Paragraph(hero.get('subheadline', 'Next-generation solutions for modern business'), styles['HeroSubtitle']))
-        story.append(Spacer(1, 20))
-        
-        company_info = f"<b>{company.get('name', self.company_name)}</b>"
+        hero_content = []
+        hero_content.append([Paragraph(hero.get('headline', 'Transform Your Operations'), styles['HeroTitle'])])
+        hero_content.append([Paragraph(hero.get('subheadline', 'Next-generation solutions for modern business'), styles['HeroSubtitle'])])
+        hero_content.append([Spacer(1, 15)])
+        hero_content.append([Paragraph(company.get('name', self.company_name), styles['CompanyName'])])
         if company.get('tagline'):
-            company_info += f"<br/>{company.get('tagline')}"
-        story.append(Paragraph(company_info, styles['HeroSubtitle']))
-        story.append(Spacer(1, 60))
+            hero_content.append([Paragraph(company.get('tagline'), styles['HeroSubtitle'])])
+        
+        hero_table = Table(hero_content, colWidths=[doc.width])
+        hero_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.Color(*self.primary_color)),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, 0), 30),
+            ('BOTTOMPADDING', (0, -1), (-1, -1), 30),
+            ('LEFTPADDING', (0, 0), (-1, -1), 20),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+        ]))
+        story.append(hero_table)
+        story.append(Spacer(1, 25))
         
         value_props = self.data.get('value_propositions', [])
         if value_props:
             story.append(Paragraph("Why Choose Us", styles['SectionTitle']))
-            story.append(Spacer(1, 10))
             
             for vp in value_props:
-                story.append(Paragraph(f"<b>{vp.get('title', '')}</b>", styles['CardTitle']))
-                story.append(Paragraph(vp.get('description', ''), styles['CardBody']))
+                vp_content = []
+                vp_content.append(Paragraph(f"<b>{vp.get('title', '')}</b>", styles['CardTitle']))
+                vp_content.append(Paragraph(vp.get('description', ''), styles['CardBody']))
+                story.append(KeepTogether(vp_content))
             
-            story.append(Spacer(1, 20))
+            story.append(Spacer(1, 10))
+        
+        story.append(PageBreak())
         
         capabilities = self.data.get('capabilities', [])
         if capabilities:
-            story.append(PageBreak())
             story.append(Paragraph("Platform Capabilities", styles['SectionTitle']))
-            story.append(Spacer(1, 10))
             
             for cap in capabilities:
-                story.append(Paragraph(f"<b>{cap.get('category', '')}</b>", styles['CardTitle']))
+                cap_content = []
+                cap_content.append(Paragraph(f"<b>{cap.get('category', '')}</b>", styles['CardTitle']))
                 features = cap.get('features', [])
                 for feature in features:
-                    story.append(Paragraph(f"• {feature}", styles['FeatureItem']))
-                story.append(Spacer(1, 10))
+                    cap_content.append(Paragraph(f"• {feature}", styles['FeatureItem']))
+                cap_content.append(Spacer(1, 8))
+                story.append(KeepTogether(cap_content))
+        
+        story.append(PageBreak())
         
         industries = self.data.get('industries', [])
         if industries:
-            story.append(PageBreak())
             story.append(Paragraph("Industries We Serve", styles['SectionTitle']))
-            story.append(Spacer(1, 10))
             
             for ind in industries:
-                story.append(Paragraph(f"<b>{ind.get('name', '')}</b>", styles['CardTitle']))
-                story.append(Paragraph(ind.get('description', ''), styles['CardBody']))
+                ind_content = []
+                ind_content.append(Paragraph(f"<b>{ind.get('name', '')}</b>", styles['CardTitle']))
+                desc = ind.get('description') or ind.get('use_case', '')
+                if desc:
+                    ind_content.append(Paragraph(desc, styles['CardBody']))
+                story.append(KeepTogether(ind_content))
+            
+            story.append(Spacer(1, 20))
         
         stats = self.data.get('stats', [])
         if stats:
-            story.append(Spacer(1, 30))
             story.append(Paragraph("By The Numbers", styles['SectionTitle']))
             story.append(Spacer(1, 10))
             
-            stat_data = []
-            for stat in stats[:4]:
-                stat_data.append([
-                    Paragraph(stat.get('value', ''), styles['StatNumber']),
-                    Paragraph(stat.get('label', ''), styles['StatLabel'])
-                ])
-            
-            if stat_data:
-                col_width = (doc.width - 40) / len(stat_data)
-                stat_table = Table([[cell[0] for cell in stat_data], [cell[1] for cell in stat_data]], 
-                                   colWidths=[col_width] * len(stat_data))
+            stats_to_show = stats[:4]
+            if stats_to_show:
+                stat_row1 = []
+                stat_row2 = []
+                for stat in stats_to_show:
+                    stat_row1.append(Paragraph(stat.get('value', ''), styles['StatNumber']))
+                    stat_row2.append(Paragraph(stat.get('label', ''), styles['StatLabel']))
+                
+                col_width = (doc.width - 20) / len(stats_to_show)
+                stat_table = Table([stat_row1, stat_row2], colWidths=[col_width] * len(stats_to_show))
                 stat_table.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 15),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ('TOPPADDING', (0, 0), (-1, -1), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.Color(0.97, 0.97, 0.97)),
                 ]))
                 story.append(stat_table)
+            
+            story.append(Spacer(1, 20))
         
         testimonial = self.data.get('testimonial', {})
         if testimonial and testimonial.get('quote'):
-            story.append(Spacer(1, 30))
+            story.append(Spacer(1, 15))
             story.append(Paragraph(f'"{testimonial.get("quote", "")}"', styles['TestimonialQuote']))
             author_info = testimonial.get('author', '')
             if testimonial.get('title'):
@@ -280,48 +304,38 @@ class PresentationPDFGenerator:
                 author_info += f" - {testimonial.get('company')}"
             story.append(Paragraph(author_info, styles['TestimonialAuthor']))
         
+        story.append(PageBreak())
+        
         cta = self.data.get('cta', {})
         if cta:
-            story.append(PageBreak())
-            story.append(Spacer(1, 100))
+            story.append(Spacer(1, 80))
             
-            cta_data = [[
-                Paragraph(cta.get('headline', 'Ready to Get Started?'), styles['CTATitle']),
-            ], [
-                Paragraph(cta.get('subheadline', 'Contact us today to learn more'), styles['CTABody'])
-            ]]
+            cta_content = []
+            cta_content.append([Paragraph(cta.get('headline', 'Ready to Get Started?'), styles['CTATitle'])])
+            cta_content.append([Paragraph(cta.get('subheadline', 'Contact us today to learn more'), styles['CTABody'])])
+            if cta.get('contact_info'):
+                cta_content.append([Spacer(1, 8)])
+                cta_content.append([Paragraph(cta.get('contact_info'), styles['CTABody'])])
             
-            cta_table = Table(cta_data, colWidths=[doc.width - 60])
+            cta_table = Table(cta_content, colWidths=[doc.width - 40])
             cta_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), colors.Color(*self.primary_color)),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('TOPPADDING', (0, 0), (-1, -1), 30),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 30),
+                ('TOPPADDING', (0, 0), (-1, 0), 25),
+                ('BOTTOMPADDING', (0, -1), (-1, -1), 25),
                 ('LEFTPADDING', (0, 0), (-1, -1), 20),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 20),
-                ('ROUNDEDCORNERS', [10, 10, 10, 10]),
             ]))
             story.append(cta_table)
-            
-            if cta.get('contact_info'):
-                story.append(Spacer(1, 20))
-                story.append(Paragraph(cta.get('contact_info'), styles['CardBody']))
         
-        story.append(Spacer(1, 50))
+        story.append(Spacer(1, 40))
         story.append(Paragraph(
             f"Generated on {datetime.now().strftime('%B %d, %Y')} | {self.company_name}",
             styles['Footer']
         ))
         
-        def first_page(canvas, doc):
-            self._draw_hero_background(canvas, doc)
-            self._add_page_number(canvas, doc)
-        
-        def later_pages(canvas, doc):
-            self._add_page_number(canvas, doc)
-        
-        doc.build(story, onFirstPage=first_page, onLaterPages=later_pages)
+        doc.build(story, onFirstPage=self._add_page_number, onLaterPages=self._add_page_number)
         buffer.seek(0)
         return buffer
 
