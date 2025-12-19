@@ -320,6 +320,35 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-tools text-warning me-2"></i>Calibration Requirements</h5>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="last_calibration_date" class="form-label">Last Calibration Date</label>
+                        <input type="date" class="form-control" id="last_calibration_date" name="last_calibration_date" 
+                               value="{{ inventory.last_calibration_date or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="calibration_frequency" class="form-label">Calibration Frequency (Days)</label>
+                        <input type="number" class="form-control" id="calibration_frequency" name="calibration_frequency" 
+                               value="{{ inventory.calibration_frequency or '' }}" placeholder="e.g., 365, 180, 90" min="1">
+                        <small class="text-muted">Number of days between calibrations</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="next_calibration_date" class="form-label">Next Calibration Date</label>
+                        <input type="date" class="form-control" id="next_calibration_date" name="next_calibration_date" 
+                               value="{{ inventory.next_calibration_date or '' }}">
+                        <small class="text-muted">Auto-calculated if Last Date and Frequency are set</small>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>
@@ -365,6 +394,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     quantityInput.addEventListener('input', updateTotalValue);
     unitCostInput.addEventListener('input', updateTotalValue);
+    
+    const lastCalInput = document.getElementById('last_calibration_date');
+    const freqInput = document.getElementById('calibration_frequency');
+    const nextCalInput = document.getElementById('next_calibration_date');
+    
+    function autoCalculateNextCal() {
+        if (lastCalInput.value && freqInput.value && !nextCalInput.value) {
+            const lastDate = new Date(lastCalInput.value);
+            const freq = parseInt(freqInput.value);
+            if (!isNaN(freq) && freq > 0) {
+                lastDate.setDate(lastDate.getDate() + freq);
+                nextCalInput.value = lastDate.toISOString().split('T')[0];
+            }
+        }
+    }
+    
+    lastCalInput.addEventListener('change', autoCalculateNextCal);
+    freqInput.addEventListener('change', autoCalculateNextCal);
 });
 </script>
 {% endblock %}

@@ -294,6 +294,96 @@
 </div>
 
 <div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Calibration Requirements</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <p><strong>Last Calibration:</strong> 
+                    {% if inventory.last_calibration_date %}
+                    {{ inventory.last_calibration_date|format_date }}
+                    {% else %}
+                    <span class="text-muted">Not recorded</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Frequency:</strong> 
+                    {% if inventory.calibration_frequency %}
+                    {{ inventory.calibration_frequency }} days
+                    {% else %}
+                    <span class="text-muted">Not set</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Next Calibration:</strong> 
+                    {% if inventory.next_calibration_date %}
+                    {{ inventory.next_calibration_date|format_date }}
+                    {% else %}
+                    <span class="text-muted">Not scheduled</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Status:</strong> 
+                    {% if inventory.next_calibration_date %}
+                        {% set today = now().strftime('%Y-%m-%d') %}
+                        {% set next_cal = inventory.next_calibration_date %}
+                        {% set days_diff = ((next_cal|string|replace('-','')|int) - (today|replace('-','')|int)) %}
+                        {% if next_cal < today %}
+                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>OVERDUE</span>
+                        {% elif days_diff <= 30 %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Due Soon</span>
+                        {% else %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Current</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="badge bg-secondary">N/A</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        {% if inventory.next_calibration_date %}
+        <div class="row mt-2">
+            <div class="col-12">
+                <div class="alert alert-light mb-0 py-2">
+                    <i class="bi bi-calendar-event me-2"></i>
+                    <strong>Days Until Next Calibration:</strong>
+                    {% set today = now().strftime('%Y-%m-%d') %}
+                    {% set next_cal = inventory.next_calibration_date %}
+                    <span id="calibration_days_remaining" class="ms-2 fw-bold">
+                        Calculating...
+                    </span>
+                </div>
+            </div>
+        </div>
+        <script>
+        (function() {
+            const nextCal = new Date('{{ inventory.next_calibration_date }}');
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            nextCal.setHours(0,0,0,0);
+            const diffTime = nextCal - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const elem = document.getElementById('calibration_days_remaining');
+            if (diffDays < 0) {
+                elem.innerHTML = '<span class="text-danger">' + Math.abs(diffDays) + ' days overdue</span>';
+            } else if (diffDays === 0) {
+                elem.innerHTML = '<span class="text-warning">Due today</span>';
+            } else if (diffDays <= 30) {
+                elem.innerHTML = '<span class="text-warning">' + diffDays + ' days</span>';
+            } else {
+                elem.innerHTML = '<span class="text-success">' + diffDays + ' days</span>';
+            }
+        })();
+        </script>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">Inventory Record Details</h5>
     </div>

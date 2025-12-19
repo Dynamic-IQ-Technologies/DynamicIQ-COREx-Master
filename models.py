@@ -440,7 +440,10 @@ class Database:
             ('time_limit', 'REAL'),
             ('tsn', 'REAL'),
             ('tso', 'REAL'),
-            ('time_remaining', 'REAL')
+            ('time_remaining', 'REAL'),
+            ('last_calibration_date', 'DATE'),
+            ('calibration_frequency', 'INTEGER'),
+            ('next_calibration_date', 'DATE')
         ]
         
         for col_name, col_type in inventory_new_columns:

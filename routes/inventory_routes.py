@@ -359,6 +359,19 @@ def edit_inventory(id):
             time_remaining_str = request.form.get('time_remaining', '').strip()
             time_remaining = float(time_remaining_str) if time_remaining_str else None
             
+            # Calibration fields
+            last_calibration_date = request.form.get('last_calibration_date', '').strip() or None
+            calibration_frequency_str = request.form.get('calibration_frequency', '').strip()
+            calibration_frequency = int(calibration_frequency_str) if calibration_frequency_str else None
+            next_calibration_date = request.form.get('next_calibration_date', '').strip() or None
+            
+            # Auto-calculate next calibration date if last date and frequency are set but next is not
+            if last_calibration_date and calibration_frequency and not next_calibration_date:
+                from datetime import datetime, timedelta
+                last_cal = datetime.strptime(last_calibration_date, '%Y-%m-%d')
+                next_cal = last_cal + timedelta(days=calibration_frequency)
+                next_calibration_date = next_cal.strftime('%Y-%m-%d')
+            
             # Validate serial number for serialized items
             if is_serialized:
                 if not serial_number:
@@ -415,6 +428,9 @@ def edit_inventory(id):
                     tsn=?,
                     tso=?,
                     time_remaining=?,
+                    last_calibration_date=?,
+                    calibration_frequency=?,
+                    next_calibration_date=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, unit_cost, warehouse_location, bin_location, 
@@ -422,7 +438,8 @@ def edit_inventory(id):
                   expiration_date, last_inspection_date, next_inspection_date,
                   inspected_by, inspection_notes, trace_tag, trace, trace_type,
                   msn_esn, mfr_code, lot_number, source, manufactured_date, country_of_origin,
-                  cycle_limit, csn, cso, cycles_remaining, time_limit, tsn, tso, time_remaining, id))
+                  cycle_limit, csn, cso, cycles_remaining, time_limit, tsn, tso, time_remaining,
+                  last_calibration_date, calibration_frequency, next_calibration_date, id))
             
             AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
                                   {'quantity': quantity, 'old_quantity': old_record['quantity'],
