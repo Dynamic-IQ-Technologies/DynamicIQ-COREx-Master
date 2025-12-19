@@ -385,6 +385,34 @@
                                     </div>
                                 </div>
                                 
+                                {% if task.task_instructions %}
+                                <div class="alert alert-info py-2 mb-3">
+                                    <strong><i class="bi bi-info-circle me-1"></i> Task Instructions:</strong><br>
+                                    {{ task.task_instructions }}
+                                </div>
+                                {% endif %}
+                                
+                                {% if task.discrepancies or task.corrective_actions %}
+                                <div class="row mb-3">
+                                    {% if task.discrepancies %}
+                                    <div class="col-md-6">
+                                        <div class="alert alert-warning py-2 mb-0">
+                                            <strong><i class="bi bi-exclamation-triangle me-1"></i> Discrepancies:</strong><br>
+                                            {{ task.discrepancies }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if task.corrective_actions %}
+                                    <div class="col-md-6">
+                                        <div class="alert alert-success py-2 mb-0">
+                                            <strong><i class="bi bi-check-circle me-1"></i> Corrective Actions:</strong><br>
+                                            {{ task.corrective_actions }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
                                 {% if session.role in ['Admin', 'Production Staff'] %}
                                 <div class="d-flex gap-2 mb-3">
                                     <form method="POST" action="{{ url_for('workorder_routes.update_task_status', task_id=task.id) }}" class="d-flex gap-2">

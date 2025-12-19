@@ -73,6 +73,7 @@ def create_task(wo_id):
             planned_hours = float(request.form.get('planned_hours', 0))
             assigned_resource_id = request.form.get('assigned_resource_id')
             remarks = request.form.get('remarks', '').strip()
+            task_instructions = request.form.get('task_instructions', '').strip()
             
             if not task_name:
                 flash('Task name is required', 'danger')
@@ -103,11 +104,11 @@ def create_task(wo_id):
                 INSERT INTO work_order_tasks 
                 (task_number, work_order_id, task_name, description, category, sequence_number, 
                  priority, planned_start_date, planned_end_date, planned_hours, planned_labor_cost,
-                 assigned_resource_id, status, remarks)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 assigned_resource_id, status, remarks, task_instructions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (task_number, wo_id, task_name, description, category, sequence_number,
                   priority, planned_start_date, planned_end_date, planned_hours, planned_labor_cost,
-                  assigned_resource_id, 'Not Started', remarks))
+                  assigned_resource_id, 'Not Started', remarks, task_instructions))
             
             conn.commit()
             conn.close()
@@ -158,6 +159,9 @@ def edit_task(task_id):
             work_center_id = request.form.get('work_center_id')
             status = request.form.get('status', 'Not Started')
             remarks = request.form.get('remarks', '').strip()
+            task_instructions = request.form.get('task_instructions', '').strip()
+            discrepancies = request.form.get('discrepancies', '').strip()
+            corrective_actions = request.form.get('corrective_actions', '').strip()
             
             if not task_name:
                 flash('Task name is required', 'danger')
@@ -205,11 +209,13 @@ def edit_task(task_id):
                 UPDATE work_order_tasks 
                 SET task_name = ?, description = ?, category = ?, sequence_number = ?,
                     priority = ?, planned_start_date = ?, planned_end_date = ?, planned_hours = ?,
-                    planned_labor_cost = ?, assigned_resource_id = ?, work_center_id = ?, status = ?, remarks = ?
+                    planned_labor_cost = ?, assigned_resource_id = ?, work_center_id = ?, status = ?, remarks = ?,
+                    task_instructions = ?, discrepancies = ?, corrective_actions = ?
                 WHERE id = ?
             ''', (task_name, description, category, sequence_number, priority, 
                   planned_start_date, planned_end_date, planned_hours, planned_labor_cost,
-                  assigned_resource_id, work_center_id, status, remarks, task_id))
+                  assigned_resource_id, work_center_id, status, remarks,
+                  task_instructions, discrepancies, corrective_actions, task_id))
             
             conn.commit()
             conn.close()

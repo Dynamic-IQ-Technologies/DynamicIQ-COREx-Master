@@ -120,6 +120,26 @@
             </div>
 
             <div class="mb-3">
+                <label for="task_instructions" class="form-label">Task Instructions</label>
+                <textarea class="form-control" id="task_instructions" name="task_instructions" rows="3" placeholder="Detailed instructions for completing this task...">{{ task.task_instructions or '' }}</textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="discrepancies" class="form-label">Discrepancies</label>
+                        <textarea class="form-control" id="discrepancies" name="discrepancies" rows="3" placeholder="Any issues or discrepancies found during work...">{{ task.discrepancies or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="corrective_actions" class="form-label">Corrective Actions</label>
+                        <textarea class="form-control" id="corrective_actions" name="corrective_actions" rows="3" placeholder="Actions taken to address discrepancies...">{{ task.corrective_actions or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
                 <label for="remarks" class="form-label">Remarks</label>
                 <textarea class="form-control" id="remarks" name="remarks" rows="2">{{ task.remarks or '' }}</textarea>
             </div>
