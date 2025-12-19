@@ -527,16 +527,24 @@ def manager_dashboard():
             'is_clocked_in': is_clocked_in
         })
     
-    # Get currently clocked in employees
+    # Get currently clocked in employees with work order and task details
     clocked_in = conn.execute('''
         SELECT 
             lr.employee_code,
             lr.first_name || ' ' || lr.last_name as name,
             tcp.punch_time,
             tcp.location,
-            tcp.project_name
+            tcp.project_name,
+            tcp.work_order_id,
+            tcp.task_id,
+            wo.wo_number,
+            (SELECT name FROM products WHERE id = wo.product_id) as product_name,
+            wot.task_name,
+            wot.description as task_description
         FROM time_clock_punches tcp
         JOIN labor_resources lr ON tcp.employee_id = lr.id
+        LEFT JOIN work_orders wo ON tcp.work_order_id = wo.id
+        LEFT JOIN work_order_tasks wot ON tcp.task_id = wot.id
         WHERE tcp.id IN (
             SELECT MAX(id) FROM time_clock_punches GROUP BY employee_id
         ) AND tcp.punch_type = 'Clock In'

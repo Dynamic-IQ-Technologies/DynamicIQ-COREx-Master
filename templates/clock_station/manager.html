@@ -86,8 +86,9 @@
                         <th>Employee</th>
                         <th>Clock In Time</th>
                         <th>Elapsed</th>
-                        <th>Location</th>
-                        <th>Project</th>
+                        <th>Work Order</th>
+                        <th>Task</th>
+                        <th>Task Description</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -95,12 +96,34 @@
                     <tr>
                         <td>
                             <strong>{{ emp.employee_code }}</strong><br>
-                            {{ emp.name }}
+                            <small class="text-muted">{{ emp.name }}</small>
                         </td>
                         <td>{{ emp.punch_time }}</td>
                         <td class="elapsed-time" data-clock-in="{{ emp.punch_time }}">-</td>
-                        <td>{{ emp.location or '-' }}</td>
-                        <td>{{ emp.project_name or '-' }}</td>
+                        <td>
+                            {% if emp.wo_number %}
+                            <strong class="text-primary">{{ emp.wo_number }}</strong>
+                            {% if emp.product_name %}
+                            <br><small class="text-muted">{{ emp.product_name }}</small>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if emp.task_name %}
+                            <strong>{{ emp.task_name }}</strong>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if emp.task_description %}
+                            <small>{{ emp.task_description[:100] }}{% if emp.task_description|length > 100 %}...{% endif %}</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
