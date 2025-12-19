@@ -734,6 +734,8 @@ def update_receiving_inspection(id):
         ri_visual_damages = request.form.get('ri_visual_damages')
         ri_material_discrepancies = request.form.get('ri_material_discrepancies')
         ri_d100_requirements = request.form.get('ri_d100_requirements')
+        pkg_crate_requirement = request.form.get('pkg_crate_requirement')
+        pkg_crate_dimensions = request.form.get('pkg_crate_dimensions')
         
         # Update receiving inspection fields
         conn.execute('''
@@ -746,12 +748,15 @@ def update_receiving_inspection(id):
                 ri_visual_damages = ?,
                 ri_material_discrepancies = ?,
                 ri_d100_requirements = ?,
+                pkg_crate_requirement = ?,
+                pkg_crate_dimensions = ?,
                 ri_inspector_id = ?,
                 ri_inspection_date = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (ri_document_tracing, ri_part_identification, ri_part_matching, 
               ri_traceability, ri_verified_requirements, ri_visual_damages,
-              ri_material_discrepancies, ri_d100_requirements, session.get('user_id'), id))
+              ri_material_discrepancies, ri_d100_requirements, pkg_crate_requirement,
+              pkg_crate_dimensions, session.get('user_id'), id))
         
         # Get new record for audit
         new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()

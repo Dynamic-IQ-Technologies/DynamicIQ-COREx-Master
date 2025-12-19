@@ -368,6 +368,29 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <hr class="my-4">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-box-seam me-2"></i>Packaging Requirements</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Crate Requirement</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="pkg_crate_requirement" id="crate_yes" value="Yes" {% if workorder.pkg_crate_requirement == 'Yes' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="crate_yes"><i class="bi bi-check-lg"></i> Yes</label>
+                                    <input type="radio" class="btn-check" name="pkg_crate_requirement" id="crate_no" value="No" {% if workorder.pkg_crate_requirement == 'No' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="crate_no"><i class="bi bi-x-lg"></i> No</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Crate Dimensions</label>
+                                <input type="text" class="form-control" name="pkg_crate_dimensions" value="{{ workorder.pkg_crate_dimensions or '' }}" placeholder="e.g., 24 x 18 x 12 inches">
+                            </div>
+                        </div>
+                    </div>
+                    
                     {% if workorder.ri_inspection_date %}
                     <div class="alert alert-info py-2 mb-3">
                         <i class="bi bi-info-circle me-1"></i>
