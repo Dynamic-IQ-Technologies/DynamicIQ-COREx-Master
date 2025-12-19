@@ -120,6 +120,61 @@
 </div>
 
 <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i>Inventory Controls</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <p><strong>Expiration Date:</strong> 
+                    {% if inventory.expiration_date %}
+                    {% set exp_date = inventory.expiration_date %}
+                    {% if exp_date < now().strftime('%Y-%m-%d') %}
+                    <span class="badge bg-danger">{{ inventory.expiration_date }} - EXPIRED</span>
+                    {% else %}
+                    <span class="text-success">{{ inventory.expiration_date }}</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted">Not set</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Last Inspection Date:</strong> 
+                    {% if inventory.last_inspection_date %}
+                    {{ inventory.last_inspection_date }}
+                    {% else %}
+                    <span class="text-muted">Never inspected</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Next Inspection Date:</strong> 
+                    {% if inventory.next_inspection_date %}
+                    {% set next_insp = inventory.next_inspection_date %}
+                    {% if next_insp < now().strftime('%Y-%m-%d') %}
+                    <span class="badge bg-warning text-dark">{{ inventory.next_inspection_date }} - OVERDUE</span>
+                    {% else %}
+                    <span class="text-primary">{{ inventory.next_inspection_date }}</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted">Not scheduled</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-4">
+                <p><strong>Inspected By:</strong> {{ inventory.inspected_by or 'N/A' }}</p>
+            </div>
+            <div class="col-md-8">
+                <p><strong>Inspection Notes:</strong> {{ inventory.inspection_notes or 'No notes' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">Inventory Record Details</h5>
     </div>

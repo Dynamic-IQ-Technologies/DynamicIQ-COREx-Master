@@ -417,7 +417,12 @@ class Database:
             ('reserved_quantity', 'REAL DEFAULT 0'),
             ('last_received_date', 'DATE'),
             ('is_serialized', 'INTEGER DEFAULT 0'),
-            ('serial_number', 'TEXT')
+            ('serial_number', 'TEXT'),
+            ('expiration_date', 'DATE'),
+            ('last_inspection_date', 'DATE'),
+            ('next_inspection_date', 'DATE'),
+            ('inspected_by', 'TEXT'),
+            ('inspection_notes', 'TEXT')
         ]
         
         for col_name, col_type in inventory_new_columns:

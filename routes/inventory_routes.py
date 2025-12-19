@@ -321,6 +321,13 @@ def edit_inventory(id):
             is_serialized = 1 if request.form.get('is_serialized') else 0
             serial_number = request.form.get('serial_number', '').strip()
             
+            # Get inventory control fields
+            expiration_date = request.form.get('expiration_date', '').strip() or None
+            last_inspection_date = request.form.get('last_inspection_date', '').strip() or None
+            next_inspection_date = request.form.get('next_inspection_date', '').strip() or None
+            inspected_by = request.form.get('inspected_by', '').strip() or None
+            inspection_notes = request.form.get('inspection_notes', '').strip() or None
+            
             # Validate serial number for serialized items
             if is_serialized:
                 if not serial_number:
@@ -354,10 +361,17 @@ def edit_inventory(id):
                     status=?,
                     is_serialized=?,
                     serial_number=?,
+                    expiration_date=?,
+                    last_inspection_date=?,
+                    next_inspection_date=?,
+                    inspected_by=?,
+                    inspection_notes=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, warehouse_location, bin_location, 
-                  condition, status, is_serialized, serial_number if serial_number else None, id))
+                  condition, status, is_serialized, serial_number if serial_number else None,
+                  expiration_date, last_inspection_date, next_inspection_date,
+                  inspected_by, inspection_notes, id))
             
             AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
                                   {'quantity': quantity, 'old_quantity': old_record['quantity'],

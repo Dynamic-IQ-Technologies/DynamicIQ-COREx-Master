@@ -106,6 +106,51 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-shield-check text-info me-2"></i>Inventory Controls</h5>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="expiration_date" class="form-label">Expiration Date</label>
+                        <input type="date" class="form-control" id="expiration_date" name="expiration_date" 
+                               value="{{ inventory.expiration_date or '' }}">
+                        <small class="form-text text-muted">Leave blank if item does not expire</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="last_inspection_date" class="form-label">Last Inspection Date</label>
+                        <input type="date" class="form-control" id="last_inspection_date" name="last_inspection_date" 
+                               value="{{ inventory.last_inspection_date or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="next_inspection_date" class="form-label">Next Inspection Date</label>
+                        <input type="date" class="form-control" id="next_inspection_date" name="next_inspection_date" 
+                               value="{{ inventory.next_inspection_date or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="inspected_by" class="form-label">Inspected By</label>
+                        <input type="text" class="form-control" id="inspected_by" name="inspected_by" 
+                               value="{{ inventory.inspected_by or '' }}" placeholder="Name of inspector">
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label for="inspection_notes" class="form-label">Inspection Notes</label>
+                        <textarea class="form-control" id="inspection_notes" name="inspection_notes" rows="2"
+                                  placeholder="Enter any inspection notes or observations">{{ inventory.inspection_notes or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>
