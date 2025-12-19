@@ -303,10 +303,8 @@ def view_workorder(id):
         WHERE mr.work_order_id=?
     ''', (id,)).fetchall()
     
-    # Get all products for the Add Material dropdown
     all_products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
     
-    # Get task summary for this work order
     task_summary = conn.execute('''
         SELECT 
             COUNT(*) as total_tasks,
@@ -320,17 +318,42 @@ def view_workorder(id):
         WHERE work_order_id = ?
     ''', (id,)).fetchone()
     
-    # Get all tasks for this work order
     tasks = conn.execute('''
         SELECT 
             wot.*,
+            lr.first_name || ' ' || lr.last_name as assigned_to_name,
+            wc.name as work_center_name,
             (SELECT COUNT(*) FROM labor_issuance WHERE task_id = wot.id) as labor_count
         FROM work_order_tasks wot
+        LEFT JOIN labor_resources lr ON wot.assigned_resource_id = lr.id
+        LEFT JOIN work_centers wc ON wot.work_center_id = wc.id
         WHERE wot.work_order_id = ?
         ORDER BY wot.sequence_number, wot.id
     ''', (id,)).fetchall()
     
-    # Get active task templates for Apply Template feature
+    task_materials = {}
+    task_material_summary = {}
+    for task in tasks:
+        materials = conn.execute('''
+            SELECT tm.*, p.code, p.name, p.unit_of_measure as product_uom
+            FROM work_order_task_materials tm
+            JOIN products p ON tm.product_id = p.id
+            WHERE tm.task_id = ?
+            ORDER BY tm.id
+        ''', (task['id'],)).fetchall()
+        task_materials[task['id']] = materials
+        
+        total_required = sum(m['required_qty'] or 0 for m in materials)
+        total_issued = sum(m['issued_qty'] or 0 for m in materials)
+        total_consumed = sum(m['consumed_qty'] or 0 for m in materials)
+        task_material_summary[task['id']] = {
+            'count': len(materials),
+            'total_required': total_required,
+            'total_issued': total_issued,
+            'total_consumed': total_consumed,
+            'shortage': any((m['required_qty'] or 0) > (m['issued_qty'] or 0) for m in materials)
+        }
+    
     task_templates = conn.execute('''
         SELECT tt.id, tt.template_code, tt.template_name, tt.category,
                (SELECT COUNT(*) FROM task_template_items WHERE template_id = tt.id) as item_count
@@ -339,9 +362,29 @@ def view_workorder(id):
         ORDER BY tt.template_name
     ''').fetchall()
     
+    labor_resources = conn.execute('''
+        SELECT id, first_name, last_name, employee_code, department
+        FROM labor_resources 
+        WHERE status = 'Active'
+        ORDER BY first_name, last_name
+    ''').fetchall()
+    
+    documents = conn.execute('''
+        SELECT * FROM work_order_documents
+        WHERE work_order_id = ?
+        ORDER BY created_at DESC
+    ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='work_order_documents'").fetchone() else []
+    
+    notes = conn.execute('''
+        SELECT n.*, u.username
+        FROM work_order_notes n
+        LEFT JOIN users u ON n.created_by = u.id
+        WHERE n.work_order_id = ?
+        ORDER BY n.created_at DESC
+    ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='work_order_notes'").fetchone() else []
+    
     cost_info = mrp.calculate_work_order_cost(id)
     
-    # Get misc/service cost info
     misc_cost_data = conn.execute('''
         SELECT 
             COALESCE(SUM(CASE WHEN status = 'Received' THEN total_cost ELSE 0 END), 0) as total_misc_cost,
@@ -369,7 +412,12 @@ def view_workorder(id):
                          all_products=all_products,
                          task_summary=task_summary,
                          tasks=tasks,
-                         task_templates=task_templates)
+                         task_materials=task_materials,
+                         task_material_summary=task_material_summary,
+                         task_templates=task_templates,
+                         labor_resources=labor_resources,
+                         documents=documents,
+                         notes=notes)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
@@ -2090,3 +2138,301 @@ def receive_service_line(line_id):
     
     work_order_id = line['work_order_id']
     return redirect(url_for('workorder_routes.list_service_pos', id=work_order_id))
+
+
+@workorder_bp.route('/workorders/tasks/<int:task_id>/materials/add', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff')
+def add_task_material(task_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    task = conn.execute('SELECT * FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+    if not task:
+        flash('Task not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    product_id = request.form.get('product_id')
+    required_qty = request.form.get('required_qty', 0)
+    unit_of_measure = request.form.get('unit_of_measure', 'EA')
+    warehouse_location = request.form.get('warehouse_location', '')
+    required_by_date = request.form.get('required_by_date') or None
+    notes = request.form.get('notes', '')
+    
+    try:
+        cursor = conn.execute('''
+            INSERT INTO work_order_task_materials 
+            (task_id, product_id, required_qty, unit_of_measure, warehouse_location, 
+             required_by_date, notes, material_status, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Planned', ?)
+        ''', (task_id, product_id, float(required_qty), unit_of_measure, 
+              warehouse_location, required_by_date, notes, session.get('user_id')))
+        
+        material_id = cursor.lastrowid
+        
+        AuditLogger.log(conn, 'work_order_task_materials', material_id, 'CREATE',
+                       {'task_id': task_id, 'product_id': product_id, 'required_qty': required_qty},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash('Material requirement added to task', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error adding material: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']) + '#task-' + str(task_id))
+
+
+@workorder_bp.route('/workorders/tasks/<int:task_id>/materials/<int:material_id>/edit', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff')
+def edit_task_material(task_id, material_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('''
+        SELECT tm.*, wot.work_order_id 
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        WHERE tm.id = ? AND tm.task_id = ?
+    ''', (material_id, task_id)).fetchone()
+    
+    if not material:
+        flash('Material not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    required_qty = request.form.get('required_qty', material['required_qty'])
+    warehouse_location = request.form.get('warehouse_location', material['warehouse_location'])
+    required_by_date = request.form.get('required_by_date') or material['required_by_date']
+    notes = request.form.get('notes', material['notes'])
+    
+    try:
+        conn.execute('''
+            UPDATE work_order_task_materials 
+            SET required_qty = ?, warehouse_location = ?, required_by_date = ?, notes = ?
+            WHERE id = ?
+        ''', (float(required_qty), warehouse_location, required_by_date, notes, material_id))
+        
+        AuditLogger.log(conn, 'work_order_task_materials', material_id, 'UPDATE',
+                       {'required_qty': required_qty, 'warehouse_location': warehouse_location},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash('Material requirement updated', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating material: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
+
+
+@workorder_bp.route('/workorders/tasks/<int:task_id>/materials/<int:material_id>/delete', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff')
+def delete_task_material(task_id, material_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('''
+        SELECT tm.*, wot.work_order_id 
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        WHERE tm.id = ? AND tm.task_id = ?
+    ''', (material_id, task_id)).fetchone()
+    
+    if not material:
+        flash('Material not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if (material['issued_qty'] or 0) > 0:
+        flash('Cannot delete material that has been issued', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
+    try:
+        conn.execute('DELETE FROM work_order_task_materials WHERE id = ?', (material_id,))
+        
+        AuditLogger.log(conn, 'work_order_task_materials', material_id, 'DELETE',
+                       {'task_id': task_id},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash('Material requirement deleted', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting material: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
+
+
+@workorder_bp.route('/workorders/tasks/<int:task_id>/materials/<int:material_id>/issue', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff', 'Warehouse Staff')
+def issue_task_material(task_id, material_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('''
+        SELECT tm.*, wot.work_order_id, p.code, p.name
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        JOIN products p ON tm.product_id = p.id
+        WHERE tm.id = ? AND tm.task_id = ?
+    ''', (material_id, task_id)).fetchone()
+    
+    if not material:
+        flash('Material not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    issue_qty = float(request.form.get('issue_qty', 0))
+    lot_number = request.form.get('lot_number', '')
+    serial_number = request.form.get('serial_number', '')
+    
+    max_issue = (material['required_qty'] or 0) - (material['issued_qty'] or 0)
+    if issue_qty > max_issue:
+        flash(f'Cannot issue more than required. Maximum: {max_issue}', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
+    try:
+        new_issued = (material['issued_qty'] or 0) + issue_qty
+        new_status = 'Issued' if new_issued >= (material['required_qty'] or 0) else 'Partially Issued'
+        
+        conn.execute('''
+            UPDATE work_order_task_materials 
+            SET issued_qty = ?, lot_number = COALESCE(?, lot_number), 
+                serial_number = COALESCE(?, serial_number),
+                material_status = ?, issued_by = ?, issued_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (new_issued, lot_number or None, serial_number or None, 
+              new_status, session.get('user_id'), material_id))
+        
+        AuditLogger.log(conn, 'work_order_task_materials', material_id, 'ISSUE',
+                       {'issue_qty': issue_qty, 'new_total': new_issued, 
+                        'lot_number': lot_number, 'serial_number': serial_number},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash(f'Issued {issue_qty} of {material["code"]} - {material["name"]}', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error issuing material: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
+
+
+@workorder_bp.route('/workorders/tasks/<int:task_id>/materials/<int:material_id>/consume', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff')
+def consume_task_material(task_id, material_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('''
+        SELECT tm.*, wot.work_order_id 
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        WHERE tm.id = ? AND tm.task_id = ?
+    ''', (material_id, task_id)).fetchone()
+    
+    if not material:
+        flash('Material not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    consume_qty = float(request.form.get('consume_qty', 0))
+    max_consume = (material['issued_qty'] or 0) - (material['consumed_qty'] or 0)
+    
+    if consume_qty > max_consume:
+        flash(f'Cannot consume more than issued. Maximum: {max_consume}', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
+    try:
+        new_consumed = (material['consumed_qty'] or 0) + consume_qty
+        new_status = 'Consumed' if new_consumed >= (material['required_qty'] or 0) else material['material_status']
+        
+        conn.execute('''
+            UPDATE work_order_task_materials 
+            SET consumed_qty = ?, material_status = ?
+            WHERE id = ?
+        ''', (new_consumed, new_status, material_id))
+        
+        AuditLogger.log(conn, 'work_order_task_materials', material_id, 'CONSUME',
+                       {'consume_qty': consume_qty, 'new_total': new_consumed},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash(f'Consumed {consume_qty} units', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error consuming material: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
+
+
+@workorder_bp.route('/workorders/tasks/<int:task_id>/update-status', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff')
+def update_task_status(task_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    task = conn.execute('SELECT * FROM work_order_tasks WHERE id = ?', (task_id,)).fetchone()
+    if not task:
+        flash('Task not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    new_status = request.form.get('status')
+    
+    if new_status == 'Completed':
+        materials = conn.execute('''
+            SELECT * FROM work_order_task_materials 
+            WHERE task_id = ? AND (issued_qty IS NULL OR issued_qty < required_qty)
+        ''', (task_id,)).fetchall()
+        
+        if materials:
+            flash('Cannot complete task - materials have not been fully issued', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']) + '#task-' + str(task_id))
+    
+    try:
+        now = datetime.now()
+        
+        if new_status == 'In Progress' and not task['actual_start_date']:
+            conn.execute('''
+                UPDATE work_order_tasks 
+                SET status = ?, actual_start_date = ?
+                WHERE id = ?
+            ''', (new_status, now.strftime('%Y-%m-%d %H:%M:%S'), task_id))
+        elif new_status == 'Completed':
+            conn.execute('''
+                UPDATE work_order_tasks 
+                SET status = ?, actual_end_date = ?
+                WHERE id = ?
+            ''', (new_status, now.strftime('%Y-%m-%d %H:%M:%S'), task_id))
+        else:
+            conn.execute('UPDATE work_order_tasks SET status = ? WHERE id = ?', (new_status, task_id))
+        
+        AuditLogger.log(conn, 'work_order_tasks', task_id, 'STATUS_CHANGE',
+                       {'old_status': task['status'], 'new_status': new_status},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash(f'Task status updated to {new_status}', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating task: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']) + '#task-' + str(task_id))
