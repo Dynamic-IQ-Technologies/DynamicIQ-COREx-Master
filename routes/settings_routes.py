@@ -10,7 +10,8 @@ def get_openai_client():
     """Get OpenAI client configured with Replit AI Integrations"""
     from openai import OpenAI
     return OpenAI(
-        api_key=os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+        api_key=os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
+        base_url=os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
     )
 
 settings_bp = Blueprint('settings_routes', __name__)
