@@ -149,6 +149,18 @@
             <div>
                 <h5 class="mb-0">{{ employee.first_name }} {{ employee.last_name }}</h5>
                 <small class="text-muted">{{ employee.employee_code }} | {{ employee.role }}</small>
+                {% if employee_skills %}
+                <div class="mt-1">
+                    {% for skill in employee_skills[:3] %}
+                    <span class="badge bg-info text-dark me-1" style="font-size: 0.7rem;">
+                        {{ skill.skillset_name }}{% if skill.certified %} <i class="bi bi-patch-check-fill"></i>{% endif %}
+                    </span>
+                    {% endfor %}
+                    {% if employee_skills|length > 3 %}
+                    <span class="badge bg-secondary" style="font-size: 0.7rem;">+{{ employee_skills|length - 3 }} more</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             <a href="{{ url_for('clock_station_routes.clock_logout') }}" class="btn btn-sm btn-outline-danger">
                 <i class="bi bi-box-arrow-right"></i> Logout
@@ -269,7 +281,9 @@
                     <select class="form-select" id="task_id" name="task_id">
                         <option value="">No Specific Task</option>
                     </select>
-                    <small class="form-text text-muted">Select a work order first to see available tasks</small>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle"></i> Only tasks matching your skills will be shown
+                    </small>
                 </div>
 
                 <div class="mb-3">

@@ -136,6 +136,15 @@ def clock_dashboard():
         LIMIT 50
     ''').fetchall()
     
+    # Get employee's skills for display
+    employee_skills = conn.execute('''
+        SELECT s.skillset_name, lrs.skill_level, lrs.certified
+        FROM labor_resource_skills lrs
+        JOIN skillsets s ON lrs.skillset_id = s.id
+        WHERE lrs.labor_resource_id = ?
+        ORDER BY s.skillset_name
+    ''', (employee_id,)).fetchall()
+    
     # Determine current status
     is_clocked_in = last_punch and last_punch['punch_type'] == 'Clock In'
     
@@ -147,7 +156,8 @@ def clock_dashboard():
                          is_clocked_in=is_clocked_in,
                          hours_today=hours_today,
                          recent_punches=recent_punches,
-                         work_orders=work_orders)
+                         work_orders=work_orders,
+                         employee_skills=employee_skills)
 
 @clock_station_bp.route('/clock/punch', methods=['POST'])
 @clock_auth_required
@@ -275,21 +285,60 @@ def clock_punch():
 @clock_station_bp.route('/clock/api/tasks/<int:work_order_id>')
 @clock_auth_required
 def get_work_order_tasks(work_order_id):
-    """API endpoint to get tasks for a specific work order"""
+    """API endpoint to get tasks for a specific work order - filtered by employee skills"""
     db = Database()
     conn = db.get_connection()
     
-    tasks = conn.execute('''
-        SELECT id, task_name, status
-        FROM work_order_tasks
-        WHERE work_order_id = ?
-        ORDER BY sequence_number, task_name
+    employee_id = session.get('clock_employee_id')
+    
+    # Get employee's skillset IDs
+    employee_skills = conn.execute('''
+        SELECT skillset_id FROM labor_resource_skills
+        WHERE labor_resource_id = ?
+    ''', (employee_id,)).fetchall()
+    employee_skill_ids = [s['skillset_id'] for s in employee_skills]
+    
+    # Get all tasks for this work order
+    all_tasks = conn.execute('''
+        SELECT wot.id, wot.task_name, wot.status
+        FROM work_order_tasks wot
+        WHERE wot.work_order_id = ?
+        ORDER BY wot.sequence_number, wot.task_name
     ''', (work_order_id,)).fetchall()
     
-    conn.close()
+    # Filter tasks based on employee skills
+    tasks_list = []
+    for task in all_tasks:
+        # Check if this task has required skills
+        required_skills = conn.execute('''
+            SELECT skillset_id FROM task_required_skills
+            WHERE task_id = ?
+        ''', (task['id'],)).fetchall()
+        
+        if not required_skills:
+            # No skills required - anyone can do this task
+            tasks_list.append({
+                'id': task['id'], 
+                'task_name': task['task_name'], 
+                'status': task['status'],
+                'skill_match': True,
+                'no_skill_required': True
+            })
+        else:
+            # Check if employee has at least one of the required skills
+            required_skill_ids = [rs['skillset_id'] for rs in required_skills]
+            has_skill = any(skill_id in employee_skill_ids for skill_id in required_skill_ids)
+            
+            if has_skill:
+                tasks_list.append({
+                    'id': task['id'], 
+                    'task_name': task['task_name'], 
+                    'status': task['status'],
+                    'skill_match': True,
+                    'no_skill_required': False
+                })
     
-    # Convert to list of dicts for JSON response
-    tasks_list = [{'id': t['id'], 'task_name': t['task_name'], 'status': t['status']} for t in tasks]
+    conn.close()
     
     return jsonify(tasks_list)
 
