@@ -72,129 +72,123 @@
     </div>
 </div>
 
-<!-- Accordion Layout -->
-<div class="accordion" id="laborTrackerAccordion">
+<!-- Horizontal Accordion Layout -->
+<div class="row g-4">
     <!-- Currently Clocked In -->
-    <div class="accordion-item border-success">
-        <h2 class="accordion-header" id="clockedInHeader">
-            <button class="accordion-button bg-success text-white" type="button" data-bs-toggle="collapse" data-bs-target="#clockedInCollapse" aria-expanded="true" aria-controls="clockedInCollapse">
-                <i class="bi bi-clock-fill me-2"></i> Currently Clocked In
-                <span class="badge bg-light text-success ms-2">{{ clocked_in|length }}</span>
-            </button>
-        </h2>
-        <div id="clockedInCollapse" class="accordion-collapse collapse show" aria-labelledby="clockedInHeader" data-bs-parent="#laborTrackerAccordion">
-            <div class="accordion-body p-0">
-                {% if clocked_in %}
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Employee</th>
-                                <th>Clock In Time</th>
-                                <th>Elapsed</th>
-                                <th>Work Order</th>
-                                <th>Task</th>
-                                <th>Task Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for emp in clocked_in %}
-                            <tr>
-                                <td>
-                                    <strong>{{ emp.employee_code }}</strong><br>
-                                    <small class="text-muted">{{ emp.name }}</small>
-                                </td>
-                                <td>{{ emp.punch_time }}</td>
-                                <td class="elapsed-time" data-clock-in="{{ emp.punch_time }}">-</td>
-                                <td>
-                                    {% if emp.wo_number %}
-                                    <strong class="text-primary">{{ emp.wo_number }}</strong>
-                                    {% if emp.product_name %}
-                                    <br><small class="text-muted">{{ emp.product_name }}</small>
-                                    {% endif %}
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if emp.task_name %}
-                                    <strong>{{ emp.task_name }}</strong>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if emp.task_description %}
-                                    <small>{{ emp.task_description[:100] }}{% if emp.task_description|length > 100 %}...{% endif %}</small>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <div class="col-lg-6">
+        <div class="accordion" id="clockedInAccordion">
+            <div class="accordion-item border-success">
+                <h2 class="accordion-header" id="clockedInHeader">
+                    <button class="accordion-button bg-success text-white" type="button" data-bs-toggle="collapse" data-bs-target="#clockedInCollapse" aria-expanded="true" aria-controls="clockedInCollapse">
+                        <i class="bi bi-clock-fill me-2"></i> Currently Clocked In
+                        <span class="badge bg-light text-success ms-2">{{ clocked_in|length }}</span>
+                    </button>
+                </h2>
+                <div id="clockedInCollapse" class="accordion-collapse collapse show" aria-labelledby="clockedInHeader">
+                    <div class="accordion-body p-0" style="max-height: 400px; overflow-y: auto;">
+                        {% if clocked_in %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Clock In</th>
+                                        <th>Elapsed</th>
+                                        <th>Work Order</th>
+                                        <th>Task</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for emp in clocked_in %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ emp.employee_code }}</strong><br>
+                                            <small class="text-muted">{{ emp.name }}</small>
+                                        </td>
+                                        <td><small>{{ emp.punch_time[11:16] }}</small></td>
+                                        <td class="elapsed-time" data-clock-in="{{ emp.punch_time }}">-</td>
+                                        <td>
+                                            {% if emp.wo_number %}
+                                            <strong class="text-primary">{{ emp.wo_number }}</strong>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if emp.task_name %}
+                                            <span title="{{ emp.task_description or '' }}">{{ emp.task_name[:20] }}{% if emp.task_name|length > 20 %}...{% endif %}</span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-clock" style="font-size: 2rem;"></i>
+                            <p class="mb-0 mt-2">No employees currently clocked in</p>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                {% else %}
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-clock" style="font-size: 2rem;"></i>
-                    <p class="mb-0 mt-2">No employees currently clocked in</p>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
 
     <!-- Employee Time Summary -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="timeSummaryHeader">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#timeSummaryCollapse" aria-expanded="false" aria-controls="timeSummaryCollapse">
-                <i class="bi bi-table me-2"></i> Employee Time Summary
-                <span class="badge bg-primary ms-2">{{ employees|length }}</span>
-            </button>
-        </h2>
-        <div id="timeSummaryCollapse" class="accordion-collapse collapse" aria-labelledby="timeSummaryHeader" data-bs-parent="#laborTrackerAccordion">
-            <div class="accordion-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Code</th>
-                                <th>Name</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Punches</th>
-                                <th>Hours</th>
-                                <th>Labor Cost</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for emp in employees %}
-                            <tr>
-                                <td><strong>{{ emp.code }}</strong></td>
-                                <td>{{ emp.name }}</td>
-                                <td>{{ emp.role }}</td>
-                                <td>
-                                    {% if emp.is_clocked_in %}
-                                    <span class="badge bg-success"><i class="bi bi-clock-fill"></i> In</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary"><i class="bi bi-clock"></i> Out</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ emp.punch_count }}</td>
-                                <td><strong>{{ "%.2f"|format(emp.hours) }}</strong></td>
-                                <td>{{ emp.labor_cost|currency }}</td>
-                                <td>
-                                    <a href="{{ url_for('clock_station_routes.manager_employee_detail', employee_id=emp.id, period=period) }}" 
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <div class="col-lg-6">
+        <div class="accordion" id="timeSummaryAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="timeSummaryHeader">
+                    <button class="accordion-button bg-primary text-white" type="button" data-bs-toggle="collapse" data-bs-target="#timeSummaryCollapse" aria-expanded="true" aria-controls="timeSummaryCollapse">
+                        <i class="bi bi-table me-2"></i> Employee Time Summary
+                        <span class="badge bg-light text-primary ms-2">{{ employees|length }}</span>
+                    </button>
+                </h2>
+                <div id="timeSummaryCollapse" class="accordion-collapse collapse show" aria-labelledby="timeSummaryHeader">
+                    <div class="accordion-body p-0" style="max-height: 400px; overflow-y: auto;">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Status</th>
+                                        <th>Hours</th>
+                                        <th>Cost</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for emp in employees %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ emp.code }}</strong><br>
+                                            <small class="text-muted">{{ emp.name }}</small>
+                                        </td>
+                                        <td>
+                                            {% if emp.is_clocked_in %}
+                                            <span class="badge bg-success"><i class="bi bi-clock-fill"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-clock"></i></span>
+                                            {% endif %}
+                                        </td>
+                                        <td><strong>{{ "%.2f"|format(emp.hours) }}</strong></td>
+                                        <td>{{ emp.labor_cost|currency }}</td>
+                                        <td>
+                                            <a href="{{ url_for('clock_station_routes.manager_employee_detail', employee_id=emp.id, period=period) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
