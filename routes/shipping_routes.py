@@ -134,7 +134,50 @@ def create_shipment():
             
             shipment_id = cursor.lastrowid
             
-            # Add line items (will be added in edit view)
+            # Auto-populate line items from source record
+            line_number = 0
+            
+            if reference_type == 'Sales Order' and reference_id:
+                so_lines = conn.execute('''
+                    SELECT sol.*, p.code as product_code, p.name as product_name
+                    FROM sales_order_lines sol
+                    JOIN products p ON sol.product_id = p.id
+                    WHERE sol.so_id = ?
+                    ORDER BY sol.id
+                ''', (reference_id,)).fetchall()
+                
+                for sol in so_lines:
+                    line_number += 1
+                    conn.execute('''
+                        INSERT INTO shipment_lines (
+                            shipment_id, line_number, product_id, quantity_shipped,
+                            serial_number, lot_number, condition, notes
+                        ) VALUES (?, ?, ?, ?, ?, ?, 'New', ?)
+                    ''', (
+                        shipment_id, line_number, sol['product_id'], sol['quantity'],
+                        sol.get('serial_number', '') or '', sol.get('lot_number', '') or '',
+                        f"From SO Line: {sol['product_code']} - {sol['product_name']}"
+                    ))
+            
+            elif reference_type == 'Work Order' and reference_id:
+                wo = conn.execute('''
+                    SELECT wo.*, p.id as prod_id, p.code as product_code, p.name as product_name
+                    FROM work_orders wo
+                    JOIN products p ON wo.product_id = p.id
+                    WHERE wo.id = ?
+                ''', (reference_id,)).fetchone()
+                
+                if wo:
+                    conn.execute('''
+                        INSERT INTO shipment_lines (
+                            shipment_id, line_number, product_id, quantity_shipped,
+                            serial_number, lot_number, condition, notes
+                        ) VALUES (?, 1, ?, ?, ?, ?, 'New', ?)
+                    ''', (
+                        shipment_id, wo['prod_id'], wo['quantity'] or 1,
+                        wo.get('serial_number', '') or '', wo.get('lot_number', '') or '',
+                        f"From WO {wo['wo_number']}: {wo['product_code']} - {wo['product_name']}"
+                    ))
             
             conn.commit()
             conn.close()

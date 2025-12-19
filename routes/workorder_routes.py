@@ -1610,7 +1610,7 @@ def release_wo_to_shipping(id):
         ship_to_address = wo['shipping_address'] or wo['billing_address'] or ''
         
         # Create pending shipment record
-        conn.execute('''
+        cursor = conn.execute('''
             INSERT INTO shipments (
                 shipment_number, shipment_type, reference_type, reference_id,
                 status, shipment_stage, ship_to_name, ship_to_address,
@@ -1622,6 +1622,27 @@ def release_wo_to_shipping(id):
             ship_to_name, ship_to_address,
             session.get('user_id'), session.get('user_id')
         ))
+        
+        shipment_id = cursor.lastrowid
+        
+        # Auto-populate shipment line with work order product
+        product = conn.execute('''
+            SELECT p.id, p.code, p.name
+            FROM products p
+            WHERE p.id = ?
+        ''', (wo['product_id'],)).fetchone()
+        
+        if product:
+            conn.execute('''
+                INSERT INTO shipment_lines (
+                    shipment_id, line_number, product_id, quantity_shipped,
+                    serial_number, lot_number, condition, notes
+                ) VALUES (?, 1, ?, ?, ?, ?, 'New', ?)
+            ''', (
+                shipment_id, product['id'], wo['quantity'] or 1,
+                wo.get('serial_number', '') or '', wo.get('lot_number', '') or '',
+                f"From WO {wo['wo_number']}: {product['code']} - {product['name']}"
+            ))
         
         # Update work order disposition to indicate released to shipping
         conn.execute('''

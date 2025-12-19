@@ -805,7 +805,7 @@ def release_to_shipping(id):
             shipment_number = 'SHIP-00001'
         
         # Create pending shipment record
-        conn.execute('''
+        cursor = conn.execute('''
             INSERT INTO shipments (
                 shipment_number, shipment_type, reference_type, reference_id,
                 status, shipment_stage, ship_to_name, ship_to_address,
@@ -817,6 +817,31 @@ def release_to_shipping(id):
             so['customer_name'], so['shipping_address'] or so['billing_address'],
             session.get('user_id'), session.get('user_id')
         ))
+        
+        shipment_id = cursor.lastrowid
+        
+        # Auto-populate shipment lines from sales order lines
+        so_lines = conn.execute('''
+            SELECT sol.*, p.code as product_code, p.name as product_name
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ?
+            ORDER BY sol.id
+        ''', (id,)).fetchall()
+        
+        line_number = 0
+        for sol in so_lines:
+            line_number += 1
+            conn.execute('''
+                INSERT INTO shipment_lines (
+                    shipment_id, line_number, product_id, quantity_shipped,
+                    serial_number, lot_number, condition, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, 'New', ?)
+            ''', (
+                shipment_id, line_number, sol['product_id'], sol['quantity'],
+                sol.get('serial_number', '') or '', sol.get('lot_number', '') or '',
+                f"From SO Line {sol['id']}: {sol['product_code']} - {sol['product_name']}"
+            ))
         
         # Update sales order status to Released to Shipping
         conn.execute('''
