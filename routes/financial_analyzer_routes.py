@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, make_response
 from models import Database
 from datetime import datetime, timedelta
 import json
 import os
 from openai import OpenAI
+from utils.pnl_pdf import PnLPDFGenerator
 
 financial_analyzer_bp = Blueprint('financial_analyzer_routes', __name__)
 
@@ -572,3 +573,42 @@ def api_metrics():
         'risk': risk,
         'timestamp': datetime.now().isoformat()
     })
+
+@financial_analyzer_bp.route('/financial-analyzer/download-pnl')
+def download_pnl():
+    """Generate and download professional P&L statement as PDF"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    revenue = calculate_revenue_metrics(conn)
+    efficiency = calculate_efficiency_metrics(conn)
+    
+    company_result = conn.execute('SELECT company_name FROM company_settings LIMIT 1').fetchone()
+    company_name = company_result['company_name'] if company_result else 'Company'
+    
+    conn.close()
+    
+    today = datetime.now()
+    year_start = today.replace(month=1, day=1).strftime('%B %d, %Y')
+    period_end = today.strftime('%B %d, %Y')
+    
+    generator = PnLPDFGenerator(
+        revenue_data=revenue,
+        efficiency_data=efficiency,
+        company_name=company_name,
+        period_start=year_start,
+        period_end=period_end
+    )
+    
+    pdf_content = generator.generate()
+    
+    filename = f"PnL_Statement_{today.strftime('%Y%m%d')}.pdf"
+    
+    response = make_response(pdf_content)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
