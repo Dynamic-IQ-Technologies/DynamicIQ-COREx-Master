@@ -786,6 +786,70 @@ def update_receiving_inspection(id):
     
     return redirect(url_for('workorder_routes.view_workorder', id=id))
 
+@workorder_bp.route('/workorders/<int:id>/technical-data', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def update_technical_data(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get old record for audit
+        old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        # Get form values
+        tech_data_reference = request.form.get('tech_data_reference')
+        tech_manual_number = request.form.get('tech_manual_number')
+        tech_make_model = request.form.get('tech_make_model')
+        tech_revision = request.form.get('tech_revision')
+        tech_revision_date = request.form.get('tech_revision_date') or None
+        tech_capability_code = request.form.get('tech_capability_code')
+        tech_release_number = request.form.get('tech_release_number')
+        tech_title = request.form.get('tech_title')
+        
+        # Update technical data fields
+        conn.execute('''
+            UPDATE work_orders SET 
+                tech_data_reference = ?,
+                tech_manual_number = ?,
+                tech_make_model = ?,
+                tech_revision = ?,
+                tech_revision_date = ?,
+                tech_capability_code = ?,
+                tech_release_number = ?,
+                tech_title = ?
+            WHERE id = ?
+        ''', (tech_data_reference, tech_manual_number, tech_make_model,
+              tech_revision, tech_revision_date, tech_capability_code,
+              tech_release_number, tech_title, id))
+        
+        # Get new record for audit
+        new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        # Log audit trail
+        changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='work_order',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        conn.commit()
+        flash('Technical data updated successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating technical data: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
+
 @workorder_bp.route('/workorders/<int:wo_id>/materials/add', methods=['POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def add_material_requirement(wo_id):

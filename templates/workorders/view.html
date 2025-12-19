@@ -265,6 +265,83 @@
                 </div>
             </div>
         </div>
+        
+        <div class="card mb-3">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Technical Data</h6>
+                {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleTechDataEdit()">
+                    <i class="bi bi-pencil" id="techEditIcon"></i> <span id="techEditText">Edit</span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div id="techDataView">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr><td class="text-muted" style="width:45%">Technical Data Reference</td><td>{{ workorder.tech_data_reference or '-' }}</td></tr>
+                                <tr><td class="text-muted">Manual Number</td><td>{{ workorder.tech_manual_number or '-' }}</td></tr>
+                                <tr><td class="text-muted">Make/Model</td><td>{{ workorder.tech_make_model or '-' }}</td></tr>
+                                <tr><td class="text-muted">Title</td><td>{{ workorder.tech_title or '-' }}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr><td class="text-muted" style="width:45%">Revision</td><td>{{ workorder.tech_revision or '-' }}</td></tr>
+                                <tr><td class="text-muted">Revision Date</td><td>{{ workorder.tech_revision_date or '-' }}</td></tr>
+                                <tr><td class="text-muted">Capability Code</td><td>{{ workorder.tech_capability_code or '-' }}</td></tr>
+                                <tr><td class="text-muted">Release Number</td><td>{{ workorder.tech_release_number or '-' }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('workorder_routes.update_technical_data', id=workorder.id) }}" id="techDataForm" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Technical Data Reference</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_data_reference" value="{{ workorder.tech_data_reference or '' }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Manual Number</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_manual_number" value="{{ workorder.tech_manual_number or '' }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Make/Model</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_make_model" value="{{ workorder.tech_make_model or '' }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Title</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_title" value="{{ workorder.tech_title or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Revision</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_revision" value="{{ workorder.tech_revision or '' }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Revision Date</label>
+                                <input type="date" class="form-control form-control-sm" name="tech_revision_date" value="{{ workorder.tech_revision_date or '' }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Capability Code</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_capability_code" value="{{ workorder.tech_capability_code or '' }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Release Number</label>
+                                <input type="text" class="form-control form-control-sm" name="tech_release_number" value="{{ workorder.tech_release_number or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i> Save</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleTechDataEdit()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <div class="tab-pane fade" id="receivingPane" role="tabpanel">
@@ -1349,6 +1426,25 @@ async function confirmDeleteWOMaterial(reqId) {
     });
     if (confirmed) {
         document.getElementById('deleteMaterialForm' + reqId).submit();
+    }
+}
+
+function toggleTechDataEdit() {
+    const viewDiv = document.getElementById('techDataView');
+    const formDiv = document.getElementById('techDataForm');
+    const editIcon = document.getElementById('techEditIcon');
+    const editText = document.getElementById('techEditText');
+    
+    if (formDiv.style.display === 'none') {
+        viewDiv.style.display = 'none';
+        formDiv.style.display = 'block';
+        editIcon.className = 'bi bi-x-lg';
+        editText.textContent = 'Cancel';
+    } else {
+        viewDiv.style.display = 'block';
+        formDiv.style.display = 'none';
+        editIcon.className = 'bi bi-pencil';
+        editText.textContent = 'Edit';
     }
 }
 
