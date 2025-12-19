@@ -330,7 +330,10 @@ def view_purchaseorder(id):
             ''', (po['exchange_owner_id'],)).fetchone()
     
     # Calculate total for the PO
-    total = sum((line['extended_cost'] or (line['quantity'] * (line['unit_price'] or 0))) for line in lines)
+    if po['po_type'] == 'Service' and service_lines:
+        total = sum((line['total_cost'] or 0) for line in service_lines)
+    else:
+        total = sum((line['extended_cost'] or (line['quantity'] * (line['unit_price'] or 0))) for line in lines)
     
     conn.close()
     
