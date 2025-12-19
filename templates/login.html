@@ -245,41 +245,98 @@
         .right-shape-1 {
             width: 250px;
             height: 250px;
-            background: rgba(59, 130, 246, 0.28);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(147, 51, 234, 0.25) 100%);
             top: -50px;
             right: -80px;
-            box-shadow: 0 0 60px rgba(59, 130, 246, 0.3);
-            animation: float 20s ease-in-out infinite;
+            box-shadow: 0 0 80px rgba(59, 130, 246, 0.4);
+            animation: pulseFloat 8s ease-in-out infinite;
         }
         
         .right-shape-2 {
             width: 200px;
             height: 200px;
-            background: rgba(249, 115, 22, 0.22);
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.3) 0%, rgba(239, 68, 68, 0.2) 100%);
             bottom: -30px;
             left: -60px;
-            box-shadow: 0 0 50px rgba(249, 115, 22, 0.25);
-            animation: float 25s ease-in-out infinite reverse;
+            box-shadow: 0 0 70px rgba(249, 115, 22, 0.35);
+            animation: pulseFloat 10s ease-in-out infinite reverse;
         }
         
         .right-shape-3 {
             width: 120px;
             height: 120px;
-            background: rgba(16, 185, 129, 0.2);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(6, 182, 212, 0.25) 100%);
             top: 30%;
             left: 5%;
-            box-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
-            animation: float 15s ease-in-out infinite 2s;
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.3);
+            animation: orbitFloat 12s ease-in-out infinite 1s;
         }
         
         .right-shape-4 {
             width: 100px;
             height: 100px;
-            background: rgba(59, 130, 246, 0.18);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%);
             bottom: 20%;
             right: 10%;
-            box-shadow: 0 0 35px rgba(59, 130, 246, 0.2);
-            animation: float 18s ease-in-out infinite reverse 3s;
+            box-shadow: 0 0 45px rgba(59, 130, 246, 0.3);
+            animation: orbitFloat 9s ease-in-out infinite reverse 2s;
+        }
+        
+        .right-shape-5 {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.2) 100%);
+            top: 15%;
+            left: 30%;
+            box-shadow: 0 0 40px rgba(236, 72, 153, 0.25);
+            animation: pulseFloat 7s ease-in-out infinite 3s;
+        }
+        
+        .right-shape-6 {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.3) 0%, rgba(59, 130, 246, 0.2) 100%);
+            bottom: 35%;
+            left: 20%;
+            box-shadow: 0 0 35px rgba(34, 211, 238, 0.25);
+            animation: orbitFloat 11s ease-in-out infinite 4s;
+        }
+        
+        .floating-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.6);
+            border-radius: 50%;
+            animation: particleRise 8s linear infinite;
+        }
+        
+        .floating-particle:nth-child(7) { left: 10%; animation-delay: 0s; background: rgba(249, 115, 22, 0.5); }
+        .floating-particle:nth-child(8) { left: 25%; animation-delay: 1.5s; background: rgba(16, 185, 129, 0.5); }
+        .floating-particle:nth-child(9) { left: 40%; animation-delay: 3s; background: rgba(59, 130, 246, 0.5); }
+        .floating-particle:nth-child(10) { left: 55%; animation-delay: 4.5s; background: rgba(236, 72, 153, 0.5); }
+        .floating-particle:nth-child(11) { left: 70%; animation-delay: 6s; background: rgba(34, 211, 238, 0.5); }
+        .floating-particle:nth-child(12) { left: 85%; animation-delay: 7.5s; background: rgba(249, 115, 22, 0.5); }
+        
+        @keyframes pulseFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+            25% { transform: translate(20px, -25px) scale(1.1); opacity: 1; }
+            50% { transform: translate(-15px, -10px) scale(0.95); opacity: 0.7; }
+            75% { transform: translate(10px, 15px) scale(1.05); opacity: 0.9; }
+        }
+        
+        @keyframes orbitFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            25% { transform: translate(30px, -20px) rotate(90deg) scale(1.15); }
+            50% { transform: translate(0px, -40px) rotate(180deg) scale(1); }
+            75% { transform: translate(-30px, -20px) rotate(270deg) scale(0.9); }
+        }
+        
+        @keyframes particleRise {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
         }
         
         .login-form-container {
@@ -606,6 +663,14 @@
                 <div class="right-shape right-shape-2"></div>
                 <div class="right-shape right-shape-3"></div>
                 <div class="right-shape right-shape-4"></div>
+                <div class="right-shape right-shape-5"></div>
+                <div class="right-shape right-shape-6"></div>
+                <div class="floating-particle"></div>
+                <div class="floating-particle"></div>
+                <div class="floating-particle"></div>
+                <div class="floating-particle"></div>
+                <div class="floating-particle"></div>
+                <div class="floating-particle"></div>
             </div>
             
             <div class="login-form-container">
