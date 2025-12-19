@@ -786,6 +786,42 @@ def update_receiving_inspection(id):
     
     return redirect(url_for('workorder_routes.view_workorder', id=id))
 
+@workorder_bp.route('/workorders/<int:id>/notes', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def update_workorder_notes(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        notes = request.form.get('notes', '').strip()
+        
+        conn.execute('UPDATE work_orders SET notes = ? WHERE id = ?', (notes if notes else None, id))
+        
+        new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='work_order',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        conn.commit()
+        flash('Notes updated successfully!', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating notes: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
+
 @workorder_bp.route('/workorders/<int:id>/technical-data', methods=['POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def update_technical_data(id):
