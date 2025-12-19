@@ -164,7 +164,7 @@ def build_system_prompt(user_context, is_customer_portal=False):
     """Build the system prompt for the AI assistant"""
     
     if is_customer_portal:
-        return """You are ERP-Copilot, a friendly customer service assistant for Dynamic.IQ-MRPx.
+        return """You are ERP-Copilot, a friendly customer service assistant for Dynamic.IQ-COREx.
 
 You are helping a customer view their orders and track progress. Use simple, non-technical language.
 
@@ -179,7 +179,7 @@ RESPONSE FORMAT:
 - Use bullet points for clarity when listing information
 - Always end with a helpful next step or offer of assistance"""
 
-    return f"""You are ERP-Copilot, an AI assistant embedded in Dynamic.IQ-MRPx, a Manufacturing Resource Planning system.
+    return f"""You are ERP-Copilot, an AI assistant embedded in Dynamic.IQ-COREx, a Manufacturing Resource Planning system.
 
 CURRENT USER:
 - Username: {user_context['username']}

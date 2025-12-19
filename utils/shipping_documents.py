@@ -12,7 +12,7 @@ class ShippingDocumentGenerator:
     
     def __init__(self):
         self.styles = getSampleStyleSheet()
-        self.company_name = "Dynamic.IQ-MRPx"
+        self.company_name = "Dynamic.IQ-COREx"
         self.company_address = "123 Manufacturing Drive"
         self.company_city_state_zip = "Industrial City, ST 12345"
         self.company_phone = "(555) 123-4567"

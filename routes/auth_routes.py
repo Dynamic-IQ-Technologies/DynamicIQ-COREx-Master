@@ -83,7 +83,7 @@ def register():
                 session['username'] = user['username']
                 session['role'] = user['role']
                 User.update_last_login(user['id'])
-                flash(f'Welcome to Dynamic.IQ-MRPx, {user["username"]}!', 'success')
+                flash(f'Welcome to Dynamic.IQ-COREx, {user["username"]}!', 'success')
                 return redirect(url_for('main_routes.dashboard'))
             else:
                 flash('Registration successful! Please log in.', 'success')

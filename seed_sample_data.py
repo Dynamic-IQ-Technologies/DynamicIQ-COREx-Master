@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed Sample Data Script for Dynamic.IQ-MRPx
+Seed Sample Data Script for Dynamic.IQ-COREx
 Creates comprehensive sample data to demonstrate all system functionalities
 Maximum: 10 clients, 10 suppliers, 10 capabilities
 """

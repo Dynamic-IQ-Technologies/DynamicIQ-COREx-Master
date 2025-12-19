@@ -17,10 +17,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Dynamic.IQ-MRPx"
+args = "Dynamic.IQ-COREx"
 
 [[workflows.workflow]]
-name = "Dynamic.IQ-MRPx"
+name = "Dynamic.IQ-COREx"
 author = "agent"
 
 [[workflows.workflow.tasks]]

@@ -90,7 +90,7 @@ def analyze():
         return jsonify({'success': False, 'error': 'AI service unavailable'})
     
     try:
-        system_prompt = """You are the Business Analytics AI Super Agent for Dynamic.IQ-MRPx ERP system.
+        system_prompt = """You are the Business Analytics AI Super Agent for Dynamic.IQ-COREx ERP system.
 You are an autonomous, intelligent manager that analyzes, optimizes, and predicts business processes.
 
 Your capabilities include:

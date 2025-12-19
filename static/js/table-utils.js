@@ -1,6 +1,6 @@
 /**
  * Table Utilities - Reusable sorting and filtering for tables
- * Dynamic.IQ-MRPx
+ * Dynamic.IQ-COREx
  */
 
 (function() {

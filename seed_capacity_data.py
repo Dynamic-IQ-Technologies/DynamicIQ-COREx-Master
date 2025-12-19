@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed Capacity Planning Sample Data for Dynamic.IQ-MRPx
+Seed Capacity Planning Sample Data for Dynamic.IQ-COREx
 Creates comprehensive capacity data to demonstrate strategic capacity planning features:
 - Skillsets with required levels, target headcounts, and criticality
 - Work Centers with capacity settings
