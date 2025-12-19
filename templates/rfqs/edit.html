@@ -140,16 +140,16 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-md-3">
                                 <label class="form-label small">Product (Optional)</label>
-                                <select name="product_id" class="form-select form-select-sm">
-                                    <option value="">Manual Entry</option>
+                                <select name="product_id" id="product-select" class="form-select form-select-sm" onchange="autoFillDescription()">
+                                    <option value="" data-description="">Manual Entry</option>
                                     {% for p in products %}
-                                    <option value="{{ p.id }}">{{ p.part_number }}</option>
+                                    <option value="{{ p.id }}" data-description="{{ p.description }}">{{ p.part_number }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small">Description <span class="text-danger">*</span></label>
-                                <input type="text" name="description" class="form-control form-control-sm" required>
+                                <input type="text" name="description" id="description-input" class="form-control form-control-sm" required>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small">Qty</label>
@@ -285,6 +285,17 @@ function toggleEditLine(lineId) {
     } else {
         viewRow.style.display = 'table-row';
         editRow.style.display = 'none';
+    }
+}
+
+function autoFillDescription() {
+    const select = document.getElementById('product-select');
+    const descInput = document.getElementById('description-input');
+    const selectedOption = select.options[select.selectedIndex];
+    const description = selectedOption.getAttribute('data-description');
+    
+    if (description) {
+        descInput.value = description;
     }
 }
 </script>
