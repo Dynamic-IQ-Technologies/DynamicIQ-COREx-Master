@@ -93,14 +93,18 @@ def list_purchaseorders():
     sort_column = valid_sort_columns.get(sort_by, 'po.order_date')
     sort_direction = 'ASC' if sort_dir.lower() == 'asc' else 'DESC'
     
-    # Build query with filters
+    # Build query with filters - include both regular lines and service lines
     query = '''
         SELECT po.*, s.name as supplier_name,
-               COUNT(pol.id) as line_count,
-               COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount
+               (SELECT COUNT(*) FROM purchase_order_lines WHERE po_id = po.id) + 
+               (SELECT COUNT(*) FROM purchase_order_service_lines WHERE po_id = po.id) as line_count,
+               COALESCE(
+                   (SELECT SUM(quantity * unit_price) FROM purchase_order_lines WHERE po_id = po.id), 0
+               ) + COALESCE(
+                   (SELECT SUM(total_cost) FROM purchase_order_service_lines WHERE po_id = po.id), 0
+               ) as total_amount
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
-        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
         WHERE 1=1
     '''
     params = []
@@ -129,7 +133,7 @@ def list_purchaseorders():
         query += ' AND po.po_type = ?'
         params.append('Service')
     
-    query += f' GROUP BY po.id ORDER BY {sort_column} {sort_direction}'
+    query += f' ORDER BY {sort_column} {sort_direction}'
     
     purchase_orders = conn.execute(query, params).fetchall()
     
