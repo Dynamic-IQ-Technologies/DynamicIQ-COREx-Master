@@ -355,7 +355,7 @@ def create_receiving():
     
     today = datetime.now().strftime('%Y-%m-%d')
     
-    # Get pending/ordered PO lines with remaining quantities to receive
+    # Get pending/ordered PO lines with remaining quantities to receive including UoM conversion info
     pos = conn.execute('''
         SELECT 
             pol.id as line_id,
@@ -364,6 +364,10 @@ def create_receiving():
             pol.quantity,
             pol.unit_price,
             pol.line_number,
+            pol.uom_id,
+            pol.base_uom_id,
+            pol.conversion_factor,
+            pol.base_quantity,
             COALESCE(pol.received_quantity, 0) as received_so_far,
             (pol.quantity - COALESCE(pol.received_quantity, 0)) as remaining_quantity,
             po.po_number,
@@ -373,11 +377,17 @@ def create_receiving():
             s.name as supplier_name,
             p.code as product_code,
             p.name as product_name,
-            p.unit_of_measure
+            p.unit_of_measure,
+            uom.uom_code as order_uom_code,
+            uom.uom_name as order_uom_name,
+            base_uom.uom_code as base_uom_code,
+            base_uom.uom_name as base_uom_name
         FROM purchase_order_lines pol
         JOIN purchase_orders po ON pol.po_id = po.id
         JOIN suppliers s ON po.supplier_id = s.id
         JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master uom ON pol.uom_id = uom.id
+        LEFT JOIN uom_master base_uom ON pol.base_uom_id = base_uom.id
         WHERE po.status IN ('Ordered', 'Partially Received')
             AND (pol.received_quantity IS NULL OR pol.received_quantity < pol.quantity)
         ORDER BY po.expected_delivery_date, po.order_date DESC, pol.line_number

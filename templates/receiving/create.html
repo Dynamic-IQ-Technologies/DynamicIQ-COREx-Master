@@ -22,8 +22,13 @@
                                     data-ordered="{{ '%.2f'|format(po.quantity) }}"
                                     data-received="{{ '%.2f'|format(po.received_so_far) }}"
                                     data-remaining="{{ '%.2f'|format(po.remaining_quantity) }}"
-                                    data-uom="{{ po.unit_of_measure }}"
-                                    data-unitprice="{{ '%.2f'|format(po.unit_price) }}">
+                                    data-uom="{{ po.order_uom_code or po.unit_of_measure }}"
+                                    data-unitprice="{{ '%.2f'|format(po.unit_price) }}"
+                                    data-order-uom="{{ po.order_uom_code or po.unit_of_measure }}"
+                                    data-base-uom="{{ po.base_uom_code or po.unit_of_measure }}"
+                                    data-conversion-factor="{{ po.conversion_factor or 1 }}"
+                                    data-base-quantity="{{ po.base_quantity or po.quantity }}"
+                                    data-has-conversion="{{ 'true' if po.conversion_factor and po.conversion_factor != 1 else 'false' }}">
                                 {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining @ {{ po.unit_price|currency }}
                             </option>
                             {% endfor %}
@@ -62,6 +67,49 @@
                         <div class="col-md-4">
                             <strong>Unit Cost:</strong> <span id="detail_unitcost" class="text-info fw-bold"></span>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- UoM Conversion Details Section -->
+            <div class="card border-info mb-3" id="uom_conversion_details" style="display:none;">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-arrow-left-right"></i> UoM Conversion Details</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block">Order UoM</small>
+                                <strong id="conv_order_uom" class="fs-5 text-primary">-</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-center justify-content-center">
+                            <i class="bi bi-arrow-right fs-4 text-muted"></i>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block">Base (Inventory) UoM</small>
+                                <strong id="conv_base_uom" class="fs-5 text-success">-</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="border rounded p-2 text-center bg-warning bg-opacity-25">
+                                <small class="text-muted d-block">Conversion Factor</small>
+                                <strong id="conv_factor" class="fs-5">-</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-success bg-opacity-25">
+                                <small class="text-muted d-block">Units to Inventory</small>
+                                <strong id="conv_base_qty" class="fs-5 text-success">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        <span id="conv_explanation">When you receive <strong id="conv_receive_qty">-</strong> <span id="conv_receive_uom">-</span>, 
+                        inventory will increase by <strong id="conv_inventory_qty">-</strong> <span id="conv_inventory_uom">-</span></span>
                     </div>
                 </div>
             </div>
@@ -147,6 +195,9 @@
 <script>
 let currentUnitPrice = 0;
 let currentUOM = '';
+let currentBaseUOM = '';
+let currentConversionFactor = 1;
+let hasConversion = false;
 
 function updatePODetails() {
     const select = document.getElementById('po_line_id');
@@ -154,7 +205,10 @@ function updatePODetails() {
     
     if (option.value) {
         currentUnitPrice = parseFloat(option.dataset.unitprice);
-        currentUOM = option.dataset.uom;
+        currentUOM = option.dataset.uom || option.dataset.orderUom;
+        currentBaseUOM = option.dataset.baseUom || currentUOM;
+        currentConversionFactor = parseFloat(option.dataset.conversionFactor) || 1;
+        hasConversion = option.dataset.hasConversion === 'true';
         
         document.getElementById('detail_product').textContent = option.dataset.productCode + ' - ' + option.dataset.productName;
         document.getElementById('detail_supplier').textContent = option.dataset.supplier;
@@ -164,14 +218,25 @@ function updatePODetails() {
         document.getElementById('detail_unitcost').textContent = '$' + currentUnitPrice.toFixed(2) + ' per ' + currentUOM;
         document.getElementById('po_details').style.display = 'block';
         
+        // Show UoM conversion section if there's a conversion
+        if (hasConversion && currentConversionFactor != 1) {
+            document.getElementById('conv_order_uom').textContent = currentUOM;
+            document.getElementById('conv_base_uom').textContent = currentBaseUOM;
+            document.getElementById('conv_factor').textContent = 'x ' + currentConversionFactor;
+            document.getElementById('uom_conversion_details').style.display = 'block';
+        } else {
+            document.getElementById('uom_conversion_details').style.display = 'none';
+        }
+        
         // Set max quantity to remaining
         document.getElementById('quantity_received').max = option.dataset.remaining;
         
-        // Calculate initial cost
+        // Calculate initial cost and conversion
         calculateReceivingCost();
     } else {
         document.getElementById('po_details').style.display = 'none';
         document.getElementById('cost_summary').style.display = 'none';
+        document.getElementById('uom_conversion_details').style.display = 'none';
     }
 }
 
@@ -186,8 +251,25 @@ function calculateReceivingCost() {
         document.getElementById('summary_uom').textContent = currentUOM;
         document.getElementById('summary_total').textContent = '$' + totalValue.toFixed(2);
         document.getElementById('cost_summary').style.display = 'block';
+        
+        // Update conversion details if applicable
+        if (hasConversion && currentConversionFactor != 1) {
+            const baseQty = quantity * currentConversionFactor;
+            document.getElementById('conv_base_qty').textContent = baseQty.toFixed(2) + ' ' + currentBaseUOM;
+            document.getElementById('conv_receive_qty').textContent = quantity.toFixed(2);
+            document.getElementById('conv_receive_uom').textContent = currentUOM;
+            document.getElementById('conv_inventory_qty').textContent = baseQty.toFixed(2);
+            document.getElementById('conv_inventory_uom').textContent = currentBaseUOM;
+        }
     } else {
         document.getElementById('cost_summary').style.display = 'none';
+        
+        // Reset conversion display
+        if (hasConversion) {
+            document.getElementById('conv_base_qty').textContent = '-';
+            document.getElementById('conv_receive_qty').textContent = '-';
+            document.getElementById('conv_inventory_qty').textContent = '-';
+        }
     }
 }
 
