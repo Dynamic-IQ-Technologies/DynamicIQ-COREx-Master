@@ -145,7 +145,7 @@
                         <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
                         <td>{{ wo.code }} - {{ wo.name }}</td>
                         <td>{{ wo.quantity }}</td>
-                        <td class="cost-cell">{{ wo.material_cost|currency }}</td>
+                        <td class="cost-cell">{{ wo.actual_material_cost|currency }}</td>
                         <td class="cost-cell">{{ wo.labor_cost|currency }}</td>
                         <td class="cost-cell">{{ wo.overhead_cost|currency }}</td>
                         <td class="cost-cell service-cost">{{ wo.service_cost|currency }}</td>

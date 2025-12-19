@@ -49,9 +49,27 @@ def workorder_costs_report():
     
     query = '''
         SELECT wo.*, p.code, p.name,
+               COALESCE((SELECT SUM(mi.quantity_issued * COALESCE(pr.cost, 0)) 
+                        FROM material_issues mi 
+                        JOIN products pr ON mi.product_id = pr.id
+                        WHERE mi.work_order_id = wo.id), 0) +
+               COALESCE((SELECT SUM(tm.issued_qty * COALESCE(tm.unit_cost, pr2.cost, 0))
+                        FROM work_order_task_materials tm
+                        JOIN work_order_tasks wot ON tm.task_id = wot.id
+                        JOIN products pr2 ON tm.product_id = pr2.id
+                        WHERE wot.work_order_id = wo.id AND tm.issued_qty > 0), 0) as actual_material_cost,
                COALESCE((SELECT SUM(total_cost) FROM purchase_order_service_lines 
                         WHERE work_order_id = wo.id AND status = 'Received'), 0) as service_cost,
-               (wo.material_cost + wo.labor_cost + wo.overhead_cost + 
+               (COALESCE((SELECT SUM(mi.quantity_issued * COALESCE(pr.cost, 0)) 
+                        FROM material_issues mi 
+                        JOIN products pr ON mi.product_id = pr.id
+                        WHERE mi.work_order_id = wo.id), 0) +
+                COALESCE((SELECT SUM(tm.issued_qty * COALESCE(tm.unit_cost, pr2.cost, 0))
+                        FROM work_order_task_materials tm
+                        JOIN work_order_tasks wot ON tm.task_id = wot.id
+                        JOIN products pr2 ON tm.product_id = pr2.id
+                        WHERE wot.work_order_id = wo.id AND tm.issued_qty > 0), 0) +
+                wo.labor_cost + wo.overhead_cost + 
                 COALESCE((SELECT SUM(total_cost) FROM purchase_order_service_lines 
                          WHERE work_order_id = wo.id AND status = 'Received'), 0)) as total_cost
         FROM work_orders wo
@@ -80,7 +98,7 @@ def workorder_costs_report():
     status_list = [s['status'] for s in statuses]
     
     totals = {
-        'material': sum(wo['material_cost'] or 0 for wo in workorder_costs),
+        'material': sum(wo['actual_material_cost'] or 0 for wo in workorder_costs),
         'labor': sum(wo['labor_cost'] or 0 for wo in workorder_costs),
         'overhead': sum(wo['overhead_cost'] or 0 for wo in workorder_costs),
         'service': sum(wo['service_cost'] or 0 for wo in workorder_costs),
