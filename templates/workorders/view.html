@@ -3,440 +3,698 @@
 {% block title %}Work Order {{ workorder.wo_number }} - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-outline-secondary me-2">
-            <i class="bi bi-arrow-left"></i> Back to Work Orders
-        </a>
-        <span class="h2 mb-0">Work Order: {{ workorder.wo_number }}</span>
-    </div>
-    <div>
-        {% if workorder.status == 'Completed' and session.role in ['Admin', 'Planner', 'Production Staff'] %}
-            {% if workorder.disposition != 'Released to Shipping' %}
-            <form method="POST" action="{{ url_for('workorder_routes.release_wo_to_shipping', id=workorder.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-truck"></i> Release to Shipping
-                </button>
-            </form>
-            {% else %}
-            <span class="btn btn-outline-primary disabled"><i class="bi bi-check"></i> Released to Shipping</span>
-            {% endif %}
-            {% if workorder.disposition != 'Turned into Stock' %}
-            <form method="POST" action="{{ url_for('workorder_routes.turn_into_stock', id=workorder.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-box-seam"></i> Turn into Stock
-                </button>
-            </form>
-            {% else %}
-            <span class="btn btn-outline-success disabled"><i class="bi bi-check"></i> In Stock</span>
-            {% endif %}
-            <a href="{{ url_for('workorder_routes.generate_8130', id=workorder.id) }}" class="btn btn-warning">
-                <i class="bi bi-file-earmark-medical"></i> Generate 8130
+<style>
+.accordion-header-custom {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+.accordion-button:not(.collapsed) {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: white;
+}
+.accordion-button::after {
+    filter: brightness(0) invert(1);
+}
+.accordion-button.collapsed::after {
+    filter: none;
+}
+.task-card {
+    border-left: 4px solid #0d6efd;
+    transition: all 0.2s ease;
+}
+.task-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.task-card.status-completed {
+    border-left-color: #198754;
+}
+.task-card.status-in-progress {
+    border-left-color: #0dcaf0;
+}
+.material-shortage {
+    animation: pulse-warning 2s infinite;
+}
+@keyframes pulse-warning {
+    0%, 100% { background-color: rgba(255, 193, 7, 0.1); }
+    50% { background-color: rgba(255, 193, 7, 0.25); }
+}
+.sticky-action-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
+}
+.kpi-card {
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+.kpi-card .kpi-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+</style>
+
+<div class="sticky-action-bar">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Back
             </a>
-        {% endif %}
-        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
-        <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-info">
-            <i class="bi bi-receipt"></i> Generate Quote
-        </a>
-        {% if workorder.status != 'Completed' %}
-        <a href="{{ url_for('workorder_routes.edit_workorder', id=workorder.id) }}" class="btn btn-warning">
-            <i class="bi bi-pencil"></i> Edit
-        </a>
-        {% endif %}
-        {% endif %}
-        <a href="{{ url_for('workorder_routes.work_order_traveler', id=workorder.id) }}" class="btn btn-success" target="_blank">
-            <i class="bi bi-file-earmark-text"></i> View Traveler
-        </a>
-        <a href="{{ url_for('task_routes.list_tasks', wo_id=workorder.id) }}" class="btn btn-primary">
-            <i class="bi bi-list-task"></i> View Tasks
-        </a>
-        <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="btn btn-secondary">
-            <i class="bi bi-receipt"></i> Service/Misc Costs
-        </a>
+            <h4 class="mb-0">
+                <i class="bi bi-gear-wide-connected text-primary"></i>
+                {{ workorder.wo_number }}
+                <span class="badge bg-info ms-2">{{ workorder.status }}</span>
+                {% if workorder.stage_name %}
+                <span class="badge ms-1" style="background-color: {{ workorder.stage_color or '#6c757d' }};">{{ workorder.stage_name }}</span>
+                {% endif %}
+            </h4>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if workorder.status == 'Completed' and session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                {% if workorder.disposition != 'Released to Shipping' %}
+                <form method="POST" action="{{ url_for('workorder_routes.release_wo_to_shipping', id=workorder.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-truck"></i> Release to Shipping</button>
+                </form>
+                {% endif %}
+                {% if workorder.disposition != 'Turned into Stock' %}
+                <form method="POST" action="{{ url_for('workorder_routes.turn_into_stock', id=workorder.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-box-seam"></i> Turn into Stock</button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('workorder_routes.generate_8130', id=workorder.id) }}" class="btn btn-warning btn-sm"><i class="bi bi-file-earmark-medical"></i> 8130</a>
+            {% endif %}
+            {% if session.role in ['Admin', 'Planner', 'Production Staff'] and workorder.status != 'Completed' %}
+            <a href="{{ url_for('workorder_routes.edit_workorder', id=workorder.id) }}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+            {% endif %}
+            <a href="{{ url_for('workorder_routes.work_order_traveler', id=workorder.id) }}" class="btn btn-outline-success btn-sm" target="_blank"><i class="bi bi-file-earmark-text"></i> Traveler</a>
+            <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-outline-info btn-sm"><i class="bi bi-receipt"></i> Quote</a>
+        </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Work Order Details</h5>
-            </div>
-            <div class="card-body">
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="kpi-card bg-primary bg-opacity-10">
+            <div class="kpi-value text-primary">{{ task_summary.total_tasks or 0 }}</div>
+            <div class="text-muted small">Total Tasks</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card bg-success bg-opacity-10">
+            <div class="kpi-value text-success">{{ task_summary.completed_tasks or 0 }}</div>
+            <div class="text-muted small">Completed</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card bg-info bg-opacity-10">
+            <div class="kpi-value text-info">{{ "%.1f"|format(task_summary.total_actual_hours or 0) }}</div>
+            <div class="text-muted small">Actual Hours</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card bg-warning bg-opacity-10">
+            <div class="kpi-value text-warning">{{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</div>
+            <div class="text-muted small">Total Cost</div>
+        </div>
+    </div>
+</div>
+
+<div class="accordion" id="workOrderAccordion">
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#overviewSection">
+                <i class="bi bi-info-circle me-2"></i> Work Order Overview
+            </button>
+        </h2>
+        <div id="overviewSection" class="accordion-collapse collapse show" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <p><strong>Product:</strong> {{ workorder.code }} - {{ workorder.name }}</p>
-                        <p><strong>Serial Number:</strong> {{ workorder.serial_number or 'N/A' }}</p>
-                        <p><strong>Description:</strong> {{ workorder.description or workorder.product_description or 'N/A' }}</p>
-                        <p><strong>Quantity:</strong> {{ workorder.quantity }} {{ workorder.unit_of_measure }}</p>
-                        {% if workorder.customer_id %}
-                        <p><strong>Customer:</strong> 
-                            <a href="{{ url_for('customer_routes.view_customer', id=workorder.customer_id) }}" class="text-decoration-none">
-                                {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
-                                <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8em;"></i>
-                            </a>
-                            {% if workorder.customer_email or workorder.customer_phone %}
-                            <br><small class="text-muted">
-                                {% if workorder.customer_email %}{{ workorder.customer_email }}{% endif %}
-                                {% if workorder.customer_email and workorder.customer_phone %} | {% endif %}
-                                {% if workorder.customer_phone %}{{ workorder.customer_phone }}{% endif %}
-                            </small>
-                            {% endif %}
-                        </p>
-                        {% elif workorder.customer_name %}
-                        <p><strong>Customer:</strong> {{ workorder.customer_name }}</p>
-                        {% endif %}
-                        <p><strong>Disposition:</strong> <span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></p>
-                        {% if workorder.inventory_id %}
-                        <p><strong>Inventory Created:</strong> 
-                            <a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-success">
-                                <i class="bi bi-box-seam me-1"></i>View Inventory Record
-                            </a>
-                        </p>
-                        {% endif %}
-                        <p><strong>Status:</strong> <span class="badge bg-info">{{ workorder.status }}</span></p>
-                        <p><strong>Priority:</strong> {{ workorder.priority }}</p>
-                        {% if workorder.stage_name %}
-                        <p><strong>Stage:</strong> <span class="badge" style="background-color: {{ workorder.stage_color or '#6c757d' }};">{{ workorder.stage_name }}</span></p>
-                        {% endif %}
+                        <table class="table table-sm table-borderless">
+                            <tr><td class="text-muted" style="width:40%">Work Order #</td><td><strong>{{ workorder.wo_number }}</strong></td></tr>
+                            <tr><td class="text-muted">Product</td><td><a href="{{ url_for('product_routes.view_product', id=workorder.product_id) }}">{{ workorder.code }} - {{ workorder.name }}</a></td></tr>
+                            <tr><td class="text-muted">Quantity</td><td>{{ workorder.quantity }} {{ workorder.unit_of_measure }}</td></tr>
+                            <tr><td class="text-muted">Serial Number</td><td>{{ workorder.serial_number or 'N/A' }}</td></tr>
+                            <tr><td class="text-muted">Status</td><td><span class="badge bg-info">{{ workorder.status }}</span></td></tr>
+                            <tr><td class="text-muted">Priority</td><td><span class="badge bg-{% if workorder.priority == 'High' %}danger{% elif workorder.priority == 'Medium' %}warning{% else %}secondary{% endif %}">{{ workorder.priority }}</span></td></tr>
+                            <tr><td class="text-muted">Disposition</td><td><span class="badge bg-primary">{{ workorder.disposition or 'Manufacture' }}</span></td></tr>
+                        </table>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Planned Start:</strong> {{ workorder.planned_start_date or 'Not set' }}</p>
-                        <p><strong>Planned End:</strong> {{ workorder.planned_end_date or 'Not set' }}</p>
-                        <p><strong>Actual Start:</strong> {{ workorder.actual_start_date or 'Not started' }}</p>
-                        <p><strong>Actual End:</strong> {{ workorder.actual_end_date or 'Not completed' }}</p>
+                        <table class="table table-sm table-borderless">
+                            <tr><td class="text-muted" style="width:40%">Planned Start</td><td>{{ workorder.planned_start_date or 'Not set' }}</td></tr>
+                            <tr><td class="text-muted">Planned End</td><td>{{ workorder.planned_end_date or 'Not set' }}</td></tr>
+                            <tr><td class="text-muted">Actual Start</td><td>{{ workorder.actual_start_date or 'Not started' }}</td></tr>
+                            <tr><td class="text-muted">Actual End</td><td>{{ workorder.actual_end_date or 'Not completed' }}</td></tr>
+                            {% if workorder.inventory_id %}
+                            <tr><td class="text-muted">Inventory</td><td><a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-box-seam"></i> View Record</a></td></tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+                {% if session.role in ['Admin', 'Production Staff'] %}
+                <hr>
+                <form method="POST" action="{{ url_for('workorder_routes.update_workorder_status', id=workorder.id) }}" class="row g-2 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label small text-muted">Update Status</label>
+                        <select class="form-select form-select-sm" name="status">
+                            <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
+                            <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
+                            <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                            <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#customerSection">
+                <i class="bi bi-person-badge me-2"></i> Customer / Project Information
+            </button>
+        </h2>
+        <div id="customerSection" class="accordion-collapse collapse show" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
+                {% if workorder.customer_id %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Customer:</strong> 
+                            <a href="{{ url_for('customer_routes.view_customer', id=workorder.customer_id) }}">
+                                {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
+                            </a>
+                        </p>
+                        {% if workorder.customer_email %}<p><strong>Email:</strong> {{ workorder.customer_email }}</p>{% endif %}
+                        {% if workorder.customer_phone %}<p><strong>Phone:</strong> {{ workorder.customer_phone }}</p>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {% if workorder.so_id %}
+                        <p><strong>Sales Order:</strong> <a href="{{ url_for('salesorder_routes.view_salesorder', id=workorder.so_id) }}">View SO</a></p>
+                        {% endif %}
+                        {% if workorder.notes %}
+                        <p><strong>Notes:</strong> {{ workorder.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% elif workorder.customer_name %}
+                <p><strong>Customer:</strong> {{ workorder.customer_name }}</p>
+                {% else %}
+                <p class="text-muted">No customer assigned</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#tasksSection">
+                <i class="bi bi-list-check me-2"></i> Work Order Tasks
+                <span class="badge bg-primary ms-2">{{ tasks|length }}</span>
+                {% if task_summary and task_summary.total_tasks > 0 %}
+                <span class="badge bg-success ms-1">{{ task_summary.completed_tasks or 0 }} done</span>
+                {% endif %}
+            </button>
+        </h2>
+        <div id="tasksSection" class="accordion-collapse collapse show" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        {% if task_summary and task_summary.total_tasks > 0 %}
+                        <span class="text-muted">
+                            Planned: {{ "%.1f"|format(task_summary.total_planned_hours or 0) }}h | 
+                            Actual: {{ "%.1f"|format(task_summary.total_actual_hours or 0) }}h |
+                            Labor Cost: {{ (task_summary.total_actual_labor_cost or 0)|currency }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if task_templates and task_templates|length > 0 %}
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyTemplateModal">
+                            <i class="bi bi-file-earmark-plus"></i> Apply Template
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('task_routes.create_task', wo_id=workorder.id) }}" class="btn btn-success btn-sm">
+                            <i class="bi bi-plus-circle"></i> Add Task
+                        </a>
+                    </div>
+                </div>
+
+                {% if tasks %}
+                <div class="accordion" id="tasksAccordion">
+                    {% for task in tasks %}
+                    <div class="accordion-item task-card mb-2 status-{{ task.status|lower|replace(' ', '-') }}" id="task-{{ task.id }}">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#taskContent{{ task.id }}">
+                                <div class="d-flex align-items-center gap-3 w-100 pe-3">
+                                    <strong class="text-primary">{{ task.task_number }}</strong>
+                                    <span>{{ task.task_name }}</span>
+                                    <span class="badge bg-{% if task.status == 'Completed' %}success{% elif task.status == 'In Progress' %}info{% else %}secondary{% endif %}">{{ task.status }}</span>
+                                    {% if task_material_summary[task.id].shortage %}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Material Shortage</span>
+                                    {% endif %}
+                                    {% if task_material_summary[task.id].count > 0 %}
+                                    <span class="badge bg-secondary">{{ task_material_summary[task.id].count }} materials</span>
+                                    {% endif %}
+                                    <span class="ms-auto text-muted small">{{ "%.1f"|format(task.actual_hours or 0) }}/{{ "%.1f"|format(task.planned_hours or 0) }}h</span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="taskContent{{ task.id }}" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <p class="mb-1"><small class="text-muted">Description</small><br>{{ task.description or 'N/A' }}</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="mb-1"><small class="text-muted">Assigned To</small><br>{{ task.assigned_to_name or 'Unassigned' }}</p>
+                                        <p class="mb-1"><small class="text-muted">Work Center</small><br>{{ task.work_center_name or 'N/A' }}</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="mb-1"><small class="text-muted">Planned Hours</small><br>{{ "%.2f"|format(task.planned_hours or 0) }}</p>
+                                        <p class="mb-1"><small class="text-muted">Actual Hours</small><br>{{ "%.2f"|format(task.actual_hours or 0) }}</p>
+                                        <p class="mb-1"><small class="text-muted">Labor Cost</small><br>{{ (task.actual_labor_cost or 0)|currency }}</p>
+                                    </div>
+                                </div>
+                                
+                                {% if session.role in ['Admin', 'Production Staff'] %}
+                                <div class="d-flex gap-2 mb-3">
+                                    <form method="POST" action="{{ url_for('workorder_routes.update_task_status', task_id=task.id) }}" class="d-flex gap-2">
+                                        <select name="status" class="form-select form-select-sm" style="width: auto;">
+                                            <option value="Not Started" {% if task.status == 'Not Started' %}selected{% endif %}>Not Started</option>
+                                            <option value="In Progress" {% if task.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                            <option value="On Hold" {% if task.status == 'On Hold' %}selected{% endif %}>On Hold</option>
+                                            <option value="Completed" {% if task.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Update Status</button>
+                                    </form>
+                                    <a href="{{ url_for('task_routes.view_task', task_id=task.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i> View</a>
+                                    <a href="{{ url_for('task_routes.edit_task', task_id=task.id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i> Edit</a>
+                                </div>
+                                {% endif %}
+
+                                <div class="card">
+                                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                                        <span><i class="bi bi-boxes me-1"></i> Task Materials</span>
+                                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addTaskMaterialModal{{ task.id }}">
+                                            <i class="bi bi-plus"></i> Add Material
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-body p-0">
+                                        {% if task_materials[task.id] %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Part #</th>
+                                                        <th>Description</th>
+                                                        <th class="text-center">Required</th>
+                                                        <th class="text-center">Issued</th>
+                                                        <th class="text-center">Consumed</th>
+                                                        <th>Status</th>
+                                                        <th>Location</th>
+                                                        <th>Lot/Serial</th>
+                                                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                                        <th class="text-center">Actions</th>
+                                                        {% endif %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for mat in task_materials[task.id] %}
+                                                    <tr class="{% if (mat.required_qty or 0) > (mat.issued_qty or 0) %}material-shortage{% endif %}">
+                                                        <td><strong>{{ mat.code }}</strong></td>
+                                                        <td>{{ mat.name }}</td>
+                                                        <td class="text-center">{{ "%.2f"|format(mat.required_qty or 0) }} {{ mat.unit_of_measure }}</td>
+                                                        <td class="text-center">
+                                                            {% if mat.issued_qty %}
+                                                            <span class="badge bg-success">{{ "%.2f"|format(mat.issued_qty) }}</span>
+                                                            {% else %}
+                                                            <span class="text-muted">0</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td class="text-center">
+                                                            {% if mat.consumed_qty %}
+                                                            <span class="badge bg-info">{{ "%.2f"|format(mat.consumed_qty) }}</span>
+                                                            {% else %}
+                                                            <span class="text-muted">0</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if mat.material_status == 'Consumed' %}
+                                                            <span class="badge bg-success">{{ mat.material_status }}</span>
+                                                            {% elif mat.material_status == 'Issued' %}
+                                                            <span class="badge bg-info">{{ mat.material_status }}</span>
+                                                            {% elif mat.material_status == 'Partially Issued' %}
+                                                            <span class="badge bg-warning text-dark">{{ mat.material_status }}</span>
+                                                            {% else %}
+                                                            <span class="badge bg-secondary">{{ mat.material_status }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>{{ mat.warehouse_location or '-' }}</td>
+                                                        <td>
+                                                            {% if mat.lot_number %}L: {{ mat.lot_number }}{% endif %}
+                                                            {% if mat.serial_number %}S: {{ mat.serial_number }}{% endif %}
+                                                            {% if not mat.lot_number and not mat.serial_number %}-{% endif %}
+                                                        </td>
+                                                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                                        <td class="text-center">
+                                                            <div class="btn-group btn-group-sm">
+                                                                {% if (mat.required_qty or 0) > (mat.issued_qty or 0) %}
+                                                                <button type="button" class="btn btn-outline-success" title="Issue" 
+                                                                        onclick="openIssueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.required_qty or 0 }}, {{ mat.issued_qty or 0 }})">
+                                                                    <i class="bi bi-box-arrow-right"></i>
+                                                                </button>
+                                                                {% endif %}
+                                                                {% if (mat.issued_qty or 0) > (mat.consumed_qty or 0) %}
+                                                                <button type="button" class="btn btn-outline-info" title="Consume"
+                                                                        onclick="openConsumeMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.issued_qty or 0 }}, {{ mat.consumed_qty or 0 }})">
+                                                                    <i class="bi bi-check2-circle"></i>
+                                                                </button>
+                                                                {% endif %}
+                                                                <button type="button" class="btn btn-outline-secondary" title="Edit"
+                                                                        onclick="openEditMaterialModal({{ task.id }}, {{ mat.id }}, {{ mat.required_qty }}, '{{ mat.warehouse_location or '' }}', '{{ mat.notes or '' }}')">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </button>
+                                                                {% if not mat.issued_qty or mat.issued_qty == 0 %}
+                                                                <form method="POST" action="{{ url_for('workorder_routes.delete_task_material', task_id=task.id, material_id=mat.id) }}" class="d-inline" id="delMatForm{{ mat.id }}">
+                                                                    <button type="button" class="btn btn-outline-danger" title="Delete" onclick="confirmDeleteMaterial({{ mat.id }})">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </form>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                        {% endif %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {% else %}
+                                        <div class="text-center text-muted py-3">
+                                            <i class="bi bi-inbox"></i> No materials assigned to this task
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="addTaskMaterialModal{{ task.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form method="POST" action="{{ url_for('workorder_routes.add_task_material', task_id=task.id) }}">
+                                    <div class="modal-header bg-success text-white">
+                                        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add Material to {{ task.task_number }}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Part Number <span class="text-danger">*</span></label>
+                                            <select name="product_id" class="form-select" required>
+                                                <option value="">Select Part...</option>
+                                                {% for p in all_products %}
+                                                <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Required Quantity <span class="text-danger">*</span></label>
+                                                    <input type="number" name="required_qty" class="form-control" step="0.01" min="0.01" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Unit of Measure</label>
+                                                    <input type="text" name="unit_of_measure" class="form-control" value="EA">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Warehouse Location</label>
+                                            <input type="text" name="warehouse_location" class="form-control" placeholder="e.g., A-01-02">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Required By Date</label>
+                                            <input type="date" name="required_by_date" class="form-control">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Notes</label>
+                                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-success">Add Material</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-list-task" style="font-size: 2.5rem;"></i>
+                    <p class="mt-2">No tasks created yet</p>
+                    <a href="{{ url_for('task_routes.create_task', wo_id=workorder.id) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create First Task
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#materialsSection">
+                <i class="bi bi-boxes me-2"></i> Work Order Material Requirements
+                <span class="badge bg-secondary ms-2">{{ requirements|length }}</span>
+            </button>
+        </h2>
+        <div id="materialsSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Materials assigned at work order level</span>
+                    {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+                        <i class="bi bi-plus-circle"></i> Add Material
+                    </button>
+                    {% endif %}
+                </div>
+                {% if requirements %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Product</th>
+                                <th>Required</th>
+                                <th>Allocated</th>
+                                <th>Issued</th>
+                                <th>Available</th>
+                                <th>Status</th>
+                                {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                <th>Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in requirements %}
+                            <tr>
+                                <td><strong>{{ req.code }}</strong></td>
+                                <td>{{ req.name }}</td>
+                                <td>{{ "%.2f"|format(req.required_quantity) }}</td>
+                                <td>{{ "%.2f"|format(req.allocated_quantity or 0) }}</td>
+                                <td>{{ "%.2f"|format(req.quantity_issued or 0) }}</td>
+                                <td>{{ "%.2f"|format(req.available_quantity or 0) }}</td>
+                                <td>
+                                    {% if req.allocation_status == 'Fully Issued' %}
+                                    <span class="badge bg-success">Fully Issued</span>
+                                    {% elif req.allocation_status == 'Partially Issued' %}
+                                    <span class="badge bg-info">Partially Issued</span>
+                                    {% elif req.allocation_status == 'Fully Allocated' %}
+                                    <span class="badge bg-primary">Fully Allocated</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ req.allocation_status or 'Not Allocated' }}</span>
+                                    {% endif %}
+                                </td>
+                                {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                            <i class="bi bi-gear"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="openAllocateModal({{ req.id }}, '{{ req.code }}', {{ req.required_quantity }}, {{ req.allocated_quantity or 0 }}, {{ req.available_quantity or 0 }}); return false;"><i class="bi bi-box-arrow-in-right text-primary"></i> Allocate</a></li>
+                                            {% if req.allocated_quantity and req.allocated_quantity > (req.quantity_issued or 0) %}
+                                            <li><a class="dropdown-item" href="#" onclick="openDeallocateModal({{ req.id }}, '{{ req.code }}', {{ req.allocated_quantity or 0 }}, {{ req.quantity_issued or 0 }}); return false;"><i class="bi bi-box-arrow-left text-warning"></i> Deallocate</a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="openIssueModal({{ req.id }}, '{{ req.code }}', {{ req.allocated_quantity or 0 }}, {{ req.quantity_issued or 0 }}); return false;"><i class="bi bi-truck text-success"></i> Issue</a></li>
+                                            {% endif %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="POST" action="{{ url_for('workorder_routes.delete_material_requirement', wo_id=workorder.id, req_id=req.id) }}" id="deleteMaterialForm{{ req.id }}">
+                                                    <button type="button" class="dropdown-item text-danger" onclick="confirmDeleteWOMaterial({{ req.id }})"><i class="bi bi-trash"></i> Delete</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-inbox"></i> No work order level materials
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#laborSection">
+                <i class="bi bi-clock-history me-2"></i> Labor & Time Tracking
+            </button>
+        </h2>
+        <div id="laborSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h5 class="mb-0">{{ "%.2f"|format(task_summary.total_planned_hours or 0) }}</h5>
+                                <small class="text-muted">Planned Hours</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h5 class="mb-0">{{ "%.2f"|format(task_summary.total_actual_hours or 0) }}</h5>
+                                <small class="text-muted">Actual Hours</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h5 class="mb-0">{{ (task_summary.total_actual_labor_cost or 0)|currency }}</h5>
+                                <small class="text-muted">Labor Cost</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted text-center">
+                    <a href="{{ url_for('labor_routes.wo_labor_summary', wo_id=workorder.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-clock"></i> View Labor Details
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#costSection">
+                <i class="bi bi-currency-dollar me-2"></i> Cost Summary
+            </button>
+        </h2>
+        <div id="costSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><td>Material Cost</td><td class="text-end">{{ cost_info.material_cost|currency }}</td></tr>
+                            <tr><td>Labor Cost</td><td class="text-end">{{ cost_info.labor_cost|currency }}</td></tr>
+                            <tr><td>Overhead Cost</td><td class="text-end">{{ cost_info.overhead_cost|currency }}</td></tr>
+                            {% if misc_cost_info and misc_cost_info.total_misc_cost > 0 %}
+                            <tr><td>Service/Misc Cost</td><td class="text-end">{{ misc_cost_info.total_misc_cost|currency }}</td></tr>
+                            {% endif %}
+                            <tr class="table-primary"><th>Total Cost</th><th class="text-end">{{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</th></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-receipt"></i> View Service/Misc Costs
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Cost Summary</h5>
-            </div>
-            <div class="card-body">
-                {% if cost_info %}
-                <p><strong>Material Cost:</strong> {{ cost_info.material_cost|currency }}</p>
-                <p><strong>Labor Cost:</strong> {{ cost_info.labor_cost|currency }}</p>
-                <p><strong>Overhead Cost:</strong> {{ cost_info.overhead_cost|currency }}</p>
-                {% if misc_cost_info and misc_cost_info.total_misc_cost > 0 %}
-                <p><strong>Service/Misc Cost:</strong> 
-                    <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}" class="text-decoration-none">
-                        {{ misc_cost_info.total_misc_cost|currency }}
-                        <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8em;"></i>
-                    </a>
-                </p>
-                {% endif %}
-                <hr>
-                <p><strong>Total Cost:</strong> {{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</p>
-                {% endif %}
-            </div>
-        </div>
-        {% if misc_cost_info and misc_cost_info.pending_count > 0 %}
-        <div class="alert alert-info mt-2 mb-0 p-2">
-            <small><i class="bi bi-info-circle me-1"></i>{{ misc_cost_info.pending_count }} pending service line(s) - 
-            <a href="{{ url_for('workorder_routes.list_service_pos', id=workorder.id) }}">View Details</a></small>
-        </div>
-        {% endif %}
-    </div>
-</div>
 
-{% if session.role in ['Admin', 'Production Staff'] %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Update Status</h5>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('workorder_routes.update_workorder_status', id=workorder.id) }}">
-            <div class="row align-items-end">
-                <div class="col-md-6">
-                    <label for="status" class="form-label">New Status</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="Planned" {% if workorder.status == 'Planned' %}selected{% endif %}>Planned</option>
-                        <option value="Released" {% if workorder.status == 'Released' %}selected{% endif %}>Released</option>
-                        <option value="In Progress" {% if workorder.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-                        <option value="Completed" {% if workorder.status == 'Completed' %}selected{% endif %}>Completed</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <button type="submit" class="btn btn-primary">Update Status</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-{% endif %}
-
-
-<div class="card mb-4">
-    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-list-task"></i> Task Summary</h5>
-        <a href="{{ url_for('task_routes.list_tasks', wo_id=workorder.id) }}" class="btn btn-light btn-sm"><i class="bi bi-eye"></i> View All Tasks</a>
-    </div>
-    <div class="card-body">
-        {% if task_summary and task_summary.total_tasks > 0 %}
-        <div class="row">
-            <div class="col-md-6">
-                <p class="mb-2"><strong>Total Tasks:</strong> {{ task_summary.total_tasks or 0 }}</p>
-                <p class="mb-2"><strong>Completed:</strong> <span class="badge bg-success">{{ task_summary.completed_tasks or 0 }}</span></p>
-                <p class="mb-2"><strong>In Progress:</strong> <span class="badge bg-info">{{ task_summary.in_progress_tasks or 0 }}</span></p>
-                <p class="mb-0"><strong>Completion Rate:</strong> 
-                    {% if task_summary.total_tasks > 0 %}
-                    {{ "%.0f"|format((task_summary.completed_tasks or 0) * 100 / task_summary.total_tasks) }}%
-                    {% else %}
-                    0%
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-6">
-                <p class="mb-2"><strong>Planned Hours:</strong> {{ "%.2f"|format(task_summary.total_planned_hours or 0) }}</p>
-                <p class="mb-2"><strong>Actual Hours:</strong> {{ "%.2f"|format(task_summary.total_actual_hours or 0) }}</p>
-                <p class="mb-2"><strong>Hour Variance:</strong> 
-                    {% set hours_var = (task_summary.total_actual_hours or 0) - (task_summary.total_planned_hours or 0) %}
-                    <span class="{% if hours_var > 0 %}text-danger{% elif hours_var < 0 %}text-success{% endif %}">
-                        {{ "%.2f"|format(hours_var) }}
-                    </span>
-                </p>
-                <p class="mb-0"><strong>Labor Cost:</strong> {{ (task_summary.total_actual_labor_cost or 0)|currency }}</p>
-            </div>
-        </div>
-        {% else %}
-        <div class="text-center text-muted py-3">
-            <i class="bi bi-list-task" style="font-size: 2rem;"></i>
-            <p class="mt-2 mb-2">No tasks created yet</p>
-            <div class="d-flex justify-content-center gap-2">
-                <a href="{{ url_for('task_routes.create_task', wo_id=workorder.id) }}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-circle"></i> Add Task
-                </a>
-                {% if task_templates and task_templates|length > 0 %}
-                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyTemplateModal">
-                    <i class="bi bi-file-earmark-plus"></i> Apply Template
-                </button>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-{% if tasks %}
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-list-check"></i> Work Order Tasks</h5>
-        <div class="d-flex gap-2">
-            {% if task_templates and task_templates|length > 0 %}
-            <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#applyTemplateModal">
-                <i class="bi bi-file-earmark-plus"></i> Apply Template
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#docsSection">
+                <i class="bi bi-folder me-2"></i> Documents & Attachments
             </button>
-            {% endif %}
-            <a href="{{ url_for('task_routes.create_task', wo_id=workorder.id) }}" class="btn btn-light btn-sm">
-                <i class="bi bi-plus-circle"></i> Add Task
-            </a>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Task #</th>
-                        <th>Task Name</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Planned Hours</th>
-                        <th>Actual Hours</th>
-                        <th>Labor Cost</th>
-                        <th>Labor Assigned</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for task in tasks %}
-                    <tr>
-                        <td><strong>{{ task.task_number }}</strong></td>
-                        <td>{{ task.task_name }}</td>
-                        <td>{{ task.description[:50] + '...' if task.description and task.description|length > 50 else task.description or '-' }}</td>
-                        <td>
-                            {% if task.status == 'Completed' %}
-                            <span class="badge bg-success">{{ task.status }}</span>
-                            {% elif task.status == 'In Progress' %}
-                            <span class="badge bg-info">{{ task.status }}</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ task.status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ "%.2f"|format(task.planned_hours or 0) }}</td>
-                        <td>{{ "%.2f"|format(task.actual_hours or 0) }}</td>
-                        <td>{{ (task.actual_labor_cost or 0)|currency }}</td>
-                        <td>
-                            {% if task.labor_count > 0 %}
-                            <span class="badge bg-primary">{{ task.labor_count }}</span>
-                            {% else %}
-                            <span class="text-muted">None</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('task_routes.view_task', task_id=task.id) }}" class="btn btn-sm btn-outline-primary" title="View">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            <a href="{{ url_for('task_routes.edit_task', task_id=task.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                        </td>
-                    </tr>
+        </h2>
+        <div id="docsSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body">
+                {% if documents %}
+                <ul class="list-group">
+                    {% for doc in documents %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-earmark"></i> {{ doc.filename }}</span>
+                        <a href="{{ doc.file_path }}" class="btn btn-sm btn-outline-primary" target="_blank">View</a>
+                    </li>
                     {% endfor %}
-                </tbody>
-            </table>
+                </ul>
+                {% else %}
+                <p class="text-muted text-center">No documents attached</p>
+                {% endif %}
+            </div>
         </div>
     </div>
-</div>
-{% endif %}
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Material Requirements</h5>
-        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
-        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
-            <i class="bi bi-plus-circle"></i> Add Material
-        </button>
-        {% endif %}
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-sm">
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Product</th>
-                        <th>Required</th>
-                        <th>Allocated</th>
-                        <th>Issued</th>
-                        <th>Available</th>
-                        <th>Allocation Status</th>
-                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
-                        <th>Actions</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for req in requirements %}
-                    <tr>
-                        <td><strong>{{ req.code }}</strong></td>
-                        <td>{{ req.name }}</td>
-                        <td><span class="badge bg-secondary">{{ "%.2f"|format(req.required_quantity) }}</span></td>
-                        <td>
-                            {% if req.allocated_quantity and req.allocated_quantity > 0 %}
-                            <span class="badge bg-primary">{{ "%.2f"|format(req.allocated_quantity) }}</span>
-                            {% else %}
-                            <span class="text-muted">0</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if req.issued_quantity and req.issued_quantity > 0 %}
-                            <span class="badge bg-success">{{ "%.2f"|format(req.issued_quantity) }}</span>
-                            {% else %}
-                            <span class="text-muted">0</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ "%.2f"|format(req.available_quantity) }}</td>
-                        <td>
-                            {% if req.allocation_status == 'Fully Issued' %}
-                            <span class="badge bg-success">Fully Issued</span>
-                            {% elif req.allocation_status == 'Partially Issued' %}
-                            <span class="badge bg-info">Partially Issued</span>
-                            {% elif req.allocation_status == 'Fully Allocated' %}
-                            <span class="badge bg-primary">Fully Allocated</span>
-                            {% elif req.allocation_status == 'Partially Allocated' %}
-                            <span class="badge bg-warning">Partially Allocated</span>
-                            {% else %}
-                            <span class="badge bg-secondary">Not Allocated</span>
-                            {% endif %}
-                        </td>
-                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" title="Actions">
-                                    <i class="bi bi-gear"></i>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#" onclick="openAllocateModal({{ req.id }}, '{{ req.code }}', {{ req.required_quantity }}, {{ req.allocated_quantity or 0 }}, {{ req.available_quantity }}); return false;">
-                                        <i class="bi bi-box-arrow-in-right text-primary"></i> Allocate
-                                    </a></li>
-                                    {% if req.allocated_quantity and req.allocated_quantity > (req.issued_quantity or 0) %}
-                                    <li><a class="dropdown-item" href="#" onclick="openDeallocateModal({{ req.id }}, '{{ req.code }}', {{ req.allocated_quantity or 0 }}, {{ req.issued_quantity or 0 }}); return false;">
-                                        <i class="bi bi-box-arrow-left text-warning"></i> Deallocate
-                                    </a></li>
-                                    {% endif %}
-                                    {% if req.allocated_quantity and req.allocated_quantity > (req.issued_quantity or 0) %}
-                                    <li><a class="dropdown-item" href="#" onclick="openIssueModal({{ req.id }}, '{{ req.code }}', {{ req.allocated_quantity or 0 }}, {{ req.issued_quantity or 0 }}); return false;">
-                                        <i class="bi bi-truck text-success"></i> Issue to Floor
-                                    </a></li>
-                                    {% endif %}
-                                    {% if req.issued_quantity and req.issued_quantity > 0 %}
-                                    <li><a class="dropdown-item" href="#" onclick="openReturnModal({{ req.id }}, '{{ req.code }}', {{ req.issued_quantity or 0 }}); return false;">
-                                        <i class="bi bi-arrow-return-left text-info"></i> Return
-                                    </a></li>
-                                    {% endif %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="#" 
-                                           onclick="openEditModal(this); return false;"
-                                           data-req-id="{{ req.id }}"
-                                           data-product-name="{{ (req.code ~ ' - ' ~ req.name)|tojson }}"
-                                           data-required-qty="{{ req.required_quantity }}">
-                                        <i class="bi bi-pencil"></i> Edit Requirement
-                                    </a></li>
-                                    <li>
-                                        <form method="POST" action="{{ url_for('workorder_routes.delete_material_requirement', wo_id=workorder.id, req_id=req.id) }}" style="display:inline;" id="deleteMaterialForm{{ req.id }}">
-                                            <button type="button" class="dropdown-item text-danger" onclick="confirmDeleteMaterial({{ req.id }})">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
-                                        </form>
-                                    </li>
-                                </ul>
-                            </div>
-                        </td>
-                        {% endif %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#auditSection">
+                <i class="bi bi-journal-text me-2"></i> Notes & Activity Log
+            </button>
+        </h2>
+        <div id="auditSection" class="accordion-collapse collapse" data-bs-parent="#workOrderAccordion">
+            <div class="accordion-body p-0">
+                <iframe src="{{ url_for('audit_routes.view_audit_trail', record_type='work_order', record_id=workorder.id) }}" 
+                        style="width: 100%; height: 400px; border: none;"></iframe>
+            </div>
         </div>
     </div>
+    {% endif %}
 </div>
-
-<!-- Audit Trail Section (Admin, Planner, Accountant only) -->
-{% if session.role in ['Admin', 'Planner', 'Accountant'] %}
-<div class="card mt-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Audit Trail</h5>
-        <a href="{{ url_for('audit_routes.view_audit_trail', record_type='work_order', record_id=workorder.id) }}" 
-           class="btn btn-sm btn-outline-info">
-            <i class="bi bi-eye"></i> View Full History
-        </a>
-    </div>
-    <div class="card-body p-0">
-        <iframe src="{{ url_for('audit_routes.view_audit_trail', record_type='work_order', record_id=workorder.id) }}" 
-                style="width: 100%; height: 400px; border: none;">
-        </iframe>
-    </div>
-</div>
-{% endif %}
 
 {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
-<!-- Add Material Modal -->
-<div class="modal fade" id="addMaterialModal" tabindex="-1" aria-labelledby="addMaterialModalLabel" aria-hidden="true">
+<div class="modal fade" id="addMaterialModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addMaterialModalLabel">Add Material Requirement</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
             <form method="POST" action="{{ url_for('workorder_routes.add_material_requirement', wo_id=workorder.id) }}">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add Material Requirement</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="product_id" class="form-label">Product *</label>
-                        <select class="form-select" id="product_id" name="product_id" required>
+                        <label class="form-label">Product <span class="text-danger">*</span></label>
+                        <select class="form-select" name="product_id" required>
                             <option value="">Select Product</option>
                             {% for product in all_products %}
                             <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
@@ -444,133 +702,19 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="required_quantity" class="form-label">Required Quantity *</label>
-                        <input type="number" step="1" class="form-control" id="required_quantity" name="required_quantity" required min="1">
+                        <label class="form-label">Required Quantity <span class="text-danger">*</span></label>
+                        <input type="number" step="1" class="form-control" name="required_quantity" required min="1">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Material</button>
+                    <button type="submit" class="btn btn-success">Add Material</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Edit Material Modal -->
-<div class="modal fade" id="editMaterialModal" tabindex="-1" aria-labelledby="editMaterialModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editMaterialModalLabel">Edit Material Requirement</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" id="editMaterialForm">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Product</label>
-                        <input type="text" class="form-control" id="edit_product_name" disabled>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_required_quantity" class="form-label">Required Quantity *</label>
-                        <input type="number" step="1" class="form-control" id="edit_required_quantity" name="required_quantity" required min="1">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
-function openEditModal(button) {
-    const reqId = button.getAttribute('data-req-id');
-    const productName = button.dataset.productName;
-    const requiredQty = parseFloat(button.getAttribute('data-required-qty'));
-    
-    document.getElementById('edit_product_name').value = productName;
-    document.getElementById('edit_required_quantity').value = requiredQty;
-    document.getElementById('editMaterialForm').action = '{{ url_for("workorder_routes.edit_material_requirement", wo_id=workorder.id, req_id=0) }}'.replace('/0/', '/' + reqId + '/');
-    
-    var modal = new bootstrap.Modal(document.getElementById('editMaterialModal'));
-    modal.show();
-}
-
-// Material Allocation Functions
-function openAllocateModal(reqId, prodCode, requiredQty, allocatedQty, availableQty) {
-    document.getElementById('allocateReqId').value = reqId;
-    document.getElementById('allocateProdCode').textContent = prodCode;
-    document.getElementById('allocateRequired').textContent = requiredQty.toFixed(2);
-    document.getElementById('allocateAllocated').textContent = allocatedQty.toFixed(2);
-    document.getElementById('allocateAvailable').textContent = availableQty.toFixed(2);
-    document.getElementById('allocateMax').textContent = Math.min(requiredQty - allocatedQty, availableQty).toFixed(2);
-    document.getElementById('allocateQtyInput').max = Math.min(requiredQty - allocatedQty, availableQty);
-    document.getElementById('allocateQtyInput').value = '';
-    new bootstrap.Modal(document.getElementById('allocateModal')).show();
-}
-
-function openDeallocateModal(reqId, prodCode, allocatedQty, issuedQty) {
-    const maxDeallocate = allocatedQty - issuedQty;
-    document.getElementById('deallocateReqId').value = reqId;
-    document.getElementById('deallocateProdCode').textContent = prodCode;
-    document.getElementById('deallocateAllocated').textContent = allocatedQty.toFixed(2);
-    document.getElementById('deallocateIssued').textContent = issuedQty.toFixed(2);
-    document.getElementById('deallocateMax').textContent = maxDeallocate.toFixed(2);
-    document.getElementById('deallocateQtyInput').max = maxDeallocate;
-    document.getElementById('deallocateQtyInput').value = '';
-    new bootstrap.Modal(document.getElementById('deallocateModal')).show();
-}
-
-function openIssueModal(reqId, prodCode, allocatedQty, issuedQty) {
-    const maxIssue = allocatedQty - issuedQty;
-    document.getElementById('issueReqId').value = reqId;
-    document.getElementById('issueProdCode').textContent = prodCode;
-    document.getElementById('issueAllocated').textContent = allocatedQty.toFixed(2);
-    document.getElementById('issueIssued').textContent = issuedQty.toFixed(2);
-    document.getElementById('issueMax').textContent = maxIssue.toFixed(2);
-    document.getElementById('issueQtyInput').max = maxIssue;
-    document.getElementById('issueQtyInput').value = '';
-    new bootstrap.Modal(document.getElementById('issueModal')).show();
-}
-
-function openReturnModal(reqId, prodCode, issuedQty) {
-    document.getElementById('returnReqId').value = reqId;
-    document.getElementById('returnProdCode').textContent = prodCode;
-    document.getElementById('returnIssued').textContent = issuedQty.toFixed(2);
-    document.getElementById('returnMax').textContent = issuedQty.toFixed(2);
-    document.getElementById('returnQtyInput').max = issuedQty;
-    document.getElementById('returnQtyInput').value = '';
-    new bootstrap.Modal(document.getElementById('returnModal')).show();
-}
-
-// Set form actions dynamically
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('allocateForm')?.addEventListener('submit', function(e) {
-        const reqId = document.getElementById('allocateReqId').value;
-        this.action = `/workorders/{{ workorder.id }}/allocate-material/${reqId}`;
-    });
-
-    document.getElementById('deallocateForm')?.addEventListener('submit', function(e) {
-        const reqId = document.getElementById('deallocateReqId').value;
-        this.action = `/workorders/{{ workorder.id }}/deallocate-material/${reqId}`;
-    });
-
-    document.getElementById('issueForm')?.addEventListener('submit', function(e) {
-        const reqId = document.getElementById('issueReqId').value;
-        this.action = `/workorders/{{ workorder.id }}/issue-material/${reqId}`;
-    });
-
-    document.getElementById('returnForm')?.addEventListener('submit', function(e) {
-        const reqId = document.getElementById('returnReqId').value;
-        this.action = `/workorders/{{ workorder.id }}/return-material/${reqId}`;
-    });
-});
-</script>
-
-<!-- Allocate Material Modal -->
 <div class="modal fade" id="allocateModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -584,11 +728,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p><strong>Product:</strong> <span id="allocateProdCode"></span></p>
                     <p><strong>Required:</strong> <span id="allocateRequired"></span></p>
                     <p><strong>Already Allocated:</strong> <span id="allocateAllocated"></span></p>
-                    <p><strong>Available in Inventory:</strong> <span id="allocateAvailable"></span></p>
-                    <p class="text-info"><strong>Max to Allocate:</strong> <span id="allocateMax"></span></p>
+                    <p><strong>Available:</strong> <span id="allocateAvailable"></span></p>
                     <hr>
                     <div class="mb-3">
-                        <label for="allocateQtyInput" class="form-label">Quantity to Allocate <span class="text-danger">*</span></label>
+                        <label class="form-label">Quantity to Allocate <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="allocateQtyInput" name="quantity" step="0.01" min="0.01" required>
                     </div>
                 </div>
@@ -601,7 +744,6 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Deallocate Material Modal -->
 <div class="modal fade" id="deallocateModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -614,11 +756,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <input type="hidden" id="deallocateReqId" name="requirement_id">
                     <p><strong>Product:</strong> <span id="deallocateProdCode"></span></p>
                     <p><strong>Allocated:</strong> <span id="deallocateAllocated"></span></p>
-                    <p><strong>Already Issued:</strong> <span id="deallocateIssued"></span></p>
-                    <p class="text-warning"><strong>Max to Deallocate:</strong> <span id="deallocateMax"></span></p>
+                    <p><strong>Issued:</strong> <span id="deallocateIssued"></span></p>
                     <hr>
                     <div class="mb-3">
-                        <label for="deallocateQtyInput" class="form-label">Quantity to Deallocate <span class="text-danger">*</span></label>
+                        <label class="form-label">Quantity to Deallocate <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="deallocateQtyInput" name="quantity" step="0.01" min="0.01" required>
                     </div>
                 </div>
@@ -631,13 +772,12 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Issue Material Modal -->
 <div class="modal fade" id="issueModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" id="issueForm">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title"><i class="bi bi-truck"></i> Issue Material to Floor</h5>
+                    <h5 class="modal-title"><i class="bi bi-truck"></i> Issue Material</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -645,18 +785,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p><strong>Product:</strong> <span id="issueProdCode"></span></p>
                     <p><strong>Allocated:</strong> <span id="issueAllocated"></span></p>
                     <p><strong>Already Issued:</strong> <span id="issueIssued"></span></p>
-                    <p class="text-success"><strong>Max to Issue:</strong> <span id="issueMax"></span></p>
                     <hr>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Issuing material will:
-                        <ul class="mb-0 mt-2">
-                            <li>Deduct from inventory</li>
-                            <li>Post to GL (DR: WIP, CR: Inventory)</li>
-                            <li>Transfer material to work order floor</li>
-                        </ul>
-                    </div>
                     <div class="mb-3">
-                        <label for="issueQtyInput" class="form-label">Quantity to Issue <span class="text-danger">*</span></label>
+                        <label class="form-label">Quantity to Issue <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="issueQtyInput" name="quantity" step="0.01" min="0.01" required>
                     </div>
                 </div>
@@ -669,46 +800,108 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Return Material Modal -->
-<div class="modal fade" id="returnModal" tabindex="-1">
+<div class="modal fade" id="issueMaterialModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" id="returnForm">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title"><i class="bi bi-arrow-return-left"></i> Return Material</h5>
+            <form method="POST" id="issueMaterialForm">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-box-arrow-right"></i> Issue Task Material</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" id="returnReqId" name="requirement_id">
-                    <p><strong>Product:</strong> <span id="returnProdCode"></span></p>
-                    <p><strong>Currently Issued:</strong> <span id="returnIssued"></span></p>
-                    <p class="text-info"><strong>Max to Return:</strong> <span id="returnMax"></span></p>
+                    <p><strong>Part:</strong> <span id="issueMatCode"></span></p>
+                    <p><strong>Required:</strong> <span id="issueMatRequired"></span></p>
+                    <p><strong>Already Issued:</strong> <span id="issueMatIssued"></span></p>
+                    <p class="text-success"><strong>Remaining to Issue:</strong> <span id="issueMatRemaining"></span></p>
                     <hr>
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i> Returning material will:
-                        <ul class="mb-0 mt-2">
-                            <li>Add back to inventory</li>
-                            <li>Reverse GL posting (DR: Inventory, CR: WIP)</li>
-                            <li>Reduce issued quantity</li>
-                        </ul>
-                    </div>
                     <div class="mb-3">
-                        <label for="returnQtyInput" class="form-label">Quantity to Return <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="returnQtyInput" name="quantity" step="0.01" min="0.01" required>
+                        <label class="form-label">Quantity to Issue <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="issueMatQty" name="issue_qty" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Lot Number</label>
+                                <input type="text" class="form-control" name="lot_number">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" class="form-control" name="serial_number">
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-info">Return to Inventory</button>
+                    <button type="submit" class="btn btn-success">Issue Material</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="consumeMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="consumeMaterialForm">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="bi bi-check2-circle"></i> Consume Task Material</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Part:</strong> <span id="consumeMatCode"></span></p>
+                    <p><strong>Issued:</strong> <span id="consumeMatIssued"></span></p>
+                    <p><strong>Already Consumed:</strong> <span id="consumeMatConsumed"></span></p>
+                    <p class="text-info"><strong>Available to Consume:</strong> <span id="consumeMatAvailable"></span></p>
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity to Consume <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="consumeMatQty" name="consume_qty" step="0.01" min="0.01" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info">Consume Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="editMaterialForm">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Task Material</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Required Quantity <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="editMatQty" name="required_qty" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warehouse Location</label>
+                        <input type="text" class="form-control" id="editMatLocation" name="warehouse_location">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="editMatNotes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 
-<!-- Apply Task Template Modal (outside tasks block to be always available) -->
 {% if task_templates and task_templates|length > 0 %}
 <div class="modal fade" id="applyTemplateModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -719,20 +912,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted mb-3">Select a template to add its tasks to this work order. All tasks from the template will be created with "Not Started" status.</p>
-                    
+                    <p class="text-muted">Select a template to add its tasks to this work order.</p>
                     <div class="mb-3">
-                        <label for="template_id" class="form-label">Select Template <span class="text-danger">*</span></label>
-                        <select class="form-select" id="template_id" name="template_id" required>
+                        <label class="form-label">Select Template <span class="text-danger">*</span></label>
+                        <select class="form-select" name="template_id" required>
                             <option value="">-- Choose a template --</option>
                             {% for tpl in task_templates %}
                             <option value="{{ tpl.id }}">{{ tpl.template_code }} - {{ tpl.template_name }} ({{ tpl.item_count }} tasks)</option>
                             {% endfor %}
                         </select>
                     </div>
-                    
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> <strong>Note:</strong> Applying a template will add new tasks to the work order. Existing tasks will not be affected.
+                        <i class="bi bi-info-circle"></i> Existing tasks will not be affected.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -746,7 +937,83 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 
 <script>
-async function confirmDeleteMaterial(reqId) {
+function openAllocateModal(reqId, prodCode, requiredQty, allocatedQty, availableQty) {
+    document.getElementById('allocateReqId').value = reqId;
+    document.getElementById('allocateProdCode').textContent = prodCode;
+    document.getElementById('allocateRequired').textContent = requiredQty.toFixed(2);
+    document.getElementById('allocateAllocated').textContent = allocatedQty.toFixed(2);
+    document.getElementById('allocateAvailable').textContent = availableQty.toFixed(2);
+    document.getElementById('allocateQtyInput').max = Math.min(requiredQty - allocatedQty, availableQty);
+    document.getElementById('allocateQtyInput').value = '';
+    document.getElementById('allocateForm').action = `/workorders/{{ workorder.id }}/allocate-material/${reqId}`;
+    new bootstrap.Modal(document.getElementById('allocateModal')).show();
+}
+
+function openDeallocateModal(reqId, prodCode, allocatedQty, issuedQty) {
+    document.getElementById('deallocateReqId').value = reqId;
+    document.getElementById('deallocateProdCode').textContent = prodCode;
+    document.getElementById('deallocateAllocated').textContent = allocatedQty.toFixed(2);
+    document.getElementById('deallocateIssued').textContent = issuedQty.toFixed(2);
+    document.getElementById('deallocateQtyInput').max = allocatedQty - issuedQty;
+    document.getElementById('deallocateQtyInput').value = '';
+    document.getElementById('deallocateForm').action = `/workorders/{{ workorder.id }}/deallocate-material/${reqId}`;
+    new bootstrap.Modal(document.getElementById('deallocateModal')).show();
+}
+
+function openIssueModal(reqId, prodCode, allocatedQty, issuedQty) {
+    document.getElementById('issueReqId').value = reqId;
+    document.getElementById('issueProdCode').textContent = prodCode;
+    document.getElementById('issueAllocated').textContent = allocatedQty.toFixed(2);
+    document.getElementById('issueIssued').textContent = issuedQty.toFixed(2);
+    document.getElementById('issueQtyInput').max = allocatedQty - issuedQty;
+    document.getElementById('issueQtyInput').value = '';
+    document.getElementById('issueForm').action = `/workorders/{{ workorder.id }}/issue-material/${reqId}`;
+    new bootstrap.Modal(document.getElementById('issueModal')).show();
+}
+
+function openIssueMaterialModal(taskId, matId, code, required, issued) {
+    document.getElementById('issueMatCode').textContent = code;
+    document.getElementById('issueMatRequired').textContent = required.toFixed(2);
+    document.getElementById('issueMatIssued').textContent = issued.toFixed(2);
+    document.getElementById('issueMatRemaining').textContent = (required - issued).toFixed(2);
+    document.getElementById('issueMatQty').max = required - issued;
+    document.getElementById('issueMatQty').value = '';
+    document.getElementById('issueMaterialForm').action = `/workorders/tasks/${taskId}/materials/${matId}/issue`;
+    new bootstrap.Modal(document.getElementById('issueMaterialModal')).show();
+}
+
+function openConsumeMaterialModal(taskId, matId, code, issued, consumed) {
+    document.getElementById('consumeMatCode').textContent = code;
+    document.getElementById('consumeMatIssued').textContent = issued.toFixed(2);
+    document.getElementById('consumeMatConsumed').textContent = consumed.toFixed(2);
+    document.getElementById('consumeMatAvailable').textContent = (issued - consumed).toFixed(2);
+    document.getElementById('consumeMatQty').max = issued - consumed;
+    document.getElementById('consumeMatQty').value = '';
+    document.getElementById('consumeMaterialForm').action = `/workorders/tasks/${taskId}/materials/${matId}/consume`;
+    new bootstrap.Modal(document.getElementById('consumeMaterialModal')).show();
+}
+
+function openEditMaterialModal(taskId, matId, qty, location, notes) {
+    document.getElementById('editMatQty').value = qty;
+    document.getElementById('editMatLocation').value = location;
+    document.getElementById('editMatNotes').value = notes;
+    document.getElementById('editMaterialForm').action = `/workorders/tasks/${taskId}/materials/${matId}/edit`;
+    new bootstrap.Modal(document.getElementById('editMaterialModal')).show();
+}
+
+async function confirmDeleteMaterial(matId) {
+    const confirmed = await showConfirm('Delete this material requirement?', {
+        title: 'Delete Material',
+        type: 'warning',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    });
+    if (confirmed) {
+        document.getElementById('delMatForm' + matId).submit();
+    }
+}
+
+async function confirmDeleteWOMaterial(reqId) {
     const confirmed = await showConfirm('Delete this material requirement?', {
         title: 'Delete Material',
         type: 'warning',
@@ -757,5 +1024,18 @@ async function confirmDeleteMaterial(reqId) {
         document.getElementById('deleteMaterialForm' + reqId).submit();
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash) {
+        const taskId = window.location.hash.replace('#task-', '');
+        const taskElement = document.getElementById('taskContent' + taskId);
+        if (taskElement) {
+            const bsCollapse = new bootstrap.Collapse(taskElement, { show: true });
+            setTimeout(() => {
+                document.getElementById('task-' + taskId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 300);
+        }
+    }
+});
 </script>
 {% endblock %}
