@@ -11,15 +11,35 @@ def list_uoms():
     db = Database()
     conn = db.get_connection()
     
-    uoms = conn.execute('''
-        SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
-        FROM unit_of_measure u
-        LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
-        ORDER BY u.uom_type, u.uom_code
-    ''').fetchall()
+    # Get filter parameter
+    status_filter = request.args.get('status', 'all')
+    
+    if status_filter == 'active':
+        uoms = conn.execute('''
+            SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
+            FROM unit_of_measure u
+            LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
+            WHERE u.status = 'Active'
+            ORDER BY u.uom_type, u.uom_code
+        ''').fetchall()
+    elif status_filter == 'inactive':
+        uoms = conn.execute('''
+            SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
+            FROM unit_of_measure u
+            LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
+            WHERE u.status = 'Inactive'
+            ORDER BY u.uom_type, u.uom_code
+        ''').fetchall()
+    else:
+        uoms = conn.execute('''
+            SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
+            FROM unit_of_measure u
+            LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
+            ORDER BY u.uom_type, u.uom_code
+        ''').fetchall()
     
     conn.close()
-    return render_template('uom/list.html', uoms=uoms)
+    return render_template('uom/list.html', uoms=uoms, status_filter=status_filter)
 
 @uom_bp.route('/uom/create', methods=['GET', 'POST'])
 @login_required
