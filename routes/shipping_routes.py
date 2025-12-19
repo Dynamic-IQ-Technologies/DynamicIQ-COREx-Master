@@ -628,7 +628,6 @@ def view_pending_shipment(id):
     db = Database()
     conn = db.get_connection()
     
-    # Get shipment with related data
     shipment = conn.execute('''
         SELECT 
             s.*,
@@ -653,7 +652,6 @@ def view_pending_shipment(id):
         conn.close()
         return redirect(url_for('shipping_routes.list_pending_shipments'))
     
-    # Get line items based on reference type
     if shipment['reference_type'] == 'Sales Order':
         lines = conn.execute('''
             SELECT sol.*, p.code, p.name
@@ -671,10 +669,17 @@ def view_pending_shipment(id):
     else:
         lines = []
     
+    documents = conn.execute('''
+        SELECT * FROM shipment_documents 
+        WHERE shipment_id = ? 
+        ORDER BY created_at DESC
+    ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='shipment_documents'").fetchone() else []
+    
     conn.close()
     return render_template('shipping/view_pending.html', 
                          shipment=shipment, 
-                         lines=lines)
+                         lines=lines,
+                         documents=documents)
 
 @shipping_bp.route('/pending-shipments/<int:id>/confirm', methods=['POST'])
 @role_required('Admin', 'Production Staff', 'Planner')
