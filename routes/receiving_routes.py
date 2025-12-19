@@ -128,10 +128,13 @@ def create_receiving():
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
             
+            # Get expiration date (required for Chemical products)
+            expiration_date = request.form.get('expiration_date', '').strip() or None
+            
             # Get PO Line details with PO header, product, and UOM conversion info
             po_line = conn.execute('''
                 SELECT pol.*, po.po_number, po.supplier_id, po.order_date,
-                       p.name as product_name, p.code as product_code,
+                       p.name as product_name, p.code as product_code, p.product_type,
                        uom.uom_code as order_uom_code, uom.uom_name as order_uom_name,
                        base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name
                 FROM purchase_order_lines pol
@@ -144,6 +147,12 @@ def create_receiving():
             
             if not po_line:
                 flash('Purchase Order Line not found.', 'danger')
+                conn.close()
+                return redirect(url_for('receiving_routes.create_receiving'))
+            
+            # Validate expiration date required for Chemical products
+            if po_line['product_type'] == 'Chemical' and not expiration_date:
+                flash('Expiration date is required for Chemical products.', 'danger')
                 conn.close()
                 return redirect(url_for('receiving_routes.create_receiving'))
             
@@ -271,21 +280,33 @@ def create_receiving():
             
             if inventory:
                 new_qty = inventory['quantity'] + base_quantity_for_receipt
-                conn.execute('''
-                    UPDATE inventory 
-                    SET quantity = ?,
-                        unit_cost = ?,
-                        last_received_date = ?,
-                        last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ?
-                ''', (new_qty, unit_cost_at_receipt, receipt_date, product_id))
+                # Update expiration_date only if provided (for Chemical products)
+                if expiration_date:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            unit_cost = ?,
+                            last_received_date = ?,
+                            expiration_date = ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE product_id = ?
+                    ''', (new_qty, unit_cost_at_receipt, receipt_date, expiration_date, product_id))
+                else:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            unit_cost = ?,
+                            last_received_date = ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE product_id = ?
+                    ''', (new_qty, unit_cost_at_receipt, receipt_date, product_id))
             else:
                 # Create inventory record with location info using base quantity
                 conn.execute('''
                     INSERT INTO inventory 
-                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'Available')
-                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date))
+                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, expiration_date, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Available')
+                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date, expiration_date))
             
             # Update base received quantity on PO line
             base_received_so_far = po_line['base_received_quantity'] if po_line['base_received_quantity'] else 0
@@ -446,6 +467,7 @@ def create_receiving():
             p.code as product_code,
             p.name as product_name,
             p.unit_of_measure,
+            p.product_type,
             uom.uom_code as order_uom_code,
             uom.uom_name as order_uom_name,
             base_uom.uom_code as base_uom_code,

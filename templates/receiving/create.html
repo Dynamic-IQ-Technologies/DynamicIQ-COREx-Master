@@ -28,7 +28,8 @@
                                     data-base-uom="{{ po.base_uom_code or po.unit_of_measure }}"
                                     data-conversion-factor="{{ po.conversion_factor or 1 }}"
                                     data-base-quantity="{{ po.base_quantity or po.quantity }}"
-                                    data-has-conversion="{{ 'true' if po.conversion_factor and po.conversion_factor != 1 else 'false' }}">
+                                    data-has-conversion="{{ 'true' if po.conversion_factor and po.conversion_factor != 1 else 'false' }}"
+                                data-product-type="{{ po.product_type or '' }}">
                                 {{ po.po_number }} - Line {{ po.line_number }}: {{ po.product_code }} ({{ po.supplier_name }}) - {{ po.remaining_quantity|int }} remaining @ {{ po.unit_price|currency }}
                             </option>
                             {% endfor %}
@@ -198,6 +199,18 @@
                 </div>
             </div>
 
+            <div class="row" id="expiration_date_row" style="display:none;">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="expiration_date" class="form-label">
+                            <i class="bi bi-calendar-x text-danger me-1"></i>Expiration Date <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" class="form-control" id="expiration_date" name="expiration_date">
+                        <div class="form-text text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Required for Chemical products</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
@@ -238,6 +251,7 @@ let currentUOM = '';
 let currentBaseUOM = '';
 let currentConversionFactor = 1;
 let hasConversion = false;
+let currentProductType = '';
 
 function formatCurrency(amount) {
     return '$ ' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -253,6 +267,19 @@ function updatePODetails() {
         currentBaseUOM = option.dataset.baseUom || currentUOM;
         currentConversionFactor = parseFloat(option.dataset.conversionFactor) || 1;
         hasConversion = option.dataset.hasConversion === 'true';
+        currentProductType = option.dataset.productType || '';
+        
+        // Show/hide expiration date field for Chemical products
+        const expirationRow = document.getElementById('expiration_date_row');
+        const expirationInput = document.getElementById('expiration_date');
+        if (currentProductType === 'Chemical') {
+            expirationRow.style.display = 'flex';
+            expirationInput.required = true;
+        } else {
+            expirationRow.style.display = 'none';
+            expirationInput.required = false;
+            expirationInput.value = '';
+        }
         
         document.getElementById('detail_product').textContent = option.dataset.productCode + ' - ' + option.dataset.productName;
         document.getElementById('detail_supplier').textContent = option.dataset.supplier;
@@ -298,6 +325,8 @@ function updatePODetails() {
         document.getElementById('po_details').style.display = 'none';
         document.getElementById('cost_summary').style.display = 'none';
         document.getElementById('uom_conversion_details').style.display = 'none';
+        document.getElementById('expiration_date_row').style.display = 'none';
+        document.getElementById('expiration_date').required = false;
     }
 }
 
