@@ -75,6 +75,28 @@ def currency_filter(value):
     except (ValueError, TypeError):
         return '$ 0.00'
 
+@app.template_filter('format_date')
+def format_date_filter(value):
+    """Format a date string for display in standard 12-hour format."""
+    if value is None or value == '':
+        return '-'
+    try:
+        from datetime import datetime
+        if isinstance(value, str):
+            # Try common date formats
+            for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%m/%d/%Y'):
+                try:
+                    dt = datetime.strptime(value, fmt)
+                    return dt.strftime('%m/%d/%Y')
+                except ValueError:
+                    continue
+            return value
+        elif hasattr(value, 'strftime'):
+            return value.strftime('%m/%d/%Y')
+        return str(value)
+    except Exception:
+        return str(value) if value else '-'
+
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(product_bp)
