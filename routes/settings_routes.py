@@ -444,7 +444,8 @@ def download_presentation_pdf():
         if not presentation_data:
             return jsonify({'success': False, 'error': 'No presentation data provided'}), 400
         
-        settings = CompanySettings.get_or_create_default()
+        settings_row = CompanySettings.get_or_create_default()
+        settings = dict(settings_row) if settings_row else {}
         
         pdf_buffer = generate_presentation_pdf(presentation_data, settings)
         
