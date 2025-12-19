@@ -271,6 +271,161 @@
     .section-title i {
         margin-right: 0.5rem;
     }
+    
+    .gantt-legend {
+        display: flex;
+        gap: 1.5rem;
+        padding: 0.75rem 1rem;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+    
+    .gantt-container {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .gantt-header {
+        display: flex;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+    .gantt-header-label {
+        width: 200px;
+        min-width: 200px;
+        padding: 0.75rem 1rem;
+        border-right: 1px solid #e2e8f0;
+    }
+    .gantt-header-timeline {
+        flex: 1;
+        display: flex;
+        overflow-x: auto;
+    }
+    .gantt-day {
+        min-width: 40px;
+        text-align: center;
+        padding: 0.5rem 0.25rem;
+        border-right: 1px solid #f1f5f9;
+    }
+    .gantt-day.weekend {
+        background: #fef3c7;
+    }
+    .gantt-day.today {
+        background: #dbeafe;
+        font-weight: 700;
+        color: #1e40af;
+    }
+    
+    .gantt-body {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .gantt-row {
+        display: flex;
+        border-bottom: 1px solid #f1f5f9;
+        min-height: 50px;
+    }
+    .gantt-row:hover {
+        background: #f8fafc;
+    }
+    .gantt-row-label {
+        width: 200px;
+        min-width: 200px;
+        padding: 0.5rem 1rem;
+        border-right: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .gantt-row-label .wo-link {
+        font-weight: 600;
+        color: #1e293b;
+        text-decoration: none;
+        font-size: 0.85rem;
+    }
+    .gantt-row-label .wo-link:hover {
+        color: #3b82f6;
+    }
+    .gantt-row-label .wo-details {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+    }
+    .status-badge {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .status-planned { background: #fef3c7; color: #92400e; }
+    .status-released { background: #dbeafe; color: #1e40af; }
+    .status-in-progress { background: #d1fae5; color: #065f46; }
+    
+    .gantt-row-timeline {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        overflow-x: auto;
+    }
+    .gantt-bar {
+        position: absolute;
+        height: 24px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 0.5rem;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .gantt-bar:hover {
+        transform: scaleY(1.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        z-index: 10;
+    }
+    .gantt-bar.planned { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .gantt-bar.released { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .gantt-bar.in-progress { background: linear-gradient(135deg, #10b981, #059669); }
+    .gantt-bar.overdue { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    
+    .gantt-today-line {
+        position: absolute;
+        width: 2px;
+        height: 100%;
+        background: #ef4444;
+        z-index: 5;
+    }
+    
+    .gantt-grid-line {
+        position: absolute;
+        width: 1px;
+        height: 100%;
+        background: #f1f5f9;
+    }
 </style>
 
 <div class="ops-header">
@@ -350,6 +505,11 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="labor-tab" data-bs-toggle="tab" data-bs-target="#labor-panel" type="button" role="tab">
                 <i class="bi bi-people"></i> Labor
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule-panel" type="button" role="tab">
+                <i class="bi bi-calendar-range"></i> Schedule
             </button>
         </li>
     </ul>
@@ -603,6 +763,49 @@
             </div>
         </div>
         
+        <div class="tab-pane fade" id="schedule-panel" role="tabpanel">
+            <div class="section-title"><i class="bi bi-calendar-range"></i>Production Schedule - Gantt View</div>
+            
+            <div class="gantt-legend mb-3">
+                <span class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> Planned</span>
+                <span class="legend-item"><span class="legend-color" style="background: #3b82f6;"></span> Released</span>
+                <span class="legend-item"><span class="legend-color" style="background: #10b981;"></span> In Progress</span>
+                <span class="legend-item"><span class="legend-color" style="background: #ef4444;"></span> Overdue</span>
+            </div>
+            
+            <div class="gantt-container" id="ganttContainer">
+                <div class="gantt-header" id="ganttHeader"></div>
+                <div class="gantt-body" id="ganttBody">
+                    {% for wo in schedule_data %}
+                    <div class="gantt-row" 
+                         data-id="{{ wo.id }}"
+                         data-wo="{{ wo.wo_number }}"
+                         data-start="{{ wo.planned_start_date or '' }}"
+                         data-end="{{ wo.planned_end_date or '' }}"
+                         data-status="{{ wo.status }}"
+                         data-stage="{{ wo.stage_name or '' }}"
+                         data-stage-color="{{ wo.stage_color or '#6c757d' }}"
+                         data-product="{{ wo.product_code }} - {{ wo.product_name }}"
+                         data-customer="{{ wo.customer_name or '' }}">
+                        <div class="gantt-row-label">
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="wo-link">{{ wo.wo_number }}</a>
+                            <div class="wo-details">
+                                <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }}; font-size: 0.6rem;">{{ wo.stage_name or 'No Stage' }}</span>
+                                <span class="status-badge status-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span>
+                            </div>
+                        </div>
+                        <div class="gantt-row-timeline"></div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-calendar-x fs-1 mb-3 d-block"></i>
+                        <p>No scheduled work orders found. Work orders need planned start/end dates to appear here.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
     </div>
 </div>
 {% endblock %}
@@ -687,5 +890,115 @@ document.getElementById('trends-tab').addEventListener('shown.bs.tab', function(
 if (document.getElementById('trends-panel').classList.contains('active')) {
     initChart();
 }
+
+function initGantt() {
+    const ganttBody = document.getElementById('ganttBody');
+    const ganttHeader = document.getElementById('ganttHeader');
+    const rows = ganttBody.querySelectorAll('.gantt-row');
+    
+    if (rows.length === 0) return;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let minDate = null;
+    let maxDate = null;
+    
+    rows.forEach(row => {
+        const startStr = row.dataset.start;
+        const endStr = row.dataset.end;
+        
+        if (startStr) {
+            const start = new Date(startStr);
+            if (!minDate || start < minDate) minDate = start;
+        }
+        if (endStr) {
+            const end = new Date(endStr);
+            if (!maxDate || end > maxDate) maxDate = end;
+        }
+    });
+    
+    if (!minDate) minDate = new Date(today);
+    if (!maxDate) maxDate = new Date(today);
+    
+    minDate.setDate(minDate.getDate() - 3);
+    maxDate.setDate(maxDate.getDate() + 7);
+    
+    const dayWidth = 40;
+    const days = [];
+    const currentDate = new Date(minDate);
+    
+    while (currentDate <= maxDate) {
+        days.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    let headerHtml = '<div class="gantt-header-label">Work Order</div>';
+    headerHtml += '<div class="gantt-header-timeline">';
+    days.forEach(day => {
+        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+        const isToday = day.getTime() === today.getTime();
+        const dayNum = day.getDate();
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const dayLabel = dayNum === 1 || days.indexOf(day) === 0 ? 
+            `${monthNames[day.getMonth()]} ${dayNum}` : dayNum;
+        
+        headerHtml += `<div class="gantt-day ${isWeekend ? 'weekend' : ''} ${isToday ? 'today' : ''}">${dayLabel}</div>`;
+    });
+    headerHtml += '</div>';
+    ganttHeader.innerHTML = headerHtml;
+    
+    rows.forEach(row => {
+        const timeline = row.querySelector('.gantt-row-timeline');
+        const startStr = row.dataset.start;
+        const endStr = row.dataset.end;
+        const status = row.dataset.status;
+        const woNumber = row.dataset.wo;
+        
+        if (!startStr && !endStr) {
+            timeline.innerHTML = '<span class="text-muted ps-2" style="font-size: 0.75rem;">No dates set</span>';
+            return;
+        }
+        
+        const startDate = startStr ? new Date(startStr) : new Date(endStr);
+        const endDate = endStr ? new Date(endStr) : new Date(startStr);
+        
+        const startOffset = Math.floor((startDate - minDate) / (1000 * 60 * 60 * 24));
+        const duration = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
+        
+        const left = startOffset * dayWidth;
+        const width = duration * dayWidth;
+        
+        let barClass = 'planned';
+        if (status === 'In Progress') {
+            barClass = 'in-progress';
+        } else if (status === 'Released') {
+            barClass = 'released';
+        }
+        
+        if (endDate < today && status !== 'Completed') {
+            barClass = 'overdue';
+        }
+        
+        let gridHtml = '';
+        days.forEach((day, idx) => {
+            gridHtml += `<div class="gantt-grid-line" style="left: ${idx * dayWidth}px;"></div>`;
+        });
+        
+        const todayOffset = Math.floor((today - minDate) / (1000 * 60 * 60 * 24));
+        if (todayOffset >= 0 && todayOffset < days.length) {
+            gridHtml += `<div class="gantt-today-line" style="left: ${todayOffset * dayWidth + dayWidth/2}px;"></div>`;
+        }
+        
+        timeline.innerHTML = gridHtml + 
+            `<div class="gantt-bar ${barClass}" style="left: ${left}px; width: ${width}px;" 
+                  title="${woNumber}: ${startStr || 'N/A'} to ${endStr || 'N/A'}">${woNumber}</div>`;
+        timeline.style.minWidth = `${days.length * dayWidth}px`;
+    });
+}
+
+document.getElementById('schedule-tab').addEventListener('shown.bs.tab', function() {
+    setTimeout(initGantt, 100);
+});
 </script>
 {% endblock %}

@@ -258,6 +258,47 @@ def operations_dashboard():
         AND mr.work_order_id IN (SELECT id FROM work_orders WHERE status NOT IN ('Completed', 'Cancelled'))
     ''').fetchone()
     
+    schedule_data_raw = conn.execute('''
+        SELECT 
+            wo.id,
+            wo.wo_number,
+            wo.status,
+            wo.planned_start_date,
+            wo.planned_end_date,
+            wo.actual_start_date,
+            wo.actual_end_date,
+            wo.priority,
+            p.code as product_code,
+            p.name as product_name,
+            wos.name as stage_name,
+            wos.color as stage_color,
+            c.name as customer_name
+        FROM work_orders wo
+        LEFT JOIN products p ON wo.product_id = p.id
+        LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE wo.status NOT IN ('Completed', 'Cancelled')
+        AND (wo.planned_start_date IS NOT NULL OR wo.planned_end_date IS NOT NULL)
+        ORDER BY wo.planned_start_date, wo.priority DESC
+        LIMIT 50
+    ''').fetchall()
+    
+    schedule_data = [{
+        'id': row['id'],
+        'wo_number': row['wo_number'],
+        'status': row['status'],
+        'planned_start_date': row['planned_start_date'],
+        'planned_end_date': row['planned_end_date'],
+        'actual_start_date': row['actual_start_date'],
+        'actual_end_date': row['actual_end_date'],
+        'priority': row['priority'],
+        'product_code': row['product_code'],
+        'product_name': row['product_name'],
+        'stage_name': row['stage_name'],
+        'stage_color': row['stage_color'],
+        'customer_name': row['customer_name']
+    } for row in schedule_data_raw]
+    
     conn.close()
     
     return render_template('operations/dashboard.html',
@@ -276,4 +317,5 @@ def operations_dashboard():
                          on_time_delivery=on_time_delivery,
                          otd_rate=otd_rate,
                          material_shortage=material_shortage,
+                         schedule_data=schedule_data,
                          today=today_str)
