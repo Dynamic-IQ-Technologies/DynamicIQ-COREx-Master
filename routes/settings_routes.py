@@ -66,7 +66,15 @@ def edit_accounting_preferences():
             'duns_number': current_settings['duns_number'],
             'cage_code': current_settings['cage_code'],
             'logo_filename': current_settings['logo_filename'],
-            'auto_post_invoice_gl': 1 if request.form.get('auto_post_invoice_gl') == 'on' else 0
+            'auto_post_invoice_gl': 1 if request.form.get('auto_post_invoice_gl') == 'on' else 0,
+            'marketing_tagline': current_settings['marketing_tagline'],
+            'brand_primary_color': current_settings['brand_primary_color'],
+            'brand_secondary_color': current_settings['brand_secondary_color'],
+            'brand_accent_color': current_settings['brand_accent_color'],
+            'brand_tone': current_settings['brand_tone'],
+            'marketing_description': current_settings['marketing_description'],
+            'target_industries': current_settings['target_industries'],
+            'key_differentiators': current_settings['key_differentiators']
         }
         
         CompanySettings.create_or_update(data, user_id)
@@ -88,6 +96,8 @@ def edit_company_settings():
             settings = CompanySettings.get_or_create_default()
             return render_template('settings/edit.html', settings=settings)
         
+        current_settings = CompanySettings.get()
+        
         data = {
             'company_name': company_name,
             'dba': request.form.get('dba', ''),
@@ -103,10 +113,18 @@ def edit_company_settings():
             'tax_id': request.form.get('tax_id', ''),
             'duns_number': request.form.get('duns_number', ''),
             'cage_code': request.form.get('cage_code', ''),
-            'logo_filename': None
+            'logo_filename': None,
+            'auto_post_invoice_gl': current_settings['auto_post_invoice_gl'] if current_settings else 0,
+            'marketing_tagline': current_settings['marketing_tagline'] if current_settings else None,
+            'brand_primary_color': current_settings['brand_primary_color'] if current_settings else '#1e40af',
+            'brand_secondary_color': current_settings['brand_secondary_color'] if current_settings else '#f97316',
+            'brand_accent_color': current_settings['brand_accent_color'] if current_settings else '#10b981',
+            'brand_tone': current_settings['brand_tone'] if current_settings else 'Enterprise',
+            'marketing_description': current_settings['marketing_description'] if current_settings else None,
+            'target_industries': current_settings['target_industries'] if current_settings else None,
+            'key_differentiators': current_settings['key_differentiators'] if current_settings else None
         }
         
-        current_settings = CompanySettings.get()
         if current_settings and current_settings['logo_filename']:
             data['logo_filename'] = current_settings['logo_filename']
         
@@ -143,3 +161,48 @@ def edit_company_settings():
     
     settings = CompanySettings.get_or_create_default()
     return render_template('settings/edit.html', settings=settings)
+
+@settings_bp.route('/settings/marketing', methods=['GET', 'POST'])
+@role_required('Admin')
+def edit_marketing_settings():
+    """Edit marketing presentation generator settings"""
+    if request.method == 'POST':
+        from flask import session
+        user_id = session.get('user_id')
+        
+        current_settings = CompanySettings.get()
+        
+        data = {
+            'company_name': current_settings['company_name'],
+            'dba': current_settings['dba'],
+            'address_line1': current_settings['address_line1'],
+            'address_line2': current_settings['address_line2'],
+            'city': current_settings['city'],
+            'state': current_settings['state'],
+            'postal_code': current_settings['postal_code'],
+            'country': current_settings['country'],
+            'phone': current_settings['phone'],
+            'email': current_settings['email'],
+            'website': current_settings['website'],
+            'tax_id': current_settings['tax_id'],
+            'duns_number': current_settings['duns_number'],
+            'cage_code': current_settings['cage_code'],
+            'logo_filename': current_settings['logo_filename'],
+            'auto_post_invoice_gl': current_settings['auto_post_invoice_gl'],
+            'marketing_tagline': request.form.get('marketing_tagline', ''),
+            'brand_primary_color': request.form.get('brand_primary_color', '#1e40af'),
+            'brand_secondary_color': request.form.get('brand_secondary_color', '#f97316'),
+            'brand_accent_color': request.form.get('brand_accent_color', '#10b981'),
+            'brand_tone': request.form.get('brand_tone', 'Enterprise'),
+            'marketing_description': request.form.get('marketing_description', ''),
+            'target_industries': request.form.get('target_industries', ''),
+            'key_differentiators': request.form.get('key_differentiators', '')
+        }
+        
+        CompanySettings.create_or_update(data, user_id)
+        
+        flash('Marketing presentation settings updated successfully.', 'success')
+        return redirect(url_for('settings_routes.view_company_settings'))
+    
+    settings = CompanySettings.get_or_create_default()
+    return render_template('settings/edit_marketing.html', settings=settings)

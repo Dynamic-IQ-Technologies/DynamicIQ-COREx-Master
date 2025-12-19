@@ -686,6 +686,48 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Add Marketing Presentation Generator columns to company_settings
+        if 'marketing_tagline' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN marketing_tagline TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'brand_primary_color' not in cs_columns:
+            try:
+                cursor.execute("ALTER TABLE company_settings ADD COLUMN brand_primary_color TEXT DEFAULT '#1e40af'")
+            except sqlite3.OperationalError:
+                pass
+        if 'brand_secondary_color' not in cs_columns:
+            try:
+                cursor.execute("ALTER TABLE company_settings ADD COLUMN brand_secondary_color TEXT DEFAULT '#f97316'")
+            except sqlite3.OperationalError:
+                pass
+        if 'brand_accent_color' not in cs_columns:
+            try:
+                cursor.execute("ALTER TABLE company_settings ADD COLUMN brand_accent_color TEXT DEFAULT '#10b981'")
+            except sqlite3.OperationalError:
+                pass
+        if 'brand_tone' not in cs_columns:
+            try:
+                cursor.execute("ALTER TABLE company_settings ADD COLUMN brand_tone TEXT DEFAULT 'Enterprise'")
+            except sqlite3.OperationalError:
+                pass
+        if 'marketing_description' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN marketing_description TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'target_industries' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN target_industries TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'key_differentiators' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN key_differentiators TEXT')
+            except sqlite3.OperationalError:
+                pass
+        
         # Add work_order_id and task_id columns to time_clock_punches if they don't exist
         tcp_columns = [row[1] for row in cursor.execute('PRAGMA table_info(time_clock_punches)').fetchall()]
         if 'work_order_id' not in tcp_columns:
@@ -3630,6 +3672,9 @@ class CompanySettings:
                     city = ?, state = ?, postal_code = ?, country = ?,
                     phone = ?, email = ?, website = ?, tax_id = ?,
                     duns_number = ?, cage_code = ?, logo_filename = ?, auto_post_invoice_gl = ?,
+                    marketing_tagline = ?, brand_primary_color = ?, brand_secondary_color = ?,
+                    brand_accent_color = ?, brand_tone = ?, marketing_description = ?,
+                    target_industries = ?, key_differentiators = ?,
                     updated_by = ?, last_updated = CURRENT_TIMESTAMP
                 WHERE id = 1
             ''', (
@@ -3639,6 +3684,10 @@ class CompanySettings:
                 data.get('email'), data.get('website'), data.get('tax_id'),
                 data.get('duns_number'), data.get('cage_code'), data.get('logo_filename'),
                 data.get('auto_post_invoice_gl', 0),
+                data.get('marketing_tagline'), data.get('brand_primary_color', '#1e40af'),
+                data.get('brand_secondary_color', '#f97316'), data.get('brand_accent_color', '#10b981'),
+                data.get('brand_tone', 'Enterprise'), data.get('marketing_description'),
+                data.get('target_industries'), data.get('key_differentiators'),
                 user_id
             ))
         else:
@@ -3646,8 +3695,11 @@ class CompanySettings:
                 INSERT INTO company_settings (
                     id, company_name, dba, address_line1, address_line2,
                     city, state, postal_code, country, phone, email, website,
-                    tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl, updated_by
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl,
+                    marketing_tagline, brand_primary_color, brand_secondary_color,
+                    brand_accent_color, brand_tone, marketing_description,
+                    target_industries, key_differentiators, updated_by
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get('company_name'), data.get('dba'), data.get('address_line1'),
                 data.get('address_line2'), data.get('city'), data.get('state'),
@@ -3655,6 +3707,10 @@ class CompanySettings:
                 data.get('email'), data.get('website'), data.get('tax_id'),
                 data.get('duns_number'), data.get('cage_code'), data.get('logo_filename'),
                 data.get('auto_post_invoice_gl', 0),
+                data.get('marketing_tagline'), data.get('brand_primary_color', '#1e40af'),
+                data.get('brand_secondary_color', '#f97316'), data.get('brand_accent_color', '#10b981'),
+                data.get('brand_tone', 'Enterprise'), data.get('marketing_description'),
+                data.get('target_industries'), data.get('key_differentiators'),
                 user_id
             ))
         
@@ -3682,7 +3738,15 @@ class CompanySettings:
                 'duns_number': '',
                 'cage_code': '',
                 'logo_filename': None,
-                'auto_post_invoice_gl': 0
+                'auto_post_invoice_gl': 0,
+                'marketing_tagline': None,
+                'brand_primary_color': '#1e40af',
+                'brand_secondary_color': '#f97316',
+                'brand_accent_color': '#10b981',
+                'brand_tone': 'Enterprise',
+                'marketing_description': None,
+                'target_industries': None,
+                'key_differentiators': None
             }
             db = Database()
             conn = db.get_connection()
@@ -3690,8 +3754,11 @@ class CompanySettings:
                 INSERT INTO company_settings (
                     id, company_name, dba, address_line1, address_line2,
                     city, state, postal_code, country, phone, email, website,
-                    tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl,
+                    marketing_tagline, brand_primary_color, brand_secondary_color,
+                    brand_accent_color, brand_tone, marketing_description,
+                    target_industries, key_differentiators
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 default_data['company_name'], default_data['dba'],
                 default_data['address_line1'], default_data['address_line2'],
@@ -3699,7 +3766,11 @@ class CompanySettings:
                 default_data['country'], default_data['phone'], default_data['email'],
                 default_data['website'], default_data['tax_id'], default_data['duns_number'],
                 default_data['cage_code'], default_data['logo_filename'],
-                default_data['auto_post_invoice_gl']
+                default_data['auto_post_invoice_gl'],
+                default_data['marketing_tagline'], default_data['brand_primary_color'],
+                default_data['brand_secondary_color'], default_data['brand_accent_color'],
+                default_data['brand_tone'], default_data['marketing_description'],
+                default_data['target_industries'], default_data['key_differentiators']
             ))
             conn.commit()
             conn.close()

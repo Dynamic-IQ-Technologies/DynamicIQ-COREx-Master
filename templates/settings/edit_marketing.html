@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Marketing Settings - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<style>
+    .color-picker-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .color-preview {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        cursor: pointer;
+    }
+    .color-input {
+        width: 100px;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-megaphone me-2"></i>Marketing Presentation Settings</h2>
+        <p class="text-muted mb-0">Configure branding and content for autonomous marketing presentation generation</p>
+    </div>
+    <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Settings
+    </a>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-quote me-2"></i>Brand Messaging</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="marketing_tagline" class="form-label">Tagline <span class="text-muted">(e.g., AI-Powered, Autonomous, Enterprise-Ready)</span></label>
+                        <input type="text" class="form-control" id="marketing_tagline" name="marketing_tagline" 
+                               value="{{ settings.marketing_tagline or '' }}" 
+                               placeholder="Your powerful ERP tagline...">
+                        <div class="form-text">A short, impactful statement that captures your system's value proposition</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="brand_tone" class="form-label">Brand Tone</label>
+                        <select class="form-select" id="brand_tone" name="brand_tone">
+                            <option value="Enterprise" {% if settings.brand_tone == 'Enterprise' %}selected{% endif %}>Enterprise - Professional, reliable, corporate-focused</option>
+                            <option value="Innovative" {% if settings.brand_tone == 'Innovative' %}selected{% endif %}>Innovative - Cutting-edge, forward-thinking, tech-focused</option>
+                            <option value="Authoritative" {% if settings.brand_tone == 'Authoritative' %}selected{% endif %}>Authoritative - Expert, trusted, industry-leading</option>
+                        </select>
+                        <div class="form-text">Sets the overall tone for generated marketing content</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="marketing_description" class="form-label">System Description</label>
+                        <textarea class="form-control" id="marketing_description" name="marketing_description" rows="4" 
+                                  placeholder="Describe your ERP system, its purpose, and who it's built for...">{{ settings.marketing_description or '' }}</textarea>
+                        <div class="form-text">Executive-level description of what your system does and for whom</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Target Market</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="target_industries" class="form-label">Target Industries</label>
+                        <textarea class="form-control" id="target_industries" name="target_industries" rows="3" 
+                                  placeholder="e.g., Manufacturing, Aerospace, Defense, Aviation MRO...">{{ settings.target_industries or '' }}</textarea>
+                        <div class="form-text">Industries your system serves (comma-separated)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="key_differentiators" class="form-label">Key Differentiators</label>
+                        <textarea class="form-control" id="key_differentiators" name="key_differentiators" rows="4" 
+                                  placeholder="What makes your system unique? List competitive advantages...">{{ settings.key_differentiators or '' }}</textarea>
+                        <div class="form-text">What sets your system apart from competitors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-palette me-2"></i>Brand Colors</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">These colors will be used in generated presentations and marketing materials.</p>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Primary Color</label>
+                        <div class="color-picker-group">
+                            <input type="color" class="color-preview" id="brand_primary_color_picker" 
+                                   value="{{ settings.brand_primary_color or '#1e40af' }}"
+                                   onchange="document.getElementById('brand_primary_color').value = this.value">
+                            <input type="text" class="form-control color-input" id="brand_primary_color" 
+                                   name="brand_primary_color" 
+                                   value="{{ settings.brand_primary_color or '#1e40af' }}"
+                                   onchange="document.getElementById('brand_primary_color_picker').value = this.value"
+                                   pattern="^#[0-9A-Fa-f]{6}$">
+                            <span class="text-muted">Main brand color (headers, buttons)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Secondary Color</label>
+                        <div class="color-picker-group">
+                            <input type="color" class="color-preview" id="brand_secondary_color_picker" 
+                                   value="{{ settings.brand_secondary_color or '#f97316' }}"
+                                   onchange="document.getElementById('brand_secondary_color').value = this.value">
+                            <input type="text" class="form-control color-input" id="brand_secondary_color" 
+                                   name="brand_secondary_color" 
+                                   value="{{ settings.brand_secondary_color or '#f97316' }}"
+                                   onchange="document.getElementById('brand_secondary_color_picker').value = this.value"
+                                   pattern="^#[0-9A-Fa-f]{6}$">
+                            <span class="text-muted">Accent highlights, CTAs</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Accent Color</label>
+                        <div class="color-picker-group">
+                            <input type="color" class="color-preview" id="brand_accent_color_picker" 
+                                   value="{{ settings.brand_accent_color or '#10b981' }}"
+                                   onchange="document.getElementById('brand_accent_color').value = this.value">
+                            <input type="text" class="form-control color-input" id="brand_accent_color" 
+                                   name="brand_accent_color" 
+                                   value="{{ settings.brand_accent_color or '#10b981' }}"
+                                   onchange="document.getElementById('brand_accent_color_picker').value = this.value"
+                                   pattern="^#[0-9A-Fa-f]{6}$">
+                            <span class="text-muted">Success states, positive highlights</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-light border">
+                        <h6 class="mb-2">Color Preview</h6>
+                        <div class="d-flex gap-2">
+                            <div id="previewPrimary" style="width: 80px; height: 40px; border-radius: 4px; background-color: {{ settings.brand_primary_color or '#1e40af' }};"></div>
+                            <div id="previewSecondary" style="width: 80px; height: 40px; border-radius: 4px; background-color: {{ settings.brand_secondary_color or '#f97316' }};"></div>
+                            <div id="previewAccent" style="width: 80px; height: 40px; border-radius: 4px; background-color: {{ settings.brand_accent_color or '#10b981' }};"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI Generation Info</h5>
+                </div>
+                <div class="card-body">
+                    <p>The Autonomous Marketing Presentation Generator uses these settings to:</p>
+                    <ul class="mb-0">
+                        <li>Generate investor-ready presentations</li>
+                        <li>Create customer-facing marketing materials</li>
+                        <li>Build consistent brand messaging</li>
+                        <li>Showcase system capabilities accurately</li>
+                        <li>Produce PDF exports and shareable links</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Save Marketing Settings
+        </button>
+    </div>
+</form>
+
+<script>
+document.getElementById('brand_primary_color_picker').addEventListener('input', function() {
+    document.getElementById('previewPrimary').style.backgroundColor = this.value;
+});
+document.getElementById('brand_secondary_color_picker').addEventListener('input', function() {
+    document.getElementById('previewSecondary').style.backgroundColor = this.value;
+});
+document.getElementById('brand_accent_color_picker').addEventListener('input', function() {
+    document.getElementById('previewAccent').style.backgroundColor = this.value;
+});
+</script>
+{% endblock %}
