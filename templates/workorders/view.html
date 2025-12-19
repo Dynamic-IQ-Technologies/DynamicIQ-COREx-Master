@@ -580,16 +580,91 @@
     </div>
 
     <div class="tab-pane fade" id="materialsPane" role="tabpanel">
-        <div class="card">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i> All Task Materials Summary</h6>
+            </div>
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="text-muted">Materials assigned at work order level</span>
+                {% set all_task_materials = [] %}
+                {% for task in tasks %}
+                    {% if task_materials[task.id] %}
+                        {% for mat in task_materials[task.id] %}
+                            {% set _ = all_task_materials.append({'task': task, 'mat': mat}) %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if all_task_materials %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Task</th>
+                                <th>Part #</th>
+                                <th>Description</th>
+                                <th class="text-center">Required</th>
+                                <th class="text-center">Issued</th>
+                                <th class="text-center">Consumed</th>
+                                <th>Status</th>
+                                <th>Location</th>
+                                <th>Lot/Serial</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in all_task_materials %}
+                            {% set task = item.task %}
+                            {% set mat = item.mat %}
+                            <tr class="{% if (mat.issued_qty or 0) < (mat.required_qty or 0) %}table-warning{% endif %}">
+                                <td><span class="badge bg-secondary">{{ task.task_number }}</span> {{ task.task_name[:20] }}{% if task.task_name|length > 20 %}...{% endif %}</td>
+                                <td><strong>{{ mat.product_code }}</strong></td>
+                                <td>{{ mat.product_name[:30] }}{% if mat.product_name|length > 30 %}...{% endif %}</td>
+                                <td class="text-center">{{ "%.2f"|format(mat.required_qty or 0) }}</td>
+                                <td class="text-center">{{ "%.2f"|format(mat.issued_qty or 0) }}</td>
+                                <td class="text-center">{{ "%.2f"|format(mat.consumed_qty or 0) }}</td>
+                                <td>
+                                    {% if mat.material_status == 'Consumed' %}
+                                    <span class="badge bg-success">Consumed</span>
+                                    {% elif mat.material_status == 'Issued' %}
+                                    <span class="badge bg-info">Issued</span>
+                                    {% elif mat.material_status == 'Partially Issued' %}
+                                    <span class="badge bg-warning text-dark">Partial</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ mat.material_status or 'Planned' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ mat.location or '-' }}</td>
+                                <td>
+                                    {% if mat.lot_number %}L: {{ mat.lot_number }}{% endif %}
+                                    {% if mat.serial_number %}S/N: {{ mat.serial_number }}{% endif %}
+                                    {% if not mat.lot_number and not mat.serial_number %}-{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-boxes" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">No task-level materials added yet</p>
+                    <small>Add materials to individual tasks in the Tasks tab</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-box-seam me-2"></i> Work Order Level Materials</h6>
                     {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
                     <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
                         <i class="bi bi-plus-circle"></i> Add Material
                     </button>
                     {% endif %}
                 </div>
+            </div>
+            <div class="card-body">
                 {% if requirements %}
                 <div class="table-responsive">
                     <table class="table table-sm table-striped">
