@@ -81,6 +81,26 @@
             </div>
 
             <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="repair_category" class="form-label">Repair Category</label>
+                        <select class="form-select" id="repair_category" name="repair_category">
+                            <option value="">Select Category</option>
+                            <option value="Major Component">Major Component</option>
+                            <option value="Small Component">Small Component</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="workorder_type" class="form-label">Work Order Type</label>
+                        <select class="form-select" id="workorder_type" name="workorder_type">
+                            <option value="">Select Type</option>
+                            <option value="Internal">Internal</option>
+                            <option value="External">External</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="stage_id" class="form-label">Stage</label>
@@ -92,7 +112,10 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-6">
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
                     <div class="mb-3">
                         <label for="operational_status" class="form-label">Operational Status</label>
                         <select class="form-select" id="operational_status" name="operational_status">
