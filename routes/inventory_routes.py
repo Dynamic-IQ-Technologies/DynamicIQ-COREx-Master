@@ -341,6 +341,24 @@ def edit_inventory(id):
             manufactured_date = request.form.get('manufactured_date', '').strip() or None
             country_of_origin = request.form.get('country_of_origin', '').strip() or None
             
+            # Times & Cycles fields
+            cycle_limit_str = request.form.get('cycle_limit', '').strip()
+            cycle_limit = float(cycle_limit_str) if cycle_limit_str else None
+            csn_str = request.form.get('csn', '').strip()
+            csn = float(csn_str) if csn_str else None
+            cso_str = request.form.get('cso', '').strip()
+            cso = float(cso_str) if cso_str else None
+            cycles_remaining_str = request.form.get('cycles_remaining', '').strip()
+            cycles_remaining = float(cycles_remaining_str) if cycles_remaining_str else None
+            time_limit_str = request.form.get('time_limit', '').strip()
+            time_limit = float(time_limit_str) if time_limit_str else None
+            tsn_str = request.form.get('tsn', '').strip()
+            tsn = float(tsn_str) if tsn_str else None
+            tso_str = request.form.get('tso', '').strip()
+            tso = float(tso_str) if tso_str else None
+            time_remaining_str = request.form.get('time_remaining', '').strip()
+            time_remaining = float(time_remaining_str) if time_remaining_str else None
+            
             # Validate serial number for serialized items
             if is_serialized:
                 if not serial_number:
@@ -389,13 +407,22 @@ def edit_inventory(id):
                     source=?,
                     manufactured_date=?,
                     country_of_origin=?,
+                    cycle_limit=?,
+                    csn=?,
+                    cso=?,
+                    cycles_remaining=?,
+                    time_limit=?,
+                    tsn=?,
+                    tso=?,
+                    time_remaining=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, unit_cost, warehouse_location, bin_location, 
                   condition, status, is_serialized, serial_number if serial_number else None,
                   expiration_date, last_inspection_date, next_inspection_date,
                   inspected_by, inspection_notes, trace_tag, trace, trace_type,
-                  msn_esn, mfr_code, lot_number, source, manufactured_date, country_of_origin, id))
+                  msn_esn, mfr_code, lot_number, source, manufactured_date, country_of_origin,
+                  cycle_limit, csn, cso, cycles_remaining, time_limit, tsn, tso, time_remaining, id))
             
             AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
                                   {'quantity': quantity, 'old_quantity': old_record['quantity'],

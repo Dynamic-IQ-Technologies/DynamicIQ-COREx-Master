@@ -228,6 +228,72 @@
 </div>
 
 <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Times & Cycles</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-muted border-bottom pb-2 mb-3"><i class="bi bi-arrow-repeat me-1"></i>Cycles</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>Cycle Limit:</strong> {{ '%.1f'|format(inventory.cycle_limit or 0) }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p><strong>Cycles Remaining:</strong> 
+                            {% set cr = inventory.cycles_remaining or 0 %}
+                            {% if cr <= 0 %}
+                            <span class="badge bg-danger">{{ '%.1f'|format(cr) }}</span>
+                            {% elif cr < 100 %}
+                            <span class="badge bg-warning text-dark">{{ '%.1f'|format(cr) }}</span>
+                            {% else %}
+                            <span class="text-success">{{ '%.1f'|format(cr) }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>CSN:</strong> {{ '%.1f'|format(inventory.csn or 0) }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p><strong>CSO:</strong> {{ '%.1f'|format(inventory.cso or 0) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted border-bottom pb-2 mb-3"><i class="bi bi-clock me-1"></i>Time (Hours)</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>Time Limit:</strong> {{ '%.1f'|format(inventory.time_limit or 0) }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p><strong>Time Remaining:</strong> 
+                            {% set tr = inventory.time_remaining or 0 %}
+                            {% if tr <= 0 %}
+                            <span class="badge bg-danger">{{ '%.1f'|format(tr) }}</span>
+                            {% elif tr < 100 %}
+                            <span class="badge bg-warning text-dark">{{ '%.1f'|format(tr) }}</span>
+                            {% else %}
+                            <span class="text-success">{{ '%.1f'|format(tr) }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>TSN:</strong> {{ '%.1f'|format(inventory.tsn or 0) }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p><strong>TSO:</strong> {{ '%.1f'|format(inventory.tso or 0) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">Inventory Record Details</h5>
     </div>

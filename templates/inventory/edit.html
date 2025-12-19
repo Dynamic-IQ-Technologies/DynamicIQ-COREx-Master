@@ -244,6 +244,82 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-speedometer2 text-info me-2"></i>Times & Cycles</h5>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-3"><i class="bi bi-arrow-repeat me-1"></i>Cycles</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cycle_limit" class="form-label">Cycle Limit</label>
+                                <input type="number" step="0.1" class="form-control" id="cycle_limit" name="cycle_limit" 
+                                       value="{{ inventory.cycle_limit or '' }}" placeholder="Max cycles allowed">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cycles_remaining" class="form-label">Cycles Remaining</label>
+                                <input type="number" step="0.1" class="form-control" id="cycles_remaining" name="cycles_remaining" 
+                                       value="{{ inventory.cycles_remaining or '' }}" placeholder="Remaining cycles">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="csn" class="form-label">CSN (Cycles Since New)</label>
+                                <input type="number" step="0.1" class="form-control" id="csn" name="csn" 
+                                       value="{{ inventory.csn or '' }}" placeholder="Cycles since new">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cso" class="form-label">CSO (Cycles Since Overhaul)</label>
+                                <input type="number" step="0.1" class="form-control" id="cso" name="cso" 
+                                       value="{{ inventory.cso or '' }}" placeholder="Cycles since overhaul">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-3"><i class="bi bi-clock me-1"></i>Time (Hours)</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="time_limit" class="form-label">Time Limit</label>
+                                <input type="number" step="0.1" class="form-control" id="time_limit" name="time_limit" 
+                                       value="{{ inventory.time_limit or '' }}" placeholder="Max hours allowed">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="time_remaining" class="form-label">Time Remaining</label>
+                                <input type="number" step="0.1" class="form-control" id="time_remaining" name="time_remaining" 
+                                       value="{{ inventory.time_remaining or '' }}" placeholder="Remaining hours">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tsn" class="form-label">TSN (Time Since New)</label>
+                                <input type="number" step="0.1" class="form-control" id="tsn" name="tsn" 
+                                       value="{{ inventory.tsn or '' }}" placeholder="Hours since new">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tso" class="form-label">TSO (Time Since Overhaul)</label>
+                                <input type="number" step="0.1" class="form-control" id="tso" name="tso" 
+                                       value="{{ inventory.tso or '' }}" placeholder="Hours since overhaul">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>

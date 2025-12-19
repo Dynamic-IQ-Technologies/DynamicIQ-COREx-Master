@@ -432,7 +432,15 @@ class Database:
             ('lot_number', 'TEXT'),
             ('source', 'TEXT'),
             ('manufactured_date', 'DATE'),
-            ('country_of_origin', 'TEXT')
+            ('country_of_origin', 'TEXT'),
+            ('cycle_limit', 'REAL'),
+            ('csn', 'REAL'),
+            ('cso', 'REAL'),
+            ('cycles_remaining', 'REAL'),
+            ('time_limit', 'REAL'),
+            ('tsn', 'REAL'),
+            ('tso', 'REAL'),
+            ('time_remaining', 'REAL')
         ]
         
         for col_name, col_type in inventory_new_columns:
