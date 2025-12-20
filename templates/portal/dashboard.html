@@ -249,11 +249,79 @@
     </div>
 
     <div class="tab-pane fade" id="quotes" role="tabpanel">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0 fw-semibold"><i class="bi bi-tools me-2"></i>Work Order Quotes</h5>
+                        <small class="text-muted">Quotes requiring your approval</small>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="woQuotesFilter" placeholder="Search quotes...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if wo_quotes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="woQuotesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase small">Quote #</th>
+                                <th class="text-uppercase small">Work Order</th>
+                                <th class="text-uppercase small">Product</th>
+                                <th class="text-uppercase small">Status</th>
+                                <th class="text-uppercase small">Total</th>
+                                <th class="text-uppercase small text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quote in wo_quotes %}
+                            <tr>
+                                <td class="fw-medium">{{ quote.quote_number }}</td>
+                                <td>{{ quote.wo_number }}</td>
+                                <td>
+                                    <span class="text-muted small">{{ quote.product_code }}</span><br>
+                                    {{ quote.product_name[:30] }}{% if quote.product_name|length > 30 %}...{% endif %}
+                                </td>
+                                <td>
+                                    {% if quote.status == 'Approved' %}
+                                    <span class="badge bg-success">{{ quote.status }}</span>
+                                    {% elif quote.status == 'Declined' %}
+                                    <span class="badge bg-danger">{{ quote.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">{{ quote.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ "$ {:,.2f}".format(quote.total_amount or 0) }}</td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('portal.portal_quote_detail', token=token, quote_id=quote.id) }}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye me-1"></i> View & Approve
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2 mb-0">No pending work order quotes</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
         <div class="card shadow-sm">
             <div class="card-header bg-white py-3">
                 <div class="row align-items-center">
                     <div class="col">
-                        <h5 class="mb-0 fw-semibold"><i class="bi bi-file-text me-2"></i>Pending Quotes</h5>
+                        <h5 class="mb-0 fw-semibold"><i class="bi bi-file-text me-2"></i>Sales Order Quotes</h5>
                     </div>
                     <div class="col-auto">
                         <div class="input-group input-group-sm" style="width: 250px;">
@@ -301,7 +369,7 @@
                 {% else %}
                 <div class="text-center py-5">
                     <i class="bi bi-file-text text-muted" style="font-size: 3rem;"></i>
-                    <p class="text-muted mt-2 mb-0">No pending quotes</p>
+                    <p class="text-muted mt-2 mb-0">No pending sales order quotes</p>
                 </div>
                 {% endif %}
             </div>

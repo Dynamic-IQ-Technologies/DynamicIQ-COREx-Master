@@ -1,0 +1,246 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Quote {{ quote.quote_number }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('portal.customer_portal', token=token) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Portal
+    </a>
+</div>
+
+{% if quote.status == 'Approved' %}
+<div class="alert alert-success d-flex align-items-center mb-4">
+    <i class="bi bi-check-circle-fill fs-4 me-3"></i>
+    <div>
+        <strong>Quote Approved</strong><br>
+        {% if quote.customer_approved_by %}
+        Approved by {{ quote.customer_approved_by }}{% if quote.customer_approver_title %} ({{ quote.customer_approver_title }}){% endif %} on {{ quote.customer_approved_at[:10] if quote.customer_approved_at else 'N/A' }}
+        {% else %}
+        This quote has been approved.
+        {% endif %}
+    </div>
+</div>
+{% elif quote.status == 'Declined' %}
+<div class="alert alert-danger d-flex align-items-center mb-4">
+    <i class="bi bi-x-circle-fill fs-4 me-3"></i>
+    <div>
+        <strong>Quote Declined</strong><br>
+        {% if quote.customer_decline_reason %}
+        Reason: {{ quote.customer_decline_reason }}
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-semibold">Quote {{ quote.quote_number }}</h5>
+                        <small class="text-muted">Work Order: {{ quote.wo_number }}</small>
+                    </div>
+                    {% if quote.status == 'Approved' %}
+                    <span class="badge bg-success fs-6">{{ quote.status }}</span>
+                    {% elif quote.status == 'Declined' %}
+                    <span class="badge bg-danger fs-6">{{ quote.status }}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark fs-6">{{ quote.status }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Product:</strong> {{ quote.product_code }} - {{ quote.product_name }}</p>
+                        <p class="mb-1"><strong>Customer:</strong> {{ quote.customer_name or customer.name }}</p>
+                        {% if quote.customer_account %}
+                        <p class="mb-1"><strong>Account:</strong> {{ quote.customer_account }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Quote Date:</strong> {{ quote.created_at[:10] if quote.created_at else 'N/A' }}</p>
+                        {% if quote.estimated_turnaround_days %}
+                        <p class="mb-1"><strong>Est. Turnaround:</strong> {{ quote.estimated_turnaround_days }} days</p>
+                        {% endif %}
+                        {% if quote.prepared_by_name %}
+                        <p class="mb-1"><strong>Prepared By:</strong> {{ quote.prepared_by_name }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if quote.description or quote.scope_of_work %}
+                <div class="mb-4">
+                    {% if quote.description %}
+                    <h6 class="fw-semibold">Description</h6>
+                    <p class="text-muted">{{ quote.description }}</p>
+                    {% endif %}
+                    {% if quote.scope_of_work %}
+                    <h6 class="fw-semibold">Scope of Work</h6>
+                    <p class="text-muted">{{ quote.scope_of_work }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <h6 class="fw-semibold mb-3">Quote Line Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase small">#</th>
+                                <th class="text-uppercase small">Type</th>
+                                <th class="text-uppercase small">Description</th>
+                                <th class="text-uppercase small text-end">Qty</th>
+                                <th class="text-uppercase small text-end">Unit Price</th>
+                                <th class="text-uppercase small text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in quote_lines %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    {% if line.line_type == 'Part' %}
+                                    <span class="badge bg-primary">Part</span>
+                                    {% elif line.line_type == 'Labor' %}
+                                    <span class="badge bg-info">Labor</span>
+                                    {% elif line.line_type == 'Service' %}
+                                    <span class="badge bg-success">Service</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ line.line_type or 'Item' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if line.product_code %}
+                                    <span class="text-muted small">{{ line.product_code }}</span><br>
+                                    {% endif %}
+                                    {{ line.description }}
+                                </td>
+                                <td class="text-end">{{ line.quantity or 1 }}</td>
+                                <td class="text-end">{{ "$ {:,.2f}".format(line.unit_price or 0) }}</td>
+                                <td class="text-end fw-medium">{{ "$ {:,.2f}".format(line.line_total or 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if quote.notes %}
+                <div class="mt-4">
+                    <h6 class="fw-semibold">Notes</h6>
+                    <p class="text-muted">{{ quote.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-calculator me-2"></i>Quote Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal (Parts/Services)</span>
+                    <span>{{ "$ {:,.2f}".format(quote.subtotal or 0) }}</span>
+                </div>
+                {% if quote.labor_amount %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Labor</span>
+                    <span>{{ "$ {:,.2f}".format(quote.labor_amount or 0) }}</span>
+                </div>
+                {% endif %}
+                {% if quote.consumables_amount %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Consumables</span>
+                    <span>{{ "$ {:,.2f}".format(quote.consumables_amount or 0) }}</span>
+                </div>
+                {% endif %}
+                {% if quote.other_fees_amount %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Other Fees</span>
+                    <span>{{ "$ {:,.2f}".format(quote.other_fees_amount or 0) }}</span>
+                </div>
+                {% endif %}
+                {% if quote.tax_amount %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tax ({{ quote.tax_rate or 0 }}%)</span>
+                    <span>{{ "$ {:,.2f}".format(quote.tax_amount or 0) }}</span>
+                </div>
+                {% endif %}
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <strong class="fs-5">Total</strong>
+                    <strong class="fs-5 text-success">{{ "$ {:,.2f}".format(quote.total_amount or 0) }}</strong>
+                </div>
+            </div>
+        </div>
+
+        {% if quote.status in ['Draft', 'Pending Approval', 'Sent'] %}
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-check-circle me-2"></i>Approve This Quote</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">
+                    By approving this quote, you authorize us to proceed with the work as outlined above.
+                </p>
+                <form action="{{ url_for('portal.portal_approve_quote', token=token, quote_id=quote.id) }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Your Name *</label>
+                        <input type="text" class="form-control" name="approver_name" value="{{ customer.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Your Title</label>
+                        <input type="text" class="form-control" name="approver_title" placeholder="e.g., Purchasing Manager">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Notes (Optional)</label>
+                        <textarea class="form-control" name="approval_notes" rows="2" placeholder="Any special instructions..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-lg me-1"></i> Approve Quote
+                    </button>
+                </form>
+                <hr class="my-3">
+                <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="collapse" data-bs-target="#declineForm">
+                    <i class="bi bi-x-lg me-1"></i> Decline Quote
+                </button>
+                <div class="collapse mt-3" id="declineForm">
+                    <form action="{{ url_for('portal.portal_decline_quote', token=token, quote_id=quote.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Reason for Declining</label>
+                            <textarea class="form-control" name="decline_reason" rows="3" placeholder="Please let us know why..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-x-lg me-1"></i> Confirm Decline
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if quote.customer_approval_notes %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-quote me-2"></i>Approval Notes</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0 text-muted">{{ quote.customer_approval_notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <p class="text-muted small">
+        <i class="bi bi-info-circle me-1"></i>
+        Questions about this quote? Please contact us for assistance.
+    </p>
+</div>
+{% endblock %}

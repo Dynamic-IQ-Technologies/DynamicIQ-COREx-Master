@@ -3232,6 +3232,84 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_user_risk ON it_user_risk_scores(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_it_compliance ON it_compliance_assessments(framework)')
         
+        # Create work_order_quotes table for customer quoting
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_quotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quote_number TEXT UNIQUE NOT NULL,
+                work_order_id INTEGER,
+                customer_name TEXT,
+                customer_account TEXT,
+                description TEXT,
+                scope_of_work TEXT,
+                estimated_turnaround_days INTEGER,
+                assigned_to TEXT,
+                department TEXT,
+                status TEXT DEFAULT 'Draft',
+                subtotal REAL DEFAULT 0,
+                tax_rate REAL DEFAULT 0,
+                tax_amount REAL DEFAULT 0,
+                total_amount REAL DEFAULT 0,
+                markup_percent REAL DEFAULT 0,
+                labor_amount REAL DEFAULT 0,
+                consumables_amount REAL DEFAULT 0,
+                other_fees_amount REAL DEFAULT 0,
+                notes TEXT,
+                prepared_by INTEGER,
+                approved_by INTEGER,
+                customer_approved_at TEXT,
+                customer_approved_by TEXT,
+                customer_approver_title TEXT,
+                customer_approval_notes TEXT,
+                customer_declined_at TEXT,
+                customer_decline_reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+                FOREIGN KEY (prepared_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_quote_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quote_id INTEGER NOT NULL,
+                product_id INTEGER,
+                line_type TEXT DEFAULT 'Part',
+                description TEXT,
+                quantity REAL DEFAULT 1,
+                unit_price REAL DEFAULT 0,
+                line_total REAL DEFAULT 0,
+                sequence_number INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (quote_id) REFERENCES work_order_quotes(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
+        # Add customer portal approval columns to work_order_quotes if they don't exist
+        try:
+            cursor.execute("PRAGMA table_info(work_order_quotes)")
+            wo_quote_columns = {row[1] for row in cursor.fetchall()}
+            
+            new_wo_quote_cols = [
+                ('customer_approved_at', 'TEXT'),
+                ('customer_approved_by', 'TEXT'),
+                ('customer_approver_title', 'TEXT'),
+                ('customer_approval_notes', 'TEXT'),
+                ('customer_declined_at', 'TEXT'),
+                ('customer_decline_reason', 'TEXT'),
+            ]
+            for col_name, col_type in new_wo_quote_cols:
+                if col_name not in wo_quote_columns:
+                    try:
+                        cursor.execute(f'ALTER TABLE work_order_quotes ADD COLUMN {col_name} {col_type}')
+                    except sqlite3.OperationalError:
+                        pass
+        except sqlite3.OperationalError:
+            pass
+        
         # Initialize QMS tables
         init_qms_tables(cursor)
         
