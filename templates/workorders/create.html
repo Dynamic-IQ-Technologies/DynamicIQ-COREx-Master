@@ -39,6 +39,21 @@
             </div>
 
             <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="master_routing_id" class="form-label">Master Routing</label>
+                        <select class="form-select" id="master_routing_id" name="master_routing_id">
+                            <option value="">Auto-detect or select routing</option>
+                            {% for routing in master_routings %}
+                            <option value="{{ routing.id }}" data-product-id="{{ routing.product_id }}">{{ routing.routing_code }} - {{ routing.routing_name }} ({{ routing.routing_type }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank to auto-apply active routing for the selected product</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-md-3">
                     <div class="mb-3">
                         <label for="quantity" class="form-label">Quantity *</label>

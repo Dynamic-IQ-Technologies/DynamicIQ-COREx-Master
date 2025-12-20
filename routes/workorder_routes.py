@@ -3,6 +3,7 @@ from models import Database, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime
+from routes.master_routing_routes import apply_routing_to_work_order
 
 workorder_bp = Blueprint('workorder_routes', __name__)
 
@@ -238,10 +239,58 @@ def create_workorder():
         conn.close()
         
         if wo_id:
+            product_id = int(request.form['product_id'])
+            master_routing_id = request.form.get('master_routing_id')
+            if master_routing_id:
+                master_routing_id = int(master_routing_id)
+            
+            routing_applied = None
+            routing_error_msg = None
+            if master_routing_id or product_id:
+                routing_conn = db.get_connection()
+                try:
+                    routing_applied = apply_routing_to_work_order(
+                        routing_conn, 
+                        wo_id, 
+                        routing_id=master_routing_id, 
+                        product_id=product_id
+                    )
+                    routing_conn.commit()
+                except Exception as routing_error:
+                    routing_error_msg = str(routing_error)
+                    try:
+                        routing_conn.rollback()
+                    except:
+                        pass
+                    try:
+                        AuditLogger.log_change(
+                            conn=routing_conn,
+                            record_type='work_order',
+                            record_id=wo_id,
+                            action_type='Routing Application Failed',
+                            modified_by=session.get('user_id'),
+                            ip_address=request.remote_addr,
+                            user_agent=request.headers.get('User-Agent'),
+                            notes=f'Failed to apply master routing: {routing_error_msg}'
+                        )
+                        routing_conn.commit()
+                    except:
+                        pass
+                finally:
+                    try:
+                        routing_conn.close()
+                    except:
+                        pass
+            
             mrp = MRPEngine()
             mrp.calculate_requirements(wo_id)
             
-            flash(f'Work Order {wo_number} created successfully! Material requirements calculated.', 'success')
+            if routing_applied:
+                flash(f'Work Order {wo_number} created successfully with master routing applied!', 'success')
+            elif routing_error_msg:
+                flash(f'Work Order {wo_number} created but routing application failed. Please apply routing manually.', 'warning')
+            else:
+                flash(f'Work Order {wo_number} created successfully! Material requirements calculated.', 'success')
             return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
         else:
             flash('Failed to create work order after multiple attempts', 'danger')
@@ -250,6 +299,12 @@ def create_workorder():
     products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
     customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
+    master_routings = conn.execute('''
+        SELECT id, routing_code, routing_name, routing_type, product_id, status 
+        FROM master_routings 
+        WHERE status IN ('Active', 'Approved')
+        ORDER BY CASE status WHEN 'Active' THEN 1 WHEN 'Approved' THEN 2 END, routing_code
+    ''').fetchall()
     
     last_wo = conn.execute('''
         SELECT wo_number FROM work_orders 
@@ -271,7 +326,7 @@ def create_workorder():
     
     conn.close()
     
-    return render_template('workorders/create.html', products=products, customers=customers, stages=stages, next_wo_number=next_wo_number)
+    return render_template('workorders/create.html', products=products, customers=customers, stages=stages, next_wo_number=next_wo_number, master_routings=master_routings)
 
 @workorder_bp.route('/workorders/<int:id>')
 @login_required

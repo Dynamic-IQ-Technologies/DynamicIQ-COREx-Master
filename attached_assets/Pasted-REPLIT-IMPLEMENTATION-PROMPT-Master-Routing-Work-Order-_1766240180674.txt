@@ -1,0 +1,271 @@
+REPLIT IMPLEMENTATION PROMPT
+Master Routing (Work Order Template) Module
+
+ROLE:
+You are a senior ERP/MRO software architect upgrading an existing BOMs module into a Master Routing module that defines standard work order templates automatically applied when parts or assemblies are created.
+
+This module must support manufacturing, repair, inspection, and overhaul routings and integrate seamlessly with Inventory, Work Orders, Labor, Materials, Quality, and Compliance.
+
+🎯 OBJECTIVE
+
+Replace or extend the current BOMs module so it functions as a Master Routing system that:
+
+Defines standardized Work Order templates
+
+Auto-applies routings when parts are created or released
+
+Supports task sequencing, labor, materials, tools, and inspection steps
+
+Ensures repeatability, compliance, and scalability
+
+🧩 CORE MODULE CONCEPT
+
+Master Routing = Reusable Work Order Blueprint
+
+Each Master Routing represents:
+
+A standard process to build, inspect, repair, or overhaul a part
+
+A template that can auto-generate Work Orders and tasks
+
+1️⃣ Master Routing Entity (Header)
+
+Create a new entity/table called MasterRouting:
+
+Routing ID (auto-generated)
+
+Routing Name
+
+Routing Type:
+
+Manufacturing
+
+Repair
+
+Inspection
+
+Overhaul
+
+Calibration
+
+Part Number (or Part Class / Category)
+
+Revision
+
+Status (Draft, Approved, Obsolete)
+
+Default Work Order Type
+
+Effective Date / Expiration Date
+
+Regulatory Basis (FAA, EASA, AS9100, Internal)
+
+Created By / Approved By
+
+Timestamps
+
+2️⃣ Routing Operations (Tasks / Steps)
+
+Create MasterRoutingOperation linked to MasterRouting:
+
+Operation Sequence Number
+
+Operation Name
+
+Description / Instructions
+
+Work Center / Department
+
+Standard Labor Hours
+
+Skill / Certification Required
+
+Tooling / Equipment Required
+
+Setup Time & Run Time
+
+Operation Type:
+
+Build
+
+Disassembly
+
+Inspection
+
+Test
+
+Repair
+
+Reassembly
+
+Mandatory Flag (cannot skip)
+
+3️⃣ Materials & BOM Integration
+
+Each Routing Operation can include Operation Materials:
+
+Part Number
+
+Quantity Required
+
+Issue Type (Backflush / Manual)
+
+Scrap Factor
+
+Alternate Parts (optional)
+
+Serialized / Lot controlled flags
+
+This replaces static BOM behavior with operation-level material control.
+
+4️⃣ Quality & Inspection Steps
+
+Support embedded quality checkpoints:
+
+Inspection Type:
+
+In-Process
+
+Final
+
+First Article
+
+Inspection Criteria
+
+Measurement Data Capture
+
+Acceptance / Rejection rules
+
+Required Documents / Forms
+
+These steps must auto-generate inspection tasks in Work Orders.
+
+5️⃣ Auto-Application Logic (Critical)
+
+Implement logic so that when:
+
+A new Part Number is created
+
+OR a Work Order is created for a part
+
+The system:
+
+Detects applicable Master Routing by:
+
+Part Number
+
+Part Category
+
+Routing Type
+
+Auto-applies:
+
+Routing operations
+
+Materials
+
+Labor standards
+
+Inspection steps
+
+Users may override only if authorized.
+
+6️⃣ Work Order Generation
+
+When a Work Order is generated from a Master Routing:
+
+Create Work Order Header
+
+Auto-create ordered task list
+
+Attach materials to tasks
+
+Apply labor standards
+
+Apply quality inspections
+
+Lock routing if released
+
+7️⃣ Revision & Change Control
+
+Master Routing must support:
+
+Revision control
+
+Approval workflow
+
+Obsolete protection
+
+Change history log
+
+Released Work Orders must not change if routing is revised.
+
+8️⃣ UI / UX REQUIREMENTS
+Master Routing Screen
+
+Routing header details
+
+Operations in accordion or sequence view
+
+Tabs for:
+
+Operations
+
+Materials
+
+Quality
+
+Documents
+
+History
+
+Operation Editor
+
+Drag-and-drop sequencing
+
+Inline material assignment
+
+Labor & tooling definition
+
+9️⃣ Permissions & Governance
+
+Only authorized roles can:
+
+Create / revise routings
+
+Approve routings
+
+View-only access for operators
+
+🔐 COMPLIANCE & AUDIT
+
+Maintain routing history
+
+Log all changes
+
+Trace Work Orders back to Master Routing revision
+
+Ensure repeatability and regulatory compliance
+
+🔄 STATUS FLOW
+Draft
+→ Under Review
+→ Approved
+→ Active
+→ Obsolete
+
+✅ DELIVERABLES
+
+Updated data model
+
+Routing logic engine
+
+UI updates
+
+Auto-apply logic
+
+Integration with Work Orders, Inventory, Quality, and Documents
+
+Build this module as an enterprise-grade Master Routing system, replacing static BOMs with intelligent, reusable Work Order templates suitable for regulated MRO and manufacturing environments.
+
+If you want next, I can:

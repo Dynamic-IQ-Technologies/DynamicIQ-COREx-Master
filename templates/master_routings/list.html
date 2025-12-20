@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Master Routings - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-diagram-3 me-2"></i>Master Routings</h2>
+    {% if session.role in ['Admin', 'Planner'] %}
+    <a href="{{ url_for('master_routing_routes.create_routing') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> New Routing
+    </a>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control" placeholder="Search by code, name, or product..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <select name="type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for t in routing_types %}
+                    <option value="{{ t }}" {% if type_filter == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for s in routing_statuses %}
+                    <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search me-1"></i> Filter</button>
+                <a href="{{ url_for('master_routing_routes.list_routings') }}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if routings %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Routing Code</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Product</th>
+                        <th>Rev</th>
+                        <th>Operations</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in routings %}
+                    <tr>
+                        <td><strong>{{ r.routing_code }}</strong></td>
+                        <td>{{ r.routing_name }}</td>
+                        <td>
+                            {% if r.routing_type == 'Manufacturing' %}
+                            <span class="badge bg-primary">{{ r.routing_type }}</span>
+                            {% elif r.routing_type == 'Repair' %}
+                            <span class="badge bg-warning text-dark">{{ r.routing_type }}</span>
+                            {% elif r.routing_type == 'Inspection' %}
+                            <span class="badge bg-info">{{ r.routing_type }}</span>
+                            {% elif r.routing_type == 'Overhaul' %}
+                            <span class="badge bg-danger">{{ r.routing_type }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ r.routing_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.product_code or '-' }}</td>
+                        <td>{{ r.revision }}</td>
+                        <td><span class="badge bg-secondary">{{ r.operation_count }}</span></td>
+                        <td>
+                            {% if r.status == 'Draft' %}
+                            <span class="badge bg-secondary">{{ r.status }}</span>
+                            {% elif r.status == 'Under Review' %}
+                            <span class="badge bg-warning text-dark">{{ r.status }}</span>
+                            {% elif r.status == 'Approved' %}
+                            <span class="badge bg-success">{{ r.status }}</span>
+                            {% elif r.status == 'Active' %}
+                            <span class="badge bg-primary">{{ r.status }}</span>
+                            {% elif r.status == 'Obsolete' %}
+                            <span class="badge bg-dark">{{ r.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.created_by_name or '-' }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('master_routing_routes.view_routing', id=r.id) }}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-diagram-3 display-4 text-muted"></i>
+            <p class="text-muted mt-3">No master routings found.</p>
+            {% if session.role in ['Admin', 'Planner'] %}
+            <a href="{{ url_for('master_routing_routes.create_routing') }}" class="btn btn-primary mt-2">
+                <i class="bi bi-plus-circle me-1"></i> Create First Routing
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -51,6 +51,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Marketing Presentation Generator with PDF Download**: AI-powered generator using brand colors, taglines, and tones to create professional PDF presentations.
 -   **Repair Order (External Repair / MRO Services) Module**: Manages external repairs with a full lifecycle (Draft to Closed), state machine enforcement, item locking, outbound shipment creation, receiving workflow, and cost variance tracking.
 -   **Customer Portal with Work Order Quote Approval**: Token-based customer portal allowing customers to view pending work order quotes with pricing breakdowns (parts, labor, consumables, fees), approve or decline quotes with signature capture and notes, and full audit trail tracking including customer information and IP addresses.
+-   **Master Routing (Work Order Template) Module**: Standardized process templates for work orders with reusable operations, material requirements, and quality checks. Supports status workflow (Draft -> Under Review -> Approved -> Active -> Obsolete), automatic application to work orders during creation, and product-based routing matching.
 
 ## External Dependencies
 

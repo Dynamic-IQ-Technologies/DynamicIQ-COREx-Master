@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}{{ routing.routing_code }} - Master Routing{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-diagram-3 me-2"></i>{{ routing.routing_code }}</h2>
+        <small class="text-muted">{{ routing.routing_name }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        {% if session.role in ['Admin', 'Planner'] and routing.status not in ['Active', 'Obsolete'] %}
+        <a href="{{ url_for('master_routing_routes.edit_routing', id=routing.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i> Edit
+        </a>
+        {% endif %}
+        <a href="{{ url_for('master_routing_routes.list_routings') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Routing Details</h5>
+                {% if routing.status == 'Draft' %}
+                <span class="badge bg-secondary fs-6">Draft</span>
+                {% elif routing.status == 'Under Review' %}
+                <span class="badge bg-warning text-dark fs-6">Under Review</span>
+                {% elif routing.status == 'Approved' %}
+                <span class="badge bg-success fs-6">Approved</span>
+                {% elif routing.status == 'Active' %}
+                <span class="badge bg-primary fs-6">Active</span>
+                {% elif routing.status == 'Obsolete' %}
+                <span class="badge bg-dark fs-6">Obsolete</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Type:</strong> 
+                            {% if routing.routing_type == 'Manufacturing' %}
+                            <span class="badge bg-primary">{{ routing.routing_type }}</span>
+                            {% elif routing.routing_type == 'Repair' %}
+                            <span class="badge bg-warning text-dark">{{ routing.routing_type }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ routing.routing_type }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Revision:</strong> {{ routing.revision }}</p>
+                        <p><strong>Default WO Type:</strong> {{ routing.default_work_order_type or '-' }}</p>
+                        {% if routing.product_code %}
+                        <p><strong>Linked Product:</strong> {{ routing.product_code }} - {{ routing.product_name }}</p>
+                        {% endif %}
+                        {% if routing.product_category %}
+                        <p><strong>Product Category:</strong> {{ routing.product_category }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {% if routing.regulatory_basis %}
+                        <p><strong>Regulatory Basis:</strong> {{ routing.regulatory_basis }}</p>
+                        {% endif %}
+                        {% if routing.effective_date %}
+                        <p><strong>Effective Date:</strong> {{ routing.effective_date }}</p>
+                        {% endif %}
+                        <p><strong>Created By:</strong> {{ routing.created_by_name or '-' }}</p>
+                        {% if routing.approved_by_name %}
+                        <p><strong>Approved By:</strong> {{ routing.approved_by_name }} ({{ routing.approved_at[:10] if routing.approved_at else '' }})</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if routing.description %}
+                <hr>
+                <p class="mb-0"><strong>Description:</strong> {{ routing.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ol me-2"></i>Operations ({{ operation_details|length }})</h5>
+                {% if session.role in ['Admin', 'Planner'] and routing.status not in ['Active', 'Obsolete'] %}
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addOperationModal">
+                    <i class="bi bi-plus me-1"></i> Add Operation
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if operation_details %}
+                <div class="accordion" id="operationsAccordion">
+                    {% for od in operation_details %}
+                    {% set op = od.operation %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#op{{ op.id }}">
+                                <div class="d-flex justify-content-between w-100 me-3">
+                                    <span>
+                                        <strong class="me-2">{{ op.sequence_number }}.</strong>
+                                        {{ op.operation_name }}
+                                        {% if op.operation_code %}
+                                        <small class="text-muted">({{ op.operation_code }})</small>
+                                        {% endif %}
+                                    </span>
+                                    <span>
+                                        <span class="badge bg-info me-2">{{ op.operation_type }}</span>
+                                        {% if op.is_inspection_gate %}
+                                        <span class="badge bg-warning text-dark me-2"><i class="bi bi-shield-check"></i> Inspection Gate</span>
+                                        {% endif %}
+                                        {% if op.standard_labor_hours %}
+                                        <span class="badge bg-secondary">{{ op.standard_labor_hours }} hrs</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="op{{ op.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}">
+                            <div class="accordion-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        {% if op.description %}
+                                        <p><strong>Description:</strong> {{ op.description }}</p>
+                                        {% endif %}
+                                        {% if op.work_center_name %}
+                                        <p><strong>Work Center:</strong> {{ op.work_center_name }}</p>
+                                        {% endif %}
+                                        {% if op.department %}
+                                        <p><strong>Department:</strong> {{ op.department }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Labor Hours:</strong> {{ op.standard_labor_hours or 0 }} hrs</p>
+                                        {% if op.setup_time or op.run_time %}
+                                        <p><strong>Setup/Run Time:</strong> {{ op.setup_time or 0 }} / {{ op.run_time or 0 }} hrs</p>
+                                        {% endif %}
+                                        {% if op.skill_required %}
+                                        <p><strong>Skill Required:</strong> {{ op.skill_required }}</p>
+                                        {% endif %}
+                                        {% if op.tooling_required %}
+                                        <p><strong>Tooling:</strong> {{ op.tooling_required }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                {% if op.instructions %}
+                                <div class="alert alert-light">
+                                    <strong>Instructions:</strong><br>{{ op.instructions }}
+                                </div>
+                                {% endif %}
+
+                                <ul class="nav nav-tabs" role="tablist">
+                                    <li class="nav-item">
+                                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mat{{ op.id }}">
+                                            Materials ({{ od.materials|length }})
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#qc{{ op.id }}">
+                                            Quality Checks ({{ od.quality_checks|length }})
+                                        </button>
+                                    </li>
+                                </ul>
+                                <div class="tab-content border border-top-0 p-3">
+                                    <div class="tab-pane fade show active" id="mat{{ op.id }}">
+                                        {% if od.materials %}
+                                        <table class="table table-sm mb-0">
+                                            <thead><tr><th>Part</th><th>Qty</th><th>Scrap %</th><th>Issue</th><th></th></tr></thead>
+                                            <tbody>
+                                                {% for mat in od.materials %}
+                                                <tr>
+                                                    <td>{{ mat.product_code }} - {{ mat.product_name }}</td>
+                                                    <td>{{ mat.quantity_required }}</td>
+                                                    <td>{{ mat.scrap_percentage or 0 }}%</td>
+                                                    <td>{{ mat.issue_method }}</td>
+                                                    <td>
+                                                        {% if routing.status not in ['Active', 'Obsolete'] %}
+                                                        <form method="post" action="{{ url_for('master_routing_routes.delete_material', id=routing.id, mat_id=mat.id) }}" class="d-inline">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this material?')">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </form>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        {% else %}
+                                        <p class="text-muted mb-0">No materials assigned.</p>
+                                        {% endif %}
+                                        {% if routing.status not in ['Active', 'Obsolete'] %}
+                                        <button class="btn btn-sm btn-outline-success mt-2" data-bs-toggle="modal" data-bs-target="#addMaterialModal{{ op.id }}">
+                                            <i class="bi bi-plus"></i> Add Material
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                    <div class="tab-pane fade" id="qc{{ op.id }}">
+                                        {% if od.quality_checks %}
+                                        <table class="table table-sm mb-0">
+                                            <thead><tr><th>Check</th><th>Type</th><th>Criteria</th><th></th></tr></thead>
+                                            <tbody>
+                                                {% for qc in od.quality_checks %}
+                                                <tr>
+                                                    <td>{{ qc.check_name }}</td>
+                                                    <td><span class="badge bg-info">{{ qc.inspection_type }}</span></td>
+                                                    <td>{{ qc.acceptance_criteria or '-' }}</td>
+                                                    <td>
+                                                        {% if routing.status not in ['Active', 'Obsolete'] %}
+                                                        <form method="post" action="{{ url_for('master_routing_routes.delete_quality_check', id=routing.id, qc_id=qc.id) }}" class="d-inline">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this check?')">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </form>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        {% else %}
+                                        <p class="text-muted mb-0">No quality checks defined.</p>
+                                        {% endif %}
+                                        {% if routing.status not in ['Active', 'Obsolete'] %}
+                                        <button class="btn btn-sm btn-outline-warning mt-2" data-bs-toggle="modal" data-bs-target="#addQCModal{{ op.id }}">
+                                            <i class="bi bi-plus"></i> Add Quality Check
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                {% if routing.status not in ['Active', 'Obsolete'] %}
+                                <hr>
+                                <form method="post" action="{{ url_for('master_routing_routes.delete_operation', id=routing.id, op_id=op.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this operation and all its materials/checks?')">
+                                        <i class="bi bi-trash me-1"></i> Delete Operation
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-list-ol display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No operations defined yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        {% if session.role in ['Admin', 'Planner'] %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-gear me-2"></i>Status Actions</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Current Status:</strong> {{ routing.status }}</p>
+                <form method="post" action="{{ url_for('master_routing_routes.update_status', id=routing.id) }}">
+                    {% if routing.status == 'Draft' %}
+                    <button type="submit" name="status" value="Under Review" class="btn btn-warning w-100 mb-2">
+                        <i class="bi bi-send me-1"></i> Submit for Review
+                    </button>
+                    {% elif routing.status == 'Under Review' %}
+                    <button type="submit" name="status" value="Approved" class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-check-circle me-1"></i> Approve
+                    </button>
+                    <button type="submit" name="status" value="Draft" class="btn btn-secondary w-100 mb-2">
+                        <i class="bi bi-arrow-left me-1"></i> Return to Draft
+                    </button>
+                    {% elif routing.status == 'Approved' %}
+                    <button type="submit" name="status" value="Active" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-play-circle me-1"></i> Activate
+                    </button>
+                    <button type="submit" name="status" value="Draft" class="btn btn-outline-secondary w-100 mb-2">
+                        Return to Draft
+                    </button>
+                    {% elif routing.status == 'Active' %}
+                    <button type="submit" name="status" value="Obsolete" class="btn btn-dark w-100 mb-2" onclick="return confirm('Mark as obsolete? This cannot be undone.')">
+                        <i class="bi bi-archive me-1"></i> Mark Obsolete
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Summary</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Operations:</strong> {{ operation_details|length }}</p>
+                {% set total_hours = namespace(value=0) %}
+                {% set total_materials = namespace(value=0) %}
+                {% set total_checks = namespace(value=0) %}
+                {% for od in operation_details %}
+                    {% set total_hours.value = total_hours.value + (od.operation.standard_labor_hours or 0) %}
+                    {% set total_materials.value = total_materials.value + od.materials|length %}
+                    {% set total_checks.value = total_checks.value + od.quality_checks|length %}
+                {% endfor %}
+                <p><strong>Total Labor Hours:</strong> {{ total_hours.value }} hrs</p>
+                <p><strong>Total Materials:</strong> {{ total_materials.value }}</p>
+                <p><strong>Quality Checkpoints:</strong> {{ total_checks.value }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addOperationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('master_routing_routes.add_operation', id=routing.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Operation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Operation Name <span class="text-danger">*</span></label>
+                                <input type="text" name="operation_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Operation Code</label>
+                                <input type="text" name="operation_code" class="form-control" placeholder="e.g., OP-010">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Operation Type</label>
+                                <select name="operation_type" class="form-select">
+                                    {% for t in operation_types %}
+                                    <option value="{{ t }}">{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Work Center</label>
+                                <select name="work_center_id" class="form-select">
+                                    <option value="">-- None --</option>
+                                    {% for wc in work_centers %}
+                                    <option value="{{ wc.id }}">{{ wc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Department</label>
+                                <input type="text" name="department" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Standard Labor Hours</label>
+                                <input type="number" name="standard_labor_hours" class="form-control" step="0.25" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Setup Time (hrs)</label>
+                                <input type="number" name="setup_time" class="form-control" step="0.25" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Run Time (hrs)</label>
+                                <input type="number" name="run_time" class="form-control" step="0.25" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Skill Required</label>
+                                <input type="text" name="skill_required" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Tooling Required</label>
+                                <input type="text" name="tooling_required" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Instructions</label>
+                        <textarea name="instructions" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="is_mandatory" class="form-check-input" id="isMandatory" checked>
+                        <label class="form-check-label" for="isMandatory">Mandatory (cannot skip)</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="is_inspection_gate" class="form-check-input" id="isInspection">
+                        <label class="form-check-label" for="isInspection">Inspection Gate (requires quality signoff)</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus me-1"></i> Add Operation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% for od in operation_details %}
+{% set op = od.operation %}
+<div class="modal fade" id="addMaterialModal{{ op.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('master_routing_routes.add_material', id=routing.id, op_id=op.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Material to {{ op.operation_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Product <span class="text-danger">*</span></label>
+                        <select name="product_id" class="form-select" required>
+                            <option value="">Select...</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity Required</label>
+                                <input type="number" name="quantity_required" class="form-control" step="0.01" value="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Scrap %</label>
+                                <input type="number" name="scrap_percentage" class="form-control" step="0.1" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Issue Method</label>
+                        <select name="issue_method" class="form-select">
+                            <option value="Manual">Manual Issue</option>
+                            <option value="Backflush">Backflush</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addQCModal{{ op.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('master_routing_routes.add_quality_check', id=routing.id, op_id=op.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Quality Check to {{ op.operation_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Check Name <span class="text-danger">*</span></label>
+                        <input type="text" name="check_name" class="form-control" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Check Code</label>
+                                <input type="text" name="check_code" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Inspection Type</label>
+                                <select name="inspection_type" class="form-select">
+                                    {% for t in inspection_types %}
+                                    <option value="{{ t }}">{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Acceptance Criteria</label>
+                        <textarea name="acceptance_criteria" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Required Signoff Role</label>
+                        <input type="text" name="required_signoff_role" class="form-control" placeholder="e.g., QA Inspector">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="is_mandatory" class="form-check-input" id="qcMandatory{{ op.id }}" checked>
+                        <label class="form-check-label" for="qcMandatory{{ op.id }}">Mandatory</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Add Quality Check</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

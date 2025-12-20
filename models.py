@@ -912,6 +912,102 @@ class Database:
             )
         ''')
         
+        # Create Master Routing tables for reusable work order templates
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS master_routings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                routing_code TEXT UNIQUE NOT NULL,
+                routing_name TEXT NOT NULL,
+                description TEXT,
+                routing_type TEXT NOT NULL DEFAULT 'Manufacturing',
+                product_id INTEGER,
+                product_category TEXT,
+                revision TEXT DEFAULT '1.0',
+                status TEXT DEFAULT 'Draft',
+                default_work_order_type TEXT DEFAULT 'Production',
+                regulatory_basis TEXT,
+                effective_date DATE,
+                obsolete_date DATE,
+                created_by INTEGER,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS master_routing_operations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                routing_id INTEGER NOT NULL,
+                sequence_number INTEGER NOT NULL,
+                operation_code TEXT,
+                operation_name TEXT NOT NULL,
+                description TEXT,
+                instructions TEXT,
+                work_center_id INTEGER,
+                department TEXT,
+                operation_type TEXT DEFAULT 'Build',
+                standard_labor_hours REAL DEFAULT 0,
+                setup_time REAL DEFAULT 0,
+                run_time REAL DEFAULT 0,
+                teardown_time REAL DEFAULT 0,
+                crew_size INTEGER DEFAULT 1,
+                skill_required TEXT,
+                certification_required TEXT,
+                tooling_required TEXT,
+                is_mandatory INTEGER DEFAULT 1,
+                is_inspection_gate INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (routing_id) REFERENCES master_routings(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_center_id) REFERENCES work_centers(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS master_routing_materials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity_required REAL NOT NULL DEFAULT 1,
+                uom TEXT,
+                scrap_percentage REAL DEFAULT 0,
+                issue_method TEXT DEFAULT 'Manual',
+                is_serialized INTEGER DEFAULT 0,
+                is_lot_controlled INTEGER DEFAULT 0,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (operation_id) REFERENCES master_routing_operations(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS master_routing_quality_checks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_id INTEGER NOT NULL,
+                check_code TEXT,
+                check_name TEXT NOT NULL,
+                description TEXT,
+                inspection_type TEXT DEFAULT 'In-Process',
+                measurement_type TEXT,
+                measurement_target TEXT,
+                tolerance_low TEXT,
+                tolerance_high TEXT,
+                acceptance_criteria TEXT,
+                rejection_criteria TEXT,
+                sampling_plan TEXT,
+                required_signoff_role TEXT,
+                documents_required TEXT,
+                is_mandatory INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (operation_id) REFERENCES master_routing_operations(id) ON DELETE CASCADE
+            )
+        ''')
+        
         # Create order_stage_tracking table for customer service module
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS order_stage_tracking (
@@ -3495,6 +3591,10 @@ class Database:
         # Add is_aog column for AOG (Aircraft on Ground) status
         if 'is_aog' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN is_aog INTEGER DEFAULT 0")
+        
+        # Add master_routing_id for linking work orders to master routings
+        if 'master_routing_id' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN master_routing_id INTEGER REFERENCES master_routings(id)")
         
         # Seed default stages if none exist
         cursor.execute("SELECT COUNT(*) FROM work_order_stages")

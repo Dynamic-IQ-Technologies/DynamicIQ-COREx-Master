@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Create Master Routing - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Master Routing</h2>
+    <a href="{{ url_for('master_routing_routes.list_routings') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to List
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Routing Code <span class="text-danger">*</span></label>
+                        <input type="text" name="routing_code" class="form-control" required placeholder="e.g., RTG-MFG-001">
+                        <small class="text-muted">Unique identifier for this routing</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Routing Name <span class="text-danger">*</span></label>
+                        <input type="text" name="routing_name" class="form-control" required placeholder="e.g., Standard Radome Manufacturing">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Describe the purpose of this routing..."></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Routing Type <span class="text-danger">*</span></label>
+                        <select name="routing_type" class="form-select" required>
+                            {% for t in routing_types %}
+                            <option value="{{ t }}">{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Default Work Order Type</label>
+                        <select name="default_work_order_type" class="form-select">
+                            <option value="Production">Production</option>
+                            <option value="Repair">Repair</option>
+                            <option value="Inspection">Inspection</option>
+                            <option value="Prototype">Prototype</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Effective Date</label>
+                        <input type="date" name="effective_date" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Linked Product (Optional)</label>
+                        <select name="product_id" class="form-select">
+                            <option value="">-- No specific product --</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank for generic routings applicable to multiple products</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Product Category</label>
+                        <input type="text" name="product_category" class="form-control" placeholder="e.g., Radomes, Fairings">
+                        <small class="text-muted">For auto-applying to products in this category</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Regulatory Basis</label>
+                <input type="text" name="regulatory_basis" class="form-control" placeholder="e.g., FAA, EASA, AS9100, Internal">
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i> Create Routing
+                </button>
+                <a href="{{ url_for('master_routing_routes.list_routings') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
