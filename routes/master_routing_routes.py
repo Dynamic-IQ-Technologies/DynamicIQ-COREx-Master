@@ -300,6 +300,53 @@ def add_operation(id):
     flash('Operation added successfully.', 'success')
     return redirect(url_for('master_routing_routes.view_routing', id=id))
 
+@master_routing_bp.route('/master-routings/<int:id>/operations/<int:op_id>/edit', methods=['POST'])
+@role_required('Admin', 'Planner')
+def edit_operation(id, op_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    routing = conn.execute('SELECT status FROM master_routings WHERE id = ?', (id,)).fetchone()
+    if not routing or routing['status'] in ['Active', 'Obsolete']:
+        flash('Cannot modify this routing.', 'danger')
+        conn.close()
+        return redirect(url_for('master_routing_routes.view_routing', id=id))
+    
+    operation_name = request.form.get('operation_name', '').strip()
+    operation_code = request.form.get('operation_code', '').strip() or None
+    description = request.form.get('description', '').strip() or None
+    instructions = request.form.get('instructions', '').strip() or None
+    operation_type = request.form.get('operation_type', 'Build')
+    work_center_id = request.form.get('work_center_id') or None
+    department = request.form.get('department', '').strip() or None
+    standard_labor_hours = float(request.form.get('standard_labor_hours', 0) or 0)
+    setup_time = float(request.form.get('setup_time', 0) or 0)
+    run_time = float(request.form.get('run_time', 0) or 0)
+    skill_required = request.form.get('skill_required', '').strip() or None
+    certification_required = request.form.get('certification_required', '').strip() or None
+    tooling_required = request.form.get('tooling_required', '').strip() or None
+    is_mandatory = 1 if request.form.get('is_mandatory') else 0
+    is_inspection_gate = 1 if request.form.get('is_inspection_gate') else 0
+    sequence_number = int(request.form.get('sequence_number', 10) or 10)
+    
+    conn.execute('''
+        UPDATE master_routing_operations SET
+            operation_name = ?, operation_code = ?, description = ?, instructions = ?,
+            operation_type = ?, work_center_id = ?, department = ?, standard_labor_hours = ?,
+            setup_time = ?, run_time = ?, skill_required = ?, certification_required = ?,
+            tooling_required = ?, is_mandatory = ?, is_inspection_gate = ?, sequence_number = ?
+        WHERE id = ? AND routing_id = ?
+    ''', (operation_name, operation_code, description, instructions, operation_type,
+          work_center_id, department, standard_labor_hours, setup_time, run_time,
+          skill_required, certification_required, tooling_required, is_mandatory,
+          is_inspection_gate, sequence_number, op_id, id))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Operation updated successfully.', 'success')
+    return redirect(url_for('master_routing_routes.view_routing', id=id))
+
 @master_routing_bp.route('/master-routings/<int:id>/operations/<int:op_id>/delete', methods=['POST'])
 @role_required('Admin', 'Planner')
 def delete_operation(id, op_id):

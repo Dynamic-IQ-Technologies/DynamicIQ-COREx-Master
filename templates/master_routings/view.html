@@ -232,6 +232,9 @@
 
                                 {% if routing.status not in ['Active', 'Obsolete'] %}
                                 <hr>
+                                <button class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editOperationModal{{ op.id }}">
+                                    <i class="bi bi-pencil me-1"></i> Edit Operation
+                                </button>
                                 <form method="post" action="{{ url_for('master_routing_routes.delete_operation', id=routing.id, op_id=op.id) }}" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this operation and all its materials/checks?')">
                                         <i class="bi bi-trash me-1"></i> Delete Operation
@@ -431,6 +434,133 @@
 
 {% for od in operation_details %}
 {% set op = od.operation %}
+<div class="modal fade" id="editOperationModal{{ op.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('master_routing_routes.edit_operation', id=routing.id, op_id=op.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Operation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Sequence #</label>
+                                <input type="number" name="sequence_number" class="form-control" value="{{ op.sequence_number }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Operation Name <span class="text-danger">*</span></label>
+                                <input type="text" name="operation_name" class="form-control" value="{{ op.operation_name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Operation Code</label>
+                                <input type="text" name="operation_code" class="form-control" value="{{ op.operation_code or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2">{{ op.description or '' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Operation Type</label>
+                                <select name="operation_type" class="form-select">
+                                    {% for t in operation_types %}
+                                    <option value="{{ t }}" {% if op.operation_type == t %}selected{% endif %}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Work Center</label>
+                                <select name="work_center_id" class="form-select">
+                                    <option value="">-- None --</option>
+                                    {% for wc in work_centers %}
+                                    <option value="{{ wc.id }}" {% if op.work_center_id == wc.id %}selected{% endif %}>{{ wc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Department</label>
+                                <input type="text" name="department" class="form-control" value="{{ op.department or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Standard Labor Hours</label>
+                                <input type="number" name="standard_labor_hours" class="form-control" step="0.25" value="{{ op.standard_labor_hours or 0 }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Setup Time (hrs)</label>
+                                <input type="number" name="setup_time" class="form-control" step="0.25" value="{{ op.setup_time or 0 }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Run Time (hrs)</label>
+                                <input type="number" name="run_time" class="form-control" step="0.25" value="{{ op.run_time or 0 }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Skill Required</label>
+                                <select name="skill_required" class="form-select">
+                                    <option value="">-- None --</option>
+                                    {% for skill in skillsets %}
+                                    <option value="{{ skill.skillset_name }}" {% if op.skill_required == skill.skillset_name %}selected{% endif %}>{{ skill.skillset_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Tooling Required</label>
+                                <input type="text" name="tooling_required" class="form-control" value="{{ op.tooling_required or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Certification Required</label>
+                        <input type="text" name="certification_required" class="form-control" value="{{ op.certification_required or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Instructions</label>
+                        <textarea name="instructions" class="form-control" rows="3">{{ op.instructions or '' }}</textarea>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="is_mandatory" class="form-check-input" id="editIsMandatory{{ op.id }}" {% if op.is_mandatory %}checked{% endif %}>
+                        <label class="form-check-label" for="editIsMandatory{{ op.id }}">Mandatory (cannot skip)</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="is_inspection_gate" class="form-check-input" id="editIsInspection{{ op.id }}" {% if op.is_inspection_gate %}checked{% endif %}>
+                        <label class="form-check-label" for="editIsInspection{{ op.id }}">Inspection Gate (requires quality signoff)</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check me-1"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="addMaterialModal{{ op.id }}" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
