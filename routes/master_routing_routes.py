@@ -57,6 +57,26 @@ def list_routings():
                          type_filter=type_filter,
                          search=search)
 
+def generate_routing_code(conn):
+    """Generate next routing code in sequence (MR-000001, MR-000002, etc.)"""
+    last_routing = conn.execute('''
+        SELECT routing_code FROM master_routings 
+        WHERE routing_code LIKE 'MR-%'
+        ORDER BY CAST(SUBSTR(routing_code, 4) AS INTEGER) DESC 
+        LIMIT 1
+    ''').fetchone()
+    
+    if last_routing:
+        try:
+            last_number = int(last_routing['routing_code'].split('-')[1])
+            next_number = last_number + 1
+        except (ValueError, IndexError):
+            next_number = 1
+    else:
+        next_number = 1
+    
+    return f'MR-{next_number:06d}'
+
 @master_routing_bp.route('/master-routings/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
 def create_routing():
@@ -64,7 +84,7 @@ def create_routing():
     conn = db.get_connection()
     
     if request.method == 'POST':
-        routing_code = request.form.get('routing_code', '').strip().upper()
+        routing_code = generate_routing_code(conn)
         routing_name = request.form.get('routing_name', '').strip()
         description = request.form.get('description', '').strip()
         routing_type = request.form.get('routing_type', 'Manufacturing')
@@ -74,14 +94,8 @@ def create_routing():
         regulatory_basis = request.form.get('regulatory_basis', '').strip() or None
         effective_date = request.form.get('effective_date') or None
         
-        if not routing_code or not routing_name:
-            flash('Routing Code and Name are required.', 'danger')
-            conn.close()
-            return redirect(url_for('master_routing_routes.create_routing'))
-        
-        existing = conn.execute('SELECT id FROM master_routings WHERE routing_code = ?', (routing_code,)).fetchone()
-        if existing:
-            flash(f'Routing Code {routing_code} already exists.', 'danger')
+        if not routing_name:
+            flash('Routing Name is required.', 'danger')
             conn.close()
             return redirect(url_for('master_routing_routes.create_routing'))
         
@@ -115,11 +129,13 @@ def create_routing():
         return redirect(url_for('master_routing_routes.view_routing', id=routing_id))
     
     products = conn.execute('SELECT id, code, name FROM products ORDER BY code').fetchall()
+    next_routing_code = generate_routing_code(conn)
     conn.close()
     
     return render_template('master_routings/create.html',
                          routing_types=ROUTING_TYPES,
-                         products=products)
+                         products=products,
+                         next_routing_code=next_routing_code)
 
 @master_routing_bp.route('/master-routings/<int:id>')
 @login_required

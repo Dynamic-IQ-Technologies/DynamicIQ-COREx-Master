@@ -13,15 +13,12 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle"></i> <strong>Next Routing Code:</strong> {{ next_routing_code }} (auto-generated)
+            </div>
+            
             <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Routing Code <span class="text-danger">*</span></label>
-                        <input type="text" name="routing_code" class="form-control" required placeholder="e.g., RTG-MFG-001">
-                        <small class="text-muted">Unique identifier for this routing</small>
-                    </div>
-                </div>
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="mb-3">
                         <label class="form-label">Routing Name <span class="text-danger">*</span></label>
                         <input type="text" name="routing_name" class="form-control" required placeholder="e.g., Standard Radome Manufacturing">
