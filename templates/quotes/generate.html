@@ -22,13 +22,13 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="customer_name" class="form-label">Customer Name *</label>
-                                <input type="text" class="form-control" id="customer_name" name="customer_name" value="{{ work_order.customer_name or '' }}" required>
+                                <input type="text" class="form-control" id="customer_name" name="customer_name" value="{{ work_order.customer_full_name or work_order.customer_name or '' }}" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="customer_account" class="form-label">Customer Account</label>
-                                <input type="text" class="form-control" id="customer_account" name="customer_account">
+                                <input type="text" class="form-control" id="customer_account" name="customer_account" value="{{ work_order.customer_number or '' }}">
                             </div>
                         </div>
                     </div>
@@ -61,7 +61,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="department" class="form-label">Department</label>
-                                <input type="text" class="form-control" id="department" name="department">
+                                <input type="text" class="form-control" id="department" name="department" value="Repairs">
                             </div>
                         </div>
                     </div>

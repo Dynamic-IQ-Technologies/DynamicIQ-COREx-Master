@@ -195,9 +195,11 @@ def generate_quote(wo_id):
     
     # GET request - show quote generation form
     work_order = conn.execute('''
-        SELECT wo.*, p.code, p.name, p.cost
+        SELECT wo.*, p.code, p.name, p.cost,
+               c.customer_number, c.name as customer_full_name
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
         WHERE wo.id = ?
     ''', (wo_id,)).fetchone()
     
