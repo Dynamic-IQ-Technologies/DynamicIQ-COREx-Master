@@ -61,16 +61,17 @@ def customer_portal(token):
         ORDER BY so.order_date DESC
     ''', (customer['id'],)).fetchall()
     
-    # Work Order Quotes - linked via work_orders.customer_id
+    # Work Order Quotes - linked via work_orders.customer_id OR quote's customer_account
     wo_quotes = conn.execute('''
         SELECT q.*, wo.wo_number, wo.id as work_order_id, p.code as product_code, p.name as product_name,
                (SELECT COUNT(*) FROM work_order_quote_lines WHERE quote_id = q.id) as line_count
         FROM work_order_quotes q
         JOIN work_orders wo ON q.work_order_id = wo.id
         JOIN products p ON wo.product_id = p.id
-        WHERE wo.customer_id = ? AND q.status IN ('Draft', 'Pending Approval', 'Sent')
+        WHERE (wo.customer_id = ? OR q.customer_account = ?) 
+          AND q.status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted')
         ORDER BY q.created_at DESC
-    ''', (customer['id'],)).fetchall()
+    ''', (customer['id'], customer['account_number'])).fetchall()
     
     stats = {
         'sales_orders': len(sales_orders),
