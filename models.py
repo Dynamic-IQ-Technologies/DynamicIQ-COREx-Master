@@ -3492,6 +3492,10 @@ class Database:
         if 'stage_id' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN stage_id INTEGER REFERENCES work_order_stages(id)")
         
+        # Add is_aog column for AOG (Aircraft on Ground) status
+        if 'is_aog' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN is_aog INTEGER DEFAULT 0")
+        
         # Seed default stages if none exist
         cursor.execute("SELECT COUNT(*) FROM work_order_stages")
         if cursor.fetchone()[0] == 0:

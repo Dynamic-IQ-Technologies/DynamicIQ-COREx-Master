@@ -209,7 +209,12 @@
                                        onclick="updateSelectedCount()">
                             </td>
                             {% endif %}
-                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a></td>
+                            <td>
+                                <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a>
+                                {% if wo.is_aog %}
+                                <span class="badge bg-danger ms-1" title="Aircraft on Ground"><i class="bi bi-exclamation-triangle-fill"></i> AOG</span>
+                                {% endif %}
+                            </td>
                             <td>{{ wo.code }} - {{ wo.name }}</td>
                             <td>
                                 {% if wo.customer_id %}
