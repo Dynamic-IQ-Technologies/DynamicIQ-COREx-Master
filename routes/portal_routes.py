@@ -235,7 +235,7 @@ def portal_approve_quote(token, quote_id):
         flash('Quote not found', 'danger')
         return redirect(url_for('portal.customer_portal', token=token))
     
-    if quote['status'] not in ('Draft', 'Pending Approval', 'Sent', 'Submitted'):
+    if quote['status'] not in ('Pending Approval', 'Sent', 'Submitted', 'Quoted'):
         conn.close()
         flash('This quote cannot be approved in its current status.', 'warning')
         return redirect(url_for('portal.portal_quote_detail', token=token, quote_id=quote_id))
@@ -304,7 +304,7 @@ def portal_decline_quote(token, quote_id):
         flash('Quote not found', 'danger')
         return redirect(url_for('portal.customer_portal', token=token))
     
-    if quote['status'] not in ('Draft', 'Pending Approval', 'Sent', 'Submitted'):
+    if quote['status'] not in ('Pending Approval', 'Sent', 'Submitted', 'Quoted'):
         conn.close()
         flash('This quote cannot be declined in its current status.', 'warning')
         return redirect(url_for('portal.portal_quote_detail', token=token, quote_id=quote_id))
