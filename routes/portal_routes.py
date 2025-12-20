@@ -71,7 +71,7 @@ def customer_portal(token):
         WHERE (wo.customer_id = ? OR q.customer_account = ?) 
           AND q.status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted')
         ORDER BY q.created_at DESC
-    ''', (customer['id'], customer['account_number'])).fetchall()
+    ''', (customer['id'], customer['customer_number'])).fetchall()
     
     stats = {
         'sales_orders': len(sales_orders),
