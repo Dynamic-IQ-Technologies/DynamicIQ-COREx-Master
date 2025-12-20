@@ -528,16 +528,23 @@
 <script>
 document.getElementById('inventorySearch')?.addEventListener('input', function() {
     const q = this.value;
+    const container = document.getElementById('inventoryResults');
     if (q.length < 2) {
-        document.getElementById('inventoryResults').innerHTML = '';
+        container.innerHTML = '';
         return;
     }
+    container.innerHTML = '<div class="list-group-item text-muted"><i class="bi bi-hourglass-split me-2"></i>Searching...</div>';
+    
     fetch('/api/repair-orders/search-inventory?q=' + encodeURIComponent(q))
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return r.json();
+        })
         .then(data => {
-            const container = document.getElementById('inventoryResults');
             container.innerHTML = '';
-            if (data.length === 0) {
+            if (!data || data.length === 0) {
                 container.innerHTML = '<div class="list-group-item text-muted">No inventory items found</div>';
                 return;
             }
@@ -557,6 +564,10 @@ document.getElementById('inventorySearch')?.addEventListener('input', function()
                 };
                 container.appendChild(btn);
             });
+        })
+        .catch(error => {
+            console.error('Inventory search error:', error);
+            container.innerHTML = '<div class="list-group-item text-danger"><i class="bi bi-exclamation-circle me-2"></i>Error searching inventory. Please try again.</div>';
         });
 });
 
