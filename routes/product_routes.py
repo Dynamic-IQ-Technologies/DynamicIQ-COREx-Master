@@ -363,6 +363,77 @@ def delete_product(id):
     flash('Product deleted successfully!', 'success')
     return redirect(url_for('product_routes.list_products'))
 
+@product_bp.route('/products/mass-update', methods=['POST'])
+@role_required('Admin', 'Planner')
+def mass_update_products():
+    product_ids_str = request.form.get('product_ids', '')
+    if not product_ids_str:
+        flash('No products selected for update.', 'warning')
+        return redirect(url_for('product_routes.list_products'))
+    
+    try:
+        product_ids = [int(pid.strip()) for pid in product_ids_str.split(',') if pid.strip()]
+    except ValueError:
+        flash('Invalid product selection.', 'danger')
+        return redirect(url_for('product_routes.list_products'))
+    
+    if not product_ids:
+        flash('No products selected for update.', 'warning')
+        return redirect(url_for('product_routes.list_products'))
+    
+    updates = {}
+    update_fields = ['product_type', 'unit_of_measure', 'part_category', 'lead_time', 
+                     'manufacturer', 'cost', 'product_category']
+    
+    for field in update_fields:
+        value = request.form.get(field, '').strip()
+        if value:
+            if field == 'lead_time':
+                try:
+                    updates[field] = int(value)
+                except ValueError:
+                    continue
+            elif field == 'cost':
+                try:
+                    updates[field] = float(value)
+                except ValueError:
+                    continue
+            else:
+                updates[field] = value
+    
+    if not updates:
+        flash('No fields to update. Please select at least one field to change.', 'warning')
+        return redirect(url_for('product_routes.list_products'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    set_clause = ', '.join([f'{k} = ?' for k in updates.keys()])
+    placeholders = ','.join(['?' for _ in product_ids])
+    
+    conn.execute(
+        f'UPDATE products SET {set_clause} WHERE id IN ({placeholders})',
+        list(updates.values()) + product_ids
+    )
+    
+    for pid in product_ids:
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='product',
+            record_id=pid,
+            action_type='Mass Updated',
+            modified_by=session.get('user_id'),
+            changed_fields=updates,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Successfully updated {len(product_ids)} product(s).', 'success')
+    return redirect(url_for('product_routes.list_products'))
+
 @product_bp.route('/products/export')
 @login_required
 def export_products():

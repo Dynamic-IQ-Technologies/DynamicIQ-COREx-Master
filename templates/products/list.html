@@ -96,11 +96,22 @@
     </div>
 </div>
 
-<!-- Results Count -->
-<div class="mb-2">
+<!-- Results Count and Mass Update Bar -->
+<div class="d-flex justify-content-between align-items-center mb-2">
     <small class="text-muted">
         <i class="bi bi-list-ul"></i> Showing <strong>{{ products|length }}</strong> product(s)
     </small>
+    {% if session.role in ['Admin', 'Planner'] and products %}
+    <div id="massUpdateBar" class="d-none">
+        <span class="badge bg-primary me-2" id="selectedCount">0 selected</span>
+        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#massUpdateModal">
+            <i class="bi bi-pencil-square"></i> Mass Update
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="clearSelection()">
+            <i class="bi bi-x-circle"></i> Clear
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -110,6 +121,11 @@
             <table class="table table-striped" id="productsTable">
                 <thead>
                     <tr>
+                        {% if session.role in ['Admin', 'Planner'] %}
+                        <th data-sortable="false" style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll(this)">
+                        </th>
+                        {% endif %}
                         <th data-sort-type="string">Code</th>
                         <th data-sort-type="string">Name</th>
                         <th data-sort-type="string">Type</th>
@@ -121,6 +137,11 @@
                 <tbody>
                     {% for product in products %}
                     <tr>
+                        {% if session.role in ['Admin', 'Planner'] %}
+                        <td>
+                            <input type="checkbox" class="form-check-input product-checkbox" value="{{ product.id }}" onclick="updateSelection()">
+                        </td>
+                        {% endif %}
                         <td>{{ product.code }}</td>
                         <td>{{ product.name }}</td>
                         <td><span class="badge bg-secondary">{{ product.product_type }}</span></td>
@@ -182,9 +203,150 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="massUpdateModal" tabindex="-1" aria-labelledby="massUpdateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="massUpdateModalLabel">
+                    <i class="bi bi-pencil-square"></i> Mass Update Products
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('product_routes.mass_update_products') }}" id="massUpdateForm">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        You are about to update <strong id="massUpdateCount">0</strong> product(s).
+                        Only fields with values will be updated. Leave fields blank to keep current values.
+                    </div>
+                    <input type="hidden" name="product_ids" id="massUpdateProductIds">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="mass_product_type" class="form-label">Product Type</label>
+                            <select class="form-select" id="mass_product_type" name="product_type">
+                                <option value="">-- No Change --</option>
+                                {% for pt in product_types %}
+                                <option value="{{ pt.product_type }}">{{ pt.product_type }}</option>
+                                {% endfor %}
+                                <option value="Finished Good">Finished Good</option>
+                                <option value="Raw Material">Raw Material</option>
+                                <option value="Component">Component</option>
+                                <option value="Consumable">Consumable</option>
+                                <option value="Service">Service</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mass_uom" class="form-label">Unit of Measure</label>
+                            <select class="form-select" id="mass_uom" name="unit_of_measure">
+                                <option value="">-- No Change --</option>
+                                {% for u in uoms %}
+                                <option value="{{ u.unit_of_measure }}">{{ u.unit_of_measure }}</option>
+                                {% endfor %}
+                                <option value="EA">EA</option>
+                                <option value="FT">FT</option>
+                                <option value="LB">LB</option>
+                                <option value="KG">KG</option>
+                                <option value="GAL">GAL</option>
+                                <option value="BOX">BOX</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mass_part_category" class="form-label">Part Category</label>
+                            <select class="form-select" id="mass_part_category" name="part_category">
+                                <option value="">-- No Change --</option>
+                                <option value="Rotable">Rotable</option>
+                                <option value="Expendable">Expendable</option>
+                                <option value="Repairable">Repairable</option>
+                                <option value="Consumable">Consumable</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mass_lead_time" class="form-label">Lead Time (days)</label>
+                            <input type="number" class="form-control" id="mass_lead_time" name="lead_time" 
+                                   placeholder="Leave blank for no change" min="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mass_manufacturer" class="form-label">Manufacturer</label>
+                            <input type="text" class="form-control" id="mass_manufacturer" name="manufacturer" 
+                                   placeholder="Leave blank for no change">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mass_cost" class="form-label">Listing Price</label>
+                            <input type="number" class="form-control" id="mass_cost" name="cost" 
+                                   placeholder="Leave blank for no change" step="0.01" min="0">
+                        </div>
+                        <div class="col-12">
+                            <label for="mass_product_category" class="form-label">Product Category</label>
+                            <input type="text" class="form-control" id="mass_product_category" name="product_category" 
+                                   placeholder="Leave blank for no change">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-lg"></i> Apply Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <script>
+// Mass Update Selection Functions
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateSelection();
+}
+
+function updateSelection() {
+    const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+    const count = checkboxes.length;
+    const massUpdateBar = document.getElementById('massUpdateBar');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (count > 0) {
+        massUpdateBar.classList.remove('d-none');
+        selectedCount.textContent = count + ' selected';
+    } else {
+        massUpdateBar.classList.add('d-none');
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.product-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+        selectAll.indeterminate = checkboxes.length > 0 && checkboxes.length < allCheckboxes.length;
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.checked = false;
+    updateSelection();
+}
+
+// Update modal when opened
+document.addEventListener('DOMContentLoaded', function() {
+    const massUpdateModal = document.getElementById('massUpdateModal');
+    if (massUpdateModal) {
+        massUpdateModal.addEventListener('show.bs.modal', function() {
+            const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+            const ids = Array.from(checkboxes).map(cb => cb.value);
+            document.getElementById('massUpdateProductIds').value = ids.join(',');
+            document.getElementById('massUpdateCount').textContent = ids.length;
+        });
+    }
+});
+
 // Clear all filters
 function clearFilters() {
     window.location.href = '{{ url_for("product_routes.list_products") }}';
