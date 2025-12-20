@@ -69,7 +69,7 @@ def customer_portal(token):
         JOIN work_orders wo ON q.work_order_id = wo.id
         JOIN products p ON wo.product_id = p.id
         WHERE (wo.customer_id = ? OR q.customer_account = ?) 
-          AND q.status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted')
+          AND q.status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted', 'Submitted')
         ORDER BY q.created_at DESC
     ''', (customer['id'], customer['customer_number'])).fetchall()
     
