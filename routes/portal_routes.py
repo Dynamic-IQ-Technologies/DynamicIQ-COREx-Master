@@ -52,12 +52,12 @@ def customer_portal(token):
         ORDER BY i.invoice_date DESC
     ''', (customer['id'],)).fetchall()
     
-    # Sales Order Quotes (sales orders with Quote status)
+    # Sales Order Quotes (sales orders with Quote status - excluding drafts)
     so_quotes = conn.execute('''
         SELECT so.*, 
                (SELECT COUNT(*) FROM sales_order_lines WHERE so_id = so.id) as line_count
         FROM sales_orders so
-        WHERE so.customer_id = ? AND so.status IN ('Draft', 'Quoted', 'Pending Approval')
+        WHERE so.customer_id = ? AND so.status IN ('Quoted', 'Pending Approval')
         ORDER BY so.order_date DESC
     ''', (customer['id'],)).fetchall()
     
