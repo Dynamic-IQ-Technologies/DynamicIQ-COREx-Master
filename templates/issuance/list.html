@@ -99,50 +99,102 @@
     </div>
 </div>
 
-<!-- Material Issues History -->
+<!-- Material Issues History - Grouped by Work Order -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-clock-history"></i> Material Issue History</h5>
+        <small class="text-muted">Grouped by Work Order</small>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Issue #</th>
-                        <th>Work Order</th>
-                        <th>Product</th>
-                        <th>Qty Issued</th>
-                        <th>Issue Date</th>
-                        <th>Issued To</th>
-                        <th>Warehouse</th>
-                        <th>Cost</th>
-                        <th>Issued By</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for issue in issues %}
-                    <tr>
-                        <td><a href="{{ url_for('issuance_routes.view_issue', issue_number=issue.issue_number) }}">{{ issue.issue_number }}</a></td>
-                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=issue.work_order_id) }}">{{ issue.wo_number }}</a></td>
-                        <td>{{ issue.product_code }} - {{ issue.product_name }}</td>
-                        <td>{{ "%.2f"|format(issue.quantity_issued) }} {{ issue.unit_of_measure }}</td>
-                        <td>{{ issue.issue_date }}</td>
-                        <td>{{ issue.issued_to or '-' }}</td>
-                        <td>{{ issue.warehouse_location }}</td>
-                        <td>{{ issue.total_cost|currency }}</td>
-                        <td>{{ issue.issued_by_name }}</td>
-                        <td>
-                            <a href="{{ url_for('issuance_routes.view_issue', issue_number=issue.issue_number) }}" class="btn btn-sm btn-info">
-                                <i class="bi bi-eye"></i> View
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% if grouped_issues %}
+        <div class="accordion" id="issuesAccordion">
+            {% for wo_number, wo_data in grouped_issues.items() %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" 
+                            aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse{{ loop.index }}">
+                        <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                            <div>
+                                <i class="bi bi-clipboard-check me-2"></i>
+                                <strong>{{ wo_number }}</strong>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary me-2">{{ wo_data.item_count }} issue(s)</span>
+                                <span class="badge bg-success">{{ wo_data.total_cost|currency }}</span>
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                     aria-labelledby="heading{{ loop.index }}" data-bs-parent="#issuesAccordion">
+                    <div class="accordion-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Issue #</th>
+                                        <th>Product</th>
+                                        <th>Qty Issued</th>
+                                        <th>Issue Date</th>
+                                        <th>Issued To</th>
+                                        <th>Warehouse</th>
+                                        <th>Cost</th>
+                                        <th>Issued By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for issue in wo_data.issues %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('issuance_routes.view_issue', issue_number=issue.issue_number) }}">
+                                                {{ issue.issue_number }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <strong>{{ issue.product_code }}</strong>
+                                            <br><small class="text-muted">{{ issue.product_name }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ "%.2f"|format(issue.quantity_issued) }} {{ issue.unit_of_measure }}</span>
+                                        </td>
+                                        <td>{{ issue.issue_date|format_date }}</td>
+                                        <td>{{ issue.issued_to or '-' }}</td>
+                                        <td>{{ issue.warehouse_location }}</td>
+                                        <td>{{ issue.total_cost|currency }}</td>
+                                        <td>{{ issue.issued_by_name }}</td>
+                                        <td>
+                                            <a href="{{ url_for('issuance_routes.view_issue', issue_number=issue.issue_number) }}" class="btn btn-sm btn-outline-info">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <td colspan="6" class="text-end"><strong>Work Order Total:</strong></td>
+                                        <td><strong>{{ wo_data.total_cost|currency }}</strong></td>
+                                        <td colspan="2">
+                                            <a href="{{ url_for('workorder_routes.view_workorder', id=wo_data.wo_id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-box-arrow-up-right"></i> View WO
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> No material issues recorded yet.
+        </div>
+        {% endif %}
     </div>
 </div>
 

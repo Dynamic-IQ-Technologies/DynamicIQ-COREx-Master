@@ -75,6 +75,7 @@ def list_issues():
         SELECT 
             mi.*,
             wo.wo_number,
+            wo.id as work_order_id,
             p.code as product_code,
             p.name as product_name,
             p.unit_of_measure,
@@ -83,11 +84,23 @@ def list_issues():
         JOIN work_orders wo ON mi.work_order_id = wo.id
         JOIN products p ON mi.product_id = p.id
         LEFT JOIN users u ON mi.issued_by = u.id
-        ORDER BY mi.issue_date DESC, mi.created_at DESC
+        ORDER BY wo.wo_number DESC, mi.issue_date DESC, mi.created_at DESC
     ''').fetchall()
     
+    # Group issues by work order
+    grouped_issues = {}
+    wo_totals = {}
+    for issue in issues:
+        wo_num = issue['wo_number']
+        wo_id = issue['work_order_id']
+        if wo_num not in grouped_issues:
+            grouped_issues[wo_num] = {'wo_id': wo_id, 'issues': [], 'total_cost': 0, 'item_count': 0}
+        grouped_issues[wo_num]['issues'].append(issue)
+        grouped_issues[wo_num]['total_cost'] += issue['total_cost'] or 0
+        grouped_issues[wo_num]['item_count'] += 1
+    
     conn.close()
-    return render_template('issuance/list.html', issues=issues, available_materials=available_materials)
+    return render_template('issuance/list.html', issues=issues, available_materials=available_materials, grouped_issues=grouped_issues)
 
 @issuance_bp.route('/issuance/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff', 'Planner')
