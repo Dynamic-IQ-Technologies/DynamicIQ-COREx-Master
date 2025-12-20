@@ -187,6 +187,7 @@ def view_routing(id):
     
     work_centers = conn.execute('SELECT id, name FROM work_centers ORDER BY name').fetchall()
     products = conn.execute('SELECT id, code, name FROM products ORDER BY code').fetchall()
+    skillsets = conn.execute("SELECT id, skillset_name FROM skillsets WHERE status = 'Active' ORDER BY skillset_name").fetchall()
     
     conn.close()
     
@@ -195,6 +196,7 @@ def view_routing(id):
                          operation_details=operation_details,
                          work_centers=work_centers,
                          products=products,
+                         skillsets=skillsets,
                          operation_types=OPERATION_TYPES,
                          inspection_types=INSPECTION_TYPES,
                          routing_statuses=ROUTING_STATUSES)
