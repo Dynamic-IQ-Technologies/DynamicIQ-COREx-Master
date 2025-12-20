@@ -537,23 +537,37 @@ document.getElementById('inventorySearch')?.addEventListener('input', function()
         .then(data => {
             const container = document.getElementById('inventoryResults');
             container.innerHTML = '';
+            if (data.length === 0) {
+                container.innerHTML = '<div class="list-group-item text-muted">No inventory items found</div>';
+                return;
+            }
             data.forEach(item => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'list-group-item list-group-item-action';
-                btn.innerHTML = `<strong>${item.code}</strong> - ${item.name} ${item.serial_number ? '(S/N: ' + item.serial_number + ')' : ''} <span class="badge bg-secondary">${item.quantity} avail</span>`;
+                btn.innerHTML = `<strong>${item.code}</strong> - ${item.name} ${item.serial_number ? '<span class="text-info">(S/N: ' + item.serial_number + ')</span>' : ''} ${item.lot_number ? '<span class="text-secondary">[Lot: ' + item.lot_number + ']</span>' : ''} <span class="badge bg-success float-end">${item.quantity} avail</span>`;
                 btn.onclick = function() {
                     document.getElementById('selectedInventoryId').value = item.id;
                     document.getElementById('linePartNumber').value = item.code;
-                    document.getElementById('lineDescription').value = item.name;
+                    document.getElementById('lineDescription').value = item.description || item.name;
                     document.getElementById('lineSerialNumber').value = item.serial_number || '';
                     document.getElementById('lineLotNumber').value = item.lot_number || '';
-                    document.getElementById('inventorySearch').value = item.code + ' - ' + item.name;
-                    container.innerHTML = '';
+                    document.getElementById('inventorySearch').value = item.code + ' - ' + item.name + (item.serial_number ? ' (S/N: ' + item.serial_number + ')' : '');
+                    container.innerHTML = '<div class="list-group-item list-group-item-success"><i class="bi bi-check-circle me-2"></i>Selected: <strong>' + item.code + '</strong></div>';
                 };
                 container.appendChild(btn);
             });
         });
+});
+
+document.getElementById('addLineModal')?.addEventListener('show.bs.modal', function() {
+    document.getElementById('inventorySearch').value = '';
+    document.getElementById('inventoryResults').innerHTML = '';
+    document.getElementById('selectedInventoryId').value = '';
+    document.getElementById('linePartNumber').value = '';
+    document.getElementById('lineDescription').value = '';
+    document.getElementById('lineSerialNumber').value = '';
+    document.getElementById('lineLotNumber').value = '';
 });
 </script>
 {% endblock %}
