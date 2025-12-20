@@ -391,6 +391,103 @@ def add_repair_order_line(id):
     flash('Line item added successfully.', 'success')
     return redirect(url_for('repair_order_routes.view_repair_order', id=id))
 
+@repair_order_bp.route('/repair-orders/<int:id>/lines/<int:line_id>/edit', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Production Staff')
+def edit_repair_order_line(id, line_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    ro = conn.execute('SELECT * FROM repair_orders WHERE id = ?', (id,)).fetchone()
+    if not ro or ro['status'] not in ['Draft', 'Approved']:
+        conn.close()
+        flash('Cannot edit line items when Repair Order is shipped or beyond.', 'danger')
+        return redirect(url_for('repair_order_routes.view_repair_order', id=id))
+    
+    line = conn.execute('SELECT * FROM repair_order_lines WHERE id = ? AND ro_id = ?', (line_id, id)).fetchone()
+    if not line:
+        conn.close()
+        flash('Line item not found.', 'danger')
+        return redirect(url_for('repair_order_routes.view_repair_order', id=id))
+    
+    part_number = request.form.get('part_number', '').strip()
+    description = request.form.get('description', '').strip()
+    serial_number = request.form.get('serial_number', '').strip() or None
+    lot_number = request.form.get('lot_number', '').strip() or None
+    quantity = int(request.form.get('quantity', 1))
+    condition_at_removal = request.form.get('condition_at_removal', '').strip() or None
+    reason_for_repair = request.form.get('reason_for_repair', '').strip() or None
+    requested_services = request.form.get('requested_services', '').strip() or None
+    estimated_cost = float(request.form.get('estimated_cost', 0))
+    
+    conn.execute('''
+        UPDATE repair_order_lines SET
+            part_number = ?,
+            description = ?,
+            serial_number = ?,
+            lot_number = ?,
+            quantity = ?,
+            condition_at_removal = ?,
+            reason_for_repair = ?,
+            requested_services = ?,
+            estimated_cost = ?
+        WHERE id = ?
+    ''', (part_number, description, serial_number, lot_number, quantity,
+          condition_at_removal, reason_for_repair, requested_services, estimated_cost, line_id))
+    
+    total_estimated = conn.execute(
+        'SELECT COALESCE(SUM(estimated_cost), 0) as total FROM repair_order_lines WHERE ro_id = ?', (id,)
+    ).fetchone()['total']
+    conn.execute('UPDATE repair_orders SET estimated_total_cost = ? WHERE id = ?', (total_estimated, id))
+    
+    log_ro_audit(conn, id, 'EDIT_LINE', f'Edited line item: {part_number or description}',
+                changed_fields={'line_id': line_id})
+    conn.commit()
+    conn.close()
+    
+    flash('Line item updated successfully.', 'success')
+    return redirect(url_for('repair_order_routes.view_repair_order', id=id))
+
+@repair_order_bp.route('/repair-orders/<int:id>/lines/<int:line_id>/delete', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Production Staff')
+def delete_repair_order_line(id, line_id):
+    db = Database()
+    conn = db.get_connection()
+    
+    ro = conn.execute('SELECT * FROM repair_orders WHERE id = ?', (id,)).fetchone()
+    if not ro or ro['status'] not in ['Draft', 'Approved']:
+        conn.close()
+        flash('Cannot delete line items when Repair Order is shipped or beyond.', 'danger')
+        return redirect(url_for('repair_order_routes.view_repair_order', id=id))
+    
+    line = conn.execute('SELECT * FROM repair_order_lines WHERE id = ? AND ro_id = ?', (line_id, id)).fetchone()
+    if not line:
+        conn.close()
+        flash('Line item not found.', 'danger')
+        return redirect(url_for('repair_order_routes.view_repair_order', id=id))
+    
+    if line['inventory_id']:
+        conn.execute('''
+            UPDATE inventory SET status = 'Available', last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (line['inventory_id'],))
+        log_ro_audit(conn, id, 'INVENTORY_RELEASED', f'Inventory (ID:{line["inventory_id"]}) released back to Available status',
+                    changed_fields={'inventory_id': line['inventory_id'], 'old_status': 'On Repair Order', 'new_status': 'Available'})
+    
+    conn.execute('DELETE FROM repair_order_lines WHERE id = ?', (line_id,))
+    
+    total_estimated = conn.execute(
+        'SELECT COALESCE(SUM(estimated_cost), 0) as total FROM repair_order_lines WHERE ro_id = ?', (id,)
+    ).fetchone()['total']
+    conn.execute('UPDATE repair_orders SET estimated_total_cost = ? WHERE id = ?', (total_estimated, id))
+    
+    log_ro_audit(conn, id, 'DELETE_LINE', f'Deleted line item: {line["part_number"] or line["description"]}',
+                changed_fields={'line_id': line_id})
+    conn.commit()
+    conn.close()
+    
+    flash('Line item deleted successfully.', 'success')
+    return redirect(url_for('repair_order_routes.view_repair_order', id=id))
+
 @repair_order_bp.route('/repair-orders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Procurement', 'Production Staff')
 def update_ro_status(id):
