@@ -637,7 +637,9 @@ document.getElementById('inventorySearch')?.addEventListener('input', function()
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'list-group-item list-group-item-action';
-                btn.innerHTML = `<strong>${item.code}</strong> - ${item.name} ${item.serial_number ? '<span class="text-info">(S/N: ' + item.serial_number + ')</span>' : ''} ${item.lot_number ? '<span class="text-secondary">[Lot: ' + item.lot_number + ']</span>' : ''} <span class="badge bg-success float-end">${item.quantity} avail</span>`;
+                let serialDisplay = item.serial_number ? `<br><span class="badge bg-info me-1">S/N: ${item.serial_number}</span>` : '<br><span class="badge bg-secondary">No Serial</span>';
+                let lotDisplay = item.lot_number ? `<span class="badge bg-warning text-dark">Lot: ${item.lot_number}</span>` : '';
+                btn.innerHTML = `<div class="d-flex justify-content-between align-items-start"><div><strong>${item.code}</strong> - ${item.name}${serialDisplay} ${lotDisplay}</div><span class="badge bg-success">${item.quantity} avail</span></div>`;
                 btn.onclick = function() {
                     document.getElementById('selectedInventoryId').value = item.id;
                     document.getElementById('linePartNumber').value = item.code;
