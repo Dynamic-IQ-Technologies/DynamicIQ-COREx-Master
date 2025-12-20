@@ -789,6 +789,25 @@
             </li>
         </ul>
         
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('service')">
+            <span>Service Management</span>
+            <i class="bi bi-chevron-down toggle-icon" id="service-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="service-content">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('service_wo_routes.list_service_work_orders') }}">
+                    <i class="bi bi-wrench-adjustable"></i>
+                    <span>Service Work Orders</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('repair_order_routes.list_repair_orders') }}">
+                    <i class="bi bi-tools"></i>
+                    <span>Repair Orders (MRO)</span>
+                </a>
+            </li>
+        </ul>
+        
         <div class="sidebar-section-title collapsible" onclick="toggleSection('quality')">
             <span>Quality</span>
             <i class="bi bi-chevron-down toggle-icon" id="quality-icon"></i>
@@ -865,25 +884,6 @@
                 <a class="sidebar-nav-link" href="{{ url_for('shipping_routes.list_pending_shipments') }}">
                     <i class="bi bi-clock-history"></i>
                     <span>Pending Shipments</span>
-                </a>
-            </li>
-        </ul>
-        
-        <div class="sidebar-section-title collapsible" onclick="toggleSection('service')">
-            <span>Service Management</span>
-            <i class="bi bi-chevron-down toggle-icon" id="service-icon"></i>
-        </div>
-        <ul class="sidebar-nav collapsible-content" id="service-content">
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('service_wo_routes.list_service_work_orders') }}">
-                    <i class="bi bi-wrench-adjustable"></i>
-                    <span>Service Work Orders</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('repair_order_routes.list_repair_orders') }}">
-                    <i class="bi bi-tools"></i>
-                    <span>Repair Orders (MRO)</span>
                 </a>
             </li>
         </ul>
