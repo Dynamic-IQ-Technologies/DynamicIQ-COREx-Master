@@ -175,7 +175,7 @@ def portal_quote_detail(token, quote_id):
     quote = conn.execute('''
         SELECT q.*, wo.wo_number, wo.id as work_order_id, 
                p.code as product_code, p.name as product_name,
-               wo.quantity as wo_quantity, wo.description as wo_description,
+               wo.quantity as wo_quantity, p.description as product_description,
                prep.username as prepared_by_name,
                appr.username as approved_by_name
         FROM work_order_quotes q
@@ -235,7 +235,7 @@ def portal_approve_quote(token, quote_id):
         flash('Quote not found', 'danger')
         return redirect(url_for('portal.customer_portal', token=token))
     
-    if quote['status'] not in ('Draft', 'Pending Approval', 'Sent'):
+    if quote['status'] not in ('Draft', 'Pending Approval', 'Sent', 'Submitted'):
         conn.close()
         flash('This quote cannot be approved in its current status.', 'warning')
         return redirect(url_for('portal.portal_quote_detail', token=token, quote_id=quote_id))
@@ -304,7 +304,7 @@ def portal_decline_quote(token, quote_id):
         flash('Quote not found', 'danger')
         return redirect(url_for('portal.customer_portal', token=token))
     
-    if quote['status'] not in ('Draft', 'Pending Approval', 'Sent'):
+    if quote['status'] not in ('Draft', 'Pending Approval', 'Sent', 'Submitted'):
         conn.close()
         flash('This quote cannot be declined in its current status.', 'warning')
         return redirect(url_for('portal.portal_quote_detail', token=token, quote_id=quote_id))
