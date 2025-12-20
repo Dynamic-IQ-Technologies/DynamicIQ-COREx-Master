@@ -1,7 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
-from models import Database
-from auth import role_required
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from models import Database, User
+from auth import login_required, role_required
 from datetime import datetime, date
 import json
 
@@ -40,12 +39,13 @@ def generate_ro_number(conn):
 
 def log_ro_audit(conn, ro_id, action_type, description, old_status=None, new_status=None, changed_fields=None):
     try:
+        user_id = session.get('user_id')
         conn.execute('''
             INSERT INTO repair_order_audit (ro_id, action_type, action_description, old_status, new_status, changed_fields, performed_by, ip_address)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (ro_id, action_type, description, old_status, new_status, 
               json.dumps(changed_fields) if changed_fields else None,
-              current_user.id if current_user.is_authenticated else None,
+              user_id,
               request.remote_addr))
     except Exception as e:
         print(f"RO Audit log error: {e}")
@@ -144,7 +144,7 @@ def create_repair_order():
             ) VALUES (?, ?, ?, ?, 'Draft', ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (ro_number, vendor_id, repair_type, priority, related_wo_id,
               expected_tat, currency, payment_terms, vendor_quote_ref,
-              vendor_notes, internal_notes, ship_to_address, current_user.id))
+              vendor_notes, internal_notes, ship_to_address, session.get('user_id')))
         
         ro_id = cursor.lastrowid
         conn.commit()
@@ -445,7 +445,7 @@ def update_ro_status(id):
     update_fields = {'status': new_status}
     
     if new_status == 'Approved':
-        update_fields['approved_by'] = current_user.id
+        update_fields['approved_by'] = session.get('user_id')
         update_fields['approved_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         conn.execute('''
             UPDATE inventory SET status = 'Awaiting Repair Shipment', last_updated = CURRENT_TIMESTAMP
@@ -501,7 +501,7 @@ def create_ro_shipment(id):
             shipping_cost, package_count, weight, special_instructions, shipped_by
         ) VALUES (?, 'Outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (id, carrier, tracking_number, ship_date, estimated_arrival or None,
-          shipping_cost, package_count, weight, special_instructions, current_user.id))
+          shipping_cost, package_count, weight, special_instructions, session.get('user_id')))
     
     conn.execute('''
         UPDATE repair_orders SET status = 'Shipped', shipped_date = ?, last_updated = CURRENT_TIMESTAMP
@@ -546,7 +546,7 @@ def receive_ro_line(id, line_id):
             received_notes = ?, received_by = ?, received_at = CURRENT_TIMESTAMP,
             last_updated = CURRENT_TIMESTAMP
         WHERE id = ?
-    ''', (received_condition, actual_cost, received_notes, current_user.id, line_id))
+    ''', (received_condition, actual_cost, received_notes, session.get('user_id'), line_id))
     
     if line['inventory_id']:
         new_status = 'Available' if received_condition == 'Serviceable' else 'Quarantine'
