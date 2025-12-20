@@ -50,6 +50,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Work Order Accordion Layout with Task-Level Material Requirements**: Redesigned work order page with collapsible sections, KPI summary cards, task-level material management with status tracking, and shortage indicators.
 -   **Marketing Presentation Generator with PDF Download**: AI-powered generator using brand colors, taglines, and tones to create professional PDF presentations.
 -   **Repair Order (External Repair / MRO Services) Module**: Manages external repairs with a full lifecycle (Draft to Closed), state machine enforcement, item locking, outbound shipment creation, receiving workflow, and cost variance tracking.
+-   **Customer Portal with Work Order Quote Approval**: Token-based customer portal allowing customers to view pending work order quotes with pricing breakdowns (parts, labor, consumables, fees), approve or decline quotes with signature capture and notes, and full audit trail tracking including customer information and IP addresses.
 
 ## External Dependencies
 
