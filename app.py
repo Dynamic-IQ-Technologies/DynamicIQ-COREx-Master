@@ -57,6 +57,7 @@ from routes.qms_routes import qms_bp
 from routes.exchange_routes import exchange_bp
 from routes.part_intake_routes import part_intake_bp
 from routes.operations_routes import operations_bp
+from routes.repair_order_routes import repair_order_bp
 import os
 
 app = Flask(__name__)
@@ -160,6 +161,7 @@ app.register_blueprint(qms_bp)
 app.register_blueprint(exchange_bp)
 app.register_blueprint(part_intake_bp)
 app.register_blueprint(operations_bp)
+app.register_blueprint(repair_order_bp)
 
 @app.context_processor
 def inject_user():

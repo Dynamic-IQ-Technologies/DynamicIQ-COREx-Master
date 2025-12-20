@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ ro.ro_number }} - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('repair_order_routes.list_repair_orders') }}">Repair Orders</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('repair_order_routes.view_repair_order', id=ro.id) }}">{{ ro.ro_number }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+        </ol>
+    </nav>
+    <h2><i class="bi bi-pencil me-2"></i>Edit {{ ro.ro_number }}</h2>
+</div>
+
+<form method="post">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Repair Type <span class="text-danger">*</span></label>
+                                <select name="repair_type" class="form-select" required>
+                                    {% for t in repair_types %}
+                                    <option value="{{ t }}" {% if ro.repair_type == t %}selected{% endif %}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <select name="priority" class="form-select">
+                                    {% for p in priorities %}
+                                    <option value="{{ p }}" {% if ro.priority == p %}selected{% endif %}>{{ p }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Vendor / Repair Station</label>
+                                <select name="vendor_id" class="form-select">
+                                    <option value="">Select Vendor...</option>
+                                    {% for v in vendors %}
+                                    <option value="{{ v.id }}" {% if ro.vendor_id == v.id %}selected{% endif %}>{{ v.code }} - {{ v.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Expected TAT (Days)</label>
+                                <input type="number" name="expected_tat_days" class="form-control" value="{{ ro.expected_tat_days or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Currency</label>
+                                <select name="currency" class="form-select">
+                                    <option value="USD" {% if ro.currency == 'USD' %}selected{% endif %}>USD</option>
+                                    <option value="EUR" {% if ro.currency == 'EUR' %}selected{% endif %}>EUR</option>
+                                    <option value="GBP" {% if ro.currency == 'GBP' %}selected{% endif %}>GBP</option>
+                                    <option value="CAD" {% if ro.currency == 'CAD' %}selected{% endif %}>CAD</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Terms</label>
+                                <input type="text" name="payment_terms" class="form-control" value="{{ ro.payment_terms or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Vendor Quote Reference</label>
+                                <input type="text" name="vendor_quote_ref" class="form-control" value="{{ ro.vendor_quote_ref or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Ship-To Address</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Vendor Ship-To Address</label>
+                        <textarea name="ship_to_address" class="form-control" rows="3">{{ ro.ship_to_address or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Notes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Vendor Notes</label>
+                        <textarea name="vendor_notes" class="form-control" rows="3">{{ ro.vendor_notes or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Internal Notes</label>
+                        <textarea name="internal_notes" class="form-control" rows="3">{{ ro.internal_notes or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Order Info</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>RO Number:</strong> {{ ro.ro_number }}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="badge bg-{{ 'secondary' if ro.status == 'Draft' else 'primary' if ro.status == 'Approved' else 'success' }}">
+                            {{ ro.status }}
+                        </span>
+                    </p>
+                    <p><strong>Created:</strong> {{ ro.created_at|format_date }}</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Save Changes
+                        </button>
+                        <a href="{{ url_for('repair_order_routes.view_repair_order', id=ro.id) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,559 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ro.ro_number }} - Repair Order{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{{ url_for('repair_order_routes.list_repair_orders') }}">Repair Orders</a></li>
+                <li class="breadcrumb-item active">{{ ro.ro_number }}</li>
+            </ol>
+        </nav>
+        <h2 class="mb-1">
+            <i class="bi bi-wrench-adjustable me-2"></i>{{ ro.ro_number }}
+            {% if ro.priority == 'AOG' %}
+            <span class="badge bg-danger ms-2">AOG</span>
+            {% elif ro.priority == 'Critical' %}
+            <span class="badge bg-warning text-dark ms-2">Critical</span>
+            {% endif %}
+        </h2>
+        <p class="text-muted mb-0">{{ ro.repair_type }} | {{ ro.vendor_name or 'No Vendor Assigned' }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if ro.status not in ['Closed'] %}
+        <a href="{{ url_for('repair_order_routes.edit_repair_order', id=ro.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i> Edit
+        </a>
+        {% endif %}
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-arrow-right-circle me-1"></i> Actions
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% if ro.status == 'Draft' %}
+                <li>
+                    <form method="post" action="{{ url_for('repair_order_routes.update_ro_status', id=ro.id) }}" class="d-inline">
+                        <input type="hidden" name="status" value="Approved">
+                        <button type="submit" class="dropdown-item"><i class="bi bi-check-circle me-2"></i>Approve</button>
+                    </form>
+                </li>
+                {% endif %}
+                {% if ro.status in ['Draft', 'Approved', 'Awaiting Shipment'] %}
+                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#shipModal"><i class="bi bi-truck me-2"></i>Create Shipment</a></li>
+                {% endif %}
+                {% if ro.status == 'Shipped' %}
+                <li>
+                    <form method="post" action="{{ url_for('repair_order_routes.update_ro_status', id=ro.id) }}" class="d-inline">
+                        <input type="hidden" name="status" value="In Repair">
+                        <button type="submit" class="dropdown-item"><i class="bi bi-gear me-2"></i>Mark In Repair</button>
+                    </form>
+                </li>
+                {% endif %}
+                {% if ro.status == 'In Repair' %}
+                <li>
+                    <form method="post" action="{{ url_for('repair_order_routes.update_ro_status', id=ro.id) }}" class="d-inline">
+                        <input type="hidden" name="status" value="Completed">
+                        <button type="submit" class="dropdown-item"><i class="bi bi-check2-all me-2"></i>Mark Completed</button>
+                    </form>
+                </li>
+                {% endif %}
+                {% if ro.status == 'Received' %}
+                <li>
+                    <form method="post" action="{{ url_for('repair_order_routes.update_ro_status', id=ro.id) }}" class="d-inline">
+                        <input type="hidden" name="status" value="Closed">
+                        <button type="submit" class="dropdown-item"><i class="bi bi-lock me-2"></i>Close RO</button>
+                    </form>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Order Details</h5>
+                <div>
+                    {% if ro.status == 'Draft' %}
+                    <span class="badge bg-secondary fs-6">Draft</span>
+                    {% elif ro.status == 'Approved' %}
+                    <span class="badge bg-primary fs-6">Approved</span>
+                    {% elif ro.status == 'Awaiting Shipment' %}
+                    <span class="badge bg-info fs-6">Awaiting Shipment</span>
+                    {% elif ro.status == 'Shipped' %}
+                    <span class="badge bg-warning text-dark fs-6">Shipped</span>
+                    {% elif ro.status == 'In Repair' %}
+                    <span class="badge fs-6" style="background-color: #fd7e14;">In Repair</span>
+                    {% elif ro.status == 'Completed' %}
+                    <span class="badge bg-success fs-6">Completed</span>
+                    {% elif ro.status == 'Received' %}
+                    <span class="badge bg-success fs-6">Received</span>
+                    {% elif ro.status == 'Closed' %}
+                    <span class="badge bg-dark fs-6">Closed</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Repair Type:</strong> <span class="badge bg-secondary">{{ ro.repair_type }}</span></p>
+                        <p><strong>Priority:</strong> {{ ro.priority }}</p>
+                        <p><strong>Expected TAT:</strong> {{ ro.expected_tat_days or '-' }} days</p>
+                        <p><strong>Currency:</strong> {{ ro.currency }}</p>
+                        <p><strong>Payment Terms:</strong> {{ ro.payment_terms or '-' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ ro.created_at|format_date }} by {{ ro.created_by_name or '-' }}</p>
+                        {% if ro.approved_by_name %}
+                        <p><strong>Approved:</strong> {{ ro.approved_at|format_date }} by {{ ro.approved_by_name }}</p>
+                        {% endif %}
+                        {% if ro.shipped_date %}
+                        <p><strong>Shipped:</strong> {{ ro.shipped_date|format_date }}</p>
+                        {% endif %}
+                        {% if ro.received_date %}
+                        <p><strong>Received:</strong> {{ ro.received_date|format_date }}</p>
+                        {% endif %}
+                        {% if ro.related_wo_number %}
+                        <p><strong>Related WO:</strong> <a href="#">{{ ro.related_wo_number }}</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if ro.vendor_quote_ref %}
+                <p><strong>Vendor Quote Ref:</strong> {{ ro.vendor_quote_ref }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Line Items ({{ lines|length }})</h5>
+                {% if ro.status not in ['Shipped', 'In Repair', 'Completed', 'Received', 'Closed'] %}
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addLineModal">
+                    <i class="bi bi-plus me-1"></i> Add Item
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if lines %}
+                <div class="accordion" id="linesAccordion">
+                    {% for line in lines %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#line{{ line.id }}">
+                                <div class="d-flex justify-content-between w-100 me-3">
+                                    <span>
+                                        <strong>{{ line.part_number or line.part_code or 'N/A' }}</strong> - {{ line.description or line.part_name or 'No Description' }}
+                                        {% if line.serial_number %}
+                                        <span class="badge bg-info ms-2">S/N: {{ line.serial_number }}</span>
+                                        {% endif %}
+                                    </span>
+                                    <span>
+                                        {% if line.line_status == 'Pending' %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                        {% elif line.line_status == 'Shipped' %}
+                                        <span class="badge bg-warning text-dark">Shipped</span>
+                                        {% elif line.line_status == 'In Repair' %}
+                                        <span class="badge" style="background-color: #fd7e14;">In Repair</span>
+                                        {% elif line.line_status == 'Repaired' %}
+                                        <span class="badge bg-success">Repaired</span>
+                                        {% elif line.line_status == 'Received' %}
+                                        <span class="badge bg-success">Received</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="line{{ line.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Quantity:</strong> {{ line.quantity }}</p>
+                                        <p><strong>Condition at Removal:</strong> {{ line.condition_at_removal or '-' }}</p>
+                                        <p><strong>Reason for Repair:</strong> {{ line.reason_for_repair or '-' }}</p>
+                                        <p><strong>Requested Services:</strong> {{ line.requested_services or '-' }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Estimated Cost:</strong> {{ line.estimated_cost|currency }}</p>
+                                        <p><strong>Actual Cost:</strong> {{ line.actual_cost|currency }}</p>
+                                        {% if line.source_wo_number %}
+                                        <p><strong>Source WO:</strong> {{ line.source_wo_number }}</p>
+                                        {% endif %}
+                                        {% if line.received_condition %}
+                                        <p><strong>Received Condition:</strong> <span class="badge bg-info">{{ line.received_condition }}</span></p>
+                                        {% endif %}
+                                        {% if line.received_notes %}
+                                        <p><strong>Received Notes:</strong> {{ line.received_notes }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if line.line_status in ['Repaired', 'Completed'] and ro.status in ['Completed', 'In Repair'] %}
+                                <hr>
+                                <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#receiveLineModal{{ line.id }}">
+                                    <i class="bi bi-box-arrow-in-down me-1"></i> Receive This Item
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No line items added yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-truck me-2"></i>Shipments</h5>
+            </div>
+            <div class="card-body">
+                {% if shipments %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Carrier</th>
+                                <th>Tracking</th>
+                                <th>Ship Date</th>
+                                <th>Cost</th>
+                                <th>Shipped By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ship in shipments %}
+                            <tr>
+                                <td><span class="badge bg-{{ 'primary' if ship.shipment_type == 'Outbound' else 'success' }}">{{ ship.shipment_type }}</span></td>
+                                <td>{{ ship.carrier or '-' }}</td>
+                                <td>{{ ship.tracking_number or '-' }}</td>
+                                <td>{{ ship.ship_date|format_date }}</td>
+                                <td>{{ ship.shipping_cost|currency }}</td>
+                                <td>{{ ship.shipped_by_name or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center mb-0">No shipments recorded.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-building me-2"></i>Vendor Information</h6>
+            </div>
+            <div class="card-body">
+                {% if ro.vendor_name %}
+                <h5>{{ ro.vendor_name }}</h5>
+                <p class="text-muted mb-2">{{ ro.vendor_code }}</p>
+                {% if ro.vendor_address %}
+                <p><i class="bi bi-geo-alt me-2"></i>{{ ro.vendor_address }}</p>
+                {% endif %}
+                {% if ro.vendor_email %}
+                <p><i class="bi bi-envelope me-2"></i>{{ ro.vendor_email }}</p>
+                {% endif %}
+                {% if ro.vendor_phone %}
+                <p><i class="bi bi-telephone me-2"></i>{{ ro.vendor_phone }}</p>
+                {% endif %}
+                {% else %}
+                <p class="text-muted mb-0">No vendor assigned</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Cost Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Estimated Total:</span>
+                    <strong>{{ ro.estimated_total_cost|currency }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Actual Total:</span>
+                    <strong>{{ ro.actual_total_cost|currency }}</strong>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span>Variance:</span>
+                    {% set variance = (ro.actual_total_cost or 0) - (ro.estimated_total_cost or 0) %}
+                    <strong class="{{ 'text-danger' if variance > 0 else 'text-success' }}">
+                        {{ variance|currency }}
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Notes</h6>
+            </div>
+            <div class="card-body">
+                {% if ro.vendor_notes %}
+                <p><strong>Vendor Notes:</strong></p>
+                <p class="text-muted">{{ ro.vendor_notes }}</p>
+                {% endif %}
+                {% if ro.internal_notes %}
+                <p><strong>Internal Notes:</strong></p>
+                <p class="text-muted">{{ ro.internal_notes }}</p>
+                {% endif %}
+                {% if not ro.vendor_notes and not ro.internal_notes %}
+                <p class="text-muted mb-0">No notes.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-journal-text me-2"></i>Audit Trail</h6>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                {% if audit_trail %}
+                <ul class="list-group list-group-flush">
+                    {% for entry in audit_trail %}
+                    <li class="list-group-item py-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">{{ entry.performed_at|format_date }}</small>
+                            <span class="badge bg-{{ 'success' if entry.action_type == 'CREATE' else 'primary' if entry.action_type == 'UPDATE' else 'info' }}">
+                                {{ entry.action_type }}
+                            </span>
+                        </div>
+                        <small>{{ entry.action_description }}</small>
+                        <br><small class="text-muted">by {{ entry.performed_by_name or 'System' }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center py-3 mb-0">No audit entries.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addLineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('repair_order_routes.add_repair_order_line', id=ro.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Line Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Search Inventory</label>
+                        <input type="text" id="inventorySearch" class="form-control" placeholder="Search by part number, name, or serial...">
+                        <div id="inventoryResults" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                        <input type="hidden" name="inventory_id" id="selectedInventoryId">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Part Number</label>
+                                <input type="text" name="part_number" id="linePartNumber" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" name="quantity" class="form-control" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" name="description" id="lineDescription" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" name="serial_number" id="lineSerialNumber" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Lot Number</label>
+                                <input type="text" name="lot_number" id="lineLotNumber" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Condition at Removal</label>
+                        <select name="condition_at_removal" class="form-select">
+                            <option value="">Select...</option>
+                            {% for c in conditions %}
+                            <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Repair</label>
+                        <textarea name="reason_for_repair" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Requested Services</label>
+                        <textarea name="requested_services" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Estimated Cost</label>
+                        <input type="number" name="estimated_cost" class="form-control" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus me-1"></i>Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="shipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('repair_order_routes.create_ro_shipment', id=ro.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Create Outbound Shipment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Carrier</label>
+                        <input type="text" name="carrier" class="form-control" placeholder="e.g., FedEx, UPS, DHL">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tracking Number</label>
+                        <input type="text" name="tracking_number" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Ship Date</label>
+                                <input type="date" name="ship_date" class="form-control" value="{{ now().strftime('%Y-%m-%d') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Est. Arrival</label>
+                                <input type="date" name="estimated_arrival" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Shipping Cost</label>
+                                <input type="number" name="shipping_cost" class="form-control" step="0.01" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Package Count</label>
+                                <input type="number" name="package_count" class="form-control" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Special Instructions</label>
+                        <textarea name="special_instructions" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-truck me-1"></i>Ship Items</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% for line in lines %}
+{% if line.line_status in ['Repaired', 'Completed', 'In Repair'] %}
+<div class="modal fade" id="receiveLineModal{{ line.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('repair_order_routes.receive_ro_line', id=ro.id, line_id=line.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-box-arrow-in-down me-2"></i>Receive Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>{{ line.part_number or line.part_code }}</strong><br>
+                        {% if line.serial_number %}S/N: {{ line.serial_number }}{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Received Condition</label>
+                        <select name="received_condition" class="form-select" required>
+                            {% for c in conditions %}
+                            <option value="{{ c }}" {% if c == 'Serviceable' %}selected{% endif %}>{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Actual Repair Cost</label>
+                        <input type="number" name="actual_cost" class="form-control" step="0.01" value="{{ line.estimated_cost or 0 }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="received_notes" class="form-control" rows="3" placeholder="Repair notes, certifications received, etc."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-check me-1"></i>Receive</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+document.getElementById('inventorySearch')?.addEventListener('input', function() {
+    const q = this.value;
+    if (q.length < 2) {
+        document.getElementById('inventoryResults').innerHTML = '';
+        return;
+    }
+    fetch('/api/repair-orders/search-inventory?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('inventoryResults');
+            container.innerHTML = '';
+            data.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.innerHTML = `<strong>${item.code}</strong> - ${item.name} ${item.serial_number ? '(S/N: ' + item.serial_number + ')' : ''} <span class="badge bg-secondary">${item.quantity} avail</span>`;
+                btn.onclick = function() {
+                    document.getElementById('selectedInventoryId').value = item.id;
+                    document.getElementById('linePartNumber').value = item.code;
+                    document.getElementById('lineDescription').value = item.name;
+                    document.getElementById('lineSerialNumber').value = item.serial_number || '';
+                    document.getElementById('lineLotNumber').value = item.lot_number || '';
+                    document.getElementById('inventorySearch').value = item.code + ' - ' + item.name;
+                    container.innerHTML = '';
+                };
+                container.appendChild(btn);
+            });
+        });
+});
+</script>
+{% endblock %}

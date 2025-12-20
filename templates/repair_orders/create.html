@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Create Repair Order - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('repair_order_routes.list_repair_orders') }}">Repair Orders</a></li>
+            <li class="breadcrumb-item active">New Repair Order</li>
+        </ol>
+    </nav>
+    <h2><i class="bi bi-wrench-adjustable me-2"></i>Create Repair Order</h2>
+    <p class="text-muted">External Repair / MRO Service Request</p>
+</div>
+
+<form method="post">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Repair Type <span class="text-danger">*</span></label>
+                                <select name="repair_type" class="form-select" required>
+                                    <option value="">Select Repair Type...</option>
+                                    {% for t in repair_types %}
+                                    <option value="{{ t }}">{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <select name="priority" class="form-select">
+                                    {% for p in priorities %}
+                                    <option value="{{ p }}" {% if p == 'Routine' %}selected{% endif %}>{{ p }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Vendor / Repair Station</label>
+                                <select name="vendor_id" class="form-select">
+                                    <option value="">Select Vendor...</option>
+                                    {% for v in vendors %}
+                                    <option value="{{ v.id }}">{{ v.code }} - {{ v.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Expected TAT (Days)</label>
+                                <input type="number" name="expected_tat_days" class="form-control" placeholder="e.g., 14">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Currency</label>
+                                <select name="currency" class="form-select">
+                                    <option value="USD" selected>USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="GBP">GBP</option>
+                                    <option value="CAD">CAD</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Terms</label>
+                                <input type="text" name="payment_terms" class="form-control" placeholder="e.g., Net 30">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Vendor Quote Reference</label>
+                                <input type="text" name="vendor_quote_ref" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Related Work Order</label>
+                        <select name="related_work_order_id" class="form-select">
+                            <option value="">None</option>
+                            {% for wo in work_orders %}
+                            <option value="{{ wo.id }}" {% if prefill.get('work_order', {}).get('id') == wo.id %}selected{% endif %}>{{ wo.wo_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Ship-To Address</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Vendor Ship-To Address</label>
+                        <textarea name="ship_to_address" class="form-control" rows="3" placeholder="Enter the address where items will be shipped for repair..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Notes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Vendor Notes</label>
+                        <textarea name="vendor_notes" class="form-control" rows="3" placeholder="Instructions or notes for the vendor..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Internal Notes</label>
+                        <textarea name="internal_notes" class="form-control" rows="3" placeholder="Internal notes (not visible to vendor)..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            {% if prefill.get('inventory') %}
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-box me-2"></i>Pre-selected Inventory Item</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>{{ prefill.inventory.code }}</strong></p>
+                    <p class="text-muted">{{ prefill.inventory.name }}</p>
+                    {% if prefill.inventory.serial_number %}
+                    <p><span class="badge bg-info">S/N: {{ prefill.inventory.serial_number }}</span></p>
+                    {% endif %}
+                    <small class="text-muted">This item will be added as a line after creating the RO.</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Quick Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0 ps-3">
+                        <li class="mb-2">Select a <strong>Repair Type</strong> that best describes the service needed.</li>
+                        <li class="mb-2">Use <strong>AOG</strong> priority for aircraft-on-ground situations.</li>
+                        <li class="mb-2">After creating the RO, you can add line items from inventory.</li>
+                        <li class="mb-2">All changes are tracked in the audit trail.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Create Repair Order
+                        </button>
+                        <a href="{{ url_for('repair_order_routes.list_repair_orders') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

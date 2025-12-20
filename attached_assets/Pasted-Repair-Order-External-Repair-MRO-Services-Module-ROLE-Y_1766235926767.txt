@@ -1,0 +1,248 @@
+Repair Order (External Repair / MRO Services) Module
+
+ROLE:
+You are a senior ERP/MRO software engineer building an enterprise-grade aviation Repair Order module inside an existing ERP system. The system already has Inventory, Work Orders, Shipping/Receiving, Documents, and Vendors.
+
+Your task is to design and implement a complete Repair Order capability that supports external repairs, inspections, calibrations, welding, and other third-party maintenance services.
+
+🎯 OBJECTIVE
+
+Add a Repair Order (RO) module that allows users to:
+
+Create Repair Orders for:
+
+Inventory items
+
+Serialized components removed from Work Orders
+
+Ship items out for repair
+
+Track repair status
+
+Receive repaired items back into inventory
+
+Maintain full serialized traceability, cost tracking, and audit readiness
+
+🧩 FUNCTIONAL REQUIREMENTS
+1️⃣ Repair Order Entity (Header)
+
+Create a new entity/table called RepairOrder with:
+
+RO Number (auto-generated)
+
+Vendor / Repair Station
+
+Repair Type (Inspection, Repair, Calibration, Welding, NDT, etc.)
+
+Priority (Routine, AOG, Critical)
+
+Status (Draft, Approved, Awaiting Shipment, Shipped, In Repair, Completed, Closed)
+
+Related Work Order (optional)
+
+Expected Turnaround Time (TAT)
+
+Currency & Terms
+
+Created By / Approved By
+
+Timestamps
+
+2️⃣ Repair Order Lines
+
+Create RepairOrderLine linked to RepairOrder:
+
+Part Number
+
+Description
+
+Serial Number / Lot Number
+
+Quantity
+
+Condition at Removal
+
+Reason for Repair
+
+Requested Service(s)
+
+Estimated Repair Cost
+
+Actual Repair Cost
+
+Line Status (Pending, Shipped, Repaired, Received)
+
+Linked Inventory Record
+
+Linked Work Order (if removed from WO)
+
+3️⃣ Entry Points (Critical)
+
+Enable RO creation from:
+
+Inventory (select item → “Send for Repair”)
+
+Work Order Task (remove component → “Outside Repair”)
+
+Manual creation from Repair Order module
+
+When created from a Work Order:
+
+Automatically issue/remove the component
+
+Preserve traceability to the WO and asset
+
+4️⃣ Inventory State Management
+
+When an item is placed on a Repair Order:
+
+Update inventory status to:
+
+Awaiting Repair Shipment
+
+In External Repair (after shipment)
+
+Prevent item from being used elsewhere
+
+Preserve serialized continuity at all times
+
+5️⃣ Shipping Integration (Outbound)
+
+From Repair Order:
+
+Allow creation of an outbound Shipment
+
+Auto-populate:
+
+Repair Order reference
+
+Packing Slip
+
+Vendor instructions
+
+Capture:
+
+Carrier
+
+Tracking Number
+
+Ship Date
+
+Shipping Cost
+
+Upon shipment:
+
+Update RO status → Shipped
+
+Update inventory status → In External Repair
+
+6️⃣ Receiving Repaired Items (Inbound)
+
+Enable receiving against Repair Order Lines:
+
+Validate serial/lot numbers
+
+Attach required documents:
+
+FAA 8130-3 / EASA Form 1
+
+Calibration Certificates
+
+Inspection Reports
+
+Capture:
+
+Actual repair cost
+
+Repair completion date
+
+Upon receipt:
+
+Update inventory condition (Serviceable / Quarantine)
+
+Allow return to:
+
+Original Work Order
+
+Inventory stock
+
+7️⃣ Document Management
+
+Ensure documents can be uploaded and linked to:
+
+Repair Order Header
+
+Repair Order Line
+
+Inventory Record
+
+Documents must be audit-traceable and non-editable.
+
+8️⃣ Financial Integration
+
+Accrue estimated vs actual repair costs
+
+Post costs to:
+
+Work Order
+
+Asset maintenance
+
+Inventory valuation
+
+Track vendor repair performance and cost variance
+
+🔄 STATUS FLOW
+
+Implement the following lifecycle:
+
+Draft
+→ Approved
+→ Awaiting Shipment
+→ Shipped
+→ In Repair
+→ Completed
+→ Received
+→ Closed
+
+🖥 UI / UX REQUIREMENTS
+
+Repair Order list view with filters (status, vendor, priority)
+
+RO detail page with:
+
+Header
+
+Line items (accordion layout)
+
+Shipment & Receiving actions
+
+Document attachments
+
+Clear status indicators
+
+Audit-friendly history log (who/when/what)
+
+🔐 COMPLIANCE & AUDIT
+
+Maintain full chain of custody
+
+Preserve serialized part history
+
+Log all actions
+
+Ensure no deletion of historical repair records
+
+✅ DELIVERABLES
+
+Database schema updates
+
+Backend logic
+
+UI screens
+
+Status automation
+
+Integration with Inventory, Work Orders, Shipping, Receiving, and Documents
+
+Build this as a modular, scalable, aviation-grade Repair Order system suitable for FAA/EASA-regulated environments.

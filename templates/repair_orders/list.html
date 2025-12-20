@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Repair Orders - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-wrench-adjustable me-2"></i>Repair Orders</h2>
+        <p class="text-muted mb-0">External Repair / MRO Services Management</p>
+    </div>
+    <a href="{{ url_for('repair_order_routes.create_repair_order') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> New Repair Order
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.total }}</h3>
+                <small>Total ROs</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.draft }}</h3>
+                <small>Draft</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.in_progress }}</h3>
+                <small>In Progress</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.completed }}</h3>
+                <small>Completed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border">
+            <div class="card-body text-center py-3">
+                <h6 class="mb-0">{{ stats.total_estimated|currency }}</h6>
+                <small class="text-muted">Est. Cost</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border">
+            <div class="card-body text-center py-3">
+                <h6 class="mb-0">{{ stats.total_actual|currency }}</h6>
+                <small class="text-muted">Actual Cost</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-funnel me-1"></i> Filters
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Vendor</label>
+                <select name="vendor" class="form-select">
+                    <option value="">All Vendors</option>
+                    {% for v in vendors %}
+                    <option value="{{ v.id }}" {% if vendor_filter == v.id|string %}selected{% endif %}>{{ v.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Priority</label>
+                <select name="priority" class="form-select">
+                    <option value="">All Priorities</option>
+                    {% for p in priorities %}
+                    <option value="{{ p }}" {% if priority_filter == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Repair Type</label>
+                <select name="repair_type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for t in repair_types %}
+                    <option value="{{ t }}" {% if repair_type_filter == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2"><i class="bi bi-search"></i> Filter</button>
+                <a href="{{ url_for('repair_order_routes.list_repair_orders') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if repair_orders %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>RO Number</th>
+                        <th>Vendor</th>
+                        <th>Type</th>
+                        <th>Priority</th>
+                        <th>Items</th>
+                        <th>Est. Cost</th>
+                        <th>Actual Cost</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ro in repair_orders %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('repair_order_routes.view_repair_order', id=ro.id) }}" class="fw-bold text-decoration-none">
+                                {{ ro.ro_number }}
+                            </a>
+                            {% if ro.related_wo_number %}
+                            <br><small class="text-muted"><i class="bi bi-link-45deg"></i> {{ ro.related_wo_number }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ ro.vendor_name or '-' }}</td>
+                        <td><span class="badge bg-secondary">{{ ro.repair_type }}</span></td>
+                        <td>
+                            {% if ro.priority == 'AOG' %}
+                            <span class="badge bg-danger">AOG</span>
+                            {% elif ro.priority == 'Critical' %}
+                            <span class="badge bg-warning text-dark">Critical</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ ro.priority }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-light text-dark">{{ ro.line_count }}</span></td>
+                        <td>{{ ro.estimated_total_cost|currency }}</td>
+                        <td>{{ ro.actual_total_cost|currency }}</td>
+                        <td>
+                            {% if ro.status == 'Draft' %}
+                            <span class="badge bg-secondary">Draft</span>
+                            {% elif ro.status == 'Approved' %}
+                            <span class="badge bg-primary">Approved</span>
+                            {% elif ro.status == 'Awaiting Shipment' %}
+                            <span class="badge bg-info">Awaiting Ship</span>
+                            {% elif ro.status == 'Shipped' %}
+                            <span class="badge bg-warning text-dark">Shipped</span>
+                            {% elif ro.status == 'In Repair' %}
+                            <span class="badge bg-orange" style="background-color: #fd7e14;">In Repair</span>
+                            {% elif ro.status == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif ro.status == 'Received' %}
+                            <span class="badge bg-success">Received</span>
+                            {% elif ro.status == 'Closed' %}
+                            <span class="badge bg-dark">Closed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ ro.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ro.created_at|format_date }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('repair_order_routes.view_repair_order', id=ro.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if ro.status not in ['Closed'] %}
+                                <a href="{{ url_for('repair_order_routes.edit_repair_order', id=ro.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-wrench-adjustable display-1 text-muted"></i>
+            <p class="text-muted mt-3">No repair orders found.</p>
+            <a href="{{ url_for('repair_order_routes.create_repair_order') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Create First Repair Order
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -4622,6 +4622,146 @@ def init_qms_tables(cursor):
     except:
         pass
     
+    # Repair Order (External Repair / MRO Services) Tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS repair_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ro_number TEXT UNIQUE NOT NULL,
+            vendor_id INTEGER,
+            repair_type TEXT NOT NULL,
+            priority TEXT DEFAULT 'Routine',
+            status TEXT DEFAULT 'Draft',
+            related_work_order_id INTEGER,
+            expected_tat_days INTEGER,
+            currency TEXT DEFAULT 'USD',
+            payment_terms TEXT,
+            estimated_total_cost REAL DEFAULT 0,
+            actual_total_cost REAL DEFAULT 0,
+            vendor_quote_ref TEXT,
+            vendor_notes TEXT,
+            internal_notes TEXT,
+            ship_to_address TEXT,
+            created_by INTEGER,
+            approved_by INTEGER,
+            approved_at TIMESTAMP,
+            shipped_date DATE,
+            received_date DATE,
+            completed_date DATE,
+            closed_date DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (vendor_id) REFERENCES suppliers(id),
+            FOREIGN KEY (related_work_order_id) REFERENCES work_orders(id),
+            FOREIGN KEY (created_by) REFERENCES users(id),
+            FOREIGN KEY (approved_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS repair_order_lines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ro_id INTEGER NOT NULL,
+            product_id INTEGER,
+            inventory_id INTEGER,
+            part_number TEXT,
+            description TEXT,
+            serial_number TEXT,
+            lot_number TEXT,
+            quantity INTEGER DEFAULT 1,
+            condition_at_removal TEXT,
+            reason_for_repair TEXT,
+            requested_services TEXT,
+            estimated_cost REAL DEFAULT 0,
+            actual_cost REAL DEFAULT 0,
+            line_status TEXT DEFAULT 'Pending',
+            linked_work_order_id INTEGER,
+            linked_wo_task_id INTEGER,
+            received_condition TEXT,
+            received_notes TEXT,
+            received_by INTEGER,
+            received_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (ro_id) REFERENCES repair_orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (inventory_id) REFERENCES inventory(id),
+            FOREIGN KEY (linked_work_order_id) REFERENCES work_orders(id),
+            FOREIGN KEY (received_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS repair_order_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ro_id INTEGER,
+            ro_line_id INTEGER,
+            document_type TEXT NOT NULL,
+            document_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            original_filename TEXT,
+            file_size INTEGER,
+            mime_type TEXT,
+            description TEXT,
+            uploaded_by INTEGER,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            FOREIGN KEY (ro_id) REFERENCES repair_orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (ro_line_id) REFERENCES repair_order_lines(id) ON DELETE CASCADE,
+            FOREIGN KEY (uploaded_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS repair_order_shipments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ro_id INTEGER NOT NULL,
+            shipment_type TEXT DEFAULT 'Outbound',
+            carrier TEXT,
+            tracking_number TEXT,
+            ship_date DATE,
+            estimated_arrival DATE,
+            actual_arrival DATE,
+            shipping_cost REAL DEFAULT 0,
+            package_count INTEGER DEFAULT 1,
+            weight REAL,
+            weight_uom TEXT DEFAULT 'LB',
+            special_instructions TEXT,
+            shipped_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (ro_id) REFERENCES repair_orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (shipped_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS repair_order_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ro_id INTEGER NOT NULL,
+            action_type TEXT NOT NULL,
+            action_description TEXT,
+            old_status TEXT,
+            new_status TEXT,
+            changed_fields TEXT,
+            performed_by INTEGER,
+            performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            FOREIGN KEY (ro_id) REFERENCES repair_orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (performed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Repair Order indexes
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_status ON repair_orders(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_vendor ON repair_orders(vendor_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_priority ON repair_orders(priority)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_number ON repair_orders(ro_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_line_status ON repair_order_lines(line_status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_line_serial ON repair_order_lines(serial_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ro_audit_ro ON repair_order_audit(ro_id)')
+    except:
+        pass
+    
     # Create indexes for QMS tables
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')
