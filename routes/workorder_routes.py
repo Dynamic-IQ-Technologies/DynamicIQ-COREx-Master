@@ -462,6 +462,15 @@ def view_workorder(id):
     
     stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
+    # Fetch work order quotes
+    wo_quotes = conn.execute('''
+        SELECT q.*, u.username as prepared_by_name
+        FROM work_order_quotes q
+        LEFT JOIN users u ON q.prepared_by = u.id
+        WHERE q.work_order_id = ?
+        ORDER BY q.created_at DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('workorders/view.html', 
@@ -482,7 +491,8 @@ def view_workorder(id):
                          labor_resources=labor_resources,
                          documents=documents,
                          notes=notes,
-                         stages=stages)
+                         stages=stages,
+                         wo_quotes=wo_quotes)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')

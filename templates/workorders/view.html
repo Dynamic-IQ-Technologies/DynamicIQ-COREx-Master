@@ -180,6 +180,11 @@
             <i class="bi bi-folder"></i> Documents
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="quotes-tab" data-bs-toggle="tab" data-bs-target="#quotesPane" type="button" role="tab">
+            <i class="bi bi-receipt"></i> Quotes {% if wo_quotes %}<span class="badge bg-info">{{ wo_quotes|length }}</span>{% endif %}
+        </button>
+    </li>
     {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#auditPane" type="button" role="tab">
@@ -1454,6 +1459,71 @@
                 </ul>
                 {% else %}
                 <p class="text-muted text-center">No documents attached</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="quotesPane" role="tabpanel">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-receipt me-2"></i> Work Order Quotes</h6>
+                <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Create Quote
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if wo_quotes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Quote #</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Total</th>
+                                <th>Prepared By</th>
+                                <th>Date</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quote in wo_quotes %}
+                            <tr>
+                                <td><strong>{{ quote.quote_number }}</strong></td>
+                                <td>{{ quote.customer_name or '-' }}</td>
+                                <td>
+                                    {% if quote.status == 'Approved' %}
+                                    <span class="badge bg-success">{{ quote.status }}</span>
+                                    {% elif quote.status == 'Declined' %}
+                                    <span class="badge bg-danger">{{ quote.status }}</span>
+                                    {% elif quote.status == 'Sent' or quote.status == 'Pending Approval' %}
+                                    <span class="badge bg-warning text-dark">{{ quote.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ quote.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ quote.total_amount|currency }}</td>
+                                <td>{{ quote.prepared_by_name or '-' }}</td>
+                                <td>{{ quote.created_at[:10] if quote.created_at else '-' }}</td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-receipt fs-3"></i>
+                    <p class="mb-0 mt-2">No quotes created for this work order</p>
+                    <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-sm btn-outline-primary mt-3">
+                        <i class="bi bi-plus-circle me-1"></i> Create Quote
+                    </a>
+                </div>
                 {% endif %}
             </div>
         </div>
