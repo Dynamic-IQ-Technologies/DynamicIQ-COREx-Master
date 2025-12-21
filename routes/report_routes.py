@@ -1,8 +1,16 @@
 from flask import Blueprint, render_template, Response, request, redirect, url_for, flash
-from models import Database
+from models import Database, CompanySettings
 from auth import login_required
 import csv
 import io
+from datetime import datetime
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+import os
 
 report_bp = Blueprint('report_routes', __name__)
 
@@ -780,4 +788,274 @@ def ojt_report_export():
         output.getvalue(),
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename=ojt_report.csv'}
+    )
+
+@report_bp.route('/reports/ojt/pdf')
+@login_required
+def ojt_report_pdf():
+    """Export OJT Report to PDF with company header"""
+    db = Database()
+    conn = db.get_connection()
+    
+    company = CompanySettings.get()
+    
+    employee_filter = request.args.get('employee', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    wo_filter = request.args.get('work_order', '')
+    
+    query = '''
+        SELECT 
+            lr.first_name || ' ' || lr.last_name as employee_name,
+            lr.employee_code,
+            wo.wo_number,
+            p.name as wo_description,
+            p.code as part_number,
+            wot.task_name,
+            wot.description as task_description,
+            wott.clock_in_time,
+            wott.clock_out_time,
+            wott.hours_worked,
+            wott.labor_cost,
+            wott.hourly_rate
+        FROM work_order_time_tracking wott
+        JOIN labor_resources lr ON wott.employee_id = lr.id
+        JOIN work_orders wo ON wott.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN work_order_tasks wot ON wott.task_id = wot.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if employee_filter:
+        query += ' AND wott.employee_id = ?'
+        params.append(employee_filter)
+    
+    if date_from:
+        query += ' AND DATE(wott.clock_in_time) >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND DATE(wott.clock_in_time) <= ?'
+        params.append(date_to)
+    
+    if wo_filter:
+        query += ' AND wo.id = ?'
+        params.append(wo_filter)
+    
+    query += ' ORDER BY lr.first_name, wott.clock_in_time DESC'
+    
+    entries = conn.execute(query, params).fetchall()
+    conn.close()
+    
+    grouped_data = {}
+    for entry in entries:
+        emp_name = entry['employee_name']
+        if emp_name not in grouped_data:
+            grouped_data[emp_name] = {
+                'employee_code': entry['employee_code'],
+                'entries': [],
+                'total_hours': 0,
+                'total_cost': 0
+            }
+        grouped_data[emp_name]['entries'].append(entry)
+        grouped_data[emp_name]['total_hours'] += entry['hours_worked'] or 0
+        grouped_data[emp_name]['total_cost'] += entry['labor_cost'] or 0
+    
+    grand_totals = {
+        'hours': sum(g['total_hours'] for g in grouped_data.values()),
+        'cost': sum(g['total_cost'] for g in grouped_data.values()),
+        'entries': len(entries)
+    }
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch,
+                           leftMargin=0.5*inch, rightMargin=0.5*inch)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    company_name = company['company_name'] if company else 'Company Name'
+    company_address = ''
+    if company:
+        parts = []
+        if company.get('address_line1'):
+            parts.append(company['address_line1'])
+        if company.get('city') and company.get('state'):
+            parts.append(f"{company['city']}, {company['state']} {company.get('postal_code', '')}")
+        if company.get('phone'):
+            parts.append(f"Phone: {company['phone']}")
+        if company.get('email'):
+            parts.append(f"Email: {company['email']}")
+        company_address = ' | '.join(parts)
+    
+    header_style = ParagraphStyle(
+        'CompanyHeader',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#1e3a8a'),
+        spaceAfter=5,
+        alignment=TA_CENTER
+    )
+    
+    subheader_style = ParagraphStyle(
+        'CompanySubheader',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#64748b'),
+        spaceAfter=15,
+        alignment=TA_CENTER
+    )
+    
+    title_style = ParagraphStyle(
+        'ReportTitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#1e3a8a'),
+        spaceAfter=5,
+        alignment=TA_CENTER
+    )
+    
+    section_style = ParagraphStyle(
+        'SectionHeader',
+        parent=styles['Heading3'],
+        fontSize=11,
+        textColor=colors.white,
+        backColor=colors.HexColor('#1e3a8a'),
+        spaceBefore=15,
+        spaceAfter=5,
+        leftIndent=5,
+        rightIndent=5
+    )
+    
+    story.append(Paragraph(company_name, header_style))
+    if company_address:
+        story.append(Paragraph(company_address, subheader_style))
+    
+    story.append(Spacer(1, 0.1*inch))
+    story.append(Paragraph("ON-THE-JOB TRAINING (OJT) REPORT", title_style))
+    
+    date_range = ""
+    if date_from and date_to:
+        date_range = f"Period: {date_from} to {date_to}"
+    elif date_from:
+        date_range = f"From: {date_from}"
+    elif date_to:
+        date_range = f"Through: {date_to}"
+    else:
+        date_range = f"Generated: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}"
+    
+    date_style = ParagraphStyle(
+        'DateInfo',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#64748b'),
+        spaceAfter=15,
+        alignment=TA_CENTER
+    )
+    story.append(Paragraph(date_range, date_style))
+    story.append(Spacer(1, 0.2*inch))
+    
+    summary_data = [
+        ['Total Entries', 'Total Hours', 'Total Labor Cost'],
+        [str(grand_totals['entries']), f"{grand_totals['hours']:.2f}", f"${grand_totals['cost']:,.2f}"]
+    ]
+    summary_table = Table(summary_data, colWidths=[2*inch, 2*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f1f5f9')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    for employee_name, data in grouped_data.items():
+        story.append(Paragraph(f"  {employee_name} ({data['employee_code']}) - {len(data['entries'])} entries, {data['total_hours']:.2f} hrs", section_style))
+        story.append(Spacer(1, 0.1*inch))
+        
+        table_data = [['Work Order', 'Part #', 'Task', 'Start', 'End', 'Hours']]
+        
+        for entry in data['entries']:
+            start_time = ''
+            if entry['clock_in_time']:
+                start_time = str(entry['clock_in_time']).replace('T', ' ')[:16]
+            
+            end_time = 'In Progress'
+            if entry['clock_out_time']:
+                end_time = str(entry['clock_out_time']).replace('T', ' ')[:16]
+            
+            task_name = entry['task_name'] or 'General'
+            if len(task_name) > 20:
+                task_name = task_name[:17] + '...'
+            
+            table_data.append([
+                entry['wo_number'],
+                entry['part_number'],
+                task_name,
+                start_time,
+                end_time,
+                f"{entry['hours_worked'] or 0:.2f}"
+            ])
+        
+        table_data.append(['', '', '', '', 'Subtotal:', f"{data['total_hours']:.2f}"])
+        
+        col_widths = [1.1*inch, 0.9*inch, 1.3*inch, 1.3*inch, 1.3*inch, 0.7*inch]
+        detail_table = Table(table_data, colWidths=col_widths)
+        
+        detail_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e2e8f0')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('TOPPADDING', (0, 0), (-1, 0), 6),
+            ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+            ('GRID', (0, 0), (-1, -2), 0.5, colors.HexColor('#cbd5e1')),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f8fafc')),
+            ('FONTNAME', (-2, -1), (-1, -1), 'Helvetica-Bold'),
+            ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#1e3a8a')),
+        ]))
+        
+        story.append(detail_table)
+        story.append(Spacer(1, 0.2*inch))
+    
+    if not grouped_data:
+        no_data_style = ParagraphStyle(
+            'NoData',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#64748b'),
+            alignment=TA_CENTER,
+            spaceBefore=30
+        )
+        story.append(Paragraph("No time tracking entries found matching your criteria.", no_data_style))
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#94a3b8'),
+        alignment=TA_CENTER,
+        spaceBefore=30
+    )
+    story.append(Spacer(1, 0.3*inch))
+    story.append(Paragraph(f"Report generated on {datetime.now().strftime('%Y-%m-%d at %I:%M %p')}", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    
+    filename = f"ojt_report_{datetime.now().strftime('%Y%m%d')}.pdf"
+    
+    return Response(
+        buffer.getvalue(),
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
     )
