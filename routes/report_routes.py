@@ -878,13 +878,13 @@ def ojt_report_pdf():
     company_address = ''
     if company:
         parts = []
-        if company.get('address_line1'):
+        if company['address_line1']:
             parts.append(company['address_line1'])
-        if company.get('city') and company.get('state'):
-            parts.append(f"{company['city']}, {company['state']} {company.get('postal_code', '')}")
-        if company.get('phone'):
+        if company['city'] and company['state']:
+            parts.append(f"{company['city']}, {company['state']} {company['postal_code'] or ''}")
+        if company['phone']:
             parts.append(f"Phone: {company['phone']}")
-        if company.get('email'):
+        if company['email']:
             parts.append(f"Email: {company['email']}")
         company_address = ' | '.join(parts)
     
