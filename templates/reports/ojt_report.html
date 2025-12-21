@@ -167,17 +167,17 @@
                                 <td>{{ entry.wo_description or '-' }}</td>
                                 <td><code>{{ entry.part_number }}</code></td>
                                 <td>{{ entry.task_name or 'General' }}</td>
-                                <td>{{ entry.task_description[:50] ~ '...' if entry.task_description and entry.task_description|length > 50 else entry.task_description or '-' }}</td>
+                                <td>{{ entry.task_description|truncate(50, True) if entry.task_description else '-' }}</td>
                                 <td>
                                     {% if entry.clock_in_time %}
-                                    {{ entry.clock_in_time|replace('T', ' ')[:16] }}
+                                    {{ (entry.clock_in_time|string|replace('T', ' '))[:16] }}
                                     {% else %}
                                     -
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if entry.clock_out_time %}
-                                    {{ entry.clock_out_time|replace('T', ' ')[:16] }}
+                                    {{ (entry.clock_out_time|string|replace('T', ' '))[:16] }}
                                     {% else %}
                                     <span class="badge bg-warning text-dark">In Progress</span>
                                     {% endif %}
