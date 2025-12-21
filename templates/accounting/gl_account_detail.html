@@ -204,7 +204,7 @@
                                         <i class="bi bi-hammer"></i> WO #{{ trans.reference_id }}
                                     </a>
                                 {% elif trans.reference_type == 'vendor_invoice' %}
-                                    <a href="{{ url_for('ap_routes.view_vendor_invoice', id=trans.reference_id) }}" class="text-decoration-none">
+                                    <a href="{{ url_for('ap_routes.view_ap', id=trans.reference_id) }}" class="text-decoration-none">
                                         <i class="bi bi-file-earmark-text"></i> AP #{{ trans.reference_id }}
                                     </a>
                                 {% elif trans.reference_type == 'invoice' %}
