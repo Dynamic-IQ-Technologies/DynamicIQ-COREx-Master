@@ -4,7 +4,7 @@ from auth import login_required
 import csv
 import io
 from datetime import datetime
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -869,7 +869,7 @@ def ojt_report_pdf():
     }
     
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch,
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), topMargin=0.5*inch, bottomMargin=0.5*inch,
                            leftMargin=0.5*inch, rightMargin=0.5*inch)
     story = []
     styles = getSampleStyleSheet()
@@ -959,7 +959,7 @@ def ojt_report_pdf():
         ['Total Entries', 'Total Hours', 'Total Labor Cost'],
         [str(grand_totals['entries']), f"{grand_totals['hours']:.2f}", f"${grand_totals['cost']:,.2f}"]
     ]
-    summary_table = Table(summary_data, colWidths=[2*inch, 2*inch, 2*inch])
+    summary_table = Table(summary_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch])
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -1006,7 +1006,7 @@ def ojt_report_pdf():
         
         table_data.append(['', '', '', '', 'Subtotal:', f"{data['total_hours']:.2f}"])
         
-        col_widths = [1.1*inch, 0.9*inch, 1.3*inch, 1.3*inch, 1.3*inch, 0.7*inch]
+        col_widths = [1.3*inch, 1.2*inch, 2.0*inch, 1.8*inch, 1.8*inch, 0.9*inch]
         detail_table = Table(table_data, colWidths=col_widths)
         
         detail_table.setStyle(TableStyle([
