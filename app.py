@@ -168,9 +168,11 @@ app.register_blueprint(master_routing_bp)
 @app.context_processor
 def inject_user():
     user = None
+    user_permissions = {}
     if 'user_id' in session:
         user = User.get_by_id(session['user_id'])
-    return dict(user=user)
+        user_permissions = User.get_permissions(session['user_id'])
+    return dict(user=user, user_permissions=user_permissions)
 
 def initialize_application():
     """Run expensive initialization once at application startup"""
