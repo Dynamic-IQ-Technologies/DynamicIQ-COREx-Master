@@ -223,7 +223,7 @@ def view_tool(tool_id):
     ''', (tool_id,)).fetchall()
     
     conn.close()
-    return render_template('tools/view.html', tool=tool, checkouts=checkouts)
+    return render_template('tools/view.html', tool=tool, checkouts=checkouts, now=datetime.now().strftime('%Y-%m-%d'))
 
 @tools_bp.route('/tools/<int:tool_id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
