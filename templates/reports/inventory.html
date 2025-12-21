@@ -5,9 +5,27 @@
 {% block content %}
 <h2 class="mb-4">Inventory Report</h2>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <h4>Total Inventory Value: {{ total_value|currency }}</h4>
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted mb-1">Total Inventory Value</h5>
+                <h3 class="mb-0">{{ total_value|currency }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted mb-1">GL Inventory Account (1130)</h5>
+                <h3 class="mb-0 {% if gl_balance != total_value %}text-warning{% endif %}">{{ gl_balance|currency }}</h3>
+                {% if gl_balance != total_value %}
+                <small class="text-warning"><i class="bi bi-exclamation-triangle"></i> Variance: {{ (total_value - gl_balance)|currency }}</small>
+                {% else %}
+                <small class="text-success"><i class="bi bi-check-circle"></i> Balanced</small>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -42,7 +60,7 @@
                         </td>
                         <td>{{ item.quantity }}</td>
                         <td>{{ item.unit_of_measure }}</td>
-                        <td>{{ item.cost|currency }}</td>
+                        <td>{{ item.effective_cost|currency }}</td>
                         <td>{{ item.total_value|currency }}</td>
                     </tr>
                     {% endfor %}

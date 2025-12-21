@@ -20,21 +20,34 @@ def inventory_report():
     db = Database()
     conn = db.get_connection()
     
+    # Use actual unit_cost from inventory, fall back to product cost if not set
     inventory_data = conn.execute('''
-        SELECT i.*, p.code, p.name, p.unit_of_measure, p.cost,
-               (i.quantity * p.cost) as total_value
+        SELECT i.*, p.code, p.name, p.unit_of_measure, p.cost as product_cost,
+               COALESCE(i.unit_cost, p.cost, 0) as effective_cost,
+               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         ORDER BY total_value DESC
     ''').fetchall()
     
-    total_inventory_value = sum(item['total_value'] for item in inventory_data)
+    total_inventory_value = sum(item['total_value'] or 0 for item in inventory_data)
+    
+    # Get GL balance for comparison
+    gl_balance = conn.execute('''
+        SELECT 
+            COALESCE(SUM(CASE WHEN l.debit > 0 THEN l.debit ELSE 0 END) - 
+            SUM(CASE WHEN l.credit > 0 THEN l.credit ELSE 0 END), 0) as balance
+        FROM gl_entry_lines l
+        JOIN chart_of_accounts coa ON l.account_id = coa.id
+        WHERE coa.account_code = '1130'
+    ''').fetchone()
     
     conn.close()
     
     return render_template('reports/inventory.html', 
                          inventory_data=inventory_data,
-                         total_value=total_inventory_value)
+                         total_value=total_inventory_value,
+                         gl_balance=gl_balance['balance'] if gl_balance else 0)
 
 @report_bp.route('/reports/workorder-costs')
 @login_required
