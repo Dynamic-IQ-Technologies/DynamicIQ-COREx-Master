@@ -568,3 +568,216 @@ def procure_from_requirements():
         conn.close()
     
     return redirect(url_for('report_routes.material_requirements_report'))
+
+@report_bp.route('/reports/ojt')
+@login_required
+def ojt_report():
+    """OJT (On-the-Job Training) Report - Detailed job report by employee"""
+    db = Database()
+    conn = db.get_connection()
+    
+    employee_filter = request.args.get('employee', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    wo_filter = request.args.get('work_order', '')
+    sort_by = request.args.get('sort_by', 'clock_in_time')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    valid_sort_cols = ['employee_name', 'wo_number', 'clock_in_time', 'clock_out_time', 'hours_worked']
+    if sort_by not in valid_sort_cols:
+        sort_by = 'clock_in_time'
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    query = '''
+        SELECT 
+            wott.id,
+            wott.entry_number,
+            lr.first_name || ' ' || lr.last_name as employee_name,
+            lr.employee_code,
+            wo.wo_number,
+            wo.description as wo_description,
+            p.code as part_number,
+            p.name as part_name,
+            wot.task_name,
+            wot.description as task_description,
+            wott.clock_in_time,
+            wott.clock_out_time,
+            wott.hours_worked,
+            wott.labor_cost,
+            wott.hourly_rate,
+            wott.status,
+            wott.notes
+        FROM work_order_time_tracking wott
+        JOIN labor_resources lr ON wott.employee_id = lr.id
+        JOIN work_orders wo ON wott.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN work_order_tasks wot ON wott.task_id = wot.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if employee_filter:
+        query += ' AND wott.employee_id = ?'
+        params.append(employee_filter)
+    
+    if date_from:
+        query += ' AND DATE(wott.clock_in_time) >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND DATE(wott.clock_in_time) <= ?'
+        params.append(date_to)
+    
+    if wo_filter:
+        query += ' AND wo.id = ?'
+        params.append(wo_filter)
+    
+    sort_col_map = {
+        'employee_name': 'lr.first_name',
+        'wo_number': 'wo.wo_number',
+        'clock_in_time': 'wott.clock_in_time',
+        'clock_out_time': 'wott.clock_out_time',
+        'hours_worked': 'wott.hours_worked'
+    }
+    
+    query += f' ORDER BY {sort_col_map.get(sort_by, "wott.clock_in_time")} {sort_order.upper()}'
+    
+    time_entries = conn.execute(query, params).fetchall()
+    
+    employees = conn.execute('''
+        SELECT id, employee_code, first_name || ' ' || last_name as name
+        FROM labor_resources
+        WHERE status = 'Active'
+        ORDER BY first_name, last_name
+    ''').fetchall()
+    
+    work_orders = conn.execute('''
+        SELECT DISTINCT wo.id, wo.wo_number
+        FROM work_orders wo
+        JOIN work_order_time_tracking wott ON wo.id = wott.work_order_id
+        ORDER BY wo.wo_number DESC
+    ''').fetchall()
+    
+    grouped_data = {}
+    for entry in time_entries:
+        emp_name = entry['employee_name']
+        if emp_name not in grouped_data:
+            grouped_data[emp_name] = {
+                'employee_code': entry['employee_code'],
+                'entries': [],
+                'total_hours': 0,
+                'total_cost': 0
+            }
+        grouped_data[emp_name]['entries'].append(entry)
+        grouped_data[emp_name]['total_hours'] += entry['hours_worked'] or 0
+        grouped_data[emp_name]['total_cost'] += entry['labor_cost'] or 0
+    
+    grand_totals = {
+        'hours': sum(g['total_hours'] for g in grouped_data.values()),
+        'cost': sum(g['total_cost'] for g in grouped_data.values()),
+        'entries': len(time_entries)
+    }
+    
+    conn.close()
+    
+    return render_template('reports/ojt_report.html',
+                          grouped_data=grouped_data,
+                          employees=employees,
+                          work_orders=work_orders,
+                          employee_filter=employee_filter,
+                          date_from=date_from,
+                          date_to=date_to,
+                          wo_filter=wo_filter,
+                          sort_by=sort_by,
+                          sort_order=sort_order,
+                          grand_totals=grand_totals)
+
+@report_bp.route('/reports/ojt/export')
+@login_required
+def ojt_report_export():
+    """Export OJT Report to CSV"""
+    db = Database()
+    conn = db.get_connection()
+    
+    employee_filter = request.args.get('employee', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    wo_filter = request.args.get('work_order', '')
+    
+    query = '''
+        SELECT 
+            lr.first_name || ' ' || lr.last_name as employee_name,
+            lr.employee_code,
+            wo.wo_number,
+            wo.description as wo_description,
+            p.code as part_number,
+            wot.task_name,
+            wot.description as task_description,
+            wott.clock_in_time,
+            wott.clock_out_time,
+            wott.hours_worked,
+            wott.labor_cost,
+            wott.hourly_rate
+        FROM work_order_time_tracking wott
+        JOIN labor_resources lr ON wott.employee_id = lr.id
+        JOIN work_orders wo ON wott.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN work_order_tasks wot ON wott.task_id = wot.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if employee_filter:
+        query += ' AND wott.employee_id = ?'
+        params.append(employee_filter)
+    
+    if date_from:
+        query += ' AND DATE(wott.clock_in_time) >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND DATE(wott.clock_in_time) <= ?'
+        params.append(date_to)
+    
+    if wo_filter:
+        query += ' AND wo.id = ?'
+        params.append(wo_filter)
+    
+    query += ' ORDER BY lr.first_name, wott.clock_in_time DESC'
+    
+    entries = conn.execute(query, params).fetchall()
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    writer.writerow([
+        'Employee Name', 'Employee Code', 'Work Order', 'WO Description',
+        'Part Number', 'Task Name', 'Task Description', 'Start Time', 
+        'End Time', 'Hours Worked', 'Labor Cost', 'Hourly Rate'
+    ])
+    
+    for entry in entries:
+        writer.writerow([
+            entry['employee_name'],
+            entry['employee_code'],
+            entry['wo_number'],
+            entry['wo_description'] or '',
+            entry['part_number'],
+            entry['task_name'] or 'General',
+            entry['task_description'] or '',
+            entry['clock_in_time'],
+            entry['clock_out_time'] or 'In Progress',
+            round(entry['hours_worked'] or 0, 2),
+            round(entry['labor_cost'] or 0, 2),
+            round(entry['hourly_rate'] or 0, 2)
+        ])
+    
+    output.seek(0)
+    
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=ojt_report.csv'}
+    )

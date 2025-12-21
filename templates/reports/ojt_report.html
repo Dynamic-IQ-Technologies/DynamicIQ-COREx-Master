@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}OJT Report - Employee Job Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-person-badge me-2"></i>OJT Report</h2>
+        <small class="text-muted">On-the-Job Training - Detailed Employee Work Report</small>
+    </div>
+    <div>
+        <a href="{{ url_for('report_routes.ojt_report_export', employee=employee_filter, date_from=date_from, date_to=date_to, work_order=wo_filter) }}" 
+           class="btn btn-success">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filters</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Employee</label>
+                <select name="employee" class="form-select">
+                    <option value="">All Employees</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if employee_filter|string == emp.id|string %}selected{% endif %}>
+                        {{ emp.name }} ({{ emp.employee_code }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Work Order</label>
+                <select name="work_order" class="form-select">
+                    <option value="">All Work Orders</option>
+                    {% for wo in work_orders %}
+                    <option value="{{ wo.id }}" {% if wo_filter|string == wo.id|string %}selected{% endif %}>
+                        {{ wo.wo_number }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search me-1"></i> Filter
+                </button>
+                <a href="{{ url_for('report_routes.ojt_report') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3>{{ grand_totals.entries }}</h3>
+                <small>Total Time Entries</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3>{{ "%.2f"|format(grand_totals.hours) }}</h3>
+                <small>Total Hours Worked</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3>${{ "{:,.2f}".format(grand_totals.cost) }}</h3>
+                <small>Total Labor Cost</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if grouped_data %}
+<div class="accordion" id="ojtAccordion">
+    {% for employee_name, data in grouped_data.items() %}
+    <div class="accordion-item mb-3">
+        <h2 class="accordion-header">
+            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#emp{{ loop.index }}">
+                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                    <span>
+                        <i class="bi bi-person-fill me-2"></i>
+                        <strong>{{ employee_name }}</strong>
+                        <span class="badge bg-secondary ms-2">{{ data.employee_code }}</span>
+                    </span>
+                    <span>
+                        <span class="badge bg-primary me-2">{{ data.entries|length }} entries</span>
+                        <span class="badge bg-success me-2">{{ "%.2f"|format(data.total_hours) }} hrs</span>
+                        <span class="badge bg-info">${{ "{:,.2f}".format(data.total_cost) }}</span>
+                    </span>
+                </div>
+            </button>
+        </h2>
+        <div id="emp{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}">
+            <div class="accordion-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <a href="{{ url_for('report_routes.ojt_report', employee=employee_filter, date_from=date_from, date_to=date_to, work_order=wo_filter, sort_by='wo_number', sort_order='asc' if sort_by=='wo_number' and sort_order=='desc' else 'desc') }}" class="text-decoration-none">
+                                        Work Order
+                                        {% if sort_by == 'wo_number' %}
+                                        <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>WO Description</th>
+                                <th>Part Number</th>
+                                <th>Task Name</th>
+                                <th>Task Description</th>
+                                <th>
+                                    <a href="{{ url_for('report_routes.ojt_report', employee=employee_filter, date_from=date_from, date_to=date_to, work_order=wo_filter, sort_by='clock_in_time', sort_order='asc' if sort_by=='clock_in_time' and sort_order=='desc' else 'desc') }}" class="text-decoration-none">
+                                        Start Time
+                                        {% if sort_by == 'clock_in_time' %}
+                                        <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('report_routes.ojt_report', employee=employee_filter, date_from=date_from, date_to=date_to, work_order=wo_filter, sort_by='clock_out_time', sort_order='asc' if sort_by=='clock_out_time' and sort_order=='desc' else 'desc') }}" class="text-decoration-none">
+                                        End Time
+                                        {% if sort_by == 'clock_out_time' %}
+                                        <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="text-end">
+                                    <a href="{{ url_for('report_routes.ojt_report', employee=employee_filter, date_from=date_from, date_to=date_to, work_order=wo_filter, sort_by='hours_worked', sort_order='asc' if sort_by=='hours_worked' and sort_order=='desc' else 'desc') }}" class="text-decoration-none">
+                                        Hours
+                                        {% if sort_by == 'hours_worked' %}
+                                        <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in data.entries %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('workorder_routes.view_workorder', id=entry.wo_number.split('-')[1]|int if '-' in entry.wo_number else 0) }}" class="text-decoration-none">
+                                        {{ entry.wo_number }}
+                                    </a>
+                                </td>
+                                <td>{{ entry.wo_description or '-' }}</td>
+                                <td><code>{{ entry.part_number }}</code></td>
+                                <td>{{ entry.task_name or 'General' }}</td>
+                                <td>{{ entry.task_description[:50] ~ '...' if entry.task_description and entry.task_description|length > 50 else entry.task_description or '-' }}</td>
+                                <td>
+                                    {% if entry.clock_in_time %}
+                                    {{ entry.clock_in_time|replace('T', ' ')[:16] }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.clock_out_time %}
+                                    {{ entry.clock_out_time|replace('T', ' ')[:16] }}
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">In Progress</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <strong>{{ "%.2f"|format(entry.hours_worked or 0) }}</strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="7" class="text-end">Subtotal for {{ employee_name }}:</th>
+                                <th class="text-end">{{ "%.2f"|format(data.total_hours) }} hrs</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>No time tracking entries found matching your criteria.
+</div>
+{% endif %}
+
+<style>
+    .accordion-button:not(.collapsed) {
+        background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);
+        color: white;
+    }
+    
+    .accordion-button:not(.collapsed)::after {
+        filter: brightness(0) invert(1);
+    }
+    
+    .accordion-item {
+        border-radius: 0.5rem !important;
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,.125);
+    }
+    
+    .table th a {
+        color: inherit;
+    }
+    
+    .table th a:hover {
+        color: #0d6efd;
+    }
+</style>
+{% endblock %}
