@@ -5,6 +5,74 @@ from datetime import datetime, timedelta
 
 tools_bp = Blueprint('tools_routes', __name__)
 
+def create_tool_journal_entry(conn, tool_number, tool_name, amount, is_addition=True):
+    """Create journal entry for tool capitalization or disposal"""
+    if amount <= 0:
+        return None
+    
+    # Get Equipment account (1210) and Cash account (1110)
+    equipment_account = conn.execute(
+        "SELECT id FROM chart_of_accounts WHERE account_code = '1210'"
+    ).fetchone()
+    cash_account = conn.execute(
+        "SELECT id FROM chart_of_accounts WHERE account_code = '1110'"
+    ).fetchone()
+    
+    if not equipment_account or not cash_account:
+        return None
+    
+    # Generate entry number
+    last_entry = conn.execute('''
+        SELECT entry_number FROM gl_entries 
+        WHERE entry_number LIKE 'JE-%'
+        ORDER BY CAST(SUBSTR(entry_number, 4) AS INTEGER) DESC 
+        LIMIT 1
+    ''').fetchone()
+    
+    if last_entry:
+        try:
+            last_number = int(last_entry['entry_number'].split('-')[1])
+            next_number = last_number + 1
+        except (ValueError, IndexError):
+            next_number = 1
+    else:
+        next_number = 1
+    
+    entry_number = f'JE-{next_number:06d}'
+    
+    if is_addition:
+        # Tool purchase: Debit Equipment (asset up), Credit Cash (asset down)
+        description = f'Purchase tool: {tool_number} - {tool_name}'
+        debit_account = equipment_account['id']
+        credit_account = cash_account['id']
+    else:
+        # Tool disposal: Debit Cash (asset up if sold), Credit Equipment (asset down)
+        description = f'Dispose tool: {tool_number} - {tool_name}'
+        debit_account = cash_account['id']
+        credit_account = equipment_account['id']
+    
+    # Create journal entry
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO gl_entries (entry_number, entry_date, description, transaction_source, status, created_by, created_at)
+        VALUES (?, date('now'), ?, 'Tool Capitalization', 'Posted', ?, datetime('now'))
+    ''', (entry_number, description, session.get('user_id')))
+    
+    entry_id = cursor.lastrowid
+    
+    # Create journal entry lines
+    cursor.execute('''
+        INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+        VALUES (?, ?, ?, 0, ?)
+    ''', (entry_id, debit_account, amount, f'{tool_number} - {tool_name}'))
+    
+    cursor.execute('''
+        INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+        VALUES (?, ?, 0, ?, ?)
+    ''', (entry_id, credit_account, amount, f'{tool_number} - {tool_name}'))
+    
+    return entry_number
+
 def generate_tool_number(conn):
     """Generate sequential tool number"""
     result = conn.execute('''
@@ -103,10 +171,19 @@ def create_tool():
         ))
         
         tool_id = cursor.lastrowid
+        
+        # Create journal entry for tool capitalization if purchase cost > 0
+        purchase_cost = float(request.form.get('purchase_cost') or 0)
+        tool_name = request.form['name']
+        if purchase_cost > 0:
+            je_number = create_tool_journal_entry(conn, tool_number, tool_name, purchase_cost, is_addition=True)
+            if je_number:
+                flash(f'Journal Entry {je_number} created for tool capitalization', 'info')
+        
         conn.commit()
         
         AuditLogger.log_change(conn, 'tools', tool_id, 'CREATE', session.get('user_id'),
-                              {'tool_number': tool_number, 'name': request.form['name']})
+                              {'tool_number': tool_number, 'name': tool_name})
         conn.commit()
         
         flash(f'Tool {tool_number} created successfully!', 'success')
@@ -283,6 +360,15 @@ def delete_tool(tool_id):
     
     tool = conn.execute('SELECT * FROM tools WHERE id = ?', (tool_id,)).fetchone()
     if tool:
+        # Create reversing journal entry if tool had purchase cost
+        purchase_cost = float(tool['purchase_cost'] or 0)
+        if purchase_cost > 0:
+            je_number = create_tool_journal_entry(
+                conn, tool['tool_number'], tool['name'], purchase_cost, is_addition=False
+            )
+            if je_number:
+                flash(f'Journal Entry {je_number} created for tool disposal', 'info')
+        
         AuditLogger.log_change(conn, 'tools', tool_id, 'DELETE', session.get('user_id'),
                               {'tool_number': tool['tool_number']})
         conn.execute('DELETE FROM tools WHERE id = ?', (tool_id,))
