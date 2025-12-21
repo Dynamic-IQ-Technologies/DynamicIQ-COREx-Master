@@ -227,6 +227,20 @@ def gl_account_detail(account_code):
         conn.close()
         return redirect(url_for('journal_routes.list_journals'))
     
+    # Get all child account IDs (for parent accounts to show aggregated transactions)
+    child_accounts = conn.execute('''
+        WITH RECURSIVE account_tree AS (
+            SELECT id, account_code, account_name FROM chart_of_accounts WHERE account_code = ?
+            UNION ALL
+            SELECT c.id, c.account_code, c.account_name 
+            FROM chart_of_accounts c
+            INNER JOIN account_tree p ON c.parent_account_id = p.id
+        )
+        SELECT id FROM account_tree
+    ''', (account_code,)).fetchall()
+    
+    account_ids = [a['id'] for a in child_accounts]
+    
     # Get filter parameters
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
@@ -239,8 +253,9 @@ def gl_account_detail(account_code):
     if sort_dir not in ['ASC', 'DESC']:
         sort_dir = 'DESC'
     
-    # Build query for transactions
-    query = '''
+    # Build query for transactions (include all child accounts)
+    placeholders = ','.join(['?' for _ in account_ids])
+    query = f'''
         SELECT 
             gel.id as line_id,
             gel.debit,
@@ -260,9 +275,9 @@ def gl_account_detail(account_code):
         FROM gl_entry_lines gel
         JOIN gl_entries ge ON gel.gl_entry_id = ge.id
         JOIN chart_of_accounts coa ON gel.account_id = coa.id
-        WHERE coa.account_code = ? AND ge.status = 'Posted'
+        WHERE coa.id IN ({placeholders}) AND ge.status = 'Posted'
     '''
-    params = [account_code]
+    params = account_ids.copy()
     
     # Apply filters
     if start_date:
@@ -314,16 +329,16 @@ def gl_account_detail(account_code):
         trans_dict['running_balance'] = running_balance
         transactions_with_balance.append(trans_dict)
     
-    # Get unique transaction sources for filter dropdown
-    transaction_sources = conn.execute('''
+    # Get unique transaction sources for filter dropdown (include child accounts)
+    transaction_sources = conn.execute(f'''
         SELECT DISTINCT transaction_source 
         FROM gl_entries
         WHERE id IN (
             SELECT DISTINCT gl_entry_id FROM gl_entry_lines 
-            WHERE account_id = (SELECT id FROM chart_of_accounts WHERE account_code = ?)
+            WHERE account_id IN ({placeholders})
         )
         ORDER BY transaction_source
-    ''', (account_code,)).fetchall()
+    ''', account_ids).fetchall()
     
     # Calculate summary statistics
     summary = {
