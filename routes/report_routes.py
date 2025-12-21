@@ -956,10 +956,10 @@ def ojt_report_pdf():
     story.append(Spacer(1, 0.2*inch))
     
     summary_data = [
-        ['Total Entries', 'Total Hours', 'Total Labor Cost'],
-        [str(grand_totals['entries']), f"{grand_totals['hours']:.2f}", f"${grand_totals['cost']:,.2f}"]
+        ['Total Entries', 'Total Hours Worked'],
+        [str(grand_totals['entries']), f"{grand_totals['hours']:.2f}"]
     ]
-    summary_table = Table(summary_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch])
+    summary_table = Table(summary_data, colWidths=[3.5*inch, 3.5*inch])
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -977,7 +977,7 @@ def ojt_report_pdf():
     story.append(Spacer(1, 0.3*inch))
     
     for employee_name, data in grouped_data.items():
-        story.append(Paragraph(f"  {employee_name} ({data['employee_code']}) - {len(data['entries'])} entries, {data['total_hours']:.2f} hrs", section_style))
+        story.append(Paragraph(f"  {employee_name} ({data['employee_code']}) - {len(data['entries'])} entries, {data['total_hours']:.2f} hours", section_style))
         story.append(Spacer(1, 0.1*inch))
         
         table_data = [['Work Order', 'Part #', 'Task', 'Start', 'End', 'Hours']]

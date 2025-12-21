@@ -69,7 +69,7 @@
 </div>
 
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card bg-primary text-white">
             <div class="card-body text-center">
                 <h3>{{ grand_totals.entries }}</h3>
@@ -77,19 +77,11 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card bg-success text-white">
             <div class="card-body text-center">
                 <h3>{{ "%.2f"|format(grand_totals.hours) }}</h3>
                 <small>Total Hours Worked</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-info text-white">
-            <div class="card-body text-center">
-                <h3>${{ "{:,.2f}".format(grand_totals.cost) }}</h3>
-                <small>Total Labor Cost</small>
             </div>
         </div>
     </div>
@@ -110,8 +102,7 @@
                     </span>
                     <span>
                         <span class="badge bg-primary me-2">{{ data.entries|length }} entries</span>
-                        <span class="badge bg-success me-2">{{ "%.2f"|format(data.total_hours) }} hrs</span>
-                        <span class="badge bg-info">${{ "{:,.2f}".format(data.total_cost) }}</span>
+                        <span class="badge bg-success">{{ "%.2f"|format(data.total_hours) }} hrs</span>
                     </span>
                 </div>
             </button>
