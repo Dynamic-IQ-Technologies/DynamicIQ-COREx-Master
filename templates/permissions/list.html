@@ -31,7 +31,7 @@
         {% for user in users %}
         <div class="accordion-item mb-3">
             <h2 class="accordion-header">
-                <button class="accordion-button {% if not loop.first %}collapsed{% endif %} user-accordion-btn" type="button" 
+                <button class="accordion-button collapsed user-accordion-btn" type="button" 
                         data-bs-toggle="collapse" data-bs-target="#user{{ user.id }}">
                     <div class="d-flex align-items-center w-100">
                         <i class="bi bi-person-circle me-2"></i>
@@ -41,7 +41,7 @@
                     </div>
                 </button>
             </h2>
-            <div id="user{{ user.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#usersAccordion">
+            <div id="user{{ user.id }}" class="accordion-collapse collapse" data-bs-parent="#usersAccordion">
                 <div class="accordion-body">
                     <form method="POST" action="{{ url_for('permission_routes.update_permissions', user_id=user.id) }}">
                         <div class="d-flex justify-content-end mb-3">
