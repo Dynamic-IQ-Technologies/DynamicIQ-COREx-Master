@@ -6,6 +6,14 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-shield-lock me-2"></i>User Permissions Management</h2>
+        <div>
+            <button class="btn btn-outline-secondary btn-sm me-2" onclick="expandAllUsers()">
+                <i class="bi bi-arrows-expand me-1"></i> Expand All Users
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="collapseAllUsers()">
+                <i class="bi bi-arrows-collapse me-1"></i> Collapse All Users
+            </button>
+        </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -19,52 +27,76 @@
         {% endif %}
     {% endwith %}
 
-    <div class="row">
+    <div class="accordion" id="usersAccordion">
         {% for user in users %}
-        <div class="col-12 mb-4">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">
-                                <i class="bi bi-person-circle me-2"></i>{{ user.username }}
-                            </h5>
-                            <small>{{ user.email }} | Role: <strong>{{ user.role }}</strong></small>
-                        </div>
+        <div class="accordion-item mb-3">
+            <h2 class="accordion-header">
+                <button class="accordion-button {% if not loop.first %}collapsed{% endif %} user-accordion-btn" type="button" 
+                        data-bs-toggle="collapse" data-bs-target="#user{{ user.id }}">
+                    <div class="d-flex align-items-center w-100">
+                        <i class="bi bi-person-circle me-2"></i>
+                        <strong>{{ user.username }}</strong>
+                        <span class="badge bg-secondary ms-2">{{ user.role }}</span>
+                        <small class="text-muted ms-3">{{ user.email }}</small>
                     </div>
-                </div>
-                <div class="card-body">
+                </button>
+            </h2>
+            <div id="user{{ user.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#usersAccordion">
+                <div class="accordion-body">
                     <form method="POST" action="{{ url_for('permission_routes.update_permissions', user_id=user.id) }}">
-                        <div class="row">
+                        <div class="d-flex justify-content-end mb-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="expandAllCategories({{ user.id }})">
+                                <i class="bi bi-arrows-expand me-1"></i> Expand All Categories
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="collapseAllCategories({{ user.id }})">
+                                <i class="bi bi-arrows-collapse me-1"></i> Collapse All Categories
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm me-2" onclick="checkAllPermissions({{ user.id }})">
+                                <i class="bi bi-check-all me-1"></i> Check All
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="uncheckAllPermissions({{ user.id }})">
+                                <i class="bi bi-x-circle me-1"></i> Uncheck All
+                            </button>
+                        </div>
+                        
+                        <div class="accordion" id="categoriesAccordion{{ user.id }}">
                             {% for category, permissions in available_permissions.items() %}
-                            <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0 text-capitalize">
-                                            <i class="bi bi-folder2-open me-2"></i>{{ category.replace('_', ' ') }}
-                                        </h6>
-                                    </div>
-                                    <div class="card-body">
-                                        {% for perm_key, perm_label in permissions.items() %}
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" 
-                                                   type="checkbox" 
-                                                   name="{{ perm_key }}" 
-                                                   id="{{ user.id }}_{{ perm_key }}"
-                                                   {% if user.permissions.get(perm_key, 0) == 1 %}checked{% endif %}>
-                                            <label class="form-check-label" for="{{ user.id }}_{{ perm_key }}">
-                                                {{ perm_label }}
-                                            </label>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed category-accordion-btn" type="button" 
+                                            data-bs-toggle="collapse" data-bs-target="#cat{{ user.id }}_{{ loop.index }}">
+                                        <i class="bi bi-folder2-open me-2"></i>
+                                        <span class="text-capitalize">{{ category.replace('_', ' ') }}</span>
+                                        <span class="badge bg-info ms-2">{{ permissions|length }}</span>
+                                    </button>
+                                </h2>
+                                <div id="cat{{ user.id }}_{{ loop.index }}" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            {% for perm_key, perm_label in permissions.items() %}
+                                            <div class="col-md-6 col-lg-4">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input perm-check-{{ user.id }}" 
+                                                           type="checkbox" 
+                                                           name="{{ perm_key }}" 
+                                                           id="{{ user.id }}_{{ perm_key }}"
+                                                           {% if user.permissions.get(perm_key, 0) == 1 %}checked{% endif %}>
+                                                    <label class="form-check-label" for="{{ user.id }}_{{ perm_key }}">
+                                                        {{ perm_label }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
                                         </div>
-                                        {% endfor %}
                                     </div>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
-                        <div class="mt-3">
+                        
+                        <div class="mt-4">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save me-2"></i>Update Permissions
+                                <i class="bi bi-save me-2"></i>Update Permissions for {{ user.username }}
                             </button>
                         </div>
                     </form>
@@ -82,13 +114,33 @@
 </div>
 
 <style>
-    .card {
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
+    .accordion-item {
+        border: 1px solid rgba(0,0,0,.125);
+        border-radius: 0.5rem !important;
+        overflow: hidden;
     }
     
-    .card:hover {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    .accordion-button:not(.collapsed) {
+        background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);
+        color: white;
+    }
+    
+    .accordion-button:not(.collapsed)::after {
+        filter: brightness(0) invert(1);
+    }
+    
+    .user-accordion-btn {
+        padding: 1rem 1.25rem;
+    }
+    
+    .category-accordion-btn {
+        padding: 0.75rem 1rem;
+        background-color: #f8f9fa;
+    }
+    
+    .category-accordion-btn:not(.collapsed) {
+        background: #e3f2fd;
+        color: #1e3a8a;
     }
     
     .form-check-input:checked {
@@ -96,8 +148,50 @@
         border-color: #0d6efd;
     }
     
-    .card-header.bg-primary {
-        background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%) !important;
+    .accordion-body {
+        background-color: #fff;
+    }
+    
+    #categoriesAccordion .accordion-item {
+        margin-bottom: 0.5rem;
     }
 </style>
+
+<script>
+function expandAllUsers() {
+    document.querySelectorAll('#usersAccordion .accordion-collapse').forEach(el => {
+        new bootstrap.Collapse(el, { toggle: false }).show();
+    });
+}
+
+function collapseAllUsers() {
+    document.querySelectorAll('#usersAccordion .accordion-collapse').forEach(el => {
+        new bootstrap.Collapse(el, { toggle: false }).hide();
+    });
+}
+
+function expandAllCategories(userId) {
+    document.querySelectorAll('#categoriesAccordion' + userId + ' .accordion-collapse').forEach(el => {
+        new bootstrap.Collapse(el, { toggle: false }).show();
+    });
+}
+
+function collapseAllCategories(userId) {
+    document.querySelectorAll('#categoriesAccordion' + userId + ' .accordion-collapse').forEach(el => {
+        new bootstrap.Collapse(el, { toggle: false }).hide();
+    });
+}
+
+function checkAllPermissions(userId) {
+    document.querySelectorAll('.perm-check-' + userId).forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+function uncheckAllPermissions(userId) {
+    document.querySelectorAll('.perm-check-' + userId).forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+</script>
 {% endblock %}
