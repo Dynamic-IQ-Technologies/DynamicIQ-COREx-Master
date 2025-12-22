@@ -4,6 +4,65 @@ from auth import login_required, role_required
 from datetime import datetime, timedelta
 import json
 import io
+import os
+import requests
+
+
+def get_sendgrid_credentials():
+    """Get SendGrid API key and from_email from Replit connector"""
+    hostname = os.environ.get('REPLIT_CONNECTORS_HOSTNAME')
+    repl_identity = os.environ.get('REPL_IDENTITY')
+    web_repl_renewal = os.environ.get('WEB_REPL_RENEWAL')
+    
+    if not hostname:
+        return None, None
+    
+    if repl_identity:
+        x_replit_token = 'repl ' + repl_identity
+    elif web_repl_renewal:
+        x_replit_token = 'depl ' + web_repl_renewal
+    else:
+        return None, None
+    
+    try:
+        response = requests.get(
+            f'https://{hostname}/api/v2/connection?include_secrets=true&connector_names=sendgrid',
+            headers={
+                'Accept': 'application/json',
+                'X_REPLIT_TOKEN': x_replit_token
+            }
+        )
+        data = response.json()
+        connection = data.get('items', [{}])[0] if data.get('items') else {}
+        settings = connection.get('settings', {})
+        api_key = settings.get('api_key')
+        from_email = settings.get('from_email')
+        return api_key, from_email
+    except Exception:
+        return None, None
+
+
+def send_email_via_sendgrid(to_email, subject, html_content, from_email, api_key, cc_email=None):
+    """Send email using SendGrid API"""
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To, Content, Cc
+    
+    try:
+        message = Mail(
+            from_email=Email(from_email),
+            to_emails=To(to_email),
+            subject=subject,
+            html_content=Content("text/html", html_content)
+        )
+        
+        if cc_email:
+            message.add_cc(Cc(cc_email))
+        
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        return response.status_code in [200, 201, 202], None
+    except Exception as e:
+        return False, str(e)
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -703,8 +762,8 @@ def email_preview(id):
     
     company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
     
-    import os
-    email_configured = bool(os.environ.get('SMTP_HOST') or os.environ.get('RESEND_API_KEY') or os.environ.get('SENDGRID_API_KEY'))
+    api_key, from_email = get_sendgrid_credentials()
+    email_configured = bool(api_key and from_email)
     
     conn.close()
     
@@ -720,8 +779,6 @@ def email_preview(id):
 @role_required('Admin', 'Planner')
 def send_order_acknowledgement(id):
     """Send order acknowledgement email and optionally confirm order"""
-    import os
-    
     db = Database()
     conn = db.get_connection()
     
@@ -731,10 +788,114 @@ def send_order_acknowledgement(id):
     additional_message = request.form.get('additional_message')
     confirm_order_flag = request.form.get('confirm_order') == 'on'
     
-    email_configured = bool(os.environ.get('SMTP_HOST') or os.environ.get('RESEND_API_KEY') or os.environ.get('SENDGRID_API_KEY'))
+    api_key, from_email = get_sendgrid_credentials()
+    email_configured = bool(api_key and from_email)
     
     if email_configured and recipient_email:
-        flash(f'Email acknowledgement would be sent to {recipient_email}. (Email service not fully configured)', 'info')
+        sales_order = conn.execute('''
+            SELECT so.*, c.name as customer_name, c.customer_number, c.shipping_address
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            WHERE so.id = ?
+        ''', (id,)).fetchone()
+        
+        lines = conn.execute('''
+            SELECT sol.*, p.code, p.name
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ?
+            ORDER BY sol.line_number
+        ''', (id,)).fetchall()
+        
+        company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+        company = dict(company) if company else {}
+        
+        lines_html = ""
+        for line in lines:
+            line_total = (line['quantity'] or 0) * (line['unit_price'] or 0)
+            lines_html += f"""
+            <tr>
+                <td style="padding:12px 15px;border-bottom:1px solid #e2e8f0;">
+                    <div style="font-weight:600;color:#1e3a5f;">{line['code']}</div>
+                    <div style="font-size:10px;color:#64748b;">{line['name']}</div>
+                </td>
+                <td style="padding:12px 15px;border-bottom:1px solid #e2e8f0;">{line['unit_of_measure'] or 'EA'}</td>
+                <td style="padding:12px 15px;border-bottom:1px solid #e2e8f0;text-align:right;">{line['quantity']}</td>
+                <td style="padding:12px 15px;border-bottom:1px solid #e2e8f0;text-align:right;">${line['unit_price'] or 0:,.2f}</td>
+                <td style="padding:12px 15px;border-bottom:1px solid #e2e8f0;text-align:right;">${line_total:,.2f}</td>
+            </tr>
+            """
+        
+        additional_msg_html = ""
+        if additional_message:
+            additional_msg_html = f"""
+            <div style="background:#e0f2fe;border:1px solid #7dd3fc;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:600;color:#0369a1;margin-bottom:8px;">Message from Seller</div>
+                <div style="color:#0c4a6e;">{additional_message}</div>
+            </div>
+            """
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1e293b;margin:0;padding:0;">
+            <div style="max-width:650px;margin:0 auto;background:#fff;">
+                <div style="background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);color:white;padding:30px 40px;">
+                    <table width="100%"><tr>
+                        <td><h1 style="margin:0;font-size:24px;">{company.get('company_name', 'Dynamic.IQ-COREx')}</h1>
+                        <p style="margin:5px 0 0 0;font-size:11px;opacity:0.9;">
+                            {company.get('address_line1', '')}<br>
+                            {company.get('city', '')}{ ', ' + company.get('state', '') if company.get('state') else ''} {company.get('postal_code', '')}
+                        </p></td>
+                        <td style="text-align:right;">
+                            <h2 style="margin:0;font-size:20px;letter-spacing:2px;">ORDER ACKNOWLEDGEMENT</h2>
+                            <div style="background:rgba(255,255,255,0.15);padding:6px 16px;border-radius:4px;display:inline-block;margin-top:8px;">{sales_order['so_number']}</div>
+                        </td>
+                    </tr></table>
+                </div>
+                <div style="padding:30px 40px;">
+                    <p>Dear {sales_order['customer_name']},</p>
+                    <p>Thank you for your order. We are pleased to confirm receipt and provide the following acknowledgement.</p>
+                    {additional_msg_html}
+                    <table style="width:100%;border-collapse:collapse;margin-bottom:25px;">
+                        <thead><tr style="background:#1e3a5f;color:white;">
+                            <th style="padding:12px 15px;text-align:left;font-size:10px;text-transform:uppercase;">Product</th>
+                            <th style="padding:12px 15px;text-align:left;font-size:10px;text-transform:uppercase;">UOM</th>
+                            <th style="padding:12px 15px;text-align:right;font-size:10px;text-transform:uppercase;">Qty</th>
+                            <th style="padding:12px 15px;text-align:right;font-size:10px;text-transform:uppercase;">Unit Price</th>
+                            <th style="padding:12px 15px;text-align:right;font-size:10px;text-transform:uppercase;">Total</th>
+                        </tr></thead>
+                        <tbody>{lines_html}</tbody>
+                    </table>
+                    <div style="text-align:right;margin-bottom:25px;">
+                        <div style="display:inline-block;width:280px;border:2px solid #1e3a5f;border-radius:8px;overflow:hidden;">
+                            <div style="display:flex;justify-content:space-between;padding:10px 15px;border-bottom:1px solid #e2e8f0;">
+                                <span>Subtotal:</span><span>${sales_order['subtotal'] or 0:,.2f}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 15px;background:#1e3a5f;color:white;font-size:14px;font-weight:700;">
+                                <span>Total:</span><span>${sales_order['total_amount'] or 0:,.2f}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p>If you have any questions regarding this order, please don't hesitate to contact us.</p>
+                    <p style="margin-top:20px;">Thank you for your business!<br><br>Best regards,<br><strong>{company.get('company_name', 'Dynamic.IQ-COREx')}</strong></p>
+                </div>
+                <div style="background:#1e3a5f;color:rgba(255,255,255,0.8);padding:20px 40px;text-align:center;font-size:11px;">
+                    {company.get('address_line1', '')} | {company.get('city', '')}{ ', ' + company.get('state', '') if company.get('state') else ''} {company.get('postal_code', '')}
+                    {' | Phone: ' + company.get('phone', '') if company.get('phone') else ''} {' | ' + company.get('email', '') if company.get('email') else ''}
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        success, error = send_email_via_sendgrid(recipient_email, subject, html_content, from_email, api_key, cc_email or None)
+        
+        if success:
+            flash(f'Email acknowledgement sent to {recipient_email}!', 'success')
+        else:
+            flash(f'Failed to send email: {error}', 'danger')
     else:
         flash('Order acknowledgement email skipped - no email service configured.', 'warning')
     
