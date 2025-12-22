@@ -800,7 +800,7 @@ def send_order_acknowledgement(id):
         ''', (id,)).fetchone()
         
         lines = conn.execute('''
-            SELECT sol.*, p.code, p.name
+            SELECT sol.*, p.code, p.name, p.unit_of_measure
             FROM sales_order_lines sol
             JOIN products p ON sol.product_id = p.id
             WHERE sol.so_id = ?
