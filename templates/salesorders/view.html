@@ -9,6 +9,12 @@
             <a href="{{ url_for('salesorder_routes.list_sales_orders') }}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Back to List
             </a>
+            <a href="{{ url_for('salesorder_routes.print_sales_order', id=sales_order.id) }}" class="btn btn-outline-primary" target="_blank">
+                <i class="bi bi-printer"></i> Print View
+            </a>
+            <a href="{{ url_for('salesorder_routes.download_pdf', id=sales_order.id) }}" class="btn btn-danger">
+                <i class="bi bi-file-pdf"></i> Download PDF
+            </a>
             {% if session.role in ['Admin', 'Planner'] %}
                 {% if sales_order.status == 'Draft' %}
                 <a href="{{ url_for('salesorder_routes.edit_sales_order', id=sales_order.id) }}" class="btn btn-warning">
