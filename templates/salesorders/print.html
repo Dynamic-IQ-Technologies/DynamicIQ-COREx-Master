@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Order - {{ sales_order.so_number }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #1e293b;
+            background: #f8fafc;
+            padding: 20px;
+        }
+        
+        .document-container {
+            max-width: 8.5in;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 0;
+        }
+        
+        .document-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            color: white;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .company-info h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .company-info h1 .orange {
+            color: #f97316;
+        }
+        
+        .company-info p {
+            font-size: 11px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .document-title {
+            text-align: right;
+        }
+        
+        .document-title h2 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        
+        .document-title .so-number {
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px 16px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .document-body {
+            padding: 30px 40px;
+        }
+        
+        .info-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .info-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .info-box-header {
+            background: #f8fafc;
+            padding: 10px 15px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .info-box-content {
+            padding: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .info-label {
+            width: 40%;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            width: 60%;
+            font-weight: 500;
+            color: #1e293b;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-draft { background: #e2e8f0; color: #475569; }
+        .status-confirmed { background: #dbeafe; color: #1d4ed8; }
+        .status-shipped { background: #d1fae5; color: #059669; }
+        .status-invoiced { background: #fef3c7; color: #d97706; }
+        .status-closed { background: #1e293b; color: white; }
+        
+        .line-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+        }
+        
+        .line-items-table thead {
+            background: #1e3a5f;
+            color: white;
+        }
+        
+        .line-items-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .line-items-table th:nth-child(4),
+        .line-items-table th:nth-child(5),
+        .line-items-table th:nth-child(6) {
+            text-align: right;
+        }
+        
+        .line-items-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        
+        .line-items-table td:nth-child(4),
+        .line-items-table td:nth-child(5),
+        .line-items-table td:nth-child(6) {
+            text-align: right;
+        }
+        
+        .line-items-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        .product-code {
+            font-weight: 600;
+            color: #1e3a5f;
+        }
+        
+        .product-name {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .serial-info {
+            font-size: 9px;
+            color: #f97316;
+            margin-top: 4px;
+        }
+        
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 25px;
+        }
+        
+        .totals-box {
+            width: 300px;
+            border: 2px solid #1e3a5f;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .totals-row:last-child {
+            border-bottom: none;
+        }
+        
+        .totals-row.grand-total {
+            background: #1e3a5f;
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        .notes-section {
+            margin-top: 25px;
+        }
+        
+        .notes-box {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .notes-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+        
+        .notes-content {
+            color: #78350f;
+            white-space: pre-wrap;
+        }
+        
+        .document-footer {
+            background: #f8fafc;
+            padding: 20px 40px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #64748b;
+        }
+        
+        .print-actions {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .action-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .btn-print {
+            background: #1e3a5f;
+            color: white;
+        }
+        
+        .btn-print:hover {
+            background: #0f172a;
+        }
+        
+        .btn-pdf {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-pdf:hover {
+            background: #b91c1c;
+        }
+        
+        .btn-back {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn-back:hover {
+            background: #475569;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .document-container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+            
+            .print-actions {
+                display: none !important;
+            }
+            
+            .document-header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .line-items-table thead {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .totals-row.grand-total {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="print-actions">
+        <a href="{{ url_for('salesorder_routes.view_sales_order', id=sales_order.id) }}" class="action-btn btn-back">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+        <button onclick="window.print()" class="action-btn btn-print">
+            <i class="bi bi-printer"></i> Print
+        </button>
+        <a href="{{ url_for('salesorder_routes.download_pdf', id=sales_order.id) }}" class="action-btn btn-pdf">
+            <i class="bi bi-file-pdf"></i> Download PDF
+        </a>
+    </div>
+
+    <div class="document-container">
+        <div class="document-header">
+            <div class="company-info">
+                <h1>{{ company_settings.company_name or 'Dynamic.IQ-COREx' }}<span class="orange"></span></h1>
+                <p>
+                    {% if company_settings.address_line1 %}{{ company_settings.address_line1 }}<br>{% endif %}
+                    {% if company_settings.city %}{{ company_settings.city }}{% if company_settings.state %}, {{ company_settings.state }}{% endif %} {{ company_settings.postal_code or '' }}{% endif %}
+                    {% if company_settings.phone %}<br>Phone: {{ company_settings.phone }}{% endif %}
+                    {% if company_settings.email %}<br>{{ company_settings.email }}{% endif %}
+                </p>
+            </div>
+            <div class="document-title">
+                <h2>SALES ORDER</h2>
+                <div class="so-number">{{ sales_order.so_number }}</div>
+            </div>
+        </div>
+        
+        <div class="document-body">
+            <div class="info-section">
+                <div class="info-box">
+                    <div class="info-box-header">
+                        <i class="bi bi-info-circle"></i> Order Information
+                    </div>
+                    <div class="info-box-content">
+                        <div class="info-row">
+                            <span class="info-label">Order Date:</span>
+                            <span class="info-value">{{ sales_order.order_date }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Sales Type:</span>
+                            <span class="info-value">{{ sales_order.sales_type }}</span>
+                        </div>
+                        {% if sales_order.exchange_type %}
+                        <div class="info-row">
+                            <span class="info-label">Exchange Type:</span>
+                            <span class="info-value">{{ sales_order.exchange_type }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">
+                                <span class="status-badge status-{{ sales_order.status|lower|replace(' ', '-') }}">
+                                    {{ sales_order.status }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Expected Ship:</span>
+                            <span class="info-value">{{ sales_order.expected_ship_date or 'TBD' }}</span>
+                        </div>
+                        {% if sales_order.expected_return_date %}
+                        <div class="info-row">
+                            <span class="info-label">Expected Return:</span>
+                            <span class="info-value">{{ sales_order.expected_return_date }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <div class="info-box-header">
+                        <i class="bi bi-building"></i> Customer Information
+                    </div>
+                    <div class="info-box-content">
+                        <div class="info-row">
+                            <span class="info-label">Customer:</span>
+                            <span class="info-value">{{ sales_order.customer_name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Account #:</span>
+                            <span class="info-value">{{ sales_order.customer_number or '-' }}</span>
+                        </div>
+                        {% if sales_order.billing_address %}
+                        <div class="info-row">
+                            <span class="info-label">Billing Address:</span>
+                            <span class="info-value" style="white-space: pre-line;">{{ sales_order.billing_address }}</span>
+                        </div>
+                        {% endif %}
+                        {% if sales_order.shipping_address %}
+                        <div class="info-row">
+                            <span class="info-label">Ship To:</span>
+                            <span class="info-value" style="white-space: pre-line;">{{ sales_order.shipping_address }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <table class="line-items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 8%;">Line</th>
+                        <th style="width: 32%;">Product</th>
+                        <th style="width: 12%;">UOM</th>
+                        <th style="width: 12%;">Qty</th>
+                        <th style="width: 18%;">Unit Price</th>
+                        <th style="width: 18%;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr>
+                        <td>{{ line.line_number }}</td>
+                        <td>
+                            <div class="product-code">{{ line.code }}</div>
+                            <div class="product-name">{{ line.product_name }}</div>
+                            {% if line.serial_number %}
+                            <div class="serial-info">S/N: {{ line.serial_number }}</div>
+                            {% endif %}
+                            {% if line.lot_number %}
+                            <div class="serial-info">Lot: {{ line.lot_number }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ line.unit_of_measure or 'EA' }}</td>
+                        <td>{{ line.quantity }}</td>
+                        <td>${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
+                        <td>${{ "{:,.2f}".format((line.quantity or 0) * (line.unit_price or 0)) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="totals-section">
+                <div class="totals-box">
+                    <div class="totals-row">
+                        <span>Subtotal:</span>
+                        <span>${{ "{:,.2f}".format(sales_order.subtotal or 0) }}</span>
+                    </div>
+                    {% if sales_order.tax_rate and sales_order.tax_rate > 0 %}
+                    <div class="totals-row">
+                        <span>Tax ({{ sales_order.tax_rate }}%):</span>
+                        <span>${{ "{:,.2f}".format(sales_order.tax_amount or 0) }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="totals-row grand-total">
+                        <span>Total:</span>
+                        <span>${{ "{:,.2f}".format(sales_order.total_amount or 0) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            {% if sales_order.service_notes or sales_order.notes %}
+            <div class="notes-section">
+                {% if sales_order.service_notes %}
+                <div class="notes-box" style="margin-bottom: 15px;">
+                    <div class="notes-title"><i class="bi bi-tools"></i> Service Notes</div>
+                    <div class="notes-content">{{ sales_order.service_notes }}</div>
+                </div>
+                {% endif %}
+                {% if sales_order.notes %}
+                <div class="notes-box">
+                    <div class="notes-title"><i class="bi bi-sticky"></i> Order Notes</div>
+                    <div class="notes-content">{{ sales_order.notes }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="document-footer">
+            <div>
+                Generated: {{ now.strftime('%B %d, %Y at %I:%M %p') if now else '' }}
+            </div>
+            <div>
+                Page 1 of 1
+            </div>
+        </div>
+    </div>
+</body>
+</html>

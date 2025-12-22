@@ -1,8 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 import json
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 salesorder_bp = Blueprint('salesorder_routes', __name__)
 
@@ -1819,3 +1826,260 @@ def exchanges_report():
         conn.close()
         flash(f'Error generating exchanges report: {str(e)}', 'danger')
         return redirect(url_for('salesorder_routes.list_sales_orders'))
+
+
+@salesorder_bp.route('/sales-orders/<int:id>/print')
+@login_required
+def print_sales_order(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    sales_order = conn.execute('''
+        SELECT so.*, c.name as customer_name, c.customer_number, c.billing_address, c.shipping_address,
+               u.username as created_by_name
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        LEFT JOIN users u ON so.created_by = u.id
+        WHERE so.id = ?
+    ''', (id,)).fetchone()
+    
+    if not sales_order:
+        flash('Sales Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('salesorder_routes.list_sales_orders'))
+    
+    lines = conn.execute('''
+        SELECT sol.*, p.code, p.name as product_name, p.unit_of_measure, p.is_serialized
+        FROM sales_order_lines sol
+        JOIN products p ON sol.product_id = p.id
+        WHERE sol.so_id = ?
+        ORDER BY sol.line_number
+    ''', (id,)).fetchall()
+    
+    company_settings = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+    
+    conn.close()
+    
+    return render_template('salesorders/print.html', 
+                         sales_order=sales_order, 
+                         lines=lines, 
+                         company_settings=company_settings or {},
+                         now=datetime.now())
+
+
+@salesorder_bp.route('/sales-orders/<int:id>/pdf')
+@login_required
+def download_pdf(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    sales_order = conn.execute('''
+        SELECT so.*, c.name as customer_name, c.customer_number, c.billing_address, c.shipping_address,
+               u.username as created_by_name
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        LEFT JOIN users u ON so.created_by = u.id
+        WHERE so.id = ?
+    ''', (id,)).fetchone()
+    
+    if not sales_order:
+        flash('Sales Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('salesorder_routes.list_sales_orders'))
+    
+    lines = conn.execute('''
+        SELECT sol.*, p.code, p.name as product_name, p.unit_of_measure
+        FROM sales_order_lines sol
+        JOIN products p ON sol.product_id = p.id
+        WHERE sol.so_id = ?
+        ORDER BY sol.line_number
+    ''', (id,)).fetchall()
+    
+    company_settings = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+    
+    conn.close()
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch, leftMargin=0.5*inch, rightMargin=0.5*inch)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'SOTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#1e3a5f'),
+        spaceAfter=5,
+        alignment=TA_CENTER
+    )
+    
+    company_style = ParagraphStyle(
+        'Company',
+        parent=styles['Normal'],
+        fontSize=12,
+        textColor=colors.HexColor('#1e3a5f'),
+        alignment=TA_CENTER,
+        spaceAfter=5
+    )
+    
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#475569'),
+        alignment=TA_CENTER
+    )
+    
+    if company_settings and company_settings['company_name']:
+        story.append(Paragraph(company_settings['company_name'], company_style))
+        addr_parts = []
+        if company_settings['address_line1']:
+            addr_parts.append(company_settings['address_line1'])
+        if company_settings['city']:
+            city_line = company_settings['city']
+            if company_settings['state']:
+                city_line += f", {company_settings['state']}"
+            if company_settings['postal_code']:
+                city_line += f" {company_settings['postal_code']}"
+            addr_parts.append(city_line)
+        if addr_parts:
+            story.append(Paragraph(' | '.join(addr_parts), header_style))
+        story.append(Spacer(1, 0.2*inch))
+    
+    story.append(Paragraph("SALES ORDER", title_style))
+    story.append(Spacer(1, 0.1*inch))
+    
+    so_num_style = ParagraphStyle(
+        'SONum',
+        parent=styles['Normal'],
+        fontSize=14,
+        textColor=colors.HexColor('#f97316'),
+        alignment=TA_CENTER,
+        spaceAfter=20
+    )
+    story.append(Paragraph(sales_order['so_number'], so_num_style))
+    story.append(Spacer(1, 0.2*inch))
+    
+    info_data = [
+        ['Order Date:', sales_order['order_date'], 'Customer:', sales_order['customer_name']],
+        ['Sales Type:', sales_order['sales_type'], 'Account #:', sales_order['customer_number'] or '-'],
+        ['Status:', sales_order['status'], 'Expected Ship:', sales_order['expected_ship_date'] or 'TBD'],
+    ]
+    
+    if sales_order['exchange_type']:
+        info_data.append(['Exchange Type:', sales_order['exchange_type'], '', ''])
+    
+    info_table = Table(info_data, colWidths=[1.3*inch, 2*inch, 1.3*inch, 2.5*inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#64748b')),
+        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#64748b')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    if sales_order['billing_address'] or sales_order['shipping_address']:
+        addr_data = [['Bill To:', 'Ship To:']]
+        addr_data.append([
+            sales_order['billing_address'] or '-',
+            sales_order['shipping_address'] or '-'
+        ])
+        addr_table = Table(addr_data, colWidths=[3.5*inch, 3.5*inch])
+        addr_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#64748b')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(addr_table)
+        story.append(Spacer(1, 0.2*inch))
+    
+    line_data = [['Line', 'Product Code', 'Description', 'UOM', 'Qty', 'Unit Price', 'Total']]
+    for line in lines:
+        line_total = (line['quantity'] or 0) * (line['unit_price'] or 0)
+        desc = line['product_name']
+        if line['serial_number']:
+            desc += f"\nS/N: {line['serial_number']}"
+        if line['lot_number']:
+            desc += f"\nLot: {line['lot_number']}"
+        line_data.append([
+            str(line['line_number']),
+            line['code'],
+            Paragraph(desc, styles['Normal']),
+            line['unit_of_measure'] or 'EA',
+            str(line['quantity']),
+            f"${line['unit_price']:,.2f}" if line['unit_price'] else '$0.00',
+            f"${line_total:,.2f}"
+        ])
+    
+    lines_table = Table(line_data, colWidths=[0.5*inch, 1.2*inch, 2.3*inch, 0.6*inch, 0.5*inch, 1*inch, 1*inch])
+    lines_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    story.append(lines_table)
+    story.append(Spacer(1, 0.2*inch))
+    
+    totals_data = [
+        ['', '', '', '', '', 'Subtotal:', f"${sales_order['subtotal']:,.2f}" if sales_order['subtotal'] else '$0.00'],
+    ]
+    
+    if sales_order['tax_rate'] and sales_order['tax_rate'] > 0:
+        totals_data.append(['', '', '', '', '', f"Tax ({sales_order['tax_rate']}%):", f"${sales_order['tax_amount']:,.2f}" if sales_order['tax_amount'] else '$0.00'])
+    
+    totals_data.append(['', '', '', '', '', 'TOTAL:', f"${sales_order['total_amount']:,.2f}" if sales_order['total_amount'] else '$0.00'])
+    
+    totals_table = Table(totals_data, colWidths=[0.5*inch, 1.2*inch, 2.3*inch, 0.6*inch, 0.5*inch, 1*inch, 1*inch])
+    totals_table.setStyle(TableStyle([
+        ('ALIGN', (5, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (5, 0), (5, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTNAME', (5, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (5, -1), (-1, -1), 11),
+        ('TEXTCOLOR', (5, -1), (-1, -1), colors.HexColor('#1e3a5f')),
+        ('LINEABOVE', (5, -1), (-1, -1), 2, colors.HexColor('#1e3a5f')),
+    ]))
+    story.append(totals_table)
+    
+    if sales_order['service_notes']:
+        story.append(Spacer(1, 0.3*inch))
+        notes_style = ParagraphStyle('Notes', parent=styles['Normal'], fontSize=9)
+        story.append(Paragraph(f"<b>Service Notes:</b> {sales_order['service_notes']}", notes_style))
+    
+    if sales_order['notes']:
+        story.append(Spacer(1, 0.2*inch))
+        notes_style = ParagraphStyle('Notes', parent=styles['Normal'], fontSize=9)
+        story.append(Paragraph(f"<b>Order Notes:</b> {sales_order['notes']}", notes_style))
+    
+    story.append(Spacer(1, 0.4*inch))
+    footer_style = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#94a3b8'))
+    story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f"SalesOrder_{sales_order['so_number']}.pdf"
+    )
