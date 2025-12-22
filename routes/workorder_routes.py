@@ -3009,6 +3009,9 @@ def generate_packaging_assessment(id):
     company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
     company = dict(company) if company else {}
     
+    user = conn.execute('SELECT username FROM users WHERE id = ?', (session.get('user_id'),)).fetchone()
+    prepared_by = user['username'] if user else 'Unknown'
+    
     conn.close()
     
     buffer = io.BytesIO()
@@ -3160,8 +3163,9 @@ def generate_packaging_assessment(id):
     
     elements.append(Spacer(1, 30))
     
+    current_date = datetime.now().strftime('%B %d, %Y')
     sig_data = [
-        ['Prepared By:', '_' * 30, 'Date:', '_' * 20],
+        ['Prepared By:', prepared_by, 'Date:', current_date],
     ]
     sig_table = Table(sig_data, colWidths=[1.2*inch, 2.5*inch, 0.8*inch, 2.5*inch])
     sig_table.setStyle(TableStyle([
