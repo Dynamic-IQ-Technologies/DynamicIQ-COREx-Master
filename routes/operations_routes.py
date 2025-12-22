@@ -410,7 +410,7 @@ def work_order_quotes_dashboard():
                 woq.status as quote_status
             FROM work_orders wo
             LEFT JOIN products p ON wo.product_id = p.id
-            LEFT JOIN contacts c ON wo.customer_id = c.id
+            LEFT JOIN customer_contacts c ON wo.customer_id = c.id
             LEFT JOIN work_order_quotes woq ON wo.id = woq.work_order_id
             WHERE wo.stage_id = ?
             AND wo.status NOT IN ('Completed', 'Cancelled')
@@ -438,7 +438,7 @@ def work_order_quotes_dashboard():
         FROM work_order_quotes woq
         JOIN work_orders wo ON woq.work_order_id = wo.id
         LEFT JOIN products p ON wo.product_id = p.id
-        LEFT JOIN contacts c ON wo.customer_id = c.id
+        LEFT JOIN customer_contacts c ON wo.customer_id = c.id
         LEFT JOIN users u ON woq.prepared_by = u.id
         WHERE woq.status IN ('Pending Approval', 'Sent', 'Quoted', 'Submitted')
         ORDER BY wo.is_aog DESC, wo.priority DESC, woq.created_at DESC
@@ -465,7 +465,7 @@ def work_order_quotes_dashboard():
         FROM work_order_quotes woq
         JOIN work_orders wo ON woq.work_order_id = wo.id
         LEFT JOIN products p ON wo.product_id = p.id
-        LEFT JOIN contacts c ON wo.customer_id = c.id
+        LEFT JOIN customer_contacts c ON wo.customer_id = c.id
         LEFT JOIN users u ON woq.acknowledged_by = u.id
         WHERE woq.status = 'Approved'
         ORDER BY woq.customer_approved_at DESC
