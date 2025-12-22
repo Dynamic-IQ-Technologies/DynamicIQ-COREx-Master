@@ -2972,3 +2972,222 @@ def update_task_status(task_id):
     
     conn.close()
     return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']) + '#task-' + str(task_id))
+
+
+@workorder_bp.route('/workorders/<int:id>/packaging-assessment')
+@login_required
+def generate_packaging_assessment(id):
+    """Generate a formal Packaging Requirements Assessment PDF document"""
+    from flask import send_file
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    import io
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    workorder = conn.execute('''
+        SELECT wo.*, p.code, p.name as product_name, p.description as product_description,
+               c.name as customer_name, c.customer_number
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE wo.id = ?
+    ''', (id,)).fetchone()
+    
+    if not workorder:
+        conn.close()
+        flash('Work order not found', 'danger')
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    company = dict(company) if company else {}
+    
+    conn.close()
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                           leftMargin=0.75*inch, rightMargin=0.75*inch,
+                           topMargin=0.75*inch, bottomMargin=0.75*inch)
+    
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, 
+                                  textColor=colors.HexColor('#1e3a5f'), spaceAfter=6, alignment=TA_CENTER)
+    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=11,
+                                     textColor=colors.HexColor('#64748b'), alignment=TA_CENTER, spaceAfter=20)
+    section_header = ParagraphStyle('SectionHeader', parent=styles['Heading2'], fontSize=12,
+                                     textColor=colors.HexColor('#1e3a5f'), spaceBefore=15, spaceAfter=8,
+                                     borderColor=colors.HexColor('#1e3a5f'), borderWidth=1, borderPadding=5)
+    item_title = ParagraphStyle('ItemTitle', parent=styles['Normal'], fontSize=11, 
+                                 textColor=colors.HexColor('#1e293b'), fontName='Helvetica-Bold', spaceAfter=3)
+    item_desc = ParagraphStyle('ItemDesc', parent=styles['Normal'], fontSize=10,
+                                textColor=colors.HexColor('#475569'), alignment=TA_JUSTIFY, spaceAfter=12,
+                                leftIndent=20)
+    normal_style = ParagraphStyle('NormalText', parent=styles['Normal'], fontSize=10,
+                                   textColor=colors.HexColor('#1e293b'), spaceAfter=6)
+    
+    elements = []
+    
+    elements.append(Paragraph(company.get('company_name', 'Dynamic.IQ-COREx'), title_style))
+    elements.append(Paragraph("PACKAGING REQUIREMENTS ASSESSMENT", 
+                              ParagraphStyle('DocTitle', parent=title_style, fontSize=14, spaceAfter=4)))
+    elements.append(Paragraph(f"Document generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", subtitle_style))
+    elements.append(Spacer(1, 10))
+    
+    wo_info = [
+        ['Work Order:', workorder['wo_number'], 'Status:', workorder['status'] or 'N/A'],
+        ['Product:', workorder['code'], 'Serial Number:', workorder['serial_number'] or 'N/A'],
+        ['Description:', workorder['product_name'] or '', '', ''],
+        ['Customer:', workorder['customer_name'] or 'N/A', 'Customer #:', workorder['customer_number'] or 'N/A'],
+    ]
+    
+    wo_table = Table(wo_info, colWidths=[1.2*inch, 2.5*inch, 1.2*inch, 2.1*inch])
+    wo_table.setStyle(TableStyle([
+        ('FONT', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONT', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#64748b')),
+        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#64748b')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#1e293b')),
+        ('TEXTCOLOR', (3, 0), (3, -1), colors.HexColor('#1e293b')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(wo_table)
+    elements.append(Spacer(1, 15))
+    
+    elements.append(Paragraph("CRATE SPECIFICATION", section_header))
+    
+    crate_info = [
+        ['Crate Required:', workorder['pkg_crate_requirement'] or 'Not Specified'],
+        ['Crate Dimensions:', workorder['pkg_crate_dimensions'] or 'Not Specified'],
+    ]
+    crate_table = Table(crate_info, colWidths=[2*inch, 5*inch])
+    crate_table.setStyle(TableStyle([
+        ('FONT', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#64748b')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#1e293b')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(crate_table)
+    elements.append(Spacer(1, 15))
+    
+    elements.append(Paragraph("ASSESSMENT FINDINGS", section_header))
+    elements.append(Paragraph("The following packaging requirements have been identified based on inspection and operational requirements:", normal_style))
+    elements.append(Spacer(1, 10))
+    
+    assessment_items = []
+    
+    if workorder['cra_structural_integrity']:
+        assessment_items.append({
+            'title': 'Structural Integrity',
+            'description': 'Existing crate was inspected and found to have structural deficiencies (cracks, loose joints, or weakened panels). Crate cannot safely support the unit\'s weight or handling loads. A new crate is required to ensure secure containment and transport.'
+        })
+    
+    if workorder['cra_dimensional_fit']:
+        assessment_items.append({
+            'title': 'Dimensional Fit',
+            'description': 'Current crate dimensions are not compatible with the unit configuration. Unit does not fit securely within the crate or exceeds allowable internal clearances. New crate required to ensure proper fit and protection during handling.'
+        })
+    
+    if workorder['cra_protection_requirements']:
+        assessment_items.append({
+            'title': 'Protection Requirements',
+            'description': 'Existing crate lacks adequate internal protection for the unit type. Insufficient cushioning, moisture barrier, or vibration control identified. A new crate with proper protective lining and supports is required.'
+        })
+    
+    if workorder['cra_storage_duration']:
+        assessment_items.append({
+            'title': 'Storage Duration',
+            'description': 'Unit is scheduled for extended storage and current crate does not provide sufficient environmental protection. A new, sealed crate with moisture barrier or lined interior is required for long-term storage compliance.'
+        })
+    
+    if workorder['cra_customer_oem_spec']:
+        assessment_items.append({
+            'title': 'Customer / OEM Specification',
+            'description': 'Current crate design does not comply with customer or OEM packaging requirements as defined in the applicable specification or SOW. A compliant crate must be sourced or fabricated to meet contractual standards.'
+        })
+    
+    if workorder['cra_return_shipping']:
+        assessment_items.append({
+            'title': 'Return Shipping Requirement',
+            'description': 'Original crate is not suitable for reuse following inbound shipment or repair cycle. Damage, wear, or missing hardware identified. New crate required for safe return shipment of the unit.'
+        })
+    
+    if workorder['cra_hazmat_handling']:
+        assessment_items.append({
+            'title': 'Hazardous Material Handling',
+            'description': 'Unit contains or was exposed to hazardous materials (e.g., oil, fuel, or batteries). Existing crate does not meet hazardous material containment or labeling requirements. New compliant crate required per IATA/ICAO and DOT regulations.'
+        })
+    
+    if assessment_items:
+        for idx, item in enumerate(assessment_items, 1):
+            elements.append(Paragraph(f"{idx}. {item['title']}", item_title))
+            elements.append(Paragraph(item['description'], item_desc))
+    else:
+        elements.append(Paragraph("No specific packaging assessment criteria have been identified for this work order.", 
+                                   ParagraphStyle('NoItems', parent=normal_style, textColor=colors.HexColor('#64748b'),
+                                                  fontName='Helvetica-Oblique')))
+    
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph("RECOMMENDATION", section_header))
+    
+    if workorder['pkg_crate_requirement'] == 'Yes' and assessment_items:
+        recommendation = f"Based on the above assessment findings, it is recommended that a NEW CRATE be procured or fabricated for this unit. The crate must address all {len(assessment_items)} identified requirement(s) to ensure safe handling, storage, and transportation of the unit."
+    elif workorder['pkg_crate_requirement'] == 'Yes':
+        recommendation = "A new crate has been specified as required for this work order. Please ensure appropriate crating solution is sourced before shipment."
+    else:
+        recommendation = "No new crate is required for this work order based on the current assessment."
+    
+    elements.append(Paragraph(recommendation, normal_style))
+    
+    elements.append(Spacer(1, 30))
+    
+    sig_data = [
+        ['Prepared By:', '_' * 30, 'Date:', '_' * 20],
+        ['', '', '', ''],
+        ['Approved By:', '_' * 30, 'Date:', '_' * 20],
+    ]
+    sig_table = Table(sig_data, colWidths=[1.2*inch, 2.5*inch, 0.8*inch, 2.5*inch])
+    sig_table.setStyle(TableStyle([
+        ('FONT', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONT', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#64748b')),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(sig_table)
+    
+    elements.append(Spacer(1, 20))
+    footer_text = f"{company.get('company_name', '')} | {company.get('address_line1', '')} | {company.get('city', '')}, {company.get('state', '')} {company.get('postal_code', '')}"
+    elements.append(Paragraph(footer_text, 
+                              ParagraphStyle('Footer', parent=normal_style, fontSize=8, 
+                                             textColor=colors.HexColor('#94a3b8'), alignment=TA_CENTER)))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    filename = f"Packaging_Assessment_{workorder['wo_number']}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    
+    return send_file(
+        buffer,
+        as_attachment=False,
+        download_name=filename,
+        mimetype='application/pdf'
+    )
