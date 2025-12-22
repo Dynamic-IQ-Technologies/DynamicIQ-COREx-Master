@@ -317,61 +317,6 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <div class="row align-items-center">
-                    <div class="col">
-                        <h5 class="mb-0 fw-semibold"><i class="bi bi-check-circle me-2 text-success"></i>Approved Work Order Quotes</h5>
-                        <small class="text-muted">Quotes you have approved</small>
-                    </div>
-                    <div class="col-auto">
-                        <div class="input-group input-group-sm" style="width: 250px;">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" id="approvedQuotesFilter" placeholder="Search approved quotes...">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                {% if wo_quotes_approved %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0" id="approvedQuotesTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Quote # <i class="bi bi-chevron-expand"></i></th>
-                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Work Order <i class="bi bi-chevron-expand"></i></th>
-                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Product <i class="bi bi-chevron-expand"></i></th>
-                                <th class="text-uppercase small">Status</th>
-                                <th class="text-uppercase small sortable" data-sort="currency" style="cursor:pointer;">Total <i class="bi bi-chevron-expand"></i></th>
-                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Approved Date <i class="bi bi-chevron-expand"></i></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for quote in wo_quotes_approved %}
-                            <tr>
-                                <td class="fw-medium">{{ quote.quote_number or ('#' ~ quote.id) }}</td>
-                                <td>{{ quote.wo_number }}</td>
-                                <td>
-                                    <span class="text-muted small">{{ quote.product_code }}</span><br>
-                                    {{ quote.product_name[:30] }}{% if quote.product_name|length > 30 %}...{% endif %}
-                                </td>
-                                <td><span class="badge bg-success">Approved</span></td>
-                                <td class="fw-medium">{{ "$ {:,.2f}".format(quote.total_amount or 0) }}</td>
-                                <td>{{ quote.customer_approved_at[:10] if quote.customer_approved_at else 'N/A' }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2 mb-0">No approved quotes yet</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        
         <div class="card shadow-sm">
             <div class="card-header bg-white py-3">
                 <div class="row align-items-center">
@@ -599,14 +544,12 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTableFilter('woFilter', 'woTable', 'woStatusFilter');
     setupTableFilter('quotesFilter', 'quotesTable', null);
     setupTableFilter('woQuotesFilter', 'woQuotesTable', null);
-    setupTableFilter('approvedQuotesFilter', 'approvedQuotesTable', null);
     setupTableFilter('invoicesFilter', 'invoicesTable', 'invoicesStatusFilter');
     
     setupTableSort('salesTable');
     setupTableSort('woTable');
     setupTableSort('quotesTable');
     setupTableSort('woQuotesTable');
-    setupTableSort('approvedQuotesTable');
     setupTableSort('invoicesTable');
 });
 </script>
