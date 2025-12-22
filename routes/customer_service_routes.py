@@ -143,6 +143,24 @@ def dashboard():
         LIMIT 10
     ''').fetchall()
     
+    wo_quotes = conn.execute('''
+        SELECT q.*, wo.wo_number, wo.id as work_order_id, p.code as product_code, 
+               p.name as product_name, c.name as customer_name, c.customer_number,
+               (SELECT COUNT(*) FROM work_order_quote_lines WHERE quote_id = q.id) as line_count
+        FROM work_order_quotes q
+        JOIN work_orders wo ON q.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE q.status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted', 'Submitted')
+        ORDER BY q.created_at DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    wo_quotes_count = conn.execute('''
+        SELECT COUNT(*) FROM work_order_quotes 
+        WHERE status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted', 'Submitted')
+    ''').fetchone()[0]
+    
     conn.close()
     
     return render_template('customer_service/dashboard.html',
@@ -157,7 +175,9 @@ def dashboard():
                          overdue_count=overdue_count,
                          pending_followups=pending_followups,
                          open_escalations=open_escalations,
-                         recent_activity=recent_activity)
+                         recent_activity=recent_activity,
+                         wo_quotes=wo_quotes,
+                         wo_quotes_count=wo_quotes_count)
 
 
 @customer_service_bp.route('/customer-service/orders')
