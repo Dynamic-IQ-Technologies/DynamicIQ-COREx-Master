@@ -262,7 +262,7 @@
                                         <td>{{ ex.linked_so_number or '-' }}</td>
                                         <td class="text-center">{{ ex.quantity }}</td>
                                         <td><span class="badge bg-primary">{{ ex.status }}</span></td>
-                                        <td>{{ ex.expected_date or 'Not set' }}</td>
+                                        <td>{{ ex.expected_delivery_date or 'Not set' }}</td>
                                         <td class="text-center">
                                             {% if ex.days_until_due is not none %}
                                                 {% if ex.is_overdue %}

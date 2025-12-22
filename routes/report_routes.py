@@ -1138,20 +1138,20 @@ def master_plan_report():
         ''', (product_id,)).fetchone()
         
         supplier_exchange_details = conn.execute('''
-            SELECT po.id as po_id, po.po_number, po.order_date, po.status, po.expected_date,
-                   pol.quantity, pol.serial_number, pol.lot_number,
+            SELECT po.id as po_id, po.po_number, po.order_date, po.status, po.expected_delivery_date,
+                   pol.quantity, pol.serial_number,
                    s.name as supplier_name,
                    po.source_sales_order_id,
                    (SELECT so.so_number FROM sales_orders so WHERE so.id = po.source_sales_order_id) as linked_so_number,
-                   CASE WHEN po.expected_date < date('now') THEN 1 ELSE 0 END as is_overdue,
-                   julianday(po.expected_date) - julianday('now') as days_until_due
+                   CASE WHEN po.expected_delivery_date < date('now') THEN 1 ELSE 0 END as is_overdue,
+                   julianday(po.expected_delivery_date) - julianday('now') as days_until_due
             FROM purchase_order_lines pol
             JOIN purchase_orders po ON pol.po_id = po.id
             JOIN suppliers s ON po.supplier_id = s.id
             WHERE pol.product_id = ?
               AND po.is_exchange = 1
               AND po.status NOT IN ('Closed', 'Cancelled', 'Received')
-            ORDER BY po.expected_date
+            ORDER BY po.expected_delivery_date
         ''', (product_id,)).fetchall()
         
         work_orders = conn.execute('''
