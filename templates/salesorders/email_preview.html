@@ -393,7 +393,7 @@
                                             <td>{{ line.unit_of_measure or 'EA' }}</td>
                                             <td>{{ line.quantity }}</td>
                                             <td>${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
-                                            <td>${{ "{:,.2f}".format(line.line_total or 0) }}</td>
+                                            <td>${{ "{:,.2f}".format((line.quantity or 0) * (line.unit_price or 0)) }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
