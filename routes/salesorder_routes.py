@@ -666,6 +666,145 @@ def get_line(id, line_id):
         'quoted_tat': line['quoted_tat'] or ''
     })
 
+@salesorder_bp.route('/sales-orders/<int:id>/email-preview')
+@role_required('Admin', 'Planner')
+def email_preview(id):
+    """Preview email acknowledgement before confirming order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    sales_order = conn.execute('''
+        SELECT so.*, c.name as customer_name, c.customer_number, c.email as customer_email
+        FROM sales_orders so
+        JOIN customers c ON so.customer_id = c.id
+        WHERE so.id = ?
+    ''', (id,)).fetchone()
+    
+    if not sales_order:
+        flash('Sales Order not found.', 'danger')
+        conn.close()
+        return redirect(url_for('salesorder_routes.list_sales_orders'))
+    
+    if sales_order['status'] not in ['Draft', 'Pending']:
+        flash('Order has already been confirmed.', 'warning')
+        conn.close()
+        return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+    
+    customer = conn.execute('SELECT * FROM customers WHERE id = ?', 
+                           (sales_order['customer_id'],)).fetchone()
+    
+    lines = conn.execute('''
+        SELECT sol.*, p.code, p.name
+        FROM sales_order_lines sol
+        JOIN products p ON sol.product_id = p.id
+        WHERE sol.so_id = ?
+        ORDER BY sol.line_number
+    ''', (id,)).fetchall()
+    
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    
+    import os
+    email_configured = bool(os.environ.get('SMTP_HOST') or os.environ.get('RESEND_API_KEY') or os.environ.get('SENDGRID_API_KEY'))
+    
+    conn.close()
+    
+    return render_template('salesorders/email_preview.html',
+                         sales_order=dict(sales_order),
+                         customer=dict(customer),
+                         lines=[dict(l) for l in lines],
+                         company=dict(company) if company else {},
+                         email_configured=email_configured)
+
+
+@salesorder_bp.route('/sales-orders/<int:id>/send-acknowledgement', methods=['POST'])
+@role_required('Admin', 'Planner')
+def send_order_acknowledgement(id):
+    """Send order acknowledgement email and optionally confirm order"""
+    import os
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    recipient_email = request.form.get('recipient_email')
+    cc_email = request.form.get('cc_email')
+    subject = request.form.get('subject')
+    additional_message = request.form.get('additional_message')
+    confirm_order_flag = request.form.get('confirm_order') == 'on'
+    
+    email_configured = bool(os.environ.get('SMTP_HOST') or os.environ.get('RESEND_API_KEY') or os.environ.get('SENDGRID_API_KEY'))
+    
+    if email_configured and recipient_email:
+        flash(f'Email acknowledgement would be sent to {recipient_email}. (Email service not fully configured)', 'info')
+    else:
+        flash('Order acknowledgement email skipped - no email service configured.', 'warning')
+    
+    if confirm_order_flag:
+        try:
+            line_count = conn.execute('''
+                SELECT COUNT(*) as count FROM sales_order_lines WHERE so_id = ?
+            ''', (id,)).fetchone()['count']
+            
+            if line_count == 0:
+                flash('Cannot confirm order without line items.', 'warning')
+                conn.close()
+                return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+            
+            product_totals = conn.execute('''
+                SELECT sol.product_id, p.code, p.name, SUM(sol.quantity) as total_qty
+                FROM sales_order_lines sol
+                JOIN products p ON sol.product_id = p.id
+                WHERE sol.so_id = ? AND (sol.is_core IS NULL OR sol.is_core = 0)
+                GROUP BY sol.product_id, p.code, p.name
+            ''', (id,)).fetchall()
+            
+            stock_issues = []
+            for product in product_totals:
+                inventory = conn.execute('''
+                    SELECT COALESCE(quantity, 0) as available, COALESCE(reserved_quantity, 0) as reserved
+                    FROM inventory WHERE product_id = ?
+                ''', (product['product_id'],)).fetchone()
+                
+                available_qty = 0
+                if inventory:
+                    available_qty = inventory['available'] - inventory['reserved']
+                
+                if available_qty < product['total_qty']:
+                    stock_issues.append(f"{product['code']}: Need {product['total_qty']}, Available {available_qty}")
+            
+            if stock_issues:
+                flash('Cannot confirm - Insufficient stock: ' + '; '.join(stock_issues), 'danger')
+                conn.close()
+                return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+            
+            so = conn.execute('SELECT customer_id, total_amount FROM sales_orders WHERE id = ?', (id,)).fetchone()
+            customer = conn.execute('SELECT credit_limit, customer_number, name FROM customers WHERE id = ?', 
+                                   (so['customer_id'],)).fetchone()
+            
+            outstanding = conn.execute('''
+                SELECT COALESCE(SUM(balance_due), 0) as total_outstanding
+                FROM sales_orders
+                WHERE customer_id = ? AND status NOT IN ('Closed', 'Completed') AND id != ?
+            ''', (so['customer_id'], id)).fetchone()['total_outstanding']
+            
+            if customer['credit_limit'] > 0 and (outstanding + so['total_amount']) > customer['credit_limit']:
+                flash(f'Cannot confirm - Credit limit exceeded for {customer["customer_number"]}.', 'danger')
+                conn.close()
+                return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+            
+            conn.execute('''
+                UPDATE sales_orders SET status = 'Confirmed' WHERE id = ? AND status IN ('Draft', 'Pending')
+            ''', (id,))
+            conn.commit()
+            flash('Sales Order confirmed successfully!', 'success')
+            
+        except Exception as e:
+            conn.rollback()
+            flash('An error occurred while confirming the order.', 'danger')
+    
+    conn.close()
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
+
 @salesorder_bp.route('/sales-orders/<int:id>/confirm', methods=['POST'])
 @role_required('Admin', 'Planner')
 def confirm_order(id):

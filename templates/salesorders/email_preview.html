@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Email Preview - Sales Order Acknowledgement{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-envelope-paper"></i> Sales Order Acknowledgement - Preview</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('salesorder_routes.view_sales_order', id=sales_order.id) }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Order
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Email Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('salesorder_routes.send_order_acknowledgement', id=sales_order.id) }}">
+                        <div class="mb-3">
+                            <label class="form-label">Recipient Email</label>
+                            <input type="email" class="form-control" name="recipient_email" 
+                                   value="{{ customer.email or '' }}" required>
+                            <div class="form-text">Customer's email address</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CC (optional)</label>
+                            <input type="email" class="form-control" name="cc_email" 
+                                   placeholder="Additional email address">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subject</label>
+                            <input type="text" class="form-control" name="subject" 
+                                   value="Sales Order Acknowledgement - {{ sales_order.so_number }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Additional Message (optional)</label>
+                            <textarea class="form-control" name="additional_message" rows="3" 
+                                      placeholder="Add a personal message..."></textarea>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="confirmOrder" name="confirm_order" checked>
+                            <label class="form-check-label" for="confirmOrder">
+                                Confirm Order after sending
+                            </label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-send me-2"></i>Send Email & Confirm Order
+                            </button>
+                            <form method="POST" action="{{ url_for('salesorder_routes.confirm_order', id=sales_order.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-check2-circle me-2"></i>Confirm Without Sending
+                                </button>
+                            </form>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            {% if not email_configured %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Email Not Configured</strong><br>
+                Email sending is currently disabled. The order will be confirmed but no email will be sent. 
+                Contact your administrator to configure SMTP settings.
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-eye me-2"></i>Email Preview</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="border rounded" style="background: #f8f9fa;">
+                        <div class="p-3 border-bottom bg-white">
+                            <small class="text-muted">
+                                <strong>To:</strong> {{ customer.email or 'No email on file' }}<br>
+                                <strong>Subject:</strong> Sales Order Acknowledgement - {{ sales_order.so_number }}
+                            </small>
+                        </div>
+                        <div class="p-4 bg-white">
+                            <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+                                <div style="background: linear-gradient(135deg, #1e3a5f, #2d5a87); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+                                    <h1 style="color: white; margin: 0; font-size: 24px;">{{ company.name or 'Dynamic.IQ-COREx' }}</h1>
+                                    <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Sales Order Acknowledgement</p>
+                                </div>
+                                
+                                <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+                                    <p style="margin: 0 0 20px 0;">Dear {{ customer.name }},</p>
+                                    
+                                    <p style="margin: 0 0 20px 0;">
+                                        Thank you for your order. We are pleased to confirm receipt of your order and provide the following acknowledgement.
+                                    </p>
+                                    
+                                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                        <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 18px;">Order Details</h3>
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Order Number:</strong></td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.so_number }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Order Date:</strong></td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.order_date }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Customer PO:</strong></td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.customer_po or 'N/A' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Expected Ship Date:</strong></td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.expected_ship_date or 'TBD' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0;"><strong>Payment Terms:</strong></td>
+                                                <td style="padding: 8px 0; text-align: right;">{{ sales_order.payment_terms or 'Net 30' }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 18px;">Order Items</h3>
+                                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                        <thead>
+                                            <tr style="background: #1e3a5f; color: white;">
+                                                <th style="padding: 12px; text-align: left; font-size: 13px;">Item</th>
+                                                <th style="padding: 12px; text-align: center; font-size: 13px;">Qty</th>
+                                                <th style="padding: 12px; text-align: right; font-size: 13px;">Unit Price</th>
+                                                <th style="padding: 12px; text-align: right; font-size: 13px;">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for line in lines %}
+                                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                                <td style="padding: 12px;">
+                                                    <strong>{{ line.code }}</strong><br>
+                                                    <span style="color: #666; font-size: 12px;">{{ line.name }}</span>
+                                                </td>
+                                                <td style="padding: 12px; text-align: center;">{{ line.quantity }}</td>
+                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
+                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(line.line_total or 0) }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style="background: #f8f9fa;">
+                                                <td colspan="3" style="padding: 12px; text-align: right;"><strong>Subtotal:</strong></td>
+                                                <td style="padding: 12px; text-align: right;"><strong>${{ "{:,.2f}".format(sales_order.subtotal or 0) }}</strong></td>
+                                            </tr>
+                                            {% if sales_order.tax_amount %}
+                                            <tr style="background: #f8f9fa;">
+                                                <td colspan="3" style="padding: 12px; text-align: right;">Tax:</td>
+                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(sales_order.tax_amount) }}</td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if sales_order.shipping_amount %}
+                                            <tr style="background: #f8f9fa;">
+                                                <td colspan="3" style="padding: 12px; text-align: right;">Shipping:</td>
+                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(sales_order.shipping_amount) }}</td>
+                                            </tr>
+                                            {% endif %}
+                                            <tr style="background: #1e3a5f; color: white;">
+                                                <td colspan="3" style="padding: 12px; text-align: right;"><strong>Total Amount:</strong></td>
+                                                <td style="padding: 12px; text-align: right;"><strong>${{ "{:,.2f}".format(sales_order.total_amount or 0) }}</strong></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                    
+                                    {% if sales_order.notes %}
+                                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                                        <strong>Notes:</strong><br>
+                                        {{ sales_order.notes }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <p style="margin: 0 0 10px 0;">
+                                        If you have any questions regarding this order, please don't hesitate to contact us.
+                                    </p>
+                                    
+                                    <p style="margin: 20px 0 0 0;">
+                                        Thank you for your business!<br><br>
+                                        Best regards,<br>
+                                        <strong>{{ company.name or 'Dynamic.IQ-COREx' }}</strong>
+                                    </p>
+                                </div>
+                                
+                                <div style="background: #1e3a5f; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
+                                    <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 12px;">
+                                        {{ company.address or '' }}<br>
+                                        {% if company.phone %}Phone: {{ company.phone }} | {% endif %}
+                                        {% if company.email %}Email: {{ company.email }}{% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
