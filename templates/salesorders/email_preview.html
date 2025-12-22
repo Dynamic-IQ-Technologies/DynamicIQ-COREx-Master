@@ -51,12 +51,12 @@
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="bi bi-send me-2"></i>Send Email & Confirm Order
                             </button>
-                            <form method="POST" action="{{ url_for('salesorder_routes.confirm_order', id=sales_order.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-outline-primary w-100">
-                                    <i class="bi bi-check2-circle me-2"></i>Confirm Without Sending
-                                </button>
-                            </form>
                         </div>
+                    </form>
+                    <form method="POST" action="{{ url_for('salesorder_routes.confirm_order', id=sales_order.id) }}" class="mt-2">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-check2-circle me-2"></i>Confirm Without Sending
+                        </button>
                     </form>
                 </div>
             </div>
@@ -77,125 +77,374 @@
                     <h5 class="mb-0"><i class="bi bi-eye me-2"></i>Email Preview</h5>
                 </div>
                 <div class="card-body p-0">
-                    <div class="border rounded" style="background: #f8f9fa;">
-                        <div class="p-3 border-bottom bg-white">
+                    <style>
+                        .email-preview-container {
+                            max-width: 100%;
+                            background: white;
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                            font-size: 11px;
+                            line-height: 1.5;
+                            color: #1e293b;
+                        }
+                        
+                        .email-header {
+                            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+                            color: white;
+                            padding: 30px 40px;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: flex-start;
+                        }
+                        
+                        .email-company-info h1 {
+                            font-size: 24px;
+                            font-weight: 700;
+                            margin-bottom: 5px;
+                        }
+                        
+                        .email-company-info p {
+                            font-size: 11px;
+                            opacity: 0.9;
+                            line-height: 1.6;
+                            margin: 0;
+                        }
+                        
+                        .email-title {
+                            text-align: right;
+                        }
+                        
+                        .email-title h2 {
+                            font-size: 22px;
+                            font-weight: 700;
+                            letter-spacing: 2px;
+                            margin-bottom: 8px;
+                        }
+                        
+                        .email-title .so-number {
+                            font-size: 14px;
+                            background: rgba(255, 255, 255, 0.15);
+                            padding: 6px 16px;
+                            border-radius: 4px;
+                            display: inline-block;
+                        }
+                        
+                        .email-body {
+                            padding: 30px 40px;
+                        }
+                        
+                        .email-greeting {
+                            font-size: 14px;
+                            margin-bottom: 20px;
+                        }
+                        
+                        .email-info-section {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 20px;
+                            margin-bottom: 25px;
+                        }
+                        
+                        .email-info-box {
+                            border: 1px solid #e2e8f0;
+                            border-radius: 8px;
+                            overflow: hidden;
+                        }
+                        
+                        .email-info-box-header {
+                            background: #f8fafc;
+                            padding: 10px 15px;
+                            font-weight: 600;
+                            font-size: 12px;
+                            color: #475569;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            border-bottom: 1px solid #e2e8f0;
+                        }
+                        
+                        .email-info-box-content {
+                            padding: 15px;
+                        }
+                        
+                        .email-info-row {
+                            display: flex;
+                            margin-bottom: 8px;
+                        }
+                        
+                        .email-info-row:last-child {
+                            margin-bottom: 0;
+                        }
+                        
+                        .email-info-label {
+                            width: 45%;
+                            color: #64748b;
+                            font-weight: 500;
+                        }
+                        
+                        .email-info-value {
+                            width: 55%;
+                            font-weight: 500;
+                            color: #1e293b;
+                        }
+                        
+                        .email-line-items-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 25px;
+                        }
+                        
+                        .email-line-items-table thead {
+                            background: #1e3a5f;
+                            color: white;
+                        }
+                        
+                        .email-line-items-table th {
+                            padding: 12px 15px;
+                            text-align: left;
+                            font-weight: 600;
+                            font-size: 10px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                        }
+                        
+                        .email-line-items-table th:nth-child(3),
+                        .email-line-items-table th:nth-child(4),
+                        .email-line-items-table th:nth-child(5) {
+                            text-align: right;
+                        }
+                        
+                        .email-line-items-table td {
+                            padding: 12px 15px;
+                            border-bottom: 1px solid #e2e8f0;
+                            vertical-align: top;
+                        }
+                        
+                        .email-line-items-table td:nth-child(3),
+                        .email-line-items-table td:nth-child(4),
+                        .email-line-items-table td:nth-child(5) {
+                            text-align: right;
+                        }
+                        
+                        .email-product-code {
+                            font-weight: 600;
+                            color: #1e3a5f;
+                        }
+                        
+                        .email-product-name {
+                            font-size: 10px;
+                            color: #64748b;
+                            margin-top: 2px;
+                        }
+                        
+                        .email-totals-section {
+                            display: flex;
+                            justify-content: flex-end;
+                            margin-bottom: 25px;
+                        }
+                        
+                        .email-totals-box {
+                            width: 280px;
+                            border: 2px solid #1e3a5f;
+                            border-radius: 8px;
+                            overflow: hidden;
+                        }
+                        
+                        .email-totals-row {
+                            display: flex;
+                            justify-content: space-between;
+                            padding: 10px 15px;
+                            border-bottom: 1px solid #e2e8f0;
+                        }
+                        
+                        .email-totals-row:last-child {
+                            border-bottom: none;
+                        }
+                        
+                        .email-totals-row.grand-total {
+                            background: #1e3a5f;
+                            color: white;
+                            font-size: 14px;
+                            font-weight: 700;
+                        }
+                        
+                        .email-notes-box {
+                            background: #fffbeb;
+                            border: 1px solid #fde68a;
+                            border-radius: 8px;
+                            padding: 15px;
+                            margin-bottom: 20px;
+                        }
+                        
+                        .email-notes-title {
+                            font-weight: 600;
+                            color: #92400e;
+                            margin-bottom: 8px;
+                        }
+                        
+                        .email-closing {
+                            font-size: 13px;
+                            margin-top: 25px;
+                        }
+                        
+                        .email-footer {
+                            background: #1e3a5f;
+                            color: rgba(255,255,255,0.8);
+                            padding: 20px 40px;
+                            text-align: center;
+                            font-size: 11px;
+                        }
+                    </style>
+                    
+                    <div class="border rounded bg-white">
+                        <div class="p-3 border-bottom bg-light">
                             <small class="text-muted">
                                 <strong>To:</strong> {{ customer.email or 'No email on file' }}<br>
                                 <strong>Subject:</strong> Sales Order Acknowledgement - {{ sales_order.so_number }}
                             </small>
                         </div>
-                        <div class="p-4 bg-white">
-                            <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
-                                <div style="background: linear-gradient(135deg, #1e3a5f, #2d5a87); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-                                    <h1 style="color: white; margin: 0; font-size: 24px;">{{ company.name or 'Dynamic.IQ-COREx' }}</h1>
-                                    <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Sales Order Acknowledgement</p>
+                        
+                        <div class="email-preview-container">
+                            <div class="email-header">
+                                <div class="email-company-info">
+                                    <h1>{{ company.company_name or 'Dynamic.IQ-COREx' }}</h1>
+                                    <p>
+                                        {% if company.address_line1 %}{{ company.address_line1 }}<br>{% endif %}
+                                        {% if company.city %}{{ company.city }}{% if company.state %}, {{ company.state }}{% endif %} {{ company.postal_code or '' }}{% endif %}
+                                        {% if company.phone %}<br>Phone: {{ company.phone }}{% endif %}
+                                        {% if company.email %}<br>{{ company.email }}{% endif %}
+                                    </p>
+                                </div>
+                                <div class="email-title">
+                                    <h2>ORDER ACKNOWLEDGEMENT</h2>
+                                    <div class="so-number">{{ sales_order.so_number }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="email-body">
+                                <div class="email-greeting">
+                                    <p>Dear {{ customer.name }},</p>
+                                    <p>Thank you for your order. We are pleased to confirm receipt and provide the following acknowledgement.</p>
                                 </div>
                                 
-                                <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-                                    <p style="margin: 0 0 20px 0;">Dear {{ customer.name }},</p>
-                                    
-                                    <p style="margin: 0 0 20px 0;">
-                                        Thank you for your order. We are pleased to confirm receipt of your order and provide the following acknowledgement.
-                                    </p>
-                                    
-                                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                        <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 18px;">Order Details</h3>
-                                        <table style="width: 100%; border-collapse: collapse;">
-                                            <tr>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Order Number:</strong></td>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.so_number }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Order Date:</strong></td>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.order_date }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Customer PO:</strong></td>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.customer_po or 'N/A' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;"><strong>Expected Ship Date:</strong></td>
-                                                <td style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">{{ sales_order.expected_ship_date or 'TBD' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0;"><strong>Payment Terms:</strong></td>
-                                                <td style="padding: 8px 0; text-align: right;">{{ sales_order.payment_terms or 'Net 30' }}</td>
-                                            </tr>
-                                        </table>
+                                <div class="email-info-section">
+                                    <div class="email-info-box">
+                                        <div class="email-info-box-header">
+                                            <i class="bi bi-info-circle"></i> Order Information
+                                        </div>
+                                        <div class="email-info-box-content">
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Order Date:</span>
+                                                <span class="email-info-value">{{ sales_order.order_date }}</span>
+                                            </div>
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Customer PO:</span>
+                                                <span class="email-info-value">{{ sales_order.customer_po or 'N/A' }}</span>
+                                            </div>
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Expected Ship:</span>
+                                                <span class="email-info-value">{{ sales_order.expected_ship_date or 'TBD' }}</span>
+                                            </div>
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Payment Terms:</span>
+                                                <span class="email-info-value">{{ sales_order.payment_terms or 'Net 30' }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                     
-                                    <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 18px;">Order Items</h3>
-                                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                                        <thead>
-                                            <tr style="background: #1e3a5f; color: white;">
-                                                <th style="padding: 12px; text-align: left; font-size: 13px;">Item</th>
-                                                <th style="padding: 12px; text-align: center; font-size: 13px;">Qty</th>
-                                                <th style="padding: 12px; text-align: right; font-size: 13px;">Unit Price</th>
-                                                <th style="padding: 12px; text-align: right; font-size: 13px;">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for line in lines %}
-                                            <tr style="border-bottom: 1px solid #e0e0e0;">
-                                                <td style="padding: 12px;">
-                                                    <strong>{{ line.code }}</strong><br>
-                                                    <span style="color: #666; font-size: 12px;">{{ line.name }}</span>
-                                                </td>
-                                                <td style="padding: 12px; text-align: center;">{{ line.quantity }}</td>
-                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
-                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(line.line_total or 0) }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr style="background: #f8f9fa;">
-                                                <td colspan="3" style="padding: 12px; text-align: right;"><strong>Subtotal:</strong></td>
-                                                <td style="padding: 12px; text-align: right;"><strong>${{ "{:,.2f}".format(sales_order.subtotal or 0) }}</strong></td>
-                                            </tr>
-                                            {% if sales_order.tax_amount %}
-                                            <tr style="background: #f8f9fa;">
-                                                <td colspan="3" style="padding: 12px; text-align: right;">Tax:</td>
-                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(sales_order.tax_amount) }}</td>
-                                            </tr>
+                                    <div class="email-info-box">
+                                        <div class="email-info-box-header">
+                                            <i class="bi bi-building"></i> Customer Information
+                                        </div>
+                                        <div class="email-info-box-content">
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Customer:</span>
+                                                <span class="email-info-value">{{ customer.name }}</span>
+                                            </div>
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Account #:</span>
+                                                <span class="email-info-value">{{ customer.customer_number or '-' }}</span>
+                                            </div>
+                                            {% if customer.shipping_address %}
+                                            <div class="email-info-row">
+                                                <span class="email-info-label">Ship To:</span>
+                                                <span class="email-info-value" style="white-space: pre-line; font-size: 10px;">{{ customer.shipping_address }}</span>
+                                            </div>
                                             {% endif %}
-                                            {% if sales_order.shipping_amount %}
-                                            <tr style="background: #f8f9fa;">
-                                                <td colspan="3" style="padding: 12px; text-align: right;">Shipping:</td>
-                                                <td style="padding: 12px; text-align: right;">${{ "{:,.2f}".format(sales_order.shipping_amount) }}</td>
-                                            </tr>
-                                            {% endif %}
-                                            <tr style="background: #1e3a5f; color: white;">
-                                                <td colspan="3" style="padding: 12px; text-align: right;"><strong>Total Amount:</strong></td>
-                                                <td style="padding: 12px; text-align: right;"><strong>${{ "{:,.2f}".format(sales_order.total_amount or 0) }}</strong></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                    
-                                    {% if sales_order.notes %}
-                                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                                        <strong>Notes:</strong><br>
-                                        {{ sales_order.notes }}
+                                        </div>
                                     </div>
-                                    {% endif %}
-                                    
-                                    <p style="margin: 0 0 10px 0;">
-                                        If you have any questions regarding this order, please don't hesitate to contact us.
-                                    </p>
-                                    
-                                    <p style="margin: 20px 0 0 0;">
+                                </div>
+                                
+                                <table class="email-line-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 35%;">Product</th>
+                                            <th style="width: 15%;">UOM</th>
+                                            <th style="width: 15%;">Qty</th>
+                                            <th style="width: 17%;">Unit Price</th>
+                                            <th style="width: 18%;">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for line in lines %}
+                                        <tr>
+                                            <td>
+                                                <div class="email-product-code">{{ line.code }}</div>
+                                                <div class="email-product-name">{{ line.name }}</div>
+                                            </td>
+                                            <td>{{ line.unit_of_measure or 'EA' }}</td>
+                                            <td>{{ line.quantity }}</td>
+                                            <td>${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
+                                            <td>${{ "{:,.2f}".format(line.line_total or 0) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                
+                                <div class="email-totals-section">
+                                    <div class="email-totals-box">
+                                        <div class="email-totals-row">
+                                            <span>Subtotal:</span>
+                                            <span>${{ "{:,.2f}".format(sales_order.subtotal or 0) }}</span>
+                                        </div>
+                                        {% if sales_order.tax_amount %}
+                                        <div class="email-totals-row">
+                                            <span>Tax:</span>
+                                            <span>${{ "{:,.2f}".format(sales_order.tax_amount) }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if sales_order.shipping_amount %}
+                                        <div class="email-totals-row">
+                                            <span>Shipping:</span>
+                                            <span>${{ "{:,.2f}".format(sales_order.shipping_amount) }}</span>
+                                        </div>
+                                        {% endif %}
+                                        <div class="email-totals-row grand-total">
+                                            <span>Total:</span>
+                                            <span>${{ "{:,.2f}".format(sales_order.total_amount or 0) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {% if sales_order.notes %}
+                                <div class="email-notes-box">
+                                    <div class="email-notes-title"><i class="bi bi-sticky"></i> Order Notes</div>
+                                    <div>{{ sales_order.notes }}</div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="email-closing">
+                                    <p>If you have any questions regarding this order, please don't hesitate to contact us.</p>
+                                    <p style="margin-top: 20px;">
                                         Thank you for your business!<br><br>
                                         Best regards,<br>
-                                        <strong>{{ company.name or 'Dynamic.IQ-COREx' }}</strong>
+                                        <strong>{{ company.company_name or 'Dynamic.IQ-COREx' }}</strong>
                                     </p>
                                 </div>
-                                
-                                <div style="background: #1e3a5f; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
-                                    <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 12px;">
-                                        {{ company.address or '' }}<br>
-                                        {% if company.phone %}Phone: {{ company.phone }} | {% endif %}
-                                        {% if company.email %}Email: {{ company.email }}{% endif %}
-                                    </p>
-                                </div>
+                            </div>
+                            
+                            <div class="email-footer">
+                                {{ company.address_line1 or '' }}{% if company.city %} | {{ company.city }}{% if company.state %}, {{ company.state }}{% endif %} {{ company.postal_code or '' }}{% endif %}
+                                {% if company.phone %} | Phone: {{ company.phone }}{% endif %}
+                                {% if company.email %} | {{ company.email }}{% endif %}
                             </div>
                         </div>
                     </div>
