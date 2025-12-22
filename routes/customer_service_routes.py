@@ -207,17 +207,20 @@ def acknowledge_quote(quote_id):
     db = Database()
     conn = db.get_connection()
     
+    # Get redirect destination (default to customer service dashboard)
+    next_url = request.args.get('next', 'customer_service.dashboard')
+    
     quote = conn.execute('SELECT * FROM work_order_quotes WHERE id = ?', (quote_id,)).fetchone()
     
     if not quote:
         conn.close()
         flash('Quote not found', 'danger')
-        return redirect(url_for('customer_service.dashboard'))
+        return redirect(url_for(next_url))
     
     if quote['status'] != 'Approved':
         conn.close()
         flash('Only approved quotes can be acknowledged', 'warning')
-        return redirect(url_for('customer_service.dashboard'))
+        return redirect(url_for(next_url))
     
     try:
         conn.execute('''
@@ -232,7 +235,7 @@ def acknowledge_quote(quote_id):
         flash(f'Error acknowledging quote: {str(e)}', 'danger')
     
     conn.close()
-    return redirect(url_for('customer_service.dashboard'))
+    return redirect(url_for(next_url))
 
 
 @customer_service_bp.route('/customer-service/orders')

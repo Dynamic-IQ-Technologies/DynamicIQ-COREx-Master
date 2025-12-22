@@ -357,9 +357,18 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-outline-primary" title="View Quote">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if not quote.acknowledged %}
+                                            <a href="{{ url_for('customer_service.acknowledge_quote', quote_id=quote.id, next='operations_routes.work_order_quotes_dashboard') }}" 
+                                               class="btn btn-success" title="Acknowledge Quote"
+                                               onclick="return confirm('Acknowledge this quote as received and processed?');">
+                                                <i class="bi bi-check-lg"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
