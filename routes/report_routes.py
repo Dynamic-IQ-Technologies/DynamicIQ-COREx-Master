@@ -1083,11 +1083,18 @@ def master_plan_report():
     master_parts = conn.execute('''
         SELECT p.id, p.code, p.name, p.description, p.unit_of_measure, p.cost,
                p.reorder_point, p.reorder_quantity, p.lead_time_days,
-               COALESCE(i.quantity, 0) as inventory_on_hand,
-               COALESCE(i.unit_cost, p.cost, 0) as unit_cost,
-               (COALESCE(i.quantity, 0) * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
+               COALESCE(inv_agg.total_qty, 0) as inventory_on_hand,
+               COALESCE(inv_agg.avg_unit_cost, p.cost, 0) as unit_cost,
+               COALESCE(inv_agg.total_value, 0) as inventory_value
         FROM products p
-        LEFT JOIN inventory i ON p.id = i.product_id
+        LEFT JOIN (
+            SELECT product_id, 
+                   SUM(quantity) as total_qty,
+                   AVG(COALESCE(unit_cost, 0)) as avg_unit_cost,
+                   SUM(quantity * COALESCE(unit_cost, 0)) as total_value
+            FROM inventory
+            GROUP BY product_id
+        ) inv_agg ON p.id = inv_agg.product_id
         WHERE p.master_plan_part = 1
         ORDER BY p.code
     ''').fetchall()
