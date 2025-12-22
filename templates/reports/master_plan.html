@@ -204,7 +204,7 @@
                                     {% for wo in item.work_orders %}
                                     <tr>
                                         <td>
-                                            <a href="{{ url_for('workorder_routes.view_work_order', id=wo.id) }}" class="text-decoration-none">
+                                            <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="text-decoration-none">
                                                 {{ wo.wo_number }}
                                             </a>
                                         </td>
