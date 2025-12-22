@@ -29,7 +29,12 @@
         
         .left-section {
             flex: 1.2;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            background: 
+                linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.8) 50%, rgba(51, 65, 85, 0.75) 100%),
+                url('{{ url_for("static", filename="images/login-bg.png") }}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             padding: 4rem 3rem;
             display: flex;
             flex-direction: column;
