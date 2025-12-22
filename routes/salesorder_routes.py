@@ -2003,19 +2003,22 @@ def download_pdf(id):
     
     line_data = [['Line', 'Product Code', 'Description', 'UOM', 'Qty', 'Unit Price', 'Total']]
     for line in lines:
-        line_total = (line['quantity'] or 0) * (line['unit_price'] or 0)
-        desc = line['product_name']
-        if line['serial_number']:
-            desc += f"\nS/N: {line['serial_number']}"
-        if line['lot_number']:
-            desc += f"\nLot: {line['lot_number']}"
+        line_dict = dict(line)
+        line_total = (line_dict.get('quantity') or 0) * (line_dict.get('unit_price') or 0)
+        desc = line_dict.get('product_name', '')
+        serial_num = line_dict.get('serial_number')
+        lot_num = line_dict.get('lot_number')
+        if serial_num:
+            desc += f"\nS/N: {serial_num}"
+        if lot_num:
+            desc += f"\nLot: {lot_num}"
         line_data.append([
-            str(line['line_number']),
-            line['code'],
+            str(line_dict.get('line_number', '')),
+            line_dict.get('code', ''),
             Paragraph(desc, styles['Normal']),
-            line['unit_of_measure'] or 'EA',
-            str(line['quantity']),
-            f"${line['unit_price']:,.2f}" if line['unit_price'] else '$0.00',
+            line_dict.get('unit_of_measure') or 'EA',
+            str(line_dict.get('quantity', '')),
+            f"${line_dict.get('unit_price', 0):,.2f}" if line_dict.get('unit_price') else '$0.00',
             f"${line_total:,.2f}"
         ])
     
