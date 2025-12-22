@@ -3004,6 +3004,8 @@ def generate_packaging_assessment(id):
         flash('Work order not found', 'danger')
         return redirect(url_for('workorder_routes.list_workorders'))
     
+    workorder = dict(workorder)
+    
     company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
     company = dict(company) if company else {}
     
@@ -3040,10 +3042,10 @@ def generate_packaging_assessment(id):
     elements.append(Spacer(1, 10))
     
     wo_info = [
-        ['Work Order:', workorder['wo_number'], 'Status:', workorder['status'] or 'N/A'],
-        ['Product:', workorder['code'], 'Serial Number:', workorder['serial_number'] or 'N/A'],
-        ['Description:', workorder['product_name'] or '', '', ''],
-        ['Customer:', workorder['customer_name'] or 'N/A', 'Customer #:', workorder['customer_number'] or 'N/A'],
+        ['Work Order:', workorder.get('wo_number', 'N/A'), 'Status:', workorder.get('status') or 'N/A'],
+        ['Product:', workorder.get('code', 'N/A'), 'Quantity:', str(workorder.get('quantity', 1))],
+        ['Description:', workorder.get('product_name') or '', '', ''],
+        ['Customer:', workorder.get('customer_name') or 'N/A', 'Customer #:', workorder.get('customer_number') or 'N/A'],
     ]
     
     wo_table = Table(wo_info, colWidths=[1.2*inch, 2.5*inch, 1.2*inch, 2.1*inch])
@@ -3068,8 +3070,8 @@ def generate_packaging_assessment(id):
     elements.append(Paragraph("CRATE SPECIFICATION", section_header))
     
     crate_info = [
-        ['Crate Required:', workorder['pkg_crate_requirement'] or 'Not Specified'],
-        ['Crate Dimensions:', workorder['pkg_crate_dimensions'] or 'Not Specified'],
+        ['Crate Required:', workorder.get('pkg_crate_requirement') or 'Not Specified'],
+        ['Crate Dimensions:', workorder.get('pkg_crate_dimensions') or 'Not Specified'],
     ]
     crate_table = Table(crate_info, colWidths=[2*inch, 5*inch])
     crate_table.setStyle(TableStyle([
@@ -3093,43 +3095,43 @@ def generate_packaging_assessment(id):
     
     assessment_items = []
     
-    if workorder['cra_structural_integrity']:
+    if workorder.get('cra_structural_integrity'):
         assessment_items.append({
             'title': 'Structural Integrity',
             'description': 'Existing crate was inspected and found to have structural deficiencies (cracks, loose joints, or weakened panels). Crate cannot safely support the unit\'s weight or handling loads. A new crate is required to ensure secure containment and transport.'
         })
     
-    if workorder['cra_dimensional_fit']:
+    if workorder.get('cra_dimensional_fit'):
         assessment_items.append({
             'title': 'Dimensional Fit',
             'description': 'Current crate dimensions are not compatible with the unit configuration. Unit does not fit securely within the crate or exceeds allowable internal clearances. New crate required to ensure proper fit and protection during handling.'
         })
     
-    if workorder['cra_protection_requirements']:
+    if workorder.get('cra_protection_requirements'):
         assessment_items.append({
             'title': 'Protection Requirements',
             'description': 'Existing crate lacks adequate internal protection for the unit type. Insufficient cushioning, moisture barrier, or vibration control identified. A new crate with proper protective lining and supports is required.'
         })
     
-    if workorder['cra_storage_duration']:
+    if workorder.get('cra_storage_duration'):
         assessment_items.append({
             'title': 'Storage Duration',
             'description': 'Unit is scheduled for extended storage and current crate does not provide sufficient environmental protection. A new, sealed crate with moisture barrier or lined interior is required for long-term storage compliance.'
         })
     
-    if workorder['cra_customer_oem_spec']:
+    if workorder.get('cra_customer_oem_spec'):
         assessment_items.append({
             'title': 'Customer / OEM Specification',
             'description': 'Current crate design does not comply with customer or OEM packaging requirements as defined in the applicable specification or SOW. A compliant crate must be sourced or fabricated to meet contractual standards.'
         })
     
-    if workorder['cra_return_shipping']:
+    if workorder.get('cra_return_shipping'):
         assessment_items.append({
             'title': 'Return Shipping Requirement',
             'description': 'Original crate is not suitable for reuse following inbound shipment or repair cycle. Damage, wear, or missing hardware identified. New crate required for safe return shipment of the unit.'
         })
     
-    if workorder['cra_hazmat_handling']:
+    if workorder.get('cra_hazmat_handling'):
         assessment_items.append({
             'title': 'Hazardous Material Handling',
             'description': 'Unit contains or was exposed to hazardous materials (e.g., oil, fuel, or batteries). Existing crate does not meet hazardous material containment or labeling requirements. New compliant crate required per IATA/ICAO and DOT regulations.'
@@ -3147,9 +3149,9 @@ def generate_packaging_assessment(id):
     elements.append(Spacer(1, 20))
     elements.append(Paragraph("RECOMMENDATION", section_header))
     
-    if workorder['pkg_crate_requirement'] == 'Yes' and assessment_items:
+    if workorder.get('pkg_crate_requirement') == 'Yes' and assessment_items:
         recommendation = f"Based on the above assessment findings, it is recommended that a NEW CRATE be procured or fabricated for this unit. The crate must address all {len(assessment_items)} identified requirement(s) to ensure safe handling, storage, and transportation of the unit."
-    elif workorder['pkg_crate_requirement'] == 'Yes':
+    elif workorder.get('pkg_crate_requirement') == 'Yes':
         recommendation = "A new crate has been specified as required for this work order. Please ensure appropriate crating solution is sourced before shipment."
     else:
         recommendation = "No new crate is required for this work order based on the current assessment."
