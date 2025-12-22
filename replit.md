@@ -52,6 +52,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Repair Order (External Repair / MRO Services) Module**: Manages external repairs with a full lifecycle (Draft to Closed), state machine enforcement, item locking, outbound shipment creation, receiving workflow, and cost variance tracking.
 -   **Customer Portal with Work Order Quote Approval**: Token-based customer portal allowing customers to view pending work order quotes with pricing breakdowns (parts, labor, consumables, fees), approve or decline quotes with signature capture and notes, and full audit trail tracking including customer information and IP addresses.
 -   **Master Routing (Work Order Template) Module**: Standardized process templates for work orders with reusable operations, material requirements, and quality checks. Supports status workflow (Draft -> Under Review -> Approved -> Active -> Obsolete), automatic application to work orders during creation, and product-based routing matching.
+-   **Professional Sales Order Document Generation**: Print-ready Sales Order viewing with professional layout including company branding, order/customer information blocks, line item tables with serial/lot tracking, totals section, and notes. Features PDF download capability using ReportLab for high-quality document generation.
 
 ## External Dependencies
 
