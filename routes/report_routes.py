@@ -1115,7 +1115,7 @@ def master_plan_report():
         
         customer_exchange_details = conn.execute('''
             SELECT so.id as so_id, so.so_number, so.order_date, so.status, so.exchange_type,
-                   so.expected_return_date, sol.quantity, sol.serial_number,
+                   so.expected_return_date, sol.quantity,
                    c.name as customer_name, c.customer_number,
                    CASE WHEN so.expected_return_date < date('now') THEN 1 ELSE 0 END as is_overdue,
                    julianday(so.expected_return_date) - julianday('now') as days_until_due
@@ -1139,7 +1139,7 @@ def master_plan_report():
         
         supplier_exchange_details = conn.execute('''
             SELECT po.id as po_id, po.po_number, po.order_date, po.status, po.expected_delivery_date,
-                   pol.quantity, pol.serial_number,
+                   pol.quantity,
                    s.name as supplier_name,
                    po.source_sales_order_id,
                    (SELECT so.so_number FROM sales_orders so WHERE so.id = po.source_sales_order_id) as linked_so_number,
