@@ -73,6 +73,18 @@ def customer_portal(token):
         ORDER BY q.created_at DESC
     ''', (customer['id'], customer['customer_number'])).fetchall()
     
+    # Approved/Acknowledged Work Order Quotes
+    wo_quotes_approved = conn.execute('''
+        SELECT q.*, wo.wo_number, wo.id as work_order_id, p.code as product_code, p.name as product_name,
+               (SELECT COUNT(*) FROM work_order_quote_lines WHERE quote_id = q.id) as line_count
+        FROM work_order_quotes q
+        JOIN work_orders wo ON q.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        WHERE (wo.customer_id = ? OR q.customer_account = ?) 
+          AND q.status = 'Approved'
+        ORDER BY q.created_at DESC
+    ''', (customer['id'], customer['customer_number'])).fetchall()
+    
     stats = {
         'sales_orders': len(sales_orders),
         'active_orders': len([o for o in sales_orders if o['status'] not in ('Completed', 'Shipped', 'Closed', 'Cancelled')]),
@@ -93,6 +105,7 @@ def customer_portal(token):
                          invoices=invoices,
                          quotes=so_quotes,
                          wo_quotes=wo_quotes,
+                         wo_quotes_approved=wo_quotes_approved,
                          stats=stats,
                          token=token)
 
