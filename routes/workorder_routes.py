@@ -3162,8 +3162,6 @@ def generate_packaging_assessment(id):
     
     sig_data = [
         ['Prepared By:', '_' * 30, 'Date:', '_' * 20],
-        ['', '', '', ''],
-        ['Approved By:', '_' * 30, 'Date:', '_' * 20],
     ]
     sig_table = Table(sig_data, colWidths=[1.2*inch, 2.5*inch, 0.8*inch, 2.5*inch])
     sig_table.setStyle(TableStyle([
