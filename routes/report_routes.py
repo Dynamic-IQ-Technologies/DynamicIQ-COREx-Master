@@ -1115,7 +1115,7 @@ def master_plan_report():
         
         customer_exchange_details = conn.execute('''
             SELECT so.id as so_id, so.so_number, so.order_date, so.status, so.exchange_type,
-                   so.expected_return_date, sol.quantity, sol.serial_number, sol.lot_number,
+                   so.expected_return_date, sol.quantity, sol.serial_number,
                    c.name as customer_name, c.customer_number,
                    CASE WHEN so.expected_return_date < date('now') THEN 1 ELSE 0 END as is_overdue,
                    julianday(so.expected_return_date) - julianday('now') as days_until_due
