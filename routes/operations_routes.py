@@ -376,3 +376,116 @@ def operations_dashboard():
                          sched_sort=sched_sort,
                          sched_order=sched_order,
                          today=today_str)
+
+
+@operations_bp.route('/work-order-quotes-dashboard')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Accountant', 'Sales')
+def work_order_quotes_dashboard():
+    db = Database()
+    conn = db.get_connection()
+    
+    quoting_stage = conn.execute(
+        "SELECT id FROM work_order_stages WHERE name = 'Quoting' LIMIT 1"
+    ).fetchone()
+    quoting_stage_id = quoting_stage['id'] if quoting_stage else None
+    
+    wo_in_quoting = []
+    if quoting_stage_id:
+        wo_in_quoting = conn.execute('''
+            SELECT 
+                wo.id,
+                wo.wo_number,
+                wo.status,
+                wo.priority,
+                wo.is_aog,
+                wo.created_at,
+                wo.planned_start_date,
+                p.part_number as product_code,
+                p.name as product_name,
+                c.name as customer_name,
+                woq.id as quote_id,
+                woq.quote_number,
+                woq.total_amount as quote_amount,
+                woq.status as quote_status
+            FROM work_orders wo
+            LEFT JOIN products p ON wo.product_id = p.id
+            LEFT JOIN contacts c ON wo.customer_id = c.id
+            LEFT JOIN work_order_quotes woq ON wo.id = woq.work_order_id
+            WHERE wo.stage_id = ?
+            AND wo.status NOT IN ('Completed', 'Cancelled')
+            ORDER BY wo.is_aog DESC, wo.priority DESC, wo.created_at DESC
+        ''', (quoting_stage_id,)).fetchall()
+    
+    quotes_awaiting_approval = conn.execute('''
+        SELECT 
+            woq.id,
+            woq.quote_number,
+            woq.status,
+            woq.total_amount,
+            woq.created_at,
+            woq.updated_at,
+            woq.customer_name as quote_customer_name,
+            woq.estimated_turnaround_days,
+            wo.id as work_order_id,
+            wo.wo_number,
+            wo.is_aog,
+            wo.priority,
+            p.part_number as product_code,
+            p.name as product_name,
+            c.name as customer_name,
+            u.username as prepared_by_name
+        FROM work_order_quotes woq
+        JOIN work_orders wo ON woq.work_order_id = wo.id
+        LEFT JOIN products p ON wo.product_id = p.id
+        LEFT JOIN contacts c ON wo.customer_id = c.id
+        LEFT JOIN users u ON woq.prepared_by = u.id
+        WHERE woq.status IN ('Pending Approval', 'Sent', 'Quoted', 'Submitted')
+        ORDER BY wo.is_aog DESC, wo.priority DESC, woq.created_at DESC
+    ''').fetchall()
+    
+    recently_approved = conn.execute('''
+        SELECT 
+            woq.id,
+            woq.quote_number,
+            woq.status,
+            woq.total_amount,
+            woq.customer_approved_at,
+            woq.customer_approved_by,
+            woq.acknowledged,
+            woq.acknowledged_at,
+            wo.id as work_order_id,
+            wo.wo_number,
+            wo.is_aog,
+            wo.priority,
+            p.part_number as product_code,
+            p.name as product_name,
+            c.name as customer_name,
+            u.username as acknowledged_by_name
+        FROM work_order_quotes woq
+        JOIN work_orders wo ON woq.work_order_id = wo.id
+        LEFT JOIN products p ON wo.product_id = p.id
+        LEFT JOIN contacts c ON wo.customer_id = c.id
+        LEFT JOIN users u ON woq.acknowledged_by = u.id
+        WHERE woq.status = 'Approved'
+        ORDER BY woq.customer_approved_at DESC
+        LIMIT 50
+    ''').fetchall()
+    
+    summary_stats = {
+        'wo_in_quoting': len(wo_in_quoting),
+        'awaiting_approval': len(quotes_awaiting_approval),
+        'recently_approved': len(recently_approved),
+        'total_quoting_value': sum(row['quote_amount'] or 0 for row in wo_in_quoting if row['quote_amount']),
+        'total_pending_value': sum(row['total_amount'] or 0 for row in quotes_awaiting_approval),
+        'total_approved_value': sum(row['total_amount'] or 0 for row in recently_approved),
+        'unacknowledged': sum(1 for row in recently_approved if not row['acknowledged'])
+    }
+    
+    conn.close()
+    
+    return render_template('operations/wo_quotes_dashboard.html',
+                         wo_in_quoting=wo_in_quoting,
+                         quotes_awaiting_approval=quotes_awaiting_approval,
+                         recently_approved=recently_approved,
+                         summary_stats=summary_stats)
