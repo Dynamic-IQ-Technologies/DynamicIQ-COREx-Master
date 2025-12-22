@@ -301,85 +301,161 @@
 
     <div class="row g-4 mb-4">
         <div class="col-12">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-semibold">
-                            <i class="bi bi-file-earmark-text me-2 text-primary"></i>Work Order Quotes
-                            {% if wo_quotes_count > 0 %}
-                            <span class="badge bg-primary ms-2">{{ wo_quotes_count }}</span>
-                            {% endif %}
-                        </h5>
-                    </div>
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="bi bi-file-earmark-text me-2 text-primary"></i>Work Order Quotes
+                    </h5>
                 </div>
-                <div class="card-body p-0">
-                    {% if wo_quotes %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="text-uppercase small">Quote ID</th>
-                                    <th class="text-uppercase small">Work Order</th>
-                                    <th class="text-uppercase small">Product</th>
-                                    <th class="text-uppercase small">Customer</th>
-                                    <th class="text-uppercase small">Lines</th>
-                                    <th class="text-uppercase small">Status</th>
-                                    <th class="text-uppercase small">Created</th>
-                                    <th class="text-uppercase small">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for quote in wo_quotes %}
-                                <tr>
-                                    <td>
-                                        <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}">
-                                            #{{ quote.id }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}">
-                                            {{ quote.wo_number }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <span class="fw-medium">{{ quote.product_code }}</span>
-                                        <br><small class="text-muted">{{ quote.product_name[:30] }}{{ '...' if quote.product_name|length > 30 else '' }}</small>
-                                    </td>
-                                    <td>{{ quote.customer_name or 'N/A' }}</td>
-                                    <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
-                                    <td>
-                                        {% if quote.status == 'Draft' %}
-                                        <span class="badge bg-secondary">{{ quote.status }}</span>
-                                        {% elif quote.status in ['Pending Approval', 'Sent', 'Submitted'] %}
-                                        <span class="badge bg-warning text-dark">{{ quote.status }}</span>
-                                        {% elif quote.status == 'Approved' %}
-                                        <span class="badge bg-success">{{ quote.status }}</span>
-                                        {% elif quote.status == 'Declined' %}
-                                        <span class="badge bg-danger">{{ quote.status }}</span>
-                                        {% else %}
-                                        <span class="badge bg-info">{{ quote.status }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" 
-                                           class="btn btn-sm btn-outline-primary" title="View Quote">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" id="woQuotesTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="draft-tab" data-bs-toggle="tab" data-bs-target="#draft-quotes" type="button" role="tab">
+                                <i class="bi bi-pencil me-1"></i>Draft
+                                {% if wo_quotes_draft|length > 0 %}
+                                <span class="badge bg-secondary ms-1">{{ wo_quotes_draft|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="submitted-tab" data-bs-toggle="tab" data-bs-target="#submitted-quotes" type="button" role="tab">
+                                <i class="bi bi-send me-1"></i>Awaiting Approval
+                                {% if wo_quotes_submitted|length > 0 %}
+                                <span class="badge bg-warning text-dark ms-1">{{ wo_quotes_submitted|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved-quotes" type="button" role="tab">
+                                <i class="bi bi-check-circle me-1"></i>Approved
+                                {% if wo_quotes_approved|length > 0 %}
+                                <span class="badge bg-success ms-1">{{ wo_quotes_approved|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content pt-3" id="woQuotesTabContent">
+                        <div class="tab-pane fade show active" id="draft-quotes" role="tabpanel">
+                            {% if wo_quotes_draft %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="text-uppercase small">Quote ID</th>
+                                            <th class="text-uppercase small">Work Order</th>
+                                            <th class="text-uppercase small">Product</th>
+                                            <th class="text-uppercase small">Customer</th>
+                                            <th class="text-uppercase small">Lines</th>
+                                            <th class="text-uppercase small">Created</th>
+                                            <th class="text-uppercase small">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for quote in wo_quotes_draft %}
+                                        <tr>
+                                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}">#{{ quote.id }}</a></td>
+                                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}">{{ quote.wo_number }}</a></td>
+                                            <td><span class="fw-medium">{{ quote.product_code }}</span></td>
+                                            <td>{{ quote.customer_name or 'N/A' }}</td>
+                                            <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
+                                            <td><small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small></td>
+                                            <td>
+                                                <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" class="btn btn-sm btn-outline-primary" title="View Quote"><i class="bi bi-eye"></i></a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-pencil text-muted fs-1"></i>
+                                <p class="text-muted mt-2 mb-0">No draft quotes</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane fade" id="submitted-quotes" role="tabpanel">
+                            {% if wo_quotes_submitted %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="text-uppercase small">Quote ID</th>
+                                            <th class="text-uppercase small">Work Order</th>
+                                            <th class="text-uppercase small">Product</th>
+                                            <th class="text-uppercase small">Customer</th>
+                                            <th class="text-uppercase small">Lines</th>
+                                            <th class="text-uppercase small">Status</th>
+                                            <th class="text-uppercase small">Created</th>
+                                            <th class="text-uppercase small">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for quote in wo_quotes_submitted %}
+                                        <tr>
+                                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}">#{{ quote.id }}</a></td>
+                                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}">{{ quote.wo_number }}</a></td>
+                                            <td><span class="fw-medium">{{ quote.product_code }}</span></td>
+                                            <td>{{ quote.customer_name or 'N/A' }}</td>
+                                            <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
+                                            <td><span class="badge bg-warning text-dark">{{ quote.status }}</span></td>
+                                            <td><small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small></td>
+                                            <td>
+                                                <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" class="btn btn-sm btn-outline-primary" title="View Quote"><i class="bi bi-eye"></i></a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-send text-muted fs-1"></i>
+                                <p class="text-muted mt-2 mb-0">No quotes awaiting approval</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane fade" id="approved-quotes" role="tabpanel">
+                            {% if wo_quotes_approved %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="text-uppercase small">Quote ID</th>
+                                            <th class="text-uppercase small">Work Order</th>
+                                            <th class="text-uppercase small">Product</th>
+                                            <th class="text-uppercase small">Customer</th>
+                                            <th class="text-uppercase small">Lines</th>
+                                            <th class="text-uppercase small">Approved</th>
+                                            <th class="text-uppercase small">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for quote in wo_quotes_approved %}
+                                        <tr>
+                                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}">#{{ quote.id }}</a></td>
+                                            <td><a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}">{{ quote.wo_number }}</a></td>
+                                            <td><span class="fw-medium">{{ quote.product_code }}</span></td>
+                                            <td>{{ quote.customer_name or 'N/A' }}</td>
+                                            <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
+                                            <td><small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small></td>
+                                            <td>
+                                                <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" class="btn btn-sm btn-outline-primary" title="View Quote"><i class="bi bi-eye"></i></a>
+                                                <a href="{{ url_for('customer_service.acknowledge_quote', quote_id=quote.id) }}" class="btn btn-sm btn-outline-success" title="Acknowledge"><i class="bi bi-check-lg"></i></a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-check-circle text-muted fs-1"></i>
+                                <p class="text-muted mt-2 mb-0">No approved quotes pending acknowledgment</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-file-earmark-text text-muted fs-1"></i>
-                        <p class="text-muted mt-2 mb-0">No pending work order quotes</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>

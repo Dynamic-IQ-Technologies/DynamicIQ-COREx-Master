@@ -143,7 +143,7 @@ def dashboard():
         LIMIT 10
     ''').fetchall()
     
-    wo_quotes = conn.execute('''
+    wo_quotes_draft = conn.execute('''
         SELECT q.*, wo.wo_number, wo.id as work_order_id, p.code as product_code, 
                p.name as product_name, c.name as customer_name, c.customer_number,
                (SELECT COUNT(*) FROM work_order_quote_lines WHERE quote_id = q.id) as line_count
@@ -151,15 +151,33 @@ def dashboard():
         JOIN work_orders wo ON q.work_order_id = wo.id
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
-        WHERE q.status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted', 'Submitted')
+        WHERE q.status = 'Draft'
         ORDER BY q.created_at DESC
-        LIMIT 10
     ''').fetchall()
     
-    wo_quotes_count = conn.execute('''
-        SELECT COUNT(*) FROM work_order_quotes 
-        WHERE status IN ('Draft', 'Pending Approval', 'Sent', 'Quoted', 'Submitted')
-    ''').fetchone()[0]
+    wo_quotes_submitted = conn.execute('''
+        SELECT q.*, wo.wo_number, wo.id as work_order_id, p.code as product_code, 
+               p.name as product_name, c.name as customer_name, c.customer_number,
+               (SELECT COUNT(*) FROM work_order_quote_lines WHERE quote_id = q.id) as line_count
+        FROM work_order_quotes q
+        JOIN work_orders wo ON q.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE q.status IN ('Pending Approval', 'Sent', 'Quoted', 'Submitted')
+        ORDER BY q.created_at DESC
+    ''').fetchall()
+    
+    wo_quotes_approved = conn.execute('''
+        SELECT q.*, wo.wo_number, wo.id as work_order_id, p.code as product_code, 
+               p.name as product_name, c.name as customer_name, c.customer_number,
+               (SELECT COUNT(*) FROM work_order_quote_lines WHERE quote_id = q.id) as line_count
+        FROM work_order_quotes q
+        JOIN work_orders wo ON q.work_order_id = wo.id
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE q.status = 'Approved' AND COALESCE(q.acknowledged, 0) = 0
+        ORDER BY q.created_at DESC
+    ''').fetchall()
     
     conn.close()
     
@@ -176,8 +194,45 @@ def dashboard():
                          pending_followups=pending_followups,
                          open_escalations=open_escalations,
                          recent_activity=recent_activity,
-                         wo_quotes=wo_quotes,
-                         wo_quotes_count=wo_quotes_count)
+                         wo_quotes_draft=wo_quotes_draft,
+                         wo_quotes_submitted=wo_quotes_submitted,
+                         wo_quotes_approved=wo_quotes_approved)
+
+
+@customer_service_bp.route('/customer-service/quotes/<int:quote_id>/acknowledge', methods=['POST', 'GET'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def acknowledge_quote(quote_id):
+    """Acknowledge an approved work order quote"""
+    db = Database()
+    conn = db.get_connection()
+    
+    quote = conn.execute('SELECT * FROM work_order_quotes WHERE id = ?', (quote_id,)).fetchone()
+    
+    if not quote:
+        conn.close()
+        flash('Quote not found', 'danger')
+        return redirect(url_for('customer_service.dashboard'))
+    
+    if quote['status'] != 'Approved':
+        conn.close()
+        flash('Only approved quotes can be acknowledged', 'warning')
+        return redirect(url_for('customer_service.dashboard'))
+    
+    try:
+        conn.execute('''
+            UPDATE work_order_quotes 
+            SET acknowledged = 1, acknowledged_by = ?, acknowledged_at = ?
+            WHERE id = ?
+        ''', (session.get('user_id'), datetime.now().strftime('%Y-%m-%d %H:%M:%S'), quote_id))
+        conn.commit()
+        flash('Quote acknowledged successfully', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error acknowledging quote: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('customer_service.dashboard'))
 
 
 @customer_service_bp.route('/customer-service/orders')
