@@ -1072,3 +1072,143 @@ def ojt_report_pdf():
         mimetype='application/pdf',
         headers={'Content-Disposition': f'attachment; filename={filename}'}
     )
+
+
+@report_bp.route('/reports/master-plan')
+@login_required
+def master_plan_report():
+    db = Database()
+    conn = db.get_connection()
+    
+    master_parts = conn.execute('''
+        SELECT p.id, p.code, p.name, p.description, p.unit_of_measure, p.cost,
+               p.reorder_point, p.reorder_quantity, p.lead_time_days,
+               COALESCE(i.quantity, 0) as inventory_on_hand,
+               COALESCE(i.unit_cost, p.cost, 0) as unit_cost,
+               (COALESCE(i.quantity, 0) * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
+        FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
+        WHERE p.master_plan_part = 1
+        ORDER BY p.code
+    ''').fetchall()
+    
+    report_data = []
+    
+    for part in master_parts:
+        product_id = part['id']
+        
+        exchange_on_customer = conn.execute('''
+            SELECT COALESCE(SUM(sol.quantity), 0) as qty
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.product_id = ?
+              AND so.sales_type = 'Exchange'
+              AND so.status NOT IN ('Closed', 'Cancelled', 'Invoiced', 'Completed')
+        ''', (product_id,)).fetchone()
+        
+        exchange_on_supplier = conn.execute('''
+            SELECT COALESCE(SUM(pol.quantity), 0) as qty
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            WHERE pol.product_id = ?
+              AND po.is_exchange = 1
+              AND po.status NOT IN ('Closed', 'Cancelled', 'Received')
+        ''', (product_id,)).fetchone()
+        
+        work_orders = conn.execute('''
+            SELECT wo.id, wo.wo_number, wo.quantity, wo.status, 
+                   wo.planned_start_date, wo.planned_end_date
+            FROM work_orders wo
+            WHERE wo.product_id = ?
+              AND wo.status NOT IN ('Completed', 'Closed', 'Cancelled')
+            ORDER BY wo.planned_start_date
+        ''', (product_id,)).fetchall()
+        
+        wo_summary = {}
+        total_wo_qty = 0
+        for wo in work_orders:
+            status = wo['status'] or 'Unknown'
+            if status not in wo_summary:
+                wo_summary[status] = {'count': 0, 'qty': 0}
+            wo_summary[status]['count'] += 1
+            wo_summary[status]['qty'] += wo['quantity'] or 0
+            total_wo_qty += wo['quantity'] or 0
+        
+        consumption_90d = conn.execute('''
+            SELECT COALESCE(SUM(mi.quantity_issued), 0) as consumed
+            FROM material_issues mi
+            WHERE mi.product_id = ?
+              AND mi.issue_date >= date('now', '-90 days')
+        ''', (product_id,)).fetchone()
+        
+        shipments_90d = conn.execute('''
+            SELECT COALESCE(SUM(sol.quantity), 0) as shipped
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.product_id = ?
+              AND so.status = 'Shipped'
+              AND so.order_date >= date('now', '-90 days')
+        ''', (product_id,)).fetchone()
+        
+        total_consumption_90d = (consumption_90d['consumed'] or 0) + (shipments_90d['shipped'] or 0)
+        avg_weekly_consumption = total_consumption_90d / 13 if total_consumption_90d > 0 else 0
+        
+        available_stock = (part['inventory_on_hand'] or 0)
+        weeks_of_supply = available_stock / avg_weekly_consumption if avg_weekly_consumption > 0 else float('inf')
+        
+        if weeks_of_supply == float('inf'):
+            forecast_status = 'No Demand'
+            forecast_class = 'secondary'
+        elif weeks_of_supply < 2:
+            forecast_status = 'Critical'
+            forecast_class = 'danger'
+        elif weeks_of_supply < 4:
+            forecast_status = 'Low'
+            forecast_class = 'warning'
+        elif weeks_of_supply < 8:
+            forecast_status = 'Adequate'
+            forecast_class = 'info'
+        else:
+            forecast_status = 'Sufficient'
+            forecast_class = 'success'
+        
+        expected_inbound = conn.execute('''
+            SELECT COALESCE(SUM(pol.quantity - COALESCE(pol.received_quantity, 0)), 0) as pending
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            WHERE pol.product_id = ?
+              AND po.status NOT IN ('Closed', 'Cancelled', 'Received')
+              AND po.is_exchange = 0
+        ''', (product_id,)).fetchone()
+        
+        report_data.append({
+            'product': dict(part),
+            'inventory_on_hand': part['inventory_on_hand'] or 0,
+            'inventory_value': part['inventory_value'] or 0,
+            'exchange_on_customer': exchange_on_customer['qty'] or 0,
+            'exchange_on_supplier': exchange_on_supplier['qty'] or 0,
+            'work_orders': [dict(wo) for wo in work_orders],
+            'wo_summary': wo_summary,
+            'total_wo_qty': total_wo_qty,
+            'consumption_90d': total_consumption_90d,
+            'avg_weekly': round(avg_weekly_consumption, 2),
+            'weeks_of_supply': round(weeks_of_supply, 1) if weeks_of_supply != float('inf') else None,
+            'forecast_status': forecast_status,
+            'forecast_class': forecast_class,
+            'expected_inbound': expected_inbound['pending'] or 0
+        })
+    
+    summary_stats = {
+        'total_parts': len(report_data),
+        'total_inventory_value': sum(d['inventory_value'] for d in report_data),
+        'critical_count': sum(1 for d in report_data if d['forecast_status'] == 'Critical'),
+        'low_count': sum(1 for d in report_data if d['forecast_status'] == 'Low'),
+        'total_on_exchange': sum(d['exchange_on_customer'] + d['exchange_on_supplier'] for d in report_data),
+        'total_in_wo': sum(d['total_wo_qty'] for d in report_data)
+    }
+    
+    conn.close()
+    
+    return render_template('reports/master_plan.html',
+                         report_data=report_data,
+                         summary_stats=summary_stats)
