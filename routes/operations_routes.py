@@ -401,7 +401,7 @@ def work_order_quotes_dashboard():
                 wo.is_aog,
                 wo.created_at,
                 wo.planned_start_date,
-                p.part_number as product_code,
+                p.code as product_code,
                 p.name as product_name,
                 c.name as customer_name,
                 woq.id as quote_id,
@@ -431,7 +431,7 @@ def work_order_quotes_dashboard():
             wo.wo_number,
             wo.is_aog,
             wo.priority,
-            p.part_number as product_code,
+            p.code as product_code,
             p.name as product_name,
             c.name as customer_name,
             u.username as prepared_by_name
@@ -458,7 +458,7 @@ def work_order_quotes_dashboard():
             wo.wo_number,
             wo.is_aog,
             wo.priority,
-            p.part_number as product_code,
+            p.code as product_code,
             p.name as product_name,
             c.name as customer_name,
             u.username as acknowledged_by_name
