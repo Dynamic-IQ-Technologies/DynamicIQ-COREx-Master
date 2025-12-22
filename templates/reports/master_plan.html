@@ -184,6 +184,104 @@
                         </div>
                     </div>
                     
+                    {% if item.customer_exchange_details %}
+                    <div class="card mb-3">
+                        <div class="card-header bg-warning bg-opacity-25">
+                            <h6 class="mb-0"><i class="bi bi-person-fill-exclamation me-2"></i>Customer Exchange Returns Pending ({{ item.customer_exchange_details|length }})</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Sales Order</th>
+                                        <th>Customer</th>
+                                        <th class="text-center">Qty</th>
+                                        <th>Status</th>
+                                        <th>Return Due</th>
+                                        <th>Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ex in item.customer_exchange_details %}
+                                    <tr class="{% if ex.is_overdue %}table-danger{% endif %}">
+                                        <td>
+                                            <a href="{{ url_for('salesorder_routes.view_sales_order', id=ex.so_id) }}" class="text-decoration-none">
+                                                {{ ex.so_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ ex.customer_name }}</td>
+                                        <td class="text-center">{{ ex.quantity }}</td>
+                                        <td><span class="badge bg-info">{{ ex.status }}</span></td>
+                                        <td>{{ ex.expected_return_date or 'Not set' }}</td>
+                                        <td class="text-center">
+                                            {% if ex.days_until_due is not none %}
+                                                {% if ex.is_overdue %}
+                                                    <span class="badge bg-danger">{{ ex.days_until_due|int|abs }} overdue</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">{{ ex.days_until_due|int }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if item.supplier_exchange_details %}
+                    <div class="card mb-3">
+                        <div class="card-header bg-info bg-opacity-25">
+                            <h6 class="mb-0"><i class="bi bi-truck me-2"></i>Supplier Exchange Pending ({{ item.supplier_exchange_details|length }})</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Purchase Order</th>
+                                        <th>Supplier</th>
+                                        <th>Linked SO</th>
+                                        <th class="text-center">Qty</th>
+                                        <th>Status</th>
+                                        <th>Due Date</th>
+                                        <th>Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ex in item.supplier_exchange_details %}
+                                    <tr class="{% if ex.is_overdue %}table-danger{% endif %}">
+                                        <td>
+                                            <a href="{{ url_for('po_routes.view_po', id=ex.po_id) }}" class="text-decoration-none">
+                                                {{ ex.po_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ ex.supplier_name }}</td>
+                                        <td>{{ ex.linked_so_number or '-' }}</td>
+                                        <td class="text-center">{{ ex.quantity }}</td>
+                                        <td><span class="badge bg-primary">{{ ex.status }}</span></td>
+                                        <td>{{ ex.expected_date or 'Not set' }}</td>
+                                        <td class="text-center">
+                                            {% if ex.days_until_due is not none %}
+                                                {% if ex.is_overdue %}
+                                                    <span class="badge bg-danger">{{ ex.days_until_due|int|abs }} overdue</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">{{ ex.days_until_due|int }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     {% if item.work_orders %}
                     <div class="card">
                         <div class="card-header bg-light">

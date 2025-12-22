@@ -1113,6 +1113,21 @@ def master_plan_report():
               AND so.status NOT IN ('Closed', 'Cancelled', 'Invoiced', 'Completed')
         ''', (product_id,)).fetchone()
         
+        customer_exchange_details = conn.execute('''
+            SELECT so.id as so_id, so.so_number, so.order_date, so.status, so.exchange_type,
+                   so.expected_return_date, sol.quantity, sol.serial_number, sol.lot_number,
+                   c.name as customer_name, c.customer_number,
+                   CASE WHEN so.expected_return_date < date('now') THEN 1 ELSE 0 END as is_overdue,
+                   julianday(so.expected_return_date) - julianday('now') as days_until_due
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.so_id = so.id
+            JOIN customers c ON so.customer_id = c.id
+            WHERE sol.product_id = ?
+              AND so.sales_type = 'Exchange'
+              AND so.status NOT IN ('Closed', 'Cancelled', 'Invoiced', 'Completed')
+            ORDER BY so.expected_return_date
+        ''', (product_id,)).fetchall()
+        
         exchange_on_supplier = conn.execute('''
             SELECT COALESCE(SUM(pol.quantity), 0) as qty
             FROM purchase_order_lines pol
@@ -1121,6 +1136,23 @@ def master_plan_report():
               AND po.is_exchange = 1
               AND po.status NOT IN ('Closed', 'Cancelled', 'Received')
         ''', (product_id,)).fetchone()
+        
+        supplier_exchange_details = conn.execute('''
+            SELECT po.id as po_id, po.po_number, po.order_date, po.status, po.expected_date,
+                   pol.quantity, pol.serial_number, pol.lot_number,
+                   s.name as supplier_name,
+                   po.source_sales_order_id,
+                   (SELECT so.so_number FROM sales_orders so WHERE so.id = po.source_sales_order_id) as linked_so_number,
+                   CASE WHEN po.expected_date < date('now') THEN 1 ELSE 0 END as is_overdue,
+                   julianday(po.expected_date) - julianday('now') as days_until_due
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            JOIN suppliers s ON po.supplier_id = s.id
+            WHERE pol.product_id = ?
+              AND po.is_exchange = 1
+              AND po.status NOT IN ('Closed', 'Cancelled', 'Received')
+            ORDER BY po.expected_date
+        ''', (product_id,)).fetchall()
         
         work_orders = conn.execute('''
             SELECT wo.id, wo.wo_number, wo.quantity, wo.status, 
@@ -1194,6 +1226,8 @@ def master_plan_report():
             'inventory_value': part['inventory_value'] or 0,
             'exchange_on_customer': exchange_on_customer['qty'] or 0,
             'exchange_on_supplier': exchange_on_supplier['qty'] or 0,
+            'customer_exchange_details': [dict(ex) for ex in customer_exchange_details],
+            'supplier_exchange_details': [dict(ex) for ex in supplier_exchange_details],
             'work_orders': [dict(wo) for wo in work_orders],
             'wo_summary': wo_summary,
             'total_wo_qty': total_wo_qty,
