@@ -743,6 +743,12 @@
                     <span>Operations Dashboard</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('operations_routes.work_order_quotes_dashboard') }}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Work Order Quotes</span>
+                </a>
+            </li>
             {% endif %}
             {% if session.role == 'Admin' or user_permissions.get('menu_work_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
