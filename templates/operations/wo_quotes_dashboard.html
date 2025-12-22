@@ -157,7 +157,7 @@
                                     <td>{{ wo.customer_name or 'N/A' }}</td>
                                     <td>
                                         {% if wo.quote_number %}
-                                        <a href="{{ url_for('workorder_routes.view_quote', id=wo.quote_id) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('quote_routes.view_quote', id=wo.quote_id) }}" class="text-decoration-none">
                                             {{ wo.quote_number }}
                                         </a>
                                         {% else %}
@@ -244,7 +244,7 @@
                                 {% for quote in quotes_awaiting_approval %}
                                 <tr>
                                     <td>
-                                        <a href="{{ url_for('workorder_routes.view_quote', id=quote.id) }}" class="fw-medium text-decoration-none">
+                                        <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="fw-medium text-decoration-none">
                                             {{ quote.quote_number }}
                                         </a>
                                     </td>
@@ -270,7 +270,7 @@
                                     <td>{{ quote.prepared_by_name or 'N/A' }}</td>
                                     <td>{{ quote.updated_at[:10] if quote.updated_at else quote.created_at[:10] if quote.created_at else 'N/A' }}</td>
                                     <td class="text-center">
-                                        <a href="{{ url_for('workorder_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                     </td>
@@ -326,7 +326,7 @@
                                 {% for quote in recently_approved %}
                                 <tr class="{{ 'table-success bg-opacity-25' if not quote.acknowledged else '' }}">
                                     <td>
-                                        <a href="{{ url_for('workorder_routes.view_quote', id=quote.id) }}" class="fw-medium text-decoration-none">
+                                        <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="fw-medium text-decoration-none">
                                             {{ quote.quote_number }}
                                         </a>
                                     </td>
@@ -357,7 +357,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ url_for('workorder_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                     </td>
