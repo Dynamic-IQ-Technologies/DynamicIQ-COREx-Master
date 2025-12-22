@@ -270,11 +270,11 @@
                     <table class="table table-hover mb-0" id="woQuotesTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-uppercase small">Quote #</th>
-                                <th class="text-uppercase small">Work Order</th>
-                                <th class="text-uppercase small">Product</th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Quote # <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Work Order <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Product <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
-                                <th class="text-uppercase small">Total</th>
+                                <th class="text-uppercase small sortable" data-sort="currency" style="cursor:pointer;">Total <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small text-center">Action</th>
                             </tr>
                         </thead>
@@ -324,20 +324,26 @@
                         <h5 class="mb-0 fw-semibold"><i class="bi bi-check-circle me-2 text-success"></i>Approved Work Order Quotes</h5>
                         <small class="text-muted">Quotes you have approved</small>
                     </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="approvedQuotesFilter" placeholder="Search approved quotes...">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
                 {% if wo_quotes_approved %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="approvedQuotesTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-uppercase small">Quote #</th>
-                                <th class="text-uppercase small">Work Order</th>
-                                <th class="text-uppercase small">Product</th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Quote # <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Work Order <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="string" style="cursor:pointer;">Product <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
-                                <th class="text-uppercase small">Total</th>
-                                <th class="text-uppercase small">Approved Date</th>
+                                <th class="text-uppercase small sortable" data-sort="currency" style="cursor:pointer;">Total <i class="bi bi-chevron-expand"></i></th>
+                                <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Approved Date <i class="bi bi-chevron-expand"></i></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -592,11 +598,15 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTableFilter('salesFilter', 'salesTable', 'salesStatusFilter');
     setupTableFilter('woFilter', 'woTable', 'woStatusFilter');
     setupTableFilter('quotesFilter', 'quotesTable', null);
+    setupTableFilter('woQuotesFilter', 'woQuotesTable', null);
+    setupTableFilter('approvedQuotesFilter', 'approvedQuotesTable', null);
     setupTableFilter('invoicesFilter', 'invoicesTable', 'invoicesStatusFilter');
     
     setupTableSort('salesTable');
     setupTableSort('woTable');
     setupTableSort('quotesTable');
+    setupTableSort('woQuotesTable');
+    setupTableSort('approvedQuotesTable');
     setupTableSort('invoicesTable');
 });
 </script>
