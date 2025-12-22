@@ -1082,7 +1082,7 @@ def master_plan_report():
     
     master_parts = conn.execute('''
         SELECT p.id, p.code, p.name, p.description, p.unit_of_measure, p.cost,
-               p.reorder_point, p.reorder_quantity, p.lead_time_days,
+               p.lead_time,
                COALESCE(inv_agg.total_qty, 0) as inventory_on_hand,
                COALESCE(inv_agg.avg_unit_cost, p.cost, 0) as unit_cost,
                COALESCE(inv_agg.total_value, 0) as inventory_value

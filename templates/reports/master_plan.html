@@ -111,8 +111,8 @@
                                             <td class="fw-bold text-end text-success">${{ "{:,.2f}".format(item.inventory_value) }}</td>
                                         </tr>
                                         <tr>
-                                            <td class="text-muted">Reorder Point:</td>
-                                            <td class="text-end">{{ item.product.reorder_point or '-' }}</td>
+                                            <td class="text-muted">Lead Time:</td>
+                                            <td class="text-end">{{ item.product.lead_time or 0 }} days</td>
                                         </tr>
                                         <tr>
                                             <td class="text-muted">Pending Inbound:</td>
