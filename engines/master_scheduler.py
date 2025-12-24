@@ -211,7 +211,7 @@ class MasterSchedulerEngine:
         ''', product_ids).fetchall()
         
         availability = {r['product_id']: {
-            'on_hand': r['quantity'],
+            'on_hand': r['on_hand'],
             'reorder_point': r['reorder_point'],
             'safety_stock': r['safety_stock'],
             'on_order': 0,
@@ -220,7 +220,7 @@ class MasterSchedulerEngine:
         
         open_pos = self.conn.execute(f'''
             SELECT pol.product_id, pol.quantity - pol.received_quantity as pending_qty,
-                   po.expected_date, po.po_number
+                   po.expected_delivery_date, po.po_number
             FROM purchase_order_lines pol
             JOIN purchase_orders po ON pol.po_id = po.id
             WHERE pol.product_id IN ({placeholders})
@@ -235,7 +235,7 @@ class MasterSchedulerEngine:
                 availability[pid]['expected_receipts'].append({
                     'po_number': po['po_number'],
                     'quantity': po['pending_qty'],
-                    'expected_date': po['expected_date']
+                    'expected_date': po['expected_delivery_date']
                 })
         
         return availability
@@ -254,10 +254,10 @@ class MasterSchedulerEngine:
         committed = self.conn.execute('''
             SELECT COALESCE(SUM(sol.quantity), 0) as committed
             FROM sales_order_lines sol
-            JOIN sales_orders so ON sol.sales_order_id = so.id
+            JOIN sales_orders so ON sol.so_id = so.id
             WHERE sol.product_id = ?
             AND so.status IN ('Confirmed', 'In Progress', 'Processing')
-            AND so.due_date <= ?
+            AND so.expected_ship_date <= ?
         ''', (product_id, date)).fetchone()['committed']
         
         available = on_hand - committed
@@ -266,20 +266,20 @@ class MasterSchedulerEngine:
             return True, date, available
         
         future_receipts = self.conn.execute('''
-            SELECT po.expected_date, pol.quantity - pol.received_quantity as pending
+            SELECT po.expected_delivery_date, pol.quantity - pol.received_quantity as pending
             FROM purchase_order_lines pol
             JOIN purchase_orders po ON pol.po_id = po.id
             WHERE pol.product_id = ?
             AND po.status IN ('Open', 'Partial')
             AND pol.quantity > pol.received_quantity
-            ORDER BY po.expected_date ASC
+            ORDER BY po.expected_delivery_date ASC
         ''', (product_id,)).fetchall()
         
         cumulative = available
         for receipt in future_receipts:
             cumulative += receipt['pending']
             if cumulative >= quantity:
-                return True, receipt['expected_date'], cumulative
+                return True, receipt['expected_delivery_date'], cumulative
         
         return False, None, cumulative
     
@@ -295,12 +295,15 @@ class MasterSchedulerEngine:
         
         lead_time_days = product['lead_time'] if product and product['lead_time'] else 5
         
-        routing = self.conn.execute('''
-            SELECT work_center_id, standard_hours
-            FROM product_routings
-            WHERE product_id = ?
-            ORDER BY sequence_number
-        ''', (product_id,)).fetchall()
+        try:
+            routing = self.conn.execute('''
+                SELECT work_center_id, standard_hours
+                FROM product_routings
+                WHERE product_id = ?
+                ORDER BY sequence_number
+            ''', (product_id,)).fetchall()
+        except:
+            routing = []
         
         if not routing:
             ctp_date = (datetime.now() + timedelta(days=lead_time_days)).strftime('%Y-%m-%d')
