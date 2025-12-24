@@ -638,7 +638,8 @@ class MasterSchedulerEngine:
     
     def get_bottleneck_analysis(self, schedule_id: int) -> List[Dict]:
         """
-        Analyze work center bottlenecks for the schedule.
+        Analyze work center capacity for the schedule.
+        Shows all work centers with any planned load.
         """
         bottlenecks = self.conn.execute('''
             SELECT wc.id, wc.code, wc.name,
@@ -651,7 +652,7 @@ class MasterSchedulerEngine:
             JOIN work_centers wc ON scl.work_center_id = wc.id
             WHERE scl.schedule_id = ?
             GROUP BY wc.id
-            HAVING avg_utilization > 70
+            HAVING SUM(scl.planned_hours) > 0
             ORDER BY avg_utilization DESC
         ''', (schedule_id,)).fetchall()
         
