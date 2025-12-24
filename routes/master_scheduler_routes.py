@@ -547,6 +547,18 @@ Be specific, quantitative, and actionable. No generic responses."""
         
         if 'recommendations' in analysis:
             for rec in analysis['recommendations']:
+                impacted = rec.get('impacted_orders', '')
+                if isinstance(impacted, list):
+                    impacted = ', '.join(str(o) for o in impacted)
+                
+                cost_impact = rec.get('cost_impact')
+                if isinstance(cost_impact, list):
+                    cost_impact = sum(c for c in cost_impact if isinstance(c, (int, float))) if cost_impact else None
+                
+                time_impact = rec.get('time_impact_days')
+                if isinstance(time_impact, list):
+                    time_impact = sum(t for t in time_impact if isinstance(t, (int, float))) if time_impact else None
+                
                 conn.execute('''
                     INSERT INTO schedule_recommendations (
                         schedule_id, recommendation_type, title, description,
@@ -556,8 +568,8 @@ Be specific, quantitative, and actionable. No generic responses."""
                 ''', (
                     id, rec.get('type', 'Other'), rec.get('title', 'AI Recommendation'),
                     rec.get('description', ''), rec.get('action', ''),
-                    rec.get('impacted_orders', ''), rec.get('cost_impact'),
-                    rec.get('time_impact_days'), rec.get('risk_level', 'Medium'),
+                    str(impacted) if impacted else '', cost_impact,
+                    time_impact, rec.get('risk_level', 'Medium'),
                     rec.get('priority_score', 50), 0.85, json.dumps(rec)
                 ))
             conn.commit()
