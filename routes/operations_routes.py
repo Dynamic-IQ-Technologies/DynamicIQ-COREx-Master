@@ -408,7 +408,7 @@ def work_order_quotes_dashboard():
                 woq.quote_number,
                 woq.total_amount as quote_amount,
                 woq.status as quote_status,
-                CAST(julianday('now') - julianday(COALESCE(wo.stage_changed_at, wo.created_at)) AS INTEGER) as tat_days
+                CAST(julianday('now') - julianday(wo.created_at) AS INTEGER) as tat_days
             FROM work_orders wo
             LEFT JOIN products p ON wo.product_id = p.id
             LEFT JOIN customers cust ON wo.customer_id = cust.id
@@ -426,7 +426,6 @@ def work_order_quotes_dashboard():
             woq.total_amount,
             woq.created_at,
             woq.updated_at,
-            woq.sent_at,
             woq.customer_name as quote_customer_name,
             woq.estimated_turnaround_days,
             wo.id as work_order_id,
@@ -437,7 +436,7 @@ def work_order_quotes_dashboard():
             p.name as product_name,
             COALESCE(wo.customer_name, cust.name) as customer_name,
             u.username as prepared_by_name,
-            CAST(julianday('now') - julianday(COALESCE(woq.sent_at, woq.updated_at, woq.created_at)) AS INTEGER) as tat_days
+            CAST(julianday('now') - julianday(COALESCE(woq.updated_at, woq.created_at)) AS INTEGER) as tat_days
         FROM work_order_quotes woq
         JOIN work_orders wo ON woq.work_order_id = wo.id
         LEFT JOIN products p ON wo.product_id = p.id
