@@ -184,7 +184,9 @@ def create_schedule():
             return redirect(url_for('master_scheduler_routes.dashboard'))
     
     conn.close()
-    return render_template('master_scheduler/schedule_form.html', action='create')
+    today = datetime.now().strftime('%Y-%m-%d')
+    end_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+    return render_template('master_scheduler/schedule_form.html', action='create', today=today, end_date=end_date)
 
 
 @master_scheduler_bp.route('/master-scheduler/schedules/<int:id>')
