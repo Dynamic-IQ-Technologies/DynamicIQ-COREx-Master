@@ -134,6 +134,7 @@
                                     <th class="text-uppercase small">Quote Value</th>
                                     <th class="text-uppercase small">Quote Status</th>
                                     <th class="text-uppercase small">Created</th>
+                                    <th class="text-uppercase small text-center">TAT</th>
                                     <th class="text-uppercase small text-center">Action</th>
                                 </tr>
                             </thead>
@@ -188,6 +189,16 @@
                                     </td>
                                     <td>{{ wo.created_at[:10] if wo.created_at else 'N/A' }}</td>
                                     <td class="text-center">
+                                        {% set tat = wo.tat_days or 0 %}
+                                        {% if tat >= 7 %}
+                                        <span class="badge bg-danger" title="{{ tat }} days in quoting">{{ tat }}d</span>
+                                        {% elif tat >= 3 %}
+                                        <span class="badge bg-warning text-dark" title="{{ tat }} days in quoting">{{ tat }}d</span>
+                                        {% else %}
+                                        <span class="badge bg-success" title="{{ tat }} days in quoting">{{ tat }}d</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
                                         <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i>
                                         </a>
@@ -237,6 +248,7 @@
                                     <th class="text-uppercase small">Status</th>
                                     <th class="text-uppercase small">Prepared By</th>
                                     <th class="text-uppercase small">Submitted</th>
+                                    <th class="text-uppercase small text-center">TAT</th>
                                     <th class="text-uppercase small text-center">Action</th>
                                 </tr>
                             </thead>
@@ -269,6 +281,16 @@
                                     </td>
                                     <td>{{ quote.prepared_by_name or 'N/A' }}</td>
                                     <td>{{ quote.updated_at[:10] if quote.updated_at else quote.created_at[:10] if quote.created_at else 'N/A' }}</td>
+                                    <td class="text-center">
+                                        {% set tat = quote.tat_days or 0 %}
+                                        {% if tat >= 7 %}
+                                        <span class="badge bg-danger" title="{{ tat }} days awaiting approval">{{ tat }}d</span>
+                                        {% elif tat >= 3 %}
+                                        <span class="badge bg-warning text-dark" title="{{ tat }} days awaiting approval">{{ tat }}d</span>
+                                        {% else %}
+                                        <span class="badge bg-success" title="{{ tat }} days awaiting approval">{{ tat }}d</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center">
                                         <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i>
