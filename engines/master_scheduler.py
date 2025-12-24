@@ -496,9 +496,59 @@ class MasterSchedulerEngine:
         """
         self.conn.execute('DELETE FROM schedule_capacity_load WHERE schedule_id = ?', (schedule_id,))
         
+        scheduled_items = self.conn.execute('''
+            SELECT msi.scheduled_start, msi.scheduled_end, msi.order_id, msi.order_type,
+                   msi.quantity
+            FROM master_schedule_items msi
+            WHERE msi.schedule_id = ?
+        ''', (schedule_id,)).fetchall()
+        
+        work_order_ids = [item['order_id'] for item in scheduled_items if item['order_type'] == 'Work Order']
+        
+        wc_daily_load = {}
+        for wc_id in capacity_data.keys():
+            wc_daily_load[wc_id] = {}
+        
+        if work_order_ids:
+            placeholders = ','.join(['?'] * len(work_order_ids))
+            operations = self.conn.execute(f'''
+                SELECT woo.work_order_id, woo.work_center_id, 
+                       woo.planned_hours + woo.setup_hours as total_hours,
+                       wo.planned_start_date, wo.planned_end_date
+                FROM work_order_operations woo
+                JOIN work_orders wo ON woo.work_order_id = wo.id
+                WHERE woo.work_order_id IN ({placeholders})
+                AND woo.work_center_id IS NOT NULL
+            ''', work_order_ids).fetchall()
+            
+            for op in operations:
+                wc_id = op['work_center_id']
+                if wc_id not in wc_daily_load:
+                    continue
+                    
+                start = op['planned_start_date'] or date_from
+                end = op['planned_end_date'] or date_to
+                total_hours = op['total_hours'] or 0
+                
+                try:
+                    start_dt = datetime.strptime(start, '%Y-%m-%d')
+                    end_dt = datetime.strptime(end, '%Y-%m-%d')
+                    days = max((end_dt - start_dt).days, 1)
+                    daily_hours = total_hours / days
+                    
+                    current = start_dt
+                    while current <= end_dt:
+                        date_str = current.strftime('%Y-%m-%d')
+                        if date_str not in wc_daily_load[wc_id]:
+                            wc_daily_load[wc_id][date_str] = 0
+                        wc_daily_load[wc_id][date_str] += daily_hours
+                        current += timedelta(days=1)
+                except (ValueError, TypeError):
+                    pass
+        
         for wc_id, wc in capacity_data.items():
             for date_str, available in wc['daily_capacity'].items():
-                planned = 0
+                planned = wc_daily_load.get(wc_id, {}).get(date_str, 0)
                 utilization = (planned / available * 100) if available > 0 else 0
                 status = 'Critical' if utilization > 100 else 'Warning' if utilization > 85 else 'Normal'
                 
