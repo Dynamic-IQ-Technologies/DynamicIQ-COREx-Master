@@ -195,6 +195,7 @@
                         <th data-sort-type="string">Stage</th>
                         <th data-sort-type="string">Priority</th>
                         <th data-sort-type="date">Planned Start</th>
+                        <th data-sort-type="date">Planned End</th>
                         <th data-sortable="false">Actions</th>
                     </tr>
                 </thead>
@@ -248,7 +249,8 @@
                                 </select>
                             </td>
                             <td>{{ wo.priority }}</td>
-                            <td>{{ wo.planned_start_date }}</td>
+                            <td>{{ wo.planned_start_date or '-' }}</td>
+                            <td>{{ wo.planned_end_date or '-' }}</td>
                             <td>
                                 <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
                             </td>
@@ -256,7 +258,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="{% if session.role in ['Admin', 'Planner'] %}11{% else %}10{% endif %}" class="text-center py-5">
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] %}12{% else %}11{% endif %}" class="text-center py-5">
                                 <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
                                 <p class="text-muted mt-3">No work orders found matching your criteria.</p>
                                 <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
