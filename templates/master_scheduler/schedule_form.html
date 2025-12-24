@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Create Master Schedule{% endblock %}
+{% block title %}{{ 'Edit' if action == 'edit' else 'Create' }} Master Schedule{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -8,40 +8,48 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 py-3">
-                    <h4 class="mb-0"><i class="bi bi-calendar-plus me-2"></i>Create Master Schedule</h4>
+                    <h4 class="mb-0">
+                        <i class="bi bi-calendar-{{ 'check' if action == 'edit' else 'plus' }} me-2"></i>
+                        {{ 'Edit' if action == 'edit' else 'Create' }} Master Schedule
+                        {% if schedule %}<small class="text-muted">- {{ schedule.schedule_number }}</small>{% endif %}
+                    </h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('master_scheduler_routes.create_schedule') }}">
+                    <form method="POST" action="{{ url_for('master_scheduler_routes.edit_schedule', id=schedule.id) if action == 'edit' else url_for('master_scheduler_routes.create_schedule') }}">
                         <div class="mb-3">
                             <label class="form-label">Schedule Name</label>
-                            <input type="text" name="name" class="form-control" placeholder="e.g., Q1 2025 Production Schedule">
+                            <input type="text" name="name" class="form-control" placeholder="e.g., Q1 2025 Production Schedule"
+                                   value="{{ schedule.name if schedule else '' }}">
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Description</label>
-                            <textarea name="description" class="form-control" rows="3" placeholder="Optional description of the schedule"></textarea>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Optional description of the schedule">{{ schedule.description if schedule else '' }}</textarea>
                         </div>
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Horizon Start Date</label>
-                                <input type="date" name="horizon_start" class="form-control" value="{{ today }}" required>
+                                <input type="date" name="horizon_start" class="form-control" 
+                                       value="{{ schedule.horizon_start if schedule else today }}" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Horizon End Date</label>
-                                <input type="date" name="horizon_end" class="form-control" value="{{ end_date }}" required>
+                                <input type="date" name="horizon_end" class="form-control" 
+                                       value="{{ schedule.horizon_end if schedule else end_date }}" required>
                             </div>
                         </div>
                         
                         <div class="mb-4">
                             <label class="form-label">Time Bucket</label>
                             <select name="time_bucket" class="form-select">
-                                <option value="Daily" selected>Daily</option>
-                                <option value="Weekly">Weekly</option>
+                                <option value="Daily" {{ 'selected' if (schedule and schedule.time_bucket == 'Daily') or not schedule else '' }}>Daily</option>
+                                <option value="Weekly" {{ 'selected' if schedule and schedule.time_bucket == 'Weekly' else '' }}>Weekly</option>
                             </select>
                             <small class="text-muted">Daily provides more granular scheduling; Weekly is better for longer horizons</small>
                         </div>
                         
+                        {% if action != 'edit' %}
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle me-2"></i>
                             <strong>What happens next:</strong>
@@ -52,13 +60,18 @@
                                 <li>Exceptions and recommendations will be generated</li>
                             </ul>
                         </div>
+                        {% endif %}
                         
                         <div class="d-flex justify-content-between">
-                            <a href="{{ url_for('master_scheduler_routes.dashboard') }}" class="btn btn-outline-secondary">
+                            <a href="{{ url_for('master_scheduler_routes.view_schedule', id=schedule.id) if action == 'edit' else url_for('master_scheduler_routes.dashboard') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-arrow-left me-1"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">
+                                {% if action == 'edit' %}
+                                <i class="bi bi-check-lg me-1"></i>Save Changes
+                                {% else %}
                                 <i class="bi bi-lightning me-1"></i>Generate Schedule
+                                {% endif %}
                             </button>
                         </div>
                     </form>

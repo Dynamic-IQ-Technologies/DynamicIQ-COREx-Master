@@ -315,6 +315,94 @@ def activate_schedule(id):
         return redirect(url_for('master_scheduler_routes.view_schedule', id=id))
 
 
+@master_scheduler_bp.route('/master-scheduler/schedules/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def edit_schedule(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    schedule = conn.execute('SELECT * FROM master_schedules WHERE id = ?', (id,)).fetchone()
+    
+    if not schedule:
+        conn.close()
+        flash('Schedule not found', 'danger')
+        return redirect(url_for('master_scheduler_routes.dashboard'))
+    
+    if schedule['is_active']:
+        conn.close()
+        flash('Cannot edit an active schedule. Deactivate it first.', 'warning')
+        return redirect(url_for('master_scheduler_routes.view_schedule', id=id))
+    
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name', schedule['name'])
+            description = request.form.get('description', '')
+            horizon_start = request.form.get('horizon_start', schedule['horizon_start'])
+            horizon_end = request.form.get('horizon_end', schedule['horizon_end'])
+            time_bucket = request.form.get('time_bucket', schedule['time_bucket'])
+            
+            conn.execute('''
+                UPDATE master_schedules
+                SET name = ?, description = ?, horizon_start = ?, horizon_end = ?,
+                    time_bucket = ?, updated_at = datetime('now')
+                WHERE id = ?
+            ''', (name, description, horizon_start, horizon_end, time_bucket, id))
+            conn.commit()
+            
+            flash('Schedule updated successfully', 'success')
+            conn.close()
+            return redirect(url_for('master_scheduler_routes.view_schedule', id=id))
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            flash(f'Error updating schedule: {str(e)}', 'danger')
+            return redirect(url_for('master_scheduler_routes.edit_schedule', id=id))
+    
+    conn.close()
+    return render_template('master_scheduler/schedule_form.html', action='edit', schedule=schedule)
+
+
+@master_scheduler_bp.route('/master-scheduler/schedules/<int:id>/delete', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def delete_schedule(id):
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        schedule = conn.execute('SELECT * FROM master_schedules WHERE id = ?', (id,)).fetchone()
+        
+        if not schedule:
+            conn.close()
+            flash('Schedule not found', 'danger')
+            return redirect(url_for('master_scheduler_routes.dashboard'))
+        
+        if schedule['is_active']:
+            conn.close()
+            flash('Cannot delete an active schedule. Deactivate it first.', 'warning')
+            return redirect(url_for('master_scheduler_routes.view_schedule', id=id))
+        
+        conn.execute('DELETE FROM schedule_capacity_load WHERE schedule_id = ?', (id,))
+        conn.execute('DELETE FROM schedule_recommendations WHERE schedule_id = ?', (id,))
+        conn.execute('DELETE FROM schedule_exceptions WHERE schedule_id = ?', (id,))
+        conn.execute('DELETE FROM schedule_scenarios WHERE schedule_id = ?', (id,))
+        conn.execute('DELETE FROM master_schedule_items WHERE schedule_id = ?', (id,))
+        conn.execute('DELETE FROM master_schedules WHERE id = ?', (id,))
+        conn.commit()
+        
+        flash(f'Schedule {schedule["schedule_number"]} deleted successfully', 'success')
+        conn.close()
+        return redirect(url_for('master_scheduler_routes.dashboard'))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error deleting schedule: {str(e)}', 'danger')
+        return redirect(url_for('master_scheduler_routes.dashboard'))
+
+
 @master_scheduler_bp.route('/master-scheduler/exceptions/<int:id>/resolve', methods=['POST'])
 @login_required
 @role_required('Admin', 'Planner')

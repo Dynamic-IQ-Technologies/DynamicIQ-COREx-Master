@@ -254,17 +254,33 @@
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
                         {% for sched in recent_schedules %}
-                        <a href="{{ url_for('master_scheduler_routes.view_schedule', id=sched.id) }}" class="list-group-item list-group-item-action">
+                        <div class="list-group-item">
                             <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ sched.schedule_number }}</strong>
-                                    <small class="text-muted d-block">{{ sched.name }}</small>
+                                <a href="{{ url_for('master_scheduler_routes.view_schedule', id=sched.id) }}" class="text-decoration-none flex-grow-1">
+                                    <div>
+                                        <strong>{{ sched.schedule_number }}</strong>
+                                        <small class="text-muted d-block">{{ sched.name }}</small>
+                                    </div>
+                                </a>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-{{ 'success' if sched.is_active else 'secondary' }}">
+                                        {{ 'Active' if sched.is_active else sched.status }}
+                                    </span>
+                                    {% if not sched.is_active %}
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('master_scheduler_routes.edit_schedule', id=sched.id) }}" 
+                                           class="btn btn-outline-primary" title="Edit Schedule">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" title="Delete Schedule"
+                                                onclick="confirmDeleteSchedule({{ sched.id }}, '{{ sched.schedule_number }}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                <span class="badge bg-{{ 'success' if sched.is_active else 'secondary' }}">
-                                    {{ 'Active' if sched.is_active else sched.status }}
-                                </span>
                             </div>
-                        </a>
+                        </div>
                         {% else %}
                         <div class="list-group-item text-center py-4 text-muted">
                             <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
@@ -677,5 +693,14 @@ document.getElementById('workCentersModal').addEventListener('show.bs.modal', fu
             }
         });
 });
+
+function confirmDeleteSchedule(id, scheduleNumber) {
+    if (confirm(`Are you sure you want to delete schedule ${scheduleNumber}? This will remove all schedule items, exceptions, and recommendations. This action cannot be undone.`)) {
+        document.getElementById('deleteScheduleForm').action = `/master-scheduler/schedules/${id}/delete`;
+        document.getElementById('deleteScheduleForm').submit();
+    }
+}
 </script>
+
+<form id="deleteScheduleForm" method="POST" style="display:none;"></form>
 {% endblock %}
