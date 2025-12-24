@@ -403,13 +403,14 @@ def work_order_quotes_dashboard():
                 wo.planned_start_date,
                 p.code as product_code,
                 p.name as product_name,
-                wo.customer_name,
+                COALESCE(wo.customer_name, cust.name) as customer_name,
                 woq.id as quote_id,
                 woq.quote_number,
                 woq.total_amount as quote_amount,
                 woq.status as quote_status
             FROM work_orders wo
             LEFT JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers cust ON wo.customer_id = cust.id
             LEFT JOIN work_order_quotes woq ON wo.id = woq.work_order_id
             WHERE wo.stage_id = ?
             AND wo.status NOT IN ('Completed', 'Cancelled')
@@ -432,11 +433,12 @@ def work_order_quotes_dashboard():
             wo.priority,
             p.code as product_code,
             p.name as product_name,
-            wo.customer_name,
+            COALESCE(wo.customer_name, cust.name) as customer_name,
             u.username as prepared_by_name
         FROM work_order_quotes woq
         JOIN work_orders wo ON woq.work_order_id = wo.id
         LEFT JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers cust ON wo.customer_id = cust.id
         LEFT JOIN users u ON woq.prepared_by = u.id
         WHERE woq.status IN ('Pending Approval', 'Sent', 'Quoted', 'Submitted')
         ORDER BY wo.is_aog DESC, wo.priority DESC, woq.created_at DESC
@@ -458,11 +460,12 @@ def work_order_quotes_dashboard():
             wo.priority,
             p.code as product_code,
             p.name as product_name,
-            wo.customer_name,
+            COALESCE(wo.customer_name, cust.name) as customer_name,
             u.username as acknowledged_by_name
         FROM work_order_quotes woq
         JOIN work_orders wo ON woq.work_order_id = wo.id
         LEFT JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers cust ON wo.customer_id = cust.id
         LEFT JOIN users u ON woq.acknowledged_by = u.id
         WHERE woq.status = 'Approved'
         ORDER BY woq.customer_approved_at DESC
