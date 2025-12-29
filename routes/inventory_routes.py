@@ -852,6 +852,38 @@ def download_inventory_document(doc_id):
     finally:
         conn.close()
 
+@inventory_bp.route('/inventory/documents/<int:doc_id>/view')
+@login_required
+def view_inventory_document(doc_id):
+    """View an inventory document inline (for preview)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        doc = conn.execute('''
+            SELECT * FROM inventory_documents WHERE id = ? AND is_active = 1
+        ''', (doc_id,)).fetchone()
+        
+        if not doc:
+            flash('Document not found', 'danger')
+            return redirect(url_for('inventory_routes.list_inventory'))
+        
+        if os.path.exists(doc['file_path']):
+            directory = os.path.dirname(doc['file_path'])
+            filename = os.path.basename(doc['file_path'])
+            return send_from_directory(
+                directory, 
+                filename, 
+                as_attachment=False,
+                mimetype=doc['mime_type']
+            )
+        else:
+            flash('File not found on server', 'danger')
+            return redirect(url_for('inventory_routes.view_inventory', id=doc['inventory_id']))
+            
+    finally:
+        conn.close()
+
 @inventory_bp.route('/inventory/documents/<int:doc_id>/delete', methods=['POST'])
 @role_required('Admin', 'Production Staff')
 def delete_inventory_document(doc_id):
