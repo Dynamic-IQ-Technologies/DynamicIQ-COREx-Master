@@ -1628,6 +1628,273 @@ def deallocate_line(line_id):
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
 
+@salesorder_bp.route('/sales-orders/lines/<int:line_id>/available-work-orders')
+@role_required('Admin', 'Planner')
+def get_available_work_orders_for_line(line_id):
+    """Get available work orders that can be allocated to a sales order line"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        line = conn.execute('''
+            SELECT sol.*, p.code, p.name
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            conn.close()
+            return jsonify({'error': 'Line not found'}), 404
+        
+        work_orders = conn.execute('''
+            SELECT wo.id, wo.wo_number, wo.quantity, wo.status, wo.priority,
+                   wo.planned_start_date, wo.planned_end_date, wo.disposition,
+                   p.code as product_code, p.name as product_name,
+                   COALESCE(wo.material_cost, 0) + COALESCE(wo.labor_cost, 0) as total_cost
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            WHERE wo.product_id = ?
+            AND wo.status IN ('Open', 'In Progress', 'Completed')
+            AND wo.so_id IS NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM sales_order_lines sol2 
+                WHERE sol2.work_order_id = wo.id
+            )
+            ORDER BY wo.status DESC, wo.planned_end_date ASC
+        ''', (line['product_id'],)).fetchall()
+        
+        result = []
+        for wo in work_orders:
+            result.append({
+                'id': wo['id'],
+                'wo_number': wo['wo_number'],
+                'quantity': wo['quantity'],
+                'status': wo['status'],
+                'priority': wo['priority'],
+                'planned_start_date': wo['planned_start_date'],
+                'planned_end_date': wo['planned_end_date'],
+                'disposition': wo['disposition'],
+                'product_code': wo['product_code'],
+                'total_cost': wo['total_cost']
+            })
+        
+        conn.close()
+        return jsonify({
+            'line_id': line_id,
+            'product_code': line['code'],
+            'product_name': line['name'],
+            'requested_qty': line['quantity'],
+            'work_orders': result
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@salesorder_bp.route('/sales-orders/lines/<int:line_id>/allocate-work-order', methods=['POST'])
+@role_required('Admin', 'Planner')
+def allocate_work_order_to_line(line_id):
+    """Allocate a work order to a sales order line"""
+    db = Database()
+    conn = db.get_connection()
+    so_id = None
+    
+    try:
+        line = conn.execute('''
+            SELECT sol.*, p.code, p.name, so.so_number
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            flash('Sales order line not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        so_id = line['so_id']
+        
+        if line['is_core']:
+            flash('Core items cannot have work orders allocated.', 'info')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        work_order_id = request.form.get('work_order_id')
+        
+        if not work_order_id:
+            flash('Please select a work order to allocate.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        wo = conn.execute('''
+            SELECT wo.*, p.code as product_code
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            WHERE wo.id = ? AND wo.product_id = ?
+        ''', (work_order_id, line['product_id'])).fetchone()
+        
+        if not wo:
+            flash('Selected work order not found or does not match the product.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        if wo['so_id'] is not None:
+            flash('This work order is already linked to a different sales order.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        existing = conn.execute('''
+            SELECT sol.id, so.so_number, sol.line_number
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.so_id = so.id
+            WHERE sol.work_order_id = ? AND sol.id != ?
+        ''', (work_order_id, line_id)).fetchone()
+        
+        if existing:
+            flash(f'Work order {wo["wo_number"]} is already allocated to SO {existing["so_number"]}, Line {existing["line_number"]}.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        allocate_qty = min(wo['quantity'], line['quantity'])
+        allocation_status = 'Allocated' if allocate_qty >= line['quantity'] else 'Partially Allocated'
+        
+        conn.execute('''
+            UPDATE sales_order_lines
+            SET work_order_id = ?,
+                allocated_quantity = ?,
+                allocation_status = ?,
+                allocation_notes = ?,
+                line_status = ?,
+                modified_by = ?,
+                modified_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            work_order_id,
+            allocate_qty,
+            allocation_status,
+            f'Allocated from WO {wo["wo_number"]} (Status: {wo["status"]})',
+            allocation_status,
+            session.get('user_id'),
+            line_id
+        ))
+        
+        conn.execute('''
+            UPDATE work_orders
+            SET so_id = ?
+            WHERE id = ?
+        ''', (so_id, work_order_id))
+        
+        from models import AuditLogger
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='sales_order_lines',
+            record_id=line_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={
+                'work_order_id': work_order_id,
+                'wo_number': wo['wo_number'],
+                'allocated_quantity': allocate_qty,
+                'allocation_status': allocation_status
+            }
+        )
+        
+        conn.commit()
+        flash(f'Successfully allocated work order {wo["wo_number"]} ({allocate_qty} units) to line {line["line_number"]}.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred during work order allocation: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+
+@salesorder_bp.route('/sales-orders/lines/<int:line_id>/deallocate-work-order', methods=['POST'])
+@role_required('Admin', 'Planner')
+def deallocate_work_order_from_line(line_id):
+    """Deallocate a work order from a sales order line"""
+    db = Database()
+    conn = db.get_connection()
+    so_id = None
+    
+    try:
+        line = conn.execute('''
+            SELECT sol.*, p.code, p.name, so.so_number, so.id as so_id,
+                   wo.wo_number
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            JOIN sales_orders so ON sol.so_id = so.id
+            LEFT JOIN work_orders wo ON sol.work_order_id = wo.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            flash('Sales order line not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        so_id = line['so_id']
+        
+        if line['released_to_shipping_at']:
+            flash(f'Cannot deallocate line {line["line_number"]} - it has been released to shipping.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        if not line['work_order_id']:
+            flash(f'Line {line["line_number"]} does not have a work order allocated.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+        
+        wo_number = line['wo_number']
+        work_order_id = line['work_order_id']
+        
+        conn.execute('''
+            UPDATE sales_order_lines
+            SET work_order_id = NULL,
+                allocated_quantity = 0,
+                allocation_status = 'Pending',
+                allocation_notes = 'Work order deallocated by user',
+                line_status = 'Pending',
+                modified_by = ?,
+                modified_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (session.get('user_id'), line_id))
+        
+        conn.execute('''
+            UPDATE work_orders
+            SET so_id = NULL
+            WHERE id = ?
+        ''', (work_order_id,))
+        
+        from models import AuditLogger
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='sales_order_lines',
+            record_id=line_id,
+            action_type='UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={
+                'work_order_id': f'{work_order_id} -> NULL',
+                'wo_number': wo_number,
+                'allocation_status': 'Pending',
+                'action': 'Work Order Deallocated'
+            }
+        )
+        
+        conn.commit()
+        flash(f'Successfully deallocated work order {wo_number} from line {line["line_number"]}.', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'An error occurred during work order deallocation: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=so_id))
+
 @salesorder_bp.route('/sales-orders/lines/<int:line_id>/release-to-shipping', methods=['POST'])
 @role_required('Admin', 'Planner')
 def release_line_to_shipping(line_id):
