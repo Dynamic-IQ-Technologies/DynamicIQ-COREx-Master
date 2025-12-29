@@ -754,11 +754,6 @@ def email_supplier_link(rfq_id, supplier_id):
                 <a href="{supplier_link}" class="btn">Submit Your Quote</a>
             </div>
             
-            <div class="link-box">
-                <strong>Direct Link:</strong><br>
-                <a href="{supplier_link}">{supplier_link}</a>
-            </div>
-            
             <p>If you have any questions, please contact us directly.</p>
             
             <p>Thank you for your interest in working with us.</p>
