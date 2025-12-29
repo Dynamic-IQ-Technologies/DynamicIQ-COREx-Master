@@ -3597,6 +3597,22 @@ class Database:
         if 'master_routing_id' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN master_routing_id INTEGER REFERENCES master_routings(id)")
         
+        # Add reconciliation fields for work order cost reconciliation
+        if 'reconciliation_status' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN reconciliation_status TEXT DEFAULT 'Not Reconciled'")
+        
+        if 'reconciled_by' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN reconciled_by INTEGER REFERENCES users(id)")
+        
+        if 'reconciled_at' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN reconciled_at TIMESTAMP")
+        
+        if 'reconciliation_notes' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN reconciliation_notes TEXT")
+        
+        if 'variance_summary' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN variance_summary TEXT")
+        
         # Seed default stages if none exist
         cursor.execute("SELECT COUNT(*) FROM work_order_stages")
         if cursor.fetchone()[0] == 0:
