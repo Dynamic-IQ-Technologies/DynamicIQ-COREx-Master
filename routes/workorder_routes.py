@@ -714,6 +714,15 @@ def update_workorder_status(id):
         old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
         
         new_status = request.form['status']
+        
+        # Business rule: Work order must be reconciled before closing/completing
+        if new_status == 'Completed' and old_record['status'] != 'Completed':
+            reconciliation_status = old_record.get('reconciliation_status') or 'Not Reconciled'
+            if reconciliation_status != 'Reconciled':
+                flash('Work order must be reconciled before it can be completed. Please reconcile first.', 'warning')
+                conn.close()
+                return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
         conn.execute('UPDATE work_orders SET status=? WHERE id=?', (new_status, id))
         
         if new_status == 'Completed':
@@ -951,6 +960,14 @@ def update_workorder_management(id):
         disposition = request.form.get('disposition') or None
         repair_category = request.form.get('repair_category') or None
         workorder_type = request.form.get('workorder_type') or None
+        
+        # Business rule: Work order must be reconciled before closing/completing
+        if new_status == 'Completed' and old_record['status'] != 'Completed':
+            reconciliation_status = old_record.get('reconciliation_status') or 'Not Reconciled'
+            if reconciliation_status != 'Reconciled':
+                flash('Work order must be reconciled before it can be completed. Please reconcile first.', 'warning')
+                conn.close()
+                return redirect(url_for('workorder_routes.view_workorder', id=id))
         
         conn.execute('''
             UPDATE work_orders 
