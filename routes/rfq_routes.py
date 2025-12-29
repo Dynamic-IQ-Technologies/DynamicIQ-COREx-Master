@@ -4,6 +4,60 @@ from auth import login_required, role_required
 from datetime import datetime, timedelta
 import secrets
 import os
+import requests
+
+def get_sendgrid_credentials():
+    """Get SendGrid API key and from email from Replit integration"""
+    hostname = os.environ.get('HOSTNAME')
+    repl_identity = os.environ.get('REPL_IDENTITY')
+    web_repl_renewal = os.environ.get('WEB_REPL_RENEWAL')
+    
+    if not hostname:
+        return None, None
+    
+    if repl_identity:
+        x_replit_token = 'repl ' + repl_identity
+    elif web_repl_renewal:
+        x_replit_token = 'depl ' + web_repl_renewal
+    else:
+        return None, None
+    
+    try:
+        response = requests.get(
+            f'https://{hostname}/api/v2/connection?include_secrets=true&connector_names=sendgrid',
+            headers={
+                'Accept': 'application/json',
+                'X_REPLIT_TOKEN': x_replit_token
+            }
+        )
+        data = response.json()
+        connection = data.get('items', [{}])[0] if data.get('items') else {}
+        settings = connection.get('settings', {})
+        api_key = settings.get('api_key')
+        from_email = settings.get('from_email')
+        return api_key, from_email
+    except Exception:
+        return None, None
+
+
+def send_email_via_sendgrid(to_email, subject, html_content, from_email, api_key):
+    """Send email using SendGrid API"""
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To, Content
+    
+    try:
+        message = Mail(
+            from_email=Email(from_email),
+            to_emails=To(to_email),
+            subject=subject,
+            html_content=Content("text/html", html_content)
+        )
+        
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        return response.status_code in [200, 201, 202], None
+    except Exception as e:
+        return False, str(e)
 
 rfq_bp = Blueprint('rfq_routes', __name__)
 
@@ -619,3 +673,145 @@ def convert_response_to_po(rfq_id, response_id):
         conn.close()
         flash(f'Error creating PO: {str(e)}', 'danger')
         return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))
+
+
+@rfq_bp.route('/rfqs/<int:rfq_id>/email-supplier-link/<int:supplier_id>', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def email_supplier_link(rfq_id, supplier_id):
+    """Email RFQ secure link directly to supplier"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        rfq = conn.execute('SELECT * FROM rfqs WHERE id = ?', (rfq_id,)).fetchone()
+        if not rfq:
+            conn.close()
+            flash('RFQ not found', 'danger')
+            return redirect(url_for('rfq_routes.list_rfqs'))
+        
+        supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (supplier_id,)).fetchone()
+        if not supplier:
+            conn.close()
+            flash('Supplier not found', 'danger')
+            return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
+        
+        if not supplier['email']:
+            conn.close()
+            flash(f'Supplier {supplier["name"]} does not have an email address on file', 'warning')
+            return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
+        
+        token_record = conn.execute('''
+            SELECT token, expires_at FROM rfq_supplier_tokens
+            WHERE rfq_id = ? AND supplier_id = ? AND expires_at > ?
+        ''', (rfq_id, supplier_id, datetime.now().isoformat())).fetchone()
+        
+        if not token_record:
+            conn.close()
+            flash('No valid link found for this supplier. Please generate a link first.', 'warning')
+            return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
+        
+        api_key, from_email = get_sendgrid_credentials()
+        if not api_key or not from_email:
+            conn.close()
+            flash('Email service not configured. Please set up SendGrid integration.', 'danger')
+            return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
+        
+        company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+        company_name = company['company_name'] if company else 'Dynamic.IQ-COREx'
+        
+        base_url = request.url_root.rstrip('/')
+        supplier_link = f"{base_url}/rfq/submit/{token_record['token']}"
+        
+        expires_date = datetime.fromisoformat(token_record['expires_at']).strftime('%B %d, %Y at %I:%M %p')
+        due_date = rfq['due_date'] if rfq['due_date'] else 'Not specified'
+        
+        html_content = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }}
+        .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; }}
+        .header {{ background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%); color: white; padding: 30px; text-align: center; }}
+        .header h1 {{ margin: 0; font-size: 24px; }}
+        .content {{ padding: 30px; }}
+        .rfq-box {{ background-color: #f1f5f9; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+        .rfq-box h3 {{ color: #1e3a5f; margin-top: 0; }}
+        .detail-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }}
+        .detail-label {{ color: #64748b; }}
+        .detail-value {{ color: #1e293b; font-weight: 500; }}
+        .btn {{ display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 15px 40px; 
+                text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }}
+        .btn:hover {{ background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }}
+        .footer {{ background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }}
+        .link-box {{ background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0; word-break: break-all; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{company_name}</h1>
+            <p style="margin: 10px 0 0; opacity: 0.9;">Request for Quotation</p>
+        </div>
+        <div class="content">
+            <p>Dear {supplier['name']},</p>
+            <p>You have been invited to submit a quotation for the following Request for Quotation:</p>
+            
+            <div class="rfq-box">
+                <h3>{rfq['rfq_number']} - {rfq['title']}</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Due Date:</span>
+                    <span class="detail-value">{due_date}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Link Expires:</span>
+                    <span class="detail-value">{expires_date}</span>
+                </div>
+            </div>
+            
+            <p>Please click the button below to access the secure quote submission form:</p>
+            
+            <div style="text-align: center;">
+                <a href="{supplier_link}" class="btn">Submit Your Quote</a>
+            </div>
+            
+            <div class="link-box">
+                <strong>Direct Link:</strong><br>
+                <a href="{supplier_link}">{supplier_link}</a>
+            </div>
+            
+            <p>If you have any questions, please contact us directly.</p>
+            
+            <p>Thank you for your interest in working with us.</p>
+            
+            <p>Best regards,<br>
+            <strong>{company_name}</strong></p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message. Please do not reply directly to this email.</p>
+            <p>&copy; {datetime.now().year} {company_name}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+'''
+        
+        subject = f"Request for Quotation: {rfq['rfq_number']} - {rfq['title']}"
+        
+        success, error = send_email_via_sendgrid(supplier['email'], subject, html_content, from_email, api_key)
+        
+        if success:
+            AuditLogger.log_change(conn, 'rfqs', rfq_id, 'EMAIL_SENT', session.get('user_id'),
+                                  {'supplier_id': supplier_id, 'supplier_name': supplier['name'], 'email': supplier['email']})
+            conn.commit()
+            flash(f'RFQ link emailed successfully to {supplier["name"]} ({supplier["email"]})', 'success')
+        else:
+            flash(f'Failed to send email: {error}', 'danger')
+        
+        conn.close()
+        return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
+        
+    except Exception as e:
+        conn.close()
+        flash(f'Error sending email: {str(e)}', 'danger')
+        return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))

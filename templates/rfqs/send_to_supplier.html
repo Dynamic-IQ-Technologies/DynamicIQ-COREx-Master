@@ -100,10 +100,18 @@
                                     </td>
                                     <td>
                                         {% if es.token %}
-                                        <button class="btn btn-sm btn-outline-primary copy-link-btn" 
-                                                data-token="{{ es.token }}" title="Copy Link">
-                                            <i class="bi bi-clipboard"></i>
-                                        </button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary copy-link-btn" 
+                                                    data-token="{{ es.token }}" title="Copy Link">
+                                                <i class="bi bi-clipboard"></i>
+                                            </button>
+                                            <form method="POST" action="{{ url_for('rfq_routes.email_supplier_link', rfq_id=rfq.id, supplier_id=es.supplier_id) }}" 
+                                                  class="d-inline" onsubmit="return confirm('Send RFQ link email to {{ es.supplier_name }}?');">
+                                                <button type="submit" class="btn btn-outline-success" title="Email Link to Supplier">
+                                                    <i class="bi bi-envelope"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                         {% endif %}
                                     </td>
                                 </tr>
