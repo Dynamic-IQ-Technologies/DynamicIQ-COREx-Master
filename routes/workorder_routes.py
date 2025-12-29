@@ -3195,3 +3195,227 @@ def generate_packaging_assessment(id):
         download_name=filename,
         mimetype='application/pdf'
     )
+
+@workorder_bp.route('/workorders/<int:id>/reconciliation-data')
+@login_required
+@role_required(['Admin', 'Finance', 'Supervisor', 'Planner'])
+def get_reconciliation_data(id):
+    """Get planned vs actual data for work order reconciliation"""
+    import json
+    from flask import jsonify
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    workorder = conn.execute('SELECT * FROM work_orders WHERE id = ?', (id,)).fetchone()
+    if not workorder:
+        conn.close()
+        return jsonify({'error': 'Work order not found'}), 404
+    
+    task_summary = conn.execute('''
+        SELECT 
+            SUM(COALESCE(planned_hours, 0)) as planned_labor_hours,
+            SUM(COALESCE(actual_hours, 0)) as actual_labor_hours,
+            SUM(COALESCE(planned_labor_cost, 0)) as planned_labor_cost,
+            SUM(COALESCE(actual_labor_cost, 0)) as actual_labor_cost
+        FROM work_order_tasks
+        WHERE work_order_id = ?
+    ''', (id,)).fetchone()
+    
+    task_materials = conn.execute('''
+        SELECT 
+            SUM(COALESCE(tm.required_qty, 0)) as planned_material_qty,
+            SUM(COALESCE(tm.consumed_qty, tm.issued_qty, 0)) as actual_material_qty,
+            SUM(COALESCE(tm.required_qty, 0) * COALESCE(tm.unit_cost, p.cost, 0)) as planned_material_cost,
+            SUM(COALESCE(tm.consumed_qty, tm.issued_qty, 0) * COALESCE(tm.unit_cost, p.cost, 0)) as actual_material_cost
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        JOIN products p ON tm.product_id = p.id
+        WHERE wot.work_order_id = ?
+    ''', (id,)).fetchone()
+    
+    wo_materials = conn.execute('''
+        SELECT 
+            SUM(COALESCE(mr.required_quantity, 0)) as planned_material_qty,
+            SUM(COALESCE(
+                (SELECT SUM(mi.quantity_issued) FROM material_issues mi WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id),
+                0
+            )) as actual_material_qty,
+            SUM(COALESCE(mr.required_quantity, 0) * COALESCE(p.cost, 0)) as planned_material_cost,
+            SUM(COALESCE(
+                (SELECT SUM(mi.quantity_issued) FROM material_issues mi WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id),
+                0
+            ) * COALESCE(p.cost, 0)) as actual_material_cost
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        WHERE mr.work_order_id = ?
+    ''', (id,)).fetchone()
+    
+    outside_services = conn.execute('''
+        SELECT 
+            COALESCE(SUM(CASE WHEN status = 'Pending' THEN total_cost ELSE 0 END), 0) as planned_services_cost,
+            COALESCE(SUM(CASE WHEN status = 'Received' THEN total_cost ELSE 0 END), 0) as actual_services_cost
+        FROM work_order_service_pos
+        WHERE work_order_id = ?
+    ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    planned_labor_hours = float(task_summary['planned_labor_hours'] or 0)
+    actual_labor_hours = float(task_summary['actual_labor_hours'] or 0)
+    planned_labor_cost = float(task_summary['planned_labor_cost'] or 0)
+    actual_labor_cost = float(task_summary['actual_labor_cost'] or 0)
+    
+    tm_planned_qty = float(task_materials['planned_material_qty'] or 0)
+    tm_actual_qty = float(task_materials['actual_material_qty'] or 0)
+    tm_planned_cost = float(task_materials['planned_material_cost'] or 0)
+    tm_actual_cost = float(task_materials['actual_material_cost'] or 0)
+    
+    wo_planned_qty = float(wo_materials['planned_material_qty'] or 0)
+    wo_actual_qty = float(wo_materials['actual_material_qty'] or 0)
+    wo_planned_cost = float(wo_materials['planned_material_cost'] or 0)
+    wo_actual_cost = float(wo_materials['actual_material_cost'] or 0)
+    
+    planned_material_qty = tm_planned_qty + wo_planned_qty
+    actual_material_qty = tm_actual_qty + wo_actual_qty
+    planned_material_cost = tm_planned_cost + wo_planned_cost
+    actual_material_cost = tm_actual_cost + wo_actual_cost
+    
+    planned_services_cost = float(outside_services['planned_services_cost'] or 0)
+    actual_services_cost = float(outside_services['actual_services_cost'] or 0)
+    
+    planned_total = planned_labor_cost + planned_material_cost + planned_services_cost
+    actual_total = actual_labor_cost + actual_material_cost + actual_services_cost
+    
+    data = {
+        'wo_number': workorder['wo_number'],
+        'status': workorder['status'],
+        'reconciliation_status': workorder['reconciliation_status'] or 'Not Reconciled',
+        'labor': {
+            'planned_hours': planned_labor_hours,
+            'actual_hours': actual_labor_hours,
+            'variance_hours': actual_labor_hours - planned_labor_hours,
+            'planned_cost': planned_labor_cost,
+            'actual_cost': actual_labor_cost,
+            'variance_cost': actual_labor_cost - planned_labor_cost
+        },
+        'materials': {
+            'planned_qty': planned_material_qty,
+            'actual_qty': actual_material_qty,
+            'variance_qty': actual_material_qty - planned_material_qty,
+            'planned_cost': planned_material_cost,
+            'actual_cost': actual_material_cost,
+            'variance_cost': actual_material_cost - planned_material_cost
+        },
+        'services': {
+            'planned_cost': planned_services_cost,
+            'actual_cost': actual_services_cost,
+            'variance_cost': actual_services_cost - planned_services_cost
+        },
+        'total': {
+            'planned_cost': planned_total,
+            'actual_cost': actual_total,
+            'variance_cost': actual_total - planned_total,
+            'variance_percent': ((actual_total - planned_total) / planned_total * 100) if planned_total > 0 else 0
+        }
+    }
+    
+    return jsonify(data)
+
+@workorder_bp.route('/workorders/<int:id>/reconcile', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Finance', 'Supervisor'])
+def submit_reconciliation(id):
+    """Submit work order reconciliation"""
+    import json
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    workorder = conn.execute('SELECT * FROM work_orders WHERE id = ?', (id,)).fetchone()
+    if not workorder:
+        conn.close()
+        flash('Work order not found.', 'error')
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if workorder['reconciliation_status'] == 'Reconciled':
+        conn.close()
+        flash('Work order is already reconciled.', 'warning')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    notes = request.form.get('reconciliation_notes', '').strip()
+    if not notes:
+        conn.close()
+        flash('Reconciliation notes are required.', 'error')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    variance_data = request.form.get('variance_summary', '{}')
+    
+    conn.execute('''
+        UPDATE work_orders 
+        SET reconciliation_status = 'Reconciled',
+            reconciled_by = ?,
+            reconciled_at = datetime('now'),
+            reconciliation_notes = ?,
+            variance_summary = ?
+        WHERE id = ?
+    ''', (session.get('user_id'), notes, variance_data, id))
+    conn.commit()
+    
+    AuditLogger.log(
+        conn=conn,
+        user_id=session.get('user_id'),
+        action='RECONCILE',
+        entity_type='work_order',
+        entity_id=id,
+        details=f"Work order {workorder['wo_number']} reconciled. Notes: {notes[:100]}..."
+    )
+    
+    conn.close()
+    
+    flash(f"Work order {workorder['wo_number']} has been reconciled successfully.", 'success')
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+@workorder_bp.route('/workorders/<int:id>/invalidate-reconciliation', methods=['POST'])
+@login_required
+@role_required(['Admin'])
+def invalidate_reconciliation(id):
+    """Invalidate reconciliation (Admin only override)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    workorder = conn.execute('SELECT * FROM work_orders WHERE id = ?', (id,)).fetchone()
+    if not workorder:
+        conn.close()
+        flash('Work order not found.', 'error')
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if workorder['reconciliation_status'] != 'Reconciled':
+        conn.close()
+        flash('Work order is not reconciled.', 'warning')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    conn.execute('''
+        UPDATE work_orders 
+        SET reconciliation_status = 'Not Reconciled',
+            reconciled_by = NULL,
+            reconciled_at = NULL,
+            reconciliation_notes = NULL,
+            variance_summary = NULL
+        WHERE id = ?
+    ''', (id,))
+    conn.commit()
+    
+    AuditLogger.log(
+        conn=conn,
+        user_id=session.get('user_id'),
+        action='INVALIDATE_RECONCILIATION',
+        entity_type='work_order',
+        entity_id=id,
+        details=f"Reconciliation invalidated for work order {workorder['wo_number']} by Admin"
+    )
+    
+    conn.close()
+    
+    flash(f"Reconciliation for {workorder['wo_number']} has been invalidated.", 'warning')
+    return redirect(url_for('workorder_routes.view_workorder', id=id))
