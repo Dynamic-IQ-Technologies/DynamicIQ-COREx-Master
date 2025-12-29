@@ -198,9 +198,11 @@ def view_sales_order(id):
     
     # Get line items
     lines = conn.execute('''
-        SELECT sol.*, p.code, p.name as product_name, p.unit_of_measure, p.is_serialized
+        SELECT sol.*, p.code, p.name as product_name, p.unit_of_measure, p.is_serialized,
+               wo.wo_number
         FROM sales_order_lines sol
         JOIN products p ON sol.product_id = p.id
+        LEFT JOIN work_orders wo ON sol.work_order_id = wo.id
         WHERE sol.so_id = ?
         ORDER BY sol.line_number
     ''', (id,)).fetchall()

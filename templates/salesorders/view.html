@@ -263,6 +263,14 @@
                                         </span>
                                     </div>
                                     {% endif %}
+                                    
+                                    {% if line.work_order_id and line.wo_number %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-purple text-white" style="background-color: #6f42c1 !important;">
+                                            <i class="bi bi-gear-wide-connected"></i> WO: {{ line.wo_number }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                             </div>
@@ -276,12 +284,22 @@
                             </div>
                             <div class="col-md-3 text-end">
                                 {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
-                                    <!-- Allocate Button - Opens Modal -->
-                                    {% if not line.is_core and not line.allocation_status in ['Allocated', 'Partially Allocated'] %}
+                                    <!-- Allocate Inventory Button - Opens Modal -->
+                                    {% if not line.is_core and not line.allocation_status in ['Allocated', 'Partially Allocated'] and not line.work_order_id %}
                                     <button type="button" class="btn btn-sm btn-success mb-1" 
                                             onclick="openAllocationModal({{ line.id }}, '{{ line.code }}', {{ line.quantity }})" 
                                             title="Select inventory to allocate">
-                                        <i class="bi bi-box-seam"></i> Allocate
+                                        <i class="bi bi-box-seam"></i> Allocate Inv
+                                    </button>
+                                    {% endif %}
+                                    
+                                    <!-- Allocate Work Order Button - Opens Modal -->
+                                    {% if not line.is_core and not line.allocation_status in ['Allocated', 'Partially Allocated'] and not line.work_order_id %}
+                                    <button type="button" class="btn btn-sm btn-outline-purple mb-1" 
+                                            onclick="openWorkOrderModal({{ line.id }}, '{{ line.code }}', {{ line.quantity }})" 
+                                            title="Select work order to allocate"
+                                            style="border-color: #6f42c1; color: #6f42c1;">
+                                        <i class="bi bi-gear-wide-connected"></i> Allocate WO
                                     </button>
                                     {% endif %}
                                     
@@ -295,12 +313,22 @@
                                     </form>
                                     {% endif %}
                                     
-                                    <!-- Deallocate Button -->
-                                    {% if not line.released_to_shipping_at and line.allocation_status in ['Allocated', 'Partially Allocated'] %}
+                                    <!-- Deallocate Inventory Button -->
+                                    {% if not line.released_to_shipping_at and line.allocation_status in ['Allocated', 'Partially Allocated'] and line.inventory_id %}
                                     <form method="POST" action="{{ url_for('salesorder_routes.deallocate_line', line_id=line.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-warning mb-1" title="Deallocate inventory" 
                                                 onclick="return confirm('Deallocate this line? Inventory will be returned to available stock.')">
-                                            <i class="bi bi-box-arrow-left"></i> Deallocate
+                                            <i class="bi bi-box-arrow-left"></i> Deallocate Inv
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <!-- Deallocate Work Order Button -->
+                                    {% if not line.released_to_shipping_at and line.work_order_id %}
+                                    <form method="POST" action="{{ url_for('salesorder_routes.deallocate_work_order_from_line', line_id=line.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning mb-1" title="Deallocate work order" 
+                                                onclick="return confirm('Deallocate work order from this line?')">
+                                            <i class="bi bi-gear-wide-connected"></i> Deallocate WO
                                         </button>
                                     </form>
                                     {% endif %}
@@ -766,6 +794,161 @@ async function confirmCloseOrder() {
     if (confirmed) {
         document.getElementById('closeOrderForm').submit();
     }
+}
+</script>
+
+<!-- Work Order Allocation Modal -->
+<div class="modal fade" id="workOrderModal" tabindex="-1" aria-labelledby="workOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background-color: #6f42c1;">
+                <h5 class="modal-title" id="workOrderModalLabel">
+                    <i class="bi bi-gear-wide-connected me-2"></i>Select Work Order to Allocate
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>Product:</strong> <span id="woModalProductCode"></span><br>
+                    <strong>Requested Quantity:</strong> <span id="woModalRequestedQty"></span>
+                </div>
+                
+                <div id="woLoadingSpinner" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading available work orders...</p>
+                </div>
+                
+                <div id="woTableContainer" style="display: none;">
+                    <div id="noWoAlert" class="alert alert-warning" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No available work orders found for this product.
+                    </div>
+                    
+                    <form id="woAllocationForm" method="POST" action="">
+                        <table class="table table-hover" id="woTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">Select</th>
+                                    <th>WO Number</th>
+                                    <th>Qty</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Disposition</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="woTableBody">
+                            </tbody>
+                        </table>
+                        
+                        <input type="hidden" name="work_order_id" id="selectedWorkOrderId">
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn text-white" style="background-color: #6f42c1;" id="confirmWoBtn" onclick="submitWoAllocation()" disabled>
+                    <i class="bi bi-check-lg me-1"></i>Confirm Work Order Allocation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let woCurrentLineId = null;
+let woCurrentRequestedQty = 0;
+
+function openWorkOrderModal(lineId, productCode, requestedQty) {
+    woCurrentLineId = lineId;
+    woCurrentRequestedQty = requestedQty;
+    
+    document.getElementById('woModalProductCode').textContent = productCode;
+    document.getElementById('woModalRequestedQty').textContent = requestedQty;
+    document.getElementById('woLoadingSpinner').style.display = 'block';
+    document.getElementById('woTableContainer').style.display = 'none';
+    document.getElementById('noWoAlert').style.display = 'none';
+    document.getElementById('woTableBody').innerHTML = '';
+    document.getElementById('selectedWorkOrderId').value = '';
+    document.getElementById('confirmWoBtn').disabled = true;
+    
+    document.getElementById('woAllocationForm').action = `/sales-orders/lines/${lineId}/allocate-work-order`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('workOrderModal'));
+    modal.show();
+    
+    fetch(`/sales-orders/lines/${lineId}/available-work-orders`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('woLoadingSpinner').style.display = 'none';
+            document.getElementById('woTableContainer').style.display = 'block';
+            
+            if (data.work_orders && data.work_orders.length > 0) {
+                let html = '';
+                data.work_orders.forEach((wo) => {
+                    const statusBadge = wo.status === 'Completed' ? 'bg-success' : 
+                                        wo.status === 'In Progress' ? 'bg-primary' : 'bg-secondary';
+                    const priorityBadge = wo.priority === 'High' ? 'bg-danger' :
+                                          wo.priority === 'Medium' ? 'bg-warning text-dark' : 'bg-info';
+                    html += `
+                        <tr onclick="selectWoRow(${wo.id}, this)" style="cursor: pointer;" class="wo-row">
+                            <td>
+                                <input type="radio" name="wo_select" value="${wo.id}" 
+                                       class="form-check-input" id="wo_${wo.id}">
+                            </td>
+                            <td><strong>${wo.wo_number}</strong></td>
+                            <td>${wo.quantity}</td>
+                            <td><span class="badge ${statusBadge}">${wo.status}</span></td>
+                            <td><span class="badge ${priorityBadge}">${wo.priority}</span></td>
+                            <td>${wo.disposition || '-'}</td>
+                            <td>${wo.planned_end_date || '-'}</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('woTableBody').innerHTML = html;
+                
+                if (data.work_orders.length === 1) {
+                    const firstRow = document.querySelector('.wo-row');
+                    selectWoRow(data.work_orders[0].id, firstRow);
+                }
+            } else {
+                document.getElementById('noWoAlert').style.display = 'block';
+                document.getElementById('woTable').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching work orders:', error);
+            document.getElementById('woLoadingSpinner').style.display = 'none';
+            document.getElementById('woTableContainer').style.display = 'block';
+            document.getElementById('noWoAlert').innerHTML = 
+                '<i class="bi bi-exclamation-triangle me-2"></i>Error loading work orders. Please try again.';
+            document.getElementById('noWoAlert').style.display = 'block';
+        });
+}
+
+function selectWoRow(workOrderId, rowElement) {
+    document.querySelectorAll('.wo-row').forEach(row => {
+        row.classList.remove('table-primary');
+    });
+    document.querySelectorAll('input[name="wo_select"]').forEach(radio => {
+        radio.checked = false;
+    });
+    
+    rowElement.classList.add('table-primary');
+    document.getElementById(`wo_${workOrderId}`).checked = true;
+    document.getElementById('selectedWorkOrderId').value = workOrderId;
+    document.getElementById('confirmWoBtn').disabled = false;
+}
+
+function submitWoAllocation() {
+    const workOrderId = document.getElementById('selectedWorkOrderId').value;
+    if (!workOrderId) {
+        showAlert('Please select a work order to allocate.', {type: 'warning', title: 'Selection Required'});
+        return;
+    }
+    document.getElementById('woAllocationForm').submit();
 }
 </script>
 

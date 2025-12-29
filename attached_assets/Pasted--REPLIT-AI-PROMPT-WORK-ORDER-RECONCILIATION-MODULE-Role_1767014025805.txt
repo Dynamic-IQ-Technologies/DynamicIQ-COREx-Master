@@ -1,0 +1,165 @@
+🔹 REPLIT AI PROMPT — WORK ORDER RECONCILIATION MODULE
+
+Role & Context
+You are a senior ERP software engineer working inside an existing Replit-hosted ERP application.
+The system already has Work Order records with labor, materials, time, and cost fields.
+Your task is to add a formal Work Order Reconciliation process that follows standard ERP accounting and operational best practices.
+
+🎯 OBJECTIVE
+
+Add a Reconciliation feature to Work Order records that:
+
+Allows controlled review, variance validation, and formal close-out
+
+Supports auditability, accuracy, and financial integrity
+
+Does not break existing work order logic
+
+Is simple, intuitive, and compliant with standard ERP practices
+
+🧩 FUNCTIONAL REQUIREMENTS
+1️⃣ UI / UX
+
+Add a “Reconcile” button at the top of the Work Order detail page
+
+Button should be:
+
+Clearly visible
+
+Disabled if the Work Order is already reconciled
+
+Role-restricted (e.g., Supervisor, Finance, Admin)
+
+Clicking the button opens a Reconciliation modal or page
+
+2️⃣ RECONCILIATION WORKFLOW (STANDARD ERP PROCESS)
+
+Reconciliation must compare:
+
+Category	Planned	Actual	Variance
+Labor Hours	✔	✔	Auto-calculated
+Labor Cost	✔	✔	Auto-calculated
+Material Qty	✔	✔	Auto-calculated
+Material Cost	✔	✔	Auto-calculated
+Outside Services (if applicable)	✔	✔	Auto-calculated
+Total Work Order Cost	✔	✔	Auto-calculated
+3️⃣ RECONCILIATION STEPS
+
+Load planned vs actual values
+
+Auto-calculate variances
+
+Highlight variances exceeding configurable thresholds
+
+Require:
+
+Reconciliation notes/comments
+
+Optional variance justification
+
+Allow user to:
+
+Confirm values
+
+Flag discrepancies
+
+Approve reconciliation
+
+4️⃣ DATA MODEL CHANGES
+
+Add fields to Work Order (or linked Reconciliation table):
+
+reconciliation_status (Not Reconciled | Reconciled)
+reconciled_by (user_id)
+reconciled_at (timestamp)
+reconciliation_notes (text)
+variance_summary (json)
+
+
+Ensure:
+
+Reconciled records are read-only except for authorized roles
+
+Status is clearly visible on the Work Order page
+
+5️⃣ BUSINESS RULES
+
+A Work Order cannot be closed unless reconciled
+
+Reconciliation is irreversible unless Admin overrides
+
+Any change to actual values after reconciliation must:
+
+Invalidate reconciliation
+
+Require re-approval
+
+All actions must be logged (audit trail)
+
+6️⃣ BACKEND LOGIC
+
+Create a reconciliation handler that:
+
+Validates required fields
+
+Computes variance values
+
+Updates reconciliation status atomically
+
+Prevent race conditions or partial updates
+
+Use server-side validation (not UI only)
+
+7️⃣ AUDIT & COMPLIANCE
+
+Log:
+
+User
+
+Timestamp
+
+Before/after values
+
+Ensure reconciliation data is exportable for:
+
+Finance
+
+Audit
+
+Reporting
+
+8️⃣ NON-FUNCTIONAL REQUIREMENTS
+
+Minimal performance impact
+
+Clean, modular code
+
+No breaking changes to existing Work Order APIs
+
+Follow existing app architecture and patterns
+
+🧠 IMPLEMENTATION GUIDANCE
+
+Use existing Work Order IDs
+
+Reuse existing cost calculation utilities if available
+
+UI should follow current ERP styling
+
+Write clean, commented code
+
+Include error handling and user feedback
+
+✅ DEFINITION OF DONE
+
+Reconciliation button visible at top of Work Order page
+
+Planned vs actual comparison displayed
+
+Variance automatically calculated
+
+Reconciliation status saved and locked
+
+Audit trail available
+
+Work Order cannot close without reconciliation
