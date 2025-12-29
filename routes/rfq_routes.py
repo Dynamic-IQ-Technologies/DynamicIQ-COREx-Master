@@ -8,7 +8,7 @@ import requests
 
 def get_sendgrid_credentials():
     """Get SendGrid API key and from email from Replit integration"""
-    hostname = os.environ.get('HOSTNAME')
+    hostname = os.environ.get('REPLIT_CONNECTORS_HOSTNAME') or os.environ.get('HOSTNAME')
     repl_identity = os.environ.get('REPL_IDENTITY')
     web_repl_renewal = os.environ.get('WEB_REPL_RENEWAL')
     
