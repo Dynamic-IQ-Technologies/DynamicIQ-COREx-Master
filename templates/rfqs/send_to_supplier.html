@@ -106,7 +106,7 @@
                                                 <i class="bi bi-clipboard"></i>
                                             </button>
                                             <form method="POST" action="{{ url_for('rfq_routes.email_supplier_link', rfq_id=rfq.id, supplier_id=es.supplier_id) }}" 
-                                                  class="d-inline" onsubmit="return confirm('Send RFQ link email to {{ es.supplier_name }}?');">
+                                                  class="d-inline email-form" data-supplier="{{ es.supplier_name }}">
                                                 <button type="submit" class="btn btn-outline-success" title="Email Link to Supplier">
                                                     <i class="bi bi-envelope"></i>
                                                 </button>
@@ -134,8 +134,27 @@ document.querySelectorAll('.copy-link-btn').forEach(function(btn) {
         const token = this.dataset.token;
         const link = window.location.origin + '/rfq/submit/' + token;
         navigator.clipboard.writeText(link).then(function() {
-            alert('Link copied to clipboard!');
+            showAlert('Supplier link has been copied to your clipboard.', {
+                title: 'Link Copied',
+                type: 'success'
+            });
         });
+    });
+});
+
+document.querySelectorAll('.email-form').forEach(function(form) {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const supplierName = this.dataset.supplier;
+        const confirmed = await showConfirm(`Send the RFQ secure link email to ${supplierName}?`, {
+            title: 'Email RFQ Link',
+            type: 'info',
+            confirmText: 'Send Email',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
+            this.submit();
+        }
     });
 });
 </script>
