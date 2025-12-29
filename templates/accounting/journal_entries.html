@@ -19,11 +19,11 @@
                         <th>Entry #</th>
                         <th>Date</th>
                         <th>Description</th>
-                        <th>Source</th>
+                        <th>Debit Accounts</th>
+                        <th>Credit Accounts</th>
                         <th class="text-end">Debit</th>
                         <th class="text-end">Credit</th>
                         <th>Status</th>
-                        <th>Created By</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -32,8 +32,24 @@
                     <tr>
                         <td><strong>{{ entry.entry_number }}</strong></td>
                         <td>{{ entry.entry_date }}</td>
-                        <td>{{ entry.description }}</td>
-                        <td><span class="badge bg-secondary">{{ entry.transaction_source }}</span></td>
+                        <td>
+                            {{ entry.description }}
+                            <br><small class="text-muted">{{ entry.transaction_source }}</small>
+                        </td>
+                        <td>
+                            {% if entry.debit_accounts %}
+                            <small class="text-success">{{ entry.debit_accounts }}</small>
+                            {% else %}
+                            <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.credit_accounts %}
+                            <small class="text-danger">{{ entry.credit_accounts }}</small>
+                            {% else %}
+                            <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
                         <td class="text-end">{{ (entry.total_debit or 0)|currency }}</td>
                         <td class="text-end">{{ (entry.total_credit or 0)|currency }}</td>
                         <td>
@@ -43,7 +59,6 @@
                             <span class="badge bg-warning">Draft</span>
                             {% endif %}
                         </td>
-                        <td>{{ entry.created_by_name }}</td>
                         <td>
                             <a href="{{ url_for('journal_routes.view_journal', id=entry.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
                         </td>
