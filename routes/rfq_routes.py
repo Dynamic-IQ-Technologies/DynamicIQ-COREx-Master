@@ -6,56 +6,35 @@ import secrets
 import os
 import requests
 
-def get_sendgrid_credentials():
-    """Get SendGrid API key and from email from Replit integration"""
-    hostname = os.environ.get('REPLIT_CONNECTORS_HOSTNAME') or os.environ.get('HOSTNAME')
-    repl_identity = os.environ.get('REPL_IDENTITY')
-    web_repl_renewal = os.environ.get('WEB_REPL_RENEWAL')
-    
-    if not hostname:
-        return None, None
-    
-    if repl_identity:
-        x_replit_token = 'repl ' + repl_identity
-    elif web_repl_renewal:
-        x_replit_token = 'depl ' + web_repl_renewal
-    else:
-        return None, None
-    
-    try:
-        response = requests.get(
-            f'https://{hostname}/api/v2/connection?include_secrets=true&connector_names=sendgrid',
-            headers={
-                'Accept': 'application/json',
-                'X_REPLIT_TOKEN': x_replit_token
-            }
-        )
-        data = response.json()
-        connection = data.get('items', [{}])[0] if data.get('items') else {}
-        settings = connection.get('settings', {})
-        api_key = settings.get('api_key')
-        from_email = settings.get('from_email')
-        return api_key, from_email
-    except Exception:
-        return None, None
+def get_brevo_credentials():
+    """Get Brevo API key and from email from environment"""
+    api_key = os.environ.get('BREVO_API_KEY')
+    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    return api_key, from_email
 
 
-def send_email_via_sendgrid(to_email, subject, html_content, from_email, api_key):
-    """Send email using SendGrid API"""
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email, To, Content
+def send_email_via_brevo(to_email, to_name, subject, html_content, from_email, from_name, api_key):
+    """Send email using Brevo (Sendinblue) API"""
+    import sib_api_v3_sdk
+    from sib_api_v3_sdk.rest import ApiException
     
     try:
-        message = Mail(
-            from_email=Email(from_email),
-            to_emails=To(to_email),
+        configuration = sib_api_v3_sdk.Configuration()
+        configuration.api_key['api-key'] = api_key
+        
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+        
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=[{"email": to_email, "name": to_name or to_email}],
+            sender={"email": from_email, "name": from_name or "Dynamic.IQ-COREx"},
             subject=subject,
-            html_content=Content("text/html", html_content)
+            html_content=html_content
         )
         
-        sg = SendGridAPIClient(api_key)
-        response = sg.send(message)
-        return response.status_code in [200, 201, 202], None
+        api_instance.send_transac_email(send_smtp_email)
+        return True, None
+    except ApiException as e:
+        return False, f"Brevo API error: {e.reason}"
     except Exception as e:
         return False, str(e)
 
@@ -710,10 +689,10 @@ def email_supplier_link(rfq_id, supplier_id):
             flash('No valid link found for this supplier. Please generate a link first.', 'warning')
             return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
         
-        api_key, from_email = get_sendgrid_credentials()
+        api_key, from_email = get_brevo_credentials()
         if not api_key or not from_email:
             conn.close()
-            flash('Email service not configured. Please set up SendGrid integration.', 'danger')
+            flash('Email service not configured. Please set BREVO_API_KEY and BREVO_FROM_EMAIL in Secrets.', 'danger')
             return redirect(url_for('rfq_routes.send_to_supplier', rfq_id=rfq_id))
         
         company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
@@ -798,7 +777,7 @@ def email_supplier_link(rfq_id, supplier_id):
         
         subject = f"Request for Quotation: {rfq['rfq_number']} - {rfq['title']}"
         
-        success, error = send_email_via_sendgrid(supplier['email'], subject, html_content, from_email, api_key)
+        success, error = send_email_via_brevo(supplier['email'], supplier['name'], subject, html_content, from_email, company_name, api_key)
         
         if success:
             AuditLogger.log_change(conn, 'rfqs', rfq_id, 'EMAIL_SENT', session.get('user_id'),

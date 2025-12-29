@@ -8,59 +8,40 @@ import os
 import requests
 
 
-def get_sendgrid_credentials():
-    """Get SendGrid API key and from_email from Replit connector"""
-    hostname = os.environ.get('REPLIT_CONNECTORS_HOSTNAME')
-    repl_identity = os.environ.get('REPL_IDENTITY')
-    web_repl_renewal = os.environ.get('WEB_REPL_RENEWAL')
-    
-    if not hostname:
-        return None, None
-    
-    if repl_identity:
-        x_replit_token = 'repl ' + repl_identity
-    elif web_repl_renewal:
-        x_replit_token = 'depl ' + web_repl_renewal
-    else:
-        return None, None
-    
-    try:
-        response = requests.get(
-            f'https://{hostname}/api/v2/connection?include_secrets=true&connector_names=sendgrid',
-            headers={
-                'Accept': 'application/json',
-                'X_REPLIT_TOKEN': x_replit_token
-            }
-        )
-        data = response.json()
-        connection = data.get('items', [{}])[0] if data.get('items') else {}
-        settings = connection.get('settings', {})
-        api_key = settings.get('api_key')
-        from_email = settings.get('from_email')
-        return api_key, from_email
-    except Exception:
-        return None, None
+def get_brevo_credentials():
+    """Get Brevo API key and from email from environment"""
+    api_key = os.environ.get('BREVO_API_KEY')
+    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    return api_key, from_email
 
 
-def send_email_via_sendgrid(to_email, subject, html_content, from_email, api_key, cc_email=None):
-    """Send email using SendGrid API"""
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email, To, Content, Cc
+def send_email_via_brevo(to_email, to_name, subject, html_content, from_email, from_name, api_key, cc_email=None):
+    """Send email using Brevo (Sendinblue) API"""
+    import sib_api_v3_sdk
+    from sib_api_v3_sdk.rest import ApiException
     
     try:
-        message = Mail(
-            from_email=Email(from_email),
-            to_emails=To(to_email),
-            subject=subject,
-            html_content=Content("text/html", html_content)
-        )
+        configuration = sib_api_v3_sdk.Configuration()
+        configuration.api_key['api-key'] = api_key
+        
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+        
+        email_params = {
+            "to": [{"email": to_email, "name": to_name or to_email}],
+            "sender": {"email": from_email, "name": from_name or "Dynamic.IQ-COREx"},
+            "subject": subject,
+            "html_content": html_content
+        }
         
         if cc_email:
-            message.add_cc(Cc(cc_email))
+            email_params["cc"] = [{"email": cc_email}]
         
-        sg = SendGridAPIClient(api_key)
-        response = sg.send(message)
-        return response.status_code in [200, 201, 202], None
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(**email_params)
+        
+        api_instance.send_transac_email(send_smtp_email)
+        return True, None
+    except ApiException as e:
+        return False, f"Brevo API error: {e.reason}"
     except Exception as e:
         return False, str(e)
 from reportlab.lib.pagesizes import letter
@@ -764,7 +745,7 @@ def email_preview(id):
     
     company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
     
-    api_key, from_email = get_sendgrid_credentials()
+    api_key, from_email = get_brevo_credentials()
     email_configured = bool(api_key and from_email)
     
     conn.close()
@@ -790,7 +771,7 @@ def send_order_acknowledgement(id):
     additional_message = request.form.get('additional_message')
     confirm_order_flag = request.form.get('confirm_order') == 'on'
     
-    api_key, from_email = get_sendgrid_credentials()
+    api_key, from_email = get_brevo_credentials()
     email_configured = bool(api_key and from_email)
     
     if email_configured and recipient_email:
@@ -892,7 +873,7 @@ def send_order_acknowledgement(id):
         </html>
         """
         
-        success, error = send_email_via_sendgrid(recipient_email, subject, html_content, from_email, api_key, cc_email or None)
+        success, error = send_email_via_brevo(recipient_email, sales_order['customer_name'], subject, html_content, from_email, company.get('company_name', 'Dynamic.IQ-COREx'), api_key, cc_email or None)
         
         if success:
             flash(f'Email acknowledgement sent to {recipient_email}!', 'success')

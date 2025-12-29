@@ -984,6 +984,7 @@ dependencies = [
     { name = "reportlab" },
     { name = "requests" },
     { name = "sendgrid" },
+    { name = "sib-api-v3-sdk" },
     { name = "werkzeug" },
 ]
 
@@ -999,6 +1000,7 @@ requires-dist = [
     { name = "reportlab", specifier = ">=4.4.4" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "sendgrid", specifier = ">=6.12.5" },
+    { name = "sib-api-v3-sdk", specifier = ">=7.6.0" },
     { name = "werkzeug", specifier = ">=3.1.3" },
 ]
 
@@ -1043,6 +1045,18 @@ sdist = { url = "https://files.pythonhosted.org/packages/da/fa/f718b2b953f99c1f0
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/55/b3c3880a77082e8f7374954e0074aafafaa9bc78bdf9c8f5a92c2e7afc6a/sendgrid-6.12.5-py3-none-any.whl", hash = "sha256:96f92cc91634bf552fdb766b904bbb53968018da7ae41fdac4d1090dc0311ca8", size = 102173, upload-time = "2025-09-19T06:23:07.93Z" },
 ]
+
+[[package]]
+name = "sib-api-v3-sdk"
+version = "7.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "python-dateutil" },
+    { name = "six" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/23/e6/44b6ca7c63cc72e5baf0b9a570e115913fb96e9f97201c2195b8bf4f5d71/sib-api-v3-sdk-7.6.0.tar.gz", hash = "sha256:8975108c4a66ca2280532017190150f98ac826eacdda6c2f859ff104d2828266", size = 265002, upload-time = "2023-03-20T06:21:08.403Z" }
 
 [[package]]
 name = "six"
