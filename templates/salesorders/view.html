@@ -795,69 +795,7 @@ async function confirmCloseOrder() {
         document.getElementById('closeOrderForm').submit();
     }
 }
-</script>
 
-<!-- Work Order Allocation Modal -->
-<div class="modal fade" id="workOrderModal" tabindex="-1" aria-labelledby="workOrderModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header text-white" style="background-color: #6f42c1;">
-                <h5 class="modal-title" id="workOrderModalLabel">
-                    <i class="bi bi-gear-wide-connected me-2"></i>Select Work Order to Allocate
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <strong>Product:</strong> <span id="woModalProductCode"></span><br>
-                    <strong>Requested Quantity:</strong> <span id="woModalRequestedQty"></span>
-                </div>
-                
-                <div id="woLoadingSpinner" class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 text-muted">Loading available work orders...</p>
-                </div>
-                
-                <div id="woTableContainer" style="display: none;">
-                    <div id="noWoAlert" class="alert alert-warning" style="display: none;">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        No available work orders found for this product.
-                    </div>
-                    
-                    <form id="woAllocationForm" method="POST" action="">
-                        <table class="table table-hover" id="woTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 50px;">Select</th>
-                                    <th>WO Number</th>
-                                    <th>Qty</th>
-                                    <th>Status</th>
-                                    <th>Priority</th>
-                                    <th>Disposition</th>
-                                    <th>Due Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="woTableBody">
-                            </tbody>
-                        </table>
-                        
-                        <input type="hidden" name="work_order_id" id="selectedWorkOrderId">
-                    </form>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn text-white" style="background-color: #6f42c1;" id="confirmWoBtn" onclick="submitWoAllocation()" disabled>
-                    <i class="bi bi-check-lg me-1"></i>Confirm Work Order Allocation
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
 let woCurrentLineId = null;
 let woCurrentRequestedQty = 0;
 
@@ -951,5 +889,65 @@ function submitWoAllocation() {
     document.getElementById('woAllocationForm').submit();
 }
 </script>
+
+<!-- Work Order Allocation Modal -->
+<div class="modal fade" id="workOrderModal" tabindex="-1" aria-labelledby="workOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background-color: #6f42c1;">
+                <h5 class="modal-title" id="workOrderModalLabel">
+                    <i class="bi bi-gear-wide-connected me-2"></i>Select Work Order to Allocate
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>Product:</strong> <span id="woModalProductCode"></span><br>
+                    <strong>Requested Quantity:</strong> <span id="woModalRequestedQty"></span>
+                </div>
+                
+                <div id="woLoadingSpinner" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading available work orders...</p>
+                </div>
+                
+                <div id="woTableContainer" style="display: none;">
+                    <div id="noWoAlert" class="alert alert-warning" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No available work orders found for this product.
+                    </div>
+                    
+                    <form id="woAllocationForm" method="POST" action="">
+                        <table class="table table-hover" id="woTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">Select</th>
+                                    <th>WO Number</th>
+                                    <th>Qty</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Disposition</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="woTableBody">
+                            </tbody>
+                        </table>
+                        
+                        <input type="hidden" name="work_order_id" id="selectedWorkOrderId">
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn text-white" style="background-color: #6f42c1;" id="confirmWoBtn" onclick="submitWoAllocation()" disabled>
+                    <i class="bi bi-check-lg me-1"></i>Confirm Work Order Allocation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
