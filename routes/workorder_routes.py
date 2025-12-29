@@ -2546,7 +2546,7 @@ def list_service_pos(id):
 
 @workorder_bp.route('/workorders/receive-service-line/<int:line_id>', methods=['POST'])
 @login_required
-@role_required(['Admin', 'Procurement Staff', 'Receiving Staff'])
+@role_required('Admin', 'Procurement Staff', 'Receiving Staff')
 def receive_service_line(line_id):
     """Mark a service line as received"""
     db = Database()
@@ -3215,7 +3215,7 @@ def generate_packaging_assessment(id):
 
 @workorder_bp.route('/workorders/<int:id>/reconciliation-data')
 @login_required
-@role_required(['Admin', 'Finance', 'Supervisor', 'Planner'])
+@role_required('Admin', 'Finance', 'Supervisor', 'Planner')
 def get_reconciliation_data(id):
     """Get planned vs actual data for work order reconciliation"""
     import json
@@ -3341,7 +3341,7 @@ def get_reconciliation_data(id):
 
 @workorder_bp.route('/workorders/<int:id>/reconcile', methods=['POST'])
 @login_required
-@role_required(['Admin', 'Finance', 'Supervisor'])
+@role_required('Admin', 'Finance', 'Supervisor')
 def submit_reconciliation(id):
     """Submit work order reconciliation"""
     import json
@@ -3395,7 +3395,7 @@ def submit_reconciliation(id):
 
 @workorder_bp.route('/workorders/<int:id>/invalidate-reconciliation', methods=['POST'])
 @login_required
-@role_required(['Admin'])
+@role_required('Admin')
 def invalidate_reconciliation(id):
     """Invalidate reconciliation (Admin only override)"""
     db = Database()
