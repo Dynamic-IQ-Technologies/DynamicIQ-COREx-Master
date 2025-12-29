@@ -15,7 +15,25 @@ def list_journals():
     db = Database()
     conn = db.get_connection()
     
-    entries = conn.execute('''
+    # Get filter parameters
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    account_id = request.args.get('account_id', '')
+    status_filter = request.args.get('status', '')
+    source_filter = request.args.get('source', '')
+    search = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'entry_date')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    # Validate sort parameters
+    valid_sort_cols = ['entry_number', 'entry_date', 'description', 'total_debit', 'total_credit', 'status', 'transaction_source']
+    if sort_by not in valid_sort_cols:
+        sort_by = 'entry_date'
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    # Build query with filters
+    query = '''
         SELECT 
             gl.*,
             u.username as created_by_name,
@@ -31,12 +49,77 @@ def list_journals():
              WHERE l.gl_entry_id = gl.id AND l.credit > 0) as credit_accounts
         FROM gl_entries gl
         LEFT JOIN users u ON gl.created_by = u.id
-        ORDER BY gl.entry_date DESC, gl.entry_number DESC
+        WHERE 1=1
+    '''
+    params = []
+    
+    if date_from:
+        query += ' AND gl.entry_date >= ?'
+        params.append(date_from)
+    
+    if date_to:
+        query += ' AND gl.entry_date <= ?'
+        params.append(date_to)
+    
+    if status_filter:
+        query += ' AND gl.status = ?'
+        params.append(status_filter)
+    
+    if source_filter:
+        query += ' AND gl.transaction_source = ?'
+        params.append(source_filter)
+    
+    if search:
+        query += ' AND (gl.entry_number LIKE ? OR gl.description LIKE ?)'
+        params.append(f'%{search}%')
+        params.append(f'%{search}%')
+    
+    if account_id:
+        query += ''' AND EXISTS (
+            SELECT 1 FROM gl_entry_lines l WHERE l.gl_entry_id = gl.id AND l.account_id = ?
+        )'''
+        params.append(account_id)
+    
+    # Add sorting
+    sort_col_map = {
+        'entry_number': 'gl.entry_number',
+        'entry_date': 'gl.entry_date',
+        'description': 'gl.description',
+        'total_debit': 'total_debit',
+        'total_credit': 'total_credit',
+        'status': 'gl.status',
+        'transaction_source': 'gl.transaction_source'
+    }
+    query += f' ORDER BY {sort_col_map.get(sort_by, "gl.entry_date")} {sort_order.upper()}'
+    
+    entries = conn.execute(query, params).fetchall()
+    
+    # Get accounts for filter dropdown
+    accounts = conn.execute('''
+        SELECT id, account_code, account_name FROM chart_of_accounts 
+        WHERE is_active = 1 ORDER BY account_code
+    ''').fetchall()
+    
+    # Get unique sources for filter dropdown
+    sources = conn.execute('''
+        SELECT DISTINCT transaction_source FROM gl_entries 
+        WHERE transaction_source IS NOT NULL ORDER BY transaction_source
     ''').fetchall()
     
     conn.close()
     
-    return render_template('accounting/journal_entries.html', entries=entries)
+    return render_template('accounting/journal_entries.html', 
+                          entries=entries,
+                          accounts=accounts,
+                          sources=sources,
+                          date_from=date_from,
+                          date_to=date_to,
+                          account_id=account_id,
+                          status_filter=status_filter,
+                          source_filter=source_filter,
+                          search=search,
+                          sort_by=sort_by,
+                          sort_order=sort_order)
 
 @journal_bp.route('/journal-entries/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Accountant')
