@@ -171,6 +171,15 @@ def view_inventory(id):
         LIMIT 50
     ''', (str(id),)).fetchall()
     
+    # Get documents for this inventory record
+    documents = conn.execute('''
+        SELECT id.*, u.username as uploaded_by_name
+        FROM inventory_documents id
+        LEFT JOIN users u ON id.uploaded_by = u.id
+        WHERE id.inventory_id = ? AND id.is_active = 1
+        ORDER BY id.uploaded_at DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('inventory/view.html', 
@@ -181,7 +190,8 @@ def view_inventory(id):
                           sales_allocations=sales_allocations,
                           adjustments=adjustments,
                           wo_turnins=wo_turnins,
-                          audit_trail=audit_trail)
+                          audit_trail=audit_trail,
+                          documents=documents)
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
@@ -759,11 +769,11 @@ def upload_inventory_document(id):
             flash('No file selected', 'danger')
             return redirect(url_for('inventory_routes.view_inventory', id=id))
         
-        if not allowed_file(file.filename):
+        if not file.filename or not allowed_file(file.filename):
             flash(f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}', 'danger')
             return redirect(url_for('inventory_routes.view_inventory', id=id))
         
-        original_filename = secure_filename(file.filename)
+        original_filename = secure_filename(file.filename or 'document')
         file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
         unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
         file_path = os.path.join(INVENTORY_UPLOAD_FOLDER, unique_filename)

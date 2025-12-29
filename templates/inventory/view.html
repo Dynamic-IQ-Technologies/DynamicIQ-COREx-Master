@@ -447,6 +447,11 @@
                     <i class="bi bi-journal-text me-1"></i> Audit Trail ({{ audit_trail|length }})
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button">
+                    <i class="bi bi-file-earmark me-1"></i> Documents ({{ documents|length }})
+                </button>
+            </li>
         </ul>
         <div class="tab-content pt-3" id="transactionTabContent">
             <div class="tab-pane fade show active" id="receiving" role="tabpanel">
@@ -711,6 +716,127 @@
                 <div class="text-center py-4">
                     <i class="bi bi-journal-text display-4 text-muted"></i>
                     <p class="text-muted mt-2">No audit trail entries found for this inventory record.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="documents" role="tabpanel">
+                {% if session.role in ['Admin', 'Production Staff', 'Procurement'] %}
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="bi bi-upload me-1"></i> Upload Document</h6>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('inventory_routes.upload_inventory_document', id=inventory.id) }}" 
+                              method="POST" enctype="multipart/form-data">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Document Type</label>
+                                    <select name="document_type" class="form-select">
+                                        <option value="General">General</option>
+                                        <option value="Certificate">Certificate</option>
+                                        <option value="Test Report">Test Report</option>
+                                        <option value="Inspection">Inspection</option>
+                                        <option value="Warranty">Warranty</option>
+                                        <option value="Manual">Manual</option>
+                                        <option value="Specification">Specification</option>
+                                        <option value="Photo">Photo</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Document Name</label>
+                                    <input type="text" name="document_name" class="form-control" placeholder="Optional - uses filename if empty">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Select File</label>
+                                    <input type="file" name="document" class="form-control" required>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-upload me-1"></i> Upload
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <label class="form-label">Description (Optional)</label>
+                                    <input type="text" name="description" class="form-control" placeholder="Brief description of the document">
+                                </div>
+                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                Allowed file types: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, GIF, TXT, CSV
+                            </small>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if documents %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Document Name</th>
+                                <th>Description</th>
+                                <th>File</th>
+                                <th>Size</th>
+                                <th>Uploaded By</th>
+                                <th>Uploaded At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ doc.document_type }}</span></td>
+                                <td>{{ doc.document_name }}</td>
+                                <td>{{ doc.description or '-' }}</td>
+                                <td>
+                                    <small class="text-muted">{{ doc.original_filename }}</small>
+                                </td>
+                                <td>
+                                    {% if doc.file_size %}
+                                    {% if doc.file_size < 1024 %}
+                                    {{ doc.file_size }} B
+                                    {% elif doc.file_size < 1048576 %}
+                                    {{ (doc.file_size / 1024)|round(1) }} KB
+                                    {% else %}
+                                    {{ (doc.file_size / 1048576)|round(2) }} MB
+                                    {% endif %}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>{{ doc.uploaded_by_name or '-' }}</td>
+                                <td>{{ doc.uploaded_at|format_date if doc.uploaded_at else '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('inventory_routes.download_inventory_document', doc_id=doc.id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    {% if session.role in ['Admin', 'Production Staff'] %}
+                                    <form action="{{ url_for('inventory_routes.delete_inventory_document', doc_id=doc.id) }}" 
+                                          method="POST" class="d-inline" 
+                                          onsubmit="return confirm('Are you sure you want to delete this document?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-file-earmark display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No documents uploaded for this inventory record.</p>
+                    {% if session.role in ['Admin', 'Production Staff', 'Procurement'] %}
+                    <p class="text-muted small">Use the form above to upload documents.</p>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
