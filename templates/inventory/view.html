@@ -814,13 +814,10 @@
                                     {% set viewable_types = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'txt'] %}
                                     {% set file_ext = doc.original_filename.rsplit('.', 1)[-1].lower() if doc.original_filename and '.' in doc.original_filename else '' %}
                                     {% if file_ext in viewable_types %}
-                                    <button type="button" class="btn btn-sm btn-outline-success view-doc-btn" 
-                                            data-url="{{ url_for('inventory_routes.view_inventory_document', doc_id=doc.id) }}"
-                                            data-name="{{ doc.document_name }}"
-                                            data-type="{{ file_ext }}"
-                                            title="View">
+                                    <a href="{{ url_for('inventory_routes.view_inventory_document', doc_id=doc.id) }}" 
+                                       class="btn btn-sm btn-outline-success" title="View" target="_blank">
                                         <i class="bi bi-eye"></i>
-                                    </button>
+                                    </a>
                                     {% endif %}
                                     <a href="{{ url_for('inventory_routes.download_inventory_document', doc_id=doc.id) }}" 
                                        class="btn btn-sm btn-outline-primary" title="Download">
@@ -854,68 +851,5 @@
         </div>
     </div>
 </div>
-
-<!-- Document Preview Modal -->
-<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-labelledby="documentPreviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="documentPreviewModalLabel">
-                    <i class="bi bi-file-earmark me-2"></i><span id="previewDocName">Document</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0" style="min-height: 500px;">
-                <div id="previewContent" class="w-100 h-100"></div>
-            </div>
-            <div class="modal-footer">
-                <a href="#" id="previewDownloadBtn" class="btn btn-primary">
-                    <i class="bi bi-download me-1"></i> Download
-                </a>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const viewBtns = document.querySelectorAll('.view-doc-btn');
-    const modal = document.getElementById('documentPreviewModal');
-    const previewContent = document.getElementById('previewContent');
-    const previewDocName = document.getElementById('previewDocName');
-    const previewDownloadBtn = document.getElementById('previewDownloadBtn');
-    
-    viewBtns.forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const url = this.dataset.url;
-            const name = this.dataset.name;
-            const type = this.dataset.type;
-            
-            previewDocName.textContent = name;
-            previewDownloadBtn.href = url.replace('/view', '/download');
-            previewContent.innerHTML = '<div class="d-flex justify-content-center align-items-center" style="height: 500px;"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-            
-            if (type === 'pdf') {
-                previewContent.innerHTML = '<iframe src="' + url + '" style="width: 100%; height: 600px; border: none;"></iframe>';
-            } else if (['png', 'jpg', 'jpeg', 'gif'].includes(type)) {
-                previewContent.innerHTML = '<div class="text-center p-3"><img src="' + url + '" class="img-fluid" style="max-height: 600px;" alt="' + name + '"></div>';
-            } else if (type === 'txt') {
-                fetch(url)
-                    .then(response => response.text())
-                    .then(text => {
-                        previewContent.innerHTML = '<pre class="p-3 bg-light" style="max-height: 600px; overflow: auto; white-space: pre-wrap;">' + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
-                    })
-                    .catch(err => {
-                        previewContent.innerHTML = '<div class="alert alert-danger m-3">Failed to load document</div>';
-                    });
-            }
-            
-            var bsModal = new bootstrap.Modal(modal);
-            bsModal.show();
-        });
-    });
-});
-</script>
 
 {% endblock %}
