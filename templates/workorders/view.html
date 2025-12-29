@@ -114,6 +114,22 @@
             {% endif %}
             <a href="{{ url_for('workorder_routes.work_order_traveler', id=workorder.id) }}" class="btn btn-outline-success btn-sm" target="_blank"><i class="bi bi-file-earmark-text"></i> Traveler</a>
             <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-outline-info btn-sm"><i class="bi bi-receipt"></i> Quote</a>
+            {% if session.role in ['Admin', 'Finance', 'Supervisor'] %}
+                {% if workorder.reconciliation_status == 'Reconciled' %}
+                <button type="button" class="btn btn-success btn-sm" disabled>
+                    <i class="bi bi-check-circle-fill"></i> Reconciled
+                </button>
+                {% if session.role == 'Admin' %}
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#invalidateReconcileModal">
+                    <i class="bi bi-x-circle"></i> Invalidate
+                </button>
+                {% endif %}
+                {% else %}
+                <button type="button" class="btn btn-primary btn-sm" onclick="openReconcileModal()">
+                    <i class="bi bi-clipboard-check"></i> Reconcile
+                </button>
+                {% endif %}
+            {% endif %}
         </div>
     </div>
 </div>
@@ -1981,5 +1997,223 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
+function formatVariance(value, isPositiveBad = true) {
+    const absValue = Math.abs(value);
+    const formattedValue = formatCurrency(absValue);
+    const prefix = value >= 0 ? '+' : '-';
+    const colorClass = value === 0 ? 'text-secondary' : 
+                       (isPositiveBad ? (value > 0 ? 'text-danger' : 'text-success') : 
+                                        (value > 0 ? 'text-success' : 'text-danger'));
+    return `<span class="${colorClass} fw-bold">${prefix}${formattedValue}</span>`;
+}
+
+function openReconcileModal() {
+    const modal = new bootstrap.Modal(document.getElementById('reconcileModal'));
+    modal.show();
+    
+    document.getElementById('reconcileLoading').style.display = 'block';
+    document.getElementById('reconcileContent').style.display = 'none';
+    document.getElementById('reconcileError').style.display = 'none';
+    
+    fetch(`/workorders/{{ workorder.id }}/reconciliation-data`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('reconcileLoading').style.display = 'none';
+            document.getElementById('reconcileContent').style.display = 'block';
+            
+            document.getElementById('recPlannedHours').textContent = data.labor.planned_hours.toFixed(1);
+            document.getElementById('recActualHours').textContent = data.labor.actual_hours.toFixed(1);
+            document.getElementById('recVarianceHours').innerHTML = (data.labor.variance_hours >= 0 ? '+' : '') + data.labor.variance_hours.toFixed(1);
+            
+            document.getElementById('recPlannedLaborCost').textContent = formatCurrency(data.labor.planned_cost);
+            document.getElementById('recActualLaborCost').textContent = formatCurrency(data.labor.actual_cost);
+            document.getElementById('recVarianceLaborCost').innerHTML = formatVariance(data.labor.variance_cost);
+            
+            document.getElementById('recPlannedMaterialQty').textContent = data.materials.planned_qty.toFixed(1);
+            document.getElementById('recActualMaterialQty').textContent = data.materials.actual_qty.toFixed(1);
+            document.getElementById('recVarianceMaterialQty').innerHTML = (data.materials.variance_qty >= 0 ? '+' : '') + data.materials.variance_qty.toFixed(1);
+            
+            document.getElementById('recPlannedMaterialCost').textContent = formatCurrency(data.materials.planned_cost);
+            document.getElementById('recActualMaterialCost').textContent = formatCurrency(data.materials.actual_cost);
+            document.getElementById('recVarianceMaterialCost').innerHTML = formatVariance(data.materials.variance_cost);
+            
+            document.getElementById('recPlannedServicesCost').textContent = formatCurrency(data.services.planned_cost);
+            document.getElementById('recActualServicesCost').textContent = formatCurrency(data.services.actual_cost);
+            document.getElementById('recVarianceServicesCost').innerHTML = formatVariance(data.services.variance_cost);
+            
+            document.getElementById('recPlannedTotal').textContent = formatCurrency(data.total.planned_cost);
+            document.getElementById('recActualTotal').textContent = formatCurrency(data.total.actual_cost);
+            document.getElementById('recVarianceTotal').innerHTML = formatVariance(data.total.variance_cost);
+            
+            const variancePercent = data.total.variance_percent;
+            const variancePercentEl = document.getElementById('recVariancePercent');
+            variancePercentEl.textContent = (variancePercent >= 0 ? '+' : '') + variancePercent.toFixed(1) + '%';
+            variancePercentEl.className = variancePercent === 0 ? 'badge bg-secondary' : 
+                                           (variancePercent > 10 ? 'badge bg-danger' : 
+                                            (variancePercent > 0 ? 'badge bg-warning text-dark' : 'badge bg-success'));
+            
+            document.getElementById('varianceSummaryInput').value = JSON.stringify(data);
+        })
+        .catch(error => {
+            document.getElementById('reconcileLoading').style.display = 'none';
+            document.getElementById('reconcileError').style.display = 'block';
+            console.error('Error loading reconciliation data:', error);
+        });
+}
+
+function validateReconcileForm() {
+    const notes = document.getElementById('reconciliationNotes').value.trim();
+    if (!notes) {
+        showAlert('Please enter reconciliation notes.', {type: 'warning', title: 'Notes Required'});
+        return false;
+    }
+    return true;
+}
 </script>
+
+<!-- Reconciliation Modal -->
+<div class="modal fade" id="reconcileModal" tabindex="-1" aria-labelledby="reconcileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="reconcileModalLabel">
+                    <i class="bi bi-clipboard-check me-2"></i>Work Order Reconciliation
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="reconcileLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading reconciliation data...</p>
+                </div>
+                
+                <div id="reconcileError" class="alert alert-danger" style="display: none;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Error loading reconciliation data. Please try again.
+                </div>
+                
+                <div id="reconcileContent" style="display: none;">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Review the planned vs actual values below. Positive variances indicate over-budget/over-usage.
+                    </div>
+                    
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Planned</th>
+                                <th class="text-end">Actual</th>
+                                <th class="text-end">Variance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-secondary">
+                                <td colspan="4"><strong><i class="bi bi-person-workspace me-2"></i>Labor</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Hours</td>
+                                <td class="text-end" id="recPlannedHours">-</td>
+                                <td class="text-end" id="recActualHours">-</td>
+                                <td class="text-end" id="recVarianceHours">-</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Cost</td>
+                                <td class="text-end" id="recPlannedLaborCost">-</td>
+                                <td class="text-end" id="recActualLaborCost">-</td>
+                                <td class="text-end" id="recVarianceLaborCost">-</td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <td colspan="4"><strong><i class="bi bi-box-seam me-2"></i>Materials</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Quantity</td>
+                                <td class="text-end" id="recPlannedMaterialQty">-</td>
+                                <td class="text-end" id="recActualMaterialQty">-</td>
+                                <td class="text-end" id="recVarianceMaterialQty">-</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Cost</td>
+                                <td class="text-end" id="recPlannedMaterialCost">-</td>
+                                <td class="text-end" id="recActualMaterialCost">-</td>
+                                <td class="text-end" id="recVarianceMaterialCost">-</td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <td colspan="4"><strong><i class="bi bi-tools me-2"></i>Outside Services</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Cost</td>
+                                <td class="text-end" id="recPlannedServicesCost">-</td>
+                                <td class="text-end" id="recActualServicesCost">-</td>
+                                <td class="text-end" id="recVarianceServicesCost">-</td>
+                            </tr>
+                            <tr class="table-primary fw-bold">
+                                <td><i class="bi bi-calculator me-2"></i>TOTAL COST</td>
+                                <td class="text-end" id="recPlannedTotal">-</td>
+                                <td class="text-end" id="recActualTotal">-</td>
+                                <td class="text-end">
+                                    <span id="recVarianceTotal">-</span>
+                                    <span id="recVariancePercent" class="badge bg-secondary ms-1">0%</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <form id="reconcileForm" method="POST" action="{{ url_for('workorder_routes.submit_reconciliation', id=workorder.id) }}" onsubmit="return validateReconcileForm()">
+                        <input type="hidden" name="variance_summary" id="varianceSummaryInput" value="{}">
+                        
+                        <div class="mb-3">
+                            <label for="reconciliationNotes" class="form-label fw-bold">
+                                <i class="bi bi-chat-left-text me-1"></i>Reconciliation Notes <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="reconciliationNotes" name="reconciliation_notes" rows="3" 
+                                      placeholder="Enter notes explaining variances, approvals, or justifications..." required></textarea>
+                            <div class="form-text">Required. Document any variance justifications or observations.</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="reconcileForm" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i>Confirm Reconciliation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invalidate Reconciliation Modal (Admin Only) -->
+<div class="modal fade" id="invalidateReconcileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Invalidate Reconciliation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-shield-exclamation me-2"></i>
+                    <strong>Admin Action:</strong> This will invalidate the current reconciliation and allow the work order to be re-reconciled.
+                </div>
+                <p>Are you sure you want to invalidate the reconciliation for <strong>{{ workorder.wo_number }}</strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('workorder_routes.invalidate_reconciliation', id=workorder.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-x-circle me-1"></i>Invalidate Reconciliation
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
