@@ -444,11 +444,31 @@ def export_products():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Code', 'Name', 'Description', 'Unit of Measure', 'Product Type', 'Cost'])
+    writer.writerow(['Code', 'Name', 'Description', 'Unit of Measure', 'Product Type', 'Cost',
+                     'Part Category', 'Lead Time', 'Product Category', 'Manufacturer', 
+                     'Applicability', 'Shelf Life Cycle', 'ECCN', 'Part Notes',
+                     'Is Serialized', 'Calibration Required', 'Master Plan Part'])
     
     for product in products:
-        writer.writerow([product['code'], product['name'], product['description'], 
-                        product['unit_of_measure'], product['product_type'], product['cost']])
+        writer.writerow([
+            product['code'], 
+            product['name'], 
+            product['description'], 
+            product['unit_of_measure'], 
+            product['product_type'], 
+            product['cost'],
+            product.get('part_category') or '',
+            product.get('lead_time') or '',
+            product.get('product_category') or '',
+            product.get('manufacturer') or '',
+            product.get('applicability') or '',
+            product.get('shelf_life_cycle') or '',
+            product.get('eccn') or '',
+            product.get('part_notes') or '',
+            1 if product.get('is_serialized') else 0,
+            1 if product.get('calibration_required') else 0,
+            1 if product.get('master_plan_part') else 0
+        ])
     
     output.seek(0)
     return Response(
@@ -462,7 +482,10 @@ def export_products():
 def download_template():
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Code', 'Name', 'Description', 'Unit of Measure', 'Product Type', 'Cost'])
+    writer.writerow(['Code', 'Name', 'Description', 'Unit of Measure', 'Product Type', 'Cost',
+                     'Part Category', 'Lead Time', 'Product Category', 'Manufacturer', 
+                     'Applicability', 'Shelf Life Cycle', 'ECCN', 'Part Notes',
+                     'Is Serialized', 'Calibration Required', 'Master Plan Part'])
     
     output.seek(0)
     return Response(
@@ -509,6 +532,18 @@ def import_products():
                 product_type = row.get('Product Type', '').strip()
                 cost_str = row.get('Cost', '').strip()
                 
+                part_category = row.get('Part Category', '').strip() or 'Other'
+                lead_time_str = row.get('Lead Time', '').strip()
+                product_category = row.get('Product Category', '').strip()
+                manufacturer = row.get('Manufacturer', '').strip()
+                applicability = row.get('Applicability', '').strip()
+                shelf_life_cycle = row.get('Shelf Life Cycle', '').strip()
+                eccn = row.get('ECCN', '').strip()
+                part_notes = row.get('Part Notes', '').strip()
+                is_serialized_str = row.get('Is Serialized', '').strip()
+                calibration_required_str = row.get('Calibration Required', '').strip()
+                master_plan_part_str = row.get('Master Plan Part', '').strip()
+                
                 if not code or not name or not unit_of_measure or not product_type:
                     skipped_count += 1
                     errors.append(f"Row {row_num}: Missing required fields")
@@ -516,9 +551,13 @@ def import_products():
                 
                 try:
                     cost = float(cost_str) if cost_str else 0.0
+                    lead_time = int(lead_time_str) if lead_time_str else 0
+                    is_serialized = 1 if is_serialized_str.lower() in ['1', 'yes', 'true'] else 0
+                    calibration_required = 1 if calibration_required_str.lower() in ['1', 'yes', 'true'] else 0
+                    master_plan_part = 1 if master_plan_part_str.lower() in ['1', 'yes', 'true'] else 0
                 except ValueError:
                     skipped_count += 1
-                    errors.append(f"Row {row_num}: Invalid cost format")
+                    errors.append(f"Row {row_num}: Invalid number format")
                     continue
                 
                 existing = conn.execute('SELECT id FROM products WHERE code = ?', (code,)).fetchone()
@@ -526,14 +565,26 @@ def import_products():
                 if existing:
                     conn.execute('''
                         UPDATE products 
-                        SET name=?, description=?, unit_of_measure=?, product_type=?, cost=?
+                        SET name=?, description=?, unit_of_measure=?, product_type=?, cost=?,
+                            part_category=?, lead_time=?, product_category=?, manufacturer=?,
+                            applicability=?, shelf_life_cycle=?, eccn=?, part_notes=?,
+                            is_serialized=?, calibration_required=?, master_plan_part=?
                         WHERE code=?
-                    ''', (name, description, unit_of_measure, product_type, cost, code))
+                    ''', (name, description, unit_of_measure, product_type, cost,
+                          part_category, lead_time, product_category, manufacturer,
+                          applicability, shelf_life_cycle, eccn, part_notes,
+                          is_serialized, calibration_required, master_plan_part, code))
                 else:
                     conn.execute('''
-                        INSERT INTO products (code, name, description, unit_of_measure, product_type, cost)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (code, name, description, unit_of_measure, product_type, cost))
+                        INSERT INTO products (code, name, description, unit_of_measure, product_type, cost,
+                                             part_category, lead_time, product_category, manufacturer,
+                                             applicability, shelf_life_cycle, eccn, part_notes,
+                                             is_serialized, calibration_required, master_plan_part)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (code, name, description, unit_of_measure, product_type, cost,
+                          part_category, lead_time, product_category, manufacturer,
+                          applicability, shelf_life_cycle, eccn, part_notes,
+                          is_serialized, calibration_required, master_plan_part))
                     
                     product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
                     
