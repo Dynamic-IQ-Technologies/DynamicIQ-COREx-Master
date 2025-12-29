@@ -166,20 +166,32 @@ def create_return():
             
             if inventory:
                 new_qty = inventory['quantity'] + quantity_returned
-                conn.execute('''
-                    UPDATE inventory 
-                    SET quantity = ?,
-                        last_updated = CURRENT_TIMESTAMP,
-                        status = 'Available'
-                    WHERE product_id = ?
-                ''', (new_qty, product_id))
+                # Set unit_cost if not already set
+                current_unit_cost = inventory['unit_cost'] if inventory['unit_cost'] else None
+                if current_unit_cost is None and unit_cost > 0:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            unit_cost = ?,
+                            last_updated = CURRENT_TIMESTAMP,
+                            status = 'Available'
+                        WHERE product_id = ?
+                    ''', (new_qty, unit_cost, product_id))
+                else:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            last_updated = CURRENT_TIMESTAMP,
+                            status = 'Available'
+                        WHERE product_id = ?
+                    ''', (new_qty, product_id))
             else:
-                # Create inventory record if doesn't exist
+                # Create inventory record if doesn't exist - include unit_cost
                 conn.execute('''
                     INSERT INTO inventory 
-                    (product_id, quantity, condition, warehouse_location, status)
-                    VALUES (?, ?, ?, ?, 'Available')
-                ''', (product_id, quantity_returned, condition, warehouse))
+                    (product_id, quantity, unit_cost, condition, warehouse_location, status)
+                    VALUES (?, ?, ?, ?, ?, 'Available')
+                ''', (product_id, quantity_returned, unit_cost if unit_cost > 0 else None, condition, warehouse))
             
             # Reduce work order material cost (already calculated as total_cost above)
             current_cost = conn.execute(

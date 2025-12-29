@@ -114,22 +114,37 @@ def create_adjustment():
             inventory = conn.execute('SELECT * FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
             
             if inventory:
-                conn.execute('''
-                    UPDATE inventory 
-                    SET quantity = ?,
-                        last_updated = CURRENT_TIMESTAMP,
-                        status = CASE WHEN ? <= 0 THEN 'Out of Stock' 
-                                     WHEN ? > 0 THEN 'Available' 
-                                     ELSE status END
-                    WHERE product_id = ?
-                ''', (new_qty, new_qty, new_qty, product_id))
+                # Update quantity and set unit_cost if not already set
+                current_unit_cost = inventory['unit_cost'] if inventory['unit_cost'] else None
+                if current_unit_cost is None and unit_cost > 0:
+                    # Set unit_cost from product cost if inventory doesn't have one
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            unit_cost = ?,
+                            last_updated = CURRENT_TIMESTAMP,
+                            status = CASE WHEN ? <= 0 THEN 'Out of Stock' 
+                                         WHEN ? > 0 THEN 'Available' 
+                                         ELSE status END
+                        WHERE product_id = ?
+                    ''', (new_qty, unit_cost, new_qty, new_qty, product_id))
+                else:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity = ?,
+                            last_updated = CURRENT_TIMESTAMP,
+                            status = CASE WHEN ? <= 0 THEN 'Out of Stock' 
+                                         WHEN ? > 0 THEN 'Available' 
+                                         ELSE status END
+                        WHERE product_id = ?
+                    ''', (new_qty, new_qty, new_qty, product_id))
             else:
-                # Create inventory record if doesn't exist
+                # Create inventory record if doesn't exist - include unit_cost
                 conn.execute('''
                     INSERT INTO inventory 
-                    (product_id, quantity, status)
-                    VALUES (?, ?, 'Available')
-                ''', (product_id, new_qty))
+                    (product_id, quantity, unit_cost, status)
+                    VALUES (?, ?, ?, 'Available')
+                ''', (product_id, new_qty, unit_cost if unit_cost > 0 else None))
             
             # Auto-post GL entry for inventory adjustment (only if cost_impact != 0)
             if cost_impact != 0:
