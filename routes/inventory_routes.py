@@ -1,9 +1,22 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, session, send_from_directory, jsonify
 from models import Database, AuditLogger
 from auth import login_required, role_required
+from werkzeug.utils import secure_filename
 import csv
 import io
 import math
+import os
+import uuid
+
+INVENTORY_UPLOAD_FOLDER = 'static/uploads/inventory_documents'
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'txt', 'csv'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def ensure_upload_folder():
+    if not os.path.exists(INVENTORY_UPLOAD_FOLDER):
+        os.makedirs(INVENTORY_UPLOAD_FOLDER)
 
 inventory_bp = Blueprint('inventory_routes', __name__)
 
@@ -721,3 +734,141 @@ def import_inventory():
             conn.close()
     
     return redirect(url_for('inventory_routes.list_inventory'))
+
+@inventory_bp.route('/inventory/<int:id>/documents/upload', methods=['POST'])
+@role_required('Admin', 'Production Staff', 'Procurement')
+def upload_inventory_document(id):
+    """Upload a document to an inventory line"""
+    ensure_upload_folder()
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        inventory = conn.execute('SELECT * FROM inventory WHERE id = ?', (id,)).fetchone()
+        if not inventory:
+            flash('Inventory record not found', 'danger')
+            return redirect(url_for('inventory_routes.list_inventory'))
+        
+        if 'document' not in request.files:
+            flash('No file selected', 'danger')
+            return redirect(url_for('inventory_routes.view_inventory', id=id))
+        
+        file = request.files['document']
+        
+        if file.filename == '':
+            flash('No file selected', 'danger')
+            return redirect(url_for('inventory_routes.view_inventory', id=id))
+        
+        if not allowed_file(file.filename):
+            flash(f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}', 'danger')
+            return redirect(url_for('inventory_routes.view_inventory', id=id))
+        
+        original_filename = secure_filename(file.filename)
+        file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
+        file_path = os.path.join(INVENTORY_UPLOAD_FOLDER, unique_filename)
+        
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+        
+        document_type = request.form.get('document_type', 'General')
+        document_name = request.form.get('document_name', original_filename)
+        description = request.form.get('description', '')
+        
+        mime_types = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'txt': 'text/plain',
+            'csv': 'text/csv'
+        }
+        mime_type = mime_types.get(file_ext, 'application/octet-stream')
+        
+        conn.execute('''
+            INSERT INTO inventory_documents 
+            (inventory_id, document_type, document_name, file_path, original_filename, file_size, mime_type, description, uploaded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (id, document_type, document_name, file_path, original_filename, file_size, mime_type, description, session.get('user_id')))
+        
+        conn.commit()
+        
+        AuditLogger.log_change(conn, session.get('user_id'), 'inventory', str(id), 
+                              'Document Upload', None, f"Uploaded: {document_name}")
+        
+        flash(f'Document "{document_name}" uploaded successfully', 'success')
+        
+    except Exception as e:
+        flash(f'Error uploading document: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('inventory_routes.view_inventory', id=id))
+
+@inventory_bp.route('/inventory/documents/<int:doc_id>/download')
+@login_required
+def download_inventory_document(doc_id):
+    """Download an inventory document"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        doc = conn.execute('''
+            SELECT * FROM inventory_documents WHERE id = ? AND is_active = 1
+        ''', (doc_id,)).fetchone()
+        
+        if not doc:
+            flash('Document not found', 'danger')
+            return redirect(url_for('inventory_routes.list_inventory'))
+        
+        if os.path.exists(doc['file_path']):
+            directory = os.path.dirname(doc['file_path'])
+            filename = os.path.basename(doc['file_path'])
+            return send_from_directory(
+                directory, 
+                filename, 
+                as_attachment=True,
+                download_name=doc['original_filename']
+            )
+        else:
+            flash('File not found on server', 'danger')
+            return redirect(url_for('inventory_routes.view_inventory', id=doc['inventory_id']))
+            
+    finally:
+        conn.close()
+
+@inventory_bp.route('/inventory/documents/<int:doc_id>/delete', methods=['POST'])
+@role_required('Admin', 'Production Staff')
+def delete_inventory_document(doc_id):
+    """Delete (deactivate) an inventory document"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        doc = conn.execute('SELECT * FROM inventory_documents WHERE id = ?', (doc_id,)).fetchone()
+        
+        if not doc:
+            flash('Document not found', 'danger')
+            return redirect(url_for('inventory_routes.list_inventory'))
+        
+        inventory_id = doc['inventory_id']
+        
+        conn.execute('UPDATE inventory_documents SET is_active = 0 WHERE id = ?', (doc_id,))
+        conn.commit()
+        
+        AuditLogger.log_change(conn, session.get('user_id'), 'inventory', str(inventory_id), 
+                              'Document Delete', doc['document_name'], 'Deleted')
+        
+        flash(f'Document "{doc["document_name"]}" deleted successfully', 'success')
+        return redirect(url_for('inventory_routes.view_inventory', id=inventory_id))
+        
+    except Exception as e:
+        flash(f'Error deleting document: {str(e)}', 'danger')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    finally:
+        conn.close()
