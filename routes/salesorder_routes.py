@@ -709,7 +709,7 @@ def get_line(id, line_id):
     })
 
 @salesorder_bp.route('/sales-orders/<int:id>/email-preview')
-@role_required('Admin', 'Planner')
+@login_required
 def email_preview(id):
     """Preview email acknowledgement before confirming order"""
     db = Database()
@@ -759,7 +759,7 @@ def email_preview(id):
 
 
 @salesorder_bp.route('/sales-orders/<int:id>/send-acknowledgement', methods=['POST'])
-@role_required('Admin', 'Planner')
+@login_required
 def send_order_acknowledgement(id):
     """Send order acknowledgement email and optionally confirm order"""
     db = Database()

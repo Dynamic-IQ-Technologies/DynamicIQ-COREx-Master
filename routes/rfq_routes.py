@@ -442,7 +442,7 @@ def delete_rfq(rfq_id):
 
 
 @rfq_bp.route('/rfqs/<int:rfq_id>/send-to-supplier', methods=['GET', 'POST'])
-@role_required('Admin', 'Procurement')
+@login_required
 def send_to_supplier(rfq_id):
     """Generate secure web link for supplier to submit quote"""
     db = Database()
@@ -655,7 +655,7 @@ def convert_response_to_po(rfq_id, response_id):
 
 
 @rfq_bp.route('/rfqs/<int:rfq_id>/email-supplier-link/<int:supplier_id>', methods=['POST'])
-@role_required('Admin', 'Procurement')
+@login_required
 def email_supplier_link(rfq_id, supplier_id):
     """Email RFQ secure link directly to supplier"""
     db = Database()

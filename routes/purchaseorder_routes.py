@@ -1692,7 +1692,6 @@ def delete_purchaseorder(id):
 
 @po_bp.route('/purchaseorders/<int:po_id>/send-to-supplier')
 @login_required
-@role_required('Admin', 'Procurement', 'Finance')
 def send_to_supplier(po_id):
     """Page to send PO to supplier via email"""
     db = Database()
@@ -1738,7 +1737,6 @@ def send_to_supplier(po_id):
 
 @po_bp.route('/purchaseorders/<int:po_id>/generate-link', methods=['POST'])
 @login_required
-@role_required('Admin', 'Procurement', 'Finance')
 def generate_supplier_link(po_id):
     """Generate secure token link for supplier to view PO"""
     db = Database()
@@ -1773,7 +1771,6 @@ def generate_supplier_link(po_id):
 
 @po_bp.route('/purchaseorders/<int:po_id>/email-link', methods=['POST'])
 @login_required
-@role_required('Admin', 'Procurement', 'Finance')
 def email_supplier_link(po_id):
     """Email PO secure link to supplier"""
     db = Database()

@@ -759,7 +759,6 @@ def create_from_ndt_wo(ndt_wo_id):
 
 @invoice_bp.route('/invoices/<int:invoice_id>/send-to-customer')
 @login_required
-@role_required('Admin', 'Accountant', 'Finance')
 def send_to_customer(invoice_id):
     """Page to send invoice to customer via email"""
     db = Database()
@@ -801,7 +800,6 @@ def send_to_customer(invoice_id):
 
 @invoice_bp.route('/invoices/<int:invoice_id>/generate-link', methods=['POST'])
 @login_required
-@role_required('Admin', 'Accountant', 'Finance')
 def generate_customer_link(invoice_id):
     """Generate secure token link for customer to view invoice"""
     db = Database()
@@ -841,7 +839,6 @@ def generate_customer_link(invoice_id):
 
 @invoice_bp.route('/invoices/<int:invoice_id>/email-link', methods=['POST'])
 @login_required
-@role_required('Admin', 'Accountant', 'Finance')
 def email_customer_link(invoice_id):
     """Email invoice secure link to customer"""
     db = Database()
