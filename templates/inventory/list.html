@@ -78,11 +78,32 @@
 </div>
 
 <div class="card">
+    <div class="card-header bg-white py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted small" id="selectedCount">0 items selected</span>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-dark btn-sm dropdown-toggle" data-bs-toggle="dropdown" id="printLabelsBtn" disabled>
+                    <i class="bi bi-tag"></i> Print Labels
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><h6 class="dropdown-header">Label Size</h6></li>
+                    <li><a class="dropdown-item" href="#" onclick="printSelectedLabels('4x6')"><i class="bi bi-file-pdf me-2"></i>4" x 6" (Standard)</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="printSelectedLabels('4x4')"><i class="bi bi-file-pdf me-2"></i>4" x 4" (Compact)</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="printSelectedLabels('2x4')"><i class="bi bi-file-pdf me-2"></i>2" x 4" (Small)</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-striped" id="inventoryTable">
                 <thead>
                     <tr>
+                        <th data-sortable="false" style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" title="Select All">
+                        </th>
                         <th data-sort-type="string">Inventory ID</th>
                         <th data-sort-type="string">Code</th>
                         <th data-sort-type="string">Product</th>
@@ -99,6 +120,9 @@
                 <tbody>
                     {% for item in inventory %}
                     <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input inv-checkbox" value="{{ item.id }}" data-code="{{ item.code }}">
+                        </td>
                         <td><span class="badge bg-secondary">INV-{{ "%06d"|format(item.id) }}</span></td>
                         <td>{{ item.code }}</td>
                         <td>{{ item.name }}</td>
@@ -144,7 +168,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="table-primary">
-                        <td colspan="8" class="text-end"><strong>Total Inventory Value:</strong></td>
+                        <td colspan="9" class="text-end"><strong>Total Inventory Value:</strong></td>
                         <td colspan="3"><strong class="text-success fs-5">{{ total_value|currency }}</strong></td>
                     </tr>
                 </tfoot>
@@ -191,6 +215,39 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof TableUtils !== 'undefined') {
         TableUtils.initSortable('#inventoryTable');
     }
+    
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.inv-checkbox');
+    const printBtn = document.getElementById('printLabelsBtn');
+    const countSpan = document.getElementById('selectedCount');
+    
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('.inv-checkbox:checked');
+        const count = checked.length;
+        countSpan.textContent = count + ' item' + (count !== 1 ? 's' : '') + ' selected';
+        printBtn.disabled = count === 0;
+    }
+    
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateSelectedCount();
+    });
+    
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
 });
+
+function printSelectedLabels(size) {
+    const checked = document.querySelectorAll('.inv-checkbox:checked');
+    if (checked.length === 0) {
+        alert('Please select at least one inventory item');
+        return;
+    }
+    
+    const ids = Array.from(checked).map(cb => cb.value).join(',');
+    const url = '{{ url_for("inventory_routes.mass_print_labels") }}?ids=' + ids + '&size=' + size;
+    window.open(url, '_blank');
+}
 </script>
 {% endblock %}

@@ -1055,6 +1055,124 @@ def generate_inventory_label(id):
         conn.close()
 
 
+@inventory_bp.route('/inventory/mass-print-labels')
+@login_required
+def mass_print_labels():
+    """Generate FAA-compliant labels for multiple inventory items"""
+    ids_param = request.args.get('ids', '')
+    label_size = request.args.get('size', '4x6')
+    
+    if not ids_param:
+        flash('No inventory items selected', 'warning')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    try:
+        ids = [int(id.strip()) for id in ids_param.split(',') if id.strip().isdigit()]
+    except ValueError:
+        flash('Invalid inventory IDs provided', 'danger')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    if not ids:
+        flash('No valid inventory items selected', 'warning')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        if label_size == '4x6':
+            page_width = 4 * inch
+            page_height = 6 * inch
+        elif label_size == '4x4':
+            page_width = 4 * inch
+            page_height = 4 * inch
+        elif label_size == '2x4':
+            page_width = 4 * inch
+            page_height = 2 * inch
+        else:
+            page_width = 4 * inch
+            page_height = 6 * inch
+        
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=(page_width, page_height))
+        
+        labels_generated = 0
+        
+        for inv_id in ids:
+            inventory = conn.execute('''
+                SELECT i.*, p.code, p.name, p.description as product_description, 
+                       p.unit_of_measure, p.category
+                FROM inventory i
+                JOIN products p ON i.product_id = p.id
+                WHERE i.id = ?
+            ''', (inv_id,)).fetchone()
+            
+            if not inventory:
+                continue
+            
+            related_po = conn.execute('''
+                SELECT po.po_number, s.name as supplier_name
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.po_id = po.id
+                LEFT JOIN suppliers s ON po.supplier_id = s.id
+                WHERE pol.product_id = ?
+                ORDER BY po.order_date DESC
+                LIMIT 1
+            ''', (inventory['product_id'],)).fetchone()
+            
+            related_wo = conn.execute('''
+                SELECT wo.wo_number, c.name as customer_name
+                FROM work_orders wo
+                LEFT JOIN sales_orders so ON wo.sales_order_id = so.id
+                LEFT JOIN customers c ON so.customer_id = c.id
+                WHERE wo.inventory_id = ? OR wo.product_id = ?
+                ORDER BY wo.created_at DESC
+                LIMIT 1
+            ''', (inv_id, inventory['product_id'])).fetchone()
+            
+            related_ro = conn.execute('''
+                SELECT ro.ro_number, s.name as supplier_name, c.name as customer_name
+                FROM repair_orders ro
+                LEFT JOIN suppliers s ON ro.supplier_id = s.id
+                LEFT JOIN customers c ON ro.customer_id = c.id
+                WHERE ro.inventory_id = ?
+                ORDER BY ro.created_at DESC
+                LIMIT 1
+            ''', (inv_id,)).fetchone()
+            
+            label_data = {
+                'inventory': inventory,
+                'related_po': related_po,
+                'related_wo': related_wo,
+                'related_ro': related_ro
+            }
+            
+            if labels_generated > 0:
+                c.showPage()
+            
+            draw_faa_label(c, label_data, page_width, page_height)
+            labels_generated += 1
+        
+        c.save()
+        buffer.seek(0)
+        
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"FAA_Labels_Batch_{timestamp}.pdf"
+        
+        return Response(
+            buffer.getvalue(),
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{filename}"',
+                'Content-Type': 'application/pdf'
+            }
+        )
+        
+    finally:
+        conn.close()
+
+
 def draw_faa_label(c, label_data, width, height):
     """Draw FAA-compliant label content on canvas - size-aware"""
     inventory = label_data['inventory']
