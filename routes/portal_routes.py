@@ -405,7 +405,7 @@ def supplier_portal(token):
     po_lines = conn.execute('''
         SELECT pol.id, pol.po_id, pol.line_number, pol.quantity, pol.unit_price, 
                pol.received_quantity, pol.description as line_description,
-               po.po_number, po.order_date, po.expected_delivery,
+               po.po_number, po.order_date, po.expected_delivery_date as expected_delivery,
                p.code as part_number, 
                COALESCE(NULLIF(pol.description, ''), p.name, p.description) as description,
                u.uom_code,
