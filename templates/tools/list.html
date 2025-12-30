@@ -50,26 +50,138 @@
     </div>
 </div>
 
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-3">
+        <form method="GET" action="{{ url_for('tools_routes.list_tools') }}" id="filterForm">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Search</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" name="search" placeholder="Tool #, name, serial..." value="{{ filters.search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Status</label>
+                    <select class="form-select form-select-sm" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="Available" {{ 'selected' if filters.status == 'Available' }}>Available</option>
+                        <option value="In Use" {{ 'selected' if filters.status == 'In Use' }}>In Use</option>
+                        <option value="Maintenance" {{ 'selected' if filters.status == 'Maintenance' }}>Maintenance</option>
+                        <option value="Retired" {{ 'selected' if filters.status == 'Retired' }}>Retired</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Category</label>
+                    <select class="form-select form-select-sm" name="category">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {{ 'selected' if filters.category == cat }}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Condition</label>
+                    <select class="form-select form-select-sm" name="condition">
+                        <option value="">All Conditions</option>
+                        <option value="Good" {{ 'selected' if filters.condition == 'Good' }}>Good</option>
+                        <option value="Fair" {{ 'selected' if filters.condition == 'Fair' }}>Fair</option>
+                        <option value="Poor" {{ 'selected' if filters.condition == 'Poor' }}>Poor</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Location</label>
+                    <select class="form-select form-select-sm" name="location">
+                        <option value="">All Locations</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc }}" {{ 'selected' if filters.location == loc }}>{{ loc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                {% if filters.search or filters.status or filters.category or filters.condition or filters.location %}
+                <div class="col-auto">
+                    <a href="{{ url_for('tools_routes.list_tools') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <input type="hidden" name="sort" value="{{ filters.sort }}">
+            <input type="hidden" name="dir" value="{{ filters.dir }}">
+        </form>
+    </div>
+</div>
+
+{% if session.role in ['Admin', 'Procurement'] %}
+<div class="card shadow-sm mb-3 d-none" id="massEditBar">
+    <div class="card-body py-2 bg-light">
+        <form method="POST" action="{{ url_for('tools_routes.mass_update_tools') }}" id="massEditForm">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <span class="fw-medium"><span id="selectedCount">0</span> tools selected</span>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" name="action" id="massAction" style="width: 160px;" required>
+                        <option value="">Select Action...</option>
+                        <option value="update_status">Update Status</option>
+                        <option value="update_condition">Update Condition</option>
+                        <option value="update_location">Update Location</option>
+                        <option value="update_category">Update Category</option>
+                        <option value="delete">Delete Tools</option>
+                    </select>
+                </div>
+                <div class="col-auto d-none" id="statusValueGroup">
+                    <select class="form-select form-select-sm" name="new_status" style="width: 140px;">
+                        <option value="Available">Available</option>
+                        <option value="In Use">In Use</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Retired">Retired</option>
+                    </select>
+                </div>
+                <div class="col-auto d-none" id="conditionValueGroup">
+                    <select class="form-select form-select-sm" name="new_condition" style="width: 120px;">
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                    </select>
+                </div>
+                <div class="col-auto d-none" id="locationValueGroup">
+                    <input type="text" class="form-control form-control-sm" name="new_location" placeholder="Enter location" style="width: 180px;">
+                </div>
+                <div class="col-auto d-none" id="categoryValueGroup">
+                    <input type="text" class="form-control form-control-sm" name="new_category" placeholder="Enter category" style="width: 180px;">
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-primary btn-sm" id="applyMassEdit">
+                        <i class="bi bi-check-lg"></i> Apply
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="cancelMassEdit">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div class="card shadow-sm">
     <div class="card-header bg-white py-3">
         <div class="row align-items-center">
             <div class="col">
-                <h5 class="mb-0 fw-semibold">All Tools</h5>
-            </div>
-            <div class="col-auto">
-                <div class="input-group input-group-sm" style="width: 250px;">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="toolsFilter" placeholder="Search tools...">
-                </div>
-            </div>
-            <div class="col-auto">
-                <select class="form-select form-select-sm" id="statusFilter" style="width: 150px;">
-                    <option value="">All Statuses</option>
-                    <option value="Available">Available</option>
-                    <option value="In Use">In Use</option>
-                    <option value="Maintenance">Maintenance</option>
-                    <option value="Retired">Retired</option>
-                </select>
+                <h5 class="mb-0 fw-semibold">
+                    All Tools
+                    {% if tools|length != stats.total %}
+                    <span class="badge bg-secondary ms-2">{{ tools|length }} of {{ stats.total }}</span>
+                    {% endif %}
+                </h5>
             </div>
         </div>
     </div>
@@ -79,13 +191,53 @@
             <table class="table table-hover mb-0" id="toolsTable">
                 <thead class="table-light">
                     <tr>
-                        <th class="text-uppercase small">Tool #</th>
-                        <th class="text-uppercase small">Name</th>
-                        <th class="text-uppercase small">Category</th>
-                        <th class="text-uppercase small">Location</th>
-                        <th class="text-uppercase small">Status</th>
-                        <th class="text-uppercase small">Condition</th>
-                        <th class="text-uppercase small">Next Calibration</th>
+                        {% if session.role in ['Admin', 'Procurement'] %}
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        {% endif %}
+                        <th class="text-uppercase small sortable" data-sort="tool_number">
+                            Tool #
+                            {% if filters.sort == 'tool_number' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
+                        <th class="text-uppercase small sortable" data-sort="name">
+                            Name
+                            {% if filters.sort == 'name' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
+                        <th class="text-uppercase small sortable" data-sort="category">
+                            Category
+                            {% if filters.sort == 'category' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
+                        <th class="text-uppercase small sortable" data-sort="location">
+                            Location
+                            {% if filters.sort == 'location' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
+                        <th class="text-uppercase small sortable" data-sort="status">
+                            Status
+                            {% if filters.sort == 'status' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
+                        <th class="text-uppercase small sortable" data-sort="condition">
+                            Condition
+                            {% if filters.sort == 'condition' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
+                        <th class="text-uppercase small sortable" data-sort="next_calibration_date">
+                            Next Calibration
+                            {% if filters.sort == 'next_calibration_date' %}
+                            <i class="bi bi-caret-{{ 'down' if filters.dir == 'desc' else 'up' }}-fill"></i>
+                            {% endif %}
+                        </th>
                         <th class="text-uppercase small">Assigned To</th>
                         <th class="text-uppercase small"></th>
                     </tr>
@@ -93,6 +245,11 @@
                 <tbody>
                     {% for tool in tools %}
                     <tr data-status="{{ tool.status }}">
+                        {% if session.role in ['Admin', 'Procurement'] %}
+                        <td>
+                            <input type="checkbox" class="form-check-input tool-checkbox" value="{{ tool.id }}">
+                        </td>
+                        {% endif %}
                         <td class="fw-medium">
                             <a href="{{ url_for('tools_routes.view_tool', tool_id=tool.id) }}">{{ tool.tool_number }}</a>
                         </td>
@@ -155,28 +312,133 @@
     </div>
 </div>
 
+<style>
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+.sortable:hover {
+    background-color: #e9ecef;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const filter = document.getElementById('toolsFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const table = document.getElementById('toolsTable');
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    const filterForm = document.getElementById('filterForm');
     
-    function filterTable() {
-        const searchText = filter.value.toLowerCase();
-        const statusValue = statusFilter.value;
-        const rows = table.querySelectorAll('tbody tr');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const sortField = this.dataset.sort;
+            const currentSort = '{{ filters.sort }}';
+            const currentDir = '{{ filters.dir }}';
+            
+            let newDir = 'asc';
+            if (sortField === currentSort && currentDir === 'asc') {
+                newDir = 'desc';
+            }
+            
+            const sortInput = filterForm.querySelector('input[name="sort"]');
+            const dirInput = filterForm.querySelector('input[name="dir"]');
+            sortInput.value = sortField;
+            dirInput.value = newDir;
+            filterForm.submit();
+        });
+    });
+    
+    {% if session.role in ['Admin', 'Procurement'] %}
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.tool-checkbox');
+    const massEditBar = document.getElementById('massEditBar');
+    const massEditForm = document.getElementById('massEditForm');
+    const massAction = document.getElementById('massAction');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('.tool-checkbox:checked');
+        selectedCount.textContent = checked.length;
         
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            const rowStatus = row.dataset.status;
-            const matchesSearch = text.includes(searchText);
-            const matchesStatus = !statusValue || rowStatus === statusValue;
-            row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+        if (checked.length > 0) {
+            massEditBar.classList.remove('d-none');
+        } else {
+            massEditBar.classList.add('d-none');
+        }
+    }
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => cb.checked = this.checked);
+            updateSelectedCount();
         });
     }
     
-    if (filter) filter.addEventListener('input', filterTable);
-    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+    
+    massAction.addEventListener('change', function() {
+        document.getElementById('statusValueGroup').classList.add('d-none');
+        document.getElementById('conditionValueGroup').classList.add('d-none');
+        document.getElementById('locationValueGroup').classList.add('d-none');
+        document.getElementById('categoryValueGroup').classList.add('d-none');
+        
+        if (this.value === 'update_status') {
+            document.getElementById('statusValueGroup').classList.remove('d-none');
+        } else if (this.value === 'update_condition') {
+            document.getElementById('conditionValueGroup').classList.remove('d-none');
+        } else if (this.value === 'update_location') {
+            document.getElementById('locationValueGroup').classList.remove('d-none');
+        } else if (this.value === 'update_category') {
+            document.getElementById('categoryValueGroup').classList.remove('d-none');
+        }
+    });
+    
+    document.getElementById('applyMassEdit').addEventListener('click', async function() {
+        const action = massAction.value;
+        if (!action) {
+            showAlert('Please select an action', {title: 'Action Required', type: 'warning'});
+            return;
+        }
+        
+        const checked = document.querySelectorAll('.tool-checkbox:checked');
+        if (checked.length === 0) {
+            showAlert('No tools selected', {title: 'Selection Required', type: 'warning'});
+            return;
+        }
+        
+        let confirmMsg = `Apply this action to ${checked.length} selected tools?`;
+        let confirmType = 'question';
+        
+        if (action === 'delete') {
+            confirmMsg = `Are you sure you want to DELETE ${checked.length} tools? This cannot be undone.`;
+            confirmType = 'danger';
+        }
+        
+        const confirmed = await showConfirm(confirmMsg, {
+            title: 'Confirm Mass Update',
+            type: confirmType,
+            confirmText: action === 'delete' ? 'Delete' : 'Apply'
+        });
+        
+        if (confirmed) {
+            checked.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'tool_ids';
+                input.value = cb.value;
+                massEditForm.appendChild(input);
+            });
+            massEditForm.submit();
+        }
+    });
+    
+    document.getElementById('cancelMassEdit').addEventListener('click', function() {
+        checkboxes.forEach(cb => cb.checked = false);
+        if (selectAll) selectAll.checked = false;
+        massAction.value = '';
+        updateSelectedCount();
+    });
+    {% endif %}
 });
 </script>
 {% endblock %}

@@ -111,25 +111,89 @@ def list_tools():
     db = Database()
     conn = db.get_connection()
     
-    tools = conn.execute('''
+    status_filter = request.args.get('status', '')
+    category_filter = request.args.get('category', '')
+    condition_filter = request.args.get('condition', '')
+    location_filter = request.args.get('location', '')
+    search = request.args.get('search', '')
+    sort_by = request.args.get('sort', 'tool_number')
+    sort_dir = request.args.get('dir', 'asc')
+    
+    valid_sort_columns = {
+        'tool_number': 't.tool_number',
+        'name': 't.name',
+        'category': 't.category',
+        'location': 't.location',
+        'status': 't.status',
+        'condition': 't.condition',
+        'next_calibration_date': 't.next_calibration_date'
+    }
+    sort_column = valid_sort_columns.get(sort_by, 't.tool_number')
+    sort_direction = 'DESC' if sort_dir.lower() == 'desc' else 'ASC'
+    
+    query = '''
         SELECT t.*, 
                (lr.first_name || ' ' || lr.last_name) as assigned_to_name,
                (SELECT COUNT(*) FROM tool_checkouts tc WHERE tc.tool_id = t.id AND tc.return_date IS NULL) as is_checked_out
         FROM tools t
         LEFT JOIN labor_resources lr ON t.assigned_to = lr.id
-        ORDER BY t.tool_number
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
     
+    if status_filter:
+        query += ' AND t.status = ?'
+        params.append(status_filter)
+    
+    if category_filter:
+        query += ' AND t.category = ?'
+        params.append(category_filter)
+    
+    if condition_filter:
+        query += ' AND t.condition = ?'
+        params.append(condition_filter)
+    
+    if location_filter:
+        query += ' AND t.location = ?'
+        params.append(location_filter)
+    
+    if search:
+        query += ' AND (t.tool_number LIKE ? OR t.name LIKE ? OR t.serial_number LIKE ? OR t.description LIKE ?)'
+        search_term = f'%{search}%'
+        params.extend([search_term, search_term, search_term, search_term])
+    
+    query += f' ORDER BY {sort_column} {sort_direction}'
+    
+    tools = conn.execute(query, params).fetchall()
+    
+    all_tools = conn.execute('SELECT * FROM tools').fetchall()
     stats = {
-        'total': len(tools),
-        'available': sum(1 for t in tools if t['status'] == 'Available'),
-        'in_use': sum(1 for t in tools if t['status'] == 'In Use'),
-        'maintenance': sum(1 for t in tools if t['status'] == 'Maintenance'),
-        'calibration_due': sum(1 for t in tools if t['next_calibration_date'] and t['next_calibration_date'] <= datetime.now().strftime('%Y-%m-%d'))
+        'total': len(all_tools),
+        'available': sum(1 for t in all_tools if t['status'] == 'Available'),
+        'in_use': sum(1 for t in all_tools if t['status'] == 'In Use'),
+        'maintenance': sum(1 for t in all_tools if t['status'] == 'Maintenance'),
+        'calibration_due': sum(1 for t in all_tools if t['next_calibration_date'] and t['next_calibration_date'] <= datetime.now().strftime('%Y-%m-%d'))
     }
     
+    categories = conn.execute('SELECT DISTINCT category FROM tools WHERE category IS NOT NULL AND category != "" ORDER BY category').fetchall()
+    locations = conn.execute('SELECT DISTINCT location FROM tools WHERE location IS NOT NULL AND location != "" ORDER BY location').fetchall()
+    
     conn.close()
-    return render_template('tools/list.html', tools=tools, stats=stats, now=datetime.now().strftime('%Y-%m-%d'))
+    return render_template('tools/list.html', 
+                         tools=tools, 
+                         stats=stats, 
+                         now=datetime.now().strftime('%Y-%m-%d'),
+                         categories=[c['category'] for c in categories],
+                         locations=[l['location'] for l in locations],
+                         filters={
+                             'status': status_filter,
+                             'category': category_filter,
+                             'condition': condition_filter,
+                             'location': location_filter,
+                             'search': search,
+                             'sort': sort_by,
+                             'dir': sort_dir
+                         })
 
 @tools_bp.route('/tools/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
@@ -377,3 +441,92 @@ def delete_tool(tool_id):
     
     conn.close()
     return redirect(url_for('tools_routes.list_tools'))
+
+
+@tools_bp.route('/tools/mass-update', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def mass_update_tools():
+    """Mass update selected tools"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        tool_ids = request.form.getlist('tool_ids')
+        action = request.form.get('action', '')
+        
+        if not tool_ids:
+            flash('No tools selected', 'warning')
+            conn.close()
+            return redirect(url_for('tools_routes.list_tools'))
+        
+        updated_count = 0
+        
+        if action == 'update_status':
+            new_status = request.form.get('new_status')
+            if new_status:
+                for tool_id in tool_ids:
+                    conn.execute('UPDATE tools SET status = ? WHERE id = ?', (new_status, int(tool_id)))
+                    AuditLogger.log_change(conn, 'tools', int(tool_id), 'UPDATE', session.get('user_id'),
+                                          {'field': 'status', 'new_value': new_status})
+                    updated_count += 1
+                conn.commit()
+                flash(f'Updated status to "{new_status}" for {updated_count} tools', 'success')
+        
+        elif action == 'update_condition':
+            new_condition = request.form.get('new_condition')
+            if new_condition:
+                for tool_id in tool_ids:
+                    conn.execute('UPDATE tools SET condition = ? WHERE id = ?', (new_condition, int(tool_id)))
+                    AuditLogger.log_change(conn, 'tools', int(tool_id), 'UPDATE', session.get('user_id'),
+                                          {'field': 'condition', 'new_value': new_condition})
+                    updated_count += 1
+                conn.commit()
+                flash(f'Updated condition to "{new_condition}" for {updated_count} tools', 'success')
+        
+        elif action == 'update_location':
+            new_location = request.form.get('new_location')
+            if new_location:
+                for tool_id in tool_ids:
+                    conn.execute('UPDATE tools SET location = ? WHERE id = ?', (new_location, int(tool_id)))
+                    AuditLogger.log_change(conn, 'tools', int(tool_id), 'UPDATE', session.get('user_id'),
+                                          {'field': 'location', 'new_value': new_location})
+                    updated_count += 1
+                conn.commit()
+                flash(f'Updated location to "{new_location}" for {updated_count} tools', 'success')
+        
+        elif action == 'update_category':
+            new_category = request.form.get('new_category')
+            if new_category:
+                for tool_id in tool_ids:
+                    conn.execute('UPDATE tools SET category = ? WHERE id = ?', (new_category, int(tool_id)))
+                    AuditLogger.log_change(conn, 'tools', int(tool_id), 'UPDATE', session.get('user_id'),
+                                          {'field': 'category', 'new_value': new_category})
+                    updated_count += 1
+                conn.commit()
+                flash(f'Updated category to "{new_category}" for {updated_count} tools', 'success')
+        
+        elif action == 'delete':
+            for tool_id in tool_ids:
+                tool = conn.execute('SELECT * FROM tools WHERE id = ?', (int(tool_id),)).fetchone()
+                if tool:
+                    purchase_cost = float(tool['purchase_cost'] or 0)
+                    if purchase_cost > 0:
+                        create_tool_journal_entry(conn, tool['tool_number'], tool['name'], purchase_cost, is_addition=False)
+                    AuditLogger.log_change(conn, 'tools', int(tool_id), 'DELETE', session.get('user_id'),
+                                          {'tool_number': tool['tool_number']})
+                    conn.execute('DELETE FROM tools WHERE id = ?', (int(tool_id),))
+                    updated_count += 1
+            conn.commit()
+            flash(f'Deleted {updated_count} tools', 'success')
+        
+        else:
+            flash('Invalid action', 'danger')
+        
+        conn.close()
+        return redirect(url_for('tools_routes.list_tools'))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error updating tools: {str(e)}', 'danger')
+        return redirect(url_for('tools_routes.list_tools'))
