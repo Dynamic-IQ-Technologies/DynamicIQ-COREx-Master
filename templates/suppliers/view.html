@@ -188,6 +188,62 @@
                 {% endif %}
             </div>
         </div>
+        
+        <div class="card mb-4">
+            <div class="card-header" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white;">
+                <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Supplier Portal</h5>
+            </div>
+            <div class="card-body">
+                {% if portal_token %}
+                <div class="alert alert-info mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong><i class="bi bi-check-circle me-1"></i>Portal Link Active</strong>
+                            <p class="mb-1 small">Expires: {{ portal_token.expires_at[:10] if portal_token.expires_at else 'N/A' }}</p>
+                            <p class="mb-1 small">Created by: {{ portal_token.created_by_name or 'System' }}</p>
+                            {% if portal_token.access_count > 0 %}
+                            <p class="mb-0 small">Accessed: {{ portal_token.access_count }} times</p>
+                            {% endif %}
+                        </div>
+                        <form method="POST" action="{{ url_for('supplier_routes.revoke_portal_link', id=supplier.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Revoke this supplier portal link?')">
+                                <i class="bi bi-x-circle me-1"></i>Revoke
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control form-control-sm" id="portalLink" readonly 
+                           value="{{ request.host_url }}supplier-portal/{{ portal_token.token }}">
+                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="copyPortalLink()">
+                        <i class="bi bi-clipboard me-1"></i>Copy
+                    </button>
+                </div>
+                <small class="text-muted">Share this link with the supplier to let them view open POs and update tracking.</small>
+                {% else %}
+                <p class="text-muted mb-3">Generate a secure link for this supplier to view their open purchase orders and update tracking information.</p>
+                <form method="POST" action="{{ url_for('supplier_routes.generate_portal_link', id=supplier.id) }}">
+                    <div class="row g-2 align-items-end">
+                        <div class="col">
+                            <label class="form-label small">Link Validity</label>
+                            <select name="expiry_days" class="form-select form-select-sm">
+                                <option value="30">30 days</option>
+                                <option value="60">60 days</option>
+                                <option value="90" selected>90 days</option>
+                                <option value="180">180 days</option>
+                                <option value="365">1 year</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-link-45deg me-1"></i>Generate Link
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -298,4 +354,24 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+function copyPortalLink() {
+    const linkInput = document.getElementById('portalLink');
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(linkInput.value).then(function() {
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-success');
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-primary');
+        }, 2000);
+    });
+}
+</script>
 {% endblock %}

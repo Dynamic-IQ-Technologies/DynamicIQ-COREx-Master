@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, jsonify, session
 from models import Database, AuditLogger
 from auth import login_required, role_required
+from datetime import datetime, timedelta
+import secrets
 import csv
 import io
 
@@ -233,9 +235,18 @@ def view_supplier(id):
         LIMIT 50
     ''', (id,)).fetchall()
     
+    portal_token = conn.execute('''
+        SELECT spt.*, u.username as created_by_name
+        FROM supplier_portal_tokens spt
+        LEFT JOIN users u ON spt.created_by = u.id
+        WHERE spt.supplier_id = ? AND spt.is_active = 1
+        ORDER BY spt.created_at DESC LIMIT 1
+    ''', (id,)).fetchone()
+    
     conn.close()
     return render_template('suppliers/view.html', supplier=supplier, contacts=contacts,
-                          purchase_orders=purchase_orders, financials=financials, audit_trail=audit_trail)
+                          purchase_orders=purchase_orders, financials=financials, 
+                          audit_trail=audit_trail, portal_token=portal_token)
 
 @supplier_bp.route('/suppliers/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
@@ -254,6 +265,82 @@ def delete_supplier(id):
     
     flash('Supplier deleted successfully!', 'success')
     return redirect(url_for('supplier_routes.list_suppliers'))
+
+
+@supplier_bp.route('/suppliers/<int:id>/generate-portal-link', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def generate_portal_link(id):
+    """Generate a supplier portal access link"""
+    db = Database()
+    conn = db.get_connection()
+    
+    supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (id,)).fetchone()
+    if not supplier:
+        conn.close()
+        flash('Supplier not found', 'danger')
+        return redirect(url_for('supplier_routes.list_suppliers'))
+    
+    expiry_days = int(request.form.get('expiry_days', 90))
+    
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now() + timedelta(days=expiry_days)).isoformat()
+    
+    conn.execute('''
+        UPDATE supplier_portal_tokens SET is_active = 0 WHERE supplier_id = ?
+    ''', (id,))
+    
+    conn.execute('''
+        INSERT INTO supplier_portal_tokens 
+        (supplier_id, token, expires_at, is_active, created_by)
+        VALUES (?, ?, ?, 1, ?)
+    ''', (id, token, expires_at, session.get('user_id')))
+    
+    AuditLogger.log_change(
+        conn=conn,
+        record_type='supplier_portal_tokens',
+        record_id=id,
+        action_type='CREATE',
+        modified_by=session.get('user_id'),
+        changed_fields={
+            'supplier_id': id,
+            'expires_at': expires_at,
+            'expiry_days': expiry_days
+        }
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Supplier portal link generated successfully! Valid for {expiry_days} days.', 'success')
+    return redirect(url_for('supplier_routes.view_supplier', id=id))
+
+
+@supplier_bp.route('/suppliers/<int:id>/revoke-portal-link', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def revoke_portal_link(id):
+    """Revoke all supplier portal access links"""
+    db = Database()
+    conn = db.get_connection()
+    
+    conn.execute('''
+        UPDATE supplier_portal_tokens SET is_active = 0 WHERE supplier_id = ?
+    ''', (id,))
+    
+    AuditLogger.log_change(
+        conn=conn,
+        record_type='supplier_portal_tokens',
+        record_id=id,
+        action_type='REVOKE',
+        modified_by=session.get('user_id'),
+        changed_fields={'supplier_id': id, 'action': 'Revoked all portal links'}
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Supplier portal links revoked successfully.', 'success')
+    return redirect(url_for('supplier_routes.view_supplier', id=id))
+
 
 @supplier_bp.route('/suppliers/export')
 @login_required

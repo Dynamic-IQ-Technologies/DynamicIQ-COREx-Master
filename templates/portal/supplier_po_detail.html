@@ -1,0 +1,213 @@
+{% extends "portal/supplier_base.html" %}
+
+{% block title %}PO {{ po.po_number }} - Supplier Portal{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('portal.supplier_portal', token=token) }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">PO {{ po.po_number }}</li>
+    </ol>
+</nav>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Purchase Order {{ po.po_number }}</h5>
+                    <span class="badge {% if po.status == 'Ordered' %}bg-primary{% elif po.status == 'Confirmed' %}bg-info{% elif po.status == 'Partial' %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+                        {{ po.status }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Order Date</label>
+                        <p class="mb-0 fw-medium">
+                            {% if po.order_date %}
+                            {{ po.order_date|replace('T', ' ')|truncate(10, True, '') }}
+                            {% else %}-{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Expected Delivery</label>
+                        <p class="mb-0 fw-medium">
+                            {% if po.expected_delivery %}
+                            {{ po.expected_delivery|replace('T', ' ')|truncate(10, True, '') }}
+                            {% else %}-{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Total Amount</label>
+                        <p class="mb-0 fw-bold text-success fs-5">${{ "{:,.2f}".format(total_amount) }}</p>
+                    </div>
+                </div>
+                {% if po.notes %}
+                <hr>
+                <label class="form-label text-muted small text-uppercase">Buyer Notes</label>
+                <p class="mb-0">{{ po.notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-building me-2"></i>Ship To</h6>
+            </div>
+            <div class="card-body">
+                {% if company %}
+                <p class="mb-1 fw-medium">{{ company.name or 'Company Name' }}</p>
+                {% if company.address %}<p class="mb-1 text-muted small">{{ company.address }}</p>{% endif %}
+                {% if company.city or company.state or company.zip %}
+                <p class="mb-1 text-muted small">{{ company.city or '' }}{% if company.city and company.state %}, {% endif %}{{ company.state or '' }} {{ company.zip or '' }}</p>
+                {% endif %}
+                {% if company.phone %}<p class="mb-0 text-muted small"><i class="bi bi-telephone me-1"></i>{{ company.phone }}</p>{% endif %}
+                {% else %}
+                <p class="text-muted mb-0">Contact buyer for shipping address</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-2"></i>Line Items</h5>
+        <small class="text-muted">Click on a line item to add tracking information or notes</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-uppercase small">Line</th>
+                        <th class="text-uppercase small">Part Number</th>
+                        <th class="text-uppercase small">Description</th>
+                        <th class="text-uppercase small text-end">Qty Ordered</th>
+                        <th class="text-uppercase small text-end">Qty Received</th>
+                        <th class="text-uppercase small text-end">Unit Price</th>
+                        <th class="text-uppercase small text-end">Total</th>
+                        <th class="text-uppercase small">Tracking / Notes</th>
+                        <th class="text-uppercase small text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr class="{% if (line.received_quantity or 0) >= line.quantity %}table-success{% endif %}">
+                        <td>{{ line.line_number }}</td>
+                        <td><code class="fw-semibold">{{ line.part_number or '-' }}</code></td>
+                        <td>{{ line.description or '-' }}</td>
+                        <td class="text-end">{{ line.quantity }} {{ line.uom_code or '' }}</td>
+                        <td class="text-end">
+                            {% set recv = line.received_quantity or 0 %}
+                            <span class="{% if recv >= line.quantity %}text-success fw-bold{% elif recv > 0 %}text-warning{% endif %}">
+                                {{ recv }}
+                            </span>
+                        </td>
+                        <td class="text-end">${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
+                        <td class="text-end">${{ "{:,.2f}".format((line.quantity or 0) * (line.unit_price or 0)) }}</td>
+                        <td>
+                            {% if line.tracking_number %}
+                            <span class="badge bg-info"><i class="bi bi-truck me-1"></i>{{ line.tracking_number }}</span>
+                            {% endif %}
+                            {% if line.estimated_ship_date %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-calendar me-1"></i>{{ line.estimated_ship_date }}</span>
+                            {% endif %}
+                            {% if line.supplier_notes %}
+                            <i class="bi bi-chat-left-text text-primary" data-bs-toggle="tooltip" title="{{ line.supplier_notes }}"></i>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if (line.received_quantity or 0) < line.quantity %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateModal{{ line.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            {% else %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="6" class="text-end">Total:</th>
+                        <th class="text-end">${{ "{:,.2f}".format(total_amount) }}</th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% for line in lines %}
+{% if (line.received_quantity or 0) < line.quantity %}
+<div class="modal fade" id="updateModal{{ line.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('portal.supplier_portal_update_line', token=token, line_id=line.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil me-2"></i>Update Line {{ line.line_number }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Part</label>
+                        <p class="fw-semibold mb-0">{{ line.part_number or '' }} - {{ line.description or '' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tracking_number{{ line.id }}" class="form-label">Tracking Number</label>
+                        <input type="text" class="form-control" id="tracking_number{{ line.id }}" name="tracking_number" 
+                               value="{{ line.tracking_number or '' }}" placeholder="e.g., 1Z999AA10123456784">
+                    </div>
+                    <div class="mb-3">
+                        <label for="estimated_ship_date{{ line.id }}" class="form-label">Estimated Ship Date</label>
+                        <input type="date" class="form-control" id="estimated_ship_date{{ line.id }}" name="estimated_ship_date" 
+                               value="{{ line.estimated_ship_date or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplier_notes{{ line.id }}" class="form-label">Notes</label>
+                        <textarea class="form-control" id="supplier_notes{{ line.id }}" name="supplier_notes" rows="3" 
+                                  placeholder="Any notes about this shipment...">{{ line.supplier_notes or '' }}</textarea>
+                    </div>
+                    {% if line.last_update %}
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Last updated: {{ line.last_update|replace('T', ' ')|truncate(19, True, '') }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Save Update
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<div class="mt-4">
+    <a href="{{ url_for('portal.supplier_portal', token=token) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+})
+</script>
+{% endblock %}
