@@ -2,12 +2,45 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, CompanySettings, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.uom_conversion import (
     validate_po_line_conversion, check_conversion_defined, 
     VarianceType, ConversionResult, get_product_uom_options
 )
 import json
+import secrets
+import os
+
+
+def get_brevo_credentials():
+    """Get Brevo API key and from email from environment"""
+    api_key = os.environ.get('BREVO_API_KEY')
+    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    return api_key, from_email
+
+
+def send_po_email_via_brevo(to_email, to_name, subject, html_content, from_email, from_name, api_key):
+    """Send PO email using Brevo (Sendinblue) API"""
+    import sib_api_v3_sdk
+    from sib_api_v3_sdk.rest import ApiException
+    
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = api_key
+    
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+    
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=[{"email": to_email, "name": to_name}],
+        sender={"email": from_email, "name": from_name},
+        subject=subject,
+        html_content=html_content
+    )
+    
+    try:
+        api_response = api_instance.send_transac_email(send_smtp_email)
+        return True, str(api_response.message_id)
+    except ApiException as e:
+        return False, str(e)
 
 po_bp = Blueprint('po_routes', __name__)
 
@@ -1651,3 +1684,315 @@ def delete_purchaseorder(id):
         conn.close()
         flash(f'Error deleting purchase order: {str(e)}', 'danger')
         return redirect(url_for('po_routes.view_purchaseorder', id=id))
+
+
+@po_bp.route('/purchaseorders/<int:po_id>/send-to-supplier')
+@login_required
+@role_required('Admin', 'Procurement', 'Finance')
+def send_to_supplier(po_id):
+    """Page to send PO to supplier via email"""
+    db = Database()
+    conn = db.get_connection()
+    
+    po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+    if not po:
+        conn.close()
+        flash('Purchase order not found', 'danger')
+        return redirect(url_for('po_routes.list_purchaseorders'))
+    
+    supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (po['supplier_id'],)).fetchone()
+    
+    lines = conn.execute('''
+        SELECT pol.*, p.part_number, p.description, u.uom_code
+        FROM purchase_order_lines pol
+        JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master u ON pol.uom_id = u.id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (po_id,)).fetchall()
+    
+    total_amount = sum(line['quantity'] * line['unit_price'] for line in lines)
+    
+    existing_token = conn.execute('''
+        SELECT * FROM po_supplier_tokens
+        WHERE po_id = ? AND supplier_id = ? AND expires_at > ?
+        ORDER BY created_at DESC LIMIT 1
+    ''', (po_id, supplier['id'], datetime.now().isoformat())).fetchone()
+    
+    conn.close()
+    
+    return render_template('purchaseorders/send_to_supplier.html',
+                         po=po,
+                         supplier=supplier,
+                         lines=lines,
+                         total_amount=total_amount,
+                         existing_token=existing_token)
+
+
+@po_bp.route('/purchaseorders/<int:po_id>/generate-link', methods=['POST'])
+@login_required
+@role_required('Admin', 'Procurement', 'Finance')
+def generate_supplier_link(po_id):
+    """Generate secure token link for supplier to view PO"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+        if not po:
+            conn.close()
+            flash('Purchase order not found', 'danger')
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(days=30)
+        
+        conn.execute('''
+            INSERT INTO po_supplier_tokens (po_id, supplier_id, token, expires_at)
+            VALUES (?, ?, ?, ?)
+        ''', (po_id, po['supplier_id'], token, expires_at.isoformat()))
+        
+        conn.commit()
+        flash('Secure link generated successfully', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error generating link: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+
+
+@po_bp.route('/purchaseorders/<int:po_id>/email-link', methods=['POST'])
+@login_required
+@role_required('Admin', 'Procurement', 'Finance')
+def email_supplier_link(po_id):
+    """Email PO secure link to supplier"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (po_id,)).fetchone()
+        if not po:
+            conn.close()
+            flash('Purchase order not found', 'danger')
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (po['supplier_id'],)).fetchone()
+        if not supplier or not supplier['email']:
+            conn.close()
+            flash('Supplier does not have an email address on file', 'warning')
+            return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+        
+        token_record = conn.execute('''
+            SELECT * FROM po_supplier_tokens
+            WHERE po_id = ? AND supplier_id = ? AND expires_at > ?
+            ORDER BY created_at DESC LIMIT 1
+        ''', (po_id, supplier['id'], datetime.now().isoformat())).fetchone()
+        
+        if not token_record:
+            conn.close()
+            flash('No valid link found. Please generate a link first.', 'warning')
+            return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+        
+        api_key, from_email = get_brevo_credentials()
+        if not api_key or not from_email:
+            conn.close()
+            flash('Email service not configured. Please set BREVO_API_KEY and BREVO_FROM_EMAIL in Secrets.', 'danger')
+            return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+        
+        company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+        company_name = company['company_name'] if company else 'Dynamic.IQ-COREx'
+        
+        base_url = request.url_root.rstrip('/')
+        supplier_link = f"{base_url}/po/view/{token_record['token']}"
+        
+        lines = conn.execute('''
+            SELECT pol.*, p.part_number, p.description
+            FROM purchase_order_lines pol
+            JOIN products p ON pol.product_id = p.id
+            WHERE pol.po_id = ?
+            ORDER BY pol.line_number
+        ''', (po_id,)).fetchall()
+        
+        total_amount = sum(line['quantity'] * line['unit_price'] for line in lines)
+        
+        lines_html = ""
+        for line in lines:
+            line_total = line['quantity'] * line['unit_price']
+            lines_html += f'''
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{line['part_number']}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{line['description'][:40] if line['description'] else ''}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{line['quantity']}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${line['unit_price']:.2f}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${line_total:.2f}</td>
+                </tr>
+            '''
+        
+        html_content = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }}
+        .container {{ max-width: 650px; margin: 0 auto; background-color: #ffffff; }}
+        .header {{ background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%); color: white; padding: 30px; text-align: center; }}
+        .header h1 {{ margin: 0; font-size: 24px; }}
+        .content {{ padding: 30px; }}
+        .po-box {{ background-color: #f1f5f9; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+        .po-box h3 {{ color: #1e3a5f; margin-top: 0; }}
+        .detail-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }}
+        .detail-label {{ color: #64748b; }}
+        .detail-value {{ color: #1e293b; font-weight: 500; }}
+        .btn {{ display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 15px 40px; 
+                text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }}
+        .btn:hover {{ background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }}
+        .footer {{ background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th {{ background-color: #f1f5f9; padding: 10px; text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{company_name}</h1>
+            <p style="margin: 10px 0 0; opacity: 0.9;">Purchase Order</p>
+        </div>
+        <div class="content">
+            <p>Dear {supplier['name']},</p>
+            <p>Please find below the details of our Purchase Order:</p>
+            
+            <div class="po-box">
+                <h3>PO #{po['po_number']}</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Order Date</span>
+                    <span class="detail-value">{po['order_date'] if po['order_date'] else 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Expected Delivery</span>
+                    <span class="detail-value">{po['expected_delivery_date'] if po['expected_delivery_date'] else 'TBD'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total Amount</span>
+                    <span class="detail-value" style="font-size: 18px; color: #3b82f6;">${total_amount:.2f}</span>
+                </div>
+            </div>
+            
+            <h4>Order Items</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Part #</th>
+                        <th>Description</th>
+                        <th style="text-align: right;">Qty</th>
+                        <th style="text-align: right;">Unit Price</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {lines_html}
+                </tbody>
+            </table>
+            
+            <p style="margin-top: 25px;">Click the button below to view the complete Purchase Order online:</p>
+            
+            <div style="text-align: center;">
+                <a href="{supplier_link}" class="btn">View Purchase Order</a>
+            </div>
+            
+            <p>If you have any questions about this order, please contact us directly.</p>
+            
+            <p>Thank you for your partnership.</p>
+            
+            <p>Best regards,<br>
+            <strong>{company_name}</strong></p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from {company_name}.</p>
+        </div>
+    </div>
+</body>
+</html>
+'''
+        
+        success, result = send_po_email_via_brevo(
+            supplier['email'],
+            supplier['name'],
+            f"Purchase Order {po['po_number']} from {company_name}",
+            html_content,
+            from_email,
+            company_name,
+            api_key
+        )
+        
+        if success:
+            conn.execute('''
+                UPDATE po_supplier_tokens 
+                SET email_sent = 1, email_sent_at = ? 
+                WHERE id = ?
+            ''', (datetime.now().isoformat(), token_record['id']))
+            conn.commit()
+            flash(f'Purchase Order email sent successfully to {supplier["email"]}', 'success')
+        else:
+            flash(f'Failed to send email: {result}', 'danger')
+        
+        conn.close()
+        return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error sending email: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
+
+
+@po_bp.route('/po/view/<token>')
+def supplier_view_po(token):
+    """Public portal for suppliers to view PO via token"""
+    db = Database()
+    conn = db.get_connection()
+    
+    token_record = conn.execute('''
+        SELECT * FROM po_supplier_tokens WHERE token = ?
+    ''', (token,)).fetchone()
+    
+    if not token_record:
+        conn.close()
+        return render_template('errors/invalid_token.html', 
+                             message='This link is invalid or has expired.'), 404
+    
+    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+        conn.close()
+        return render_template('errors/invalid_token.html',
+                             message='This link has expired. Please contact the company for a new link.'), 410
+    
+    conn.execute('''
+        UPDATE po_supplier_tokens SET last_accessed_at = ? WHERE id = ?
+    ''', (datetime.now().isoformat(), token_record['id']))
+    conn.commit()
+    
+    po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (token_record['po_id'],)).fetchone()
+    supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (token_record['supplier_id'],)).fetchone()
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    
+    lines = conn.execute('''
+        SELECT pol.*, p.part_number, p.description, u.uom_code
+        FROM purchase_order_lines pol
+        JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master u ON pol.uom_id = u.id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (token_record['po_id'],)).fetchall()
+    
+    total_amount = sum(line['quantity'] * line['unit_price'] for line in lines)
+    
+    conn.close()
+    
+    return render_template('purchaseorders/supplier_portal.html',
+                         po=po,
+                         supplier=supplier,
+                         company=company,
+                         lines=lines,
+                         total_amount=total_amount)

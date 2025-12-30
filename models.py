@@ -2360,6 +2360,26 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_tokens_rfq ON rfq_supplier_tokens(rfq_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_rfq_responses_rfq ON rfq_supplier_responses(rfq_id)')
         
+        # PO Supplier Token tables (for email portal access)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS po_supplier_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                po_id INTEGER NOT NULL,
+                supplier_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                is_used INTEGER DEFAULT 0,
+                email_sent INTEGER DEFAULT 0,
+                email_sent_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_accessed_at TIMESTAMP,
+                FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_tokens_token ON po_supplier_tokens(token)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_tokens_po ON po_supplier_tokens(po_id)')
+        
         # Organizational Analyzer tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS org_kpi_definitions (

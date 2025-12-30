@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Send PO to Supplier - {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-send me-2"></i>Send PO to Supplier
+            </h1>
+            <p class="text-muted mb-0">{{ po.po_number }} - {{ supplier.name }}</p>
+        </div>
+        <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to PO
+        </a>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-envelope-paper me-2"></i>Email Purchase Order</h5>
+                </div>
+                <div class="card-body">
+                    {% if supplier.email %}
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-building fs-4 text-primary me-3"></i>
+                            <div>
+                                <h6 class="mb-0">{{ supplier.name }}</h6>
+                                <small class="text-muted">{{ supplier.email }}</small>
+                            </div>
+                        </div>
+                        
+                        {% if existing_token %}
+                        <div class="alert alert-success mb-3">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Link Generated</strong> - Valid until {{ existing_token.expires_at[:10] }}
+                            {% if existing_token.email_sent %}
+                            <br><small class="text-muted">Email sent on {{ existing_token.email_sent_at[:16] if existing_token.email_sent_at else 'N/A' }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="btn-group w-100 mb-3">
+                            <button class="btn btn-outline-primary copy-link-btn" data-token="{{ existing_token.token }}">
+                                <i class="bi bi-clipboard me-1"></i> Copy Link
+                            </button>
+                            <form method="POST" action="{{ url_for('po_routes.email_supplier_link', po_id=po.id) }}" class="email-form d-inline" data-supplier="{{ supplier.name }}" style="flex: 1;">
+                                <button type="submit" class="btn btn-success w-100" style="border-radius: 0 0.375rem 0.375rem 0;">
+                                    <i class="bi bi-envelope me-1"></i> Send Email
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('po_routes.generate_supplier_link', po_id=po.id) }}" class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-link-45deg me-1"></i> Generate Secure Link
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>No Email on File</strong>
+                        <p class="mb-0 mt-2">This supplier does not have an email address. Please update the supplier record first.</p>
+                    </div>
+                    <a href="{{ url_for('supplier_routes.edit_supplier', id=supplier.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-1"></i> Edit Supplier
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Generate a secure link for this purchase order</li>
+                        <li class="mb-2">Send the email or copy the link to share manually</li>
+                        <li class="mb-2">Supplier clicks the link to view the PO details</li>
+                        <li class="mb-0">Link expires after 30 days for security</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>PO Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted" style="width: 40%;">PO Number</td>
+                            <td><strong>{{ po.po_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status</td>
+                            <td>
+                                {% if po.status == 'Draft' %}
+                                <span class="badge bg-secondary">{{ po.status }}</span>
+                                {% elif po.status == 'Pending' %}
+                                <span class="badge bg-warning text-dark">{{ po.status }}</span>
+                                {% elif po.status == 'Ordered' %}
+                                <span class="badge bg-primary">{{ po.status }}</span>
+                                {% elif po.status == 'Partial' %}
+                                <span class="badge bg-info">{{ po.status }}</span>
+                                {% elif po.status == 'Received' %}
+                                <span class="badge bg-success">{{ po.status }}</span>
+                                {% else %}
+                                <span class="badge bg-dark">{{ po.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Order Date</td>
+                            <td>{{ po.order_date if po.order_date else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Expected Delivery</td>
+                            <td>{{ po.expected_delivery_date if po.expected_delivery_date else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Line Items</td>
+                            <td>{{ lines|length }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total Value</td>
+                            <td><strong>${{ "%.2f"|format(total_amount) }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if lines %}
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Line Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Part #</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in lines %}
+                                <tr>
+                                    <td>{{ line.part_number }}</td>
+                                    <td>{{ line.description[:30] }}{% if line.description|length > 30 %}...{% endif %}</td>
+                                    <td class="text-end">{{ line.quantity }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(line.unit_price) }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.copy-link-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const token = this.dataset.token;
+        const link = window.location.origin + '/po/view/' + token;
+        navigator.clipboard.writeText(link).then(function() {
+            showAlert('Supplier link has been copied to your clipboard.', {
+                title: 'Link Copied',
+                type: 'success'
+            });
+        });
+    });
+});
+
+document.querySelectorAll('.email-form').forEach(function(form) {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const supplierName = this.dataset.supplier;
+        const confirmed = await showConfirm(`Send the Purchase Order email to ${supplierName}?`, {
+            title: 'Email Purchase Order',
+            type: 'info',
+            confirmText: 'Send Email',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
+            this.submit();
+        }
+    });
+});
+</script>
+{% endblock %}
