@@ -1707,7 +1707,7 @@ def send_to_supplier(po_id):
     supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (po['supplier_id'],)).fetchone()
     
     lines = conn.execute('''
-        SELECT pol.*, p.part_number, p.description, u.uom_code
+        SELECT pol.*, p.code as part_number, p.name as description, u.uom_code
         FROM purchase_order_lines pol
         JOIN products p ON pol.product_id = p.id
         LEFT JOIN uom_master u ON pol.uom_id = u.id
@@ -1813,7 +1813,7 @@ def email_supplier_link(po_id):
         supplier_link = f"{base_url}/po/view/{token_record['token']}"
         
         lines = conn.execute('''
-            SELECT pol.*, p.part_number, p.description
+            SELECT pol.*, p.code as part_number, p.name as description
             FROM purchase_order_lines pol
             JOIN products p ON pol.product_id = p.id
             WHERE pol.po_id = ?
@@ -1982,7 +1982,7 @@ def supplier_view_po(token):
     company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
     
     lines = conn.execute('''
-        SELECT pol.*, p.part_number, p.description, u.uom_code
+        SELECT pol.*, p.code as part_number, p.name as description, u.uom_code
         FROM purchase_order_lines pol
         JOIN products p ON pol.product_id = p.id
         LEFT JOIN uom_master u ON pol.uom_id = u.id
