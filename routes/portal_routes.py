@@ -358,3 +358,224 @@ def portal_decline_quote(token, quote_id):
 def generate_portal_token():
     """Generate a secure random portal token"""
     return secrets.token_urlsafe(32)
+
+
+# ============== SUPPLIER PORTAL ROUTES ==============
+
+@portal_bp.route('/supplier-portal/<token>')
+def supplier_portal(token):
+    """Public supplier portal - no login required"""
+    db = Database()
+    conn = db.get_connection()
+    
+    token_record = conn.execute('''
+        SELECT spt.*, s.name as supplier_name, s.contact_name, s.email, s.phone
+        FROM supplier_portal_tokens spt
+        JOIN suppliers s ON spt.supplier_id = s.id
+        WHERE spt.token = ? AND spt.is_active = 1
+    ''', (token,)).fetchone()
+    
+    if not token_record:
+        conn.close()
+        return render_template('portal/invalid.html', 
+                             message='This supplier portal link is invalid.'), 404
+    
+    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+        conn.close()
+        return render_template('portal/invalid.html',
+                             message='This supplier portal link has expired.'), 410
+    
+    conn.execute('''
+        UPDATE supplier_portal_tokens 
+        SET last_accessed_at = ?, access_count = access_count + 1 
+        WHERE id = ?
+    ''', (datetime.now().isoformat(), token_record['id']))
+    conn.commit()
+    
+    open_pos = conn.execute('''
+        SELECT po.*, 
+               (SELECT COUNT(*) FROM purchase_order_lines WHERE po_id = po.id) as line_count,
+               (SELECT SUM(quantity * unit_price) FROM purchase_order_lines WHERE po_id = po.id) as total_amount,
+               (SELECT SUM(received_quantity) FROM purchase_order_lines WHERE po_id = po.id) as total_received
+        FROM purchase_orders po
+        WHERE po.supplier_id = ? AND po.status IN ('Ordered', 'Pending', 'Partial', 'Confirmed')
+        ORDER BY po.order_date DESC
+    ''', (token_record['supplier_id'],)).fetchall()
+    
+    po_lines = conn.execute('''
+        SELECT pol.id, pol.po_id, pol.line_number, pol.quantity, pol.unit_price, 
+               pol.received_quantity, pol.description as line_description,
+               po.po_number, po.order_date, po.expected_delivery,
+               p.code as part_number, 
+               COALESCE(NULLIF(pol.description, ''), p.name, p.description) as description,
+               u.uom_code,
+               spu.tracking_number, spu.supplier_notes, spu.estimated_ship_date
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        LEFT JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master u ON pol.uom_id = u.id
+        LEFT JOIN supplier_portal_updates spu ON pol.id = spu.po_line_id
+        WHERE po.supplier_id = ? AND po.status IN ('Ordered', 'Pending', 'Partial', 'Confirmed')
+        ORDER BY po.order_date DESC, pol.line_number
+    ''', (token_record['supplier_id'],)).fetchall()
+    
+    stats = {
+        'open_pos': len(open_pos),
+        'open_lines': len(po_lines),
+        'pending_shipment': len([l for l in po_lines if (l['received_quantity'] or 0) < l['quantity']]),
+        'total_value': sum(po['total_amount'] or 0 for po in open_pos)
+    }
+    
+    conn.close()
+    
+    return render_template('portal/supplier_dashboard.html',
+                         supplier=token_record,
+                         open_pos=open_pos,
+                         po_lines=po_lines,
+                         stats=stats,
+                         token=token)
+
+
+@portal_bp.route('/supplier-portal/<token>/po/<int:po_id>')
+def supplier_portal_po_detail(token, po_id):
+    """View PO details in supplier portal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    token_record = conn.execute('''
+        SELECT spt.*, s.name as supplier_name, s.contact_name, s.email
+        FROM supplier_portal_tokens spt
+        JOIN suppliers s ON spt.supplier_id = s.id
+        WHERE spt.token = ? AND spt.is_active = 1
+    ''', (token,)).fetchone()
+    
+    if not token_record:
+        conn.close()
+        return render_template('portal/invalid.html'), 404
+    
+    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+        conn.close()
+        return render_template('portal/invalid.html',
+                             message='This supplier portal link has expired.'), 410
+    
+    po = conn.execute('''
+        SELECT po.*
+        FROM purchase_orders po
+        WHERE po.id = ? AND po.supplier_id = ?
+    ''', (po_id, token_record['supplier_id'])).fetchone()
+    
+    if not po:
+        conn.close()
+        flash('Purchase order not found', 'danger')
+        return redirect(url_for('portal.supplier_portal', token=token))
+    
+    lines = conn.execute('''
+        SELECT pol.id, pol.line_number, pol.quantity, pol.unit_price, 
+               pol.received_quantity, pol.description as line_description,
+               p.code as part_number, 
+               COALESCE(NULLIF(pol.description, ''), p.name, p.description) as description,
+               u.uom_code,
+               spu.tracking_number, spu.supplier_notes, spu.estimated_ship_date,
+               spu.updated_at as last_update
+        FROM purchase_order_lines pol
+        LEFT JOIN products p ON pol.product_id = p.id
+        LEFT JOIN uom_master u ON pol.uom_id = u.id
+        LEFT JOIN supplier_portal_updates spu ON pol.id = spu.po_line_id
+        WHERE pol.po_id = ?
+        ORDER BY pol.line_number
+    ''', (po_id,)).fetchall()
+    
+    total_amount = sum((l['quantity'] or 0) * (l['unit_price'] or 0) for l in lines)
+    
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    
+    conn.close()
+    
+    return render_template('portal/supplier_po_detail.html',
+                         supplier=token_record,
+                         po=po,
+                         lines=lines,
+                         total_amount=total_amount,
+                         company=company,
+                         token=token)
+
+
+@portal_bp.route('/supplier-portal/<token>/update-line/<int:line_id>', methods=['POST'])
+def supplier_portal_update_line(token, line_id):
+    """Update tracking number or notes for a PO line"""
+    db = Database()
+    conn = db.get_connection()
+    
+    token_record = conn.execute('''
+        SELECT spt.*, s.name as supplier_name
+        FROM supplier_portal_tokens spt
+        JOIN suppliers s ON spt.supplier_id = s.id
+        WHERE spt.token = ? AND spt.is_active = 1
+    ''', (token,)).fetchone()
+    
+    if not token_record:
+        conn.close()
+        return render_template('portal/invalid.html'), 404
+    
+    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+        conn.close()
+        return render_template('portal/invalid.html',
+                             message='This supplier portal link has expired.'), 410
+    
+    line = conn.execute('''
+        SELECT pol.*, po.supplier_id, po.id as po_id
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE pol.id = ? AND po.supplier_id = ?
+    ''', (line_id, token_record['supplier_id'])).fetchone()
+    
+    if not line:
+        conn.close()
+        flash('Line item not found', 'danger')
+        return redirect(url_for('portal.supplier_portal', token=token))
+    
+    tracking_number = request.form.get('tracking_number', '').strip()
+    supplier_notes = request.form.get('supplier_notes', '').strip()
+    estimated_ship_date = request.form.get('estimated_ship_date', '').strip() or None
+    
+    existing = conn.execute('''
+        SELECT * FROM supplier_portal_updates WHERE po_line_id = ?
+    ''', (line_id,)).fetchone()
+    
+    if existing:
+        conn.execute('''
+            UPDATE supplier_portal_updates 
+            SET tracking_number = ?, supplier_notes = ?, estimated_ship_date = ?,
+                updated_at = ?, ip_address = ?
+            WHERE po_line_id = ?
+        ''', (tracking_number, supplier_notes, estimated_ship_date,
+              datetime.now().isoformat(), request.remote_addr, line_id))
+    else:
+        conn.execute('''
+            INSERT INTO supplier_portal_updates 
+            (po_line_id, tracking_number, supplier_notes, estimated_ship_date, ip_address)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (line_id, tracking_number, supplier_notes, estimated_ship_date, request.remote_addr))
+    
+    AuditLogger.log_change(
+        conn=conn,
+        record_type='purchase_order_line',
+        record_id=line_id,
+        action_type='Supplier Portal Update',
+        modified_by=None,
+        changed_fields={
+            'tracking_number': tracking_number,
+            'supplier_notes': supplier_notes,
+            'estimated_ship_date': estimated_ship_date,
+            'updated_via': 'Supplier Portal',
+            'supplier': token_record['supplier_name']
+        },
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get('User-Agent')
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Update saved successfully', 'success')
+    return redirect(url_for('portal.supplier_portal_po_detail', token=token, po_id=line['po_id']))
