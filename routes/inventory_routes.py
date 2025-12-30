@@ -992,11 +992,11 @@ def generate_inventory_label(id):
         ''', (id, inventory['product_id'])).fetchone()
         
         related_ro = conn.execute('''
-            SELECT ro.ro_number, s.name as supplier_name, c.name as customer_name
+            SELECT ro.ro_number, s.name as supplier_name
             FROM repair_orders ro
-            LEFT JOIN suppliers s ON ro.supplier_id = s.id
-            LEFT JOIN customers c ON ro.customer_id = c.id
-            WHERE ro.inventory_id = ?
+            LEFT JOIN suppliers s ON ro.vendor_id = s.id
+            LEFT JOIN repair_order_lines rol ON rol.ro_id = ro.id
+            WHERE rol.inventory_id = ?
             ORDER BY ro.created_at DESC
             LIMIT 1
         ''', (id,)).fetchone()
@@ -1127,11 +1127,11 @@ def mass_print_labels():
             ''', (inv_id, inventory['product_id'])).fetchone()
             
             related_ro = conn.execute('''
-                SELECT ro.ro_number, s.name as supplier_name, c.name as customer_name
+                SELECT ro.ro_number, s.name as supplier_name
                 FROM repair_orders ro
-                LEFT JOIN suppliers s ON ro.supplier_id = s.id
-                LEFT JOIN customers c ON ro.customer_id = c.id
-                WHERE ro.inventory_id = ?
+                LEFT JOIN suppliers s ON ro.vendor_id = s.id
+                LEFT JOIN repair_order_lines rol ON rol.ro_id = ro.id
+                WHERE rol.inventory_id = ?
                 ORDER BY ro.created_at DESC
                 LIMIT 1
             ''', (inv_id,)).fetchone()
