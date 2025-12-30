@@ -963,7 +963,7 @@ def generate_inventory_label(id):
     try:
         inventory = conn.execute('''
             SELECT i.*, p.code, p.name, p.description as product_description, 
-                   p.unit_of_measure, p.category
+                   p.unit_of_measure
             FROM inventory i
             JOIN products p ON i.product_id = p.id
             WHERE i.id = ?
@@ -1101,7 +1101,7 @@ def mass_print_labels():
         for inv_id in ids:
             inventory = conn.execute('''
                 SELECT i.*, p.code, p.name, p.description as product_description, 
-                       p.unit_of_measure, p.category
+                       p.unit_of_measure
                 FROM inventory i
                 JOIN products p ON i.product_id = p.id
                 WHERE i.id = ?
