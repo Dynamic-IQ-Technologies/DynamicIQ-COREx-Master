@@ -6,6 +6,31 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Inventory: {{ inventory.code }} - {{ inventory.name }}</h2>
     <div>
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-tag"></i> FAA Label
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><h6 class="dropdown-header">Label Size</h6></li>
+                <li><a class="dropdown-item" href="{{ url_for('inventory_routes.generate_inventory_label', id=inventory.id, size='4x6') }}" target="_blank">
+                    <i class="bi bi-file-pdf me-2"></i>4" x 6" (Standard)
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('inventory_routes.generate_inventory_label', id=inventory.id, size='4x4') }}" target="_blank">
+                    <i class="bi bi-file-pdf me-2"></i>4" x 4" (Compact)
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('inventory_routes.generate_inventory_label', id=inventory.id, size='2x4') }}" target="_blank">
+                    <i class="bi bi-file-pdf me-2"></i>2" x 4" (Small)
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Multiple Copies</h6></li>
+                <li><a class="dropdown-item" href="{{ url_for('inventory_routes.generate_inventory_label', id=inventory.id, size='4x6', copies=2) }}" target="_blank">
+                    <i class="bi bi-files me-2"></i>2 Copies (4x6)
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('inventory_routes.generate_inventory_label', id=inventory.id, size='4x6', copies=5) }}" target="_blank">
+                    <i class="bi bi-files me-2"></i>5 Copies (4x6)
+                </a></li>
+            </ul>
+        </div>
         {% if session.role in ['Admin', 'Production Staff', 'Procurement'] %}
         <a href="{{ url_for('repair_order_routes.create_repair_order', inventory_id=inventory.id) }}" class="btn btn-info">
             <i class="bi bi-wrench-adjustable"></i> Send for Repair

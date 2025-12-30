@@ -2,6 +2,14 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, AuditLogger
 from auth import login_required, role_required
 from werkzeug.utils import secure_filename
+from reportlab.lib.pagesizes import letter, inch
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.graphics.barcode import code128
+from reportlab.pdfgen import canvas
+from datetime import datetime
 import csv
 import io
 import math
@@ -914,3 +922,263 @@ def delete_inventory_document(doc_id):
         return redirect(url_for('inventory_routes.list_inventory'))
     finally:
         conn.close()
+
+
+@inventory_bp.route('/inventory/<int:id>/label')
+@login_required
+def generate_inventory_label(id):
+    """Generate FAA-compliant inventory label PDF"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        inventory = conn.execute('''
+            SELECT i.*, p.code, p.name, p.description as product_description, 
+                   p.unit_of_measure
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (id,)).fetchone()
+        
+        if not inventory:
+            flash('Inventory record not found', 'danger')
+            return redirect(url_for('inventory_routes.list_inventory'))
+        
+        buffer = io.BytesIO()
+        label_size = request.args.get('size', '4x6')
+        copies = int(request.args.get('copies', 1))
+        
+        if label_size == '4x6':
+            page_width = 4 * inch
+            page_height = 6 * inch
+        elif label_size == '4x4':
+            page_width = 4 * inch
+            page_height = 4 * inch
+        elif label_size == '2x4':
+            page_width = 4 * inch
+            page_height = 2 * inch
+        else:
+            page_width = 4 * inch
+            page_height = 6 * inch
+        
+        c = canvas.Canvas(buffer, pagesize=(page_width, page_height))
+        
+        for copy_num in range(copies):
+            if copy_num > 0:
+                c.showPage()
+            
+            draw_faa_label(c, inventory, page_width, page_height)
+        
+        c.save()
+        buffer.seek(0)
+        
+        part_number = inventory['code'] or 'UNKNOWN'
+        serial = inventory['serial_number'] or 'NS'
+        filename = f"FAA_Label_{part_number}_{serial}.pdf"
+        
+        return Response(
+            buffer.getvalue(),
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{filename}"',
+                'Content-Type': 'application/pdf'
+            }
+        )
+        
+    finally:
+        conn.close()
+
+
+def draw_faa_label(c, inventory, width, height):
+    """Draw FAA-compliant label content on canvas"""
+    margin = 0.15 * inch
+    y = height - margin
+    
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin, y, "FAA COMPLIANT PARTS IDENTIFICATION")
+    y -= 12
+    
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(1)
+    c.line(margin, y, width - margin, y)
+    y -= 15
+    
+    part_number = inventory['code'] or 'N/A'
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(margin, y, "PART NUMBER:")
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin + 80, y - 2, str(part_number))
+    y -= 20
+    
+    if part_number and len(part_number) <= 20:
+        try:
+            barcode = code128.Code128(part_number, barHeight=25, barWidth=1.2)
+            barcode.drawOn(c, margin, y - 30)
+            y -= 40
+        except:
+            y -= 5
+    
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(margin, y, "DESCRIPTION:")
+    c.setFont("Helvetica", 8)
+    desc = inventory['name'] or inventory['product_description'] or 'N/A'
+    if len(desc) > 45:
+        desc = desc[:42] + '...'
+    c.drawString(margin + 75, y, desc)
+    y -= 14
+    
+    if inventory['is_serialized'] and inventory['serial_number']:
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(margin, y, "SERIAL NUMBER:")
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin + 90, y, str(inventory['serial_number']))
+        y -= 16
+        
+        try:
+            sn_barcode = code128.Code128(str(inventory['serial_number']), barHeight=20, barWidth=1.0)
+            sn_barcode.drawOn(c, margin, y - 25)
+            y -= 32
+        except:
+            y -= 5
+    
+    if inventory['lot_number']:
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(margin, y, "LOT/BATCH:")
+        c.setFont("Helvetica", 9)
+        c.drawString(margin + 70, y, str(inventory['lot_number']))
+        y -= 14
+    
+    col1_x = margin
+    col2_x = width / 2
+    
+    if inventory['mfr_code']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "MFR CODE:")
+        c.setFont("Helvetica", 8)
+        c.drawString(col1_x + 55, y, str(inventory['mfr_code']))
+    
+    if inventory['msn_esn']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col2_x, y, "MSN/ESN:")
+        c.setFont("Helvetica", 8)
+        c.drawString(col2_x + 50, y, str(inventory['msn_esn']))
+    y -= 12
+    
+    if inventory['condition']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "CONDITION:")
+        c.setFont("Helvetica-Bold", 9)
+        cond = str(inventory['condition']).upper()
+        if cond in ['NEW', 'NE']:
+            c.setFillColor(colors.darkgreen)
+        elif cond in ['SERVICEABLE', 'SV', 'OVERHAULED', 'OH']:
+            c.setFillColor(colors.darkblue)
+        elif cond in ['REPAIRED', 'RP']:
+            c.setFillColor(colors.purple)
+        else:
+            c.setFillColor(colors.black)
+        c.drawString(col1_x + 60, y, cond)
+        c.setFillColor(colors.black)
+    
+    if inventory['country_of_origin']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col2_x, y, "ORIGIN:")
+        c.setFont("Helvetica", 8)
+        c.drawString(col2_x + 45, y, str(inventory['country_of_origin']))
+    y -= 12
+    
+    if inventory['trace_tag'] or inventory['trace']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "TRACE TAG:")
+        c.setFont("Helvetica", 8)
+        trace_val = inventory['trace_tag'] or inventory['trace'] or ''
+        if len(trace_val) > 20:
+            trace_val = trace_val[:17] + '...'
+        c.drawString(col1_x + 60, y, trace_val)
+        
+        if inventory['trace_type']:
+            c.setFont("Helvetica-Bold", 7)
+            c.drawString(col2_x, y, "TRACE TYPE:")
+            c.setFont("Helvetica", 8)
+            c.drawString(col2_x + 65, y, str(inventory['trace_type']))
+        y -= 12
+    
+    has_lifecycle = any([inventory['tsn'], inventory['tso'], inventory['csn'], inventory['cso']])
+    if has_lifecycle:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(margin, y, "LIFECYCLE DATA:")
+        y -= 10
+        
+        lifecycle_items = []
+        if inventory['tsn']:
+            lifecycle_items.append(f"TSN: {inventory['tsn']}")
+        if inventory['tso']:
+            lifecycle_items.append(f"TSO: {inventory['tso']}")
+        if inventory['csn']:
+            lifecycle_items.append(f"CSN: {inventory['csn']}")
+        if inventory['cso']:
+            lifecycle_items.append(f"CSO: {inventory['cso']}")
+        
+        c.setFont("Helvetica", 7)
+        c.drawString(margin, y, " | ".join(lifecycle_items[:4]))
+        y -= 12
+    
+    if inventory['manufactured_date']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "MFG DATE:")
+        c.setFont("Helvetica", 8)
+        mfg_date = str(inventory['manufactured_date'])[:10]
+        c.drawString(col1_x + 55, y, mfg_date)
+    
+    if inventory['expiration_date']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col2_x, y, "EXPIRES:")
+        c.setFont("Helvetica", 8)
+        exp_date = str(inventory['expiration_date'])[:10]
+        c.drawString(col2_x + 50, y, exp_date)
+    y -= 12
+    
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(0.5)
+    c.line(margin, y, width - margin, y)
+    y -= 10
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(margin, y, "WAREHOUSE:")
+    c.setFont("Helvetica", 8)
+    wh = inventory['warehouse_location'] or 'N/A'
+    c.drawString(margin + 65, y, wh)
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(col2_x, y, "BIN:")
+    c.setFont("Helvetica", 8)
+    bin_loc = inventory['bin_location'] or 'N/A'
+    c.drawString(col2_x + 25, y, bin_loc)
+    y -= 12
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(margin, y, "QTY:")
+    c.setFont("Helvetica-Bold", 10)
+    qty = inventory['quantity'] or 0
+    uom = inventory['unit_of_measure'] or 'EA'
+    c.drawString(margin + 25, y, f"{qty} {uom}")
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(col2_x, y, "INV ID:")
+    c.setFont("Helvetica", 8)
+    c.drawString(col2_x + 40, y, str(inventory['id']))
+    y -= 15
+    
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(1)
+    c.line(margin, y, width - margin, y)
+    y -= 10
+    
+    c.setFont("Helvetica", 6)
+    c.drawString(margin, y, "Per 14 CFR Part 45 - FAA Identification & Marking Requirements")
+    y -= 8
+    c.drawString(margin, y, f"Label Generated: {datetime.now().strftime('%m/%d/%Y %I:%M %p')}")
+    
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(1.5)
+    c.rect(margin/2, margin/2, width - margin, height - margin)
