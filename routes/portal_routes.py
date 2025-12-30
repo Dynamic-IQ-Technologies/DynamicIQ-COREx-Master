@@ -369,7 +369,7 @@ def supplier_portal(token):
     conn = db.get_connection()
     
     token_record = conn.execute('''
-        SELECT spt.*, s.name as supplier_name, s.contact_name, s.email, s.phone
+        SELECT spt.*, s.name as supplier_name, s.contact_person as contact_name, s.email, s.phone
         FROM supplier_portal_tokens spt
         JOIN suppliers s ON spt.supplier_id = s.id
         WHERE spt.token = ? AND spt.is_active = 1
@@ -443,7 +443,7 @@ def supplier_portal_po_detail(token, po_id):
     conn = db.get_connection()
     
     token_record = conn.execute('''
-        SELECT spt.*, s.name as supplier_name, s.contact_name, s.email
+        SELECT spt.*, s.name as supplier_name, s.contact_person as contact_name, s.email
         FROM supplier_portal_tokens spt
         JOIN suppliers s ON spt.supplier_id = s.id
         WHERE spt.token = ? AND spt.is_active = 1

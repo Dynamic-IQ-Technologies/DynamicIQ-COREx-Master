@@ -205,17 +205,15 @@
                             <p class="mb-0 small">Accessed: {{ portal_token.access_count }} times</p>
                             {% endif %}
                         </div>
-                        <form method="POST" action="{{ url_for('supplier_routes.revoke_portal_link', id=supplier.id) }}" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Revoke this supplier portal link?')">
-                                <i class="bi bi-x-circle me-1"></i>Revoke
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#revokePortalModal">
+                            <i class="bi bi-x-circle me-1"></i>Revoke
+                        </button>
                     </div>
                 </div>
                 <div class="input-group mb-2">
                     <input type="text" class="form-control form-control-sm" id="portalLink" readonly 
                            value="{{ request.host_url }}supplier-portal/{{ portal_token.token }}">
-                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="copyPortalLink()">
+                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="copyPortalLink(this)">
                         <i class="bi bi-clipboard me-1"></i>Copy
                     </button>
                 </div>
@@ -355,13 +353,37 @@
 </div>
 {% endif %}
 
+{% if portal_token %}
+<div class="modal fade" id="revokePortalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Revoke Portal Link</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to revoke this supplier portal link?</p>
+                <p class="text-muted small mb-0">The supplier will no longer be able to access their portal using this link. You can generate a new link at any time.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('supplier_routes.revoke_portal_link', id=supplier.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-x-circle me-1"></i>Revoke Link
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
-function copyPortalLink() {
+function copyPortalLink(btn) {
     const linkInput = document.getElementById('portalLink');
     linkInput.select();
     linkInput.setSelectionRange(0, 99999);
     navigator.clipboard.writeText(linkInput.value).then(function() {
-        const btn = event.target.closest('button');
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
         btn.classList.remove('btn-outline-primary');
