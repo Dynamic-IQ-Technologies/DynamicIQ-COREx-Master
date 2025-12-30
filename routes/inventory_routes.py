@@ -984,10 +984,8 @@ def generate_inventory_label(id):
         ''', (inventory['product_id'],)).fetchone()
         
         related_wo = conn.execute('''
-            SELECT wo.wo_number, c.name as customer_name
+            SELECT wo.wo_number
             FROM work_orders wo
-            LEFT JOIN sales_orders so ON wo.sales_order_id = so.id
-            LEFT JOIN customers c ON so.customer_id = c.id
             WHERE wo.inventory_id = ? OR wo.product_id = ?
             ORDER BY wo.created_at DESC
             LIMIT 1
@@ -1121,10 +1119,8 @@ def mass_print_labels():
             ''', (inventory['product_id'],)).fetchone()
             
             related_wo = conn.execute('''
-                SELECT wo.wo_number, c.name as customer_name
+                SELECT wo.wo_number
                 FROM work_orders wo
-                LEFT JOIN sales_orders so ON wo.sales_order_id = so.id
-                LEFT JOIN customers c ON so.customer_id = c.id
                 WHERE wo.inventory_id = ? OR wo.product_id = ?
                 ORDER BY wo.created_at DESC
                 LIMIT 1
