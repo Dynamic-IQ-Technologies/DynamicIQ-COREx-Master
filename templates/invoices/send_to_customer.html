@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Send Invoice to Customer - {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-envelope-paper me-2"></i>Send Invoice to Customer
+            </h1>
+            <p class="text-muted mb-0">{{ invoice.invoice_number }} - {{ invoice.customer_name }}</p>
+        </div>
+        <a href="{{ url_for('invoice_routes.view_invoice', id=invoice.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Invoice
+        </a>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-envelope-paper me-2"></i>Email Invoice</h5>
+                </div>
+                <div class="card-body">
+                    {% if invoice.customer_email %}
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-person-circle fs-4 text-primary me-3"></i>
+                            <div>
+                                <h6 class="mb-0">{{ invoice.customer_name }}</h6>
+                                <small class="text-muted">{{ invoice.customer_email }}</small>
+                            </div>
+                        </div>
+                        
+                        {% if existing_token %}
+                        <div class="alert alert-success mb-3">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Link Generated</strong> - Valid until {{ existing_token.expires_at[:10] }}
+                            {% if existing_token.email_sent %}
+                            <br><small class="text-muted">Email sent on {{ existing_token.email_sent_at[:16] if existing_token.email_sent_at else 'N/A' }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="btn-group w-100 mb-3">
+                            <button class="btn btn-outline-primary copy-link-btn" data-token="{{ existing_token.token }}">
+                                <i class="bi bi-clipboard me-1"></i> Copy Link
+                            </button>
+                            <form method="POST" action="{{ url_for('invoice_routes.email_customer_link', invoice_id=invoice.id) }}" class="email-form d-inline" data-customer="{{ invoice.customer_name }}" style="flex: 1;">
+                                <button type="submit" class="btn btn-success w-100" style="border-radius: 0 0.375rem 0.375rem 0;">
+                                    <i class="bi bi-envelope me-1"></i> Send Email
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('invoice_routes.generate_customer_link', invoice_id=invoice.id) }}" class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-link-45deg me-1"></i> Generate Secure Link
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>No Email on File</strong>
+                        <p class="mb-0 mt-2">This customer does not have an email address. Please update the customer record first.</p>
+                    </div>
+                    <a href="{{ url_for('customer_routes.edit_customer', id=invoice.customer_id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-1"></i> Edit Customer
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Generate a secure link for this invoice</li>
+                        <li class="mb-2">Send the email or copy the link to share manually</li>
+                        <li class="mb-2">Customer clicks the link to view invoice details</li>
+                        <li class="mb-0">Link expires after 60 days for security</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Invoice Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted" style="width: 40%;">Invoice Number</td>
+                            <td><strong>{{ invoice.invoice_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status</td>
+                            <td>
+                                {% if invoice.status == 'Draft' %}
+                                <span class="badge bg-secondary">{{ invoice.status }}</span>
+                                {% elif invoice.status == 'Approved' %}
+                                <span class="badge bg-primary">{{ invoice.status }}</span>
+                                {% elif invoice.status == 'Posted' %}
+                                <span class="badge bg-success">{{ invoice.status }}</span>
+                                {% elif invoice.status == 'Paid' %}
+                                <span class="badge bg-success">{{ invoice.status }}</span>
+                                {% else %}
+                                <span class="badge bg-dark">{{ invoice.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Invoice Date</td>
+                            <td>{{ invoice.invoice_date }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Due Date</td>
+                            <td>{{ invoice.due_date }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Subtotal</td>
+                            <td>${{ "%.2f"|format(invoice.subtotal) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Tax</td>
+                            <td>${{ "%.2f"|format(invoice.tax_amount) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total Amount</td>
+                            <td><strong>${{ "%.2f"|format(invoice.total_amount) }}</strong></td>
+                        </tr>
+                        <tr class="table-warning">
+                            <td class="text-muted"><strong>Balance Due</strong></td>
+                            <td><strong class="text-danger fs-5">${{ "%.2f"|format(invoice.balance_due) }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if lines %}
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Line Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in lines %}
+                                <tr>
+                                    <td>{{ line.part_number or '-' }}</td>
+                                    <td>{{ line.description[:30] if line.description else '-' }}{% if line.description and line.description|length > 30 %}...{% endif %}</td>
+                                    <td class="text-end">{{ line.quantity }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(line.unit_price) }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(line.line_total) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.copy-link-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const token = this.dataset.token;
+        const link = window.location.origin + '/invoice/view/' + token;
+        navigator.clipboard.writeText(link).then(function() {
+            showAlert('Customer link has been copied to your clipboard.', {
+                title: 'Link Copied',
+                type: 'success'
+            });
+        });
+    });
+});
+
+document.querySelectorAll('.email-form').forEach(function(form) {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const customerName = this.dataset.customer;
+        const confirmed = await showConfirm(`Send the invoice email to ${customerName}?`, {
+            title: 'Email Invoice',
+            type: 'info',
+            confirmText: 'Send Email',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
+            this.submit();
+        }
+    });
+});
+</script>
+{% endblock %}

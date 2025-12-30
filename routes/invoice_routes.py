@@ -1,7 +1,44 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models import Database
+from models import Database, AuditLogger
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+import secrets
+import os
+
+
+def get_brevo_credentials():
+    """Get Brevo API key and from email from environment"""
+    api_key = os.environ.get('BREVO_API_KEY')
+    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    return api_key, from_email
+
+
+def send_invoice_email_via_brevo(to_email, to_name, subject, html_content, from_email, from_name, api_key):
+    """Send invoice email using Brevo API"""
+    import sib_api_v3_sdk
+    from sib_api_v3_sdk.rest import ApiException
+    
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = api_key
+    
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+    
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=[{"email": to_email, "name": to_name}],
+        sender={"email": from_email, "name": from_name},
+        subject=subject,
+        html_content=html_content
+    )
+    
+    try:
+        api_response = api_instance.send_transac_email(send_smtp_email)
+        if api_response and hasattr(api_response, 'message_id') and api_response.message_id:
+            return True, str(api_response.message_id)
+        return True, 'Email sent successfully'
+    except ApiException as e:
+        return False, str(e)
+    except Exception as e:
+        return False, str(e)
 
 invoice_bp = Blueprint('invoice_routes', __name__)
 
@@ -718,3 +755,328 @@ def create_from_ndt_wo(ndt_wo_id):
                          ndt_wo=ndt_wo,
                          inspection_results=inspection_results,
                          today=datetime.now().strftime('%Y-%m-%d'))
+
+
+@invoice_bp.route('/invoices/<int:invoice_id>/send-to-customer')
+@login_required
+@role_required('Admin', 'Accountant', 'Finance')
+def send_to_customer(invoice_id):
+    """Page to send invoice to customer via email"""
+    db = Database()
+    conn = db.get_connection()
+    
+    invoice = conn.execute('''
+        SELECT i.*, c.name as customer_name, c.email as customer_email, c.customer_number
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        WHERE i.id = ?
+    ''', (invoice_id,)).fetchone()
+    
+    if not invoice:
+        conn.close()
+        flash('Invoice not found', 'danger')
+        return redirect(url_for('invoice_routes.list_invoices'))
+    
+    lines = conn.execute('''
+        SELECT il.*, p.code as part_number, p.name as product_name
+        FROM invoice_lines il
+        LEFT JOIN products p ON il.product_id = p.id
+        WHERE il.invoice_id = ?
+        ORDER BY il.line_number
+    ''', (invoice_id,)).fetchall()
+    
+    existing_token = conn.execute('''
+        SELECT * FROM invoice_customer_tokens
+        WHERE invoice_id = ? AND customer_id = ? AND expires_at > ?
+        ORDER BY created_at DESC LIMIT 1
+    ''', (invoice_id, invoice['customer_id'], datetime.now().isoformat())).fetchone()
+    
+    conn.close()
+    
+    return render_template('invoices/send_to_customer.html',
+                         invoice=invoice,
+                         lines=lines,
+                         existing_token=existing_token)
+
+
+@invoice_bp.route('/invoices/<int:invoice_id>/generate-link', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant', 'Finance')
+def generate_customer_link(invoice_id):
+    """Generate secure token link for customer to view invoice"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('''
+            SELECT i.*, c.id as customer_id FROM invoices i
+            JOIN customers c ON i.customer_id = c.id
+            WHERE i.id = ?
+        ''', (invoice_id,)).fetchone()
+        
+        if not invoice:
+            conn.close()
+            flash('Invoice not found', 'danger')
+            return redirect(url_for('invoice_routes.list_invoices'))
+        
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(days=60)
+        
+        conn.execute('''
+            INSERT INTO invoice_customer_tokens (invoice_id, customer_id, token, expires_at)
+            VALUES (?, ?, ?, ?)
+        ''', (invoice_id, invoice['customer_id'], token, expires_at.isoformat()))
+        
+        conn.commit()
+        flash('Secure link generated successfully', 'success')
+        conn.close()
+        return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error generating link: {str(e)}', 'danger')
+        return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+
+
+@invoice_bp.route('/invoices/<int:invoice_id>/email-link', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant', 'Finance')
+def email_customer_link(invoice_id):
+    """Email invoice secure link to customer"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('''
+            SELECT i.*, c.name as customer_name, c.email as customer_email
+            FROM invoices i
+            JOIN customers c ON i.customer_id = c.id
+            WHERE i.id = ?
+        ''', (invoice_id,)).fetchone()
+        
+        if not invoice:
+            conn.close()
+            flash('Invoice not found', 'danger')
+            return redirect(url_for('invoice_routes.list_invoices'))
+        
+        if not invoice['customer_email']:
+            conn.close()
+            flash('Customer does not have an email address on file', 'warning')
+            return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+        
+        token_record = conn.execute('''
+            SELECT * FROM invoice_customer_tokens
+            WHERE invoice_id = ? AND expires_at > ?
+            ORDER BY created_at DESC LIMIT 1
+        ''', (invoice_id, datetime.now().isoformat())).fetchone()
+        
+        if not token_record:
+            conn.close()
+            flash('No valid link found. Please generate a link first.', 'warning')
+            return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+        
+        api_key, from_email = get_brevo_credentials()
+        if not api_key or not from_email:
+            conn.close()
+            flash('Email service not configured. Please set BREVO_API_KEY and BREVO_FROM_EMAIL in Secrets.', 'danger')
+            return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+        
+        company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+        company_name = company['company_name'] if company else 'Dynamic.IQ-COREx'
+        
+        base_url = request.url_root.rstrip('/')
+        customer_link = f"{base_url}/invoice/view/{token_record['token']}"
+        
+        lines = conn.execute('''
+            SELECT il.*, p.code as part_number, p.name as product_name
+            FROM invoice_lines il
+            LEFT JOIN products p ON il.product_id = p.id
+            WHERE il.invoice_id = ?
+            ORDER BY il.line_number
+        ''', (invoice_id,)).fetchall()
+        
+        lines_html = ""
+        for line in lines:
+            lines_html += f'''
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{line['part_number'] or line['description'][:30]}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{line['description'][:40] if line['description'] else ''}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{line['quantity']}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${line['unit_price']:.2f}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${line['line_total']:.2f}</td>
+                </tr>
+            '''
+        
+        html_content = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }}
+        .container {{ max-width: 650px; margin: 0 auto; background-color: #ffffff; }}
+        .header {{ background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%); color: white; padding: 30px; text-align: center; }}
+        .header h1 {{ margin: 0; font-size: 24px; }}
+        .content {{ padding: 30px; }}
+        .invoice-box {{ background-color: #f1f5f9; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+        .invoice-box h3 {{ color: #1e3a5f; margin-top: 0; }}
+        .detail-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }}
+        .detail-label {{ color: #64748b; }}
+        .detail-value {{ color: #1e293b; font-weight: 500; }}
+        .btn {{ display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 15px 40px; 
+                text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }}
+        .footer {{ background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th {{ background-color: #f1f5f9; padding: 10px; text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase; }}
+        .amount-due {{ font-size: 24px; color: #dc2626; font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{company_name}</h1>
+            <p style="margin: 10px 0 0; opacity: 0.9;">Invoice</p>
+        </div>
+        <div class="content">
+            <p>Dear {invoice['customer_name']},</p>
+            <p>Please find below your invoice details:</p>
+            
+            <div class="invoice-box">
+                <h3>Invoice #{invoice['invoice_number']}</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Invoice Date</span>
+                    <span class="detail-value">{invoice['invoice_date']}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Due Date</span>
+                    <span class="detail-value">{invoice['due_date']}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Amount Due</span>
+                    <span class="amount-due">${invoice['balance_due']:.2f}</span>
+                </div>
+            </div>
+            
+            <h4>Invoice Items</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Description</th>
+                        <th style="text-align: right;">Qty</th>
+                        <th style="text-align: right;">Unit Price</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {lines_html}
+                </tbody>
+            </table>
+            
+            <div style="text-align: right; margin-top: 20px; padding: 15px; background-color: #f8fafc; border-radius: 8px;">
+                <div style="margin-bottom: 8px;">Subtotal: <strong>${invoice['subtotal']:.2f}</strong></div>
+                <div style="margin-bottom: 8px;">Tax: <strong>${invoice['tax_amount']:.2f}</strong></div>
+                <div style="font-size: 18px; color: #1e3a5f;">Total: <strong>${invoice['total_amount']:.2f}</strong></div>
+            </div>
+            
+            <p style="margin-top: 25px;">Click the button below to view your complete invoice online:</p>
+            
+            <div style="text-align: center;">
+                <a href="{customer_link}" class="btn">View Invoice</a>
+            </div>
+            
+            <p>If you have any questions about this invoice, please contact us.</p>
+            
+            <p>Thank you for your business.</p>
+            
+            <p>Best regards,<br>
+            <strong>{company_name}</strong></p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from {company_name}.</p>
+        </div>
+    </div>
+</body>
+</html>
+'''
+        
+        success, result = send_invoice_email_via_brevo(
+            invoice['customer_email'],
+            invoice['customer_name'],
+            f"Invoice {invoice['invoice_number']} from {company_name}",
+            html_content,
+            from_email,
+            company_name,
+            api_key
+        )
+        
+        if success:
+            conn.execute('''
+                UPDATE invoice_customer_tokens 
+                SET email_sent = 1, email_sent_at = ? 
+                WHERE id = ?
+            ''', (datetime.now().isoformat(), token_record['id']))
+            conn.commit()
+            flash(f'Invoice email sent successfully to {invoice["customer_email"]}', 'success')
+        else:
+            flash(f'Failed to send email: {result}', 'danger')
+        
+        conn.close()
+        return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error sending email: {str(e)}', 'danger')
+        return redirect(url_for('invoice_routes.send_to_customer', invoice_id=invoice_id))
+
+
+@invoice_bp.route('/invoice/view/<token>')
+def customer_view_invoice(token):
+    """Public portal for customers to view invoice via token"""
+    db = Database()
+    conn = db.get_connection()
+    
+    token_record = conn.execute('''
+        SELECT * FROM invoice_customer_tokens WHERE token = ?
+    ''', (token,)).fetchone()
+    
+    if not token_record:
+        conn.close()
+        return render_template('errors/invalid_token.html', 
+                             message='This link is invalid or has expired.'), 404
+    
+    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+        conn.close()
+        return render_template('errors/invalid_token.html',
+                             message='This link has expired. Please contact us for a new link.'), 410
+    
+    conn.execute('''
+        UPDATE invoice_customer_tokens SET last_accessed_at = ? WHERE id = ?
+    ''', (datetime.now().isoformat(), token_record['id']))
+    conn.commit()
+    
+    invoice = conn.execute('''
+        SELECT i.*, c.name as customer_name, c.email as customer_email,
+               c.billing_address, c.customer_number
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        WHERE i.id = ?
+    ''', (token_record['invoice_id'],)).fetchone()
+    
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    
+    lines = conn.execute('''
+        SELECT il.*, p.code as part_number, p.name as product_name
+        FROM invoice_lines il
+        LEFT JOIN products p ON il.product_id = p.id
+        WHERE il.invoice_id = ?
+        ORDER BY il.line_number
+    ''', (token_record['invoice_id'],)).fetchall()
+    
+    conn.close()
+    
+    return render_template('invoices/customer_portal.html',
+                         invoice=invoice,
+                         company=company,
+                         lines=lines)

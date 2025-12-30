@@ -2380,6 +2380,26 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_tokens_token ON po_supplier_tokens(token)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_tokens_po ON po_supplier_tokens(po_id)')
         
+        # Invoice Customer Token tables (for email portal access)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS invoice_customer_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_id INTEGER NOT NULL,
+                customer_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                is_used INTEGER DEFAULT 0,
+                email_sent INTEGER DEFAULT 0,
+                email_sent_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_accessed_at TIMESTAMP,
+                FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+                FOREIGN KEY (customer_id) REFERENCES customers(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_invoice_tokens_token ON invoice_customer_tokens(token)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_invoice_tokens_invoice ON invoice_customer_tokens(invoice_id)')
+        
         # Organizational Analyzer tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS org_kpi_definitions (

@@ -44,7 +44,7 @@
                     {% endif %}
                 </div>
                 
-                {% if user and user.role in ['Admin', 'Accountant'] %}
+                {% if user and user.role in ['Admin', 'Accountant', 'Finance'] %}
                 <div class="btn-group">
                     {% if invoice.status == 'Draft' %}
                     <form method="POST" action="{{ url_for('invoice_routes.approve_invoice', id=invoice.id) }}" style="display: inline;">
@@ -58,6 +58,12 @@
                             <i class="bi bi-journal-check"></i> Post to GL
                         </button>
                     </form>
+                    {% endif %}
+                    
+                    {% if invoice.status not in ['Draft', 'Void'] and invoice.customer_id %}
+                    <a href="{{ url_for('invoice_routes.send_to_customer', invoice_id=invoice.id) }}" class="btn btn-info">
+                        <i class="bi bi-envelope-paper"></i> Send to Customer
+                    </a>
                     {% endif %}
                     
                     {% if user.role == 'Admin' and invoice.status != 'Void' %}
