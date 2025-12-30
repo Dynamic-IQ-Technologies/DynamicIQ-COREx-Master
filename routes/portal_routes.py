@@ -394,6 +394,7 @@ def supplier_portal(token):
     
     open_pos = conn.execute('''
         SELECT po.*, 
+               po.expected_delivery_date as expected_delivery,
                (SELECT COUNT(*) FROM purchase_order_lines WHERE po_id = po.id) as line_count,
                (SELECT SUM(quantity * unit_price) FROM purchase_order_lines WHERE po_id = po.id) as total_amount,
                (SELECT SUM(received_quantity) FROM purchase_order_lines WHERE po_id = po.id) as total_received
