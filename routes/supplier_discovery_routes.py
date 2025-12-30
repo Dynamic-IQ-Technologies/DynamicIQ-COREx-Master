@@ -200,7 +200,7 @@ def run_discovery(id):
             'preferred_regions': req['preferred_regions'] or ''
         }
         
-        prompt = f"""You are an expert procurement analyst specializing in supplier discovery for manufacturing and MRO (Maintenance, Repair, Operations) industries.
+        prompt = f"""You are an expert procurement analyst specializing in supplier discovery for manufacturing and MRO (Maintenance, Repair, Operations) industries, with deep knowledge of the aerospace supply chain.
 
 Given the following material requirement, identify potential suppliers who could provide this part or similar products:
 
@@ -213,6 +213,21 @@ Material Details:
 - Urgency: {material_context['urgency']}
 - Industry: {material_context['industry']}
 - Preferred Regions: {material_context['preferred_regions']}
+
+For aerospace/aviation parts, always consider major distributors and PMA manufacturers including but not limited to:
+- HEICO Corporation (PMA parts, repairs)
+- Aviall (Boeing Company)
+- Wesco Aircraft / Boeing Distribution
+- Satair (Airbus)
+- AAR Corp
+- TransDigm Group companies
+- Honeywell Aerospace
+- Parker Hannifin Aerospace
+- Collins Aerospace (RTX)
+- GE Aviation
+- Pratt & Whitney
+- Safran
+- Other OEMs and authorized distributors relevant to the part
 
 Based on your knowledge, provide 5-8 potential suppliers that could supply this material. For each supplier, provide:
 1. Supplier name
