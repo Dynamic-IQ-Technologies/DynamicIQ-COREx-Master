@@ -2400,6 +2400,43 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_invoice_tokens_token ON invoice_customer_tokens(token)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_invoice_tokens_invoice ON invoice_customer_tokens(invoice_id)')
         
+        # Supplier Portal Token tables (for general supplier portal access)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS supplier_portal_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                supplier_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                email_sent INTEGER DEFAULT 0,
+                email_sent_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER,
+                last_accessed_at TIMESTAMP,
+                access_count INTEGER DEFAULT 0,
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_supplier_portal_token ON supplier_portal_tokens(token)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_supplier_portal_supplier ON supplier_portal_tokens(supplier_id)')
+        
+        # Supplier Portal Updates (tracking numbers, notes from supplier)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS supplier_portal_updates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                po_line_id INTEGER NOT NULL,
+                tracking_number TEXT,
+                supplier_notes TEXT,
+                estimated_ship_date DATE,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_via_portal INTEGER DEFAULT 1,
+                ip_address TEXT,
+                FOREIGN KEY (po_line_id) REFERENCES purchase_order_lines(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_supplier_updates_line ON supplier_portal_updates(po_line_id)')
+        
         # Organizational Analyzer tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS org_kpi_definitions (
