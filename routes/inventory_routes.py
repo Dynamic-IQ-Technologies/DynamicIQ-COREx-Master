@@ -934,7 +934,7 @@ def generate_inventory_label(id):
     try:
         inventory = conn.execute('''
             SELECT i.*, p.code, p.name, p.description as product_description, 
-                   p.unit_of_measure
+                   p.unit_of_measure, p.category
             FROM inventory i
             JOIN products p ON i.product_id = p.id
             WHERE i.id = ?
@@ -943,6 +943,43 @@ def generate_inventory_label(id):
         if not inventory:
             flash('Inventory record not found', 'danger')
             return redirect(url_for('inventory_routes.list_inventory'))
+        
+        related_po = conn.execute('''
+            SELECT po.po_number, s.name as supplier_name
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            LEFT JOIN suppliers s ON po.supplier_id = s.id
+            WHERE pol.product_id = ?
+            ORDER BY po.order_date DESC
+            LIMIT 1
+        ''', (inventory['product_id'],)).fetchone()
+        
+        related_wo = conn.execute('''
+            SELECT wo.wo_number, c.name as customer_name
+            FROM work_orders wo
+            LEFT JOIN sales_orders so ON wo.sales_order_id = so.id
+            LEFT JOIN customers c ON so.customer_id = c.id
+            WHERE wo.inventory_id = ? OR wo.product_id = ?
+            ORDER BY wo.created_at DESC
+            LIMIT 1
+        ''', (id, inventory['product_id'])).fetchone()
+        
+        related_ro = conn.execute('''
+            SELECT ro.ro_number, s.name as supplier_name, c.name as customer_name
+            FROM repair_orders ro
+            LEFT JOIN suppliers s ON ro.supplier_id = s.id
+            LEFT JOIN customers c ON ro.customer_id = c.id
+            WHERE ro.inventory_id = ?
+            ORDER BY ro.created_at DESC
+            LIMIT 1
+        ''', (id,)).fetchone()
+        
+        label_data = {
+            'inventory': inventory,
+            'related_po': related_po,
+            'related_wo': related_wo,
+            'related_ro': related_ro
+        }
         
         buffer = io.BytesIO()
         label_size = request.args.get('size', '4x6')
@@ -967,7 +1004,7 @@ def generate_inventory_label(id):
             if copy_num > 0:
                 c.showPage()
             
-            draw_faa_label(c, inventory, page_width, page_height)
+            draw_faa_label(c, label_data, page_width, page_height)
         
         c.save()
         buffer.seek(0)
@@ -989,10 +1026,17 @@ def generate_inventory_label(id):
         conn.close()
 
 
-def draw_faa_label(c, inventory, width, height):
+def draw_faa_label(c, label_data, width, height):
     """Draw FAA-compliant label content on canvas"""
+    inventory = label_data['inventory']
+    related_po = label_data.get('related_po')
+    related_wo = label_data.get('related_wo')
+    related_ro = label_data.get('related_ro')
+    
     margin = 0.15 * inch
     y = height - margin
+    col1_x = margin
+    col2_x = width / 2
     
     c.setFont("Helvetica-Bold", 10)
     c.drawString(margin, y, "FAA COMPLIANT PARTS IDENTIFICATION")
@@ -1010,64 +1054,122 @@ def draw_faa_label(c, inventory, width, height):
     c.drawString(margin + 80, y - 2, str(part_number))
     y -= 20
     
-    if part_number and len(part_number) <= 20:
+    if part_number and part_number != 'N/A' and len(part_number) <= 20:
         try:
-            barcode = code128.Code128(part_number, barHeight=25, barWidth=1.2)
-            barcode.drawOn(c, margin, y - 30)
-            y -= 40
+            barcode = code128.Code128(part_number, barHeight=22, barWidth=1.1)
+            barcode.drawOn(c, margin, y - 27)
+            y -= 35
         except:
             y -= 5
     
-    c.setFont("Helvetica-Bold", 8)
+    c.setFont("Helvetica-Bold", 7)
     c.drawString(margin, y, "DESCRIPTION:")
-    c.setFont("Helvetica", 8)
+    c.setFont("Helvetica", 7)
     desc = inventory['name'] or inventory['product_description'] or 'N/A'
-    if len(desc) > 45:
-        desc = desc[:42] + '...'
-    c.drawString(margin + 75, y, desc)
-    y -= 14
+    if len(desc) > 50:
+        desc = desc[:47] + '...'
+    c.drawString(margin + 70, y, desc)
+    y -= 11
     
     if inventory['is_serialized'] and inventory['serial_number']:
-        c.setFont("Helvetica-Bold", 8)
+        c.setFont("Helvetica-Bold", 7)
         c.drawString(margin, y, "SERIAL NUMBER:")
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(margin + 90, y, str(inventory['serial_number']))
-        y -= 16
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margin + 80, y, str(inventory['serial_number']))
+        y -= 14
         
         try:
-            sn_barcode = code128.Code128(str(inventory['serial_number']), barHeight=20, barWidth=1.0)
-            sn_barcode.drawOn(c, margin, y - 25)
-            y -= 32
+            sn_barcode = code128.Code128(str(inventory['serial_number']), barHeight=18, barWidth=0.9)
+            sn_barcode.drawOn(c, margin, y - 22)
+            y -= 28
         except:
             y -= 5
     
-    if inventory['lot_number']:
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(margin, y, "LOT/BATCH:")
-        c.setFont("Helvetica", 9)
-        c.drawString(margin + 70, y, str(inventory['lot_number']))
-        y -= 14
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(col1_x, y, "QTY:")
+    c.setFont("Helvetica-Bold", 10)
+    qty = inventory['quantity'] or 0
+    uom = inventory['unit_of_measure'] or 'EA'
+    c.drawString(col1_x + 25, y, f"{qty} {uom}")
     
-    col1_x = margin
-    col2_x = width / 2
+    if inventory['expiration_date']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col2_x, y, "EXPIRES:")
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(colors.red)
+        exp_date = str(inventory['expiration_date'])[:10]
+        c.drawString(col2_x + 45, y, exp_date)
+        c.setFillColor(colors.black)
+    y -= 11
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(col1_x, y, "WAREHOUSE:")
+    c.setFont("Helvetica", 7)
+    wh = inventory['warehouse_location'] or 'N/A'
+    c.drawString(col1_x + 60, y, wh)
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(col2_x, y, "BIN:")
+    c.setFont("Helvetica", 7)
+    bin_loc = inventory['bin_location'] or 'N/A'
+    c.drawString(col2_x + 22, y, bin_loc)
+    y -= 11
+    
+    if inventory.get('category'):
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "CATEGORY:")
+        c.setFont("Helvetica", 7)
+        cat = str(inventory['category'])
+        if len(cat) > 25:
+            cat = cat[:22] + '...'
+        c.drawString(col1_x + 55, y, cat)
+        y -= 11
+    
+    if inventory['lot_number']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "LOT/BATCH:")
+        c.setFont("Helvetica", 7)
+        c.drawString(col1_x + 60, y, str(inventory['lot_number']))
+        y -= 11
+    
+    if inventory['trace_tag'] or inventory['trace']:
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(col1_x, y, "TRACE:")
+        c.setFont("Helvetica", 7)
+        trace_val = inventory['trace_tag'] or inventory['trace'] or ''
+        if len(trace_val) > 30:
+            trace_val = trace_val[:27] + '...'
+        c.drawString(col1_x + 38, y, trace_val)
+        
+        if inventory['trace_type']:
+            c.setFont("Helvetica-Bold", 7)
+            c.drawString(col2_x, y, "TYPE:")
+            c.setFont("Helvetica", 7)
+            c.drawString(col2_x + 32, y, str(inventory['trace_type']))
+        y -= 11
+    
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(0.5)
+    c.line(margin, y, width - margin, y)
+    y -= 9
     
     if inventory['mfr_code']:
         c.setFont("Helvetica-Bold", 7)
         c.drawString(col1_x, y, "MFR CODE:")
-        c.setFont("Helvetica", 8)
+        c.setFont("Helvetica", 7)
         c.drawString(col1_x + 55, y, str(inventory['mfr_code']))
     
     if inventory['msn_esn']:
         c.setFont("Helvetica-Bold", 7)
         c.drawString(col2_x, y, "MSN/ESN:")
-        c.setFont("Helvetica", 8)
-        c.drawString(col2_x + 50, y, str(inventory['msn_esn']))
-    y -= 12
+        c.setFont("Helvetica", 7)
+        c.drawString(col2_x + 48, y, str(inventory['msn_esn']))
+    y -= 11
     
     if inventory['condition']:
         c.setFont("Helvetica-Bold", 7)
         c.drawString(col1_x, y, "CONDITION:")
-        c.setFont("Helvetica-Bold", 9)
+        c.setFont("Helvetica-Bold", 8)
         cond = str(inventory['condition']).upper()
         if cond in ['NEW', 'NE']:
             c.setFillColor(colors.darkgreen)
@@ -1077,107 +1179,100 @@ def draw_faa_label(c, inventory, width, height):
             c.setFillColor(colors.purple)
         else:
             c.setFillColor(colors.black)
-        c.drawString(col1_x + 60, y, cond)
+        c.drawString(col1_x + 58, y, cond)
         c.setFillColor(colors.black)
     
     if inventory['country_of_origin']:
         c.setFont("Helvetica-Bold", 7)
         c.drawString(col2_x, y, "ORIGIN:")
-        c.setFont("Helvetica", 8)
-        c.drawString(col2_x + 45, y, str(inventory['country_of_origin']))
-    y -= 12
-    
-    if inventory['trace_tag'] or inventory['trace']:
-        c.setFont("Helvetica-Bold", 7)
-        c.drawString(col1_x, y, "TRACE TAG:")
-        c.setFont("Helvetica", 8)
-        trace_val = inventory['trace_tag'] or inventory['trace'] or ''
-        if len(trace_val) > 20:
-            trace_val = trace_val[:17] + '...'
-        c.drawString(col1_x + 60, y, trace_val)
-        
-        if inventory['trace_type']:
-            c.setFont("Helvetica-Bold", 7)
-            c.drawString(col2_x, y, "TRACE TYPE:")
-            c.setFont("Helvetica", 8)
-            c.drawString(col2_x + 65, y, str(inventory['trace_type']))
-        y -= 12
-    
-    has_lifecycle = any([inventory['tsn'], inventory['tso'], inventory['csn'], inventory['cso']])
-    if has_lifecycle:
-        c.setFont("Helvetica-Bold", 7)
-        c.drawString(margin, y, "LIFECYCLE DATA:")
-        y -= 10
-        
-        lifecycle_items = []
-        if inventory['tsn']:
-            lifecycle_items.append(f"TSN: {inventory['tsn']}")
-        if inventory['tso']:
-            lifecycle_items.append(f"TSO: {inventory['tso']}")
-        if inventory['csn']:
-            lifecycle_items.append(f"CSN: {inventory['csn']}")
-        if inventory['cso']:
-            lifecycle_items.append(f"CSO: {inventory['cso']}")
-        
         c.setFont("Helvetica", 7)
-        c.drawString(margin, y, " | ".join(lifecycle_items[:4]))
-        y -= 12
+        c.drawString(col2_x + 40, y, str(inventory['country_of_origin']))
+    y -= 11
     
-    if inventory['manufactured_date']:
+    has_lifecycle = any([inventory.get('tsn'), inventory.get('tso'), inventory.get('csn'), inventory.get('cso')])
+    if has_lifecycle:
+        c.setFont("Helvetica-Bold", 6)
+        c.drawString(margin, y, "LIFECYCLE:")
+        lifecycle_items = []
+        if inventory.get('tsn'):
+            lifecycle_items.append(f"TSN:{inventory['tsn']}")
+        if inventory.get('tso'):
+            lifecycle_items.append(f"TSO:{inventory['tso']}")
+        if inventory.get('csn'):
+            lifecycle_items.append(f"CSN:{inventory['csn']}")
+        if inventory.get('cso'):
+            lifecycle_items.append(f"CSO:{inventory['cso']}")
+        c.setFont("Helvetica", 6)
+        c.drawString(margin + 50, y, " | ".join(lifecycle_items[:4]))
+        y -= 10
+    
+    if inventory.get('manufactured_date'):
         c.setFont("Helvetica-Bold", 7)
         c.drawString(col1_x, y, "MFG DATE:")
-        c.setFont("Helvetica", 8)
+        c.setFont("Helvetica", 7)
         mfg_date = str(inventory['manufactured_date'])[:10]
-        c.drawString(col1_x + 55, y, mfg_date)
-    
-    if inventory['expiration_date']:
-        c.setFont("Helvetica-Bold", 7)
-        c.drawString(col2_x, y, "EXPIRES:")
-        c.setFont("Helvetica", 8)
-        exp_date = str(inventory['expiration_date'])[:10]
-        c.drawString(col2_x + 50, y, exp_date)
-    y -= 12
+        c.drawString(col1_x + 52, y, mfg_date)
+        y -= 10
     
     c.setStrokeColor(colors.black)
     c.setLineWidth(0.5)
     c.line(margin, y, width - margin, y)
+    y -= 9
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(margin, y, "SOURCE DOCUMENTS:")
     y -= 10
     
-    c.setFont("Helvetica-Bold", 7)
-    c.drawString(margin, y, "WAREHOUSE:")
-    c.setFont("Helvetica", 8)
-    wh = inventory['warehouse_location'] or 'N/A'
-    c.drawString(margin + 65, y, wh)
+    if related_po:
+        c.setFont("Helvetica-Bold", 6)
+        c.drawString(col1_x, y, "PO:")
+        c.setFont("Helvetica", 6)
+        po_text = str(related_po['po_number'])
+        if related_po.get('supplier_name'):
+            supplier = related_po['supplier_name']
+            if len(supplier) > 20:
+                supplier = supplier[:17] + '...'
+            po_text += f" ({supplier})"
+        c.drawString(col1_x + 15, y, po_text)
+        y -= 9
     
-    c.setFont("Helvetica-Bold", 7)
-    c.drawString(col2_x, y, "BIN:")
-    c.setFont("Helvetica", 8)
-    bin_loc = inventory['bin_location'] or 'N/A'
-    c.drawString(col2_x + 25, y, bin_loc)
-    y -= 12
+    if related_wo:
+        c.setFont("Helvetica-Bold", 6)
+        c.drawString(col1_x, y, "WO:")
+        c.setFont("Helvetica", 6)
+        wo_text = str(related_wo['wo_number'])
+        if related_wo.get('customer_name'):
+            customer = related_wo['customer_name']
+            if len(customer) > 20:
+                customer = customer[:17] + '...'
+            wo_text += f" ({customer})"
+        c.drawString(col1_x + 18, y, wo_text)
+        y -= 9
     
-    c.setFont("Helvetica-Bold", 7)
-    c.drawString(margin, y, "QTY:")
-    c.setFont("Helvetica-Bold", 10)
-    qty = inventory['quantity'] or 0
-    uom = inventory['unit_of_measure'] or 'EA'
-    c.drawString(margin + 25, y, f"{qty} {uom}")
+    if related_ro:
+        c.setFont("Helvetica-Bold", 6)
+        c.drawString(col1_x, y, "RO:")
+        c.setFont("Helvetica", 6)
+        ro_text = str(related_ro['ro_number'])
+        party = related_ro.get('supplier_name') or related_ro.get('customer_name')
+        if party:
+            if len(party) > 20:
+                party = party[:17] + '...'
+            ro_text += f" ({party})"
+        c.drawString(col1_x + 18, y, ro_text)
+        y -= 9
     
-    c.setFont("Helvetica-Bold", 7)
-    c.drawString(col2_x, y, "INV ID:")
-    c.setFont("Helvetica", 8)
-    c.drawString(col2_x + 40, y, str(inventory['id']))
-    y -= 15
+    if not related_po and not related_wo and not related_ro:
+        c.setFont("Helvetica", 6)
+        c.drawString(col1_x, y, "No linked documents")
+        y -= 9
     
     c.setStrokeColor(colors.black)
     c.setLineWidth(1)
     c.line(margin, y, width - margin, y)
-    y -= 10
-    
-    c.setFont("Helvetica", 6)
-    c.drawString(margin, y, "Per 14 CFR Part 45 - FAA Identification & Marking Requirements")
     y -= 8
-    c.drawString(margin, y, f"Label Generated: {datetime.now().strftime('%m/%d/%Y %I:%M %p')}")
+    
+    c.setFont("Helvetica", 5)
+    c.drawString(margin, y, f"Per 14 CFR Part 45 | INV ID: {inventory['id']} | Generated: {datetime.now().strftime('%m/%d/%Y %I:%M %p')}")
     
     c.setStrokeColor(colors.black)
     c.setLineWidth(1.5)
