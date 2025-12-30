@@ -38,8 +38,12 @@ def send_po_email_via_brevo(to_email, to_name, subject, html_content, from_email
     
     try:
         api_response = api_instance.send_transac_email(send_smtp_email)
-        return True, str(api_response.message_id)
+        if api_response and hasattr(api_response, 'message_id') and api_response.message_id:
+            return True, str(api_response.message_id)
+        return True, 'Email sent successfully'
     except ApiException as e:
+        return False, str(e)
+    except Exception as e:
         return False, str(e)
 
 po_bp = Blueprint('po_routes', __name__)
