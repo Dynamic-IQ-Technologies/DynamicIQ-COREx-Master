@@ -33,6 +33,11 @@ class Database:
         except:
             pass
         
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1')
+        except:
+            pass
+        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3942,9 +3947,18 @@ class User:
     def get_all():
         db = Database()
         conn = db.get_connection()
-        users = conn.execute('SELECT id, username, email, role, last_login, created_at FROM users ORDER BY created_at DESC').fetchall()
+        users = conn.execute('SELECT id, username, email, role, last_login, created_at, COALESCE(is_active, 1) as is_active FROM users ORDER BY created_at DESC').fetchall()
         conn.close()
         return users
+    
+    @staticmethod
+    def toggle_active(user_id, is_active):
+        db = Database()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET is_active = ? WHERE id = ?', (1 if is_active else 0, user_id))
+        conn.commit()
+        conn.close()
     
     @staticmethod
     def update_last_login(user_id):

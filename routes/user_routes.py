@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import User
 from auth import login_required, role_required
 
@@ -24,5 +24,23 @@ def update_user_role(user_id):
         flash('User role updated successfully!', 'success')
     except Exception as e:
         flash(f'Error updating role: {str(e)}', 'danger')
+    
+    return redirect(url_for('user_routes.list_users'))
+
+@user_bp.route('/users/<int:user_id>/toggle-active', methods=['POST'])
+@role_required('Admin')
+def toggle_user_active(user_id):
+    if user_id == session.get('user_id'):
+        flash('You cannot deactivate your own account.', 'danger')
+        return redirect(url_for('user_routes.list_users'))
+    
+    is_active = request.form.get('is_active') == '1'
+    
+    try:
+        User.toggle_active(user_id, is_active)
+        status = 'activated' if is_active else 'deactivated'
+        flash(f'User {status} successfully!', 'success')
+    except Exception as e:
+        flash(f'Error updating user status: {str(e)}', 'danger')
     
     return redirect(url_for('user_routes.list_users'))

@@ -19,6 +19,7 @@
                                 <th data-sort-type="string">Username</th>
                                 <th data-sort-type="string">Email</th>
                                 <th data-sort-type="string">Current Role</th>
+                                <th data-sort-type="string">Status</th>
                                 <th data-sort-type="date">Last Login</th>
                                 <th data-sort-type="date">Created At</th>
                                 <th data-sortable="false">Actions</th>
@@ -26,7 +27,7 @@
                         </thead>
                         <tbody>
                             {% for user in users %}
-                            <tr>
+                            <tr class="{% if not user.is_active %}table-secondary{% endif %}">
                                 <td>{{ user.id }}</td>
                                 <td>
                                     <i class="bi bi-person-fill"></i> {{ user.username }}
@@ -44,6 +45,13 @@
                                         <span class="badge bg-success">{{ user.role }}</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ user.role }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-pause-circle"></i> Inactive</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -65,6 +73,21 @@
                                             <option value="Procurement" {% if user.role == 'Procurement' %}disabled{% endif %}>Procurement</option>
                                         </select>
                                     </form>
+                                    {% if user.id != session.user_id %}
+                                    <form method="POST" action="{{ url_for('user_routes.toggle_user_active', user_id=user.id) }}" class="d-inline">
+                                        {% if user.is_active %}
+                                        <input type="hidden" name="is_active" value="0">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Deactivate User">
+                                            <i class="bi bi-pause-circle"></i>
+                                        </button>
+                                        {% else %}
+                                        <input type="hidden" name="is_active" value="1">
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Activate User">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                    </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
