@@ -38,6 +38,21 @@ def list_inventory():
     filter_serialized = request.args.get('filter_serialized', 'all')
     search_serial = request.args.get('search_serial', '').strip()
     search_part = request.args.get('search_part', '').strip()
+    filter_warehouse = request.args.get('filter_warehouse', '').strip()
+    filter_bin = request.args.get('filter_bin', '').strip()
+    
+    # Get distinct warehouse and bin locations for filter dropdowns
+    warehouses = conn.execute('''
+        SELECT DISTINCT warehouse_location FROM inventory 
+        WHERE warehouse_location IS NOT NULL AND warehouse_location != ''
+        ORDER BY warehouse_location
+    ''').fetchall()
+    
+    bins = conn.execute('''
+        SELECT DISTINCT bin_location FROM inventory 
+        WHERE bin_location IS NOT NULL AND bin_location != ''
+        ORDER BY bin_location
+    ''').fetchall()
     
     # Build query with filters
     # Use inventory.unit_cost if set, otherwise fall back to product cost
@@ -68,6 +83,16 @@ def list_inventory():
         params.append(f'%{search_part}%')
         params.append(f'%{search_part}%')
     
+    # Apply warehouse location filter
+    if filter_warehouse:
+        query += ' AND i.warehouse_location = ?'
+        params.append(filter_warehouse)
+    
+    # Apply bin location filter
+    if filter_bin:
+        query += ' AND i.bin_location = ?'
+        params.append(filter_bin)
+    
     query += ' ORDER BY p.code'
     
     inventory = conn.execute(query, params).fetchall()
@@ -82,6 +107,10 @@ def list_inventory():
                          filter_serialized=filter_serialized,
                          search_serial=search_serial,
                          search_part=search_part,
+                         filter_warehouse=filter_warehouse,
+                         filter_bin=filter_bin,
+                         warehouses=warehouses,
+                         bins=bins,
                          total_value=total_value)
 
 @inventory_bp.route('/inventory/<int:id>/view')
