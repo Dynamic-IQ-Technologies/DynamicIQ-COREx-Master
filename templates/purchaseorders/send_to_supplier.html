@@ -158,7 +158,7 @@
                                 {% for line in lines %}
                                 <tr>
                                     <td>{{ line.part_number }}</td>
-                                    <td>{{ line.description[:30] }}{% if line.description|length > 30 %}...{% endif %}</td>
+                                    <td>{{ (line.description or '')[:30] }}{% if line.description and line.description|length > 30 %}...{% endif %}</td>
                                     <td class="text-end">{{ line.quantity }}</td>
                                     <td class="text-end">${{ "%.2f"|format(line.unit_price) }}</td>
                                     <td class="text-end">${{ "%.2f"|format(line.quantity * line.unit_price) }}</td>
