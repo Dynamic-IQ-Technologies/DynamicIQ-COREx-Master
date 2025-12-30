@@ -1937,8 +1937,16 @@ def email_supplier_link(po_id):
                 SET email_sent = 1, email_sent_at = ? 
                 WHERE id = ?
             ''', (datetime.now().isoformat(), token_record['id']))
+            
+            if po['status'] in ('Draft', 'Pending'):
+                conn.execute('''
+                    UPDATE purchase_orders SET status = 'Ordered' WHERE id = ?
+                ''', (po_id,))
+                AuditLogger.log_change(conn, 'purchase_orders', po_id, 'UPDATE', session.get('user_id'),
+                                      {'field': 'status', 'old_value': po['status'], 'new_value': 'Ordered', 'trigger': 'email_sent'})
+            
             conn.commit()
-            flash(f'Purchase Order email sent successfully to {supplier["email"]}', 'success')
+            flash(f'Purchase Order email sent successfully to {supplier["email"]} - Status updated to Ordered', 'success')
         else:
             flash(f'Failed to send email: {result}', 'danger')
         
