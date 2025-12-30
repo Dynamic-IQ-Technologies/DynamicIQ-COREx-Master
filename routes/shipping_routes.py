@@ -884,7 +884,7 @@ def generate_packing_slip(id):
                 lines = conn.execute('''
                     SELECT sol.id, sol.product_id, sol.quantity, sol.unit_price, 
                            p.code, p.name as product_name, p.unit_of_measure,
-                           sol.serial_number, sol.lot_number
+                           sol.serial_number
                     FROM sales_order_lines sol
                     JOIN products p ON sol.product_id = p.id
                     WHERE sol.so_id = ?
@@ -994,7 +994,7 @@ def generate_certificate_of_conformance(id):
                 lines = conn.execute('''
                     SELECT sol.id, sol.product_id, sol.quantity, sol.unit_price, 
                            p.code, p.name as product_name, p.unit_of_measure,
-                           sol.serial_number, sol.lot_number
+                           sol.serial_number
                     FROM sales_order_lines sol
                     JOIN products p ON sol.product_id = p.id
                     WHERE sol.so_id = ?
