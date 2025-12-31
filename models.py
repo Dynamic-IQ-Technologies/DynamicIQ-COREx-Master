@@ -3703,14 +3703,24 @@ class Database:
                 ('Inspection', 'Initial inspection in progress', '#ffc107', 2),
                 ('Awaiting Parts', 'Waiting for parts/materials', '#fd7e14', 3),
                 ('In Work', 'Active work in progress', '#007bff', 4),
-                ('Quality Check', 'Quality assurance review', '#6f42c1', 5),
-                ('Ready to Ship', 'Completed and ready for shipping', '#28a745', 6)
+                ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', 5),
+                ('Quality Check', 'Quality assurance review', '#6f42c1', 6),
+                ('Ready to Ship', 'Completed and ready for shipping', '#28a745', 7)
             ]
             for name, desc, color, seq in default_stages:
                 cursor.execute('''
                     INSERT INTO work_order_stages (name, description, color, sequence, is_active)
                     VALUES (?, ?, ?, ?, 1)
                 ''', (name, desc, color, seq))
+        
+        cursor.execute("SELECT name FROM work_order_stages WHERE name = 'NDT'")
+        if not cursor.fetchone():
+            cursor.execute("SELECT MAX(sequence) FROM work_order_stages")
+            max_seq = cursor.fetchone()[0] or 0
+            cursor.execute('''
+                INSERT INTO work_order_stages (name, description, color, sequence, is_active)
+                VALUES ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', ?, 1)
+            ''', (max_seq + 1,))
     
     def _migrate_rfq_enhancements(self, cursor):
         """Add buyer contact and condition columns to RFQ tables for supplier portal"""
