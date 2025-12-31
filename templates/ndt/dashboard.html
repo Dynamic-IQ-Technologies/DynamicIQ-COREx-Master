@@ -234,5 +234,78 @@
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%) !important;">
+                    <h5 class="mb-0 text-white"><i class="bi bi-clipboard2-pulse me-2"></i>Standard Work Orders in NDT Stage</h5>
+                    <a href="{{ url_for('workorder_routes.list_workorders') }}?stage=NDT" class="btn btn-sm btn-light">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>WO #</th>
+                                    <th>Product</th>
+                                    <th>Customer</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Planned Start</th>
+                                    <th>Planned End</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wo in standard_wo_ndt_stage %}
+                                <tr>
+                                    <td><strong>{{ wo.wo_number }}</strong></td>
+                                    <td>
+                                        <span class="text-primary">{{ wo.product_code }}</span>
+                                        <br><small class="text-muted">{{ wo.product_name }}</small>
+                                    </td>
+                                    <td>{{ wo.customer_name or '-' }}</td>
+                                    <td>
+                                        {% if wo.priority == 'Critical' or wo.priority == 'High' %}
+                                            <span class="badge bg-danger">{{ wo.priority }}</span>
+                                        {% elif wo.priority == 'Medium' %}
+                                            <span class="badge bg-warning text-dark">{{ wo.priority }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ wo.priority }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if wo.status == 'In Progress' %}bg-info
+                                            {% elif wo.status == 'Released' %}bg-primary
+                                            {% elif wo.status == 'Draft' %}bg-secondary
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ wo.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ wo.planned_start_date or '-' }}</td>
+                                    <td>{{ wo.planned_end_date or '-' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        No standard work orders currently in NDT stage
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -158,6 +158,23 @@ def dashboard():
         LIMIT 5
     ''').fetchall()
     
+    ndt_stage = conn.execute("SELECT id FROM work_order_stages WHERE name = 'NDT'").fetchone()
+    ndt_stage_id = ndt_stage['id'] if ndt_stage else None
+    
+    standard_wo_ndt_stage = []
+    if ndt_stage_id:
+        standard_wo_ndt_stage = conn.execute('''
+            SELECT wo.id, wo.wo_number, wo.status, wo.priority, wo.planned_start_date, wo.planned_end_date,
+                   p.code as product_code, p.name as product_name,
+                   c.name as customer_name
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers c ON wo.customer_id = c.id
+            WHERE wo.stage_id = ? AND wo.status NOT IN ('Completed', 'Closed', 'Cancelled')
+            ORDER BY wo.priority DESC, wo.planned_end_date ASC
+            LIMIT 10
+        ''', (ndt_stage_id,)).fetchall()
+    
     conn.close()
     
     return render_template('ndt/dashboard.html',
@@ -176,6 +193,7 @@ def dashboard():
         recent_wo=recent_wo,
         rejection_by_method=rejection_by_method,
         technician_utilization=technician_utilization,
+        standard_wo_ndt_stage=standard_wo_ndt_stage,
         ndt_methods=NDT_METHODS
     )
 
