@@ -52,39 +52,24 @@
     </div>
 </div>
 
-{% if shortages_by_product %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Material Shortages by Product</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-sm table-striped">
-                <thead>
-                    <tr>
-                        <th>Product Code</th>
-                        <th>Product Name</th>
-                        <th>Total Shortage Qty</th>
-                        <th>Shortage Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in shortages_by_product %}
-                    <tr>
-                        <td>{{ item.code }}</td>
-                        <td>{{ item.name }}</td>
-                        <td class="text-danger">{{ item.total_shortage|int }}</td>
-                        <td class="text-danger">{{ item.shortage_value|currency }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
+<ul class="nav nav-tabs mb-0" id="materialReqTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="all-requirements-tab" data-bs-toggle="tab" data-bs-target="#all-requirements" type="button" role="tab" aria-controls="all-requirements" aria-selected="true">
+            <i class="bi bi-list-check"></i> All Material Requirements
+            <span class="badge bg-secondary ms-1">{{ total_requirements }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="shortages-tab" data-bs-toggle="tab" data-bs-target="#shortages-by-product" type="button" role="tab" aria-controls="shortages-by-product" aria-selected="false">
+            <i class="bi bi-exclamation-triangle"></i> Shortages by Product
+            <span class="badge bg-danger ms-1">{{ shortages_by_product|length }}</span>
+        </button>
+    </li>
+</ul>
 
-<div class="card">
+<div class="tab-content" id="materialReqTabContent">
+    <div class="tab-pane fade show active" id="all-requirements" role="tabpanel" aria-labelledby="all-requirements-tab">
+        <div class="card border-top-0 rounded-top-0">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">All Material Requirements</h5>
         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
@@ -246,6 +231,55 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="shortages-by-product" role="tabpanel" aria-labelledby="shortages-tab">
+        <div class="card border-top-0 rounded-top-0">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> Material Shortages by Product</h5>
+            </div>
+            <div class="card-body">
+                {% if shortages_by_product %}
+                <div class="table-responsive">
+                    <table class="table table-striped" id="shortagesTable">
+                        <thead>
+                            <tr>
+                                <th class="sortable-shortage" data-sort="code" style="cursor:pointer">Product Code <i class="bi bi-arrow-down-up text-muted"></i></th>
+                                <th class="sortable-shortage" data-sort="name" style="cursor:pointer">Product Name <i class="bi bi-arrow-down-up text-muted"></i></th>
+                                <th class="sortable-shortage" data-sort="qty" style="cursor:pointer">Total Shortage Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
+                                <th class="sortable-shortage" data-sort="value" style="cursor:pointer">Shortage Value <i class="bi bi-arrow-down-up text-muted"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="shortagesBody">
+                            {% for item in shortages_by_product %}
+                            <tr data-code="{{ item.code }}" data-name="{{ item.name }}" data-qty="{{ item.total_shortage }}" data-value="{{ item.shortage_value }}">
+                                <td><strong>{{ item.code }}</strong></td>
+                                <td>{{ item.name }}</td>
+                                <td class="text-danger fw-bold">{{ item.total_shortage|int }}</td>
+                                <td class="text-danger fw-bold">{{ item.shortage_value|currency }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-danger">
+                                <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                <td class="fw-bold">{{ shortages_by_product|map(attribute='total_shortage')|sum|int }}</td>
+                                <td class="fw-bold">{{ total_shortage_cost|currency }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-check-circle display-4 text-success"></i>
+                    <h5 class="mt-3">No Material Shortages</h5>
+                    <p>All material requirements are currently satisfied.</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -602,7 +636,9 @@ async function rejectSupplier(supplierId) {
 
 // Filtering and Sorting Functions
 let currentSort = { column: null, direction: 'asc' };
+let currentShortageSort = { column: null, direction: 'asc' };
 let allRows = [];
+let allShortageRows = [];
 
 document.addEventListener('DOMContentLoaded', function() {
     // Store all rows for filtering
@@ -612,11 +648,25 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFilterCount();
     }
     
-    // Setup sortable headers
+    // Store shortage rows for sorting
+    const shortagesBody = document.getElementById('shortagesBody');
+    if (shortagesBody) {
+        allShortageRows = Array.from(shortagesBody.querySelectorAll('tr'));
+    }
+    
+    // Setup sortable headers for main table
     document.querySelectorAll('.sortable').forEach(header => {
         header.addEventListener('click', function() {
             const sortKey = this.dataset.sort;
             sortTable(sortKey);
+        });
+    });
+    
+    // Setup sortable headers for shortages table
+    document.querySelectorAll('.sortable-shortage').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortKey = this.dataset.sort;
+            sortShortagesTable(sortKey);
         });
     });
     
@@ -775,6 +825,66 @@ function sortTable(column) {
         
         // String comparison
         if (currentSort.direction === 'asc') {
+            return aVal.localeCompare(bVal);
+        } else {
+            return bVal.localeCompare(aVal);
+        }
+    });
+    
+    // Re-append sorted rows
+    sortedRows.forEach(row => tbody.appendChild(row));
+}
+
+function sortShortagesTable(column) {
+    const tbody = document.getElementById('shortagesBody');
+    if (!tbody) return;
+    
+    // Toggle direction if same column
+    if (currentShortageSort.column === column) {
+        currentShortageSort.direction = currentShortageSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentShortageSort.column = column;
+        currentShortageSort.direction = 'asc';
+    }
+    
+    // Update header icons
+    document.querySelectorAll('.sortable-shortage i').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up text-muted';
+    });
+    const activeHeader = document.querySelector(`.sortable-shortage[data-sort="${column}"] i`);
+    if (activeHeader) {
+        activeHeader.className = currentShortageSort.direction === 'asc' ? 
+            'bi bi-arrow-up text-primary' : 'bi bi-arrow-down text-primary';
+    }
+    
+    // Sort rows
+    const sortedRows = [...allShortageRows].sort((a, b) => {
+        let aVal, bVal;
+        
+        switch(column) {
+            case 'code':
+                aVal = a.dataset.code || '';
+                bVal = b.dataset.code || '';
+                break;
+            case 'name':
+                aVal = a.dataset.name || '';
+                bVal = b.dataset.name || '';
+                break;
+            case 'qty':
+                aVal = parseFloat(a.dataset.qty) || 0;
+                bVal = parseFloat(b.dataset.qty) || 0;
+                return currentShortageSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            case 'value':
+                aVal = parseFloat(a.dataset.value) || 0;
+                bVal = parseFloat(b.dataset.value) || 0;
+                return currentShortageSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            default:
+                aVal = '';
+                bVal = '';
+        }
+        
+        // String comparison
+        if (currentShortageSort.direction === 'asc') {
             return aVal.localeCompare(bVal);
         } else {
             return bVal.localeCompare(aVal);
