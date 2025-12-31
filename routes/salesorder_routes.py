@@ -1460,6 +1460,26 @@ def allocate_line(line_id):
             WHERE id = ?
         ''', (allocation_status, line_id))
         
+        # Update inventory status to reflect allocation
+        # If fully allocating the available quantity, mark as Allocated
+        new_reserved = (inventory['reserved_quantity'] or 0) + allocate_qty
+        if new_reserved >= inventory['quantity']:
+            conn.execute('''
+                UPDATE inventory
+                SET status = 'Allocated',
+                    reserved_quantity = ?,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (new_reserved, inventory_id))
+        else:
+            # Partially reserved - update reserved_quantity but keep status
+            conn.execute('''
+                UPDATE inventory
+                SET reserved_quantity = ?,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (new_reserved, inventory_id))
+        
         # Log activity
         from models import AuditLogger
         changed_fields = {
@@ -1529,6 +1549,7 @@ def deallocate_line(line_id):
         
         allocated_qty = line['allocated_quantity'] or 0
         serial_number = line['serial_number']
+        inventory_id = line['inventory_id']
         
         # Clear the allocation
         conn.execute('''
@@ -1537,11 +1558,36 @@ def deallocate_line(line_id):
                 allocation_status = 'Pending',
                 allocation_notes = 'Deallocated by user',
                 serial_number = NULL,
+                inventory_id = NULL,
                 line_status = 'Pending',
                 modified_by = ?,
                 modified_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (session.get('user_id'), line_id))
+        
+        # Update inventory status back to Available
+        if inventory_id:
+            # Get current inventory reserved quantity
+            inv = conn.execute('SELECT quantity, reserved_quantity FROM inventory WHERE id = ?', (inventory_id,)).fetchone()
+            if inv:
+                new_reserved = max(0, (inv['reserved_quantity'] or 0) - allocated_qty)
+                # If no more reserved quantity, set status back to Available
+                new_status = 'Available' if new_reserved == 0 else None
+                if new_status:
+                    conn.execute('''
+                        UPDATE inventory
+                        SET status = 'Available',
+                            reserved_quantity = ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (new_reserved, inventory_id))
+                else:
+                    conn.execute('''
+                        UPDATE inventory
+                        SET reserved_quantity = ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (new_reserved, inventory_id))
         
         # Log activity
         from models import AuditLogger
