@@ -526,6 +526,16 @@ def view_workorder(id):
         ORDER BY q.created_at DESC
     ''', (id,)).fetchall()
     
+    # Fetch work order invoices
+    wo_invoices = conn.execute('''
+        SELECT i.*, c.name as customer_name,
+               COALESCE(i.total_amount, 0) - COALESCE(i.amount_paid, 0) as balance_due
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        WHERE i.wo_id = ?
+        ORDER BY i.invoice_date DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('workorders/view.html', 
@@ -547,7 +557,8 @@ def view_workorder(id):
                          documents=documents,
                          notes=notes,
                          stages=stages,
-                         wo_quotes=wo_quotes)
+                         wo_quotes=wo_quotes,
+                         wo_invoices=wo_invoices)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')

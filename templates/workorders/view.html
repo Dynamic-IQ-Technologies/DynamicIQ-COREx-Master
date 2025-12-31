@@ -201,6 +201,11 @@
             <i class="bi bi-receipt"></i> Quotes {% if wo_quotes %}<span class="badge bg-info">{{ wo_quotes|length }}</span>{% endif %}
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoicesPane" type="button" role="tab">
+            <i class="bi bi-file-earmark-text"></i> WO Invoices {% if wo_invoices %}<span class="badge bg-success">{{ wo_invoices|length }}</span>{% endif %}
+        </button>
+    </li>
     {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#auditPane" type="button" role="tab">
@@ -1546,6 +1551,95 @@
                     <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-sm btn-outline-primary mt-3">
                         <i class="bi bi-plus-circle me-1"></i> Create Quote
                     </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="invoicesPane" role="tabpanel">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i> Work Order Invoices</h6>
+                {% if session.role in ['Admin', 'Accountant', 'Finance'] %}
+                <a href="{{ url_for('invoice_routes.create_invoice') }}?wo_id={{ workorder.id }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-circle me-1"></i> Create Invoice
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if wo_invoices %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Balance Due</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in wo_invoices %}
+                            <tr>
+                                <td class="fw-medium">{{ invoice.invoice_number }}</td>
+                                <td>{{ invoice.invoice_date or '-' }}</td>
+                                <td>{{ invoice.due_date or '-' }}</td>
+                                <td>
+                                    {% if invoice.status == 'Paid' %}
+                                    <span class="badge bg-success">{{ invoice.status }}</span>
+                                    {% elif invoice.status == 'Overdue' %}
+                                    <span class="badge bg-danger">{{ invoice.status }}</span>
+                                    {% elif invoice.status == 'Posted' or invoice.status == 'Sent' %}
+                                    <span class="badge bg-info">{{ invoice.status }}</span>
+                                    {% elif invoice.status == 'Approved' %}
+                                    <span class="badge bg-primary">{{ invoice.status }}</span>
+                                    {% elif invoice.status == 'Draft' %}
+                                    <span class="badge bg-secondary">{{ invoice.status }}</span>
+                                    {% elif invoice.status == 'Partial' %}
+                                    <span class="badge bg-warning text-dark">{{ invoice.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ invoice.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">{{ invoice.total_amount|currency }}</td>
+                                <td class="text-end">
+                                    {% if invoice.balance_due > 0 %}
+                                    <span class="text-danger fw-bold">{{ invoice.balance_due|currency }}</span>
+                                    {% else %}
+                                    <span class="text-success">{{ invoice.balance_due|currency }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('invoice_routes.view_invoice', id=invoice.id) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="4" class="text-end fw-bold">Totals:</td>
+                                <td class="text-end fw-bold">{{ wo_invoices|sum(attribute='total_amount')|currency }}</td>
+                                <td class="text-end fw-bold">{{ wo_invoices|sum(attribute='balance_due')|currency }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-file-earmark-text fs-3"></i>
+                    <p class="mb-0 mt-2">No invoices created for this work order</p>
+                    {% if session.role in ['Admin', 'Accountant', 'Finance'] %}
+                    <a href="{{ url_for('invoice_routes.create_invoice') }}?wo_id={{ workorder.id }}" class="btn btn-sm btn-outline-success mt-3">
+                        <i class="bi bi-plus-circle me-1"></i> Create Invoice
+                    </a>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
