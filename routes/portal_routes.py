@@ -48,11 +48,11 @@ def customer_portal(token):
         SELECT i.*, 
                so.so_number,
                wo.wo_number,
-               ndt.ndt_wo_number
+               CASE WHEN i.source_type = 'ndt_work_order' THEN ndt.ndt_wo_number ELSE NULL END as ndt_wo_number
         FROM invoices i
         LEFT JOIN sales_orders so ON i.so_id = so.id
-        LEFT JOIN work_orders wo ON i.work_order_id = wo.id
-        LEFT JOIN ndt_work_orders ndt ON i.ndt_work_order_id = ndt.id
+        LEFT JOIN work_orders wo ON i.wo_id = wo.id
+        LEFT JOIN ndt_work_orders ndt ON (i.source_type = 'ndt_work_order' AND i.source_id = ndt.id)
         WHERE i.customer_id = ?
         ORDER BY i.invoice_date DESC
     ''', (customer['id'],)).fetchall()
