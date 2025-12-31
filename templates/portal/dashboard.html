@@ -413,7 +413,7 @@
                                 <th class="text-uppercase small sortable" data-sort="date" style="cursor:pointer;">Due Date <i class="bi bi-chevron-expand"></i></th>
                                 <th class="text-uppercase small">Status</th>
                                 <th class="text-uppercase small sortable" data-sort="currency" style="cursor:pointer;">Amount <i class="bi bi-chevron-expand"></i></th>
-                                <th class="text-uppercase small">Sales Order</th>
+                                <th class="text-uppercase small">Reference</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -438,7 +438,17 @@
                                     {% endif %}
                                 </td>
                                 <td class="fw-medium">{{ "$ {:,.2f}".format(invoice.total_amount or 0) }}</td>
-                                <td>{{ invoice.so_number or '-' }}</td>
+                                <td>
+                                    {% if invoice.so_number %}
+                                    <span class="badge bg-success"><i class="bi bi-cart me-1"></i>{{ invoice.so_number }}</span>
+                                    {% elif invoice.wo_number %}
+                                    <span class="badge bg-info"><i class="bi bi-tools me-1"></i>{{ invoice.wo_number }}</span>
+                                    {% elif invoice.ndt_wo_number %}
+                                    <span class="badge bg-purple" style="background-color: #6f42c1;"><i class="bi bi-search me-1"></i>{{ invoice.ndt_wo_number }}</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

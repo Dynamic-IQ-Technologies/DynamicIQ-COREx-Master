@@ -43,11 +43,16 @@ def customer_portal(token):
         ORDER BY wo.created_at DESC
     ''', (customer['id'],)).fetchall()
     
-    # Invoices for this customer
+    # Invoices for this customer - include references to Sales Orders, Work Orders, and NDT Work Orders
     invoices = conn.execute('''
-        SELECT i.*, so.so_number
+        SELECT i.*, 
+               so.so_number,
+               wo.wo_number,
+               ndt.ndt_wo_number
         FROM invoices i
         LEFT JOIN sales_orders so ON i.so_id = so.id
+        LEFT JOIN work_orders wo ON i.work_order_id = wo.id
+        LEFT JOIN ndt_work_orders ndt ON i.ndt_work_order_id = ndt.id
         WHERE i.customer_id = ?
         ORDER BY i.invoice_date DESC
     ''', (customer['id'],)).fetchall()
