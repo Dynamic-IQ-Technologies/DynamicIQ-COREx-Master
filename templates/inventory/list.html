@@ -150,10 +150,18 @@
                         <td>{{ item.display_unit_cost|currency }}</td>
                         <td><strong>{{ item.inventory_value|currency }}</strong></td>
                         <td>
-                            {% if item.quantity <= item.reorder_point %}
+                            {% if item.status == 'Allocated' %}
+                            <span class="badge bg-primary">Allocated</span>
+                            {% elif item.status == 'Reserved' %}
+                            <span class="badge bg-info">Reserved</span>
+                            {% elif item.status == 'Quarantine' %}
+                            <span class="badge bg-warning text-dark">Quarantine</span>
+                            {% elif item.status == 'Out of Stock' %}
+                            <span class="badge bg-dark">Out of Stock</span>
+                            {% elif item.quantity <= item.reorder_point %}
                             <span class="badge bg-danger">Low Stock</span>
                             {% else %}
-                            <span class="badge bg-success">OK</span>
+                            <span class="badge bg-success">{{ item.status or 'Available' }}</span>
                             {% endif %}
                         </td>
                         <td>
