@@ -299,6 +299,63 @@ def material_requirements_report():
             product_shortages[product_id]['total_shortage'] += shortage_qty
             product_shortages[product_id]['shortage_value'] += shortage_qty * (req['cost'] or 0)
     
+    # Process sales order requirements - items not fully allocated
+    sales_order_requirements = conn.execute('''
+        SELECT 
+            'Sales Order' as source_type,
+            so.so_number as order_number,
+            so.status as order_status,
+            so.order_date as order_date,
+            sol.product_id,
+            p.code,
+            p.name,
+            p.unit_of_measure,
+            p.cost,
+            sol.quantity as required_quantity,
+            COALESCE(sol.allocated_quantity, 0) as allocated_quantity,
+            (sol.quantity - COALESCE(sol.allocated_quantity, 0)) as shortage_quantity,
+            sol.allocation_status
+        FROM sales_order_lines sol
+        JOIN products p ON sol.product_id = p.id
+        JOIN sales_orders so ON sol.so_id = so.id
+        WHERE so.status NOT IN ('Cancelled', 'Closed', 'Shipped', 'Invoiced')
+          AND sol.is_core = 0
+          AND sol.quantity > COALESCE(sol.allocated_quantity, 0)
+    ''').fetchall()
+    
+    for req in sales_order_requirements:
+        product_id = req['product_id']
+        shortage_qty = req['shortage_quantity']
+        
+        req_dict = {
+            'source_type': req['source_type'],
+            'order_number': req['order_number'],
+            'order_status': req['order_status'],
+            'order_date': req['order_date'],
+            'product_id': product_id,
+            'code': req['code'],
+            'name': req['name'],
+            'unit_of_measure': req['unit_of_measure'],
+            'cost': req['cost'],
+            'required_quantity': req['required_quantity'],
+            'available_quantity': req['allocated_quantity'],
+            'shortage_quantity': shortage_qty,
+            'status': 'Shortage' if shortage_qty > 0 else 'Available',
+            'total_cost': req['required_quantity'] * (req['cost'] or 0)
+        }
+        all_requirements.append(req_dict)
+        
+        if shortage_qty > 0:
+            if product_id not in product_shortages:
+                product_shortages[product_id] = {
+                    'code': req['code'],
+                    'name': req['name'],
+                    'total_shortage': 0,
+                    'shortage_value': 0
+                }
+            product_shortages[product_id]['total_shortage'] += shortage_qty
+            product_shortages[product_id]['shortage_value'] += shortage_qty * (req['cost'] or 0)
+    
     # Filter out products fully covered by POs
     filtered_requirements = []
     filtered_product_shortages = {}

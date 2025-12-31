@@ -135,6 +135,8 @@
                         <td>
                             {% if req.source_type == 'Production' %}
                             <span class="badge bg-primary">Production</span>
+                            {% elif req.source_type == 'Sales Order' %}
+                            <span class="badge bg-success">Sales Order</span>
                             {% else %}
                             <span class="badge bg-info">Service</span>
                             {% endif %}
