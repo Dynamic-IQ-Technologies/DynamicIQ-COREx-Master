@@ -85,8 +85,58 @@
 {% endif %}
 
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">All Material Requirements</h5>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
+            <i class="bi bi-funnel"></i> Filters
+        </button>
+    </div>
+    <div class="collapse show" id="filterPanel">
+        <div class="card-body border-bottom bg-light">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label small">Source Type</label>
+                    <select class="form-select form-select-sm" id="filterSource">
+                        <option value="">All Sources</option>
+                        <option value="Production">Production</option>
+                        <option value="Service">Service</option>
+                        <option value="Sales Order">Sales Order</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Order Status</label>
+                    <select class="form-select form-select-sm" id="filterOrderStatus">
+                        <option value="">All Statuses</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Released">Released</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Shortage Status</label>
+                    <select class="form-select form-select-sm" id="filterShortage">
+                        <option value="">All</option>
+                        <option value="shortage">With Shortage</option>
+                        <option value="available">No Shortage</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Search (Code/Name/Order#)</label>
+                    <input type="text" class="form-control form-control-sm" id="filterSearch" placeholder="Search...">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-sm btn-primary me-2" onclick="applyFilters()">
+                        <i class="bi bi-filter"></i> Apply
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                    <span class="ms-3 text-muted small" id="filterCount"></span>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -98,27 +148,39 @@
                             <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
                         </th>
                         {% endif %}
-                        <th>Source</th>
-                        <th>Order Number</th>
-                        <th>Order Status</th>
-                        <th>Order Date</th>
-                        <th>Product Code</th>
-                        <th>Product Name</th>
+                        <th class="sortable" data-sort="source" style="cursor:pointer">Source <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="order" style="cursor:pointer">Order Number <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="status" style="cursor:pointer">Order Status <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="date" style="cursor:pointer">Order Date <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="code" style="cursor:pointer">Product Code <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="name" style="cursor:pointer">Product Name <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th>UOM</th>
-                        <th>Required Qty</th>
-                        <th>Available Qty</th>
-                        <th>Shortage Qty</th>
-                        <th>Unit Cost</th>
-                        <th>Total Cost</th>
+                        <th class="sortable" data-sort="required" style="cursor:pointer">Required Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="available" style="cursor:pointer">Available Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="shortage" style="cursor:pointer">Shortage Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="unitcost" style="cursor:pointer">Unit Cost <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="totalcost" style="cursor:pointer">Total Cost <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th>Status</th>
                         {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
                         <th>Actions</th>
                         {% endif %}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="requirementsBody">
                     {% for req in requirements %}
-                    <tr {% if req.shortage_quantity > 0 %}class="table-warning"{% endif %}>
+                    <tr {% if req.shortage_quantity > 0 %}class="table-warning"{% endif %}
+                        data-source="{{ req.source_type }}"
+                        data-order="{{ req.order_number }}"
+                        data-order-status="{{ req.order_status }}"
+                        data-date="{{ req.order_date or '' }}"
+                        data-code="{{ req.code }}"
+                        data-name="{{ req.name }}"
+                        data-required="{{ req.required_quantity }}"
+                        data-available="{{ req.available_quantity }}"
+                        data-shortage="{{ req.shortage_quantity }}"
+                        data-unitcost="{{ req.cost or 0 }}"
+                        data-totalcost="{{ req.total_cost }}"
+                        data-status="{{ req.status }}">
                         {% if session.role in ['Admin', 'Procurement', 'Planner'] %}
                         <td>
                             {% if req.shortage_quantity > 0 %}
@@ -536,6 +598,191 @@ async function rejectSupplier(supplierId) {
     } catch (error) {
         alert('Error: ' + error.message);
     }
+}
+
+// Filtering and Sorting Functions
+let currentSort = { column: null, direction: 'asc' };
+let allRows = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Store all rows for filtering
+    const tbody = document.getElementById('requirementsBody');
+    if (tbody) {
+        allRows = Array.from(tbody.querySelectorAll('tr'));
+        updateFilterCount();
+    }
+    
+    // Setup sortable headers
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortKey = this.dataset.sort;
+            sortTable(sortKey);
+        });
+    });
+    
+    // Setup enter key for search
+    const searchInput = document.getElementById('filterSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    }
+});
+
+function applyFilters() {
+    const sourceFilter = document.getElementById('filterSource').value;
+    const statusFilter = document.getElementById('filterOrderStatus').value;
+    const shortageFilter = document.getElementById('filterShortage').value;
+    const searchFilter = document.getElementById('filterSearch').value.toLowerCase().trim();
+    
+    const tbody = document.getElementById('requirementsBody');
+    let visibleCount = 0;
+    
+    allRows.forEach(row => {
+        let show = true;
+        
+        // Filter by source type
+        if (sourceFilter && row.dataset.source !== sourceFilter) {
+            show = false;
+        }
+        
+        // Filter by order status
+        if (show && statusFilter && row.dataset.orderStatus !== statusFilter) {
+            show = false;
+        }
+        
+        // Filter by shortage status
+        if (show && shortageFilter) {
+            const shortage = parseFloat(row.dataset.shortage) || 0;
+            if (shortageFilter === 'shortage' && shortage <= 0) {
+                show = false;
+            } else if (shortageFilter === 'available' && shortage > 0) {
+                show = false;
+            }
+        }
+        
+        // Filter by search text
+        if (show && searchFilter) {
+            const code = (row.dataset.code || '').toLowerCase();
+            const name = (row.dataset.name || '').toLowerCase();
+            const order = (row.dataset.order || '').toLowerCase();
+            if (!code.includes(searchFilter) && !name.includes(searchFilter) && !order.includes(searchFilter)) {
+                show = false;
+            }
+        }
+        
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+    
+    document.getElementById('filterCount').textContent = `Showing ${visibleCount} of ${allRows.length} items`;
+}
+
+function clearFilters() {
+    document.getElementById('filterSource').value = '';
+    document.getElementById('filterOrderStatus').value = '';
+    document.getElementById('filterShortage').value = '';
+    document.getElementById('filterSearch').value = '';
+    
+    allRows.forEach(row => {
+        row.style.display = '';
+    });
+    
+    updateFilterCount();
+}
+
+function updateFilterCount() {
+    const visibleCount = allRows.filter(row => row.style.display !== 'none').length;
+    document.getElementById('filterCount').textContent = `Showing ${visibleCount} of ${allRows.length} items`;
+}
+
+function sortTable(column) {
+    const tbody = document.getElementById('requirementsBody');
+    
+    // Toggle direction if same column
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'asc';
+    }
+    
+    // Update header icons
+    document.querySelectorAll('.sortable i').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up text-muted';
+    });
+    const activeHeader = document.querySelector(`.sortable[data-sort="${column}"] i`);
+    if (activeHeader) {
+        activeHeader.className = currentSort.direction === 'asc' ? 
+            'bi bi-arrow-up text-primary' : 'bi bi-arrow-down text-primary';
+    }
+    
+    // Sort rows
+    const sortedRows = [...allRows].sort((a, b) => {
+        let aVal, bVal;
+        
+        switch(column) {
+            case 'source':
+                aVal = a.dataset.source || '';
+                bVal = b.dataset.source || '';
+                break;
+            case 'order':
+                aVal = a.dataset.order || '';
+                bVal = b.dataset.order || '';
+                break;
+            case 'status':
+                aVal = a.dataset.orderStatus || '';
+                bVal = b.dataset.orderStatus || '';
+                break;
+            case 'date':
+                aVal = a.dataset.date || '';
+                bVal = b.dataset.date || '';
+                break;
+            case 'code':
+                aVal = a.dataset.code || '';
+                bVal = b.dataset.code || '';
+                break;
+            case 'name':
+                aVal = a.dataset.name || '';
+                bVal = b.dataset.name || '';
+                break;
+            case 'required':
+                aVal = parseFloat(a.dataset.required) || 0;
+                bVal = parseFloat(b.dataset.required) || 0;
+                return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            case 'available':
+                aVal = parseFloat(a.dataset.available) || 0;
+                bVal = parseFloat(b.dataset.available) || 0;
+                return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            case 'shortage':
+                aVal = parseFloat(a.dataset.shortage) || 0;
+                bVal = parseFloat(b.dataset.shortage) || 0;
+                return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            case 'unitcost':
+                aVal = parseFloat(a.dataset.unitcost) || 0;
+                bVal = parseFloat(b.dataset.unitcost) || 0;
+                return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            case 'totalcost':
+                aVal = parseFloat(a.dataset.totalcost) || 0;
+                bVal = parseFloat(b.dataset.totalcost) || 0;
+                return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            default:
+                aVal = '';
+                bVal = '';
+        }
+        
+        // String comparison
+        if (currentSort.direction === 'asc') {
+            return aVal.localeCompare(bVal);
+        } else {
+            return bVal.localeCompare(aVal);
+        }
+    });
+    
+    // Re-append sorted rows
+    sortedRows.forEach(row => tbody.appendChild(row));
 }
 </script>
 {% endif %}
