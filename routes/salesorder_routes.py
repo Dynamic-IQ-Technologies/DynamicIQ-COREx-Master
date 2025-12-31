@@ -1299,8 +1299,9 @@ def get_available_inventory(line_id):
         
         result = []
         for inv in inventory_items:
-            # Skip if serial number is already allocated elsewhere
-            if inv['serial_number'] and inv['serial_number'] in allocated_serial_set:
+            # Skip if serialized item's serial number is already allocated elsewhere
+            # Only check for truly serialized items (is_serialized = 1)
+            if inv['is_serialized'] and inv['serial_number'] and inv['serial_number'] in allocated_serial_set:
                 continue
                 
             result.append({
