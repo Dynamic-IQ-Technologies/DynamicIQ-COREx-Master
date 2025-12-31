@@ -3732,6 +3732,13 @@ class Database:
                 INSERT INTO work_order_stages (name, description, color, sequence, is_active)
                 VALUES ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', ?, 1)
             ''', (ndt_seq,))
+        else:
+            cursor.execute("SELECT sequence FROM work_order_stages WHERE name = 'Teardown'")
+            teardown_result = cursor.fetchone()
+            if teardown_result:
+                teardown_seq = teardown_result[0]
+                cursor.execute("UPDATE work_order_stages SET sequence = ? WHERE name = 'NDT'", (teardown_seq + 1,))
+                cursor.execute("UPDATE work_order_stages SET sequence = sequence + 1 WHERE sequence > ? AND name != 'NDT'", (teardown_seq,))
     
     def _migrate_rfq_enhancements(self, cursor):
         """Add buyer contact and condition columns to RFQ tables for supplier portal"""
