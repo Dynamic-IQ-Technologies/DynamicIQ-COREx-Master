@@ -131,6 +131,8 @@
                                     <option value="Tool" {% if product.product_type == "Tool" %}selected{% endif %}>Tool</option>
                                     <option value="Chemical" {% if product.product_type == "Chemical" %}selected{% endif %}>Chemical</option>
                                     <option value="Equipment" {% if product.product_type == "Equipment" %}selected{% endif %}>Equipment</option>
+                                    <option value="Rotable" {% if product.product_type == "Rotable" %}selected{% endif %}>Rotable</option>
+                                    <option value="Expendable" {% if product.product_type == "Expendable" %}selected{% endif %}>Expendable</option>
                                 </select>
                             </div>
                         </div>
@@ -141,8 +143,6 @@
                                     <option value="Electrical" {% if product.part_category == "Electrical" %}selected{% endif %}>Electrical</option>
                                     <option value="Mechanical" {% if product.part_category == "Mechanical" %}selected{% endif %}>Mechanical</option>
                                     <option value="Structural" {% if product.part_category == "Structural" %}selected{% endif %}>Structural</option>
-                                    <option value="Rotable" {% if product.part_category == "Rotable" %}selected{% endif %}>Rotable</option>
-                                    <option value="Expendable" {% if product.part_category == "Expendable" %}selected{% endif %}>Expendable</option>
                                     <option value="Other" {% if product.part_category == "Other" or not product.part_category %}selected{% endif %}>Other</option>
                                 </select>
                             </div>
