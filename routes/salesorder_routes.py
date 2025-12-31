@@ -1266,6 +1266,8 @@ def get_available_inventory(line_id):
             return jsonify({'error': 'Line not found'}), 404
         
         # Get all available inventory for this product
+        # Include items with Available/Serviceable status or null status that have available quantity
+        # Exclude only Reserved and Out of Stock items
         inventory_items = conn.execute('''
             SELECT 
                 i.id,
@@ -1281,7 +1283,7 @@ def get_available_inventory(line_id):
             FROM inventory i
             WHERE i.product_id = ?
             AND i.quantity > COALESCE(i.reserved_quantity, 0)
-            AND i.status = 'Available'
+            AND (i.status IN ('Available', 'Serviceable') OR i.status IS NULL OR i.status = '')
             ORDER BY i.warehouse_location, i.bin_location
         ''', (line['product_id'],)).fetchall()
         
