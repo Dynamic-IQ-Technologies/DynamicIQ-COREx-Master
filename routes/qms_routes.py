@@ -567,7 +567,7 @@ def sop_download_pdf(sop_id):
         canvas.setFont('Helvetica', 8)
         canvas.drawString(0.75*inch, 0.5*inch, f"{sop['sop_number']} Rev {sop['revision']}")
         canvas.drawRightString(7.75*inch, 0.5*inch, f"Page {doc.page}")
-        canvas.drawCenteredString(4.25*inch, 0.5*inch, "CONTROLLED DOCUMENT")
+        canvas.drawCentredString(4.25*inch, 0.5*inch, "CONTROLLED DOCUMENT")
         canvas.line(0.75*inch, 0.65*inch, 7.75*inch, 0.65*inch)
         canvas.restoreState()
     
