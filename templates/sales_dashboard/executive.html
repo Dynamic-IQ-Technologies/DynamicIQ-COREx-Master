@@ -50,7 +50,16 @@
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         padding: 1.25rem;
-        height: 100%;
+    }
+    .chart-container {
+        position: relative;
+        height: 220px;
+        width: 100%;
+    }
+    .chart-container-sm {
+        position: relative;
+        height: 180px;
+        width: 100%;
     }
     .chart-card-title {
         font-size: 0.9rem;
@@ -357,7 +366,9 @@
             <div class="chart-card-title">
                 <i class="bi bi-graph-up"></i> Revenue Trend (12 Months)
             </div>
-            <canvas id="revenueChart" height="100"></canvas>
+            <div class="chart-container">
+                <canvas id="revenueChart"></canvas>
+            </div>
         </div>
     </div>
     <div class="col-xl-4">
@@ -365,7 +376,9 @@
             <div class="chart-card-title">
                 <i class="bi bi-pie-chart"></i> Revenue by Type
             </div>
-            <canvas id="revenueTypeChart" height="200"></canvas>
+            <div class="chart-container-sm">
+                <canvas id="revenueTypeChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
