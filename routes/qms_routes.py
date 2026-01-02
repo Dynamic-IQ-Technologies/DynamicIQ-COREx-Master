@@ -1384,6 +1384,11 @@ Ensure the procedure is:
         
         sop_data = json.loads(response.choices[0].message.content or '{}')
         
+        def to_string(val):
+            if isinstance(val, list):
+                return '\n'.join(str(item) for item in val)
+            return str(val) if val else ''
+        
         conn = get_db()
         
         count = conn.execute('SELECT COUNT(*) FROM qms_sops').fetchone()[0]
@@ -1398,19 +1403,19 @@ Ensure the procedure is:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         ''', (
             sop_number,
-            sop_data.get('title', process_name),
-            sop_data.get('purpose', ''),
-            sop_data.get('scope', ''),
-            sop_data.get('responsibilities', ''),
-            sop_data.get('definitions', ''),
-            sop_data.get('procedure_content', ''),
-            sop_data.get('references_text', ''),
-            sop_data.get('compliance_standards', standards_str),
+            to_string(sop_data.get('title', process_name)),
+            to_string(sop_data.get('purpose', '')),
+            to_string(sop_data.get('scope', '')),
+            to_string(sop_data.get('responsibilities', '')),
+            to_string(sop_data.get('definitions', '')),
+            to_string(sop_data.get('procedure_content', '')),
+            to_string(sop_data.get('references_text', '')),
+            to_string(sop_data.get('compliance_standards', standards_str)),
             category_id if category_id else None,
             'Draft',
             1,
-            sop_data.get('applicable_roles', ''),
-            sop_data.get('applicable_modules', erp_module),
+            to_string(sop_data.get('applicable_roles', '')),
+            to_string(sop_data.get('applicable_modules', erp_module)),
             session.get('user_id')
         ))
         
