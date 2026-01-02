@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Generate 8130 - {{ ndt_wo.ndt_wo_number }} - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Back to NDT Work Order
+        </a>
+        <span class="h2 mb-0">Generate FAA Form 8130-3</span>
+    </div>
+</div>
+
+{% if existing_cert %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> A certificate already exists for this NDT work order: 
+    <strong>{{ existing_cert.certificate_number }}</strong> (Issued: {{ existing_cert.issue_date }})
+    <a href="{{ url_for('ndt_routes.view_8130', id=ndt_wo.id) }}" class="btn btn-sm btn-primary ms-2">View Certificate</a>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-file-earmark-medical"></i> NDT Work Order Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>NDT Work Order:</strong> {{ ndt_wo.ndt_wo_number }}</p>
+                <p><strong>Part:</strong> {{ ndt_wo.product_code or '' }} {{ ndt_wo.product_name or ndt_wo.part_description or 'N/A' }}</p>
+                <p><strong>Serial Number:</strong> {{ ndt_wo.serial_number or 'N/A' }}</p>
+                <p><strong>Heat Number:</strong> {{ ndt_wo.heat_number or 'N/A' }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Customer:</strong> {{ ndt_wo.customer_name or 'N/A' }}</p>
+                <p><strong>Status:</strong> <span class="badge bg-success">{{ ndt_wo.status }}</span></p>
+                <p><strong>NDT Methods:</strong> {{ ndt_wo.ndt_methods }}</p>
+                <p><strong>Applicable Code:</strong> {{ ndt_wo.applicable_code or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if inspection_results %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Inspection Results</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Result</th>
+                    <th>Date</th>
+                    <th>Technician</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in inspection_results %}
+                <tr>
+                    <td>{{ result.method }}</td>
+                    <td>
+                        {% if result.result == 'Acceptable' %}
+                        <span class="badge bg-success">{{ result.result }}</span>
+                        {% else %}
+                        <span class="badge bg-danger">{{ result.result }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ result.inspection_date }}</td>
+                    <td>{{ result.technician_name or 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not existing_cert %}
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Organization Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Issuing Authority</label>
+                        <input type="text" class="form-control" name="issuing_authority" value="FAA / United States">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Organization Name</label>
+                        <input type="text" class="form-control" name="organization_name" value="{{ ndt_wo.company_name or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Organization Address</label>
+                        <textarea class="form-control" name="organization_address" rows="2">{{ org_address }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Approval/Authorization Number</label>
+                        <input type="text" class="form-control" name="approval_number" placeholder="e.g., FAA Repair Station Number">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Part Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Serial Number</label>
+                        <input type="text" class="form-control" name="serial_number" value="{{ ndt_wo.serial_number or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Heat/Lot Number</label>
+                        <input type="text" class="form-control" name="heat_number" value="{{ ndt_wo.heat_number or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Batch Number</label>
+                        <input type="text" class="form-control" name="batch_number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" class="form-control" name="quantity" value="1" min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status/Work Performed</label>
+                        <select class="form-select" name="status_work">
+                            <option value="Inspected/Tested" selected>Inspected/Tested (NDT)</option>
+                            <option value="Overhauled">Overhauled</option>
+                            <option value="Repaired">Repaired</option>
+                            <option value="Modified">Modified</option>
+                            <option value="New">New</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Certification Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>NDT Technician (Block 13)</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <select class="form-select" name="certifier_name" id="certifierSelect" required>
+                            <option value="">-- Select Technician --</option>
+                            {% for tech in technicians %}
+                            <option value="{{ tech.first_name }} {{ tech.last_name }}" 
+                                    data-cert="{{ tech.technician_number }}"
+                                    {% if ndt_wo.assigned_technician_id == tech.id %}selected{% endif %}>
+                                {{ tech.technician_number }} - {{ tech.first_name }} {{ tech.last_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Certificate/License Number</label>
+                        <input type="text" class="form-control" name="certifier_certificate_number" id="certifierCertNumber" 
+                               value="{{ ndt_wo.technician_number or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="certifier_signature_date" value="{{ today }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Level III Reviewer / Authorized Signature (Block 14)</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <select class="form-select" name="authorized_signature_name" id="reviewerSelect" required>
+                            <option value="">-- Select Reviewer --</option>
+                            {% for tech in level3_technicians %}
+                            <option value="{{ tech.first_name }} {{ tech.last_name }}"
+                                    {% if ndt_wo.reviewer_id == tech.id %}selected{% endif %}>
+                                {{ tech.technician_number }} - {{ tech.first_name }} {{ tech.last_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="authorized_signature_date" value="{{ today }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Remarks (Block 12)</h5>
+        </div>
+        <div class="card-body">
+            <textarea class="form-control" name="remarks" rows="4" placeholder="Enter any additional remarks or notes...">{{ ndt_wo.notes or '' }}</textarea>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-end mb-4">
+        <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-secondary me-2">Cancel</a>
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="bi bi-file-earmark-medical"></i> Generate 8130 Certificate
+        </button>
+    </div>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('certifierSelect').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const certNum = selected.dataset.cert || '';
+    document.getElementById('certifierCertNumber').value = certNum;
+});
+</script>
+{% endblock %}

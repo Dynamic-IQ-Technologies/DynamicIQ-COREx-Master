@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}8130 Certificate - {{ certificate.certificate_number }} - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Back to NDT Work Order
+        </a>
+        <span class="h2 mb-0">FAA Form 8130-3 Certificate</span>
+    </div>
+    <div>
+        <a href="{{ url_for('static', filename=certificate.pdf_file_path.replace('static/', '')) }}" 
+           class="btn btn-primary" target="_blank">
+            <i class="bi bi-download"></i> Download PDF
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-patch-check"></i> Certificate Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Certificate Number:</strong> {{ certificate.certificate_number }}</p>
+                <p><strong>Issue Date:</strong> {{ certificate.issue_date }}</p>
+                <p><strong>Status:</strong> <span class="badge bg-success">{{ certificate.status }}</span></p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Issuing Authority:</strong> {{ certificate.issuing_authority }}</p>
+                <p><strong>Approval Number:</strong> {{ certificate.approval_number or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Organization</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Name:</strong> {{ certificate.organization_name or 'N/A' }}</p>
+                <p><strong>Address:</strong> {{ certificate.organization_address or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> NDT Work Order Reference</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Work Order:</strong> {{ certificate.work_order_reference }}</p>
+                <p><strong>NDT Methods:</strong> {{ certificate.ndt_methods or 'N/A' }}</p>
+                <p><strong>Applicable Code:</strong> {{ certificate.applicable_code or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-gear"></i> Part Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <p><strong>Part Name:</strong> {{ certificate.part_name or 'N/A' }}</p>
+                <p><strong>Part Number:</strong> {{ certificate.part_number or 'N/A' }}</p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Serial Number:</strong> {{ certificate.serial_number or 'N/A' }}</p>
+                <p><strong>Heat/Lot Number:</strong> {{ certificate.heat_number or 'N/A' }}</p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Quantity:</strong> {{ certificate.quantity }}</p>
+                <p><strong>Status/Work:</strong> {{ certificate.status_work }}</p>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Acceptance Criteria:</strong></p>
+                <p class="text-muted">{{ certificate.acceptance_criteria or 'Per applicable specifications' }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Inspection Result:</strong></p>
+                {% if certificate.inspection_result == 'ACCEPTABLE' %}
+                <span class="badge bg-success fs-5">{{ certificate.inspection_result }}</span>
+                {% else %}
+                <span class="badge bg-danger fs-5">{{ certificate.inspection_result }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-person-check"></i> Certification</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>NDT Technician (Block 13)</h6>
+                <p><strong>Name:</strong> {{ certificate.certifier_name }}</p>
+                <p><strong>Certificate Number:</strong> {{ certificate.certifier_certificate_number or 'N/A' }}</p>
+                <p><strong>Date:</strong> {{ certificate.certifier_signature_date }}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Level III Reviewer (Block 14)</h6>
+                <p><strong>Name:</strong> {{ certificate.authorized_signature_name }}</p>
+                <p><strong>Date:</strong> {{ certificate.authorized_signature_date }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if certificate.remarks %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-chat-text"></i> Remarks</h5>
+    </div>
+    <div class="card-body">
+        <p>{{ certificate.remarks }}</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-shield-check"></i> Document Integrity</h5>
+    </div>
+    <div class="card-body">
+        <p><strong>PDF File Hash (SHA-256):</strong></p>
+        <code>{{ certificate.pdf_file_hash }}</code>
+        <p class="text-muted mt-2 small">This hash can be used to verify the document has not been modified.</p>
+    </div>
+</div>
+{% endblock %}

@@ -28,6 +28,17 @@
                 <i class="bi bi-receipt me-1"></i> Create NDT Invoice
             </a>
             {% endif %}
+            {% if ndt_wo.status == 'Approved' and session.get('role') in ['Admin', 'Quality', 'Supervisor', 'Planner'] %}
+            {% if has_8130 %}
+            <a href="{{ url_for('ndt_routes.view_8130', id=ndt_wo.id) }}" class="btn btn-info me-2">
+                <i class="bi bi-file-earmark-medical me-1"></i> View 8130
+            </a>
+            {% else %}
+            <a href="{{ url_for('ndt_routes.generate_8130', id=ndt_wo.id) }}" class="btn btn-warning me-2">
+                <i class="bi bi-file-earmark-medical me-1"></i> Generate 8130
+            </a>
+            {% endif %}
+            {% endif %}
             {% if ndt_wo.status != 'Closed' %}
             <a href="{{ url_for('ndt_routes.wo_edit', id=ndt_wo.id) }}" class="btn btn-primary">
                 <i class="bi bi-pencil me-1"></i> Edit

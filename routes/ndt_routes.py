@@ -683,6 +683,11 @@ def wo_view(id):
         ORDER BY lr.last_name, lr.first_name
     ''').fetchall()
     
+    has_8130 = conn.execute('''
+        SELECT id FROM ndt_8130_certificates 
+        WHERE ndt_wo_id = ? AND status = 'Issued'
+    ''', (id,)).fetchone() is not None
+    
     conn.close()
     
     return render_template('ndt/wo_view.html',
@@ -695,7 +700,8 @@ def wo_view(id):
         clocked_in_employees=clocked_in_employees,
         ndt_resources=ndt_resources,
         ndt_methods=NDT_METHODS,
-        ndt_statuses=NDT_STATUSES
+        ndt_statuses=NDT_STATUSES,
+        has_8130=has_8130
     )
 
 @ndt_bp.route('/ndt/work-orders/<int:id>/status', methods=['POST'])
@@ -998,6 +1004,150 @@ def api_level3_technicians():
         'number': t['technician_number'],
         'name': f"{t['first_name']} {t['last_name']}"
     } for t in technicians])
+
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/generate-8130', methods=['GET', 'POST'])
+def generate_8130(id):
+    """Generate FAA Form 8130-3 for an NDT work order"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    user_role = session.get('role', '')
+    if user_role not in ['Admin', 'Quality', 'Supervisor', 'Planner']:
+        flash('Unauthorized access', 'danger')
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('''
+        SELECT nwo.*, 
+               c.name as customer_name,
+               p.code as product_code, p.name as product_name,
+               t.first_name || ' ' || t.last_name as technician_name,
+               t.technician_number,
+               cs.company_name, cs.address_line1 as company_address, 
+               cs.city as company_city, cs.state as company_state, 
+               cs.postal_code as company_zip
+        FROM ndt_work_orders nwo
+        LEFT JOIN customers c ON nwo.customer_id = c.id
+        LEFT JOIN products p ON nwo.product_id = p.id
+        LEFT JOIN ndt_technicians t ON nwo.assigned_technician_id = t.id
+        LEFT JOIN company_settings cs ON cs.id = 1
+        WHERE nwo.id = ?
+    ''', (id,)).fetchone()
+    
+    if not ndt_wo:
+        flash('NDT Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    ndt_wo = dict(ndt_wo)
+    
+    if ndt_wo['status'] != 'Approved':
+        flash('NDT Work Order must be Approved to generate 8130', 'warning')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    from services.ndt_8130_service import NDT8130Service
+    
+    existing_cert = NDT8130Service.get_existing_certificate(conn, id)
+    
+    inspection_results = conn.execute('''
+        SELECT ir.*, t.first_name || ' ' || t.last_name as technician_name
+        FROM ndt_inspection_results ir
+        LEFT JOIN ndt_technicians t ON ir.technician_id = t.id
+        WHERE ir.ndt_wo_id = ?
+        ORDER BY ir.inspection_date DESC
+    ''', (id,)).fetchall()
+    inspection_results = [dict(r) for r in inspection_results]
+    
+    technicians = conn.execute('''
+        SELECT id, technician_number, first_name, last_name
+        FROM ndt_technicians 
+        WHERE contract_status = 'Active'
+        ORDER BY last_name, first_name
+    ''').fetchall()
+    
+    level3_technicians = conn.execute('''
+        SELECT DISTINCT t.id, t.technician_number, t.first_name, t.last_name
+        FROM ndt_technicians t
+        LEFT JOIN ndt_certifications c ON t.id = c.technician_id
+        WHERE t.contract_status = 'Active' 
+            AND (c.level = 'III' OR c.level = 'Level III' OR t.notes LIKE '%Level III%')
+        ORDER BY t.last_name, t.first_name
+    ''').fetchall()
+    
+    if not level3_technicians:
+        level3_technicians = technicians
+    
+    org_address = ''
+    if ndt_wo.get('company_address'):
+        org_address = f"{ndt_wo.get('company_address', '')}, {ndt_wo.get('company_city', '')}, {ndt_wo.get('company_state', '')} {ndt_wo.get('company_zip', '')}"
+    
+    if request.method == 'POST':
+        try:
+            result = NDT8130Service.create_certificate(
+                conn, id, request.form, session['user_id']
+            )
+            conn.commit()
+            flash(f"8130 Certificate {result['certificate_number']} generated successfully", 'success')
+            conn.close()
+            return redirect(url_for('ndt_routes.view_8130', id=id))
+        except ValueError as e:
+            flash(str(e), 'danger')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error generating certificate: {str(e)}', 'danger')
+    
+    conn.close()
+    
+    return render_template('ndt/generate_8130.html',
+        ndt_wo=ndt_wo,
+        existing_cert=existing_cert,
+        inspection_results=inspection_results,
+        technicians=technicians,
+        level3_technicians=level3_technicians,
+        org_address=org_address,
+        today=datetime.now().strftime('%Y-%m-%d')
+    )
+
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/view-8130')
+def view_8130(id):
+    """View FAA Form 8130-3 certificate for an NDT work order"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('''
+        SELECT * FROM ndt_work_orders WHERE id = ?
+    ''', (id,)).fetchone()
+    
+    if not ndt_wo:
+        flash('NDT Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    certificate = conn.execute('''
+        SELECT * FROM ndt_8130_certificates 
+        WHERE ndt_wo_id = ? AND status = 'Issued'
+        ORDER BY created_at DESC LIMIT 1
+    ''', (id,)).fetchone()
+    
+    if not certificate:
+        flash('No 8130 certificate found for this NDT work order', 'warning')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_view', id=id))
+    
+    conn.close()
+    
+    return render_template('ndt/view_8130.html',
+        ndt_wo=dict(ndt_wo),
+        certificate=dict(certificate)
+    )
 
 
 NDT_INVOICE_STATUSES = ['Draft', 'Pending', 'Sent', 'Partially Paid', 'Paid', 'Overdue', 'Cancelled']
