@@ -747,11 +747,14 @@ def leads_analytics():
     
     conversion_rate = (stats['converted'] / stats['total_leads'] * 100) if stats['total_leads'] > 0 else 0
     
+    monthly_leads_list = [dict(row) for row in monthly_leads]
+    by_status_list = [dict(row) for row in by_status]
+    
     return render_template('leads/analytics.html',
                          stats=stats,
                          by_source=by_source,
-                         by_status=by_status,
-                         monthly_leads=monthly_leads,
+                         by_status=by_status_list,
+                         monthly_leads=monthly_leads_list,
                          top_performers=top_performers,
                          disqualified_reasons=disqualified_reasons,
                          conversion_rate=conversion_rate)
