@@ -434,9 +434,10 @@ def view_workorder(id):
     ''').fetchall()
     
     documents = conn.execute('''
-        SELECT * FROM work_order_documents
-        WHERE work_order_id = ?
-        ORDER BY created_at DESC
+        SELECT wod.*, u.username as uploader_name FROM work_order_documents wod
+        LEFT JOIN users u ON wod.uploaded_by = u.id
+        WHERE wod.work_order_id = ? AND wod.is_active = 1
+        ORDER BY wod.uploaded_at DESC
     ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='work_order_documents'").fetchone() else []
     
     notes = conn.execute('''
@@ -3447,3 +3448,114 @@ def invalidate_reconciliation(id):
     
     flash(f"Reconciliation for {workorder['wo_number']} has been invalidated.", 'warning')
     return redirect(url_for('workorder_routes.view_workorder', id=id))
+
+@workorder_bp.route('/workorders/<int:id>/documents/upload', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff', 'Planner')
+def upload_wo_document(id):
+    """Upload a document to a work order"""
+    import os
+    import uuid
+    from werkzeug.utils import secure_filename
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    workorder = conn.execute('SELECT * FROM work_orders WHERE id = ?', (id,)).fetchone()
+    if not workorder:
+        conn.close()
+        flash('Work order not found.', 'error')
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    if 'document' not in request.files:
+        flash('No file selected.', 'warning')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    file = request.files['document']
+    if file.filename == '':
+        flash('No file selected.', 'warning')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
+    document_type = request.form.get('document_type', 'General')
+    description = request.form.get('description', '')
+    
+    upload_dir = os.path.join('uploads', 'work_order_documents', str(id))
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    original_filename = secure_filename(file.filename)
+    file_ext = os.path.splitext(original_filename)[1]
+    unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+    
+    mime_type = file.content_type or 'application/octet-stream'
+    
+    conn.execute('''
+        INSERT INTO work_order_documents 
+        (work_order_id, document_type, document_name, file_path, original_filename, file_size, mime_type, description, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (id, document_type, original_filename, file_path, original_filename, file_size, mime_type, description, session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Document "{original_filename}" uploaded successfully.', 'success')
+    return redirect(url_for('workorder_routes.view_workorder', id=id) + '#docs-tab')
+
+@workorder_bp.route('/workorders/<int:wo_id>/documents/<int:doc_id>/download')
+@login_required
+def download_wo_document(wo_id, doc_id):
+    """Download a work order document"""
+    from flask import send_file
+    import os
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    document = conn.execute('''
+        SELECT * FROM work_order_documents 
+        WHERE id = ? AND work_order_id = ? AND is_active = 1
+    ''', (doc_id, wo_id)).fetchone()
+    
+    conn.close()
+    
+    if not document:
+        flash('Document not found.', 'error')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    if not os.path.exists(document['file_path']):
+        flash('File not found on server.', 'error')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    return send_file(
+        document['file_path'],
+        download_name=document['original_filename'],
+        as_attachment=True
+    )
+
+@workorder_bp.route('/workorders/<int:wo_id>/documents/<int:doc_id>/delete', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff')
+def delete_wo_document(wo_id, doc_id):
+    """Delete a work order document (soft delete)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    document = conn.execute('''
+        SELECT * FROM work_order_documents 
+        WHERE id = ? AND work_order_id = ?
+    ''', (doc_id, wo_id)).fetchone()
+    
+    if not document:
+        conn.close()
+        flash('Document not found.', 'error')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    conn.execute('UPDATE work_order_documents SET is_active = 0 WHERE id = ?', (doc_id,))
+    conn.commit()
+    conn.close()
+    
+    flash(f'Document "{document["original_filename"]}" deleted.', 'success')
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id) + '#docs-tab')

@@ -1471,22 +1471,125 @@
     </div>
 
     <div class="tab-pane fade" id="docsPane" role="tabpanel">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-folder me-2"></i> Documents & Attachments</h6>
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-folder me-2"></i> Documents & Attachments</h6>
+                        <span class="badge bg-secondary">{{ documents|length if documents else 0 }} files</span>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if documents %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Type</th>
+                                        <th>Size</th>
+                                        <th>Uploaded</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for doc in documents %}
+                                    {% if doc.is_active %}
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-file-earmark-text text-primary me-2"></i>
+                                            <strong>{{ doc.original_filename or doc.document_name }}</strong>
+                                            {% if doc.description %}
+                                            <br><small class="text-muted">{{ doc.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td><span class="badge bg-info">{{ doc.document_type }}</span></td>
+                                        <td>
+                                            {% if doc.file_size %}
+                                            {% if doc.file_size > 1048576 %}
+                                            {{ '%.1f'|format(doc.file_size / 1048576) }} MB
+                                            {% elif doc.file_size > 1024 %}
+                                            {{ '%.1f'|format(doc.file_size / 1024) }} KB
+                                            {% else %}
+                                            {{ doc.file_size }} bytes
+                                            {% endif %}
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ doc.uploaded_at[:10] if doc.uploaded_at else '-' }}</td>
+                                        <td class="text-center">
+                                            <a href="{{ url_for('workorder_routes.download_wo_document', wo_id=workorder.id, doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary" title="Download">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            {% if session.role in ['Admin', 'Production Staff'] %}
+                                            <form method="POST" action="{{ url_for('workorder_routes.delete_wo_document', wo_id=workorder.id, doc_id=doc.id) }}" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">
+                                            <i class="bi bi-folder2-open fs-1 d-block mb-2"></i>
+                                            No documents attached yet
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-folder2-open fs-1 d-block mb-2"></i>
+                            No documents attached yet
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                {% if documents %}
-                <ul class="list-group">
-                    {% for doc in documents %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-file-earmark"></i> {{ doc.filename }}</span>
-                        <a href="{{ doc.file_path }}" class="btn btn-sm btn-outline-primary" target="_blank">View</a>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted text-center">No documents attached</p>
+            <div class="col-lg-4">
+                {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-cloud-upload me-2"></i> Upload Document</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('workorder_routes.upload_wo_document', id=workorder.id) }}" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label">Document Type</label>
+                                <select name="document_type" class="form-select">
+                                    <option value="General">General</option>
+                                    <option value="Certificate">Certificate</option>
+                                    <option value="Test Report">Test Report</option>
+                                    <option value="Inspection Report">Inspection Report</option>
+                                    <option value="Traveler">Traveler</option>
+                                    <option value="Drawing">Drawing</option>
+                                    <option value="Specification">Specification</option>
+                                    <option value="Photo">Photo</option>
+                                    <option value="Customer PO">Customer PO</option>
+                                    <option value="Work Instruction">Work Instruction</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">File</label>
+                                <input type="file" name="document" class="form-control" required>
+                                <small class="text-muted">Max size: 10MB. PDF, images, Office docs allowed.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description (optional)</label>
+                                <input type="text" name="description" class="form-control" placeholder="Brief description...">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-upload me-2"></i> Upload
+                            </button>
+                        </form>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>

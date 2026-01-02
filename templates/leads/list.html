@@ -275,7 +275,7 @@ function copyLink() {
     const link = document.getElementById('generatedLink');
     link.select();
     document.execCommand('copy');
-    showNotification('Link copied to clipboard', 'success');
+    showToast('Link copied to clipboard', 'success');
 }
 </script>
 {% endblock %}

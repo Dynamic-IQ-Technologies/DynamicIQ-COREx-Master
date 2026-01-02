@@ -425,7 +425,7 @@ function updateStatus() {
     const reason = document.getElementById('statusReason').value;
     
     if (status === 'Disqualified' && !reason) {
-        showNotification('Please provide a reason for disqualification', 'error');
+        showToast('Please provide a reason for disqualification', 'error');
         return;
     }
     
@@ -437,10 +437,10 @@ function updateStatus() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showNotification('Status updated successfully', 'success');
+            showToast('Status updated successfully', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
-            showNotification(data.error || 'Failed to update status', 'error');
+            showToast(data.error || 'Failed to update status', 'error');
         }
     });
 }
@@ -456,7 +456,7 @@ function assignLead() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showNotification('Assignment updated', 'success');
+            showToast('Assignment updated', 'success');
             setTimeout(() => location.reload(), 1000);
         }
     });
@@ -469,7 +469,7 @@ function rescoreLead() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showNotification(`Score updated: ${data.score} (${data.category})`, 'success');
+            showToast(`Score updated: ${data.score} (${data.category})`, 'success');
             setTimeout(() => location.reload(), 1000);
         }
     });
@@ -484,10 +484,10 @@ function convertLead(type) {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showNotification(data.message, 'success');
+            showToast(data.message, 'success');
             setTimeout(() => window.location.href = data.redirect, 1500);
         } else {
-            showNotification(data.error || 'Conversion failed', 'error');
+            showToast(data.error || 'Conversion failed', 'error');
         }
     });
 }

@@ -5189,6 +5189,25 @@ def init_qms_tables(cursor):
     ''')
     
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS work_order_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            work_order_id INTEGER NOT NULL,
+            document_type TEXT NOT NULL,
+            document_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            original_filename TEXT,
+            file_size INTEGER,
+            mime_type TEXT,
+            description TEXT,
+            uploaded_by INTEGER,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (uploaded_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS repair_order_audit (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ro_id INTEGER NOT NULL,
