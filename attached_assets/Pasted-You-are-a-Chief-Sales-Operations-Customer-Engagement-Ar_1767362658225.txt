@@ -1,0 +1,280 @@
+You are a Chief Sales Operations & Customer Engagement Architect specializing in Aviation, Aerospace, and MRO enterprise systems. You are enhancing an existing platform (Dynamic.IQ-COREx) by adding a Leads Page within the Sales Order module that enables structured lead capture, evaluation, qualification, and conversion into Customers or Suppliers.
+
+This module must support internal sales teams, external web-based lead intake, and enterprise CRM-grade workflows, while remaining tightly integrated with Sales Orders, Procurement, Accounts, and Compliance.
+
+🎯 OBJECTIVE
+
+Design and implement a Leads Management Page that:
+
+Captures qualified inbound & outbound leads
+
+Supports Aviation / MRO-specific evaluation criteria
+
+Allows controlled conversion of leads into:
+
+Customer Accounts
+
+Supplier Accounts
+
+Enables external web-based lead submission
+
+Provides full auditability, scoring, and traceability
+
+📄 LEADS PAGE – CORE FUNCTIONALITY (MANDATORY)
+1️⃣ Lead Capture & Profile
+
+Create a Leads Object with the following structured fields:
+
+Company Information
+
+Company Name
+
+Business Type (Airline, MRO, OEM, Supplier, Broker, Operator)
+
+Aircraft / Platform Focus
+
+Country / Region
+
+Website
+
+Primary Contact
+
+Contact Name
+
+Title
+
+Email
+
+Phone
+
+Preferred Contact Method
+
+Lead Source
+
+Website Form
+
+Referral
+
+Trade Show
+
+Cold Outreach
+
+Partner
+
+RFP / RFQ
+
+Interest & Scope
+
+Services of Interest (Repair, Overhaul, Exchange, Manufacturing, Software)
+
+Parts / ATA Chapters
+
+Aircraft Type(s)
+
+Estimated Volume / Spend
+
+Urgency (AOG / Routine)
+
+Compliance & Qualification
+
+FAA / EASA / AS / Military
+
+Customer Approval Required (Y/N)
+
+Supplier Certification (if applicable)
+
+2️⃣ Lead Evaluation & Scoring
+
+Implement an automated Lead Scoring Model based on:
+
+Revenue potential
+
+Strategic fit (platforms, certifications)
+
+Urgency (AOG vs routine)
+
+Geographic alignment
+
+Compliance readiness
+
+Historical engagement
+
+Score Output
+
+Hot / Warm / Cold
+
+Numerical Score (0–100)
+
+Auto-generated evaluation notes
+
+3️⃣ Lead Status Workflow
+
+Define a controlled lifecycle:
+
+New
+
+Contacted
+
+Qualified
+
+In Evaluation
+
+Approved for Conversion
+
+Converted
+
+Disqualified (with reason)
+
+All status changes must be timestamped and auditable.
+
+4️⃣ Lead Conversion Logic (CRITICAL)
+
+Enable one-click conversion with guardrails:
+
+Convert Lead → Customer
+
+Create Account
+
+Create Primary Contact
+
+Link to Sales Orders & Quotes
+
+Initialize credit & payment profile
+
+Convert Lead → Supplier
+
+Create Supplier Account
+
+Trigger supplier onboarding workflow
+
+Link to Procurement & Compliance
+
+Enable certification tracking
+
+Rules
+
+Prevent duplicate accounts
+
+Require approval for high-risk conversions
+
+Preserve lead history post-conversion
+
+🌐 EXTERNAL WEB LEAD SUBMISSION (MANDATORY)
+5️⃣ Public Lead Intake Web Link
+
+Create a secure, shareable web form that:
+
+Captures required lead fields
+
+Uses CAPTCHA & spam protection
+
+Supports file uploads (certs, capability statements)
+
+Allows dynamic field visibility (Customer vs Supplier intent)
+
+Auto-creates a Lead record in the system
+
+Assigns lead owner automatically
+
+Sends confirmation email to submitter
+
+Triggers internal notification & SLA timer
+
+Example use cases:
+
+“Request Services”
+
+“Become a Supplier”
+
+“Request a Demo”
+
+“Contact Sales”
+
+📊 LEAD ANALYTICS & VISIBILITY
+6️⃣ Sales & Engagement Insights
+
+Provide dashboards and reports for:
+
+Leads by Source
+
+Conversion Rate (Lead → Account)
+
+Average Time to Convert
+
+Revenue Influenced by Leads
+
+Top Performing Lead Channels
+
+Drop-off Reasons
+
+🧠 AI-ASSISTED SALES INTELLIGENCE (ADVANCED)
+
+Embed a Sales Engagement Copilot that can answer:
+
+“Which leads should I prioritize this week?”
+
+“Which leads are most likely to convert?”
+
+“Why are leads being disqualified?”
+
+“Which channels generate the highest value customers?”
+
+“Should this lead be a customer or supplier?”
+
+AI outputs must be concise, explainable, and actionable.
+
+🖥️ UI / UX REQUIREMENTS
+
+Clean, CRM-grade layout
+
+Inline editing
+
+Advanced filtering & search
+
+Quick-action buttons (Convert, Assign, Contact)
+
+Mobile-friendly
+
+Role-based permissions (Sales, Procurement, Admin)
+
+Full activity timeline (calls, emails, notes)
+
+🔐 SECURITY & COMPLIANCE
+
+Role-based access control
+
+Audit logs for lead changes
+
+GDPR / CCPA-aware data handling
+
+Secure public form endpoint
+
+SOC-2 readiness
+
+📦 DELIVERABLES
+
+Leads data model & relationships
+
+Lead scoring logic
+
+Conversion workflows
+
+Public web form & API endpoint
+
+Notifications & automation
+
+Analytics & dashboards
+
+AI prompt framework
+
+🏁 SUCCESS CRITERIA
+
+Faster lead response time
+
+Higher lead-to-account conversion
+
+No duplicate customers or suppliers
+
+Full visibility from lead → revenue → operations
+
+Seamless external lead intake

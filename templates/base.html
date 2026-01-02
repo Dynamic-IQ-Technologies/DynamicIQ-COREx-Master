@@ -634,6 +634,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if session.role in ['Admin', 'Finance', 'Supervisor', 'Sales'] %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('leads.leads_list') }}">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <span>Leads</span>
+                </a>
+            </li>
+            {% endif %}
             {% if session.role == 'Admin' or user_permissions.get('menu_customer_service', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('customer_service.dashboard') }}">

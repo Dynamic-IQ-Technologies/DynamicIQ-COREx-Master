@@ -1629,6 +1629,94 @@ class Database:
             )
         ''')
         
+        # Create leads table for CRM lead management
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS leads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_number TEXT UNIQUE NOT NULL,
+                company_name TEXT NOT NULL,
+                business_type TEXT,
+                aircraft_platform_focus TEXT,
+                country TEXT,
+                region TEXT,
+                website TEXT,
+                contact_name TEXT,
+                contact_title TEXT,
+                contact_email TEXT,
+                contact_phone TEXT,
+                preferred_contact_method TEXT DEFAULT 'Email',
+                lead_source TEXT,
+                lead_source_detail TEXT,
+                services_of_interest TEXT,
+                parts_ata_chapters TEXT,
+                aircraft_types TEXT,
+                estimated_volume TEXT,
+                estimated_spend REAL,
+                urgency TEXT DEFAULT 'Routine',
+                compliance_certs TEXT,
+                customer_approval_required INTEGER DEFAULT 0,
+                supplier_certification TEXT,
+                lead_type TEXT DEFAULT 'Customer',
+                score INTEGER DEFAULT 0,
+                score_category TEXT DEFAULT 'Cold',
+                evaluation_notes TEXT,
+                status TEXT DEFAULT 'New',
+                status_reason TEXT,
+                assigned_to INTEGER,
+                converted_to_customer_id INTEGER,
+                converted_to_supplier_id INTEGER,
+                converted_at TIMESTAMP,
+                converted_by INTEGER,
+                portal_token TEXT UNIQUE,
+                portal_token_expires TIMESTAMP,
+                submission_ip TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (assigned_to) REFERENCES users(id),
+                FOREIGN KEY (converted_to_customer_id) REFERENCES customers(id),
+                FOREIGN KEY (converted_to_supplier_id) REFERENCES suppliers(id),
+                FOREIGN KEY (converted_by) REFERENCES users(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create lead activities table for activity timeline
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS lead_activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                activity_type TEXT NOT NULL,
+                subject TEXT,
+                description TEXT,
+                outcome TEXT,
+                next_action TEXT,
+                next_action_date DATE,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create lead documents table for file attachments
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS lead_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                file_name TEXT NOT NULL,
+                original_name TEXT NOT NULL,
+                file_type TEXT,
+                file_size INTEGER,
+                document_category TEXT DEFAULT 'General',
+                description TEXT,
+                uploaded_by INTEGER,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+                FOREIGN KEY (uploaded_by) REFERENCES users(id)
+            )
+        ''')
+        
         # Create sales_orders table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sales_orders (

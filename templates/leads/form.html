@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Lead' if lead else 'New Lead' }} - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">
+            <i class="bi bi-person-plus-fill me-2"></i>
+            {{ 'Edit Lead: ' + lead.lead_number if lead else 'New Lead' }}
+        </h2>
+        <p class="text-muted mb-0">{{ 'Update lead information' if lead else 'Capture new sales or supplier lead' }}</p>
+    </div>
+    <a href="{{ url_for('leads.leads_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Leads
+    </a>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-building me-2"></i>Company Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" name="company_name" class="form-control" required value="{{ lead.company_name if lead else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Business Type</label>
+                            <select name="business_type" class="form-select">
+                                <option value="">Select Type...</option>
+                                {% for bt in business_types %}
+                                <option value="{{ bt }}" {% if lead and lead.business_type == bt %}selected{% endif %}>{{ bt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Aircraft/Platform Focus</label>
+                            <input type="text" name="aircraft_platform_focus" class="form-control" placeholder="e.g., Boeing 737, Airbus A320" value="{{ lead.aircraft_platform_focus if lead else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Country</label>
+                            <input type="text" name="country" class="form-control" value="{{ lead.country if lead else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Region</label>
+                            <input type="text" name="region" class="form-control" placeholder="e.g., North America" value="{{ lead.region if lead else '' }}">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Website</label>
+                            <input type="url" name="website" class="form-control" placeholder="https://" value="{{ lead.website if lead else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-person me-2"></i>Primary Contact</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Contact Name</label>
+                            <input type="text" name="contact_name" class="form-control" value="{{ lead.contact_name if lead else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Title</label>
+                            <input type="text" name="contact_title" class="form-control" placeholder="e.g., Procurement Manager" value="{{ lead.contact_title if lead else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="contact_email" class="form-control" value="{{ lead.contact_email if lead else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="contact_phone" class="form-control" value="{{ lead.contact_phone if lead else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Preferred Contact Method</label>
+                            <select name="preferred_contact_method" class="form-select">
+                                <option value="Email" {% if not lead or lead.preferred_contact_method == 'Email' %}selected{% endif %}>Email</option>
+                                <option value="Phone" {% if lead and lead.preferred_contact_method == 'Phone' %}selected{% endif %}>Phone</option>
+                                <option value="In-Person" {% if lead and lead.preferred_contact_method == 'In-Person' %}selected{% endif %}>In-Person</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-bullseye me-2"></i>Interest & Scope</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Services of Interest</label>
+                            <div class="row">
+                                {% for service in services %}
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="services_of_interest" value="{{ service }}" id="service_{{ loop.index }}"
+                                            {% if lead and service in (lead.services_of_interest or '') %}checked{% endif %}>
+                                        <label class="form-check-label" for="service_{{ loop.index }}">{{ service }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Parts/ATA Chapters</label>
+                            <input type="text" name="parts_ata_chapters" class="form-control" placeholder="e.g., ATA 21, 29, 32" value="{{ lead.parts_ata_chapters if lead else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Aircraft Types</label>
+                            <input type="text" name="aircraft_types" class="form-control" placeholder="e.g., B737, A320, E175" value="{{ lead.aircraft_types if lead else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Estimated Volume</label>
+                            <input type="text" name="estimated_volume" class="form-control" placeholder="e.g., 50 units/year" value="{{ lead.estimated_volume if lead else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Estimated Spend ($)</label>
+                            <input type="number" name="estimated_spend" class="form-control" step="0.01" min="0" value="{{ lead.estimated_spend if lead else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Urgency</label>
+                            <select name="urgency" class="form-select">
+                                {% for urgency in urgency_levels %}
+                                <option value="{{ urgency }}" {% if lead and lead.urgency == urgency %}selected{% endif %}>{{ urgency }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-shield-check me-2"></i>Compliance & Qualification</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Compliance Certifications</label>
+                            <div class="row">
+                                {% for cert in ['FAA', 'EASA', 'AS9100', 'AS9110', 'AS9120', 'ISO 9001', 'NADCAP', 'Military'] %}
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="compliance_certs" value="{{ cert }}" id="cert_{{ loop.index }}"
+                                            {% if lead and cert in (lead.compliance_certs or '') %}checked{% endif %}>
+                                        <label class="form-check-label" for="cert_{{ loop.index }}">{{ cert }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="customer_approval_required" id="customerApproval"
+                                    {% if lead and lead.customer_approval_required %}checked{% endif %}>
+                                <label class="form-check-label" for="customerApproval">Customer Approval Required</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Supplier Certification (if applicable)</label>
+                            <input type="text" name="supplier_certification" class="form-control" value="{{ lead.supplier_certification if lead else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-gear me-2"></i>Lead Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Lead Type <span class="text-danger">*</span></label>
+                        <select name="lead_type" class="form-select">
+                            <option value="Customer" {% if not lead or lead.lead_type == 'Customer' %}selected{% endif %}>Customer</option>
+                            <option value="Supplier" {% if lead and lead.lead_type == 'Supplier' %}selected{% endif %}>Supplier</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Lead Source</label>
+                        <select name="lead_source" class="form-select">
+                            <option value="">Select Source...</option>
+                            {% for source in lead_sources %}
+                            <option value="{{ source }}" {% if lead and lead.lead_source == source %}selected{% endif %}>{{ source }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Source Detail</label>
+                        <input type="text" name="lead_source_detail" class="form-control" placeholder="e.g., MRO Americas 2024" value="{{ lead.lead_source_detail if lead else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assigned To</label>
+                        <select name="assigned_to" class="form-select">
+                            <option value="">Unassigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if lead and lead.assigned_to == user.id %}selected{% endif %}>{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {% if lead %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-speedometer2 me-2"></i>Lead Score</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="display-4 fw-bold {% if lead.score_category == 'Hot' %}text-danger{% elif lead.score_category == 'Warm' %}text-warning{% else %}text-secondary{% endif %}">
+                        {{ lead.score }}
+                    </div>
+                    <span class="badge {% if lead.score_category == 'Hot' %}bg-danger{% elif lead.score_category == 'Warm' %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+                        {{ lead.score_category }}
+                    </span>
+                    {% if lead.evaluation_notes %}
+                    <div class="mt-3 text-start">
+                        <small class="text-muted">
+                            <pre class="mb-0" style="font-size: 0.75rem; white-space: pre-wrap;">{{ lead.evaluation_notes }}</pre>
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-lg me-1"></i>{{ 'Update Lead' if lead else 'Create Lead' }}
+                </button>
+                <a href="{{ url_for('leads.leads_list') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

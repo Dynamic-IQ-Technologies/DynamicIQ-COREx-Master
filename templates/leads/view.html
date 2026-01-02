@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Lead {{ lead.lead_number }} - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">
+            <i class="bi bi-person-lines-fill me-2"></i>{{ lead.lead_number }}
+            <span class="badge {% if lead.score_category == 'Hot' %}bg-danger{% elif lead.score_category == 'Warm' %}bg-warning text-dark{% else %}bg-secondary{% endif %} ms-2">
+                {{ lead.score }} - {{ lead.score_category }}
+            </span>
+        </h2>
+        <p class="text-muted mb-0">{{ lead.company_name }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('leads.leads_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+        {% if lead.status != 'Converted' %}
+        <a href="{{ url_for('leads.edit_lead', lead_id=lead.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        <button class="btn btn-outline-success" onclick="showConvertModal()">
+            <i class="bi bi-arrow-right-circle me-1"></i>Convert
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-building me-2"></i>Lead Details</h5>
+                <span class="badge 
+                    {% if lead.status == 'New' %}bg-info
+                    {% elif lead.status == 'Contacted' %}bg-primary
+                    {% elif lead.status == 'Qualified' %}bg-warning text-dark
+                    {% elif lead.status == 'In Evaluation' %}bg-info
+                    {% elif lead.status == 'Approved for Conversion' %}bg-success
+                    {% elif lead.status == 'Converted' %}bg-success
+                    {% elif lead.status == 'Disqualified' %}bg-dark
+                    {% else %}bg-secondary{% endif %} fs-6">
+                    {{ lead.status }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small">Company Name</label>
+                        <div class="fw-medium">{{ lead.company_name }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Business Type</label>
+                        <div>{{ lead.business_type or '-' }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Lead Type</label>
+                        <div>
+                            <span class="badge {% if lead.lead_type == 'Customer' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                {{ lead.lead_type }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Aircraft/Platform Focus</label>
+                        <div>{{ lead.aircraft_platform_focus or '-' }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Country</label>
+                        <div>{{ lead.country or '-' }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Region</label>
+                        <div>{{ lead.region or '-' }}</div>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="text-muted small">Website</label>
+                        <div>
+                            {% if lead.website %}
+                            <a href="{{ lead.website }}" target="_blank">{{ lead.website }}</a>
+                            {% else %}-{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <h6 class="text-muted mb-3"><i class="bi bi-person me-1"></i>Primary Contact</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="text-muted small">Contact Name</label>
+                        <div class="fw-medium">{{ lead.contact_name or '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">Title</label>
+                        <div>{{ lead.contact_title or '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">Preferred Contact</label>
+                        <div>{{ lead.preferred_contact_method or 'Email' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Email</label>
+                        <div>
+                            {% if lead.contact_email %}
+                            <a href="mailto:{{ lead.contact_email }}">{{ lead.contact_email }}</a>
+                            {% else %}-{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Phone</label>
+                        <div>
+                            {% if lead.contact_phone %}
+                            <a href="tel:{{ lead.contact_phone }}">{{ lead.contact_phone }}</a>
+                            {% else %}-{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <h6 class="text-muted mb-3"><i class="bi bi-bullseye me-1"></i>Interest & Scope</h6>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="text-muted small">Services of Interest</label>
+                        <div>
+                            {% if lead.services_of_interest %}
+                                {% for service in lead.services_of_interest.split(',') %}
+                                <span class="badge bg-light text-dark me-1">{{ service }}</span>
+                                {% endfor %}
+                            {% else %}-{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">Parts/ATA Chapters</label>
+                        <div>{{ lead.parts_ata_chapters or '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">Aircraft Types</label>
+                        <div>{{ lead.aircraft_types or '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">Urgency</label>
+                        <div>
+                            <span class="badge {% if lead.urgency == 'AOG' %}bg-danger{% elif lead.urgency == 'Critical' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ lead.urgency }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Estimated Volume</label>
+                        <div>{{ lead.estimated_volume or '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Estimated Spend</label>
+                        <div>{{ '$ {:,.2f}'.format(lead.estimated_spend) if lead.estimated_spend else '-' }}</div>
+                    </div>
+                </div>
+                {% if lead.compliance_certs %}
+                <hr>
+                <h6 class="text-muted mb-3"><i class="bi bi-shield-check me-1"></i>Compliance</h6>
+                <div>
+                    {% for cert in lead.compliance_certs.split(',') %}
+                    <span class="badge bg-success me-1">{{ cert }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Activity Timeline</h5>
+                <button class="btn btn-sm btn-primary" onclick="showActivityModal()">
+                    <i class="bi bi-plus-lg me-1"></i>Add Activity
+                </button>
+            </div>
+            <div class="card-body p-0">
+                {% if activities %}
+                <div class="list-group list-group-flush">
+                    {% for activity in activities %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge bg-primary me-2">{{ activity.activity_type }}</span>
+                                <strong>{{ activity.subject }}</strong>
+                            </div>
+                            <small class="text-muted">{{ activity.created_at[:16] if activity.created_at else '' }}</small>
+                        </div>
+                        {% if activity.description %}
+                        <p class="mb-1 mt-2">{{ activity.description }}</p>
+                        {% endif %}
+                        {% if activity.outcome %}
+                        <small class="text-muted"><strong>Outcome:</strong> {{ activity.outcome }}</small>
+                        {% endif %}
+                        {% if activity.next_action %}
+                        <div class="mt-1">
+                            <small class="text-info"><i class="bi bi-arrow-right me-1"></i>Next: {{ activity.next_action }}
+                                {% if activity.next_action_date %} ({{ activity.next_action_date }}){% endif %}
+                            </small>
+                        </div>
+                        {% endif %}
+                        <div class="mt-1">
+                            <small class="text-muted">by {{ activity.username or 'System' }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                    No activities recorded yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-speedometer2 me-2"></i>Lead Score</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="display-3 fw-bold {% if lead.score_category == 'Hot' %}text-danger{% elif lead.score_category == 'Warm' %}text-warning{% else %}text-secondary{% endif %}">
+                    {{ lead.score }}
+                </div>
+                <span class="badge {% if lead.score_category == 'Hot' %}bg-danger{% elif lead.score_category == 'Warm' %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-5 mb-3">
+                    {{ lead.score_category }}
+                </span>
+                {% if lead.evaluation_notes %}
+                <div class="text-start mt-3 bg-light p-3 rounded">
+                    <small><pre class="mb-0" style="font-size: 0.7rem; white-space: pre-wrap;">{{ lead.evaluation_notes }}</pre></small>
+                </div>
+                {% endif %}
+                <button class="btn btn-outline-primary btn-sm mt-3" onclick="rescoreLead()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Recalculate Score
+                </button>
+            </div>
+        </div>
+
+        {% if lead.status != 'Converted' %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-flag me-2"></i>Update Status</h5>
+            </div>
+            <div class="card-body">
+                <select id="newStatus" class="form-select mb-2">
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if lead.status == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+                <textarea id="statusReason" class="form-control mb-2" rows="2" placeholder="Reason (required for Disqualified)"></textarea>
+                <button class="btn btn-primary w-100" onclick="updateStatus()">Update Status</button>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-person-badge me-2"></i>Assignment</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-person-circle fs-3 text-muted me-2"></i>
+                    <div>
+                        <div class="fw-medium">{{ lead.assigned_username or 'Unassigned' }}</div>
+                        <small class="text-muted">Assigned Owner</small>
+                    </div>
+                </div>
+                <select id="assignUser" class="form-select mb-2">
+                    <option value="">Unassigned</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if lead.assigned_to == user.id %}selected{% endif %}>{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-outline-primary btn-sm w-100" onclick="assignLead()">Update Assignment</button>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i>Lead Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <small class="text-muted d-block">Source</small>
+                        <span>{{ lead.lead_source or '-' }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Source Detail</small>
+                        <span>{{ lead.lead_source_detail or '-' }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Created</small>
+                        <span>{{ lead.created_at[:10] if lead.created_at else '-' }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Created By</small>
+                        <span>{{ lead.created_username or 'Web Form' }}</span>
+                    </div>
+                    {% if lead.status == 'Converted' %}
+                    <div class="col-12 mt-2">
+                        <div class="alert alert-success mb-0">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Converted to 
+                            {% if lead.converted_to_customer_id %}
+                            <a href="{{ url_for('sales.view_customer', customer_id=lead.converted_to_customer_id) }}">
+                                Customer {{ lead.customer_number }}
+                            </a>
+                            {% elif lead.converted_to_supplier_id %}
+                            <a href="{{ url_for('suppliers.view_supplier', supplier_id=lead.converted_to_supplier_id) }}">
+                                Supplier {{ lead.supplier_code }}
+                            </a>
+                            {% endif %}
+                            <div class="small">by {{ lead.converted_username }} on {{ lead.converted_at[:10] if lead.converted_at else '' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0"><i class="bi bi-robot me-2"></i>AI Sales Copilot</h5>
+            </div>
+            <div class="card-body">
+                <textarea id="copilotQuestion" class="form-control mb-2" rows="2" placeholder="Ask about this lead..."></textarea>
+                <button class="btn btn-primary w-100 mb-2" onclick="askCopilot()">
+                    <i class="bi bi-send me-1"></i>Ask
+                </button>
+                <div id="copilotAnswer" class="bg-light p-3 rounded" style="display: none; max-height: 200px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="activityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('leads.add_activity', lead_id=lead.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Activity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Activity Type</label>
+                        <select name="activity_type" class="form-select" required>
+                            {% for at in activity_types %}
+                            <option value="{{ at }}">{{ at }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <input type="text" name="subject" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Outcome</label>
+                        <input type="text" name="outcome" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <label class="form-label">Next Action</label>
+                            <input type="text" name="next_action" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="next_action_date" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Activity</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="convertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Convert Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Convert <strong>{{ lead.company_name }}</strong> to:</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary btn-lg" onclick="convertLead('customer')">
+                        <i class="bi bi-person-plus me-2"></i>Customer Account
+                    </button>
+                    <button class="btn btn-secondary btn-lg" onclick="convertLead('supplier')">
+                        <i class="bi bi-truck me-2"></i>Supplier Account
+                    </button>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    This will create a new {{ lead.lead_type }} account with the lead's contact information.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showActivityModal() {
+    new bootstrap.Modal(document.getElementById('activityModal')).show();
+}
+
+function showConvertModal() {
+    new bootstrap.Modal(document.getElementById('convertModal')).show();
+}
+
+function updateStatus() {
+    const status = document.getElementById('newStatus').value;
+    const reason = document.getElementById('statusReason').value;
+    
+    if (status === 'Disqualified' && !reason) {
+        showNotification('Please provide a reason for disqualification', 'error');
+        return;
+    }
+    
+    fetch('{{ url_for("leads.update_lead_status", lead_id=lead.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `status=${status}&reason=${encodeURIComponent(reason)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Status updated successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.error || 'Failed to update status', 'error');
+        }
+    });
+}
+
+function assignLead() {
+    const userId = document.getElementById('assignUser').value;
+    
+    fetch('{{ url_for("leads.assign_lead", lead_id=lead.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `user_id=${userId}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Assignment updated', 'success');
+            setTimeout(() => location.reload(), 1000);
+        }
+    });
+}
+
+function rescoreLead() {
+    fetch('{{ url_for("leads.rescore_lead", lead_id=lead.id) }}', {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`Score updated: ${data.score} (${data.category})`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        }
+    });
+}
+
+function convertLead(type) {
+    fetch('{{ url_for("leads.convert_lead", lead_id=lead.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `convert_to=${type}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => window.location.href = data.redirect, 1500);
+        } else {
+            showNotification(data.error || 'Conversion failed', 'error');
+        }
+    });
+}
+
+function askCopilot() {
+    const question = document.getElementById('copilotQuestion').value;
+    if (!question) return;
+    
+    const answerDiv = document.getElementById('copilotAnswer');
+    answerDiv.style.display = 'block';
+    answerDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Thinking...</div>';
+    
+    fetch('{{ url_for("leads.leads_copilot") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question: question})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            answerDiv.innerHTML = data.answer.replace(/\n/g, '<br>');
+        } else {
+            answerDiv.innerHTML = '<span class="text-danger">Error: ' + (data.error || 'Failed to get response') + '</span>';
+        }
+    });
+}
+</script>
+{% endblock %}

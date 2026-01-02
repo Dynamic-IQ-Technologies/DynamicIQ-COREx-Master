@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Dynamic.IQ-COREx</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .form-container {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 700px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .form-header {
+            background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .form-body {
+            padding: 2rem;
+        }
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+        .success-message .bi-check-circle {
+            font-size: 4rem;
+            color: #198754;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h2 class="mb-1"><i class="bi bi-gear-wide-connected me-2"></i>Dynamic.IQ-COREx</h2>
+            <p class="mb-0">Aviation MRO Solutions</p>
+        </div>
+        
+        <div class="form-body" id="formSection">
+            <h4 class="mb-4 text-center">Contact Our Team</h4>
+            
+            <form id="leadForm">
+                <input type="hidden" name="token" value="{{ token }}">
+                <input type="hidden" name="form_type" value="{{ request.args.get('type', 'contact') }}">
+                <input type="hidden" name="form_timestamp" id="formTimestamp" value="">
+                <div style="position: absolute; left: -9999px;">
+                    <label for="website_url">Leave this empty</label>
+                    <input type="text" name="website_url" id="honeypot" tabindex="-1" autocomplete="off">
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                        <input type="text" name="company_name" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Business Type</label>
+                        <select name="business_type" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="Airline">Airline</option>
+                            <option value="MRO">MRO</option>
+                            <option value="OEM">OEM</option>
+                            <option value="Supplier">Supplier</option>
+                            <option value="Broker">Broker</option>
+                            <option value="Operator">Operator</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Your Name <span class="text-danger">*</span></label>
+                        <input type="text" name="contact_name" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Title</label>
+                        <input type="text" name="contact_title" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" name="contact_email" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" name="contact_phone" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Country</label>
+                        <input type="text" name="country" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Preferred Contact Method</label>
+                        <select name="preferred_contact_method" class="form-select">
+                            <option value="Email">Email</option>
+                            <option value="Phone">Phone</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">I am interested in</label>
+                        <select name="lead_type" class="form-select">
+                            <option value="Customer">Becoming a Customer</option>
+                            <option value="Supplier">Becoming a Supplier</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Urgency</label>
+                        <select name="urgency" class="form-select">
+                            <option value="Routine">Routine</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="Critical">Critical</option>
+                            <option value="AOG">AOG (Aircraft on Ground)</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Services of Interest</label>
+                        <div class="row">
+                            <div class="col-6 col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="services_of_interest" value="Repair" id="svc1">
+                                    <label class="form-check-label" for="svc1">Repair</label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="services_of_interest" value="Overhaul" id="svc2">
+                                    <label class="form-check-label" for="svc2">Overhaul</label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="services_of_interest" value="Exchange" id="svc3">
+                                    <label class="form-check-label" for="svc3">Exchange</label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="services_of_interest" value="Parts Sales" id="svc4">
+                                    <label class="form-check-label" for="svc4">Parts Sales</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Aircraft Types</label>
+                        <input type="text" name="aircraft_types" class="form-control" placeholder="e.g., Boeing 737, Airbus A320">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Website</label>
+                        <input type="url" name="website" class="form-control" placeholder="https://">
+                    </div>
+                </div>
+                
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-send me-2"></i>Submit Inquiry
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="success-message" id="successSection">
+            <i class="bi bi-check-circle d-block mb-3"></i>
+            <h3 class="mb-2">Thank You!</h3>
+            <p class="text-muted mb-4">Your inquiry has been submitted successfully. Our team will contact you shortly.</p>
+            <a href="/" class="btn btn-outline-primary">Return Home</a>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('formTimestamp').value = Date.now();
+    
+    document.getElementById('leadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (document.getElementById('honeypot').value) {
+            return;
+        }
+        
+        const formData = new FormData(this);
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+        
+        fetch('/leads/submit-public', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('formSection').style.display = 'none';
+                document.getElementById('successSection').style.display = 'block';
+            } else {
+                alert(data.error || 'Submission failed. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-send me-2"></i>Submit Inquiry';
+            }
+        })
+        .catch(err => {
+            alert('An error occurred. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send me-2"></i>Submit Inquiry';
+        });
+    });
+    </script>
+</body>
+</html>

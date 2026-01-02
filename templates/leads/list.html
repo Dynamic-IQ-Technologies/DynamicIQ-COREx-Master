@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Leads Management - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-person-lines-fill me-2"></i>Leads Management</h2>
+        <p class="text-muted mb-0">Track and manage sales leads through the qualification pipeline</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('leads.leads_analytics') }}" class="btn btn-outline-primary">
+            <i class="bi bi-graph-up me-1"></i>Analytics
+        </a>
+        <button class="btn btn-outline-secondary" onclick="showGenerateLinkModal()">
+            <i class="bi bi-link-45deg me-1"></i>Generate Form Link
+        </button>
+        <a href="{{ url_for('leads.create_lead') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>New Lead
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.total or 0 }}</h3>
+                <small>Total Leads</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.new_count or 0 }}</h3>
+                <small>New</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.qualified_count or 0 }}</h3>
+                <small>Qualified</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.converted_count or 0 }}</h3>
+                <small>Converted</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.hot_count or 0 }}</h3>
+                <small>Hot Leads</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card" style="background: #ffc107;">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ stats.warm_count or 0 }}</h3>
+                <small>Warm Leads</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if current_status == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Source</label>
+                <select name="source" class="form-select form-select-sm">
+                    <option value="">All Sources</option>
+                    {% for source in sources %}
+                    <option value="{{ source }}" {% if current_source == source %}selected{% endif %}>{{ source }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Score</label>
+                <select name="score_category" class="form-select form-select-sm">
+                    <option value="">All Scores</option>
+                    <option value="Hot" {% if current_score == 'Hot' %}selected{% endif %}>Hot</option>
+                    <option value="Warm" {% if current_score == 'Warm' %}selected{% endif %}>Warm</option>
+                    <option value="Cold" {% if current_score == 'Cold' %}selected{% endif %}>Cold</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Type</label>
+                <select name="lead_type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    <option value="Customer" {% if current_type == 'Customer' %}selected{% endif %}>Customer</option>
+                    <option value="Supplier" {% if current_type == 'Supplier' %}selected{% endif %}>Supplier</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Company, contact, email..." value="{{ search }}">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Lead #</th>
+                        <th>Company</th>
+                        <th>Contact</th>
+                        <th>Source</th>
+                        <th>Type</th>
+                        <th class="text-center">Score</th>
+                        <th>Status</th>
+                        <th>Assigned To</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('leads.view_lead', lead_id=lead.id) }}" class="fw-semibold text-decoration-none">
+                                {{ lead.lead_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <div class="fw-medium">{{ lead.company_name }}</div>
+                            {% if lead.business_type %}
+                            <small class="text-muted">{{ lead.business_type }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ lead.contact_name or '-' }}</div>
+                            {% if lead.contact_email %}
+                            <small class="text-muted">{{ lead.contact_email }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ lead.lead_source or '-' }}</td>
+                        <td>
+                            <span class="badge {% if lead.lead_type == 'Customer' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                {{ lead.lead_type }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge rounded-pill {% if lead.score_category == 'Hot' %}bg-danger{% elif lead.score_category == 'Warm' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ lead.score }} - {{ lead.score_category }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if lead.status == 'New' %}bg-info
+                                {% elif lead.status == 'Contacted' %}bg-primary
+                                {% elif lead.status == 'Qualified' %}bg-warning text-dark
+                                {% elif lead.status == 'In Evaluation' %}bg-info
+                                {% elif lead.status == 'Approved for Conversion' %}bg-success
+                                {% elif lead.status == 'Converted' %}bg-success
+                                {% elif lead.status == 'Disqualified' %}bg-dark
+                                {% else %}bg-secondary{% endif %}">
+                                {{ lead.status }}
+                            </span>
+                        </td>
+                        <td>{{ lead.assigned_username or '-' }}</td>
+                        <td>{{ lead.created_at[:10] if lead.created_at else '-' }}</td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('leads.view_lead', lead_id=lead.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if lead.status != 'Converted' %}
+                                <a href="{{ url_for('leads.edit_lead', lead_id=lead.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                            No leads found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="generateLinkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Public Lead Form Link</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Form Type</label>
+                    <select id="formType" class="form-select">
+                        <option value="contact">Contact Sales</option>
+                        <option value="services">Request Services</option>
+                        <option value="supplier">Become a Supplier</option>
+                        <option value="demo">Request a Demo</option>
+                    </select>
+                </div>
+                <div id="generatedLinkContainer" style="display: none;">
+                    <label class="form-label">Generated Link</label>
+                    <div class="input-group">
+                        <input type="text" id="generatedLink" class="form-control" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyLink()">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">Share this link with potential leads</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="generateLink()">Generate Link</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showGenerateLinkModal() {
+    document.getElementById('generatedLinkContainer').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('generateLinkModal')).show();
+}
+
+function generateLink() {
+    const formType = document.getElementById('formType').value;
+    
+    fetch('{{ url_for("leads.generate_form_link") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `form_type=${formType}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('generatedLink').value = data.link;
+            document.getElementById('generatedLinkContainer').style.display = 'block';
+        }
+    });
+}
+
+function copyLink() {
+    const link = document.getElementById('generatedLink');
+    link.select();
+    document.execCommand('copy');
+    showNotification('Link copied to clipboard', 'success');
+}
+</script>
+{% endblock %}
