@@ -604,7 +604,7 @@ def sop_download_pdf(sop_id):
         ('BOX', (0, 0), (-1, -1), 1.5, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a365d')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a6fa5')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
     ]))
     elements.append(header_table)
@@ -643,34 +643,6 @@ def sop_download_pdf(sop_id):
         ('SPAN', (1, 4), (3, 4)),
     ]))
     elements.append(control_table)
-    elements.append(Spacer(1, 0.15*inch))
-    
-    # ========== APPROVAL BLOCK ==========
-    approval_data = [
-        [Paragraph('<b>Role</b>', label_style),
-         Paragraph('<b>Name</b>', label_style),
-         Paragraph('<b>Signature</b>', label_style),
-         Paragraph('<b>Date</b>', label_style)],
-        [Paragraph('Prepared By:', value_style),
-         Paragraph(sop['prepared_by_name'] or '-', value_style),
-         '',
-         Paragraph(sop['created_at'][:10] if sop['created_at'] else '-', value_style)],
-        [Paragraph('Approved By:', value_style),
-         Paragraph(sop['approved_by_name'] or '-', value_style),
-         '',
-         Paragraph(sop['approved_date'][:10] if sop['approved_date'] else '-', value_style)]
-    ]
-    approval_table = Table(approval_data, colWidths=[1.5*inch, 2*inch, 2*inch, 1.5*inch])
-    approval_table.setStyle(TableStyle([
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.gray),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-    ]))
-    elements.append(approval_table)
     elements.append(Spacer(1, 0.25*inch))
     
     # ========== DOCUMENT CONTENT ==========
@@ -739,6 +711,36 @@ def sop_download_pdf(sop_id):
         ('FONTSIZE', (0, 0), (-1, -1), 9),
     ]))
     elements.append(rev_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # ========== APPROVAL BLOCK (at bottom of document) ==========
+    section_num += 1
+    elements.append(Paragraph(f'{section_num}. DOCUMENT APPROVAL', section_header_style))
+    approval_data = [
+        [Paragraph('<b>Role</b>', label_style),
+         Paragraph('<b>Name</b>', label_style),
+         Paragraph('<b>Signature</b>', label_style),
+         Paragraph('<b>Date</b>', label_style)],
+        [Paragraph('Prepared By:', value_style),
+         Paragraph(sop['prepared_by_name'] or '-', value_style),
+         '',
+         Paragraph(sop['created_at'][:10] if sop['created_at'] else '-', value_style)],
+        [Paragraph('Approved By:', value_style),
+         Paragraph(sop['approved_by_name'] or '-', value_style),
+         '',
+         Paragraph(sop['approved_date'][:10] if sop['approved_date'] else '-', value_style)]
+    ]
+    approval_table = Table(approval_data, colWidths=[1.5*inch, 2*inch, 2*inch, 1.5*inch])
+    approval_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.gray),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+    ]))
+    elements.append(approval_table)
     
     doc.build(elements, onFirstPage=add_page_number, onLaterPages=add_page_number)
     buffer.seek(0)
