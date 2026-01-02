@@ -1518,6 +1518,9 @@
                                         </td>
                                         <td>{{ doc.uploaded_at[:10] if doc.uploaded_at else '-' }}</td>
                                         <td class="text-center">
+                                            <a href="{{ url_for('workorder_routes.view_wo_document', wo_id=workorder.id, doc_id=doc.id) }}" class="btn btn-sm btn-outline-success" title="View" target="_blank">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
                                             <a href="{{ url_for('workorder_routes.download_wo_document', wo_id=workorder.id, doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary" title="Download">
                                                 <i class="bi bi-download"></i>
                                             </a>

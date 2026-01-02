@@ -3535,6 +3535,39 @@ def download_wo_document(wo_id, doc_id):
         as_attachment=True
     )
 
+@workorder_bp.route('/workorders/<int:wo_id>/documents/<int:doc_id>/view')
+@login_required
+def view_wo_document(wo_id, doc_id):
+    """View a work order document inline in browser"""
+    from flask import send_file
+    import os
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    document = conn.execute('''
+        SELECT * FROM work_order_documents 
+        WHERE id = ? AND work_order_id = ? AND is_active = 1
+    ''', (doc_id, wo_id)).fetchone()
+    
+    conn.close()
+    
+    if not document:
+        flash('Document not found.', 'error')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    if not os.path.exists(document['file_path']):
+        flash('File not found on server.', 'error')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    mime_type = document['mime_type'] or 'application/octet-stream'
+    
+    return send_file(
+        document['file_path'],
+        mimetype=mime_type,
+        as_attachment=False
+    )
+
 @workorder_bp.route('/workorders/<int:wo_id>/documents/<int:doc_id>/delete', methods=['POST'])
 @login_required
 @role_required('Admin', 'Production Staff')
