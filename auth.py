@@ -11,6 +11,12 @@ def login_required(f):
     return decorated_function
 
 def role_required(*roles):
+    # Handle both @role_required(['Admin', 'Sales']) and @role_required('Admin', 'Sales')
+    if len(roles) == 1 and isinstance(roles[0], (list, tuple)):
+        allowed_roles = list(roles[0])
+    else:
+        allowed_roles = list(roles)
+    
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -18,7 +24,7 @@ def role_required(*roles):
                 return redirect(url_for('auth_routes.login'))
             
             user = User.get_by_id(session['user_id'])
-            if not user or user['role'] not in roles:
+            if not user or user['role'] not in allowed_roles:
                 flash('You do not have permission to access this page.', 'danger')
                 return redirect(url_for('main_routes.dashboard'))
             
