@@ -156,6 +156,23 @@ class Database:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_stage_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_order_id INTEGER NOT NULL,
+                stage_id INTEGER NOT NULL,
+                entered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                exited_at TIMESTAMP,
+                duration_hours REAL,
+                changed_by INTEGER,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (stage_id) REFERENCES work_order_stages(id),
+                FOREIGN KEY (changed_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_stage_history_wo ON work_order_stage_history(work_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_stage_history_stage ON work_order_stage_history(stage_id)')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS work_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 wo_number TEXT UNIQUE NOT NULL,

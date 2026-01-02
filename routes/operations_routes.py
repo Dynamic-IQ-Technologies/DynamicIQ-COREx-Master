@@ -35,10 +35,17 @@ def operations_dashboard():
             COUNT(wo.id) as wo_count,
             SUM(CASE WHEN wo.status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
             COALESCE(SUM(wo.quantity), 0) as total_qty,
-            COALESCE(AVG(
-                CASE WHEN wo.actual_end_date IS NOT NULL AND wo.created_at IS NOT NULL 
-                THEN julianday(wo.actual_end_date) - julianday(date(wo.created_at))
-                ELSE NULL END
+            COALESCE((
+                SELECT AVG(
+                    CASE 
+                        WHEN wosh.exited_at IS NOT NULL 
+                        THEN (julianday(wosh.exited_at) - julianday(wosh.entered_at))
+                        ELSE NULL 
+                    END
+                )
+                FROM work_order_stage_history wosh
+                WHERE wosh.stage_id = wos.id
+                AND wosh.exited_at IS NOT NULL
             ), 0) as avg_tat_days,
             COALESCE((
                 SELECT SUM(wot.planned_hours)

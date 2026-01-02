@@ -213,6 +213,14 @@ def create_workorder():
                 
                 wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
                 
+                # Track initial stage history if stage is set
+                if stage_id:
+                    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    conn.execute('''
+                        INSERT INTO work_order_stage_history (work_order_id, stage_id, entered_at, changed_by)
+                        VALUES (?, ?, ?, ?)
+                    ''', (wo_id, stage_id, now, session.get('user_id')))
+                
                 # Log audit trail
                 AuditLogger.log_change(
                     conn=conn,
@@ -645,6 +653,27 @@ def edit_workorder(id):
             # Get new record for audit
             new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
             
+            # Track stage history if stage changed
+            old_stage_id = old_record['stage_id']
+            new_stage_id = stage_id
+            if old_stage_id != new_stage_id:
+                user_id = session.get('user_id')
+                now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                if old_stage_id:
+                    conn.execute('''
+                        UPDATE work_order_stage_history 
+                        SET exited_at = ?,
+                            duration_hours = (julianday(?) - julianday(entered_at)) * 24
+                        WHERE work_order_id = ? AND stage_id = ? AND exited_at IS NULL
+                    ''', (now, now, id, old_stage_id))
+                
+                if new_stage_id:
+                    conn.execute('''
+                        INSERT INTO work_order_stage_history (work_order_id, stage_id, entered_at, changed_by)
+                        VALUES (?, ?, ?, ?)
+                    ''', (id, new_stage_id, now, user_id))
+            
             # Log audit trail
             changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
             if changes:
@@ -986,6 +1015,26 @@ def update_workorder_management(id):
             SET status = ?, stage_id = ?, disposition = ?, repair_category = ?, workorder_type = ?
             WHERE id = ?
         ''', (new_status, stage_id, disposition, repair_category, workorder_type, id))
+        
+        # Track stage history if stage changed
+        old_stage_id = old_record['stage_id']
+        if old_stage_id != stage_id:
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            user_id = session.get('user_id')
+            
+            if old_stage_id:
+                conn.execute('''
+                    UPDATE work_order_stage_history 
+                    SET exited_at = ?,
+                        duration_hours = (julianday(?) - julianday(entered_at)) * 24
+                    WHERE work_order_id = ? AND stage_id = ? AND exited_at IS NULL
+                ''', (now, now, id, old_stage_id))
+            
+            if stage_id:
+                conn.execute('''
+                    INSERT INTO work_order_stage_history (work_order_id, stage_id, entered_at, changed_by)
+                    VALUES (?, ?, ?, ?)
+                ''', (id, stage_id, now, user_id))
         
         if new_status == 'Completed' and old_record['status'] != 'Completed':
             conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
@@ -1735,18 +1784,40 @@ def api_update_workorder_stage(id):
     from flask import jsonify
     
     data = request.get_json()
-    stage_id = data.get('stage_id')
+    new_stage_id = data.get('stage_id')
     
     db = Database()
     conn = db.get_connection()
     
     try:
-        if stage_id:
-            stage_id = int(stage_id)
+        if new_stage_id:
+            new_stage_id = int(new_stage_id)
         else:
-            stage_id = None
+            new_stage_id = None
         
-        conn.execute('UPDATE work_orders SET stage_id = ? WHERE id = ?', (stage_id, id))
+        old_wo = conn.execute('SELECT stage_id FROM work_orders WHERE id = ?', (id,)).fetchone()
+        old_stage_id = old_wo['stage_id'] if old_wo else None
+        
+        conn.execute('UPDATE work_orders SET stage_id = ? WHERE id = ?', (new_stage_id, id))
+        
+        if old_stage_id != new_stage_id:
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            user_id = session.get('user_id')
+            
+            if old_stage_id:
+                conn.execute('''
+                    UPDATE work_order_stage_history 
+                    SET exited_at = ?,
+                        duration_hours = (julianday(?) - julianday(entered_at)) * 24
+                    WHERE work_order_id = ? AND stage_id = ? AND exited_at IS NULL
+                ''', (now, now, id, old_stage_id))
+            
+            if new_stage_id:
+                conn.execute('''
+                    INSERT INTO work_order_stage_history (work_order_id, stage_id, entered_at, changed_by)
+                    VALUES (?, ?, ?, ?)
+                ''', (id, new_stage_id, now, user_id))
+        
         conn.commit()
         conn.close()
         
@@ -1810,9 +1881,11 @@ def api_mass_update_workorders():
                 update_fields.append('planned_end_date = ?')
                 update_values.append(updates['planned_end_date'] or None)
             
+            new_stage_id = None
             if 'stage_id' in updates:
+                new_stage_id = int(updates['stage_id']) if updates['stage_id'] else None
                 update_fields.append('stage_id = ?')
-                update_values.append(int(updates['stage_id']) if updates['stage_id'] else None)
+                update_values.append(new_stage_id)
             
             if update_fields:
                 update_values.append(wo_id)
@@ -1821,6 +1894,26 @@ def api_mass_update_workorders():
                     SET {', '.join(update_fields)}
                     WHERE id = ?
                 ''', update_values)
+                
+                if 'stage_id' in updates:
+                    old_stage_id = old_wo['stage_id']
+                    if old_stage_id != new_stage_id:
+                        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        user_id = session.get('user_id')
+                        
+                        if old_stage_id:
+                            conn.execute('''
+                                UPDATE work_order_stage_history 
+                                SET exited_at = ?,
+                                    duration_hours = (julianday(?) - julianday(entered_at)) * 24
+                                WHERE work_order_id = ? AND stage_id = ? AND exited_at IS NULL
+                            ''', (now, now, wo_id, old_stage_id))
+                        
+                        if new_stage_id:
+                            conn.execute('''
+                                INSERT INTO work_order_stage_history (work_order_id, stage_id, entered_at, changed_by)
+                                VALUES (?, ?, ?, ?)
+                            ''', (wo_id, new_stage_id, now, user_id))
                 
                 new_wo = conn.execute('SELECT * FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
                 
