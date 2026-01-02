@@ -236,8 +236,8 @@ def executive_sales_dashboard():
     upcoming_inductions = conn.execute('''
         SELECT 
             CASE 
-                WHEN date(start_date) <= date('now', '+30 days') THEN '0-30 days'
-                WHEN date(start_date) <= date('now', '+60 days') THEN '31-60 days'
+                WHEN date(planned_start_date) <= date('now', '+30 days') THEN '0-30 days'
+                WHEN date(planned_start_date) <= date('now', '+60 days') THEN '31-60 days'
                 ELSE '61-90 days'
             END as period,
             COUNT(*) as count,
@@ -246,7 +246,7 @@ def executive_sales_dashboard():
         LEFT JOIN sales_orders so ON wo.so_id = so.id
         LEFT JOIN sales_order_lines sol ON sol.so_id = so.id AND sol.product_id = wo.product_id
         WHERE wo.status = 'Planned'
-        AND wo.start_date BETWEEN date('now') AND date('now', '+90 days')
+        AND wo.planned_start_date BETWEEN date('now') AND date('now', '+90 days')
         GROUP BY period
     ''').fetchall()
     
@@ -488,7 +488,7 @@ def sales_copilot():
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress,
-                SUM(CASE WHEN status = 'Planned' AND start_date <= date('now', '+60 days') THEN 1 ELSE 0 END) as upcoming
+                SUM(CASE WHEN status = 'Planned' AND planned_start_date <= date('now', '+60 days') THEN 1 ELSE 0 END) as upcoming
             FROM work_orders WHERE status NOT IN ('Completed', 'Cancelled')
         ''').fetchone()
         
