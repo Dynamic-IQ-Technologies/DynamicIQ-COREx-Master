@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Create Training Record - QMS{% endblock %}
+{% block title %}{{ 'Edit' if record else 'Create' }} Training Record - QMS{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h2 mb-1"><i class="bi bi-mortarboard me-2"></i>Create Training Record</h1>
+            <h1 class="h2 mb-1"><i class="bi bi-mortarboard me-2"></i>{{ 'Edit' if record else 'Create' }} Training Record</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ url_for('qms.dashboard') }}">QMS</a></li>
                     <li class="breadcrumb-item"><a href="{{ url_for('qms.training_list') }}">Training</a></li>
-                    <li class="breadcrumb-item active">Create</li>
+                    <li class="breadcrumb-item active">{{ 'Edit' if record else 'Create' }}</li>
                 </ol>
             </nav>
         </div>
@@ -27,7 +27,9 @@
                             <select name="user_id" class="form-select" required>
                                 <option value="">Select Employee</option>
                                 {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
+                                <option value="{{ user.id }}" {% if record and record.user_id == user.id %}selected{% endif %}>
+                                    {{ user.full_name or user.username }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -36,16 +38,13 @@
                             <div class="col-md-6">
                                 <label class="form-label">Document Type <span class="text-danger">*</span></label>
                                 <select name="document_type" class="form-select" required id="documentType">
-                                    <option value="SOP">SOP</option>
-                                    <option value="WorkInstruction">Work Instruction</option>
+                                    <option value="SOP" {% if record and record.document_type == 'SOP' %}selected{% endif %}>SOP</option>
+                                    <option value="WorkInstruction" {% if record and record.document_type == 'WorkInstruction' %}selected{% endif %}>Work Instruction</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Document <span class="text-danger">*</span></label>
                                 <select name="document_id" class="form-select" required id="documentSelect">
-                                    {% for sop in sops %}
-                                    <option value="{{ sop.id }}" data-type="SOP">{{ sop.sop_number }} - {{ sop.title }}</option>
-                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -54,14 +53,15 @@
                             <div class="col-md-6">
                                 <label class="form-label">Training Type</label>
                                 <select name="training_type" class="form-select">
-                                    <option value="Initial">Initial</option>
-                                    <option value="Refresher">Refresher</option>
-                                    <option value="Recertification">Recertification</option>
+                                    <option value="Initial" {% if record and record.training_type == 'Initial' %}selected{% endif %}>Initial</option>
+                                    <option value="Refresher" {% if record and record.training_type == 'Refresher' %}selected{% endif %}>Refresher</option>
+                                    <option value="Recertification" {% if record and record.training_type == 'Recertification' %}selected{% endif %}>Recertification</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Training Date <span class="text-danger">*</span></label>
-                                <input type="date" name="training_date" class="form-control" required>
+                                <input type="date" name="training_date" class="form-control" required
+                                       value="{{ record.training_date if record else '' }}">
                             </div>
                         </div>
 
@@ -71,31 +71,35 @@
                                 <select name="trainer_id" class="form-select">
                                     <option value="">No Trainer</option>
                                     {% for user in users %}
-                                    <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
+                                    <option value="{{ user.id }}" {% if record and record.trainer_id == user.id %}selected{% endif %}>
+                                        {{ user.full_name or user.username }}
+                                    </option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Score (%)</label>
-                                <input type="number" name="score" class="form-control" min="0" max="100">
+                                <input type="number" name="score" class="form-control" min="0" max="100"
+                                       value="{{ record.score if record and record.score else '' }}">
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <div class="form-check">
-                                <input type="checkbox" name="passed" class="form-check-input" id="passed" checked>
+                                <input type="checkbox" name="passed" class="form-check-input" id="passed"
+                                       {% if not record or record.passed %}checked{% endif %}>
                                 <label class="form-check-label" for="passed">Passed</label>
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Notes</label>
-                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                            <textarea name="notes" class="form-control" rows="2">{{ record.notes if record else '' }}</textarea>
                         </div>
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-lg me-1"></i> Create Training Record
+                                <i class="bi bi-check-lg me-1"></i> {{ 'Update' if record else 'Create' }} Training Record
                             </button>
                             <a href="{{ url_for('qms.training_list') }}" class="btn btn-outline-secondary">Cancel</a>
                         </div>
@@ -109,20 +113,29 @@
 <script>
 const sops = {{ sops|tojson }};
 const wis = {{ wis|tojson }};
+const currentDocType = '{{ record.document_type if record else "SOP" }}';
+const currentDocId = {{ record.document_id if record else 'null' }};
 
-document.getElementById('documentType').addEventListener('change', function() {
+function updateDocumentSelect() {
+    const docType = document.getElementById('documentType').value;
     const select = document.getElementById('documentSelect');
     select.innerHTML = '';
     
-    const docs = this.value === 'SOP' ? sops : wis;
-    const prefix = this.value === 'SOP' ? 'sop_number' : 'wi_number';
+    const docs = docType === 'SOP' ? sops : wis;
     
     docs.forEach(doc => {
         const option = document.createElement('option');
         option.value = doc.id;
         option.textContent = (doc.sop_number || doc.wi_number) + ' - ' + doc.title;
+        if (currentDocId && doc.id === currentDocId && docType === currentDocType) {
+            option.selected = true;
+        }
         select.appendChild(option);
     });
-});
+}
+
+document.getElementById('documentType').addEventListener('change', updateDocumentSelect);
+
+updateDocumentSelect();
 </script>
 {% endblock %}

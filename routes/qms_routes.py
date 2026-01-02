@@ -1793,24 +1793,71 @@ def audit_trail():
 @qms_bp.route('/training')
 @login_required
 def training_list():
-    """List training records"""
+    """List training records with filtering and sorting"""
     conn = get_db()
     
-    records = conn.execute('''
-        SELECT t.*, u.username,
+    # Get filter parameters
+    employee_filter = request.args.get('employee', '')
+    doc_type_filter = request.args.get('doc_type', '')
+    training_type_filter = request.args.get('training_type', '')
+    passed_filter = request.args.get('passed', '')
+    sort_by = request.args.get('sort', 'training_date')
+    sort_dir = request.args.get('dir', 'desc')
+    
+    # Validate sort column
+    valid_sorts = ['training_date', 'username', 'document_type', 'training_type', 'score', 'passed']
+    if sort_by not in valid_sorts:
+        sort_by = 'training_date'
+    if sort_dir not in ['asc', 'desc']:
+        sort_dir = 'desc'
+    
+    query = '''
+        SELECT t.*, u.username, u.full_name,
                CASE t.document_type 
                    WHEN 'SOP' THEN (SELECT sop_number FROM qms_sops WHERE id = t.document_id)
                    WHEN 'WorkInstruction' THEN (SELECT wi_number FROM qms_work_instructions WHERE id = t.document_id)
-               END as document_number
+               END as document_number,
+               (SELECT username FROM users WHERE id = t.trainer_id) as trainer_name
         FROM qms_training_records t
         JOIN users u ON t.user_id = u.id
-        ORDER BY t.training_date DESC
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    if employee_filter:
+        query += ' AND t.user_id = ?'
+        params.append(employee_filter)
+    if doc_type_filter:
+        query += ' AND t.document_type = ?'
+        params.append(doc_type_filter)
+    if training_type_filter:
+        query += ' AND t.training_type = ?'
+        params.append(training_type_filter)
+    if passed_filter:
+        query += ' AND t.passed = ?'
+        params.append(1 if passed_filter == '1' else 0)
+    
+    # Map sort column for ORDER BY
+    sort_col = sort_by if sort_by != 'username' else 'u.username'
+    if sort_by == 'training_date':
+        sort_col = 't.training_date'
+    
+    query += f' ORDER BY {sort_col} {sort_dir.upper()}'
+    
+    records = conn.execute(query, params).fetchall()
+    users = conn.execute('SELECT id, username, full_name FROM users ORDER BY username').fetchall()
     
     conn.close()
     
     return render_template('qms/training_list.html',
-                          records=[dict(r) for r in records])
+                          records=[dict(r) for r in records],
+                          users=[dict(u) for u in users],
+                          employee_filter=employee_filter,
+                          doc_type_filter=doc_type_filter,
+                          training_type_filter=training_type_filter,
+                          passed_filter=passed_filter,
+                          sort_by=sort_by,
+                          sort_dir=sort_dir)
 
 
 @qms_bp.route('/training/new', methods=['GET', 'POST'])
@@ -1853,6 +1900,82 @@ def training_create():
                           users=[dict(u) for u in users],
                           sops=[dict(s) for s in sops],
                           wis=[dict(w) for w in wis])
+
+
+@qms_bp.route('/training/<int:record_id>/edit', methods=['GET', 'POST'])
+@login_required
+def training_edit(record_id):
+    """Edit training record"""
+    if session.get('role') not in ['Admin', 'Manager', 'Quality', 'Supervisor']:
+        flash('You do not have permission to edit training records', 'danger')
+        return redirect(url_for('qms.training_list'))
+    
+    conn = get_db()
+    
+    record = conn.execute('SELECT * FROM qms_training_records WHERE id = ?', (record_id,)).fetchone()
+    if not record:
+        conn.close()
+        flash('Training record not found', 'danger')
+        return redirect(url_for('qms.training_list'))
+    
+    if request.method == 'POST':
+        conn.execute('''
+            UPDATE qms_training_records 
+            SET user_id = ?, document_type = ?, document_id = ?,
+                training_type = ?, training_date = ?, trainer_id = ?, 
+                score = ?, passed = ?, notes = ?
+            WHERE id = ?
+        ''', (
+            request.form.get('user_id'),
+            request.form.get('document_type'),
+            request.form.get('document_id'),
+            request.form.get('training_type', 'Initial'),
+            request.form.get('training_date'),
+            request.form.get('trainer_id') or None,
+            request.form.get('score') or None,
+            1 if request.form.get('passed') else 0,
+            request.form.get('notes'),
+            record_id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Training record updated successfully', 'success')
+        return redirect(url_for('qms.training_list'))
+    
+    users = conn.execute('SELECT id, username, full_name FROM users ORDER BY username').fetchall()
+    sops = conn.execute('SELECT id, sop_number, title FROM qms_sops ORDER BY sop_number').fetchall()
+    wis = conn.execute('SELECT id, wi_number, title FROM qms_work_instructions ORDER BY wi_number').fetchall()
+    
+    conn.close()
+    
+    return render_template('qms/training_form.html',
+                          record=dict(record),
+                          users=[dict(u) for u in users],
+                          sops=[dict(s) for s in sops],
+                          wis=[dict(w) for w in wis])
+
+
+@qms_bp.route('/training/<int:record_id>/delete', methods=['POST'])
+@login_required
+def training_delete(record_id):
+    """Delete training record"""
+    if session.get('role') not in ['Admin', 'Manager', 'Quality']:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    conn = get_db()
+    
+    record = conn.execute('SELECT id FROM qms_training_records WHERE id = ?', (record_id,)).fetchone()
+    if not record:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Training record not found'}), 404
+    
+    conn.execute('DELETE FROM qms_training_records WHERE id = ?', (record_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Training record deleted successfully'})
 
 
 # ============== Auto-Generate Work Instructions ==============
