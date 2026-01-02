@@ -229,7 +229,7 @@ def executive_procurement_dashboard():
             SELECT 1 FROM work_order_tasks wot
             JOIN work_order_task_materials wotm ON wotm.task_id = wot.id
             JOIN inventory i ON wotm.product_id = i.product_id
-            WHERE wot.wo_id = wo.id
+            WHERE wot.work_order_id = wo.id
             AND (i.quantity - COALESCE(i.reserved_quantity, 0)) < wotm.required_qty
         )
     ''').fetchone()
