@@ -965,6 +965,41 @@ def api_technicians():
     } for t in technicians])
 
 
+@ndt_bp.route('/ndt/api/level3-technicians')
+def api_level3_technicians():
+    """API to get Level III certified technicians for approval/review"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    technicians = conn.execute('''
+        SELECT DISTINCT t.id, t.technician_number, t.first_name, t.last_name
+        FROM ndt_technicians t
+        LEFT JOIN ndt_certifications c ON t.id = c.technician_id
+        WHERE t.contract_status = 'Active' 
+            AND (c.level = 'III' OR c.level = 'Level III' OR t.notes LIKE '%Level III%')
+        ORDER BY t.last_name, t.first_name
+    ''').fetchall()
+    
+    if not technicians:
+        technicians = conn.execute('''
+            SELECT id, technician_number, first_name, last_name
+            FROM ndt_technicians 
+            WHERE contract_status = 'Active'
+            ORDER BY last_name, first_name
+        ''').fetchall()
+    
+    conn.close()
+    
+    return jsonify([{
+        'id': t['id'],
+        'number': t['technician_number'],
+        'name': f"{t['first_name']} {t['last_name']}"
+    } for t in technicians])
+
+
 NDT_INVOICE_STATUSES = ['Draft', 'Pending', 'Sent', 'Partially Paid', 'Paid', 'Overdue', 'Cancelled']
 
 def get_next_ndt_invoice_number(conn):

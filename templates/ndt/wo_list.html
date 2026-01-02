@@ -132,9 +132,34 @@
                             </td>
                             <td>{{ wo.planned_end_date or '-' }}</td>
                             <td>
-                                <a href="{{ url_for('ndt_routes.wo_view', id=wo.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye"></i>
-                                </a>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('ndt_routes.wo_view', id=wo.id) }}" class="btn btn-outline-primary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if wo.status != 'Closed' and session.get('role') in ['Admin', 'Planner', 'Quality', 'Supervisor'] %}
+                                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Change Status">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><h6 class="dropdown-header">Change Status</h6></li>
+                                        {% if wo.status == 'Draft' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ wo.id }}, 'Scheduled', '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-calendar-check me-2 text-primary"></i>Schedule</a></li>
+                                        {% elif wo.status == 'Scheduled' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ wo.id }}, 'In Inspection', '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-play-fill me-2 text-info"></i>Start Inspection</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ wo.id }}, 'Draft', '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-arrow-counterclockwise me-2"></i>Return to Draft</a></li>
+                                        {% elif wo.status == 'In Inspection' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ wo.id }}, 'Results Recorded', '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-clipboard-data me-2 text-primary"></i>Submit Results</a></li>
+                                        {% elif wo.status == 'Results Recorded' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ wo.id }}, 'Under Review', '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-person-check me-2 text-warning"></i>Submit for Review</a></li>
+                                        {% elif wo.status == 'Under Review' %}
+                                        <li><a class="dropdown-item" href="#" onclick="showApproveModal({{ wo.id }}, '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-check-circle me-2 text-success"></i>Approve</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="showRejectModal({{ wo.id }}, '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-x-circle me-2 text-danger"></i>Reject</a></li>
+                                        {% elif wo.status in ['Approved', 'Rejected'] %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ wo.id }}, 'Closed', '{{ wo.ndt_wo_number }}'); return false;"><i class="bi bi-archive me-2"></i>Close</a></li>
+                                        {% endif %}
+                                    </ul>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% else %}
@@ -144,6 +169,73 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title"><i class="bi bi-check-circle text-success me-2"></i>Approve NDT Work Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Approving work order: <strong id="approveWoNumber"></strong></p>
+                <div class="mb-3">
+                    <label class="form-label">Reviewer (Level III) <span class="text-danger">*</span></label>
+                    <select id="approveReviewer" class="form-select" required>
+                        <option value="">-- Select Reviewer --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmApproveBtn">
+                    <i class="bi bi-check-lg me-1"></i> Approve
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Reject NDT Work Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Rejecting work order: <strong id="rejectWoNumber"></strong></p>
+                <div class="mb-3">
+                    <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea id="rejectReason" class="form-control" rows="3" placeholder="Enter reason for rejection..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmRejectBtn">
+                    <i class="bi bi-x-lg me-1"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="statusResultModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="statusResultTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="statusResultMessage" class="mb-0"></p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="window.location.reload()">OK</button>
             </div>
         </div>
     </div>
@@ -214,6 +306,119 @@
 
 {% block scripts %}
 <script>
+let currentWoId = null;
+const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
+const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+const statusResultModal = new bootstrap.Modal(document.getElementById('statusResultModal'));
+
+function showStatusResult(title, message, isSuccess) {
+    document.getElementById('statusResultTitle').innerHTML = isSuccess ? 
+        '<i class="bi bi-check-circle text-success me-2"></i>' + title :
+        '<i class="bi bi-exclamation-triangle text-danger me-2"></i>' + title;
+    document.getElementById('statusResultMessage').textContent = message;
+    statusResultModal.show();
+}
+
+async function updateStatus(woId, newStatus, woNumber) {
+    try {
+        const formData = new FormData();
+        formData.append('status', newStatus);
+        
+        const response = await fetch(`/ndt/work-orders/${woId}/status`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.redirected) {
+            showStatusResult('Status Updated', `${woNumber} status changed to ${newStatus}`, true);
+        } else {
+            const text = await response.text();
+            if (text.includes('flash') && text.includes('success')) {
+                showStatusResult('Status Updated', `${woNumber} status changed to ${newStatus}`, true);
+            } else {
+                showStatusResult('Status Updated', `${woNumber} status changed to ${newStatus}`, true);
+            }
+        }
+    } catch (error) {
+        showStatusResult('Error', 'Failed to update status: ' + error.message, false);
+    }
+}
+
+async function showApproveModal(woId, woNumber) {
+    currentWoId = woId;
+    document.getElementById('approveWoNumber').textContent = woNumber;
+    
+    try {
+        const response = await fetch('/ndt/api/level3-technicians');
+        const technicians = await response.json();
+        
+        const select = document.getElementById('approveReviewer');
+        select.innerHTML = '<option value="">-- Select Reviewer --</option>';
+        technicians.forEach(t => {
+            select.innerHTML += `<option value="${t.id}">${t.number} - ${t.name}</option>`;
+        });
+    } catch (error) {
+        console.error('Error loading reviewers:', error);
+    }
+    
+    approveModal.show();
+}
+
+function showRejectModal(woId, woNumber) {
+    currentWoId = woId;
+    document.getElementById('rejectWoNumber').textContent = woNumber;
+    document.getElementById('rejectReason').value = '';
+    rejectModal.show();
+}
+
+document.getElementById('confirmApproveBtn').addEventListener('click', async function() {
+    const reviewerId = document.getElementById('approveReviewer').value;
+    if (!reviewerId) {
+        showToast('Please select a reviewer', 'warning');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('status', 'Approved');
+        formData.append('reviewer_id', reviewerId);
+        
+        await fetch(`/ndt/work-orders/${currentWoId}/status`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        approveModal.hide();
+        showStatusResult('Approved', 'Work order has been approved successfully', true);
+    } catch (error) {
+        showStatusResult('Error', 'Failed to approve: ' + error.message, false);
+    }
+});
+
+document.getElementById('confirmRejectBtn').addEventListener('click', async function() {
+    const reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) {
+        showToast('Please enter a rejection reason', 'warning');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('status', 'Rejected');
+        formData.append('reason', reason);
+        
+        await fetch(`/ndt/work-orders/${currentWoId}/status`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        rejectModal.hide();
+        showStatusResult('Rejected', 'Work order has been rejected', true);
+    } catch (error) {
+        showStatusResult('Error', 'Failed to reject: ' + error.message, false);
+    }
+});
+
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.wo-checkbox');
@@ -225,7 +430,8 @@ function updateSelectedCount() {
     const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
     const count = checkboxes.length;
     document.getElementById('selectedCount').textContent = count;
-    document.getElementById('massUpdateBtn').disabled = count === 0;
+    const btn = document.getElementById('massUpdateBtn');
+    if (btn) btn.disabled = count === 0;
 }
 
 function showMassUpdateModal() {
@@ -275,7 +481,7 @@ function applyMassUpdate() {
     if (endDate) updates.planned_end_date = endDate;
     
     if (Object.keys(updates).length === 0) {
-        alert('Please select at least one field to update.');
+        showToast('Please select at least one field to update', 'warning');
         return;
     }
     
@@ -287,14 +493,14 @@ function applyMassUpdate() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            window.location.reload();
+            bootstrap.Modal.getInstance(document.getElementById('massUpdateModal')).hide();
+            showStatusResult('Mass Update Complete', data.message, true);
         } else {
-            alert('Error: ' + data.error);
+            showStatusResult('Error', data.error, false);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+        showStatusResult('Error', error.message, false);
     });
 }
 </script>
