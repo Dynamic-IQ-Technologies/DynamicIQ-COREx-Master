@@ -82,7 +82,13 @@
 
                     <div class="mb-4">
                         <h6 class="text-primary"><i class="bi bi-list-ol me-1"></i> Procedure</h6>
-                        <div class="bg-light p-3 rounded white-space-pre-line">{{ sop.procedure_content or 'No procedure content defined.' }}</div>
+                        <div class="bg-light p-3 rounded procedure-content" id="procedureContent">
+                            {% if sop.procedure_content %}
+                            {{ sop.procedure_content }}
+                            {% else %}
+                            No procedure content defined.
+                            {% endif %}
+                        </div>
                     </div>
 
                     {% if sop.references_text %}
@@ -289,5 +295,48 @@
 
 <style>
 .white-space-pre-line { white-space: pre-line; }
+.procedure-content { 
+    white-space: pre-wrap; 
+    line-height: 1.8;
+}
+.procedure-step { 
+    margin-bottom: 1rem; 
+    padding-left: 0.5rem;
+    border-left: 3px solid #0d6efd;
+}
+.procedure-step-number { 
+    font-weight: bold; 
+    color: #0d6efd;
+}
+.procedure-substep {
+    margin-left: 1.5rem;
+    margin-top: 0.25rem;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const procedureContent = document.getElementById('procedureContent');
+    if (procedureContent) {
+        let text = procedureContent.innerHTML.trim();
+        
+        // Format numbered steps (e.g., "1. Step Title" or "1 Step Title")
+        text = text.replace(/(\d+)\.\s+([A-Z][^.]*?)(?=\s+\d+\.\d+|\s+\d+\.|\s*$)/g, '\n\n<div class="procedure-step"><span class="procedure-step-number">$1.</span> <strong>$2</strong>');
+        
+        // Format sub-steps (e.g., "1.1 Sub step" or "1.1: Sub step")
+        text = text.replace(/(\d+\.\d+):?\s+/g, '\n<div class="procedure-substep"><span class="procedure-step-number">$1</span> ');
+        
+        // Close any unclosed divs and clean up
+        text = text.replace(/\n\n<div class="procedure-step">/g, '</div>\n\n<div class="procedure-step">');
+        text = text.replace(/\n<div class="procedure-substep">/g, '</div>\n<div class="procedure-substep">');
+        
+        // Simple approach: just add line breaks before numbered items
+        let simpleText = procedureContent.textContent.trim();
+        simpleText = simpleText.replace(/\s+(\d+)\.\s+/g, '\n\n$1. ');
+        simpleText = simpleText.replace(/\s+(\d+\.\d+)\s+/g, '\n    $1 ');
+        
+        procedureContent.innerHTML = '<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; background: transparent;">' + simpleText + '</pre>';
+    }
+});
+</script>
 {% endblock %}
