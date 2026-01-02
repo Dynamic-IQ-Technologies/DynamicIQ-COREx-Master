@@ -1,0 +1,224 @@
+You are a Chief Supply Chain Analytics Architect and Global Procurement Strategist specializing in Aviation, Aerospace, and Defense MRO operations. You are enhancing an existing enterprise platform (Dynamic.IQ-COREx) by adding an Executive Procurement Dashboard inside the Procurement module to support CEO, COO, CFO, VP Supply Chain, and Director of Procurement.
+
+The dashboard must provide real-time visibility, predictive intelligence, and cost-risk control across parts sourcing, supplier performance, inventory exposure, and operational readiness.
+
+🎯 OBJECTIVE
+
+Design and implement an Executive Procurement Dashboard that:
+
+Controls material spend and cost volatility
+
+Protects shop throughput and AOG response
+
+Links procurement decisions to revenue & margin
+
+Identifies supply chain risk before it impacts operations
+
+Enables executive decisions in under 60 seconds
+
+📊 CORE DASHBOARD SECTIONS (MANDATORY)
+1️⃣ Executive Procurement KPI Strip (Top Banner)
+
+High-impact KPIs with trend indicators:
+
+Total Procurement Spend (MTD / QTD / YTD)
+
+Spend vs Budget
+
+Cost Avoidance / Savings Realized
+
+PO Cycle Time (Requisition → PO)
+
+Supplier OTIF (On-Time-In-Full)
+
+Parts Shortage Risk Index
+
+AOG-Driven Spend %
+
+Inventory Exposure ($ at risk / excess)
+
+2️⃣ Spend Intelligence & Cost Control
+
+Interactive analytics:
+
+Spend by:
+
+Supplier
+
+Part Category (Rotables, Consumables, Expendables)
+
+Aircraft / Platform
+
+Program / Customer
+
+Contract vs Spot Buy Ratio
+
+Price Variance vs Historical Average
+
+Emergency / Expedite Spend Analysis
+
+Long-Tail Spend Identification
+
+3️⃣ Supplier Performance & Risk Management
+
+Scorecard-driven insights:
+
+Supplier OTIF %
+
+Lead Time Variability
+
+Quality Escapes / Returns
+
+Warranty & Credit Recovery
+
+Certification Compliance (FAA, EASA, AS9100)
+
+Financial & Geopolitical Risk Flags
+
+Single-Source Dependency Exposure
+
+4️⃣ Inventory Health & Material Readiness
+
+Executive-level material visibility:
+
+Inventory Turns
+
+Excess & Obsolete (E&O) Exposure
+
+Stock-Out Risk (Next 30 / 60 / 90 Days)
+
+Critical Rotable Availability
+
+Safety Stock Violations
+
+Work Order / AOG Material Readiness Score
+
+5️⃣ Procurement to Operations Impact
+
+Direct linkage between supply chain and MRO execution:
+
+Parts-Driven Work Order Delays
+
+Revenue at Risk Due to Material Shortage
+
+Induction Delays by Supplier
+
+Expedite Cost Impact on Margin
+
+Cannibalization Events Tracking
+
+6️⃣ Forecasting & Predictive Analytics (ADVANCED)
+
+AI-assisted models:
+
+Demand Forecast by Part & Program
+
+Lead Time Forecast with Confidence Bands
+
+Spend Forecast (30 / 60 / 90 Days)
+
+Inventory Depletion Scenarios
+
+What-If Simulations:
+
+Supplier failure
+
+Lead time extension
+
+MOQ changes
+
+Repair vs Buy decisions
+
+7️⃣ Executive Alerts & AI Insights Panel
+
+Proactive, auto-generated intelligence:
+
+⚠️ High-risk part likely to cause AOG
+
+🔥 Supplier performance degradation detected
+
+📉 Price spike beyond tolerance threshold
+
+⏳ PO cycle time exceeding SLA
+
+💰 Cost-saving sourcing alternative identified
+
+🧠 Weekly AI Executive Supply Chain Brief
+
+🧠 EXECUTIVE COPILOT REQUIREMENTS
+
+Embed a Procurement AI Copilot that answers:
+
+“What parts pose the highest operational risk?”
+
+“Which suppliers are hurting margin the most?”
+
+“Where can we immediately reduce spend?”
+
+“What material shortages will impact revenue next month?”
+
+“Should we repair, buy, or cannibalize this component?”
+
+Responses must be concise, evidence-based, and action-oriented.
+
+🖥️ UI / UX REQUIREMENTS
+
+Board-ready executive design
+
+KPI tiles with trend sparklines
+
+Drill-down from KPI → Supplier → Part → PO
+
+Role-based visibility (CFO vs COO vs Supply Chain)
+
+Dark / Light mode
+
+Export to PDF / PowerPoint
+
+Mobile-friendly executive view
+
+🔐 DATA & SYSTEM INTEGRATION
+
+Data Sources:
+
+Procurement (Requisitions, POs, Contracts)
+
+Inventory & Part Master
+
+Work Orders & AOG events
+
+Finance (AP, Cost, Budget)
+
+Supplier Quality & Compliance
+
+Near real-time refresh
+
+Multi-site & multi-program capable
+
+Full audit trail and SOC-2 readiness
+
+📦 DELIVERABLES
+
+Executive procurement data model
+
+KPI definitions & formulas
+
+Supplier scorecard logic
+
+Predictive & what-if models
+
+Frontend dashboard components
+
+AI insight prompt framework
+
+🏁 SUCCESS CRITERIA
+
+Executives identify supply risk in < 60 seconds
+
+Reduction in AOG-driven spend
+
+Improved supplier OTIF & lead-time stability
+
+Measurable cost avoidance & margin protection
+
+Investor-grade supply chain transparency
