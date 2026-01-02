@@ -1,10 +1,35 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
-from flask_login import login_required, current_user
-from models import Database
+from functools import wraps
+from models import Database, User
 from auth import role_required
 from datetime import datetime, timedelta
 import secrets
 import os
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in to access this page.', 'danger')
+            return redirect(url_for('auth_routes.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+class CurrentUser:
+    """Session-based current user proxy"""
+    @property
+    def id(self):
+        return session.get('user_id')
+    
+    @property
+    def username(self):
+        return session.get('username')
+    
+    @property
+    def role(self):
+        return session.get('role')
+
+current_user = CurrentUser()
 
 leads_bp = Blueprint('leads', __name__)
 db = Database()

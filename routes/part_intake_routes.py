@@ -1,11 +1,26 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from flask_login import current_user
 from models import Database, AuditLogger
 from auth import login_required, role_required
 from datetime import datetime
 import json
 import os
 import re
+
+class CurrentUser:
+    """Session-based current user proxy"""
+    @property
+    def id(self):
+        return session.get('user_id')
+    
+    @property
+    def username(self):
+        return session.get('username')
+    
+    @property
+    def role(self):
+        return session.get('role')
+
+current_user = CurrentUser()
 
 part_intake_bp = Blueprint('part_intake_routes', __name__)
 
