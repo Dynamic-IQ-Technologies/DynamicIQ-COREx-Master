@@ -490,6 +490,44 @@ def sop_acknowledge(sop_id):
     return redirect(url_for('qms.sop_view', sop_id=sop_id))
 
 
+@qms_bp.route('/sops/<int:sop_id>/delete', methods=['POST'])
+@login_required
+def sop_delete(sop_id):
+    """Delete a draft SOP"""
+    conn = get_db()
+    
+    sop = conn.execute('SELECT * FROM qms_sops WHERE id = ?', (sop_id,)).fetchone()
+    
+    if not sop:
+        conn.close()
+        flash('SOP not found', 'error')
+        return redirect(url_for('qms.sop_list'))
+    
+    if sop['status'] != 'Draft':
+        conn.close()
+        flash('Only draft SOPs can be deleted', 'error')
+        return redirect(url_for('qms.sop_view', sop_id=sop_id))
+    
+    user_role = session.get('role', '').lower()
+    if user_role not in ['admin', 'manager', 'quality']:
+        conn.close()
+        flash('You do not have permission to delete SOPs', 'danger')
+        return redirect(url_for('qms.sop_view', sop_id=sop_id))
+    
+    sop_number = sop['sop_number']
+    
+    conn.execute('DELETE FROM qms_sops WHERE id = ?', (sop_id,))
+    
+    log_qms_audit(conn, 'SOP', sop_id, 'Deleted', session.get('user_id'),
+                 session.get('username'), notes=f'Deleted draft SOP {sop_number}')
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Draft SOP {sop_number} has been deleted', 'success')
+    return redirect(url_for('qms.sop_list'))
+
+
 # ============== Work Instructions ==============
 
 @qms_bp.route('/work-instructions')
