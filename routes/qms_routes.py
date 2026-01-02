@@ -658,7 +658,7 @@ def sop_download_pdf(sop_id):
         [Paragraph('Approved By:', value_style),
          Paragraph(sop['approved_by_name'] or '-', value_style),
          '',
-         Paragraph(sop['approved_date'][:10] if sop.get('approved_date') else '-', value_style)]
+         Paragraph(sop['approved_date'][:10] if sop['approved_date'] else '-', value_style)]
     ]
     approval_table = Table(approval_data, colWidths=[1.5*inch, 2*inch, 2*inch, 1.5*inch])
     approval_table.setStyle(TableStyle([
