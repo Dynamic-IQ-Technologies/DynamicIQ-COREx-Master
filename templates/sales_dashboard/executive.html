@@ -1,0 +1,687 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Sales Dashboard - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<style>
+    .exec-kpi-card {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .exec-kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+    }
+    .exec-kpi-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.8;
+        margin-bottom: 0.25rem;
+    }
+    .exec-kpi-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    .exec-kpi-trend {
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .trend-up { color: #4ade80; }
+    .trend-down { color: #f87171; }
+    .trend-neutral { color: #94a3b8; }
+    
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.25rem;
+        height: 100%;
+    }
+    .chart-card-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .chart-card-title i {
+        color: #6366f1;
+    }
+    
+    .alert-card {
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .alert-card.alert-warning {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+    }
+    .alert-card.alert-danger {
+        background: #fee2e2;
+        border-left: 4px solid #ef4444;
+    }
+    .alert-card.alert-info {
+        background: #dbeafe;
+        border-left: 4px solid #3b82f6;
+    }
+    .alert-card.alert-success {
+        background: #dcfce7;
+        border-left: 4px solid #22c55e;
+    }
+    .alert-icon {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    .alert-content h6 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    .alert-content p {
+        font-size: 0.8rem;
+        margin: 0;
+        opacity: 0.8;
+    }
+    
+    .customer-row {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .customer-row:last-child {
+        border-bottom: none;
+    }
+    .customer-rank {
+        width: 24px;
+        height: 24px;
+        background: #6366f1;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-right: 0.75rem;
+    }
+    .customer-name {
+        flex: 1;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    .customer-revenue {
+        font-weight: 600;
+        color: #059669;
+    }
+    
+    .pipeline-stage {
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+    .pipeline-stage-name {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        opacity: 0.8;
+    }
+    .pipeline-stage-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+    .pipeline-stage-count {
+        font-size: 0.75rem;
+    }
+    
+    .copilot-container {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        color: white;
+    }
+    .copilot-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    .copilot-input {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 0.75rem;
+        color: white;
+        width: 100%;
+        margin-bottom: 0.75rem;
+    }
+    .copilot-input::placeholder {
+        color: rgba(255,255,255,0.6);
+    }
+    .copilot-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .copilot-suggestion {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 20px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .copilot-suggestion:hover {
+        background: rgba(255,255,255,0.25);
+    }
+    .copilot-response {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        display: none;
+    }
+    .copilot-response.active {
+        display: block;
+    }
+    
+    .forecast-bar {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    .forecast-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+        border-radius: 4px;
+    }
+</style>
+
+<div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h2><i class="bi bi-graph-up-arrow text-primary"></i> Executive Sales Dashboard</h2>
+        <p class="text-muted mb-0">C-Suite Strategic Intelligence for MRO Operations</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Live Data</span>
+        <span class="text-muted small">Last updated: {{ now().strftime('%B %d, %Y at %I:%M %p') if now is defined else 'Today' }}</span>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Revenue MTD</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.mtd_revenue) }}</div>
+            <div class="exec-kpi-trend trend-up">
+                <i class="bi bi-calendar-month"></i> This month
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Revenue QTD</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.qtd_revenue) }}</div>
+            <div class="exec-kpi-trend trend-neutral">
+                <i class="bi bi-calendar3"></i> This quarter
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Revenue YTD</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.ytd_revenue) }}</div>
+            <div class="exec-kpi-trend {% if kpis.ytd_growth >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                <i class="bi bi-{% if kpis.ytd_growth >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                {{ "{:.1f}".format(kpis.ytd_growth) }}% YoY
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Gross Margin</div>
+            <div class="exec-kpi-value">{{ "{:.1f}".format(kpis.gross_margin_pct) }}%</div>
+            <div class="exec-kpi-trend {% if kpis.gross_margin_pct >= 25 %}trend-up{% else %}trend-down{% endif %}">
+                <i class="bi bi-{% if kpis.gross_margin_pct >= 25 %}check-circle{% else %}exclamation-circle{% endif %}"></i>
+                Target: 25%
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Pipeline Value</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.pipeline_value) }}</div>
+            <div class="exec-kpi-trend trend-neutral">
+                <i class="bi bi-funnel"></i> Open orders
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Win Rate</div>
+            <div class="exec-kpi-value">{{ "{:.1f}".format(kpis.win_rate) }}%</div>
+            <div class="exec-kpi-trend {% if kpis.win_rate >= 50 %}trend-up{% else %}trend-down{% endif %}">
+                <i class="bi bi-trophy"></i> Quote conversion
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);">
+            <div class="exec-kpi-label">Bookings YTD</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.bookings) }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-cart-check"></i> New orders
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);">
+            <div class="exec-kpi-label">Revenue at Risk</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.revenue_at_risk) }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-exclamation-triangle"></i> Unallocated
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
+            <div class="exec-kpi-label">Avg Deal Cycle</div>
+            <div class="exec-kpi-value">{{ "{:.0f}".format(kpis.avg_deal_cycle) }} days</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-clock"></i> Quote to close
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #dc2626 0%, #f87171 100%);">
+            <div class="exec-kpi-label">A/R Overdue</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.ar_overdue) }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-calendar-x"></i> Past due
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #0369a1 0%, #38bdf8 100%);">
+            <div class="exec-kpi-label">DSO</div>
+            <div class="exec-kpi-value">{{ "{:.0f}".format(kpis.dso) }} days</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-cash-stack"></i> Days Sales Outstanding
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #059669 0%, #34d399 100%);">
+            <div class="exec-kpi-label">Repeat Customers</div>
+            <div class="exec-kpi-value">{{ "{:.0f}".format(kpis.repeat_rate) }}%</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-arrow-repeat"></i> Retention rate
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-8">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-graph-up"></i> Revenue Trend (12 Months)
+            </div>
+            <canvas id="revenueChart" height="100"></canvas>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-pie-chart"></i> Revenue by Type
+            </div>
+            <canvas id="revenueTypeChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-4">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-funnel"></i> Sales Pipeline
+            </div>
+            {% for stage in pipeline_by_stage %}
+            <div class="pipeline-stage" style="background: {% if stage.status == 'Draft' %}#f1f5f9{% elif stage.status == 'Pending' %}#fef3c7{% elif stage.status == 'Confirmed' %}#dbeafe{% else %}#dcfce7{% endif %};">
+                <div class="pipeline-stage-name">{{ stage.status }}</div>
+                <div class="pipeline-stage-value">{{ "${:,.0f}".format(stage.value) }}</div>
+                <div class="pipeline-stage-count">{{ stage.count }} orders</div>
+            </div>
+            {% endfor %}
+            {% if not pipeline_by_stage %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-inbox fs-1"></i>
+                <p class="mb-0">No active pipeline</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-clock-history"></i> Quote Aging
+            </div>
+            {% for bucket in quote_aging %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span class="fw-medium">{{ bucket.age_bucket }}</span>
+                <div class="text-end">
+                    <span class="badge {% if '30+' in bucket.age_bucket %}bg-danger{% elif '15-30' in bucket.age_bucket %}bg-warning text-dark{% else %}bg-info{% endif %}">{{ bucket.count }}</span>
+                    <span class="ms-2 text-muted small">{{ "${:,.0f}".format(bucket.value) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not quote_aging %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-check-circle fs-1 text-success"></i>
+                <p class="mb-0">No pending quotes</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-calendar-event"></i> Upcoming Inductions (90 Days)
+            </div>
+            {% for period in upcoming_inductions %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span class="fw-medium">{{ period.period }}</span>
+                <div class="text-end">
+                    <span class="badge bg-primary">{{ period.count }} WOs</span>
+                    <span class="ms-2 text-success fw-bold">{{ "${:,.0f}".format(period.value) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not upcoming_inductions %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-calendar-x fs-1"></i>
+                <p class="mb-0">No scheduled inductions</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-6">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-people"></i> Top 20 Customers by Revenue (YTD)
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                {% for customer in customer_revenue %}
+                {% if customer.revenue > 0 %}
+                <div class="customer-row">
+                    <div class="customer-rank">{{ loop.index }}</div>
+                    <div class="customer-name">
+                        {{ customer.name }}
+                        <span class="text-muted small d-block">{{ customer.customer_number }}</span>
+                    </div>
+                    <div class="customer-revenue">{{ "${:,.2f}".format(customer.revenue) }}</div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-lightning"></i> 30/60/90 Day Revenue Forecast
+            </div>
+            <div class="row g-3">
+                <div class="col-4">
+                    <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                        <div class="text-muted small">30 Days</div>
+                        <div class="fs-4 fw-bold text-success">{{ "${:,.0f}".format(forecasts['30_day']) }}</div>
+                        <div class="forecast-bar">
+                            <div class="forecast-fill" style="width: 80%; background: #22c55e;"></div>
+                        </div>
+                        <div class="small text-muted mt-1">80% weighted</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                        <div class="text-muted small">60 Days</div>
+                        <div class="fs-4 fw-bold text-warning">{{ "${:,.0f}".format(forecasts['60_day']) }}</div>
+                        <div class="forecast-bar">
+                            <div class="forecast-fill" style="width: 60%; background: #f59e0b;"></div>
+                        </div>
+                        <div class="small text-muted mt-1">60% weighted</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                        <div class="text-muted small">90 Days</div>
+                        <div class="fs-4 fw-bold text-info">{{ "${:,.0f}".format(forecasts['90_day']) }}</div>
+                        <div class="forecast-bar">
+                            <div class="forecast-fill" style="width: 40%; background: #06b6d4;"></div>
+                        </div>
+                        <div class="small text-muted mt-1">40% weighted</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="chart-card-title">
+                    <i class="bi bi-speedometer2"></i> Quote Performance
+                </div>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="p-3 border rounded">
+                            <div class="text-muted small">Quote Turnaround</div>
+                            <div class="fs-5 fw-bold">{{ "{:.1f}".format(kpis.quote_turnaround) }} days</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 border rounded">
+                            <div class="text-muted small">Quote Acceptance</div>
+                            <div class="fs-5 fw-bold text-success">{{ "{:.1f}".format(kpis.acceptance_rate) }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-4">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-bell"></i> Executive Alerts
+            </div>
+            {% if alerts %}
+            {% for alert in alerts %}
+            <div class="alert-card alert-{{ alert.type }}">
+                <div class="alert-icon">
+                    <i class="bi bi-{{ alert.icon }}"></i>
+                </div>
+                <div class="alert-content">
+                    <h6>{{ alert.title }}</h6>
+                    <p>{{ alert.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-check-circle fs-1 text-success"></i>
+                <p class="mb-0 mt-2">No critical alerts at this time</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-xl-8">
+        <div class="copilot-container">
+            <div class="copilot-title">
+                <i class="bi bi-robot"></i> Executive Sales Copilot
+            </div>
+            <input type="text" class="copilot-input" id="copilotQuestion" placeholder="Ask me anything about sales performance...">
+            <div class="copilot-suggestions">
+                <span class="copilot-suggestion" onclick="askCopilot('Why did revenue change this month?')">Why did revenue change?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('Which customers should we prioritize next quarter?')">Priority customers?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('What deals need my intervention?')">Deals needing attention?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('How does sales demand affect shop capacity next 60 days?')">Capacity impact?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('Give me a weekly executive summary')">Weekly summary</span>
+            </div>
+            <button class="btn btn-light btn-sm mb-3" onclick="submitCopilotQuestion()">
+                <i class="bi bi-send me-1"></i> Ask Copilot
+            </button>
+            <div class="copilot-response" id="copilotResponse"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const monthlyData = {{ monthly_revenue|map(attribute='month')|list|tojson }};
+const monthlyRevenue = {{ monthly_revenue|map(attribute='revenue')|list|tojson }};
+
+new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+        labels: monthlyData.map(m => {
+            const [year, month] = m.split('-');
+            return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        }),
+        datasets: [{
+            label: 'Revenue',
+            data: monthlyRevenue,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#6366f1',
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '$' + context.raw.toLocaleString();
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + (value / 1000).toFixed(0) + 'K';
+                    }
+                }
+            }
+        }
+    }
+});
+
+const revenueTypes = {{ revenue_by_type|map(attribute='sales_type')|list|tojson }};
+const revenueByType = {{ revenue_by_type|map(attribute='revenue')|list|tojson }};
+
+new Chart(document.getElementById('revenueTypeChart'), {
+    type: 'doughnut',
+    data: {
+        labels: revenueTypes,
+        datasets: [{
+            data: revenueByType,
+            backgroundColor: ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { boxWidth: 12, padding: 10 }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': $' + context.raw.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+function askCopilot(question) {
+    document.getElementById('copilotQuestion').value = question;
+    submitCopilotQuestion();
+}
+
+function submitCopilotQuestion() {
+    const question = document.getElementById('copilotQuestion').value.trim();
+    if (!question) return;
+    
+    const responseDiv = document.getElementById('copilotResponse');
+    responseDiv.classList.add('active');
+    responseDiv.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Analyzing data...';
+    
+    fetch('/api/sales-copilot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            responseDiv.innerHTML = data.response.replace(/\n/g, '<br>');
+        } else {
+            responseDiv.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i> ' + (data.error || 'Unable to process request');
+        }
+    })
+    .catch(error => {
+        responseDiv.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i> Connection error. Please try again.';
+    });
+}
+
+document.getElementById('copilotQuestion').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') submitCopilotQuestion();
+});
+</script>
+{% endblock %}

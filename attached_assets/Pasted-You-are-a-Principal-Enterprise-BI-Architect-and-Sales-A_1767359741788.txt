@@ -1,0 +1,240 @@
+You are a Principal Enterprise BI Architect and Sales Analytics Lead specializing in Aviation & Aerospace MRO operations. You are enhancing an existing enterprise application (Dynamic.IQ-COREx) by adding a C-Suite Executive Sales Dashboard that provides real-time, predictive, and actionable sales intelligence for MRO leadership.
+
+The dashboard must support CEO, CRO, VP Sales, GM, and Program Directors and be optimized for strategic decision-making, revenue forecasting, customer prioritization, and capacity alignment.
+
+🎯 OBJECTIVE
+
+Design and implement an Executive Sales Dashboard that:
+
+Provides real-time visibility into revenue performance
+
+Links sales demand to MRO operational capacity
+
+Identifies profitability, risk, and growth opportunities
+
+Enables data-driven executive decisions in under 60 seconds
+
+Supports scalability, multi-site MRO operations, and investor readiness
+
+📊 CORE DASHBOARD SECTIONS (MANDATORY)
+1️⃣ Executive KPI Summary (Top Banner)
+
+Display high-level KPIs with trend indicators (↑ ↓ →):
+
+Total Revenue (MTD / QTD / YTD)
+
+Bookings vs Revenue
+
+Gross Margin % (by Program & Customer)
+
+Open Pipeline Value
+
+Win Rate %
+
+Average Deal Cycle Time
+
+Revenue at Risk (Delayed / Parts Hold / Customer Approval)
+
+Capacity Utilization Impact (Sales vs Shop Load)
+
+2️⃣ Revenue Performance Analytics
+
+Interactive charts with drill-down capability:
+
+Revenue by:
+
+Customer
+
+Aircraft Type (A320, B737, Widebody, Rotorcraft, etc.)
+
+Program / Workscope
+
+Repair vs Overhaul vs Exchange
+
+Actual vs Forecast vs Budget
+
+MoM / QoQ / YoY growth trends
+
+High-margin vs Low-margin revenue mix
+
+3️⃣ Sales Pipeline Intelligence (CRM + MRO Aligned)
+
+Pipeline visualization with operational awareness:
+
+Pipeline by Stage (Lead → Quote → Approval → Award)
+
+Weighted Forecast (Probability-based)
+
+Quote Aging & Stalled Opportunities
+
+Lost Deal Root Cause Analysis:
+
+Price
+
+Turn Time
+
+Capacity
+
+Certification
+
+Competition
+
+Upcoming Work Induction Forecast (30/60/90 days)
+
+4️⃣ Customer & Program Insights
+
+Ranked, filterable views:
+
+Top 20 Customers by Revenue & Margin
+
+Customer Lifetime Value (CLV)
+
+Repeat vs One-Time Customers
+
+Contract vs Spot Work
+
+SLA Performance Impact on Renewals
+
+Risk Flags:
+
+Declining spend
+
+Margin erosion
+
+Excessive AOG events
+
+Payment delays
+
+5️⃣ Quote-to-Cash Performance
+
+Operational sales efficiency metrics:
+
+Average Quote Turnaround Time
+
+Quote Acceptance Rate
+
+Time from Award → Induction
+
+Time from Completion → Invoice
+
+Days Sales Outstanding (DSO)
+
+Revenue Leakage Indicators:
+
+Unbilled labor
+
+Parts variance
+
+Scope creep without approval
+
+6️⃣ Forecasting & Predictive Analytics (ADVANCED)
+
+Use ML / AI-assisted logic:
+
+30 / 60 / 90-Day Revenue Forecast
+
+Capacity-Constrained Forecast (Sales vs Shop Availability)
+
+Deal Win Probability Scoring
+
+Margin Forecast per Opportunity
+
+“What-If” Scenarios:
+
+Additional headcount
+
+Pricing adjustments
+
+Capacity expansion
+
+Customer contract renegotiation
+
+7️⃣ Executive Alerts & Insights Panel
+
+Automated insights surfaced proactively:
+
+⚠️ High-value deal at risk
+
+🔥 Capacity overload impacting revenue
+
+📉 Margin below target threshold
+
+⏳ Quote aging beyond SLA
+
+🚀 Upsell / cross-sell opportunity detected
+
+🧠 AI-generated weekly executive summary
+
+🧠 AI INSIGHTS REQUIREMENTS
+
+Embed an Executive Copilot that can answer:
+
+“Why did revenue drop this month?”
+
+“Which customers should we prioritize next quarter?”
+
+“What deals should I personally intervene on?”
+
+“What is the revenue impact of delaying this induction?”
+
+“How does sales demand affect shop capacity next 60 days?”
+
+Responses must be concise, data-backed, and action-oriented.
+
+🖥️ UI / UX REQUIREMENTS
+
+Clean, board-ready executive design
+
+Dark & light mode
+
+KPI cards with sparkline trends
+
+Drill-down on click (no page reloads)
+
+Role-based views (CEO vs Sales Ops vs Program Manager)
+
+Export to PDF / PowerPoint for board meetings
+
+Mobile & tablet responsive
+
+🔐 DATA & SYSTEM INTEGRATION
+
+Pull data from:
+
+CRM (Leads, Opportunities, Quotes)
+
+ERP / MRO Work Orders
+
+Inventory & Parts Availability
+
+Finance (Invoices, AR, Margin)
+
+Real-time or near real-time refresh
+
+Multi-site & multi-program support
+
+Audit trail & data security compliance (SOC-2 ready)
+
+📦 DELIVERABLES
+
+Dashboard architecture & data model
+
+KPI definitions & calculation logic
+
+Frontend dashboard components
+
+Backend aggregation & forecasting logic
+
+AI insight prompt framework
+
+Sample executive dataset for testing
+
+🏁 SUCCESS CRITERIA
+
+Executives can assess business health in < 1 minute
+
+Sales forecasts within ±5–8% accuracy
+
+Clear linkage between sales, margin, and capacity
+
+Investor-ready reporting and scalability

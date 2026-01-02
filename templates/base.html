@@ -618,6 +618,14 @@
             <i class="bi bi-chevron-down toggle-icon" id="sales-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="sales-content">
+            {% if session.role == 'Admin' or user_permissions.get('menu_sales_orders', 1) == 1 %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('sales_dashboard.executive_sales_dashboard') }}">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Executive Sales Dashboard</span>
+                </a>
+            </li>
+            {% endif %}
             {% if session.role == 'Admin' or user_permissions.get('menu_customers', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('customer_routes.list_customers') }}">
