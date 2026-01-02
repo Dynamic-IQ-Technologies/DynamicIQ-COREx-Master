@@ -4014,6 +4014,36 @@ class Database:
         
         conn.commit()
         conn.close()
+    
+    def seed_qms_sop_categories(self):
+        conn = self.get_connection()
+        
+        existing = conn.execute('SELECT COUNT(*) as count FROM qms_sop_categories').fetchone()
+        if existing['count'] > 0:
+            conn.close()
+            return
+        
+        categories = [
+            ('QMS-CAT-001', 'Quality Management', 'Quality management system procedures', 1),
+            ('QMS-CAT-002', 'Production', 'Manufacturing and production procedures', 2),
+            ('QMS-CAT-003', 'Maintenance', 'Maintenance and repair procedures', 3),
+            ('QMS-CAT-004', 'Safety', 'Safety and compliance procedures', 4),
+            ('QMS-CAT-005', 'Inspection', 'Inspection and testing procedures', 5),
+            ('QMS-CAT-006', 'Documentation', 'Document control and records management', 6),
+            ('QMS-CAT-007', 'Training', 'Training and qualification procedures', 7),
+            ('QMS-CAT-008', 'Procurement', 'Purchasing and supplier management', 8),
+            ('QMS-CAT-009', 'Shipping & Receiving', 'Logistics and material handling', 9),
+            ('QMS-CAT-010', 'IT & Security', 'Information technology and security', 10),
+        ]
+        
+        for code, name, description, sort_order in categories:
+            conn.execute('''
+                INSERT INTO qms_sop_categories (code, name, description, sort_order, status)
+                VALUES (?, ?, ?, ?, 'Active')
+            ''', (code, name, description, sort_order))
+        
+        conn.commit()
+        conn.close()
 
 class User:
     @staticmethod
