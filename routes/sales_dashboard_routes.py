@@ -365,7 +365,7 @@ def executive_sales_dashboard():
         SELECT COUNT(*) as count
         FROM work_orders
         WHERE status = 'In Progress'
-        AND due_date < date('now', '+7 days')
+        AND planned_end_date < date('now', '+7 days')
     ''').fetchone()
     
     if capacity_overload['count'] > 5:
