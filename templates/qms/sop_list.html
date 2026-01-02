@@ -258,19 +258,22 @@ document.getElementById('aiGenerateSopBtn').addEventListener('click', function()
 });
 
 // Delete SOP Modal handler
-const deleteSopModal = document.getElementById('deleteSopModal');
-if (deleteSopModal) {
-    deleteSopModal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        const sopId = button.getAttribute('data-sop-id');
-        const sopNumber = button.getAttribute('data-sop-number');
-        const sopTitle = button.getAttribute('data-sop-title');
-        
-        document.getElementById('deleteSopNumber').textContent = sopNumber;
-        document.getElementById('deleteSopTitle').textContent = sopTitle;
-        document.getElementById('deleteSopForm').action = '/qms/sops/' + sopId + '/delete';
-    });
-}
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteSopModal = document.getElementById('deleteSopModal');
+    if (deleteSopModal) {
+        deleteSopModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const sopId = button.getAttribute('data-sop-id');
+            const sopNumber = button.getAttribute('data-sop-number');
+            const sopTitle = button.getAttribute('data-sop-title');
+            
+            document.getElementById('deleteSopNumber').textContent = sopNumber;
+            document.getElementById('deleteSopTitle').textContent = sopTitle;
+            const deleteForm = document.getElementById('deleteSopForm');
+            deleteForm.setAttribute('action', '/qms/sops/' + sopId + '/delete');
+        });
+    }
+});
 </script>
 
 <!-- Delete SOP Confirmation Modal -->
