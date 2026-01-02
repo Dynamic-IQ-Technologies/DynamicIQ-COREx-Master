@@ -1350,25 +1350,31 @@ ERP Module: {erp_module if erp_module else 'General'}
 Compliance Standards: {standards_str}
 Additional Context: {context if context else 'Standard aerospace MRO operations'}
 
-Generate a complete SOP following {standards_str} requirements with the following structure (return as JSON):
+CRITICAL FORMATTING REQUIREMENTS:
+- ALL values must be plain text strings, NOT nested objects or arrays
+- Use standard professional formatting with line breaks and bullet points
+- Do NOT use JSON syntax, curly braces, or square brackets within any text field
+- Format lists as plain text with line breaks and dashes or numbers
+
+Return as JSON with these fields containing PLAIN TEXT ONLY:
 {{
-    "title": "Full SOP title",
-    "purpose": "Clear purpose statement (2-3 sentences)",
-    "scope": "Detailed scope including what is covered and what is excluded",
-    "responsibilities": "Section with roles and their specific responsibilities in bulleted format",
-    "definitions": "Key terms and definitions relevant to this procedure",
-    "procedure_content": "Detailed step-by-step procedure with numbered main steps and sub-steps. Include quality checks, documentation requirements, and verification points. Format with clear sections.",
-    "references_text": "List of related documents, standards, and regulatory references",
+    "title": "Full SOP title as plain text",
+    "purpose": "Clear purpose statement as plain text paragraph (2-3 sentences)",
+    "scope": "Detailed scope as plain text paragraph describing what is covered and excluded",
+    "responsibilities": "Plain text formatted like:\nQuality Manager:\n- Review and approve work orders\n- Ensure compliance with standards\n\nTechnician:\n- Perform inspections\n- Document findings",
+    "definitions": "Plain text formatted like:\nWork Order: A document tracking maintenance activities.\n\nReceiving Inspection: Initial inspection on incoming units.",
+    "procedure_content": "Plain text formatted like:\n1. Customer Unit Arrival\n   1.1 Log the arrival in the ERP system\n   1.2 Verify documentation\n\n2. Work Order Creation\n   2.1 Create new work order\n   2.2 Select work order template",
+    "references_text": "Plain text list like:\n- AS9100 Rev D: Quality Management Systems\n- ISO 9001: Quality Management Systems\n- Internal Document Control Procedure",
     "compliance_standards": "{standards_str}",
-    "applicable_roles": "Comma-separated list of applicable roles (e.g., Admin, Planner, Technician, Quality, Manager)",
+    "applicable_roles": "Comma-separated list (e.g., Admin, Planner, Technician, Quality, Manager)",
     "applicable_modules": "{erp_module if erp_module else 'General'}"
 }}
 
 Ensure the procedure is:
 1. Professional and detailed enough for actual use
 2. Compliant with {standards_str} documentation requirements
-3. Includes clear acceptance criteria and verification steps
-4. References appropriate forms, records, and documentation
+3. Uses standard formatting (numbered lists, bullet points, line breaks)
+4. Contains NO special characters, JSON syntax, or nested structures
 5. Follows aerospace industry best practices"""
 
         response = client.chat.completions.create(
@@ -1385,9 +1391,45 @@ Ensure the procedure is:
         sop_data = json.loads(response.choices[0].message.content or '{}')
         
         def to_string(val):
+            """Convert any value to clean plain text string"""
+            if val is None:
+                return ''
+            if isinstance(val, str):
+                return val
             if isinstance(val, list):
-                return '\n'.join(str(item) for item in val)
-            return str(val) if val else ''
+                result = []
+                for item in val:
+                    if isinstance(item, dict):
+                        for k, v in item.items():
+                            if isinstance(v, list):
+                                result.append(f"{k}:")
+                                for sub in v:
+                                    result.append(f"  - {sub}")
+                            else:
+                                result.append(f"{k}: {v}")
+                    else:
+                        result.append(str(item))
+                return '\n'.join(result)
+            if isinstance(val, dict):
+                result = []
+                for k, v in val.items():
+                    if isinstance(v, list):
+                        result.append(f"{k}:")
+                        for item in v:
+                            if isinstance(item, dict):
+                                for ik, iv in item.items():
+                                    if isinstance(iv, list):
+                                        result.append(f"  {ik}:")
+                                        for sub in iv:
+                                            result.append(f"    - {sub}")
+                                    else:
+                                        result.append(f"  {ik}: {iv}")
+                            else:
+                                result.append(f"  - {item}")
+                    else:
+                        result.append(f"{k}: {v}")
+                return '\n'.join(result)
+            return str(val)
         
         conn = get_db()
         
