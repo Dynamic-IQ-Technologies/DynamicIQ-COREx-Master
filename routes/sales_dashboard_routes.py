@@ -274,7 +274,12 @@ def executive_sales_dashboard():
     
     dso = conn.execute('''
         SELECT 
-            AVG(JULIANDAY(COALESCE(paid_date, 'now')) - JULIANDAY(invoice_date)) as avg_days
+            AVG(
+                CASE 
+                    WHEN status = 'Paid' THEN JULIANDAY(due_date) - JULIANDAY(invoice_date)
+                    ELSE JULIANDAY('now') - JULIANDAY(invoice_date)
+                END
+            ) as avg_days
         FROM invoices
         WHERE status IN ('Paid', 'Partial', 'Posted')
         AND invoice_date >= ?
