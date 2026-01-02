@@ -531,21 +531,25 @@ def sop_delete(sop_id):
 @qms_bp.route('/sops/<int:sop_id>/download')
 @login_required
 def sop_download_pdf(sop_id):
-    """Download SOP as PDF"""
+    """Download SOP as PDF - ISO/Aerospace Standard Document Format"""
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus.flowables import HRFlowable
     from reportlab.lib import colors
     from io import BytesIO
     from flask import send_file
     
     conn = get_db()
     sop = conn.execute('''
-        SELECT s.*, c.name as category_name, u.username as prepared_by_name
+        SELECT s.*, c.name as category_name, u.username as prepared_by_name,
+               ua.username as approved_by_name
         FROM qms_sops s
         LEFT JOIN qms_sop_categories c ON s.category_id = c.id
         LEFT JOIN users u ON s.prepared_by = u.id
+        LEFT JOIN users ua ON s.approved_by = ua.id
         WHERE s.id = ?
     ''', (sop_id,)).fetchone()
     
@@ -557,74 +561,186 @@ def sop_download_pdf(sop_id):
     conn.close()
     
     buffer = BytesIO()
+    
+    def add_page_number(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 8)
+        canvas.drawString(0.75*inch, 0.5*inch, f"{sop['sop_number']} Rev {sop['revision']}")
+        canvas.drawRightString(7.75*inch, 0.5*inch, f"Page {doc.page}")
+        canvas.drawCenteredString(4.25*inch, 0.5*inch, "CONTROLLED DOCUMENT")
+        canvas.line(0.75*inch, 0.65*inch, 7.75*inch, 0.65*inch)
+        canvas.restoreState()
+    
     doc = SimpleDocTemplate(buffer, pagesize=letter, 
                            leftMargin=0.75*inch, rightMargin=0.75*inch,
-                           topMargin=0.75*inch, bottomMargin=0.75*inch)
+                           topMargin=0.75*inch, bottomMargin=0.85*inch)
     
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
-    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=12, 
-                                   textColor=colors.HexColor('#0d6efd'), spaceBefore=12, spaceAfter=6)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontSize=10, leading=14)
+    
+    # Custom styles for ISO document format
+    company_style = ParagraphStyle('Company', parent=styles['Normal'], fontSize=14, 
+                                   fontName='Helvetica-Bold', alignment=TA_CENTER)
+    doc_title_style = ParagraphStyle('DocTitle', parent=styles['Normal'], fontSize=12,
+                                     fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=6)
+    section_header_style = ParagraphStyle('SectionHeader', parent=styles['Normal'], fontSize=11,
+                                          fontName='Helvetica-Bold', spaceBefore=14, spaceAfter=6,
+                                          backColor=colors.HexColor('#f0f0f0'), 
+                                          borderPadding=4, leftIndent=0)
+    body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=10, 
+                                leading=14, spaceBefore=4, spaceAfter=4)
+    label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=9,
+                                 fontName='Helvetica-Bold', textColor=colors.HexColor('#555555'))
+    value_style = ParagraphStyle('Value', parent=styles['Normal'], fontSize=9)
     
     elements = []
     
-    # Header
-    elements.append(Paragraph(f"<b>{sop['sop_number']}</b> - Revision {sop['revision']}", title_style))
-    elements.append(Paragraph(sop['title'] or '', styles['Heading2']))
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # Status and metadata table
-    meta_data = [
-        ['Status:', sop['status'], 'Category:', sop['category_name'] or '-'],
-        ['Effective Date:', sop['effective_date'] or '-', 'Review Date:', sop['review_date'] or '-'],
-        ['Prepared By:', sop['prepared_by_name'] or '-', 'Compliance:', sop['compliance_standards'] or '-']
+    # ========== DOCUMENT HEADER ==========
+    header_data = [
+        [Paragraph('<b>QUALITY MANAGEMENT SYSTEM</b>', company_style)],
+        [Paragraph('STANDARD OPERATING PROCEDURE', doc_title_style)]
     ]
-    meta_table = Table(meta_data, colWidths=[1.2*inch, 2*inch, 1.2*inch, 2*inch])
-    meta_table.setStyle(TableStyle([
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.gray),
-        ('TEXTCOLOR', (2, 0), (2, -1), colors.gray),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    header_table = Table(header_data, colWidths=[7*inch])
+    header_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1.5, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a365d')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
     ]))
-    elements.append(meta_table)
-    elements.append(Spacer(1, 0.3*inch))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.15*inch))
     
-    # Purpose
+    # ========== DOCUMENT CONTROL BLOCK ==========
+    control_data = [
+        [Paragraph('<b>Document Number:</b>', label_style), 
+         Paragraph(sop['sop_number'], value_style),
+         Paragraph('<b>Revision:</b>', label_style),
+         Paragraph(str(sop['revision']), value_style)],
+        [Paragraph('<b>Title:</b>', label_style), 
+         Paragraph(sop['title'] or '-', value_style),
+         '', ''],
+        [Paragraph('<b>Category:</b>', label_style),
+         Paragraph(sop['category_name'] or '-', value_style),
+         Paragraph('<b>Status:</b>', label_style),
+         Paragraph(sop['status'], value_style)],
+        [Paragraph('<b>Effective Date:</b>', label_style),
+         Paragraph(sop['effective_date'] or '-', value_style),
+         Paragraph('<b>Review Date:</b>', label_style),
+         Paragraph(sop['review_date'] or '-', value_style)],
+        [Paragraph('<b>Compliance:</b>', label_style),
+         Paragraph(sop['compliance_standards'] or '-', value_style),
+         '', '']
+    ]
+    control_table = Table(control_data, colWidths=[1.3*inch, 2.2*inch, 1.3*inch, 2.2*inch])
+    control_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.gray),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('SPAN', (1, 1), (3, 1)),
+        ('SPAN', (1, 4), (3, 4)),
+    ]))
+    elements.append(control_table)
+    elements.append(Spacer(1, 0.15*inch))
+    
+    # ========== APPROVAL BLOCK ==========
+    approval_data = [
+        [Paragraph('<b>Role</b>', label_style),
+         Paragraph('<b>Name</b>', label_style),
+         Paragraph('<b>Signature</b>', label_style),
+         Paragraph('<b>Date</b>', label_style)],
+        [Paragraph('Prepared By:', value_style),
+         Paragraph(sop['prepared_by_name'] or '-', value_style),
+         '',
+         Paragraph(sop['created_at'][:10] if sop['created_at'] else '-', value_style)],
+        [Paragraph('Approved By:', value_style),
+         Paragraph(sop['approved_by_name'] or '-', value_style),
+         '',
+         Paragraph(sop['approved_date'][:10] if sop.get('approved_date') else '-', value_style)]
+    ]
+    approval_table = Table(approval_data, colWidths=[1.5*inch, 2*inch, 2*inch, 1.5*inch])
+    approval_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.gray),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+    ]))
+    elements.append(approval_table)
+    elements.append(Spacer(1, 0.25*inch))
+    
+    # ========== DOCUMENT CONTENT ==========
+    section_num = 1
+    
+    # 1. Purpose
     if sop['purpose']:
-        elements.append(Paragraph("Purpose", heading_style))
-        elements.append(Paragraph(sop['purpose'], normal_style))
+        elements.append(Paragraph(f'{section_num}. PURPOSE', section_header_style))
+        elements.append(Paragraph(sop['purpose'], body_style))
+        section_num += 1
     
-    # Scope
+    # 2. Scope
     if sop['scope']:
-        elements.append(Paragraph("Scope", heading_style))
-        elements.append(Paragraph(sop['scope'], normal_style))
+        elements.append(Paragraph(f'{section_num}. SCOPE', section_header_style))
+        elements.append(Paragraph(sop['scope'], body_style))
+        section_num += 1
     
-    # Responsibilities
+    # 3. Responsibilities
     if sop['responsibilities']:
-        elements.append(Paragraph("Responsibilities", heading_style))
+        elements.append(Paragraph(f'{section_num}. RESPONSIBILITIES', section_header_style))
         resp_text = sop['responsibilities'].replace('\n', '<br/>')
-        elements.append(Paragraph(resp_text, normal_style))
+        elements.append(Paragraph(resp_text, body_style))
+        section_num += 1
     
-    # Definitions
+    # 4. Definitions
     if sop['definitions']:
-        elements.append(Paragraph("Definitions", heading_style))
+        elements.append(Paragraph(f'{section_num}. DEFINITIONS', section_header_style))
         def_text = sop['definitions'].replace('\n', '<br/>')
-        elements.append(Paragraph(def_text, normal_style))
+        elements.append(Paragraph(def_text, body_style))
+        section_num += 1
     
-    # Procedure
+    # 5. Procedure
     if sop['procedure_content']:
-        elements.append(Paragraph("Procedure", heading_style))
+        elements.append(Paragraph(f'{section_num}. PROCEDURE', section_header_style))
         proc_text = sop['procedure_content'].replace('\n', '<br/>')
-        elements.append(Paragraph(proc_text, normal_style))
+        elements.append(Paragraph(proc_text, body_style))
+        section_num += 1
     
-    # References
+    # 6. References
     if sop['references_text']:
-        elements.append(Paragraph("References", heading_style))
+        elements.append(Paragraph(f'{section_num}. REFERENCES', section_header_style))
         ref_text = sop['references_text'].replace('\n', '<br/>')
-        elements.append(Paragraph(ref_text, normal_style))
+        elements.append(Paragraph(ref_text, body_style))
+        section_num += 1
     
-    doc.build(elements)
+    # 7. Revision History placeholder
+    elements.append(Paragraph(f'{section_num}. REVISION HISTORY', section_header_style))
+    rev_data = [
+        [Paragraph('<b>Rev</b>', label_style), 
+         Paragraph('<b>Date</b>', label_style),
+         Paragraph('<b>Description</b>', label_style),
+         Paragraph('<b>Author</b>', label_style)],
+        [Paragraph(str(sop['revision']), value_style),
+         Paragraph(sop['created_at'][:10] if sop['created_at'] else '-', value_style),
+         Paragraph('Initial Release' if sop['revision'] == 1 else 'Document Revision', value_style),
+         Paragraph(sop['prepared_by_name'] or '-', value_style)]
+    ]
+    rev_table = Table(rev_data, colWidths=[0.6*inch, 1*inch, 3.9*inch, 1.5*inch])
+    rev_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.gray),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.gray),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    ]))
+    elements.append(rev_table)
+    
+    doc.build(elements, onFirstPage=add_page_number, onLaterPages=add_page_number)
     buffer.seek(0)
     
     filename = f"{sop['sop_number']}_Rev{sop['revision']}.pdf"
