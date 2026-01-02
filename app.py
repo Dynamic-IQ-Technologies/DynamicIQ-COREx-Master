@@ -60,6 +60,7 @@ from routes.operations_routes import operations_bp
 from routes.repair_order_routes import repair_order_bp
 from routes.master_routing_routes import master_routing_bp
 from routes.sales_dashboard_routes import sales_dashboard_bp
+from routes.procurement_dashboard_routes import procurement_dashboard_bp
 import os
 
 app = Flask(__name__)
@@ -166,6 +167,7 @@ app.register_blueprint(operations_bp)
 app.register_blueprint(repair_order_bp)
 app.register_blueprint(master_routing_bp)
 app.register_blueprint(sales_dashboard_bp)
+app.register_blueprint(procurement_dashboard_bp)
 
 @app.context_processor
 def inject_user():

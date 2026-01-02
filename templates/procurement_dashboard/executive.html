@@ -1,0 +1,699 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Procurement Dashboard - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<style>
+    .exec-kpi-card {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .exec-kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+    }
+    .exec-kpi-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.8;
+        margin-bottom: 0.25rem;
+    }
+    .exec-kpi-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    .exec-kpi-trend {
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .trend-up { color: #4ade80; }
+    .trend-down { color: #f87171; }
+    .trend-neutral { color: #94a3b8; }
+    
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.25rem;
+    }
+    .chart-container {
+        position: relative;
+        height: 180px;
+        width: 100%;
+    }
+    .chart-container-sm {
+        position: relative;
+        height: 150px;
+        width: 100%;
+    }
+    .chart-card-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .chart-card-title i {
+        color: #0ea5e9;
+    }
+    
+    .alert-card {
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .alert-card.alert-warning {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+    }
+    .alert-card.alert-danger {
+        background: #fee2e2;
+        border-left: 4px solid #ef4444;
+    }
+    .alert-card.alert-info {
+        background: #dbeafe;
+        border-left: 4px solid #3b82f6;
+    }
+    .alert-card.alert-success {
+        background: #dcfce7;
+        border-left: 4px solid #22c55e;
+    }
+    .alert-icon {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    .alert-content h6 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    .alert-content p {
+        font-size: 0.8rem;
+        margin: 0;
+        opacity: 0.8;
+    }
+    
+    .supplier-row {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .supplier-row:last-child {
+        border-bottom: none;
+    }
+    .supplier-rank {
+        width: 24px;
+        height: 24px;
+        background: #0ea5e9;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-right: 0.75rem;
+    }
+    .supplier-name {
+        flex: 1;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    .supplier-spend {
+        font-weight: 600;
+        color: #0369a1;
+    }
+    
+    .delivery-row {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .delivery-row:last-child {
+        border-bottom: none;
+    }
+    
+    .copilot-container {
+        background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        color: white;
+    }
+    .copilot-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    .copilot-input {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 0.75rem;
+        color: white;
+        width: 100%;
+        margin-bottom: 0.75rem;
+    }
+    .copilot-input::placeholder {
+        color: rgba(255,255,255,0.6);
+    }
+    .copilot-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .copilot-suggestion {
+        background: rgba(255,255,255,0.2);
+        border-radius: 20px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .copilot-suggestion:hover {
+        background: rgba(255,255,255,0.3);
+    }
+    .copilot-response {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        display: none;
+    }
+    .copilot-response.active {
+        display: block;
+    }
+    
+    .forecast-bar {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    .forecast-fill {
+        height: 100%;
+        border-radius: 4px;
+    }
+    
+    .performance-bar {
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .performance-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+</style>
+
+<div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h2><i class="bi bi-cart4 text-info"></i> Executive Procurement Dashboard</h2>
+        <p class="text-muted mb-0">Supply Chain Strategic Intelligence for MRO Operations</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-info"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Live Data</span>
+        <span class="text-muted small">Last updated: {{ now().strftime('%B %d, %Y at %I:%M %p') if now is defined else 'Today' }}</span>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Spend (30 Days)</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.mtd_spend) }}</div>
+            <div class="exec-kpi-trend trend-neutral">
+                <i class="bi bi-calendar-month"></i> Last 30 days
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Spend (90 Days)</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.qtd_spend) }}</div>
+            <div class="exec-kpi-trend trend-neutral">
+                <i class="bi bi-calendar3"></i> Last 90 days
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Spend (12 Mo)</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.ytd_spend) }}</div>
+            <div class="exec-kpi-trend {% if kpis.spend_growth >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                <i class="bi bi-{% if kpis.spend_growth >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                {{ "{:.1f}".format(kpis.spend_growth) }}% vs prior
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Open PO Value</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.open_po_value) }}</div>
+            <div class="exec-kpi-trend trend-neutral">
+                <i class="bi bi-file-earmark-text"></i> {{ kpis.open_po_count }} orders
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">PO Cycle Time</div>
+            <div class="exec-kpi-value">{{ "{:.0f}".format(kpis.po_cycle_time) }} days</div>
+            <div class="exec-kpi-trend trend-neutral">
+                <i class="bi bi-clock"></i> Avg delivery
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card">
+            <div class="exec-kpi-label">Supplier OTIF</div>
+            <div class="exec-kpi-value">{{ "{:.1f}".format(kpis.otif_pct) }}%</div>
+            <div class="exec-kpi-trend {% if kpis.otif_pct >= 80 %}trend-up{% else %}trend-down{% endif %}">
+                <i class="bi bi-{% if kpis.otif_pct >= 80 %}check-circle{% else %}exclamation-circle{% endif %}"></i>
+                Target: 80%
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);">
+            <div class="exec-kpi-label">Inventory Value</div>
+            <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.inventory_value) }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-box-seam"></i> On hand
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);">
+            <div class="exec-kpi-label">Low Stock Items</div>
+            <div class="exec-kpi-value">{{ kpis.low_stock_count }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-exclamation-triangle"></i> Below reorder
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #dc2626 0%, #f87171 100%);">
+            <div class="exec-kpi-label">Stock-Outs</div>
+            <div class="exec-kpi-value">{{ kpis.stockout_count }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-x-circle"></i> Zero inventory
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
+            <div class="exec-kpi-label">Overdue POs</div>
+            <div class="exec-kpi-value">{{ kpis.overdue_po_count }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-calendar-x"></i> ${{ "{:,.0f}".format(kpis.overdue_po_value) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #0369a1 0%, #38bdf8 100%);">
+            <div class="exec-kpi-label">WO Shortages</div>
+            <div class="exec-kpi-value">{{ kpis.wo_shortages }}</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-tools"></i> Material gaps
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+        <div class="exec-kpi-card" style="background: linear-gradient(135deg, #059669 0%, #34d399 100%);">
+            <div class="exec-kpi-label">AOG Spend %</div>
+            <div class="exec-kpi-value">{{ "{:.1f}".format(kpis.aog_pct) }}%</div>
+            <div class="exec-kpi-trend">
+                <i class="bi bi-lightning"></i> ${{ "{:,.0f}".format(kpis.aog_spend) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-8">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-graph-up"></i> Procurement Spend Trend (12 Months)
+            </div>
+            <div class="chart-container">
+                <canvas id="spendChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-pie-chart"></i> Spend by Category
+            </div>
+            <div class="chart-container-sm">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-6">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-building"></i> Top Suppliers by Spend (12 Mo)
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for supplier in spend_by_supplier %}
+                {% if supplier.spend > 0 %}
+                <div class="supplier-row">
+                    <div class="supplier-rank">{{ loop.index }}</div>
+                    <div class="supplier-name">
+                        {{ supplier.supplier_name }}
+                        <span class="text-muted small d-block">{{ supplier.po_count }} POs</span>
+                    </div>
+                    <div class="supplier-spend">{{ "${:,.2f}".format(supplier.spend) }}</div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% if not spend_by_supplier %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <p class="mb-0">No supplier data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-speedometer2"></i> Supplier Performance Scorecard
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for supplier in supplier_performance %}
+                <div class="delivery-row">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-medium">{{ supplier.supplier_name }}</span>
+                        <span class="small text-muted">{{ supplier.total_pos }} POs</span>
+                    </div>
+                    <div class="d-flex gap-3 small">
+                        <div class="flex-fill">
+                            <div class="text-muted">On-Time</div>
+                            {% set otif = (supplier.on_time or 0) / supplier.total_pos * 100 if supplier.total_pos > 0 else 0 %}
+                            <div class="performance-bar">
+                                <div class="performance-fill {% if otif >= 80 %}bg-success{% elif otif >= 60 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ otif }}%;"></div>
+                            </div>
+                            <span class="fw-medium">{{ "{:.0f}".format(otif) }}%</span>
+                        </div>
+                        <div>
+                            <div class="text-muted">Avg Lead</div>
+                            <span class="fw-medium">{{ "{:.0f}".format(supplier.avg_lead_time or 0) }}d</span>
+                        </div>
+                        <div>
+                            <div class="text-muted">Spend</div>
+                            <span class="fw-medium text-info">${{ "{:,.0f}".format(supplier.total_spend) }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not supplier_performance %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-clipboard-data fs-1"></i>
+                    <p class="mb-0">No performance data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-6">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-truck"></i> Pending Deliveries
+            </div>
+            <div style="max-height: 280px; overflow-y: auto;">
+                {% for delivery in pending_deliveries %}
+                <div class="delivery-row">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="fw-medium">{{ delivery.po_number }}</span>
+                            <span class="text-muted small d-block">{{ delivery.supplier_name }}</span>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold text-info">${{ "{:,.0f}".format(delivery.value) }}</span>
+                            <span class="d-block small {% if delivery.days_until_due < 0 %}text-danger{% elif delivery.days_until_due <= 7 %}text-warning{% else %}text-muted{% endif %}">
+                                {% if delivery.days_until_due < 0 %}
+                                    {{ "{:.0f}".format(delivery.days_until_due * -1) }} days overdue
+                                {% elif delivery.days_until_due == 0 %}
+                                    Due today
+                                {% else %}
+                                    Due in {{ "{:.0f}".format(delivery.days_until_due) }} days
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not pending_deliveries %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-check-circle fs-1 text-success"></i>
+                    <p class="mb-0">No pending deliveries</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <i class="bi bi-lightning"></i> 30/60/90 Day Delivery Forecast
+            </div>
+            <div class="row g-3">
+                <div class="col-4">
+                    <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                        <div class="text-muted small">30 Days</div>
+                        <div class="fs-4 fw-bold text-info">{{ "${:,.0f}".format(forecasts['30_day']) }}</div>
+                        <div class="forecast-bar">
+                            <div class="forecast-fill" style="width: 90%; background: #0ea5e9;"></div>
+                        </div>
+                        <div class="small text-muted mt-1">High confidence</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                        <div class="text-muted small">60 Days</div>
+                        <div class="fs-4 fw-bold text-warning">{{ "${:,.0f}".format(forecasts['60_day']) }}</div>
+                        <div class="forecast-bar">
+                            <div class="forecast-fill" style="width: 70%; background: #f59e0b;"></div>
+                        </div>
+                        <div class="small text-muted mt-1">Medium confidence</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-secondary bg-opacity-10 rounded">
+                        <div class="text-muted small">90 Days</div>
+                        <div class="fs-4 fw-bold text-secondary">{{ "${:,.0f}".format(forecasts['90_day']) }}</div>
+                        <div class="forecast-bar">
+                            <div class="forecast-fill" style="width: 50%; background: #6b7280;"></div>
+                        </div>
+                        <div class="small text-muted mt-1">Lower confidence</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-4">
+        <div class="chart-card" style="height: 100%;">
+            <div class="chart-card-title">
+                <i class="bi bi-bell"></i> Executive Alerts
+            </div>
+            {% for alert in alerts %}
+            <div class="alert-card alert-{{ alert.type }}">
+                <div class="alert-icon">
+                    <i class="bi bi-{{ alert.icon }}"></i>
+                </div>
+                <div class="alert-content">
+                    <h6>{{ alert.title }}</h6>
+                    <p>{{ alert.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not alerts %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-check-circle fs-1 text-success"></i>
+                <p class="mb-0">No critical alerts</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-xl-8">
+        <div class="copilot-container">
+            <div class="copilot-title">
+                <i class="bi bi-robot"></i> Procurement AI Copilot
+            </div>
+            <input type="text" class="copilot-input" id="copilotQuestion" placeholder="Ask about suppliers, inventory, spend analysis...">
+            <div class="copilot-suggestions">
+                <span class="copilot-suggestion" onclick="askCopilot('What parts pose the highest operational risk?')">High-risk parts?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('Which suppliers are hurting margin the most?')">Costly suppliers?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('Where can we immediately reduce spend?')">Cost reduction?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('What material shortages will impact operations?')">Material shortages?</span>
+                <span class="copilot-suggestion" onclick="askCopilot('Give me a weekly procurement summary')">Weekly summary</span>
+            </div>
+            <button class="btn btn-light btn-sm mb-3" onclick="submitCopilotQuestion()">
+                <i class="bi bi-send me-1"></i> Ask Copilot
+            </button>
+            <div class="copilot-response" id="copilotResponse"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const monthlyData = {{ monthly_spend|map(attribute='month')|list|tojson }};
+const monthlySpend = {{ monthly_spend|map(attribute='spend')|list|tojson }};
+
+new Chart(document.getElementById('spendChart'), {
+    type: 'line',
+    data: {
+        labels: monthlyData.map(m => {
+            const [year, month] = m.split('-');
+            return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        }),
+        datasets: [{
+            label: 'Spend',
+            data: monthlySpend,
+            borderColor: '#0ea5e9',
+            backgroundColor: 'rgba(14, 165, 233, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#0ea5e9',
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '$' + context.raw.toLocaleString();
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + (value / 1000).toFixed(0) + 'K';
+                    }
+                }
+            }
+        }
+    }
+});
+
+const categories = {{ spend_by_category|map(attribute='category')|list|tojson }};
+const categorySpend = {{ spend_by_category|map(attribute='spend')|list|tojson }};
+
+new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+        labels: categories,
+        datasets: [{
+            data: categorySpend,
+            backgroundColor: ['#0ea5e9', '#06b6d4', '#14b8a6', '#22c55e', '#84cc16', '#eab308'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': $' + context.raw.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+function askCopilot(question) {
+    document.getElementById('copilotQuestion').value = question;
+    submitCopilotQuestion();
+}
+
+function submitCopilotQuestion() {
+    const question = document.getElementById('copilotQuestion').value.trim();
+    if (!question) return;
+    
+    const responseDiv = document.getElementById('copilotResponse');
+    responseDiv.classList.add('active');
+    responseDiv.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Analyzing procurement data...';
+    
+    fetch('/api/procurement-copilot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            responseDiv.innerHTML = data.response.replace(/\n/g, '<br>');
+        } else {
+            responseDiv.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i> ' + (data.error || 'Unable to process request');
+        }
+    })
+    .catch(error => {
+        responseDiv.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i> Error connecting to AI service';
+    });
+}
+
+document.getElementById('copilotQuestion').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        submitCopilotQuestion();
+    }
+});
+</script>
+{% endblock %}
