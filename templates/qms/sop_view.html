@@ -23,6 +23,9 @@
                 </button>
             </form>
             {% endif %}
+            <a href="{{ url_for('qms.sop_download_pdf', sop_id=sop.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-download me-1"></i> Download PDF
+            </a>
             <a href="{{ url_for('qms.sop_edit', sop_id=sop.id) }}" class="btn btn-primary">
                 <i class="bi bi-pencil me-1"></i> Edit
             </a>

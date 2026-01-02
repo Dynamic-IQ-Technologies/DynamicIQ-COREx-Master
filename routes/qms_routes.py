@@ -528,6 +528,111 @@ def sop_delete(sop_id):
     return redirect(url_for('qms.sop_list'))
 
 
+@qms_bp.route('/sops/<int:sop_id>/download')
+@login_required
+def sop_download_pdf(sop_id):
+    """Download SOP as PDF"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    from io import BytesIO
+    from flask import send_file
+    
+    conn = get_db()
+    sop = conn.execute('''
+        SELECT s.*, c.name as category_name, u.username as prepared_by_name
+        FROM qms_sops s
+        LEFT JOIN qms_sop_categories c ON s.category_id = c.id
+        LEFT JOIN users u ON s.prepared_by = u.id
+        WHERE s.id = ?
+    ''', (sop_id,)).fetchone()
+    
+    if not sop:
+        conn.close()
+        flash('SOP not found', 'error')
+        return redirect(url_for('qms.sop_list'))
+    
+    conn.close()
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                           leftMargin=0.75*inch, rightMargin=0.75*inch,
+                           topMargin=0.75*inch, bottomMargin=0.75*inch)
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
+    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=12, 
+                                   textColor=colors.HexColor('#0d6efd'), spaceBefore=12, spaceAfter=6)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontSize=10, leading=14)
+    
+    elements = []
+    
+    # Header
+    elements.append(Paragraph(f"<b>{sop['sop_number']}</b> - Revision {sop['revision']}", title_style))
+    elements.append(Paragraph(sop['title'] or '', styles['Heading2']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Status and metadata table
+    meta_data = [
+        ['Status:', sop['status'], 'Category:', sop['category_name'] or '-'],
+        ['Effective Date:', sop['effective_date'] or '-', 'Review Date:', sop['review_date'] or '-'],
+        ['Prepared By:', sop['prepared_by_name'] or '-', 'Compliance:', sop['compliance_standards'] or '-']
+    ]
+    meta_table = Table(meta_data, colWidths=[1.2*inch, 2*inch, 1.2*inch, 2*inch])
+    meta_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.gray),
+        ('TEXTCOLOR', (2, 0), (2, -1), colors.gray),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(meta_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Purpose
+    if sop['purpose']:
+        elements.append(Paragraph("Purpose", heading_style))
+        elements.append(Paragraph(sop['purpose'], normal_style))
+    
+    # Scope
+    if sop['scope']:
+        elements.append(Paragraph("Scope", heading_style))
+        elements.append(Paragraph(sop['scope'], normal_style))
+    
+    # Responsibilities
+    if sop['responsibilities']:
+        elements.append(Paragraph("Responsibilities", heading_style))
+        resp_text = sop['responsibilities'].replace('\n', '<br/>')
+        elements.append(Paragraph(resp_text, normal_style))
+    
+    # Definitions
+    if sop['definitions']:
+        elements.append(Paragraph("Definitions", heading_style))
+        def_text = sop['definitions'].replace('\n', '<br/>')
+        elements.append(Paragraph(def_text, normal_style))
+    
+    # Procedure
+    if sop['procedure_content']:
+        elements.append(Paragraph("Procedure", heading_style))
+        proc_text = sop['procedure_content'].replace('\n', '<br/>')
+        elements.append(Paragraph(proc_text, normal_style))
+    
+    # References
+    if sop['references_text']:
+        elements.append(Paragraph("References", heading_style))
+        ref_text = sop['references_text'].replace('\n', '<br/>')
+        elements.append(Paragraph(ref_text, normal_style))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    filename = f"{sop['sop_number']}_Rev{sop['revision']}.pdf"
+    
+    return send_file(buffer, mimetype='application/pdf', 
+                    download_name=filename, as_attachment=True)
+
+
 # ============== Work Instructions ==============
 
 @qms_bp.route('/work-instructions')
