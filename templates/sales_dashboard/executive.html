@@ -247,29 +247,29 @@
 <div class="row g-3 mb-4">
     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
         <div class="exec-kpi-card">
-            <div class="exec-kpi-label">Revenue MTD</div>
+            <div class="exec-kpi-label">Revenue (30 Days)</div>
             <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.mtd_revenue) }}</div>
             <div class="exec-kpi-trend trend-up">
-                <i class="bi bi-calendar-month"></i> This month
+                <i class="bi bi-calendar-month"></i> Last 30 days
             </div>
         </div>
     </div>
     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
         <div class="exec-kpi-card">
-            <div class="exec-kpi-label">Revenue QTD</div>
+            <div class="exec-kpi-label">Revenue (90 Days)</div>
             <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.qtd_revenue) }}</div>
             <div class="exec-kpi-trend trend-neutral">
-                <i class="bi bi-calendar3"></i> This quarter
+                <i class="bi bi-calendar3"></i> Last 90 days
             </div>
         </div>
     </div>
     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
         <div class="exec-kpi-card">
-            <div class="exec-kpi-label">Revenue YTD</div>
+            <div class="exec-kpi-label">Revenue (12 Mo)</div>
             <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.ytd_revenue) }}</div>
             <div class="exec-kpi-trend {% if kpis.ytd_growth >= 0 %}trend-up{% else %}trend-down{% endif %}">
                 <i class="bi bi-{% if kpis.ytd_growth >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
-                {{ "{:.1f}".format(kpis.ytd_growth) }}% YoY
+                {{ "{:.1f}".format(kpis.ytd_growth) }}% vs prior
             </div>
         </div>
     </div>
@@ -306,10 +306,10 @@
 <div class="row g-3 mb-4">
     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
         <div class="exec-kpi-card" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);">
-            <div class="exec-kpi-label">Bookings YTD</div>
+            <div class="exec-kpi-label">Bookings (12 Mo)</div>
             <div class="exec-kpi-value">{{ "${:,.0f}".format(kpis.bookings) }}</div>
             <div class="exec-kpi-trend">
-                <i class="bi bi-cart-check"></i> New orders
+                <i class="bi bi-cart-check"></i> Last 12 months
             </div>
         </div>
     </div>

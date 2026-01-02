@@ -8,22 +8,24 @@ import os
 sales_dashboard_bp = Blueprint('sales_dashboard', __name__)
 
 def get_date_ranges():
-    """Calculate MTD, QTD, YTD date ranges"""
+    """Calculate rolling date ranges for executive dashboard"""
     today = datetime.now()
     
-    mtd_start = today.replace(day=1).strftime('%Y-%m-%d')
+    last_30_start = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+    last_90_start = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+    last_365_start = (today - timedelta(days=365)).strftime('%Y-%m-%d')
     
-    quarter = (today.month - 1) // 3
-    qtd_start = today.replace(month=quarter * 3 + 1, day=1).strftime('%Y-%m-%d')
-    
-    ytd_start = today.replace(month=1, day=1).strftime('%Y-%m-%d')
+    prev_30_start = (today - timedelta(days=60)).strftime('%Y-%m-%d')
+    prev_30_end = (today - timedelta(days=30)).strftime('%Y-%m-%d')
     
     today_str = today.strftime('%Y-%m-%d')
     
     return {
-        'mtd_start': mtd_start,
-        'qtd_start': qtd_start,
-        'ytd_start': ytd_start,
+        'mtd_start': last_30_start,
+        'qtd_start': last_90_start,
+        'ytd_start': last_365_start,
+        'prev_30_start': prev_30_start,
+        'prev_30_end': prev_30_end,
         'today': today_str
     }
 
