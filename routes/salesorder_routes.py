@@ -1307,6 +1307,53 @@ def close_order(id):
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
+@salesorder_bp.route('/sales-orders/<int:id>/delete', methods=['POST'])
+@role_required('Admin', 'Planner')
+def delete_sales_order(id):
+    """Delete a Draft sales order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not so:
+            flash('Sales Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        if so['status'] != 'Draft':
+            flash('Only Draft orders can be deleted. Please cancel the order instead.', 'warning')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        so_number = so['so_number']
+        
+        conn.execute('DELETE FROM sales_order_lines WHERE so_id = ?', (id,))
+        
+        conn.execute('DELETE FROM sales_orders WHERE id = ?', (id,))
+        
+        from models import AuditLogger
+        AuditLogger.log(
+            conn=conn,
+            record_type='sales_order',
+            record_id=str(id),
+            action_type='DELETE',
+            modified_by=session.get('user_id'),
+            changed_fields={'so_number': so_number, 'deleted': True}
+        )
+        
+        conn.commit()
+        flash(f'Sales Order {so_number} deleted successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash('An error occurred while deleting the order.', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.list_sales_orders'))
+
 @salesorder_bp.route('/sales-orders/lines/<int:line_id>/available-inventory', methods=['GET'])
 @login_required
 def get_available_inventory(line_id):

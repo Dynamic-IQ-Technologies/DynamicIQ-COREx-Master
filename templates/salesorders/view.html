@@ -23,6 +23,9 @@
                 <a href="{{ url_for('salesorder_routes.email_preview', id=sales_order.id) }}" class="btn btn-info">
                     <i class="bi bi-envelope-check"></i> Confirm & Email
                 </a>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteSalesOrderModal">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
                 {% elif sales_order.status == 'Confirmed' %}
                 <form method="POST" action="{{ url_for('salesorder_routes.release_to_shipping', id=sales_order.id) }}" style="display: inline;" id="releaseToShippingForm">
                     <button type="button" class="btn btn-primary" onclick="confirmReleaseToShipping()">
@@ -967,6 +970,34 @@ function submitWoAllocation() {
                 <button type="button" class="btn text-white" style="background-color: #6f42c1;" id="confirmWoBtn" onclick="submitWoAllocation()" disabled>
                     <i class="bi bi-check-lg me-1"></i>Confirm Work Order Allocation
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Sales Order Modal -->
+<div class="modal fade" id="deleteSalesOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Delete Sales Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                <p>Are you sure you want to delete Sales Order <strong>{{ sales_order.so_number }}</strong>?</p>
+                <p class="text-muted mb-0">All line items will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('salesorder_routes.delete_sales_order', id=sales_order.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Delete Sales Order
+                    </button>
+                </form>
             </div>
         </div>
     </div>
