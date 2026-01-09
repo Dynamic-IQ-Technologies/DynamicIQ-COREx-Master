@@ -286,7 +286,8 @@
                         <div class="col-md-2">
                             <div class="mb-3">
                                 <label class="form-label">Core Due (Days)</label>
-                                <input type="number" class="form-control form-control-sm" name="core_due_days" placeholder="e.g., 30">
+                                <input type="number" class="form-control form-control-sm" name="core_due_days" id="line_core_due_days" placeholder="e.g., 30" value="{{ sales_order.core_due_days or '' }}">
+                                <small class="text-muted">Auto-filled from order header</small>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -576,6 +577,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (lineType === 'Exchange') {
             exchangeFields.style.display = 'block';
             coreChargeInput.setAttribute('required', 'required');
+            // Auto-populate Core Due Days from header if empty
+            const lineCoreDueDays = document.getElementById('line_core_due_days');
+            const headerCoreDueDays = '{{ sales_order.core_due_days or "" }}';
+            if (lineCoreDueDays && !lineCoreDueDays.value && headerCoreDueDays) {
+                lineCoreDueDays.value = headerCoreDueDays;
+            }
         } else if (lineType === 'Managed Repair') {
             repairFields.style.display = 'block';
             repairNTEInput.setAttribute('required', 'required');
