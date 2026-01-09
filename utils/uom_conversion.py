@@ -420,7 +420,7 @@ def validate_po_line_conversion(product_id, ordered_qty, ordered_uom_id, unit_pr
         
         # Get product base UOM
         product = conn.execute('''
-            SELECT id, unit_of_measure, part_number, description 
+            SELECT id, unit_of_measure, code, description 
             FROM products WHERE id = ?
         ''', (product_id,)).fetchone()
         
