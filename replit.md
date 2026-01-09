@@ -28,6 +28,12 @@ The environment is determined by the `REPLIT_DEPLOYMENT` flag:
 
 **Migration Script**: `python scripts/init_postgres.py` - Mirrors SQLite schema to PostgreSQL and migrates all data.
 
+**PostgreSQL Compatibility Layer**: The `PostgresConnection` wrapper in `models.py` provides SQLite-like interface:
+-   Converts `?` placeholders to `%s` for PostgreSQL
+-   Automatically adds `RETURNING id` for simple INSERT statements
+-   Intercepts `SELECT last_insert_rowid()` calls and returns cached insert ID
+-   Note: For full PostgreSQL parity, future refactoring should replace `SELECT last_insert_rowid()` calls with `cursor.lastrowid` usage
+
 ### Patent-Eligible Architecture
 
 The system incorporates a novel architecture for ERP exchange management, comprising:

@@ -18,6 +18,7 @@ class PostgresConnection:
     def __init__(self, conn):
         self._conn = conn
         self._cursor = None
+        self._last_insert_id = None
     
     def cursor(self):
         """Return a cursor object for compatibility with code that uses conn.cursor()"""
@@ -26,16 +27,53 @@ class PostgresConnection:
     
     def execute(self, query, params=None):
         """Execute a query and return a cursor-like object"""
+        import re
         from psycopg2.extras import RealDictCursor as RDC
-        # Convert SQLite-style ? placeholders to PostgreSQL %s
+        
         query = query.replace('?', '%s')
-        # Handle AUTOINCREMENT -> SERIAL conversion already done in schema
+        
+        query_upper = query.strip().upper()
+        
+        if 'LAST_INSERT_ROWID()' in query_upper:
+            class FakeResult:
+                def __init__(self, last_id):
+                    self._last_id = last_id
+                def fetchone(self):
+                    return (self._last_id,)
+                def fetchall(self):
+                    return [(self._last_id,)]
+                def __getitem__(self, key):
+                    return self._last_id
+            return FakeResult(self._last_insert_id)
+        
+        is_insert = query_upper.startswith('INSERT')
+        has_values = 'VALUES' in query_upper
+        has_select = ' SELECT ' in query_upper or query_upper.startswith('INSERT INTO') and 'SELECT' in query_upper
+        has_returning = 'RETURNING' in query_upper
+        
+        needs_returning = is_insert and has_values and not has_select and not has_returning
+        
+        if needs_returning:
+            query = query.rstrip().rstrip(';') + ' RETURNING id'
+        
         cursor = self._conn.cursor(cursor_factory=RDC)
         if params:
             cursor.execute(query, params)
         else:
             cursor.execute(query)
-        return PostgresCursor(cursor, self._conn)
+        
+        pg_cursor = PostgresCursor(cursor, self._conn)
+        
+        if needs_returning:
+            try:
+                result = cursor.fetchone()
+                if result and 'id' in result:
+                    pg_cursor._lastrowid = result['id']
+                    self._last_insert_id = result['id']
+            except Exception:
+                pass
+        
+        return pg_cursor
     
     def commit(self):
         self._conn.commit()
