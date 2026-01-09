@@ -154,6 +154,15 @@
                 <p><strong>Warehouse Location:</strong> {{ inventory.warehouse_location or 'Main' }}</p>
                 <p><strong>Bin Location:</strong> {{ inventory.bin_location or 'Not specified' }}</p>
                 <p><strong>Last Updated:</strong> {{ inventory.last_updated or 'N/A' }}</p>
+                <p><strong>Inventory Aging:</strong> 
+                    {% if inventory.created_at %}
+                    <span class="badge {% if inventory.aging_days > 365 %}bg-danger{% elif inventory.aging_days > 180 %}bg-warning text-dark{% elif inventory.aging_days > 90 %}bg-info{% else %}bg-success{% endif %}">
+                        {{ inventory.aging_days }} days
+                    </span>
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
+                </p>
             </div>
         </div>
     </div>

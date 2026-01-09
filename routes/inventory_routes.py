@@ -136,6 +136,20 @@ def view_inventory(id):
         flash('Inventory record not found', 'danger')
         return redirect(url_for('inventory_routes.list_inventory'))
     
+    # Convert to dict to add computed aging_days
+    inventory = dict(inventory)
+    if inventory.get('created_at'):
+        try:
+            from datetime import datetime
+            created = inventory['created_at']
+            if isinstance(created, str):
+                created = datetime.strptime(created[:19], '%Y-%m-%d %H:%M:%S')
+            inventory['aging_days'] = (datetime.now() - created).days
+        except:
+            inventory['aging_days'] = 0
+    else:
+        inventory['aging_days'] = 0
+    
     product_id = inventory['product_id']
     
     # Get related Purchase Orders (receiving transactions)
@@ -272,8 +286,8 @@ def create_inventory():
         conn.execute('''
             INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock, 
                                    warehouse_location, bin_location, condition, status,
-                                   is_serialized, serial_number, tool_asset_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?, ?)
+                                   is_serialized, serial_number, tool_asset_number, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (
             product_id,
             float(request.form.get('quantity', 0)),
