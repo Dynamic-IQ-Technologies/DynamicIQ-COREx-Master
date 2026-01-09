@@ -391,26 +391,32 @@
                         <div class="mt-2 p-2 bg-primary bg-opacity-10 rounded">
                             <strong class="text-primary"><i class="bi bi-arrow-left-right"></i> Exchange Details:</strong>
                             <div class="row mt-2">
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <small class="text-muted">Core Charge:</small><br>
                                     <strong>{{ line.core_charge|currency }}</strong>
                                 </div>
                                 {% if line.core_due_days %}
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <small class="text-muted">Core Due:</small><br>
                                     <strong>{{ line.core_due_days }} days</strong>
                                 </div>
                                 {% endif %}
                                 {% if line.expected_core_condition %}
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <small class="text-muted">Expected Condition:</small><br>
                                     <strong>{{ line.expected_core_condition }}</strong>
                                 </div>
                                 {% endif %}
                                 {% if line.core_disposition %}
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <small class="text-muted">Core Disposition:</small><br>
                                     <strong>{{ line.core_disposition }}</strong>
+                                </div>
+                                {% endif %}
+                                {% if line.serial_number and line.allocation_status in ['Allocated', 'Partially Allocated'] %}
+                                <div class="col-md-3">
+                                    <small class="text-muted">Allocated Serial Number:</small><br>
+                                    <strong class="text-info"><i class="bi bi-upc-scan"></i> {{ line.serial_number }}</strong>
                                 </div>
                                 {% endif %}
                             </div>
