@@ -3766,13 +3766,14 @@ def create_component_buyout(wo_id):
             buyout_source_type = 'Customer (as Supplier)'
             buyout_source_name = f"{wo_customer['customer_number']} - {wo_customer['name']}"
         else:
-            # No matching supplier found - use first supplier and note the customer as source
-            default_supplier = conn.execute('SELECT id, code, name FROM suppliers ORDER BY id LIMIT 1').fetchone()
-            if not default_supplier:
-                conn.close()
-                return jsonify({'success': False, 'error': 'No suppliers available. Please create a supplier matching the customer or any supplier first.'}), 400
-            supplier_id = default_supplier['id']
-            buyout_source_type = 'Customer'
+            # No matching supplier found - auto-create supplier from customer data
+            supplier_code = f"SUP-{wo_customer['customer_number']}"
+            cursor = conn.execute('''
+                INSERT INTO suppliers (code, name, created_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (supplier_code, wo_customer['name']))
+            supplier_id = cursor.lastrowid
+            buyout_source_type = 'Customer (Auto-Created Supplier)'
             buyout_source_name = f"{wo_customer['customer_number']} - {wo_customer['name']}"
         
         last_po = conn.execute('''
