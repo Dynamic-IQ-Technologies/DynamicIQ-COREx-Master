@@ -582,7 +582,7 @@ def dashboard():
         LEFT JOIN customers c ON so.customer_id = c.id
         LEFT JOIN users u ON sol.released_by = u.id
         WHERE sol.released_to_shipping_at IS NOT NULL
-            AND sol.shipped_at IS NULL
+            AND (sol.shipped_quantity IS NULL OR sol.shipped_quantity = 0)
         ORDER BY sol.released_to_shipping_at DESC
         LIMIT 20
     ''').fetchall()
@@ -628,7 +628,8 @@ def dashboard():
     # Stats - add ready to ship count
     ready_to_ship_count = conn.execute('''
         SELECT COUNT(*) as count FROM sales_order_lines 
-        WHERE released_to_shipping_at IS NOT NULL AND shipped_at IS NULL
+        WHERE released_to_shipping_at IS NOT NULL 
+            AND (shipped_quantity IS NULL OR shipped_quantity = 0)
     ''').fetchone()['count']
     
     stats = {
