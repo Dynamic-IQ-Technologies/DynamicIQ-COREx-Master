@@ -17,7 +17,15 @@
 
 <!-- Stats Cards -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h3>{{ stats.ready_to_ship or 0 }}</h3>
+                <p class="mb-0"><i class="bi bi-check2-square"></i> Ready to Ship</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
         <div class="card bg-primary text-white">
             <div class="card-body">
                 <h3>{{ stats.pending_shipments }}</h3>
@@ -25,7 +33,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col">
         <div class="card bg-info text-white">
             <div class="card-body">
                 <h3>{{ stats.intransit }}</h3>
@@ -33,21 +41,98 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
+    <div class="col">
+        <div class="card bg-secondary text-white">
             <div class="card-body">
                 <h3>{{ stats.delivered_today }}</h3>
                 <p class="mb-0"><i class="bi bi-check-circle"></i> Delivered Today</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col">
         <div class="card bg-warning text-dark">
             <div class="card-body">
                 <h3>{{ stats.receipts_today }}</h3>
                 <p class="mb-0"><i class="bi bi-inbox-fill"></i> Receipts Today</p>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Ready to Ship - Released Sales Order Lines -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-check2-square"></i> Ready to Ship - Released Lines</h5>
+    </div>
+    <div class="card-body">
+        {% if ready_to_ship %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Sales Order</th>
+                        <th>Line #</th>
+                        <th>Product</th>
+                        <th>Serial Number</th>
+                        <th>Qty</th>
+                        <th>Customer</th>
+                        <th>Order Type</th>
+                        <th>Released</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in ready_to_ship %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('salesorder_routes.view_sales_order', id=line.so_id) }}">
+                                {{ line.so_number }}
+                            </a>
+                        </td>
+                        <td>{{ line.line_number }}</td>
+                        <td>
+                            <strong>{{ line.product_code }}</strong><br>
+                            <small class="text-muted">{{ line.product_name }}</small>
+                        </td>
+                        <td>
+                            {% if line.serial_number %}
+                            <span class="badge bg-info">{{ line.serial_number }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ line.quantity }} {{ line.unit_of_measure }}</td>
+                        <td>{{ line.customer_name or 'N/A' }}</td>
+                        <td>
+                            {% if line.order_type == 'Exchange' %}
+                            <span class="badge bg-primary">Exchange</span>
+                            {% elif line.order_type == 'Outright' %}
+                            <span class="badge bg-success">Outright</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ line.order_type or 'Standard' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ line.released_to_shipping_at[:10] if line.released_to_shipping_at else '-' }}<br>
+                            <small class="text-muted">by {{ line.released_by_name or 'System' }}</small>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('salesorder_routes.view_sales_order', id=line.so_id) }}" 
+                               class="btn btn-sm btn-outline-primary" title="View Sales Order">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-inbox display-4"></i>
+            <p class="mt-2">No lines currently released to shipping.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
