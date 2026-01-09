@@ -2505,6 +2505,15 @@ function validateReconcileForm() {
                     <div class="form-text text-danger">Please assign a customer to the work order before creating a Component Buyout.</div>
                     {% endif %}
                 </div>
+                <div class="mb-3">
+                    <label for="buyoutUnitPrice" class="form-label fw-semibold">Unit Price <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="buyoutUnitPrice" 
+                               step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                    <div class="form-text text-muted">Enter the buyout unit price for this component.</div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -2519,13 +2528,21 @@ function validateReconcileForm() {
 <script>
 function createComponentBuyout() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('componentBuyoutModal'));
+    const unitPriceInput = document.getElementById('buyoutUnitPrice');
+    const unitPrice = parseFloat(unitPriceInput.value) || 0;
+    
+    if (unitPrice <= 0) {
+        showToast('Please enter a valid unit price greater than 0', 'error');
+        unitPriceInput.focus();
+        return;
+    }
     
     fetch('/api/workorders/{{ workorder.id }}/component-buyout', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({unit_price: unitPrice})
     })
     .then(response => response.json())
     .then(data => {

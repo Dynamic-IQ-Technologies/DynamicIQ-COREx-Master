@@ -3712,8 +3712,11 @@ def delete_wo_document(wo_id, doc_id):
 @role_required('Admin', 'Procurement', 'Production Staff', 'Supervisor')
 def create_component_buyout(wo_id):
     """Create a Component Buyout Purchase Order from a Work Order"""
-    from flask import jsonify
+    from flask import jsonify, request
     import traceback
+    
+    data = request.get_json() or {}
+    unit_price = float(data.get('unit_price', 0))
     
     db = Database()
     conn = db.get_connection()
@@ -3838,10 +3841,11 @@ def create_component_buyout(wo_id):
                 po_id, line_number, product_id, quantity, unit_price, uom_id,
                 description, line_type, work_order_reference,
                 reference_part_number, reference_serial_number
-            ) VALUES (?, 1, ?, 1, 0, ?, ?, 'Component Buyout', ?, ?, ?)
+            ) VALUES (?, 1, ?, 1, ?, ?, ?, 'Component Buyout', ?, ?, ?)
         ''', (
             po_id,
             buyout_product_id,
+            unit_price,
             uom_id,
             f"Component Buyout for WO {wo['wo_number']} - P/N: {wo['product_code']} - {wo['product_name']}",
             wo_id,
