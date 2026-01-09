@@ -1,16 +1,87 @@
 import sqlite3
+import os
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Check if we're using PostgreSQL (only in production - look for REPLIT_DEPLOYMENT)
+# In development, always use SQLite for faster iteration
+DATABASE_URL = os.environ.get('DATABASE_URL')
+IS_PRODUCTION = os.environ.get('REPLIT_DEPLOYMENT') == '1'
+USE_POSTGRES = DATABASE_URL is not None and IS_PRODUCTION
+
+if USE_POSTGRES:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+
+class PostgresConnection:
+    """Wrapper to make psycopg2 connection behave more like sqlite3 connection"""
+    def __init__(self, conn):
+        self._conn = conn
+        self._cursor = None
+    
+    def cursor(self):
+        """Return a cursor object for compatibility with code that uses conn.cursor()"""
+        from psycopg2.extras import RealDictCursor as RDC
+        return self._conn.cursor(cursor_factory=RDC)
+    
+    def execute(self, query, params=None):
+        """Execute a query and return a cursor-like object"""
+        from psycopg2.extras import RealDictCursor as RDC
+        # Convert SQLite-style ? placeholders to PostgreSQL %s
+        query = query.replace('?', '%s')
+        # Handle AUTOINCREMENT -> SERIAL conversion already done in schema
+        cursor = self._conn.cursor(cursor_factory=RDC)
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        return PostgresCursor(cursor, self._conn)
+    
+    def commit(self):
+        self._conn.commit()
+    
+    def rollback(self):
+        self._conn.rollback()
+    
+    def close(self):
+        self._conn.close()
+
+class PostgresCursor:
+    """Wrapper for psycopg2 cursor to provide sqlite3-like interface"""
+    def __init__(self, cursor, conn):
+        self._cursor = cursor
+        self._conn = conn
+        self.lastrowid = None
+    
+    def fetchone(self):
+        return self._cursor.fetchone()
+    
+    def fetchall(self):
+        return self._cursor.fetchall()
+    
+    @property
+    def lastrowid(self):
+        # PostgreSQL doesn't have lastrowid, need to use RETURNING clause
+        return self._lastrowid
+    
+    @lastrowid.setter
+    def lastrowid(self, value):
+        self._lastrowid = value
 
 class Database:
     def __init__(self, db_name='mrp.db'):
         self.db_name = db_name
+        self.use_postgres = USE_POSTGRES
         
     def get_connection(self):
-        conn = sqlite3.connect(self.db_name)
-        conn.row_factory = sqlite3.Row
-        conn.execute('PRAGMA foreign_keys = ON')
-        return conn
+        if self.use_postgres:
+            conn = psycopg2.connect(DATABASE_URL)
+            return PostgresConnection(conn)
+        else:
+            conn = sqlite3.connect(self.db_name)
+            conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA foreign_keys = ON')
+            return conn
     
     def init_db(self):
         conn = self.get_connection()

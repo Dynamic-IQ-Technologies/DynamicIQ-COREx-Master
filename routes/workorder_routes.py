@@ -3707,10 +3707,12 @@ def create_component_buyout(wo_id):
     try:
         wo = conn.execute('''
             SELECT wo.*, p.code as product_code, p.name as product_name, p.id as prod_id,
-                   c.id as cust_id, c.name as customer_name, c.customer_number
+                   c.id as cust_id, c.name as customer_name, c.customer_number,
+                   inv.serial_number as inventory_serial
             FROM work_orders wo
             JOIN products p ON wo.product_id = p.id
             LEFT JOIN customers c ON wo.customer_id = c.id
+            LEFT JOIN inventory inv ON wo.inventory_id = inv.id
             WHERE wo.id = ?
         ''', (wo_id,)).fetchone()
         
@@ -3805,6 +3807,9 @@ def create_component_buyout(wo_id):
         default_uom = conn.execute("SELECT id FROM unit_of_measure WHERE uom_code = 'EA' OR uom_code = 'EACH' LIMIT 1").fetchone()
         uom_id = default_uom['id'] if default_uom else None
         
+        # Get serial number from linked inventory if available
+        serial_number = wo['inventory_serial'] or ''
+        
         conn.execute('''
             INSERT INTO purchase_order_lines (
                 po_id, line_number, product_id, quantity, unit_price, uom_id,
@@ -3818,7 +3823,7 @@ def create_component_buyout(wo_id):
             f"Component Buyout for WO {wo['wo_number']} - {wo['product_name']}",
             wo_id,
             wo['product_code'],
-            wo['serial_number'] or ''
+            serial_number
         ))
         
         conn.execute('''
