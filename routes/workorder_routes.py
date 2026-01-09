@@ -545,8 +545,9 @@ def view_workorder(id):
         ORDER BY i.invoice_date DESC
     ''', (id,)).fetchall()
     
-    # Fetch suppliers for Component Buyout
+    # Fetch suppliers and customers for Component Buyout
     suppliers = conn.execute('SELECT id, code, name FROM suppliers ORDER BY name').fetchall()
+    buyout_customers = conn.execute('SELECT id, customer_number, name FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     
     conn.close()
     
@@ -571,7 +572,8 @@ def view_workorder(id):
                          stages=stages,
                          wo_quotes=wo_quotes,
                          wo_invoices=wo_invoices,
-                         suppliers=suppliers)
+                         suppliers=suppliers,
+                         buyout_customers=buyout_customers)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
@@ -3728,12 +3730,39 @@ def create_component_buyout(wo_id):
             return jsonify({'success': False, 'error': 'Work Order must have a Part Number assigned'}), 400
         
         supplier_id = request.json.get('supplier_id') if request.json else None
-        if not supplier_id:
+        customer_id = request.json.get('customer_id') if request.json else None
+        buyout_source_type = None
+        buyout_source_name = None
+        
+        if customer_id:
+            # Buyout from customer
+            customer = conn.execute('SELECT id, name, customer_number FROM customers WHERE id = ?', (customer_id,)).fetchone()
+            if not customer:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Selected customer not found'}), 400
+            buyout_source_type = 'Customer'
+            buyout_source_name = f"{customer['customer_number']} - {customer['name']}"
+            # Still need a supplier for the PO - use a default
             default_supplier = conn.execute('SELECT id FROM suppliers ORDER BY id LIMIT 1').fetchone()
+            if not default_supplier:
+                conn.close()
+                return jsonify({'success': False, 'error': 'No suppliers available for PO. Please create a supplier first.'}), 400
+            supplier_id = default_supplier['id']
+        elif supplier_id:
+            # Buyout from supplier
+            supplier = conn.execute('SELECT id, name, code FROM suppliers WHERE id = ?', (supplier_id,)).fetchone()
+            if supplier:
+                buyout_source_type = 'Supplier'
+                buyout_source_name = f"{supplier['code']} - {supplier['name']}"
+        else:
+            # Use default supplier
+            default_supplier = conn.execute('SELECT id, name, code FROM suppliers ORDER BY id LIMIT 1').fetchone()
             if not default_supplier:
                 conn.close()
                 return jsonify({'success': False, 'error': 'No suppliers available. Please create a supplier first.'}), 400
             supplier_id = default_supplier['id']
+            buyout_source_type = 'Supplier'
+            buyout_source_name = f"{default_supplier['code']} - {default_supplier['name']}"
         
         last_po = conn.execute('''
             SELECT po_number FROM purchase_orders 
@@ -3754,6 +3783,11 @@ def create_component_buyout(wo_id):
         po_number = f'PO-{next_number:06d}'
         today = datetime.now().strftime('%Y-%m-%d')
         
+        # Build notes with source information
+        notes = f'Component Buyout generated from Work Order {wo["wo_number"]}'
+        if buyout_source_type and buyout_source_name:
+            notes += f' | Buyout Source: {buyout_source_type} - {buyout_source_name}'
+        
         cursor = conn.execute('''
             INSERT INTO purchase_orders (
                 po_number, supplier_id, status, order_date, notes, po_type, work_order_id
@@ -3762,7 +3796,7 @@ def create_component_buyout(wo_id):
             po_number,
             supplier_id,
             today,
-            f'Component Buyout generated from Work Order {wo["wo_number"]}',
+            notes,
             wo_id
         ))
         po_id = cursor.lastrowid

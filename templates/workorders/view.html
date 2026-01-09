@@ -2445,14 +2445,21 @@ function validateReconcileForm() {
                 </div>
                 {% endif %}
                 <div class="mb-3">
-                    <label for="buyoutSupplier" class="form-label fw-semibold">Supplier (Optional)</label>
-                    <select class="form-select" id="buyoutSupplier">
-                        <option value="">-- Select Supplier or use default --</option>
-                        {% for supplier in suppliers %}
-                        <option value="{{ supplier.id }}">{{ supplier.code }} - {{ supplier.name }}</option>
-                        {% endfor %}
+                    <label for="buyoutSource" class="form-label fw-semibold">Supplier or Customer (Optional)</label>
+                    <select class="form-select" id="buyoutSource">
+                        <option value="">-- Select Source or use default --</option>
+                        <optgroup label="Suppliers">
+                            {% for supplier in suppliers %}
+                            <option value="supplier:{{ supplier.id }}">{{ supplier.code }} - {{ supplier.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Customers">
+                            {% for customer in buyout_customers %}
+                            <option value="customer:{{ customer.id }}">{{ customer.customer_number }} - {{ customer.name }}</option>
+                            {% endfor %}
+                        </optgroup>
                     </select>
-                    <div class="form-text">Leave blank to use the default supplier</div>
+                    <div class="form-text">Select the supplier or customer for buyout. Leave blank to use the default supplier.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2467,15 +2474,25 @@ function validateReconcileForm() {
 
 <script>
 function createComponentBuyout() {
-    const supplierId = document.getElementById('buyoutSupplier').value;
+    const sourceValue = document.getElementById('buyoutSource').value;
     const modal = bootstrap.Modal.getInstance(document.getElementById('componentBuyoutModal'));
+    
+    let payload = {};
+    if (sourceValue) {
+        const [sourceType, sourceId] = sourceValue.split(':');
+        if (sourceType === 'supplier') {
+            payload.supplier_id = sourceId;
+        } else if (sourceType === 'customer') {
+            payload.customer_id = sourceId;
+        }
+    }
     
     fetch('/api/workorders/{{ workorder.id }}/component-buyout', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ supplier_id: supplierId || null })
+        body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(data => {
