@@ -356,6 +356,18 @@ body {
     color: white;
 }
 
+.btn-outline-purple {
+    color: var(--purple);
+    border: 1px solid var(--purple);
+    background: transparent;
+}
+
+.btn-outline-purple:hover {
+    background: var(--purple);
+    border-color: var(--purple);
+    color: white;
+}
+
 .btn-sm {
     padding: 0.375rem 0.75rem;
     font-size: 0.8rem;
