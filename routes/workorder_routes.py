@@ -549,6 +549,20 @@ def view_workorder(id):
     suppliers = conn.execute('SELECT id, code, name FROM suppliers ORDER BY name').fetchall()
     buyout_customers = conn.execute('SELECT id, customer_number, name FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     
+    # Fetch Component Buyout Purchase Orders linked to this work order
+    component_buyout_pos = conn.execute('''
+        SELECT po.id, po.po_number, po.order_date, po.status, po.notes,
+               s.name as supplier_name, c.name as customer_name,
+               COALESCE(SUM(pol.total_cost), 0) as total_amount
+        FROM purchase_orders po
+        LEFT JOIN suppliers s ON po.supplier_id = s.id
+        LEFT JOIN customers c ON po.customer_id = c.id
+        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.work_order_id = ? AND po.component_buyout_flag = 1
+        GROUP BY po.id, po.po_number, po.order_date, po.status, po.notes, s.name, c.name
+        ORDER BY po.order_date DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('workorders/view.html', 
@@ -573,7 +587,8 @@ def view_workorder(id):
                          wo_quotes=wo_quotes,
                          wo_invoices=wo_invoices,
                          suppliers=suppliers,
-                         buyout_customers=buyout_customers)
+                         buyout_customers=buyout_customers,
+                         component_buyout_pos=component_buyout_pos)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')

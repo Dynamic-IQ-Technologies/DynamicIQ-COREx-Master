@@ -371,6 +371,53 @@
                         </form>
                     </div>
                 </div>
+                {% if component_buyout_pos and component_buyout_pos|length > 0 %}
+                <div class="card mb-3 border-purple">
+                    <div class="card-header py-2" style="background-color: #f3e8ff;">
+                        <h6 class="mb-0 fw-semibold" style="color: #7c3aed;"><i class="bi bi-bag-check-fill me-2"></i>Component Buyout POs</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>PO #</th>
+                                        <th>Source</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for po in component_buyout_pos %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('po_routes.view_purchaseorder', id=po.id) }}" class="text-purple fw-semibold">
+                                                {{ po.po_number }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if po.supplier_name %}
+                                            <span class="badge bg-secondary">Supplier</span> {{ po.supplier_name }}
+                                            {% elif po.customer_name %}
+                                            <span class="badge bg-info">Customer</span> {{ po.customer_name }}
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if po.status == 'Received' %}success{% elif po.status == 'Pending' %}warning{% elif po.status == 'Cancelled' %}danger{% else %}secondary{% endif %}">
+                                                {{ po.status }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">{{ po.total_amount|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
         
