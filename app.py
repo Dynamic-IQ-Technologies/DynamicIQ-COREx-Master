@@ -182,16 +182,14 @@ def inject_user():
 
 def initialize_application():
     """Run expensive initialization once at application startup"""
-    import os
-    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL')
-    
     db = Database()
     
-    if is_postgres:
+    if db.use_postgres:
         try:
             conn = db.get_connection()
             result = conn.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
             conn.close()
+            print("[App] Using PostgreSQL database")
         except Exception as e:
             print("=" * 60)
             print("PostgreSQL database not initialized!")
@@ -199,6 +197,7 @@ def initialize_application():
             print("=" * 60)
             raise SystemExit(f"Database not initialized: {e}")
     else:
+        print("[App] Using SQLite database")
         db.init_db()
         db.seed_chart_of_accounts()
         db.seed_unit_of_measure()
