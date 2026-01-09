@@ -572,7 +572,7 @@ def dashboard():
             p.name as product_name,
             so.id as so_id,
             so.so_number,
-            so.order_type,
+            so.sales_type as order_type,
             c.name as customer_name,
             c.customer_number,
             u.username as released_by_name
