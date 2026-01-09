@@ -3827,8 +3827,8 @@ def create_component_buyout(wo_id):
         
         cursor = conn.execute('''
             INSERT INTO purchase_orders (
-                po_number, supplier_id, status, order_date, notes, po_type, work_order_id
-            ) VALUES (?, ?, 'Draft', ?, ?, 'Component Buyout', ?)
+                po_number, supplier_id, status, order_date, notes, po_type, work_order_id, component_buyout_flag
+            ) VALUES (?, ?, 'Draft', ?, ?, 'Component Buyout', ?, 1)
         ''', (
             po_number,
             supplier_id,
