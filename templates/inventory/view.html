@@ -77,6 +77,9 @@
                         {% if inventory.is_serialized and inventory.serial_number %}
                         <p><strong>Serial Number:</strong> <span class="badge bg-info">{{ inventory.serial_number }}</span></p>
                         {% endif %}
+                        {% if inventory.product_type == 'Tool' and inventory.tool_asset_number %}
+                        <p><strong><i class="bi bi-tools text-warning me-1"></i>Tool Asset Number:</strong> <span class="badge bg-warning text-dark">{{ inventory.tool_asset_number }}</span></p>
+                        {% endif %}
                         <p><strong>Condition:</strong> <span class="badge bg-primary">{{ inventory.condition or 'Serviceable' }}</span></p>
                         <p><strong>Status:</strong> 
                             {% if inventory.status == 'Available' %}

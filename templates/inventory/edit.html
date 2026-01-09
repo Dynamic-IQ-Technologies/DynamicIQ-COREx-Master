@@ -93,6 +93,19 @@
                 </div>
             </div>
 
+            {% if inventory.product_type == 'Tool' %}
+            <div class="row" id="tool_asset_row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="tool_asset_number" class="form-label"><i class="bi bi-tools text-warning me-1"></i>Tool Asset Number</label>
+                        <input type="text" class="form-control" id="tool_asset_number" name="tool_asset_number" 
+                               value="{{ inventory.tool_asset_number or '' }}" placeholder="Enter tool asset tracking number">
+                        <small class="form-text text-muted">Asset tracking number for tools</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">

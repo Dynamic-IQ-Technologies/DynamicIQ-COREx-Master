@@ -20,10 +20,20 @@
                         <select class="form-select" id="product_id" name="product_id" required>
                             <option value="">Select Product</option>
                             {% for product in products %}
-                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            <option value="{{ product.id }}" data-product-type="{{ product.product_type or '' }}">{{ product.code }} - {{ product.name }}</option>
                             {% endfor %}
                         </select>
                         <small class="form-text text-muted">Only products without existing inventory are shown</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" id="tool_asset_row" style="display: none;">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="tool_asset_number" class="form-label"><i class="bi bi-tools text-warning me-1"></i>Tool Asset Number</label>
+                        <input type="text" class="form-control" id="tool_asset_number" name="tool_asset_number" placeholder="Enter tool asset tracking number">
+                        <small class="form-text text-muted">Asset tracking number for tools</small>
                     </div>
                 </div>
             </div>
@@ -118,6 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const isSerializedCheckbox = document.getElementById('is_serialized');
     const serialNumberInput = document.getElementById('serial_number');
     const serialHelp = document.getElementById('serial_help');
+    const productSelect = document.getElementById('product_id');
+    const toolAssetRow = document.getElementById('tool_asset_row');
     
     function updateSerialNumberField() {
         if (isSerializedCheckbox.checked) {
@@ -133,8 +145,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function updateToolAssetField() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        const productType = selectedOption ? selectedOption.getAttribute('data-product-type') : '';
+        if (productType === 'Tool') {
+            toolAssetRow.style.display = '';
+        } else {
+            toolAssetRow.style.display = 'none';
+        }
+    }
+    
     isSerializedCheckbox.addEventListener('change', updateSerialNumberField);
+    productSelect.addEventListener('change', updateToolAssetField);
     updateSerialNumberField();
+    updateToolAssetField();
 });
 </script>
 {% endblock %}

@@ -122,7 +122,7 @@ def view_inventory(id):
     # Get inventory details with product information and cost
     # Use inventory.unit_cost if set, otherwise fall back to product cost
     inventory = conn.execute('''
-        SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, 
+        SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, p.product_type,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
                (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
         FROM inventory i
@@ -271,8 +271,8 @@ def create_inventory():
         conn.execute('''
             INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock, 
                                    warehouse_location, bin_location, condition, status,
-                                   is_serialized, serial_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?)
+                                   is_serialized, serial_number, tool_asset_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?, ?)
         ''', (
             product_id,
             float(request.form.get('quantity', 0)),
@@ -282,7 +282,8 @@ def create_inventory():
             request.form.get('bin_location', ''),
             request.form.get('condition', 'Serviceable'),
             is_serialized,
-            serial_number if serial_number else None
+            serial_number if serial_number else None,
+            request.form.get('tool_asset_number', '').strip() or None
         ))
         
         inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -500,6 +501,7 @@ def edit_inventory(id):
                     last_calibration_date=?,
                     calibration_frequency=?,
                     next_calibration_date=?,
+                    tool_asset_number=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, unit_cost, warehouse_location, bin_location, 
@@ -508,7 +510,8 @@ def edit_inventory(id):
                   inspected_by, inspection_notes, trace_tag, trace, trace_type,
                   msn_esn, mfr_code, lot_number, source, manufactured_date, country_of_origin,
                   cycle_limit, csn, cso, cycles_remaining, time_limit, tsn, tso, time_remaining,
-                  last_calibration_date, calibration_frequency, next_calibration_date, id))
+                  last_calibration_date, calibration_frequency, next_calibration_date,
+                  request.form.get('tool_asset_number', '').strip() or None, id))
             
             AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
                                   {'quantity': quantity, 'old_quantity': old_record['quantity'],
@@ -526,7 +529,7 @@ def edit_inventory(id):
     
     # GET request - show edit form
     inventory = conn.execute('''
-        SELECT i.*, p.code, p.name, p.unit_of_measure, p.description
+        SELECT i.*, p.code, p.name, p.unit_of_measure, p.description, p.product_type
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.id = ?
