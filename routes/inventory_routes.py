@@ -503,6 +503,7 @@ def edit_inventory(id):
                     calibration_frequency=?,
                     next_calibration_date=?,
                     tool_asset_number=?,
+                    stock_category=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
             ''', (quantity, reorder_point, safety_stock, unit_cost, warehouse_location, bin_location, 
@@ -512,7 +513,8 @@ def edit_inventory(id):
                   msn_esn, mfr_code, lot_number, source, manufactured_date, country_of_origin,
                   cycle_limit, csn, cso, cycles_remaining, time_limit, tsn, tso, time_remaining,
                   last_calibration_date, calibration_frequency, next_calibration_date,
-                  request.form.get('tool_asset_number', '').strip() or None, id))
+                  request.form.get('tool_asset_number', '').strip() or None,
+                  request.form.get('stock_category', '').strip() or None, id))
             
             AuditLogger.log_change(conn, 'inventory', id, 'UPDATE', session.get('user_id'),
                                   {'quantity': quantity, 'old_quantity': old_record['quantity'],

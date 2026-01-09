@@ -107,7 +107,7 @@
             {% endif %}
 
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="condition" class="form-label">Condition *</label>
                         <select class="form-select" id="condition" name="condition" required>
@@ -118,13 +118,26 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="status" class="form-label">Status *</label>
                         <select class="form-select" id="status" name="status" required>
                             <option value="Available" {% if inventory.status == 'Available' %}selected{% endif %}>Available</option>
                             <option value="Reserved" {% if inventory.status == 'Reserved' %}selected{% endif %}>Reserved</option>
                             <option value="Out of Stock" {% if inventory.status == 'Out of Stock' %}selected{% endif %}>Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="stock_category" class="form-label">Stock Category</label>
+                        <select class="form-select" id="stock_category" name="stock_category">
+                            <option value="" {% if not inventory.stock_category %}selected{% endif %}>-- Select Category --</option>
+                            <option value="Expendables" {% if inventory.stock_category == 'Expendables' %}selected{% endif %}>Expendables</option>
+                            <option value="Equipment" {% if inventory.stock_category == 'Equipment' %}selected{% endif %}>Equipment</option>
+                            <option value="Tooling" {% if inventory.stock_category == 'Tooling' %}selected{% endif %}>Tooling</option>
+                            <option value="Chemicals" {% if inventory.stock_category == 'Chemicals' %}selected{% endif %}>Chemicals</option>
+                            <option value="Rotable" {% if inventory.stock_category == 'Rotable' %}selected{% endif %}>Rotable</option>
                         </select>
                     </div>
                 </div>

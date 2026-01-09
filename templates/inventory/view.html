@@ -65,7 +65,13 @@
                         <p><strong>Description:</strong> {{ inventory.description }}</p>
                         {% endif %}
                         <p><strong>Unit of Measure:</strong> {{ inventory.unit_of_measure }}</p>
-                        <p><strong>Stock Category:</strong> {{ inventory.stock_category or 'Uncategorized' }}</p>
+                        <p><strong>Stock Category:</strong> 
+                            {% if inventory.stock_category %}
+                            <span class="badge bg-secondary">{{ inventory.stock_category }}</span>
+                            {% else %}
+                            <span class="text-muted">Uncategorized</span>
+                            {% endif %}
+                        </p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Serialization:</strong> 
