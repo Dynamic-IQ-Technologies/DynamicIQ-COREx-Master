@@ -3685,3 +3685,133 @@ def delete_wo_document(wo_id, doc_id):
     
     flash(f'Document "{document["original_filename"]}" deleted.', 'success')
     return redirect(url_for('workorder_routes.view_workorder', id=wo_id) + '#docs-tab')
+
+
+@workorder_bp.route('/api/workorders/<int:wo_id>/component-buyout', methods=['POST'])
+@login_required
+@role_required('Admin', 'Procurement', 'Production Staff', 'Supervisor')
+def create_component_buyout(wo_id):
+    """Create a Component Buyout Purchase Order from a Work Order"""
+    from flask import jsonify
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        wo = conn.execute('''
+            SELECT wo.*, p.code as product_code, p.name as product_name, p.id as prod_id,
+                   c.id as cust_id, c.name as customer_name, c.customer_number
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers c ON wo.customer_id = c.id
+            WHERE wo.id = ?
+        ''', (wo_id,)).fetchone()
+        
+        if not wo:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Work Order not found'}), 404
+        
+        if wo['component_buyout_flag'] == 1:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Component Buyout already exists for this Work Order'}), 400
+        
+        if wo['status'] in ('Completed', 'Cancelled'):
+            conn.close()
+            return jsonify({'success': False, 'error': 'Cannot create buyout for completed or cancelled Work Orders'}), 400
+        
+        if not wo['product_id']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Work Order must have a Part Number assigned'}), 400
+        
+        supplier_id = request.json.get('supplier_id') if request.json else None
+        if not supplier_id:
+            default_supplier = conn.execute('SELECT id FROM suppliers ORDER BY id LIMIT 1').fetchone()
+            if not default_supplier:
+                conn.close()
+                return jsonify({'success': False, 'error': 'No suppliers available. Please create a supplier first.'}), 400
+            supplier_id = default_supplier['id']
+        
+        last_po = conn.execute('''
+            SELECT po_number FROM purchase_orders 
+            WHERE po_number LIKE 'PO-%'
+            ORDER BY CAST(SUBSTR(po_number, 4) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_po:
+            try:
+                last_number = int(last_po['po_number'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        po_number = f'PO-{next_number:06d}'
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        cursor = conn.execute('''
+            INSERT INTO purchase_orders (
+                po_number, supplier_id, status, order_date, notes, po_type, work_order_id
+            ) VALUES (?, ?, 'Draft', ?, ?, 'Component Buyout', ?)
+        ''', (
+            po_number,
+            supplier_id,
+            today,
+            f'Component Buyout generated from Work Order {wo["wo_number"]}',
+            wo_id
+        ))
+        po_id = cursor.lastrowid
+        
+        default_uom = conn.execute("SELECT id FROM unit_of_measure WHERE uom_code = 'EA' OR uom_code = 'EACH' LIMIT 1").fetchone()
+        uom_id = default_uom['id'] if default_uom else None
+        
+        conn.execute('''
+            INSERT INTO purchase_order_lines (
+                po_id, line_number, product_id, quantity, unit_price, uom_id,
+                description, line_type, work_order_reference,
+                reference_part_number, reference_serial_number
+            ) VALUES (?, 1, ?, 1, 0, ?, ?, 'Component Buyout', ?, ?, ?)
+        ''', (
+            po_id,
+            wo['product_id'],
+            uom_id,
+            f"Component Buyout for WO {wo['wo_number']} - {wo['product_name']}",
+            wo_id,
+            wo['product_code'],
+            wo['serial_number'] or ''
+        ))
+        
+        conn.execute('''
+            UPDATE work_orders 
+            SET component_buyout_flag = 1, buyout_po_id = ?
+            WHERE id = ?
+        ''', (po_id, wo_id))
+        
+        AuditLogger.log(
+            conn=conn,
+            record_type='work_order',
+            record_id=str(wo_id),
+            action_type='Component Buyout Created',
+            modified_by=session.get('user_id'),
+            changed_fields={
+                'buyout_po_id': po_id,
+                'po_number': po_number,
+                'component_buyout_flag': True
+            }
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'po_id': po_id,
+            'po_number': po_number,
+            'message': f'Component Buyout PO {po_number} successfully created and linked.'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -1,0 +1,181 @@
+You are a senior full-stack enterprise systems engineer working on the COREX application.
+COREX is a work order, purchasing, and customer-account management system.
+
+Your task is to extend the existing COREX app to support a new workflow called “Component Buyout”, tightly integrated with Work Orders and Purchase Orders.
+
+🎯 OBJECTIVE
+
+Enable users to trigger a Component Buyout directly from a Work Order record, which will:
+
+Automatically create a Purchase Order (PO)
+
+Populate the PO with a Component Buyout line item
+
+Ensure full traceability between:
+
+Work Order
+
+Component / Part
+
+Purchase Order
+
+Customer Account
+
+Update the Work Order status/name to reflect buyout activity
+
+🧱 FUNCTIONAL REQUIREMENTS
+1️⃣ WORK ORDER → COMPONENT BUYOUT TRIGGER
+
+Add a UI action/button on the Work Order record:
+
+Label: “Create Component Buyout”
+
+Button is enabled only if:
+
+Work Order status is Open / Active
+
+A Part Number exists
+
+2️⃣ AUTOMATIC PURCHASE ORDER CREATION
+
+Upon triggering Component Buyout, the system must automatically:
+
+Purchase Order Header:
+
+Create a new Purchase Order record
+
+Auto-populate:
+
+Customer Account → inherited from the Work Order’s customer
+
+PO Type = Component Buyout
+
+Source Reference = Work Order ID
+
+Status = Draft (or Open, per system rules)
+
+3️⃣ PURCHASE ORDER LINE ITEM (COMPONENT BUYOUT LINE)
+
+Create one PO line item with the following auto-filled fields:
+
+Line Type: Component Buyout
+
+Part Number: from Work Order
+
+Part Description: from Work Order
+
+Serial Number: from Work Order (if applicable)
+
+Quantity: default = 1 (editable)
+
+Reference Work Order: Work Order ID
+
+Notes:
+"Component Buyout generated from Work Order {WO_NUMBER}"
+
+4️⃣ WORK ORDER UPDATE
+
+After PO creation:
+
+Update the Work Order Name / Title to include:
+
+"– Component Buyout Initiated"
+
+Store:
+
+Linked Purchase Order ID
+
+Component Buyout status flag = true
+
+🔄 DATA MODEL CHANGES (IF NOT ALREADY PRESENT)
+WorkOrder
+
+componentBuyoutFlag (boolean)
+
+linkedPurchaseOrderId (string / foreign key)
+
+PurchaseOrder
+
+sourceWorkOrderId
+
+poType = Component Buyout
+
+PurchaseOrderLine
+
+lineType = Component Buyout
+
+workOrderReference
+
+🧠 BUSINESS LOGIC & SAFEGUARDS
+
+Prevent duplicate buyouts:
+
+If componentBuyoutFlag === true, block new creation
+
+All references must be immutable once created
+
+Maintain audit logging:
+
+User
+
+Timestamp
+
+Source Work Order
+
+🖥️ UI / UX REQUIREMENTS
+
+Confirmation modal:
+
+“This action will create a Purchase Order for component buyout. Continue?”
+
+Success toast:
+
+“Component Buyout PO successfully created and linked.”
+
+Provide clickable link from:
+
+Work Order → Purchase Order
+
+Purchase Order → Source Work Order
+
+🔐 SECURITY & INTEGRITY
+
+Role-based access:
+
+Only users with Purchasing or Operations role can trigger buyout
+
+All actions must be:
+
+Transactional (rollback if any step fails)
+
+Logged for compliance and traceability
+
+🧪 TEST CASES TO IMPLEMENT
+
+Create Component Buyout from valid Work Order
+
+Attempt duplicate buyout (should block)
+
+Verify PO header customer matches Work Order customer
+
+Verify line item references correct part, serial, WO
+
+Verify Work Order name and flags update correctly
+
+🚀 DEPLOYMENT
+
+Implement in existing COREX Replit environment
+
+No breaking changes to existing workflows
+
+Feature flag optional: ENABLE_COMPONENT_BUYOUT
+
+✅ DELIVERABLE
+
+A fully functional Component Buyout workflow that:
+
+Requires zero manual PO creation
+
+Ensures end-to-end traceability
+
+Is audit-ready and scalable
