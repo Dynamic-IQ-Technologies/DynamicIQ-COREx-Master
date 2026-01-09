@@ -552,14 +552,13 @@ def view_workorder(id):
     # Fetch Component Buyout Purchase Orders linked to this work order
     component_buyout_pos = conn.execute('''
         SELECT po.id, po.po_number, po.order_date, po.status, po.notes,
-               s.name as supplier_name, c.name as customer_name,
+               s.name as supplier_name,
                COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount
         FROM purchase_orders po
         LEFT JOIN suppliers s ON po.supplier_id = s.id
-        LEFT JOIN customers c ON po.customer_id = c.id
         LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
         WHERE po.work_order_id = ? AND po.component_buyout_flag = 1
-        GROUP BY po.id, po.po_number, po.order_date, po.status, po.notes, s.name, c.name
+        GROUP BY po.id, po.po_number, po.order_date, po.status, po.notes, s.name
         ORDER BY po.order_date DESC
     ''', (id,)).fetchall()
     

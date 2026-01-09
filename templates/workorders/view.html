@@ -397,9 +397,7 @@
                                         </td>
                                         <td>
                                             {% if po.supplier_name %}
-                                            <span class="badge bg-secondary">Supplier</span> {{ po.supplier_name }}
-                                            {% elif po.customer_name %}
-                                            <span class="badge bg-info">Customer</span> {{ po.customer_name }}
+                                            {{ po.supplier_name }}
                                             {% else %}
                                             -
                                             {% endif %}
