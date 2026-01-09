@@ -545,6 +545,9 @@ def view_workorder(id):
         ORDER BY i.invoice_date DESC
     ''', (id,)).fetchall()
     
+    # Fetch suppliers for Component Buyout
+    suppliers = conn.execute('SELECT id, code, name FROM suppliers ORDER BY name').fetchall()
+    
     conn.close()
     
     return render_template('workorders/view.html', 
@@ -567,7 +570,8 @@ def view_workorder(id):
                          notes=notes,
                          stages=stages,
                          wo_quotes=wo_quotes,
-                         wo_invoices=wo_invoices)
+                         wo_invoices=wo_invoices,
+                         suppliers=suppliers)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')

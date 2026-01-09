@@ -1,0 +1,167 @@
+ou are a senior full-stack enterprise ERP engineer working on the COREX application.
+COREX manages Sales Orders, Exchange Programs, Core Returns, and Customer Accounts.
+
+Your task is to extend the Exchange Sales Order workflow to support automated core due tracking.
+
+🎯 OBJECTIVE
+
+Add a new field called “Core Due Days” when creating an Exchange Sales Order, and automatically calculate and populate an Expected Core Return Date based on:
+
+Expected Return Date = Order Date + Core Due Days
+
+This logic must be reliable, auditable, and automatic.
+
+🧱 FUNCTIONAL REQUIREMENTS
+1️⃣ NEW FIELD — CORE DUE DAYS
+
+Add a numeric input field:
+
+Field Name: Core Due Days
+
+Data Type: Integer
+
+Required: Yes (Exchange Orders only)
+
+Validation:
+
+Minimum: 0
+
+Maximum: configurable (default 365)
+
+Field visible only when:
+
+Sales Order Type = Exchange
+
+2️⃣ EXPECTED CORE RETURN DATE (AUTO-CALCULATED)
+
+Add a system-managed date field:
+
+Field Name: Expected Core Return Date
+
+Read-Only
+
+Automatically calculated as:
+
+expectedReturnDate = orderDate + coreDueDays
+
+
+Auto-recalculate when:
+
+Order Date changes
+
+Core Due Days changes
+
+3️⃣ SALES ORDER CREATION FLOW
+
+During Exchange Sales Order creation:
+
+User selects Order Type = Exchange
+
+System displays Core Due Days input
+
+User enters number of days
+
+System:
+
+Saves Core Due Days
+
+Calculates Expected Core Return Date
+
+Displays Expected Return Date in real time
+
+On save:
+
+Both fields are persisted to the Sales Order record
+
+🧱 DATA MODEL CHANGES
+SalesOrder
+
+Add the following fields:
+
+coreDueDays (integer)
+
+expectedCoreReturnDate (date)
+
+orderType (must include Exchange)
+
+🧠 BUSINESS LOGIC & SAFEGUARDS
+
+Core Due Days:
+
+Mandatory only for Exchange Orders
+
+Optional or hidden for all other order types
+
+Expected Core Return Date:
+
+System-calculated only
+
+Cannot be manually edited
+
+All calculations must:
+
+Use server-side validation
+
+Be timezone-safe (UTC normalized)
+
+🖥️ UI / UX REQUIREMENTS
+
+Label helper text:
+
+“Number of days the customer has to return the core unit.”
+
+Expected Core Return Date:
+
+Displayed directly under Order Date
+
+Visually read-only (locked icon)
+
+Tooltip:
+
+“Calculated automatically based on Order Date + Core Due Days.”
+
+🔐 SECURITY & COMPLIANCE
+
+Changes logged for:
+
+Core Due Days
+
+Order Date
+
+Expected Return Date recalculations
+
+Audit trail must record:
+
+User
+
+Timestamp
+
+Previous vs New values
+
+🧪 TEST CASES TO IMPLEMENT
+
+Create Exchange Order with Core Due Days → Expected Date auto-populates
+
+Modify Core Due Days → Expected Date updates
+
+Modify Order Date → Expected Date updates
+
+Non-Exchange Order → Core Due Days hidden
+
+Attempt manual edit of Expected Date → blocked
+
+🚀 DEPLOYMENT REQUIREMENTS
+
+Implement in existing COREX Replit environment
+
+No regression to existing Sales Order workflows
+
+Optional feature flag: ENABLE_CORE_DUE_TRACKING
+
+✅ SUCCESS CRITERIA
+
+Core due tracking is automatic and consistent
+
+Expected return date is never manually entered
+
+Exchange programs are audit-ready and enforceable

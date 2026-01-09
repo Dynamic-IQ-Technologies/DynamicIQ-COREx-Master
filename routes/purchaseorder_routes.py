@@ -451,6 +451,16 @@ def view_purchaseorder(id):
                 FROM suppliers WHERE id = ?
             ''', (po['exchange_owner_id'],)).fetchone()
     
+    # Get source work order for Component Buyout POs
+    source_work_order = None
+    if po['po_type'] == 'Component Buyout' and po['work_order_id']:
+        source_work_order = conn.execute('''
+            SELECT wo.*, p.code as product_code, p.name as product_name
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            WHERE wo.id = ?
+        ''', (po['work_order_id'],)).fetchone()
+    
     # Calculate total for the PO
     if po['po_type'] == 'Service' and service_lines:
         total = sum((line['total_cost'] or 0) for line in service_lines)
@@ -500,7 +510,7 @@ def view_purchaseorder(id):
                           today=today, now=now, total=total, source_sales_order=source_sales_order, 
                           exchange_owner=exchange_owner, service_lines=service_lines,
                           line_validations=line_validations, overall_variance_ok=overall_variance_ok,
-                          variance_warnings=variance_warnings)
+                          variance_warnings=variance_warnings, source_work_order=source_work_order)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
