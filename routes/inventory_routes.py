@@ -123,6 +123,7 @@ def view_inventory(id):
     # Use inventory.unit_cost if set, otherwise fall back to product cost
     inventory = conn.execute('''
         SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, p.product_type,
+               p.product_category as stock_category,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
                (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
         FROM inventory i
