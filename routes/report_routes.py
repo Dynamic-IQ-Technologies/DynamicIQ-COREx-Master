@@ -1886,7 +1886,7 @@ def organizational_scorecard():
         SELECT 
             status,
             COUNT(*) as count,
-            COALESCE(SUM(quoted_price), 0) as total_value
+            COALESCE(SUM(COALESCE(labor_cost, 0) + COALESCE(material_cost, 0) + COALESCE(overhead_cost, 0)), 0) as total_value
         FROM work_orders
         WHERE status NOT IN ('Completed', 'Closed', 'Cancelled')
         GROUP BY status
