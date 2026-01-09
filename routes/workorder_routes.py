@@ -468,11 +468,23 @@ def view_workorder(id):
         WHERE work_order_id = ?
     ''', (id,)).fetchone()
     
+    # Include Component Buyout costs in misc/service cost totals
+    buyout_cost_data = conn.execute('''
+        SELECT 
+            COALESCE(SUM(CASE WHEN pol.received_quantity >= pol.quantity THEN pol.quantity * pol.unit_price ELSE 0 END), 0) as received_cost,
+            COALESCE(SUM(pol.quantity * pol.unit_price), 0) as all_cost,
+            COUNT(CASE WHEN pol.received_quantity < pol.quantity THEN 1 END) as pending_count,
+            COUNT(*) as total_lines
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        WHERE po.work_order_id = ? AND po.component_buyout_flag = 1
+    ''', (id,)).fetchone()
+    
     misc_cost_info = {
-        'total_misc_cost': misc_cost_data['total_misc_cost'] if misc_cost_data else 0,
-        'total_all_misc_cost': misc_cost_data['total_all_misc_cost'] if misc_cost_data else 0,
-        'pending_count': misc_cost_data['pending_count'] if misc_cost_data else 0,
-        'total_lines': misc_cost_data['total_lines'] if misc_cost_data else 0
+        'total_misc_cost': (misc_cost_data['total_misc_cost'] if misc_cost_data else 0) + (buyout_cost_data['received_cost'] if buyout_cost_data else 0),
+        'total_all_misc_cost': (misc_cost_data['total_all_misc_cost'] if misc_cost_data else 0) + (buyout_cost_data['all_cost'] if buyout_cost_data else 0),
+        'pending_count': (misc_cost_data['pending_count'] if misc_cost_data else 0) + (buyout_cost_data['pending_count'] if buyout_cost_data else 0),
+        'total_lines': (misc_cost_data['total_lines'] if misc_cost_data else 0) + (buyout_cost_data['total_lines'] if buyout_cost_data else 0)
     }
     
     # Detailed cost breakdowns for Cost tab
@@ -521,8 +533,18 @@ def view_workorder(id):
         JOIN purchase_orders po ON psl.po_id = po.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id
         WHERE psl.work_order_id = ?
-        ORDER BY psl.id
-    ''', (id,)).fetchall()
+        UNION ALL
+        SELECT 
+            pol.id, 'Component Buyout' as category, pol.description, pol.quantity, pol.unit_price as unit_cost, 
+            (pol.quantity * pol.unit_price) as total_cost,
+            CASE WHEN pol.received_quantity >= pol.quantity THEN 'Received' ELSE 'Pending' END as status,
+            po.id as po_id, po.po_number, s.name as supplier_name
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        LEFT JOIN suppliers s ON po.supplier_id = s.id
+        WHERE po.work_order_id = ? AND po.component_buyout_flag = 1
+        ORDER BY po_number
+    ''', (id, id)).fetchall()
     
     stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
