@@ -1685,6 +1685,9 @@ def delete_purchaseorder(id):
             {'po_number': po['po_number'], 'supplier_id': po['supplier_id'], 'status': po['status']}
         )
         
+        conn.execute('UPDATE work_orders SET buyout_po_id = NULL WHERE buyout_po_id = ?', (id,))
+        
+        conn.execute('DELETE FROM purchase_order_service_lines WHERE po_id = ?', (id,))
         conn.execute('DELETE FROM purchase_order_lines WHERE po_id = ?', (id,))
         conn.execute('DELETE FROM purchase_orders WHERE id = ?', (id,))
         
