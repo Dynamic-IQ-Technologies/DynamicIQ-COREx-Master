@@ -2481,9 +2481,9 @@ function createComponentBuyout() {
     if (sourceValue) {
         const [sourceType, sourceId] = sourceValue.split(':');
         if (sourceType === 'supplier') {
-            payload.supplier_id = sourceId;
+            payload.supplier_id = parseInt(sourceId, 10);
         } else if (sourceType === 'customer') {
-            payload.customer_id = sourceId;
+            payload.customer_id = parseInt(sourceId, 10);
         }
     }
     

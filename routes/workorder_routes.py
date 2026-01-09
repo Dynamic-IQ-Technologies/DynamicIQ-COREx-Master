@@ -3699,6 +3699,7 @@ def delete_wo_document(wo_id, doc_id):
 def create_component_buyout(wo_id):
     """Create a Component Buyout Purchase Order from a Work Order"""
     from flask import jsonify
+    import traceback
     
     db = Database()
     conn = db.get_connection()
@@ -3850,6 +3851,8 @@ def create_component_buyout(wo_id):
         })
         
     except Exception as e:
+        print(f"Component Buyout Error: {str(e)}")
+        print(traceback.format_exc())
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
