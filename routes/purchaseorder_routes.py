@@ -1837,6 +1837,9 @@ def email_supplier_link(po_id):
         
         total_amount = sum(line['quantity'] * line['unit_price'] for line in lines)
         
+        def fmt_currency(val):
+            return "${:,.2f}".format(float(val)) if val else "$0.00"
+        
         lines_html = ""
         for line in lines:
             line_total = line['quantity'] * line['unit_price']
@@ -1845,8 +1848,8 @@ def email_supplier_link(po_id):
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{line['part_number']}</td>
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{line['description'][:40] if line['description'] else ''}</td>
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{line['quantity']}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${line['unit_price']:.2f}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${line_total:.2f}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{fmt_currency(line['unit_price'])}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{fmt_currency(line_total)}</td>
                 </tr>
             '''
         
@@ -1895,7 +1898,7 @@ def email_supplier_link(po_id):
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Total Amount</span>
-                    <span class="detail-value" style="font-size: 18px; color: #3b82f6;">${total_amount:.2f}</span>
+                    <span class="detail-value" style="font-size: 18px; color: #3b82f6;">{fmt_currency(total_amount)}</span>
                 </div>
             </div>
             

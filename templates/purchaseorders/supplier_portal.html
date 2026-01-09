@@ -161,15 +161,15 @@
                                         <td><strong>{{ line.part_number }}</strong></td>
                                         <td>{{ line.description }}</td>
                                         <td class="text-end">{{ line.quantity }} {{ line.uom_code if line.uom_code else 'EA' }}</td>
-                                        <td class="text-end">${{ "%.2f"|format(line.unit_price) }}</td>
-                                        <td class="text-end"><strong>${{ "%.2f"|format(line.quantity * line.unit_price) }}</strong></td>
+                                        <td class="text-end">{{ line.unit_price|currency }}</td>
+                                        <td class="text-end"><strong>{{ (line.quantity * line.unit_price)|currency }}</strong></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
                                         <td colspan="5" class="text-end"><strong>Total Amount</strong></td>
-                                        <td class="text-end"><strong class="fs-5 text-primary">${{ "%.2f"|format(total_amount) }}</strong></td>
+                                        <td class="text-end"><strong class="fs-5 text-primary">{{ total_amount|currency }}</strong></td>
                                     </tr>
                                 </tfoot>
                             </table>
