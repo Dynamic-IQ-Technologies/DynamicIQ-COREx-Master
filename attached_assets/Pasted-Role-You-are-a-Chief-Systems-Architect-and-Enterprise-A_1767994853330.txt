@@ -1,0 +1,226 @@
+Role:
+You are a Chief Systems Architect and Enterprise Analytics Engineer working within an existing production business management platform.
+
+Objective:
+Design and implement a new executive page titled:
+
+Organizational Scorecard
+
+This page must provide a single, authoritative executive view of financial performance, operational execution, and inventory readiness, enabling leadership to quickly assess organizational health and risks.
+
+1️⃣ PAGE PURPOSE & DESIGN PRINCIPLES
+
+Executive-level visibility (CEO / CFO / COO)
+
+Snapshot-based, defensible metrics
+
+Minimal cognitive load
+
+Trend-aware, action-oriented
+
+Read-only, decision-grade data
+
+The page must not query raw transactional tables directly.
+All values must be derived from pre-aggregated analytical views or snapshot services.
+
+2️⃣ PAGE STRUCTURE (TOP-DOWN EXECUTIVE FLOW)
+Organizational Scorecard
+├─ Financial Performance
+├─ Operations Performance
+├─ Inventory Status
+└─ Insights & Alerts
+
+3️⃣ FINANCIAL PERFORMANCE SECTION
+Metrics to Display
+
+Weekly Sales Revenue
+
+Current week total
+
+Prior week comparison
+
+% change (trend indicator)
+
+Year-to-Date Sales & Profit
+
+YTD revenue
+
+YTD gross profit
+
+Profit margin %
+
+Current Bank Balance
+
+Real-time or last reconciled value
+
+Last updated timestamp
+
+Accounts Receivable Aging
+
+Total AR balance
+
+% of receivables over 30 days
+
+Visual aging breakdown (0–30 / 31–60 / 60+)
+
+Accounts Payable Aging
+
+Total AP balance
+
+% of payables over 30 days
+
+Aging distribution
+
+Presentation
+
+KPI cards with trend arrows
+
+Aging donut or stacked bar visualization
+
+Red / amber / green risk indicators
+
+4️⃣ OPERATIONS SECTION
+6. Open Sales Orders
+
+Display a table of open sales orders, including for each order:
+
+Sales Order ID
+
+Customer
+
+Budgeted expense / work value
+
+Actual cost incurred to date (if available)
+
+Percentage of work completed
+
+Estimated completion date
+
+Status indicator
+
+7. Dated Sales Orders
+
+Defined as:
+
+Signed sales orders with a future delivery date
+
+For this subset display:
+
+Order ID
+
+Customer
+
+Order value
+
+Scheduled delivery date
+
+Days until delivery
+
+Revenue not yet recognized
+
+5️⃣ INVENTORY SECTION
+8. Ready-to-Sell Inventory
+
+Total quantity of ready-to-sell parts
+
+Total inventory value
+
+Breakdown by product / part category (optional drill-down)
+
+9. Inventory Awaiting Work or Certification
+
+Quantity of parts awaiting:
+
+Repair
+
+Certification
+
+Quality approval
+
+Estimated value tied up
+
+Aging since receipt
+
+Use status-based classification, not free-text fields.
+
+6️⃣ INSIGHTS & ALERTS (EXECUTIVE VALUE)
+
+Auto-generated insights such as:
+
+“AR over 30 days exceeds X% — potential cash flow risk”
+
+“Open orders are X% complete but Y% of budget consumed”
+
+“Inventory awaiting certification increased week-over-week”
+
+“Upcoming dated orders represent $X in future revenue”
+
+These must be derived, not manually entered.
+
+7️⃣ DATA MODEL REQUIREMENTS
+
+Minimum required analytical fields:
+
+Order value
+
+Budgeted cost
+
+Actual cost (optional)
+
+Completion percentage
+
+Inventory quantity & status
+
+Unit cost & extended value
+
+AR/AP balances with aging buckets
+
+Snapshot date
+
+All calculations must be centralized in a metrics service, not the UI.
+
+8️⃣ PERFORMANCE & GOVERNANCE
+
+Snapshot refresh: daily (default)
+
+Role-based access (executive only)
+
+Read-only UI
+
+Export to PDF / Excel
+
+Audit log for page access
+
+Target load time: < 300ms
+
+9️⃣ BUSINESS OUTCOMES (MUST BE ACHIEVED)
+
+This scorecard must directly enable:
+
+Improved visibility into weekly performance trends
+
+Early identification of cash flow risks
+
+Early detection of operational bottlenecks
+
+Clear tracking of progress on open sales orders
+
+Faster, data-driven executive decisions
+
+10️⃣ SUCCESS TEST (EXECUTIVE LENS)
+
+An executive should be able to answer in under 60 seconds:
+
+“Are we financially healthy this week?”
+
+“Do we have a cash flow problem forming?”
+
+“Are operations ahead or behind plan?”
+
+“Where is inventory stuck?”
+
+“What needs attention now?”
+
+OPTIONAL NEXT STEPS (Architect-Grade Enhancements)
+
+AI-generated weekly executive brief

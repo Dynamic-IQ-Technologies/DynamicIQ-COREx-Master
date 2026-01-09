@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% block title %}Organizational Scorecard{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-speedometer2 text-primary"></i> Organizational Scorecard</h2>
+            <p class="text-muted mb-0">Executive Dashboard - Financial, Operations & Inventory Health</p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted">Snapshot: {{ snapshot_time }}</small>
+            <br>
+            <button class="btn btn-outline-primary btn-sm mt-1" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print / PDF
+            </button>
+        </div>
+    </div>
+
+    {% if insights %}
+    <div class="alert alert-light border shadow-sm mb-4">
+        <h6 class="mb-3"><i class="bi bi-lightbulb text-warning"></i> Insights & Alerts</h6>
+        <div class="row">
+            {% for insight in insights %}
+            <div class="col-md-6 mb-2">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-{{ insight.icon }} text-{{ insight.type }} me-2 mt-1"></i>
+                    <span>{{ insight.message }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-currency-dollar"></i> Financial Performance</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card h-100 border-0 bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted mb-2">Weekly Revenue</h6>
+                            <h3 class="mb-1">${{ '{:,.0f}'.format(financial.current_week_revenue) }}</h3>
+                            <div class="{% if financial.week_change_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                <i class="bi bi-{% if financial.week_change_pct >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                                {{ '{:+.1f}'.format(financial.week_change_pct) }}% vs prior week
+                            </div>
+                            <small class="text-muted">Prior: ${{ '{:,.0f}'.format(financial.prior_week_revenue) }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="card h-100 border-0 bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted mb-2">YTD Revenue</h6>
+                            <h3 class="mb-1">${{ '{:,.0f}'.format(financial.ytd_revenue) }}</h3>
+                            <div class="text-success">
+                                Gross Profit: ${{ '{:,.0f}'.format(financial.ytd_gross_profit) }}
+                            </div>
+                            <small class="text-muted">Margin: {{ financial.profit_margin }}%</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="card h-100 border-0 {% if financial.ar_over_30_pct > 25 %}bg-warning bg-opacity-25{% else %}bg-light{% endif %}">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-2 text-center">Accounts Receivable</h6>
+                            <h3 class="text-center mb-2">${{ '{:,.0f}'.format(financial.total_ar) }}</h3>
+                            <div class="progress mb-2" style="height: 20px;">
+                                {% set ar_total = financial.ar_0_30 + financial.ar_31_60 + financial.ar_60_plus %}
+                                {% if ar_total > 0 %}
+                                <div class="progress-bar bg-success" style="width: {{ (financial.ar_0_30 / ar_total * 100) }}%" title="0-30 days: ${{ '{:,.0f}'.format(financial.ar_0_30) }}">0-30</div>
+                                <div class="progress-bar bg-warning" style="width: {{ (financial.ar_31_60 / ar_total * 100) }}%" title="31-60 days: ${{ '{:,.0f}'.format(financial.ar_31_60) }}">31-60</div>
+                                <div class="progress-bar bg-danger" style="width: {{ (financial.ar_60_plus / ar_total * 100) }}%" title="60+ days: ${{ '{:,.0f}'.format(financial.ar_60_plus) }}">60+</div>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ financial.ar_over_30_pct }}% over 30 days</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="card h-100 border-0 {% if financial.ap_over_30_pct > 30 %}bg-danger bg-opacity-25{% else %}bg-light{% endif %}">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-2 text-center">Accounts Payable</h6>
+                            <h3 class="text-center mb-2">${{ '{:,.0f}'.format(financial.total_ap) }}</h3>
+                            <div class="progress mb-2" style="height: 20px;">
+                                {% set ap_total = financial.ap_0_30 + financial.ap_31_60 + financial.ap_60_plus %}
+                                {% if ap_total > 0 %}
+                                <div class="progress-bar bg-success" style="width: {{ (financial.ap_0_30 / ap_total * 100) }}%" title="0-30 days: ${{ '{:,.0f}'.format(financial.ap_0_30) }}">0-30</div>
+                                <div class="progress-bar bg-warning" style="width: {{ (financial.ap_31_60 / ap_total * 100) }}%" title="31-60 days: ${{ '{:,.0f}'.format(financial.ap_31_60) }}">31-60</div>
+                                <div class="progress-bar bg-danger" style="width: {{ (financial.ap_60_plus / ap_total * 100) }}%" title="60+ days: ${{ '{:,.0f}'.format(financial.ap_60_plus) }}">60+</div>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ financial.ap_over_30_pct }}% over 30 days</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="bi bi-gear"></i> Operations Performance</h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-3 text-center">
+                    <h4 class="text-primary mb-0">{{ operations.open_orders_count }}</h4>
+                    <small class="text-muted">Open Sales Orders</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <h4 class="text-success mb-0">${{ '{:,.0f}'.format(operations.open_orders_value) }}</h4>
+                    <small class="text-muted">Total Order Value</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <h4 class="text-info mb-0">{{ operations.dated_orders_count }}</h4>
+                    <small class="text-muted">Dated Orders</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <h4 class="text-warning mb-0">${{ '{:,.0f}'.format(operations.future_revenue) }}</h4>
+                    <small class="text-muted">Future Revenue</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-7 mb-4">
+                    <h6 class="mb-3"><i class="bi bi-list-check"></i> Open Sales Orders</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Customer</th>
+                                    <th class="text-end">Value</th>
+                                    <th class="text-end">Budget</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="text-center">Complete</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in open_sales_orders %}
+                                <tr>
+                                    <td><strong>{{ order.order_number }}</strong></td>
+                                    <td>{{ order.customer_name[:20] if order.customer_name else 'N/A' }}{% if order.customer_name and order.customer_name|length > 20 %}...{% endif %}</td>
+                                    <td class="text-end">${{ '{:,.0f}'.format(order.order_value or 0) }}</td>
+                                    <td class="text-end">${{ '{:,.0f}'.format(order.budgeted_expense or 0) }}</td>
+                                    <td class="text-end">${{ '{:,.0f}'.format(order.actual_cost or 0) }}</td>
+                                    <td class="text-center">
+                                        <div class="progress" style="height: 18px; width: 60px;">
+                                            <div class="progress-bar bg-primary" style="width: {{ order.completion_pct or 0 }}%">{{ '{:.0f}'.format(order.completion_pct or 0) }}%</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if order.status == 'In Progress' %}bg-primary
+                                            {% elif order.status == 'Released' %}bg-info
+                                            {% elif order.status == 'Draft' %}bg-secondary
+                                            {% else %}bg-warning text-dark{% endif %}">
+                                            {{ order.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7" class="text-center text-muted">No open sales orders</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="col-lg-5 mb-4">
+                    <h6 class="mb-3"><i class="bi bi-calendar-event"></i> Dated Orders (Future Delivery)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Customer</th>
+                                    <th class="text-end">Value</th>
+                                    <th class="text-center">Days</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in dated_orders %}
+                                <tr class="{% if order.days_until_delivery <= 7 %}table-warning{% endif %}">
+                                    <td><strong>{{ order.order_number }}</strong></td>
+                                    <td>{{ order.customer_name[:15] if order.customer_name else 'N/A' }}{% if order.customer_name and order.customer_name|length > 15 %}...{% endif %}</td>
+                                    <td class="text-end">${{ '{:,.0f}'.format(order.order_value or 0) }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if order.days_until_delivery <= 7 %}bg-danger{% elif order.days_until_delivery <= 14 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                            {{ '{:.0f}'.format(order.days_until_delivery or 0) }}d
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted">No dated orders</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="bi bi-box-seam"></i> Inventory Status</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card h-100 border-success">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-check-circle"></i> Ready-to-Sell</h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <h2 class="text-success">${{ '{:,.0f}'.format(inventory.ready_value) }}</h2>
+                            <p class="mb-0">{{ '{:,.0f}'.format(inventory.ready_qty) }} units available</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card h-100 border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="bi bi-hourglass-split"></i> Awaiting Work/Certification</h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <h2 class="text-warning">${{ '{:,.0f}'.format(inventory.awaiting_value) }}</h2>
+                            <p class="mb-0">{{ '{:,.0f}'.format(inventory.awaiting_qty) }} units in process</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card h-100 border-0 bg-light">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="bi bi-diagram-3"></i> By Category</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <table class="table table-sm table-borderless mb-0">
+                                {% for cat in inventory_by_category %}
+                                <tr>
+                                    <td class="py-1">{{ cat.category[:12] }}{% if cat.category|length > 12 %}...{% endif %}</td>
+                                    <td class="text-end py-1">${{ '{:,.0f}'.format(cat.value or 0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if wo_status_summary %}
+            <div class="mt-4">
+                <h6><i class="bi bi-tools"></i> Work Orders by Status</h6>
+                <div class="d-flex flex-wrap gap-3">
+                    {% for wo in wo_status_summary %}
+                    <div class="badge bg-secondary p-2">
+                        {{ wo.status }}: {{ wo.count }} (${{ '{:,.0f}'.format(wo.total_value or 0) }})
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body bg-light">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <i class="bi bi-question-circle text-primary"></i>
+                    <strong>Are we financially healthy?</strong>
+                    <p class="mb-0 small text-muted">
+                        {% if financial.profit_margin >= 25 %}
+                        <span class="text-success">Yes - {{ financial.profit_margin }}% margin</span>
+                        {% elif financial.profit_margin >= 15 %}
+                        <span class="text-warning">Moderate - {{ financial.profit_margin }}% margin</span>
+                        {% else %}
+                        <span class="text-danger">Review needed - {{ financial.profit_margin }}% margin</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <i class="bi bi-question-circle text-primary"></i>
+                    <strong>Cash flow risk?</strong>
+                    <p class="mb-0 small text-muted">
+                        {% if financial.ar_over_30_pct > 30 %}
+                        <span class="text-danger">Yes - {{ financial.ar_over_30_pct }}% AR aged</span>
+                        {% elif financial.ar_over_30_pct > 15 %}
+                        <span class="text-warning">Monitor - {{ financial.ar_over_30_pct }}% AR aged</span>
+                        {% else %}
+                        <span class="text-success">Low risk - {{ financial.ar_over_30_pct }}% AR aged</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <i class="bi bi-question-circle text-primary"></i>
+                    <strong>Operations on track?</strong>
+                    <p class="mb-0 small text-muted">
+                        {% if operations.open_orders_count > 0 %}
+                        {{ operations.open_orders_count }} orders in progress
+                        {% else %}
+                        <span class="text-muted">No active orders</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .sidebar, .navbar { display: none !important; }
+    .container-fluid { padding: 0 !important; }
+    .card { break-inside: avoid; }
+}
+</style>
+{% endblock %}

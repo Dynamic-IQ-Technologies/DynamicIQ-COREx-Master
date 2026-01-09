@@ -1639,3 +1639,374 @@ def executive_inventory_dashboard():
                              'warehouse': warehouse_filter,
                              'status': status_filter
                          })
+
+
+@report_bp.route('/reports/organizational-scorecard')
+@login_required
+def organizational_scorecard():
+    """Organizational Scorecard - Executive view of financial, operational, and inventory health"""
+    from datetime import datetime, timedelta
+    import os
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL')
+    
+    if is_postgres:
+        week_start = "(CURRENT_DATE - INTERVAL '7 days')"
+        prior_week_start = "(CURRENT_DATE - INTERVAL '14 days')"
+        prior_week_end = "(CURRENT_DATE - INTERVAL '7 days')"
+        year_start = "DATE_TRUNC('year', CURRENT_DATE)"
+        date_diff = "EXTRACT(DAY FROM (CURRENT_DATE - order_date::date))"
+        days_until = "EXTRACT(DAY FROM (required_date::date - CURRENT_DATE))"
+    else:
+        week_start = "date('now', '-7 days')"
+        prior_week_start = "date('now', '-14 days')"
+        prior_week_end = "date('now', '-7 days')"
+        year_start = "date('now', 'start of year')"
+        date_diff = "julianday('now') - julianday(order_date)"
+        days_until = "julianday(required_date) - julianday('now')"
+    
+    # === FINANCIAL PERFORMANCE ===
+    
+    # Weekly Sales Revenue (current week)
+    current_week_sales = conn.execute(f'''
+        SELECT COALESCE(SUM(total_amount), 0) as revenue,
+               COUNT(*) as order_count
+        FROM sales_orders 
+        WHERE order_date >= {week_start}
+          AND status != 'Cancelled'
+    ''').fetchone()
+    
+    # Prior week sales for comparison
+    prior_week_sales = conn.execute(f'''
+        SELECT COALESCE(SUM(total_amount), 0) as revenue
+        FROM sales_orders 
+        WHERE order_date >= {prior_week_start}
+          AND order_date < {prior_week_end}
+          AND status != 'Cancelled'
+    ''').fetchone()
+    
+    current_week_revenue = float(current_week_sales['revenue'] or 0)
+    prior_week_revenue = float(prior_week_sales['revenue'] or 0)
+    week_change_pct = ((current_week_revenue - prior_week_revenue) / prior_week_revenue * 100) if prior_week_revenue > 0 else 0
+    
+    # Year-to-Date Sales & Profit
+    ytd_sales = conn.execute(f'''
+        SELECT COALESCE(SUM(total_amount), 0) as revenue,
+               COUNT(*) as order_count
+        FROM sales_orders 
+        WHERE order_date >= {year_start}
+          AND status != 'Cancelled'
+    ''').fetchone()
+    
+    ytd_revenue = float(ytd_sales['revenue'] or 0)
+    
+    # Estimated gross profit (using average margin assumption or actual costs if available)
+    ytd_costs = conn.execute(f'''
+        SELECT COALESCE(SUM(sol.quantity * COALESCE(p.cost, 0)), 0) as total_cost
+        FROM sales_order_lines sol
+        JOIN sales_orders so ON sol.sales_order_id = so.id
+        LEFT JOIN products p ON sol.product_id = p.id
+        WHERE so.order_date >= {year_start}
+          AND so.status != 'Cancelled'
+    ''').fetchone()
+    
+    ytd_cost = float(ytd_costs['total_cost'] or 0)
+    ytd_gross_profit = ytd_revenue - ytd_cost
+    profit_margin = (ytd_gross_profit / ytd_revenue * 100) if ytd_revenue > 0 else 0
+    
+    # Accounts Receivable Aging
+    ar_aging = conn.execute('''
+        SELECT 
+            COALESCE(SUM(balance_due), 0) as total_ar,
+            COALESCE(SUM(CASE WHEN balance_due > 0 THEN balance_due ELSE 0 END), 0) as open_ar
+        FROM invoices
+        WHERE status IN ('Sent', 'Posted', 'Overdue')
+    ''').fetchone()
+    
+    total_ar = float(ar_aging['total_ar'] or 0)
+    
+    # AR Aging buckets
+    if is_postgres:
+        ar_buckets = conn.execute('''
+            SELECT 
+                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 30 THEN balance_due ELSE 0 END), 0) as bucket_0_30,
+                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 30 AND EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 60 THEN balance_due ELSE 0 END), 0) as bucket_31_60,
+                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 60 THEN balance_due ELSE 0 END), 0) as bucket_60_plus
+            FROM invoices
+            WHERE status IN ('Sent', 'Posted', 'Overdue') AND balance_due > 0
+        ''').fetchone()
+    else:
+        ar_buckets = conn.execute('''
+            SELECT 
+                COALESCE(SUM(CASE WHEN julianday('now') - julianday(invoice_date) <= 30 THEN balance_due ELSE 0 END), 0) as bucket_0_30,
+                COALESCE(SUM(CASE WHEN julianday('now') - julianday(invoice_date) > 30 AND julianday('now') - julianday(invoice_date) <= 60 THEN balance_due ELSE 0 END), 0) as bucket_31_60,
+                COALESCE(SUM(CASE WHEN julianday('now') - julianday(invoice_date) > 60 THEN balance_due ELSE 0 END), 0) as bucket_60_plus
+            FROM invoices
+            WHERE status IN ('Sent', 'Posted', 'Overdue') AND balance_due > 0
+        ''').fetchone()
+    
+    ar_over_30 = float(ar_buckets['bucket_31_60'] or 0) + float(ar_buckets['bucket_60_plus'] or 0)
+    ar_over_30_pct = (ar_over_30 / total_ar * 100) if total_ar > 0 else 0
+    
+    # Accounts Payable Aging
+    ap_aging = conn.execute('''
+        SELECT 
+            COALESCE(SUM(total_amount - amount_paid), 0) as total_ap
+        FROM vendor_invoices
+        WHERE status IN ('Open', 'Pending', 'Overdue')
+    ''').fetchone()
+    
+    total_ap = float(ap_aging['total_ap'] or 0)
+    
+    # AP Aging buckets
+    if is_postgres:
+        ap_buckets = conn.execute('''
+            SELECT 
+                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 30 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_0_30,
+                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 30 AND EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_31_60,
+                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_60_plus
+            FROM vendor_invoices
+            WHERE status IN ('Open', 'Pending', 'Overdue') AND (total_amount - amount_paid) > 0
+        ''').fetchone()
+    else:
+        ap_buckets = conn.execute('''
+            SELECT 
+                COALESCE(SUM(CASE WHEN julianday('now') - julianday(invoice_date) <= 30 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_0_30,
+                COALESCE(SUM(CASE WHEN julianday('now') - julianday(invoice_date) > 30 AND julianday('now') - julianday(invoice_date) <= 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_31_60,
+                COALESCE(SUM(CASE WHEN julianday('now') - julianday(invoice_date) > 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_60_plus
+            FROM vendor_invoices
+            WHERE status IN ('Open', 'Pending', 'Overdue') AND (total_amount - amount_paid) > 0
+        ''').fetchone()
+    
+    ap_over_30 = float(ap_buckets['bucket_31_60'] or 0) + float(ap_buckets['bucket_60_plus'] or 0)
+    ap_over_30_pct = (ap_over_30 / total_ap * 100) if total_ap > 0 else 0
+    
+    # === OPERATIONS PERFORMANCE ===
+    
+    # Open Sales Orders with completion tracking
+    open_sales_orders = conn.execute('''
+        SELECT 
+            so.id, so.so_number as order_number, so.order_date, so.expected_ship_date as required_date, so.status,
+            so.total_amount as order_value,
+            c.name as customer_name,
+            COALESCE(wo.total_wo_value, 0) as budgeted_expense,
+            COALESCE(wo.actual_cost, 0) as actual_cost,
+            COALESCE(wo.completion_pct, 0) as completion_pct
+        FROM sales_orders so
+        LEFT JOIN customers c ON so.customer_id = c.id
+        LEFT JOIN (
+            SELECT 
+                so_id,
+                SUM(COALESCE(labor_cost, 0) + COALESCE(material_cost, 0) + COALESCE(overhead_cost, 0)) as total_wo_value,
+                SUM(COALESCE(labor_cost, 0) + COALESCE(material_cost, 0) + COALESCE(overhead_cost, 0)) as actual_cost,
+                AVG(CASE 
+                    WHEN status = 'Completed' THEN 100
+                    WHEN status = 'In Progress' THEN 50
+                    WHEN status = 'Released' THEN 25
+                    ELSE 0
+                END) as completion_pct
+            FROM work_orders
+            WHERE so_id IS NOT NULL
+            GROUP BY so_id
+        ) wo ON so.id = wo.so_id
+        WHERE so.status NOT IN ('Closed', 'Cancelled', 'Shipped')
+        ORDER BY so.expected_ship_date ASC
+        LIMIT 20
+    ''').fetchall()
+    
+    # Dated Sales Orders (future delivery dates)
+    if is_postgres:
+        dated_orders = conn.execute('''
+            SELECT 
+                so.id, so.so_number as order_number, so.order_date, so.expected_ship_date as required_date, so.status,
+                so.total_amount as order_value,
+                c.name as customer_name,
+                EXTRACT(DAY FROM (so.expected_ship_date - CURRENT_DATE)) as days_until_delivery
+            FROM sales_orders so
+            LEFT JOIN customers c ON so.customer_id = c.id
+            WHERE so.expected_ship_date > CURRENT_DATE
+              AND so.status NOT IN ('Closed', 'Cancelled', 'Shipped')
+            ORDER BY so.expected_ship_date ASC
+            LIMIT 15
+        ''').fetchall()
+    else:
+        dated_orders = conn.execute('''
+            SELECT 
+                so.id, so.so_number as order_number, so.order_date, so.expected_ship_date as required_date, so.status,
+                so.total_amount as order_value,
+                c.name as customer_name,
+                julianday(so.expected_ship_date) - julianday('now') as days_until_delivery
+            FROM sales_orders so
+            LEFT JOIN customers c ON so.customer_id = c.id
+            WHERE date(so.expected_ship_date) > date('now')
+              AND so.status NOT IN ('Closed', 'Cancelled', 'Shipped')
+            ORDER BY so.expected_ship_date ASC
+            LIMIT 15
+        ''').fetchall()
+    
+    future_revenue = sum(float(o['order_value'] or 0) for o in dated_orders)
+    
+    # === INVENTORY STATUS ===
+    
+    # Ready-to-Sell Inventory
+    ready_inventory = conn.execute('''
+        SELECT 
+            COALESCE(SUM(i.quantity), 0) as total_qty,
+            COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total_value,
+            COUNT(DISTINCT i.id) as sku_count
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+          AND i.status IN ('Available', 'Serviceable', 'Ready')
+    ''').fetchone()
+    
+    ready_qty = float(ready_inventory['total_qty'] or 0)
+    ready_value = float(ready_inventory['total_value'] or 0)
+    
+    # Inventory awaiting work/certification
+    awaiting_work = conn.execute('''
+        SELECT 
+            COALESCE(SUM(i.quantity), 0) as total_qty,
+            COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total_value,
+            COUNT(DISTINCT i.id) as item_count
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+          AND i.status IN ('In Repair', 'Awaiting Certification', 'QC Hold', 'Inspection', 'Quarantine')
+    ''').fetchone()
+    
+    awaiting_qty = float(awaiting_work['total_qty'] or 0)
+    awaiting_value = float(awaiting_work['total_value'] or 0)
+    
+    # Work orders by status for inventory tie-up
+    wo_status_summary = conn.execute('''
+        SELECT 
+            status,
+            COUNT(*) as count,
+            COALESCE(SUM(quoted_price), 0) as total_value
+        FROM work_orders
+        WHERE status NOT IN ('Completed', 'Closed', 'Cancelled')
+        GROUP BY status
+        ORDER BY count DESC
+    ''').fetchall()
+    
+    # Inventory by category for drill-down
+    inventory_by_category = conn.execute('''
+        SELECT 
+            COALESCE(p.product_category, 'Uncategorized') as category,
+            SUM(i.quantity) as qty,
+            SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as value
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+        GROUP BY p.product_category
+        ORDER BY value DESC
+        LIMIT 8
+    ''').fetchall()
+    
+    conn.close()
+    
+    # === GENERATE INSIGHTS & ALERTS ===
+    insights = []
+    
+    # AR Risk Alert
+    if ar_over_30_pct > 25:
+        insights.append({
+            'type': 'warning',
+            'icon': 'exclamation-triangle',
+            'message': f'AR over 30 days exceeds {ar_over_30_pct:.0f}% (${ar_over_30:,.0f}) — potential cash flow risk'
+        })
+    
+    # AP Alert
+    if ap_over_30_pct > 30:
+        insights.append({
+            'type': 'danger',
+            'icon': 'clock-history',
+            'message': f'AP over 30 days at {ap_over_30_pct:.0f}% (${ap_over_30:,.0f}) — review payment schedule'
+        })
+    
+    # Week-over-week performance
+    if week_change_pct < -20:
+        insights.append({
+            'type': 'danger',
+            'icon': 'graph-down-arrow',
+            'message': f'Weekly revenue down {abs(week_change_pct):.0f}% vs prior week — investigate sales pipeline'
+        })
+    elif week_change_pct > 20:
+        insights.append({
+            'type': 'success',
+            'icon': 'graph-up-arrow',
+            'message': f'Weekly revenue up {week_change_pct:.0f}% vs prior week — strong sales momentum'
+        })
+    
+    # Future revenue
+    if future_revenue > 0:
+        insights.append({
+            'type': 'info',
+            'icon': 'calendar-check',
+            'message': f'Upcoming dated orders represent ${future_revenue:,.0f} in future revenue'
+        })
+    
+    # Inventory awaiting work
+    if awaiting_value > ready_value * 0.3:
+        insights.append({
+            'type': 'warning',
+            'icon': 'box-seam',
+            'message': f'${awaiting_value:,.0f} in inventory awaiting work/certification — review processing queue'
+        })
+    
+    # Profit margin alert
+    if profit_margin < 20 and ytd_revenue > 0:
+        insights.append({
+            'type': 'warning',
+            'icon': 'percent',
+            'message': f'YTD profit margin at {profit_margin:.1f}% — below target threshold'
+        })
+    
+    # Build KPI dictionary
+    financial = {
+        'current_week_revenue': current_week_revenue,
+        'prior_week_revenue': prior_week_revenue,
+        'week_change_pct': round(week_change_pct, 1),
+        'ytd_revenue': ytd_revenue,
+        'ytd_gross_profit': ytd_gross_profit,
+        'profit_margin': round(profit_margin, 1),
+        'total_ar': total_ar,
+        'ar_0_30': float(ar_buckets['bucket_0_30'] or 0),
+        'ar_31_60': float(ar_buckets['bucket_31_60'] or 0),
+        'ar_60_plus': float(ar_buckets['bucket_60_plus'] or 0),
+        'ar_over_30_pct': round(ar_over_30_pct, 1),
+        'total_ap': total_ap,
+        'ap_0_30': float(ap_buckets['bucket_0_30'] or 0),
+        'ap_31_60': float(ap_buckets['bucket_31_60'] or 0),
+        'ap_60_plus': float(ap_buckets['bucket_60_plus'] or 0),
+        'ap_over_30_pct': round(ap_over_30_pct, 1)
+    }
+    
+    operations = {
+        'open_orders_count': len(open_sales_orders),
+        'open_orders_value': sum(float(o['order_value'] or 0) for o in open_sales_orders),
+        'dated_orders_count': len(dated_orders),
+        'future_revenue': future_revenue
+    }
+    
+    inventory = {
+        'ready_qty': ready_qty,
+        'ready_value': ready_value,
+        'awaiting_qty': awaiting_qty,
+        'awaiting_value': awaiting_value
+    }
+    
+    return render_template('reports/organizational_scorecard.html',
+                         financial=financial,
+                         operations=operations,
+                         inventory=inventory,
+                         open_sales_orders=open_sales_orders,
+                         dated_orders=dated_orders,
+                         wo_status_summary=wo_status_summary,
+                         inventory_by_category=inventory_by_category,
+                         insights=insights,
+                         snapshot_time=datetime.now().strftime('%Y-%m-%d %H:%M'))
