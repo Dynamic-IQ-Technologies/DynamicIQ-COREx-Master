@@ -46,20 +46,39 @@
                 </div>
                 
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Expected Ship Date</label>
                             <input type="date" class="form-control" name="expected_ship_date" 
                                    value="{{ sales_order.expected_ship_date or '' }}">
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    {% if sales_order.sales_type == 'Exchange' %}
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Core Due Days <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="core_due_days" id="core_due_days"
+                                   value="{{ sales_order.core_due_days or '' }}" min="0" max="365" required>
+                            <small class="text-muted">Number of days the customer has to return the core unit.</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Expected Core Return Date <i class="bi bi-lock text-muted" title="Calculated automatically based on Order Date + Core Due Days"></i></label>
+                            <input type="date" class="form-control bg-light" id="expected_return_date"
+                                   value="{{ sales_order.expected_return_date or '' }}" readonly>
+                            <small class="text-muted">Auto-calculated from Order Date ({{ sales_order.order_date }}) + Core Due Days</small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Expected Return Date</label>
                             <input type="date" class="form-control" name="expected_return_date"
                                    value="{{ sales_order.expected_return_date or '' }}">
                         </div>
                     </div>
+                    {% endif %}
                 </div>
 
                 {% if sales_order.sales_type in ['Exchange', 'Managed Repair'] %}
@@ -579,6 +598,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Listen for changes
     lineTypeSelect.addEventListener('change', updateFieldsVisibility);
+    
+    // Core Due Days real-time calculation for Exchange orders
+    const coreDueDaysInput = document.getElementById('core_due_days');
+    const expectedReturnDateInput = document.getElementById('expected_return_date');
+    
+    if (coreDueDaysInput && expectedReturnDateInput) {
+        coreDueDaysInput.addEventListener('input', function() {
+            const coreDueDays = parseInt(this.value);
+            const orderDate = '{{ sales_order.order_date }}';
+            
+            if (orderDate && !isNaN(coreDueDays) && coreDueDays >= 0) {
+                const date = new Date(orderDate);
+                date.setDate(date.getDate() + coreDueDays);
+                expectedReturnDateInput.value = date.toISOString().split('T')[0];
+            } else {
+                expectedReturnDateInput.value = '';
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

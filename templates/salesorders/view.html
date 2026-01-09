@@ -129,7 +129,29 @@
                             <th>Expected Ship Date:</th>
                             <td>{{ sales_order.expected_ship_date or '-' }}</td>
                         </tr>
-                        {% if sales_order.sales_type in ['Exchange', 'Managed Repair'] %}
+                        {% if sales_order.sales_type == 'Exchange' %}
+                        <tr>
+                            <th>Core Due Days:</th>
+                            <td>
+                                {% if sales_order.core_due_days is not none %}
+                                <span class="badge bg-primary">{{ sales_order.core_due_days }} days</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Expected Core Return Date:</th>
+                            <td>
+                                {% if sales_order.expected_return_date %}
+                                {{ sales_order.expected_return_date }}
+                                <i class="bi bi-lock text-muted ms-1" title="Auto-calculated from Order Date + Core Due Days"></i>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% elif sales_order.sales_type == 'Managed Repair' %}
                         <tr>
                             <th>Expected Return Date:</th>
                             <td>{{ sales_order.expected_return_date or '-' }}</td>

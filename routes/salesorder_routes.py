@@ -111,7 +111,22 @@ def create_sales_order():
             # Parse dates
             order_date = request.form.get('order_date') or datetime.now().strftime('%Y-%m-%d')
             expected_ship_date = request.form.get('expected_ship_date') or None
-            expected_return_date = request.form.get('expected_return_date') or None
+            
+            # Handle Core Due Days and auto-calculate Expected Return Date for Exchange orders
+            core_due_days = None
+            expected_return_date = None
+            if sales_type == 'Exchange':
+                core_due_days_str = request.form.get('core_due_days', '').strip()
+                if core_due_days_str:
+                    core_due_days = int(core_due_days_str)
+                    if core_due_days < 0 or core_due_days > 365:
+                        flash('Core Due Days must be between 0 and 365.', 'danger')
+                        conn.close()
+                        return redirect(url_for('salesorder_routes.create_sales_order'))
+                    # Auto-calculate expected return date
+                    order_dt = datetime.strptime(order_date, '%Y-%m-%d')
+                    expected_return_dt = order_dt + timedelta(days=core_due_days)
+                    expected_return_date = expected_return_dt.strftime('%Y-%m-%d')
             
             # Get exchange_type if Exchange type order
             exchange_type = request.form.get('exchange_type') if sales_type == 'Exchange' else None
@@ -121,15 +136,16 @@ def create_sales_order():
                 INSERT INTO sales_orders (
                     so_number, customer_id, sales_type, order_date, expected_ship_date,
                     status, core_charge, repair_charge, expected_return_date, 
-                    service_notes, notes, created_by, exchange_type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    service_notes, notes, created_by, exchange_type, core_due_days
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 so_number, customer_id, sales_type, order_date, expected_ship_date,
                 'Draft', 0, 0, expected_return_date,
                 request.form.get('service_notes', ''),
                 request.form.get('notes', ''),
                 session.get('user_id'),
-                exchange_type
+                exchange_type,
+                core_due_days
             ))
             
             so_id = cursor.lastrowid
@@ -226,28 +242,65 @@ def edit_sales_order(id):
         db = Database()
         conn = db.get_connection()
         try:
+            # Get current sales order to check type
+            current_so = conn.execute('SELECT sales_type, order_date, core_due_days, expected_return_date FROM sales_orders WHERE id = ?', (id,)).fetchone()
+            
             # Update header
             customer_id = request.form.get('customer_id')
             expected_ship_date = request.form.get('expected_ship_date') or None
-            expected_return_date = request.form.get('expected_return_date') or None
             
             tax_rate_str = request.form.get('tax_rate', '0').strip()
             tax_rate = float(tax_rate_str) if tax_rate_str else 0.0
             
             exchange_type = request.form.get('exchange_type')
             
+            # Handle Core Due Days and auto-calculate Expected Return Date for Exchange orders
+            core_due_days = current_so['core_due_days']
+            expected_return_date = current_so['expected_return_date']
+            old_core_due_days = core_due_days
+            old_expected_return_date = expected_return_date
+            
+            if current_so['sales_type'] == 'Exchange':
+                core_due_days_str = request.form.get('core_due_days', '').strip()
+                if core_due_days_str:
+                    core_due_days = int(core_due_days_str)
+                    if core_due_days < 0 or core_due_days > 365:
+                        flash('Core Due Days must be between 0 and 365.', 'danger')
+                        conn.close()
+                        return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+                    # Auto-calculate expected return date using order_date
+                    order_date = current_so['order_date']
+                    order_dt = datetime.strptime(order_date, '%Y-%m-%d')
+                    expected_return_dt = order_dt + timedelta(days=core_due_days)
+                    expected_return_date = expected_return_dt.strftime('%Y-%m-%d')
+            
             conn.execute('''
                 UPDATE sales_orders SET
                     customer_id = ?,
                     expected_ship_date = ?,
                     expected_return_date = ?, service_notes = ?, notes = ?, tax_rate = ?,
-                    exchange_type = ?
+                    exchange_type = ?, core_due_days = ?
                 WHERE id = ?
             ''', (
                 customer_id, expected_ship_date, expected_return_date,
                 request.form.get('service_notes', ''), request.form.get('notes', ''), tax_rate,
-                exchange_type, id
+                exchange_type, core_due_days, id
             ))
+            
+            # Audit logging for Core Due Days changes
+            if current_so['sales_type'] == 'Exchange' and (old_core_due_days != core_due_days or old_expected_return_date != expected_return_date):
+                from audit import AuditLogger
+                AuditLogger.log(
+                    conn=conn,
+                    record_type='sales_order',
+                    record_id=str(id),
+                    action_type='Core Due Days Updated',
+                    modified_by=session.get('user_id'),
+                    changed_fields={
+                        'core_due_days': {'old': old_core_due_days, 'new': core_due_days},
+                        'expected_return_date': {'old': old_expected_return_date, 'new': expected_return_date}
+                    }
+                )
             
             # Recalculate totals with tax rate
             recalculate_totals(conn, id, tax_rate)

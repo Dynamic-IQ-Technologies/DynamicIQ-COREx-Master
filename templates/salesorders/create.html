@@ -47,22 +47,31 @@
                 </div>
 
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Order Date</label>
-                            <input type="date" class="form-control" name="order_date" value="{{ request.form.get('order_date', '') }}">
+                            <input type="date" class="form-control" name="order_date" id="order_date" value="{{ request.form.get('order_date', '') }}">
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Expected Ship Date</label>
                             <input type="date" class="form-control" name="expected_ship_date">
                         </div>
                     </div>
-                    <div class="col-md-4" id="return_date_section" style="display: none;">
+                    <div class="col-md-3" id="core_due_days_section" style="display: none;">
                         <div class="mb-3">
-                            <label class="form-label">Expected Return Date</label>
-                            <input type="date" class="form-control" name="expected_return_date">
+                            <label class="form-label">Core Due Days <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="core_due_days" id="core_due_days" 
+                                   min="0" max="365" placeholder="e.g., 30">
+                            <small class="text-muted">Number of days the customer has to return the core unit.</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3" id="return_date_section" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Expected Core Return Date <i class="bi bi-lock text-muted" title="Calculated automatically based on Order Date + Core Due Days"></i></label>
+                            <input type="date" class="form-control bg-light" name="expected_return_date" id="expected_return_date" readonly>
+                            <small class="text-muted">Auto-calculated from Order Date + Core Due Days</small>
                         </div>
                     </div>
                 </div>
@@ -96,6 +105,8 @@ document.getElementById('sales_type').addEventListener('change', function() {
     const returnDateSection = document.getElementById('return_date_section');
     const serviceNotesSection = document.getElementById('service_notes_section');
     const exchangeTypeSection = document.getElementById('exchange_type_section');
+    const coreDueDaysSection = document.getElementById('core_due_days_section');
+    const coreDueDaysInput = document.getElementById('core_due_days');
     
     if (type === 'Exchange' || type === 'Managed Repair') {
         returnDateSection.style.display = 'block';
@@ -107,9 +118,41 @@ document.getElementById('sales_type').addEventListener('change', function() {
     
     if (type === 'Exchange') {
         exchangeTypeSection.style.display = 'flex';
+        coreDueDaysSection.style.display = 'block';
+        coreDueDaysInput.required = true;
     } else {
         exchangeTypeSection.style.display = 'none';
+        coreDueDaysSection.style.display = 'none';
+        coreDueDaysInput.required = false;
+        coreDueDaysInput.value = '';
+        document.getElementById('expected_return_date').value = '';
     }
 });
+
+function calculateExpectedReturnDate() {
+    const orderDateInput = document.getElementById('order_date');
+    const coreDueDaysInput = document.getElementById('core_due_days');
+    const expectedReturnDateInput = document.getElementById('expected_return_date');
+    const salesType = document.getElementById('sales_type').value;
+    
+    if (salesType !== 'Exchange') {
+        expectedReturnDateInput.value = '';
+        return;
+    }
+    
+    const orderDate = orderDateInput.value;
+    const coreDueDays = parseInt(coreDueDaysInput.value);
+    
+    if (orderDate && !isNaN(coreDueDays) && coreDueDays >= 0) {
+        const date = new Date(orderDate);
+        date.setDate(date.getDate() + coreDueDays);
+        expectedReturnDateInput.value = date.toISOString().split('T')[0];
+    } else {
+        expectedReturnDateInput.value = '';
+    }
+}
+
+document.getElementById('order_date').addEventListener('change', calculateExpectedReturnDate);
+document.getElementById('core_due_days').addEventListener('input', calculateExpectedReturnDate);
 </script>
 {% endblock %}
