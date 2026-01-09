@@ -180,7 +180,7 @@
                             {{ bucket.pct }}%
                         </td>
                         <td class="text-end">{{ '{:,.0f}'.format(bucket.qty) }}</td>
-                        <td class="text-end">{{ bucket.items }}</td>
+                        <td class="text-end">{{ bucket['items'] }}</td>
                         <td class="text-center">
                             {% if bucket.risk == 'High' %}
                             <span class="badge bg-danger">High</span>
@@ -222,7 +222,7 @@
                                 <td>{{ cat.category }}</td>
                                 <td class="text-end">${{ '{:,.2f}'.format(cat.value) }}</td>
                                 <td class="text-end">{{ cat.pct }}%</td>
-                                <td class="text-end">{{ cat.items }}</td>
+                                <td class="text-end">{{ cat['items'] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
