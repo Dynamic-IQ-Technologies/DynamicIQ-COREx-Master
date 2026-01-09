@@ -672,9 +672,7 @@ def create_shipment_from_line(line_id):
                 so.shipping_method,
                 p.code as product_code, p.name as product_name, p.unit_of_measure,
                 c.id as customer_id, c.name as customer_name, c.customer_number,
-                c.address as customer_address, c.city as customer_city,
-                c.state as customer_state, c.postal_code as customer_postal,
-                c.country as customer_country
+                c.shipping_address as customer_address
             FROM sales_order_lines sol
             JOIN sales_orders so ON sol.so_id = so.id
             JOIN products p ON sol.product_id = p.id
@@ -706,18 +704,13 @@ def create_shipment_from_line(line_id):
             INSERT INTO shipments (
                 shipment_number, shipment_type, reference_type, reference_id,
                 status, ship_date, ship_to_name, ship_to_address,
-                ship_to_city, ship_to_state, ship_to_postal_code, ship_to_country,
                 shipping_method, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             shipment_number, 'Outbound', 'Sales Order', line['so_id'],
             'Pending', today,
             line.get('customer_name') or '',
             line.get('customer_address') or '',
-            line.get('customer_city') or '',
-            line.get('customer_state') or '',
-            line.get('customer_postal') or '',
-            line.get('customer_country') or 'USA',
             line.get('shipping_method') or '',
             session.get('user_id')
         ))
