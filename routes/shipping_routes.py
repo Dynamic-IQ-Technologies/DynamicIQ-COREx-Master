@@ -559,33 +559,37 @@ def dashboard():
     conn = db.get_connection()
     
     # Released lines ready to ship (from sales orders)
-    ready_to_ship = conn.execute('''
-        SELECT 
-            sol.id as line_id,
-            sol.line_number,
-            sol.quantity,
-            p.unit_of_measure,
-            sol.serial_number,
-            sol.released_to_shipping_at,
-            sol.allocation_status,
-            p.code as product_code,
-            p.name as product_name,
-            so.id as so_id,
-            so.so_number,
-            so.sales_type as order_type,
-            c.name as customer_name,
-            c.customer_number,
-            u.username as released_by_name
-        FROM sales_order_lines sol
-        JOIN sales_orders so ON sol.so_id = so.id
-        JOIN products p ON sol.product_id = p.id
-        LEFT JOIN customers c ON so.customer_id = c.id
-        LEFT JOIN users u ON sol.released_by = u.id
-        WHERE sol.released_to_shipping_at IS NOT NULL
-            AND (sol.shipped_quantity IS NULL OR sol.shipped_quantity = 0)
-        ORDER BY sol.released_to_shipping_at DESC
-        LIMIT 20
-    ''').fetchall()
+    # Use try-except in case columns don't exist in production database
+    try:
+        ready_to_ship = conn.execute('''
+            SELECT 
+                sol.id as line_id,
+                sol.line_number,
+                sol.quantity,
+                p.unit_of_measure,
+                sol.serial_number,
+                sol.released_to_shipping_at,
+                sol.allocation_status,
+                p.code as product_code,
+                p.name as product_name,
+                so.id as so_id,
+                so.so_number,
+                so.sales_type as order_type,
+                c.name as customer_name,
+                c.customer_number,
+                u.username as released_by_name
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.so_id = so.id
+            JOIN products p ON sol.product_id = p.id
+            LEFT JOIN customers c ON so.customer_id = c.id
+            LEFT JOIN users u ON sol.released_by = u.id
+            WHERE sol.released_to_shipping_at IS NOT NULL
+                AND (sol.shipped_quantity IS NULL OR sol.shipped_quantity = 0)
+            ORDER BY sol.released_to_shipping_at DESC
+            LIMIT 20
+        ''').fetchall()
+    except Exception:
+        ready_to_ship = []
     
     # Pending shipments
     pending_shipments = conn.execute('''
@@ -625,12 +629,15 @@ def dashboard():
         LIMIT 10
     ''').fetchall()
     
-    # Stats - add ready to ship count
-    ready_to_ship_count = conn.execute('''
-        SELECT COUNT(*) as count FROM sales_order_lines 
-        WHERE released_to_shipping_at IS NOT NULL 
-            AND (shipped_quantity IS NULL OR shipped_quantity = 0)
-    ''').fetchone()['count']
+    # Stats - add ready to ship count (with fallback for missing columns)
+    try:
+        ready_to_ship_count = conn.execute('''
+            SELECT COUNT(*) as count FROM sales_order_lines 
+            WHERE released_to_shipping_at IS NOT NULL 
+                AND (shipped_quantity IS NULL OR shipped_quantity = 0)
+        ''').fetchone()['count']
+    except Exception:
+        ready_to_ship_count = 0
     
     stats = {
         'ready_to_ship': ready_to_ship_count,
