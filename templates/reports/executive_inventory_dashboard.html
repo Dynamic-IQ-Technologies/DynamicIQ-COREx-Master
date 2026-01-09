@@ -388,7 +388,7 @@
                     </li>
                     <li class="mb-2">
                         <i class="bi bi-cash-stack text-primary"></i>
-                        <strong>Cash Recovery Opportunity:</strong> Review ${{ '{:,.2f}'.format(kpis.non_moving_value) }} in stagnant inventory
+                        <strong>Cash Recovery Opportunity:</strong> Review ${{ '{:,.2f}'.format(kpis.slow_moving_value + kpis.non_moving_value) }} in aging inventory (90+ days)
                     </li>
                 </ul>
             </div>
