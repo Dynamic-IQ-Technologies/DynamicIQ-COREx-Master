@@ -1603,6 +1603,130 @@ def receive_service_po(id):
         return redirect(url_for('po_routes.view_purchaseorder', id=id))
 
 
+@po_bp.route('/purchaseorders/<int:id>/quick-receive-buyout', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Production Staff')
+def quick_receive_buyout(id):
+    """Quick Receive a Component Buyout Purchase Order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase order not found', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if po['po_type'] != 'Component Buyout':
+            flash('This is not a Component Buyout Purchase Order.', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Received':
+            flash('This Component Buyout PO has already been received', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['status'] == 'Cancelled':
+            flash('Cannot receive a cancelled purchase order', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        receipt_date = request.form.get('receipt_date') or datetime.now().strftime('%Y-%m-%d')
+        remarks = request.form.get('remarks', '')
+        
+        # Get all PO lines and update their received quantities
+        lines = conn.execute('''
+            SELECT id, quantity, unit_price FROM purchase_order_lines WHERE po_id = ?
+        ''', (id,)).fetchall()
+        
+        total_value = 0
+        for line in lines:
+            conn.execute('''
+                UPDATE purchase_order_lines
+                SET received_quantity = quantity
+                WHERE id = ?
+            ''', (line['id'],))
+            total_value += (line['quantity'] or 0) * (line['unit_price'] or 0)
+        
+        # Update PO status to Received
+        conn.execute('''
+            UPDATE purchase_orders
+            SET status = 'Received',
+                actual_delivery_date = ?
+            WHERE id = ?
+        ''', (receipt_date, id))
+        
+        # Generate A/P number
+        last_ap = conn.execute('''
+            SELECT invoice_number FROM vendor_invoices 
+            WHERE invoice_number LIKE 'AP-%'
+            ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_ap:
+            try:
+                last_ap_number = int(last_ap['invoice_number'].split('-')[1])
+                next_ap_number = last_ap_number + 1
+            except (ValueError, IndexError):
+                next_ap_number = 1
+        else:
+            next_ap_number = 1
+        
+        ap_number = f'AP-{next_ap_number:07d}'
+        
+        # Calculate due date (30 days payment terms)
+        from datetime import timedelta
+        receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
+        due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Create A/P record for the Component Buyout
+        conn.execute('''
+            INSERT INTO vendor_invoices 
+            (invoice_number, vendor_id, po_id, invoice_date, due_date, 
+             amount, tax_amount, total_amount, amount_paid, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            ap_number,
+            po['supplier_id'],
+            id,
+            receipt_date,
+            due_date,
+            total_value,
+            0,  # tax_amount
+            total_value,
+            0,  # amount_paid
+            'Pending Invoice'
+        ))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn, 'purchase_orders', id, 'RECEIVE', session.get('user_id'),
+            {
+                'po_number': str(po['po_number']),
+                'receipt_date': str(receipt_date),
+                'ap_number': str(ap_number),
+                'action': 'Component Buyout Quick Receive',
+                'total_value': float(total_value),
+                'remarks': str(remarks) if remarks else ''
+            }
+        )
+        
+        po_number = po['po_number']
+        conn.commit()
+        flash(f'Component Buyout {po_number} received successfully (A/P: {ap_number})', 'success')
+        conn.close()
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error receiving Component Buyout: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+
+
 @po_bp.route('/purchaseorders/<int:id>/cancel', methods=['POST'])
 @role_required('Admin', 'Procurement')
 def cancel_purchaseorder(id):
