@@ -564,7 +564,7 @@ def dashboard():
             sol.id as line_id,
             sol.line_number,
             sol.quantity,
-            p.uom as unit_of_measure,
+            p.unit_of_measure,
             sol.serial_number,
             sol.released_to_shipping_at,
             sol.allocation_status,
