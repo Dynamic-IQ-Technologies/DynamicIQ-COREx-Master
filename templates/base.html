@@ -1091,6 +1091,12 @@
         </div>
         <ul class="sidebar-nav collapsible-content" id="reports-content">
             <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link text-primary fw-bold" href="{{ url_for('report_routes.executive_inventory_dashboard') }}">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Executive Inventory Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
                 <div class="dropdown-submenu">
                     <a href="{{ url_for('report_routes.inventory_report') }}">
                         <i class="bi bi-file-earmark-bar-graph"></i>

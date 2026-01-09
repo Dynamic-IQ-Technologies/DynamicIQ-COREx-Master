@@ -1310,3 +1310,306 @@ def master_plan_report():
     return render_template('reports/master_plan.html',
                          report_data=report_data,
                          summary_stats=summary_stats)
+
+
+@report_bp.route('/reports/executive-inventory-dashboard')
+@login_required
+def executive_inventory_dashboard():
+    """Executive Inventory Dashboard - C-level inventory intelligence"""
+    from datetime import datetime, timedelta
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get filter parameters
+    product_category_filter = request.args.get('product_category', '')
+    part_category_filter = request.args.get('part_category', '')
+    warehouse_filter = request.args.get('warehouse', '')
+    status_filter = request.args.get('status', '')
+    
+    # === KPI CALCULATIONS ===
+    
+    # Total Inventory Value
+    total_value_query = '''
+        SELECT 
+            COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total_value,
+            COALESCE(SUM(i.quantity), 0) as total_quantity,
+            COUNT(DISTINCT i.id) as total_items
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+    '''
+    totals = conn.execute(total_value_query).fetchone()
+    total_inventory_value = totals['total_value'] or 0
+    total_on_hand_qty = totals['total_quantity'] or 0
+    total_items = totals['total_items'] or 0
+    
+    # Average Inventory Cost
+    avg_cost = total_inventory_value / total_items if total_items > 0 else 0
+    
+    # Inventory by Product Category
+    category_breakdown = conn.execute('''
+        SELECT 
+            COALESCE(p.product_category, 'Uncategorized') as category,
+            SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_value,
+            SUM(i.quantity) as total_qty,
+            COUNT(DISTINCT i.id) as item_count
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+        GROUP BY p.product_category
+        ORDER BY total_value DESC
+    ''').fetchall()
+    
+    # Inventory by Part Category (Sub-Category)
+    part_category_breakdown = conn.execute('''
+        SELECT 
+            COALESCE(p.part_category, 'Other') as part_category,
+            COALESCE(p.product_category, 'Uncategorized') as product_category,
+            SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_value,
+            SUM(i.quantity) as total_qty,
+            COUNT(DISTINCT i.id) as item_count
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+        GROUP BY p.part_category, p.product_category
+        ORDER BY total_value DESC
+    ''').fetchall()
+    
+    # === AGING ANALYSIS ===
+    # Using last_updated as proxy for last movement
+    today = datetime.now().date()
+    
+    aging_buckets = conn.execute('''
+        SELECT 
+            CASE 
+                WHEN julianday('now') - julianday(i.last_updated) <= 30 THEN '0-30 Days'
+                WHEN julianday('now') - julianday(i.last_updated) <= 60 THEN '31-60 Days'
+                WHEN julianday('now') - julianday(i.last_updated) <= 90 THEN '61-90 Days'
+                WHEN julianday('now') - julianday(i.last_updated) <= 180 THEN '91-180 Days'
+                ELSE '180+ Days'
+            END as aging_bucket,
+            SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as bucket_value,
+            SUM(i.quantity) as bucket_qty,
+            COUNT(DISTINCT i.id) as item_count
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+        GROUP BY aging_bucket
+        ORDER BY 
+            CASE aging_bucket
+                WHEN '0-30 Days' THEN 1
+                WHEN '31-60 Days' THEN 2
+                WHEN '61-90 Days' THEN 3
+                WHEN '91-180 Days' THEN 4
+                ELSE 5
+            END
+    ''').fetchall()
+    
+    # Calculate slow-moving and non-moving inventory
+    slow_moving = conn.execute('''
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as value
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+          AND julianday('now') - julianday(i.last_updated) > 90
+          AND julianday('now') - julianday(i.last_updated) <= 180
+    ''').fetchone()
+    slow_moving_value = slow_moving['value'] or 0
+    
+    non_moving = conn.execute('''
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as value
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+          AND julianday('now') - julianday(i.last_updated) > 180
+    ''').fetchone()
+    non_moving_value = non_moving['value'] or 0
+    
+    # === USAGE ANALYTICS ===
+    # Get material issues from last 90 days
+    usage_90d = conn.execute('''
+        SELECT COALESCE(SUM(mi.quantity_issued * COALESCE(p.cost, 0)), 0) as usage_value,
+               COALESCE(SUM(mi.quantity_issued), 0) as usage_qty
+        FROM material_issues mi
+        JOIN products p ON mi.product_id = p.id
+        WHERE mi.issue_date >= date('now', '-90 days')
+    ''').fetchone()
+    usage_value_90d = usage_90d['usage_value'] or 0
+    
+    # Inventory Turnover Ratio (annualized)
+    annual_usage = (usage_value_90d / 90) * 365 if usage_value_90d > 0 else 0
+    turnover_ratio = annual_usage / total_inventory_value if total_inventory_value > 0 else 0
+    
+    # Days Inventory on Hand
+    dio = 365 / turnover_ratio if turnover_ratio > 0 else 999
+    
+    # Top 10 Most Used Parts (last 90 days)
+    top_used = conn.execute('''
+        SELECT p.code, p.name, p.product_category, p.part_category,
+               SUM(mi.quantity_issued) as total_issued,
+               SUM(mi.quantity_issued * COALESCE(p.cost, 0)) as total_value
+        FROM material_issues mi
+        JOIN products p ON mi.product_id = p.id
+        WHERE mi.issue_date >= date('now', '-90 days')
+        GROUP BY p.id
+        ORDER BY total_issued DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    # Bottom 10 Least Used (with inventory)
+    least_used = conn.execute('''
+        SELECT p.code, p.name, p.product_category, p.part_category,
+               i.quantity as on_hand,
+               i.quantity * COALESCE(i.unit_cost, p.cost, 0) as inventory_value,
+               COALESCE(mi.total_issued, 0) as total_issued,
+               julianday('now') - julianday(i.last_updated) as days_since_movement
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        LEFT JOIN (
+            SELECT product_id, SUM(quantity_issued) as total_issued
+            FROM material_issues
+            WHERE issue_date >= date('now', '-90 days')
+            GROUP BY product_id
+        ) mi ON p.id = mi.product_id
+        WHERE i.quantity > 0
+        ORDER BY COALESCE(mi.total_issued, 0) ASC, days_since_movement DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    # === RISK INDICATORS ===
+    # Excess inventory (more than 180 days supply based on usage)
+    excess_inventory = conn.execute('''
+        SELECT 
+            p.code, p.name, p.product_category,
+            i.quantity as on_hand,
+            i.quantity * COALESCE(i.unit_cost, p.cost, 0) as inventory_value,
+            COALESCE(mi.avg_daily_usage, 0) as avg_daily_usage,
+            CASE 
+                WHEN COALESCE(mi.avg_daily_usage, 0) = 0 THEN 999
+                ELSE i.quantity / mi.avg_daily_usage
+            END as days_of_supply
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        LEFT JOIN (
+            SELECT product_id, SUM(quantity_issued) / 90.0 as avg_daily_usage
+            FROM material_issues
+            WHERE issue_date >= date('now', '-90 days')
+            GROUP BY product_id
+        ) mi ON p.id = mi.product_id
+        WHERE i.quantity > 0
+        ORDER BY days_of_supply DESC
+        LIMIT 15
+    ''').fetchall()
+    
+    # Obsolescence risk (high value items with no movement > 180 days)
+    obsolescence_risk = conn.execute('''
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as at_risk_value,
+               COUNT(DISTINCT i.id) as at_risk_items
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+          AND julianday('now') - julianday(i.last_updated) > 180
+    ''').fetchone()
+    
+    # Get unique filter options
+    product_categories = conn.execute('''
+        SELECT DISTINCT COALESCE(product_category, 'Uncategorized') as category 
+        FROM products WHERE product_category IS NOT NULL ORDER BY category
+    ''').fetchall()
+    
+    part_categories = conn.execute('''
+        SELECT DISTINCT COALESCE(part_category, 'Other') as category 
+        FROM products ORDER BY category
+    ''').fetchall()
+    
+    warehouses = conn.execute('''
+        SELECT DISTINCT warehouse_location 
+        FROM inventory 
+        WHERE warehouse_location IS NOT NULL AND warehouse_location != ''
+        ORDER BY warehouse_location
+    ''').fetchall()
+    
+    # Detailed inventory list for drill-down
+    inventory_details = conn.execute('''
+        SELECT 
+            p.code, p.name, p.product_category, p.part_category, p.unit_of_measure,
+            i.quantity, i.warehouse_location, i.bin_location,
+            COALESCE(i.unit_cost, p.cost, 0) as unit_cost,
+            i.quantity * COALESCE(i.unit_cost, p.cost, 0) as extended_value,
+            i.last_updated,
+            julianday('now') - julianday(i.last_updated) as days_since_movement
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
+        ORDER BY extended_value DESC
+        LIMIT 100
+    ''').fetchall()
+    
+    conn.close()
+    
+    # Calculate percentages for aging buckets
+    aging_with_pct = []
+    risk_mapping = {
+        '0-30 Days': 'Low',
+        '31-60 Days': 'Low', 
+        '61-90 Days': 'Medium',
+        '91-180 Days': 'Medium',
+        '180+ Days': 'High'
+    }
+    for bucket in aging_buckets:
+        pct = (bucket['bucket_value'] / total_inventory_value * 100) if total_inventory_value > 0 else 0
+        risk = risk_mapping.get(bucket['aging_bucket'], 'Medium')
+        aging_with_pct.append({
+            'bucket': bucket['aging_bucket'],
+            'value': bucket['bucket_value'] or 0,
+            'qty': bucket['bucket_qty'] or 0,
+            'items': bucket['item_count'] or 0,
+            'pct': round(pct, 1),
+            'risk': risk
+        })
+    
+    # Category with percentages
+    categories_with_pct = []
+    for cat in category_breakdown:
+        pct = (cat['total_value'] / total_inventory_value * 100) if total_inventory_value > 0 else 0
+        categories_with_pct.append({
+            'category': cat['category'],
+            'value': cat['total_value'] or 0,
+            'qty': cat['total_qty'] or 0,
+            'items': cat['item_count'] or 0,
+            'pct': round(pct, 1)
+        })
+    
+    kpis = {
+        'total_inventory_value': total_inventory_value,
+        'total_on_hand_qty': total_on_hand_qty,
+        'total_items': total_items,
+        'avg_cost': avg_cost,
+        'slow_moving_value': slow_moving_value,
+        'non_moving_value': non_moving_value,
+        'turnover_ratio': round(turnover_ratio, 2),
+        'dio': round(dio, 0) if dio < 999 else 'N/A',
+        'usage_90d': usage_value_90d,
+        'obsolescence_risk_value': obsolescence_risk['at_risk_value'] or 0,
+        'obsolescence_risk_items': obsolescence_risk['at_risk_items'] or 0
+    }
+    
+    return render_template('reports/executive_inventory_dashboard.html',
+                         kpis=kpis,
+                         categories=categories_with_pct,
+                         part_categories=part_category_breakdown,
+                         aging_buckets=aging_with_pct,
+                         top_used=top_used,
+                         least_used=least_used,
+                         excess_inventory=excess_inventory,
+                         inventory_details=inventory_details,
+                         filter_product_categories=product_categories,
+                         filter_part_categories=part_categories,
+                         filter_warehouses=warehouses,
+                         selected_filters={
+                             'product_category': product_category_filter,
+                             'part_category': part_category_filter,
+                             'warehouse': warehouse_filter,
+                             'status': status_filter
+                         })

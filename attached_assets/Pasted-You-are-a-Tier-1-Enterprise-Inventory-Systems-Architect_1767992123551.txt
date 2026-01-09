@@ -1,0 +1,242 @@
+You are a Tier-1 Enterprise Inventory Systems Architect and Data Analytics Engineer working inside an existing production inventory management application.
+
+Objective:
+Add a new report type in the Reports section called:
+
+“Executive Inventory Dashboard”
+
+This dashboard must provide C-level inventory intelligence focused on valuation, usage, exposure, and operational risk, with drill-downs by Product Category → Part Category (Sub-Category).
+
+1️⃣ REPORT TYPE SETUP
+Report Name
+
+Executive Inventory Dashboard
+
+Access Level
+
+Executive
+
+CFO
+
+COO
+
+Inventory Director
+
+Data Refresh
+
+Real-time (or configurable daily snapshot)
+
+2️⃣ CORE DASHBOARD SECTIONS (EXECUTIVE VIEW)
+A. Inventory Valuation Summary (Top KPIs)
+
+Display at the top as executive KPI cards:
+
+Total Inventory Value ($)
+
+Inventory Value by Product Category
+
+Inventory Value by Part Category (Sub-Category)
+
+Average Inventory Cost
+
+Total On-Hand Quantity
+
+Value of Slow-Moving Inventory
+
+Value of Non-Moving / Obsolete Inventory
+
+Inventory Turnover Ratio
+
+Days Inventory on Hand (DIO)
+
+B. Inventory Valuation Breakdown (Hierarchical)
+
+Use a drill-down structure:
+
+Level 1: Product Category
+Level 2: Part Category (Sub-Category)
+
+For each node display:
+
+Total On-Hand Quantity
+
+Average Unit Cost
+
+Extended Inventory Value
+
+% of Total Inventory Value
+
+Usage Rate (last 30 / 60 / 90 days)
+
+Turnover Rate
+
+Aging Bucket Exposure
+
+C. Usage & Movement Analytics
+
+Provide executive-level insights:
+
+Inventory Usage Trend (30 / 60 / 90 days)
+
+Fast-Moving vs Slow-Moving Items
+
+Consumption Velocity by Category
+
+Top 10 Most Used Parts
+
+Bottom 10 Least Used Parts
+
+D. Inventory Aging & Risk Exposure
+
+Break inventory into aging buckets:
+
+0–30 Days
+
+31–60 Days
+
+61–90 Days
+
+90–180 Days
+
+180+ Days
+
+For each bucket show:
+
+Total Value
+
+% of Total Inventory
+
+Product Category exposure
+
+Financial risk flag (High / Medium / Low)
+
+E. Financial & Operational Risk Indicators
+
+Auto-calculate and highlight:
+
+Excess Inventory Risk
+
+Overstock vs Demand Gap
+
+Capital Tied in Inventory
+
+Obsolescence Risk by Category
+
+Inventory Write-Down Exposure
+
+Use visual indicators (green / yellow / red).
+
+3️⃣ FILTERS & CONTROLS
+
+Global dashboard filters:
+
+Product Category
+
+Part Category
+
+Location / Warehouse
+
+Inventory Status (Active / Slow / Obsolete)
+
+Date Range
+
+Supplier (optional)
+
+Program / Customer (optional)
+
+Filters must dynamically refresh all charts and KPIs.
+
+4️⃣ VISUALIZATION REQUIREMENTS
+
+Include the following visual components:
+
+KPI Summary Cards
+
+Stacked Bar Chart (Inventory Value by Category)
+
+Tree Map (Category → Sub-Category Valuation)
+
+Line Chart (Usage Over Time)
+
+Heat Map (Aging vs Category)
+
+Table View (Exportable)
+
+5️⃣ DATA MODEL & CALCULATIONS
+Required Fields (minimum):
+
+Product Category
+
+Part Category
+
+Part Number
+
+On-Hand Quantity
+
+Unit Cost
+
+Extended Value (Qty × Cost)
+
+Last Used Date
+
+Usage Quantity (time-based)
+
+Receipt Date
+
+Inventory Status
+
+Key Calculations:
+
+Inventory Value = Quantity × Unit Cost
+
+Turnover = Annual Usage / Avg Inventory
+
+DIO = 365 / Turnover
+
+Aging = Today – Last Movement Date
+
+6️⃣ EXPORT & EXECUTIVE SHARING
+
+Enable:
+
+Export to PDF (Executive Summary)
+
+Export to Excel (Detailed Data)
+
+Snapshot Email (Scheduled Report)
+
+Board-Ready View Mode (Minimal UI)
+
+7️⃣ SECURITY & PERFORMANCE
+
+Read-only for executives
+
+Cached aggregates for performance
+
+Role-based access control
+
+Audit log for report access
+
+8️⃣ SUCCESS CRITERIA
+
+This dashboard should allow an executive to answer instantly:
+
+Where is our money tied up?
+
+Which categories drive the most value and risk?
+
+What inventory is not moving?
+
+How efficient is our inventory usage?
+
+Where can we free cash immediately?
+
+OPTIONAL ENHANCEMENTS (FUTURE-READY)
+
+AI-generated insights (“What changed since last month?”)
+
+Predictive excess inventory alerts
+
+Recommended stock reductions
+
+CFO-level cash recovery scenarios
