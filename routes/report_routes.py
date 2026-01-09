@@ -1317,9 +1317,19 @@ def master_plan_report():
 def executive_inventory_dashboard():
     """Executive Inventory Dashboard - C-level inventory intelligence"""
     from datetime import datetime, timedelta
+    import os
     
     db = Database()
     conn = db.get_connection()
+    
+    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL')
+    
+    if is_postgres:
+        date_90_days_ago = "(CURRENT_DATE - INTERVAL '90 days')"
+        days_since_update = "EXTRACT(DAY FROM (CURRENT_TIMESTAMP - i.last_updated::timestamp))"
+    else:
+        date_90_days_ago = "date('now', '-90 days')"
+        days_since_update = "julianday('now') - julianday(i.last_updated)"
     
     # Get filter parameters
     product_category_filter = request.args.get('product_category', '')
@@ -1380,13 +1390,13 @@ def executive_inventory_dashboard():
     # Using last_updated as proxy for last movement
     today = datetime.now().date()
     
-    aging_buckets = conn.execute('''
+    aging_query = f'''
         SELECT 
             CASE 
-                WHEN julianday('now') - julianday(i.last_updated) <= 30 THEN '0-30 Days'
-                WHEN julianday('now') - julianday(i.last_updated) <= 60 THEN '31-60 Days'
-                WHEN julianday('now') - julianday(i.last_updated) <= 90 THEN '61-90 Days'
-                WHEN julianday('now') - julianday(i.last_updated) <= 180 THEN '91-180 Days'
+                WHEN {days_since_update} <= 30 THEN '0-30 Days'
+                WHEN {days_since_update} <= 60 THEN '31-60 Days'
+                WHEN {days_since_update} <= 90 THEN '61-90 Days'
+                WHEN {days_since_update} <= 180 THEN '91-180 Days'
                 ELSE '180+ Days'
             END as aging_bucket,
             SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as bucket_value,
@@ -1397,44 +1407,48 @@ def executive_inventory_dashboard():
         WHERE i.quantity > 0
         GROUP BY aging_bucket
         ORDER BY 
-            CASE aging_bucket
-                WHEN '0-30 Days' THEN 1
-                WHEN '31-60 Days' THEN 2
-                WHEN '61-90 Days' THEN 3
-                WHEN '91-180 Days' THEN 4
+            CASE 
+                WHEN {days_since_update} <= 30 THEN 1
+                WHEN {days_since_update} <= 60 THEN 2
+                WHEN {days_since_update} <= 90 THEN 3
+                WHEN {days_since_update} <= 180 THEN 4
                 ELSE 5
             END
-    ''').fetchall()
+    '''
+    aging_buckets = conn.execute(aging_query).fetchall()
     
     # Calculate slow-moving and non-moving inventory
-    slow_moving = conn.execute('''
+    slow_moving_query = f'''
         SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0
-          AND julianday('now') - julianday(i.last_updated) > 90
-          AND julianday('now') - julianday(i.last_updated) <= 180
-    ''').fetchone()
+          AND {days_since_update} > 90
+          AND {days_since_update} <= 180
+    '''
+    slow_moving = conn.execute(slow_moving_query).fetchone()
     slow_moving_value = slow_moving['value'] or 0
     
-    non_moving = conn.execute('''
+    non_moving_query = f'''
         SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0
-          AND julianday('now') - julianday(i.last_updated) > 180
-    ''').fetchone()
+          AND {days_since_update} > 180
+    '''
+    non_moving = conn.execute(non_moving_query).fetchone()
     non_moving_value = non_moving['value'] or 0
     
     # === USAGE ANALYTICS ===
     # Get material issues from last 90 days
-    usage_90d = conn.execute('''
+    usage_query = f'''
         SELECT COALESCE(SUM(mi.quantity_issued * COALESCE(p.cost, 0)), 0) as usage_value,
                COALESCE(SUM(mi.quantity_issued), 0) as usage_qty
         FROM material_issues mi
         JOIN products p ON mi.product_id = p.id
-        WHERE mi.issue_date >= date('now', '-90 days')
-    ''').fetchone()
+        WHERE mi.issue_date >= {date_90_days_ago}
+    '''
+    usage_90d = conn.execute(usage_query).fetchone()
     usage_value_90d = usage_90d['usage_value'] or 0
     
     # Inventory Turnover Ratio (annualized)
@@ -1445,41 +1459,43 @@ def executive_inventory_dashboard():
     dio = 365 / turnover_ratio if turnover_ratio > 0 else 999
     
     # Top 10 Most Used Parts (last 90 days)
-    top_used = conn.execute('''
+    top_used_query = f'''
         SELECT p.code, p.name, p.product_category, p.part_category,
                SUM(mi.quantity_issued) as total_issued,
                SUM(mi.quantity_issued * COALESCE(p.cost, 0)) as total_value
         FROM material_issues mi
         JOIN products p ON mi.product_id = p.id
-        WHERE mi.issue_date >= date('now', '-90 days')
-        GROUP BY p.id
+        WHERE mi.issue_date >= {date_90_days_ago}
+        GROUP BY p.id, p.code, p.name, p.product_category, p.part_category
         ORDER BY total_issued DESC
         LIMIT 10
-    ''').fetchall()
+    '''
+    top_used = conn.execute(top_used_query).fetchall()
     
     # Bottom 10 Least Used (with inventory)
-    least_used = conn.execute('''
+    least_used_query = f'''
         SELECT p.code, p.name, p.product_category, p.part_category,
                i.quantity as on_hand,
                i.quantity * COALESCE(i.unit_cost, p.cost, 0) as inventory_value,
                COALESCE(mi.total_issued, 0) as total_issued,
-               julianday('now') - julianday(i.last_updated) as days_since_movement
+               {days_since_update} as days_since_movement
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         LEFT JOIN (
             SELECT product_id, SUM(quantity_issued) as total_issued
             FROM material_issues
-            WHERE issue_date >= date('now', '-90 days')
+            WHERE issue_date >= {date_90_days_ago}
             GROUP BY product_id
         ) mi ON p.id = mi.product_id
         WHERE i.quantity > 0
-        ORDER BY COALESCE(mi.total_issued, 0) ASC, days_since_movement DESC
+        ORDER BY COALESCE(mi.total_issued, 0) ASC, {days_since_update} DESC
         LIMIT 10
-    ''').fetchall()
+    '''
+    least_used = conn.execute(least_used_query).fetchall()
     
     # === RISK INDICATORS ===
     # Excess inventory (more than 180 days supply based on usage)
-    excess_inventory = conn.execute('''
+    excess_query = f'''
         SELECT 
             p.code, p.name, p.product_category,
             i.quantity as on_hand,
@@ -1494,23 +1510,25 @@ def executive_inventory_dashboard():
         LEFT JOIN (
             SELECT product_id, SUM(quantity_issued) / 90.0 as avg_daily_usage
             FROM material_issues
-            WHERE issue_date >= date('now', '-90 days')
+            WHERE issue_date >= {date_90_days_ago}
             GROUP BY product_id
         ) mi ON p.id = mi.product_id
         WHERE i.quantity > 0
         ORDER BY days_of_supply DESC
         LIMIT 15
-    ''').fetchall()
+    '''
+    excess_inventory = conn.execute(excess_query).fetchall()
     
     # Obsolescence risk (high value items with no movement > 180 days)
-    obsolescence_risk = conn.execute('''
+    obsolescence_query = f'''
         SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as at_risk_value,
                COUNT(DISTINCT i.id) as at_risk_items
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0
-          AND julianday('now') - julianday(i.last_updated) > 180
-    ''').fetchone()
+          AND {days_since_update} > 180
+    '''
+    obsolescence_risk = conn.execute(obsolescence_query).fetchone()
     
     # Get unique filter options
     product_categories = conn.execute('''
@@ -1531,20 +1549,21 @@ def executive_inventory_dashboard():
     ''').fetchall()
     
     # Detailed inventory list for drill-down
-    inventory_details = conn.execute('''
+    inventory_details_query = f'''
         SELECT 
             p.code, p.name, p.product_category, p.part_category, p.unit_of_measure,
             i.quantity, i.warehouse_location, i.bin_location,
             COALESCE(i.unit_cost, p.cost, 0) as unit_cost,
             i.quantity * COALESCE(i.unit_cost, p.cost, 0) as extended_value,
             i.last_updated,
-            julianday('now') - julianday(i.last_updated) as days_since_movement
+            {days_since_update} as days_since_movement
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0
         ORDER BY extended_value DESC
         LIMIT 100
-    ''').fetchall()
+    '''
+    inventory_details = conn.execute(inventory_details_query).fetchall()
     
     conn.close()
     
