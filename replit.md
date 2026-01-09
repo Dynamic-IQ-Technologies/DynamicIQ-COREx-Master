@@ -57,6 +57,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Executive Procurement Dashboard**: Supply chain strategic intelligence dashboard for procurement operations with KPIs and AI Copilot.
 -   **Leads Management System**: CRM-grade lead capture, evaluation, and conversion module with AI-powered sales engagement.
 -   **Component Buyout Workflow**: Integrated workflow to create Component Buyout Purchase Orders directly from Work Orders.
+-   **Core Due Days Tracking for Exchange Orders**: Automatic calculation of Expected Core Return Date based on Order Date + Core Due Days. Core Due Days field is required for Exchange Sales Orders (0-365 days). Expected Core Return Date is read-only and auto-calculated in real-time. Changes to Core Due Days are logged in the audit trail. Visible on create, edit, and view pages for Exchange type orders only.
 
 ## External Dependencies
 

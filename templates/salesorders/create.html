@@ -67,11 +67,18 @@
                             <small class="text-muted">Number of days the customer has to return the core unit.</small>
                         </div>
                     </div>
-                    <div class="col-md-3" id="return_date_section" style="display: none;">
+                    <div class="col-md-3" id="exchange_return_date_section" style="display: none;">
                         <div class="mb-3">
                             <label class="form-label">Expected Core Return Date <i class="bi bi-lock text-muted" title="Calculated automatically based on Order Date + Core Due Days"></i></label>
-                            <input type="date" class="form-control bg-light" name="expected_return_date" id="expected_return_date" readonly>
+                            <input type="date" class="form-control bg-light" id="expected_return_date_display" readonly>
+                            <input type="hidden" name="expected_return_date" id="expected_return_date">
                             <small class="text-muted">Auto-calculated from Order Date + Core Due Days</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3" id="repair_return_date_section" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Expected Return Date</label>
+                            <input type="date" class="form-control" name="expected_return_date" id="repair_expected_return_date">
                         </div>
                     </div>
                 </div>
@@ -102,30 +109,37 @@
 <script>
 document.getElementById('sales_type').addEventListener('change', function() {
     const type = this.value;
-    const returnDateSection = document.getElementById('return_date_section');
     const serviceNotesSection = document.getElementById('service_notes_section');
     const exchangeTypeSection = document.getElementById('exchange_type_section');
     const coreDueDaysSection = document.getElementById('core_due_days_section');
+    const exchangeReturnDateSection = document.getElementById('exchange_return_date_section');
+    const repairReturnDateSection = document.getElementById('repair_return_date_section');
     const coreDueDaysInput = document.getElementById('core_due_days');
     
-    if (type === 'Exchange' || type === 'Managed Repair') {
-        returnDateSection.style.display = 'block';
-        serviceNotesSection.style.display = 'block';
-    } else {
-        returnDateSection.style.display = 'none';
-        serviceNotesSection.style.display = 'none';
-    }
+    // Hide all conditional sections first
+    coreDueDaysSection.style.display = 'none';
+    exchangeReturnDateSection.style.display = 'none';
+    repairReturnDateSection.style.display = 'none';
+    serviceNotesSection.style.display = 'none';
+    exchangeTypeSection.style.display = 'none';
+    coreDueDaysInput.required = false;
     
     if (type === 'Exchange') {
         exchangeTypeSection.style.display = 'flex';
         coreDueDaysSection.style.display = 'block';
+        exchangeReturnDateSection.style.display = 'block';
+        serviceNotesSection.style.display = 'block';
         coreDueDaysInput.required = true;
-    } else {
-        exchangeTypeSection.style.display = 'none';
-        coreDueDaysSection.style.display = 'none';
-        coreDueDaysInput.required = false;
+    } else if (type === 'Managed Repair') {
+        repairReturnDateSection.style.display = 'block';
+        serviceNotesSection.style.display = 'block';
+    }
+    
+    // Clear Exchange-specific fields when switching away
+    if (type !== 'Exchange') {
         coreDueDaysInput.value = '';
         document.getElementById('expected_return_date').value = '';
+        document.getElementById('expected_return_date_display').value = '';
     }
 });
 
@@ -133,10 +147,12 @@ function calculateExpectedReturnDate() {
     const orderDateInput = document.getElementById('order_date');
     const coreDueDaysInput = document.getElementById('core_due_days');
     const expectedReturnDateInput = document.getElementById('expected_return_date');
+    const expectedReturnDateDisplay = document.getElementById('expected_return_date_display');
     const salesType = document.getElementById('sales_type').value;
     
     if (salesType !== 'Exchange') {
         expectedReturnDateInput.value = '';
+        expectedReturnDateDisplay.value = '';
         return;
     }
     
@@ -146,9 +162,12 @@ function calculateExpectedReturnDate() {
     if (orderDate && !isNaN(coreDueDays) && coreDueDays >= 0) {
         const date = new Date(orderDate);
         date.setDate(date.getDate() + coreDueDays);
-        expectedReturnDateInput.value = date.toISOString().split('T')[0];
+        const calculatedDate = date.toISOString().split('T')[0];
+        expectedReturnDateInput.value = calculatedDate;
+        expectedReturnDateDisplay.value = calculatedDate;
     } else {
         expectedReturnDateInput.value = '';
+        expectedReturnDateDisplay.value = '';
     }
 }
 

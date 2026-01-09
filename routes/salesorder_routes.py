@@ -117,16 +117,22 @@ def create_sales_order():
             expected_return_date = None
             if sales_type == 'Exchange':
                 core_due_days_str = request.form.get('core_due_days', '').strip()
-                if core_due_days_str:
-                    core_due_days = int(core_due_days_str)
-                    if core_due_days < 0 or core_due_days > 365:
-                        flash('Core Due Days must be between 0 and 365.', 'danger')
-                        conn.close()
-                        return redirect(url_for('salesorder_routes.create_sales_order'))
-                    # Auto-calculate expected return date
-                    order_dt = datetime.strptime(order_date, '%Y-%m-%d')
-                    expected_return_dt = order_dt + timedelta(days=core_due_days)
-                    expected_return_date = expected_return_dt.strftime('%Y-%m-%d')
+                if not core_due_days_str:
+                    flash('Core Due Days is required for Exchange orders.', 'danger')
+                    conn.close()
+                    return redirect(url_for('salesorder_routes.create_sales_order'))
+                core_due_days = int(core_due_days_str)
+                if core_due_days < 0 or core_due_days > 365:
+                    flash('Core Due Days must be between 0 and 365.', 'danger')
+                    conn.close()
+                    return redirect(url_for('salesorder_routes.create_sales_order'))
+                # Auto-calculate expected return date
+                order_dt = datetime.strptime(order_date, '%Y-%m-%d')
+                expected_return_dt = order_dt + timedelta(days=core_due_days)
+                expected_return_date = expected_return_dt.strftime('%Y-%m-%d')
+            elif sales_type == 'Managed Repair':
+                # Managed Repair orders use manual expected_return_date
+                expected_return_date = request.form.get('expected_return_date') or None
             
             # Get exchange_type if Exchange type order
             exchange_type = request.form.get('exchange_type') if sales_type == 'Exchange' else None
@@ -273,6 +279,9 @@ def edit_sales_order(id):
                     order_dt = datetime.strptime(order_date, '%Y-%m-%d')
                     expected_return_dt = order_dt + timedelta(days=core_due_days)
                     expected_return_date = expected_return_dt.strftime('%Y-%m-%d')
+            elif current_so['sales_type'] == 'Managed Repair':
+                # Managed Repair orders use manual expected_return_date
+                expected_return_date = request.form.get('expected_return_date') or None
             
             conn.execute('''
                 UPDATE sales_orders SET
