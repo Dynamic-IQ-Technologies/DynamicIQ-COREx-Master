@@ -1326,9 +1326,11 @@ def executive_inventory_dashboard():
     
     if is_postgres:
         date_90_days_ago = "(CURRENT_DATE - INTERVAL '90 days')"
+        issue_date_compare = "mi.issue_date::date"
         days_since_update = "EXTRACT(DAY FROM (CURRENT_TIMESTAMP - i.last_updated::timestamp))"
     else:
         date_90_days_ago = "date('now', '-90 days')"
+        issue_date_compare = "mi.issue_date"
         days_since_update = "julianday('now') - julianday(i.last_updated)"
     
     # Get filter parameters
@@ -1446,7 +1448,7 @@ def executive_inventory_dashboard():
                COALESCE(SUM(mi.quantity_issued), 0) as usage_qty
         FROM material_issues mi
         JOIN products p ON mi.product_id = p.id
-        WHERE mi.issue_date >= {date_90_days_ago}
+        WHERE {issue_date_compare} >= {date_90_days_ago}
     '''
     usage_90d = conn.execute(usage_query).fetchone()
     usage_value_90d = usage_90d['usage_value'] or 0
@@ -1465,7 +1467,7 @@ def executive_inventory_dashboard():
                SUM(mi.quantity_issued * COALESCE(p.cost, 0)) as total_value
         FROM material_issues mi
         JOIN products p ON mi.product_id = p.id
-        WHERE mi.issue_date >= {date_90_days_ago}
+        WHERE {issue_date_compare} >= {date_90_days_ago}
         GROUP BY p.id, p.code, p.name, p.product_category, p.part_category
         ORDER BY total_issued DESC
         LIMIT 10
@@ -1473,6 +1475,11 @@ def executive_inventory_dashboard():
     top_used = conn.execute(top_used_query).fetchall()
     
     # Bottom 10 Least Used (with inventory)
+    if is_postgres:
+        subquery_issue_date = "issue_date::date"
+    else:
+        subquery_issue_date = "issue_date"
+    
     least_used_query = f'''
         SELECT p.code, p.name, p.product_category, p.part_category,
                i.quantity as on_hand,
@@ -1484,7 +1491,7 @@ def executive_inventory_dashboard():
         LEFT JOIN (
             SELECT product_id, SUM(quantity_issued) as total_issued
             FROM material_issues
-            WHERE issue_date >= {date_90_days_ago}
+            WHERE {subquery_issue_date} >= {date_90_days_ago}
             GROUP BY product_id
         ) mi ON p.id = mi.product_id
         WHERE i.quantity > 0
@@ -1510,7 +1517,7 @@ def executive_inventory_dashboard():
         LEFT JOIN (
             SELECT product_id, SUM(quantity_issued) / 90.0 as avg_daily_usage
             FROM material_issues
-            WHERE issue_date >= {date_90_days_ago}
+            WHERE {subquery_issue_date} >= {date_90_days_ago}
             GROUP BY product_id
         ) mi ON p.id = mi.product_id
         WHERE i.quantity > 0
