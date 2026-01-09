@@ -1317,12 +1317,11 @@ def master_plan_report():
 def executive_inventory_dashboard():
     """Executive Inventory Dashboard - C-level inventory intelligence"""
     from datetime import datetime, timedelta
-    import os
     
     db = Database()
     conn = db.get_connection()
     
-    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL')
+    is_postgres = db.use_postgres
     
     if is_postgres:
         date_90_days_ago = "(CURRENT_DATE - INTERVAL '90 days')"
@@ -1646,12 +1645,11 @@ def executive_inventory_dashboard():
 def organizational_scorecard():
     """Organizational Scorecard - Executive view of financial, operational, and inventory health"""
     from datetime import datetime, timedelta
-    import os
     
     db = Database()
     conn = db.get_connection()
     
-    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL')
+    is_postgres = db.use_postgres
     
     if is_postgres:
         week_start = "(CURRENT_DATE - INTERVAL '7 days')"
