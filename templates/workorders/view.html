@@ -2475,7 +2475,7 @@ function validateReconcileForm() {
             <div class="modal-body">
                 <div class="alert alert-info mb-3">
                     <i class="bi bi-info-circle me-2"></i>
-                    This action will create a Purchase Order for component buyout.
+                    This action will create a Purchase Order for component buyout. The supplier will be set to the work order's customer.
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Work Order</label>
@@ -2492,21 +2492,20 @@ function validateReconcileForm() {
                 </div>
                 {% endif %}
                 <div class="mb-3">
-                    <label for="buyoutSource" class="form-label fw-semibold">Supplier or Customer (Optional)</label>
-                    <select class="form-select" id="buyoutSource">
-                        <option value="">-- Select Source or use default --</option>
-                        <optgroup label="Suppliers">
-                            {% for supplier in suppliers %}
-                            <option value="supplier:{{ supplier.id }}">{{ supplier.code }} - {{ supplier.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        <optgroup label="Customers">
-                            {% for customer in buyout_customers %}
-                            <option value="customer:{{ customer.id }}">{{ customer.customer_number }} - {{ customer.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                    </select>
-                    <div class="form-text">Select the supplier or customer for buyout. Leave blank to use the default supplier.</div>
+                    <label class="form-label fw-semibold">Supplier (From Customer)</label>
+                    {% if workorder.customer_id %}
+                    <div class="form-control-plaintext">
+                        <span class="badge bg-success me-1"><i class="bi bi-check-circle"></i></span>
+                        {{ workorder.customer_number }} - {{ workorder.customer_full_name }}
+                    </div>
+                    <div class="form-text text-muted">The work order's customer will be set as the supplier on the buyout PO.</div>
+                    {% else %}
+                    <div class="form-control-plaintext text-danger">
+                        <span class="badge bg-danger me-1"><i class="bi bi-x-circle"></i></span>
+                        No customer assigned to this work order
+                    </div>
+                    <div class="form-text text-danger">Please assign a customer to the work order before creating a Component Buyout.</div>
+                    {% endif %}
                 </div>
             </div>
             <div class="modal-footer">
@@ -2521,25 +2520,14 @@ function validateReconcileForm() {
 
 <script>
 function createComponentBuyout() {
-    const sourceValue = document.getElementById('buyoutSource').value;
     const modal = bootstrap.Modal.getInstance(document.getElementById('componentBuyoutModal'));
-    
-    let payload = {};
-    if (sourceValue) {
-        const [sourceType, sourceId] = sourceValue.split(':');
-        if (sourceType === 'supplier') {
-            payload.supplier_id = parseInt(sourceId, 10);
-        } else if (sourceType === 'customer') {
-            payload.customer_id = parseInt(sourceId, 10);
-        }
-    }
     
     fetch('/api/workorders/{{ workorder.id }}/component-buyout', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({})
     })
     .then(response => response.json())
     .then(data => {
