@@ -84,6 +84,9 @@ class Database:
             return conn
     
     def init_db(self):
+        if self.use_postgres:
+            return
+        
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -3991,6 +3994,9 @@ class Database:
                     pass
     
     def seed_chart_of_accounts(self):
+        if self.use_postgres:
+            return
+        
         conn = self.get_connection()
         
         existing = conn.execute('SELECT COUNT(*) as count FROM chart_of_accounts').fetchone()
@@ -4065,6 +4071,9 @@ class Database:
         conn.close()
     
     def seed_unit_of_measure(self):
+        if self.use_postgres:
+            return
+        
         conn = self.get_connection()
         
         existing = conn.execute('SELECT COUNT(*) as count FROM uom_master').fetchone()
@@ -4144,6 +4153,9 @@ class Database:
         conn.close()
     
     def seed_qms_sop_categories(self):
+        if self.use_postgres:
+            return
+        
         conn = self.get_connection()
         
         existing = conn.execute('SELECT COUNT(*) as count FROM qms_sop_categories').fetchone()

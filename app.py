@@ -182,17 +182,38 @@ def inject_user():
 
 def initialize_application():
     """Run expensive initialization once at application startup"""
-    db = Database()
-    db.init_db()
-    db.seed_chart_of_accounts()
-    db.seed_unit_of_measure()
-    db.seed_qms_sop_categories()
+    import os
+    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL')
     
-    from services.exchange_chain_service import get_exchange_chain_service
-    exchange_service = get_exchange_chain_service()
-    exchange_service.load_graph_from_database()
+    db = Database()
+    
+    if is_postgres:
+        try:
+            conn = db.get_connection()
+            result = conn.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
+            conn.close()
+        except Exception as e:
+            print("=" * 60)
+            print("PostgreSQL database not initialized!")
+            print("Please run: python scripts/init_postgres.py")
+            print("=" * 60)
+            raise SystemExit(f"Database not initialized: {e}")
+    else:
+        db.init_db()
+        db.seed_chart_of_accounts()
+        db.seed_unit_of_measure()
+        db.seed_qms_sop_categories()
+    
+    try:
+        from services.exchange_chain_service import get_exchange_chain_service
+        exchange_service = get_exchange_chain_service()
+        exchange_service.load_graph_from_database()
+    except Exception as e:
+        print(f"Warning: Could not load exchange graph: {e}")
 
 initialize_application()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import os
+    is_production = os.environ.get('REPLIT_DEPLOYMENT') == '1'
+    app.run(host='0.0.0.0', port=5000, debug=not is_production)

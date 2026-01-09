@@ -14,7 +14,19 @@ The system features a professional, elegant user interface built on Bootstrap 5,
 
 ### Technical Implementations
 
-The backend is developed with Flask, using Blueprints and an SQLite database, implementing session-based authentication and role-based access control. The `MRPEngine` handles core MRP logic, and an Audit Trail System logs CUD operations. The frontend uses Jinja2 for templating. Key modules include Core MRP, Supply Chain & Sales, Asset & Service Management, Quality & Compliance, and various AI-Powered Modules.
+The backend is developed with Flask, using Blueprints, implementing session-based authentication and role-based access control. The `MRPEngine` handles core MRP logic, and an Audit Trail System logs CUD operations. The frontend uses Jinja2 for templating. Key modules include Core MRP, Supply Chain & Sales, Asset & Service Management, Quality & Compliance, and various AI-Powered Modules.
+
+### Database Configuration
+
+The system supports dual database environments:
+-   **Development**: SQLite (`mrp.db`) for fast iteration and local development
+-   **Production**: PostgreSQL (Neon-backed) for data persistence and scalability
+
+The environment is determined by the `REPLIT_DEPLOYMENT` flag:
+-   When `REPLIT_DEPLOYMENT=1`, the app uses PostgreSQL via `DATABASE_URL`
+-   When not set (development), the app uses SQLite
+
+**Migration Script**: `python scripts/init_postgres.py` - Mirrors SQLite schema to PostgreSQL and migrates all data.
 
 ### Patent-Eligible Architecture
 
@@ -61,7 +73,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 
 ## External Dependencies
 
--   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `ReportLab`, `Pandas`, `openpyxl`, `openai`, `sqlite3`.
+-   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `ReportLab`, `Pandas`, `openpyxl`, `openai`, `psycopg2-binary`.
 -   **Frontend Libraries**: Bootstrap 5.3.0, Bootstrap Icons 1.11.0, Chart.js 4.4.0.
 -   **AI Integration**: OpenAI API (GPT-4o).
--   **Database**: SQLite (`mrp.db`).
+-   **Database**: SQLite (`mrp.db`) for development, PostgreSQL for production.
