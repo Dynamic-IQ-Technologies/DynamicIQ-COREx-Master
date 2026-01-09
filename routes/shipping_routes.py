@@ -656,6 +656,124 @@ def dashboard():
                          recent_receipts=recent_receipts,
                          stats=stats)
 
+
+@shipping_bp.route('/shipments/create-from-line/<int:line_id>')
+@role_required('Admin', 'Planner', 'Production Staff')
+def create_shipment_from_line(line_id):
+    """Create a shipment from a released sales order line"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get the sales order line details
+        line = conn.execute('''
+            SELECT sol.*, 
+                so.id as so_id, so.so_number, so.sales_type,
+                so.shipping_method,
+                p.code as product_code, p.name as product_name, p.unit_of_measure,
+                c.id as customer_id, c.name as customer_name, c.customer_number,
+                c.address as customer_address, c.city as customer_city,
+                c.state as customer_state, c.postal_code as customer_postal,
+                c.country as customer_country
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.so_id = so.id
+            JOIN products p ON sol.product_id = p.id
+            LEFT JOIN customers c ON so.customer_id = c.id
+            WHERE sol.id = ?
+        ''', (line_id,)).fetchone()
+        
+        if not line:
+            flash('Sales order line not found.', 'danger')
+            conn.close()
+            return redirect(url_for('shipping_routes.dashboard'))
+        
+        # Check if already shipped
+        shipped_qty = line.get('shipped_quantity') or 0
+        if shipped_qty > 0:
+            flash('This line has already been shipped.', 'warning')
+            conn.close()
+            return redirect(url_for('shipping_routes.dashboard'))
+        
+        # Generate shipment number
+        count = conn.execute('SELECT COUNT(*) as count FROM shipments').fetchone()['count']
+        shipment_number = f"SHIP-{count + 1:07d}"
+        
+        # Create the shipment
+        from datetime import date
+        today = date.today().isoformat()
+        
+        cursor = conn.execute('''
+            INSERT INTO shipments (
+                shipment_number, shipment_type, reference_type, reference_id,
+                status, ship_date, ship_to_name, ship_to_address,
+                ship_to_city, ship_to_state, ship_to_postal_code, ship_to_country,
+                shipping_method, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            shipment_number, 'Outbound', 'Sales Order', line['so_id'],
+            'Pending', today,
+            line.get('customer_name') or '',
+            line.get('customer_address') or '',
+            line.get('customer_city') or '',
+            line.get('customer_state') or '',
+            line.get('customer_postal') or '',
+            line.get('customer_country') or 'USA',
+            line.get('shipping_method') or '',
+            session.get('user_id')
+        ))
+        conn.execute('SELECT last_insert_rowid()')
+        shipment_id = cursor.lastrowid
+        
+        # Create shipment line
+        conn.execute('''
+            INSERT INTO shipment_lines (
+                shipment_id, product_id, quantity, unit_of_measure,
+                serial_number, notes
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            shipment_id,
+            line['product_id'],
+            line['quantity'],
+            line.get('unit_of_measure') or 'EA',
+            line.get('serial_number') or '',
+            f"From SO Line #{line['line_number']}"
+        ))
+        
+        # Update the sales order line shipped_quantity
+        conn.execute('''
+            UPDATE sales_order_lines 
+            SET shipped_quantity = ?
+            WHERE id = ?
+        ''', (line['quantity'], line_id))
+        
+        # Log the audit trail
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='shipments',
+            record_id=shipment_id,
+            action_type='Created',
+            modified_by=session.get('user_id'),
+            changed_fields={
+                'shipment_number': shipment_number,
+                'source': f"Created from SO line {line['so_number']} #{line['line_number']}"
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        flash(f'Shipment {shipment_number} created successfully for {line["product_code"]}.', 'success')
+        conn.close()
+        return redirect(url_for('shipping_routes.view_shipment', id=shipment_id))
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error creating shipment: {str(e)}', 'danger')
+        conn.close()
+        return redirect(url_for('shipping_routes.dashboard'))
+
+
 @shipping_bp.route('/pending-shipments')
 @login_required
 def list_pending_shipments():

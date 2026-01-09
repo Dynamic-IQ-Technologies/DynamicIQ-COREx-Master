@@ -121,6 +121,10 @@
                                class="btn btn-sm btn-outline-primary" title="View Sales Order">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            <a href="{{ url_for('shipping_routes.create_shipment_from_line', line_id=line.line_id) }}" 
+                               class="btn btn-sm btn-success" title="Create Shipment">
+                                <i class="bi bi-truck"></i> Ship
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
