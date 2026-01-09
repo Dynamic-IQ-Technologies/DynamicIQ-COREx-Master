@@ -3,11 +3,21 @@ import os
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Check if we're using PostgreSQL (only in production - look for REPLIT_DEPLOYMENT)
-# In development, always use SQLite for faster iteration
 DATABASE_URL = os.environ.get('DATABASE_URL')
 IS_PRODUCTION = os.environ.get('REPLIT_DEPLOYMENT') == '1'
-USE_POSTGRES = DATABASE_URL is not None and IS_PRODUCTION
+USE_POSTGRES = False
+
+if DATABASE_URL is not None and IS_PRODUCTION:
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        test_conn = psycopg2.connect(DATABASE_URL, connect_timeout=5)
+        test_conn.close()
+        USE_POSTGRES = True
+        print("[Database] PostgreSQL connection verified")
+    except Exception as e:
+        print(f"[Database] PostgreSQL unavailable ({e}), using SQLite")
+        USE_POSTGRES = False
 
 if USE_POSTGRES:
     import psycopg2
