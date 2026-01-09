@@ -553,7 +553,7 @@ def view_workorder(id):
     component_buyout_pos = conn.execute('''
         SELECT po.id, po.po_number, po.order_date, po.status, po.notes,
                s.name as supplier_name, c.name as customer_name,
-               COALESCE(SUM(pol.total_cost), 0) as total_amount
+               COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_amount
         FROM purchase_orders po
         LEFT JOIN suppliers s ON po.supplier_id = s.id
         LEFT JOIN customers c ON po.customer_id = c.id
@@ -3816,6 +3816,20 @@ def create_component_buyout(wo_id):
         default_uom = conn.execute("SELECT id FROM unit_of_measure WHERE uom_code = 'EA' OR uom_code = 'EACH' LIMIT 1").fetchone()
         uom_id = default_uom['id'] if default_uom else None
         
+        # Get or create "COMPONENT-BUYOUT" non-inventory product to avoid duplicate inventory on receiving
+        buyout_product = conn.execute('''
+            SELECT id FROM products WHERE code = 'COMPONENT-BUYOUT' AND product_type = 'Non-Inventory'
+        ''').fetchone()
+        
+        if not buyout_product:
+            conn.execute('''
+                INSERT INTO products (code, name, description, unit_of_measure, product_type, cost)
+                VALUES ('COMPONENT-BUYOUT', 'Component Buyout', 'Non-inventory item for Component Buyout POs', 'EA', 'Non-Inventory', 0)
+            ''')
+            buyout_product = conn.execute("SELECT id FROM products WHERE code = 'COMPONENT-BUYOUT'").fetchone()
+        
+        buyout_product_id = buyout_product['id']
+        
         # Get serial number from linked inventory if available
         serial_number = wo['inventory_serial'] or ''
         
@@ -3827,9 +3841,9 @@ def create_component_buyout(wo_id):
             ) VALUES (?, 1, ?, 1, 0, ?, ?, 'Component Buyout', ?, ?, ?)
         ''', (
             po_id,
-            wo['product_id'],
+            buyout_product_id,
             uom_id,
-            f"Component Buyout for WO {wo['wo_number']} - {wo['product_name']}",
+            f"Component Buyout for WO {wo['wo_number']} - P/N: {wo['product_code']} - {wo['product_name']}",
             wo_id,
             wo['product_code'],
             serial_number
