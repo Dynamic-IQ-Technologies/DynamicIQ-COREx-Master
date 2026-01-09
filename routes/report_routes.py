@@ -1707,7 +1707,7 @@ def organizational_scorecard():
     ytd_costs = conn.execute(f'''
         SELECT COALESCE(SUM(sol.quantity * COALESCE(p.cost, 0)), 0) as total_cost
         FROM sales_order_lines sol
-        JOIN sales_orders so ON sol.sales_order_id = so.id
+        JOIN sales_orders so ON sol.so_id = so.id
         LEFT JOIN products p ON sol.product_id = p.id
         WHERE so.order_date >= {year_start}
           AND so.status != 'Cancelled'
