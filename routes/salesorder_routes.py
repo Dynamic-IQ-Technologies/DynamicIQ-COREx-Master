@@ -955,11 +955,15 @@ def send_order_acknowledgement(id):
                 conn.close()
                 return redirect(url_for('salesorder_routes.view_sales_order', id=id))
             
+            # Check stock for non-core lines that are NOT already allocated
             product_totals = conn.execute('''
                 SELECT sol.product_id, p.code, p.name, SUM(sol.quantity) as total_qty
                 FROM sales_order_lines sol
                 JOIN products p ON sol.product_id = p.id
-                WHERE sol.so_id = ? AND (sol.is_core IS NULL OR sol.is_core = 0)
+                WHERE sol.so_id = ? 
+                    AND (sol.is_core IS NULL OR sol.is_core = 0)
+                    AND sol.inventory_id IS NULL
+                    AND sol.work_order_id IS NULL
                 GROUP BY sol.product_id, p.code, p.name
             ''', (id,)).fetchall()
             
@@ -1029,7 +1033,8 @@ def confirm_order(id):
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
-        # VALIDATION: Check stock availability for all non-core line items (aggregated per product)
+        # VALIDATION: Check stock availability for non-core lines that are NOT already allocated
+        # Skip lines with inventory_id or work_order_id (already sourced)
         product_totals = conn.execute('''
             SELECT 
                 sol.product_id,
@@ -1038,7 +1043,10 @@ def confirm_order(id):
                 SUM(sol.quantity) as total_qty
             FROM sales_order_lines sol
             JOIN products p ON sol.product_id = p.id
-            WHERE sol.so_id = ? AND (sol.is_core IS NULL OR sol.is_core = 0)
+            WHERE sol.so_id = ? 
+                AND (sol.is_core IS NULL OR sol.is_core = 0)
+                AND sol.inventory_id IS NULL
+                AND sol.work_order_id IS NULL
             GROUP BY sol.product_id, p.code, p.name
         ''', (id,)).fetchall()
         
