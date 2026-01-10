@@ -1092,6 +1092,8 @@ def api_quick_receive_po_line(po_id, line_id):
         
         inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
         
+        base_unit_cost = po_line['base_unit_price'] if po_line['base_unit_price'] else (unit_cost / conversion_factor if conversion_factor else unit_cost)
+        
         if inventory:
             new_qty = inventory['quantity'] + base_quantity_received
             conn.execute('''
@@ -1100,20 +1102,21 @@ def api_quick_receive_po_line(po_id, line_id):
                     warehouse_location=?,
                     bin_location=?,
                     condition=?,
+                    unit_cost=?,
                     status = CASE 
                         WHEN ? > (reorder_point + safety_stock) THEN 'Available'
                         ELSE status 
                     END,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE product_id=?
-            ''', (new_qty, warehouse_location, bin_location, condition, new_qty, product_id))
+            ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, new_qty, product_id))
         else:
             conn.execute('''
                 INSERT INTO inventory 
                 (product_id, quantity, warehouse_location, bin_location, condition, 
-                 reorder_point, safety_stock, status, last_updated)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', CURRENT_TIMESTAMP)
-            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition))
+                 reorder_point, safety_stock, status, unit_cost, last_updated)
+                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, CURRENT_TIMESTAMP)
+            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost))
         
         new_received = already_received + quantity_received
         conn.execute('''
