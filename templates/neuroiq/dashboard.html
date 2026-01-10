@@ -716,25 +716,35 @@ window.toggleVoiceInput = function() {
 };
 
 function speakResponse(text) {
-    if (!document.getElementById('tts-enabled').checked) return;
-    if (!neuroSynthesis) return;
+    const ttsCheckbox = document.getElementById('tts-enabled');
+    if (!ttsCheckbox || !ttsCheckbox.checked) {
+        console.log('TTS disabled or checkbox not found');
+        return;
+    }
+    if (!neuroSynthesis) {
+        console.log('Speech synthesis not available');
+        return;
+    }
     
     neuroSynthesis.cancel();
     
-    const cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '');
+    const cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '').substring(0, 500);
     
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.95;
+    utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = 1;
+    utterance.lang = 'en-US';
     
     const voices = neuroSynthesis.getVoices();
-    const preferredVoice = voices.find(v => 
-        v.name.includes('Google') && v.lang.startsWith('en')
-    ) || voices.find(v => v.lang.startsWith('en'));
-    
-    if (preferredVoice) {
-        utterance.voice = preferredVoice;
+    if (voices.length > 0) {
+        const preferredVoice = voices.find(v => 
+            v.name.includes('Google') && v.lang.startsWith('en')
+        ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+        
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
     }
     
     utterance.onstart = function() {
@@ -749,11 +759,21 @@ function speakResponse(text) {
         document.getElementById('voice-status-text').textContent = 'Click mic to speak';
     };
     
-    neuroSynthesis.speak(utterance);
+    utterance.onerror = function(event) {
+        console.error('Speech synthesis error:', event.error);
+        document.getElementById('voice-status-text').textContent = 'Speech error';
+    };
+    
+    setTimeout(() => {
+        neuroSynthesis.speak(utterance);
+    }, 100);
 }
 
 initVoiceRecognition();
 if (neuroSynthesis) {
+    neuroSynthesis.onvoiceschanged = function() {
+        neuroSynthesis.getVoices();
+    };
     neuroSynthesis.getVoices();
 }
 
