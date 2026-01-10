@@ -1142,7 +1142,13 @@ def api_quick_receive_po_line(po_id, line_id):
             modified_by=session.get('user_id'),
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent'),
-            details=f'Quick received {quantity_received} {po_line["product_code"]} from PO {po["po_number"]}'
+            changed_fields={
+                'action': {'old': None, 'new': f'Quick received {quantity_received} {po_line["product_code"]} from PO {po["po_number"]}'},
+                'quantity': {'old': None, 'new': quantity_received},
+                'base_quantity': {'old': None, 'new': base_quantity_received},
+                'warehouse': {'old': None, 'new': warehouse_location},
+                'bin': {'old': None, 'new': bin_location}
+            }
         )
         
         conn.commit()
