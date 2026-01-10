@@ -1089,15 +1089,15 @@ window.submitQuickReceive = async function() {
     const remarks = document.getElementById('qr_remarks').value.trim();
     
     if (!quantity || quantity <= 0) {
-        showNotification('Please enter a valid quantity', 'danger');
+        alert('Please enter a valid quantity');
         return;
     }
     if (!warehouse) {
-        showNotification('Warehouse location is required', 'danger');
+        alert('Warehouse location is required');
         return;
     }
     if (!bin) {
-        showNotification('Bin location is required', 'danger');
+        alert('Bin location is required');
         return;
     }
     
@@ -1118,14 +1118,14 @@ window.submitQuickReceive = async function() {
         
         if (data.success) {
             quickReceiveModal.hide();
-            showNotification(data.message, 'success');
-            setTimeout(() => location.reload(), 1500);
+            alert(data.message);
+            location.reload();
         } else {
-            showNotification(data.error || 'Failed to receive items', 'danger');
+            alert(data.error || 'Failed to receive items');
         }
     } catch (error) {
         console.error('Quick receive error:', error);
-        showNotification('An error occurred while receiving items', 'danger');
+        alert('An error occurred while receiving items');
     }
 };
 
