@@ -10,6 +10,33 @@ neuroiq_bp = Blueprint('neuroiq', __name__)
 AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 AI_INTEGRATIONS_OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
 
+def format_recent_transactions(transactions):
+    """Format recent transactions for AI context"""
+    lines = []
+    
+    if transactions.get('recent_sales_orders'):
+        lines.append("Recent Sales Orders:")
+        for so in transactions['recent_sales_orders'][:5]:
+            lines.append(f"  - {so['order_number']}: {so['customer']} ({so['type']}) - ${so['amount']:,.2f} - {so['status']}")
+    
+    if transactions.get('recent_work_orders'):
+        lines.append("Recent Work Orders:")
+        for wo in transactions['recent_work_orders'][:5]:
+            lines.append(f"  - {wo['wo_number']}: {wo['product']} - Qty {wo['quantity']} - {wo['status']} ({wo['priority']})")
+    
+    if transactions.get('recent_invoices'):
+        lines.append("Recent Invoices:")
+        for inv in transactions['recent_invoices'][:5]:
+            balance_info = f"Balance: ${inv['balance_due']:,.2f}" if inv['balance_due'] > 0 else "Paid"
+            lines.append(f"  - {inv['invoice_number']}: {inv['customer']} - ${inv['total']:,.2f} - {inv['status']} - {balance_info}")
+    
+    if transactions.get('recent_purchase_orders'):
+        lines.append("Recent Purchase Orders:")
+        for po in transactions['recent_purchase_orders'][:5]:
+            lines.append(f"  - {po['po_number']}: {po['supplier']} - ${po['amount']:,.2f} - {po['status']}")
+    
+    return "\n".join(lines) if lines else "No recent transactions available"
+
 def get_openai_client():
     """Initialize OpenAI client with AI Integrations"""
     from openai import OpenAI
@@ -103,6 +130,89 @@ def gather_system_context():
         ''').fetchone()
         context['procurement']['total_purchase_orders'] = po_stats['total_pos'] or 0
         context['procurement']['open_purchase_orders'] = po_stats['open_pos'] or 0
+        
+        recent_sales = conn.execute('''
+            SELECT so.id, so.order_number, so.customer_id, c.name as customer_name,
+                   so.order_type, so.status, so.total_amount, so.order_date
+            FROM sales_orders so
+            LEFT JOIN customers c ON so.customer_id = c.id
+            ORDER BY so.order_date DESC LIMIT 10
+        ''').fetchall()
+        context['transactions'] = {'recent_sales_orders': []}
+        for row in recent_sales:
+            context['transactions']['recent_sales_orders'].append({
+                'order_number': row['order_number'],
+                'customer': row['customer_name'],
+                'type': row['order_type'],
+                'status': row['status'],
+                'amount': float(row['total_amount'] or 0),
+                'date': row['order_date']
+            })
+        
+        exchange_stats = conn.execute('''
+            SELECT 
+                COUNT(*) as total_exchanges,
+                SUM(CASE WHEN status IN ('Pending', 'Confirmed') THEN 1 ELSE 0 END) as open_exchanges,
+                COALESCE(SUM(CASE WHEN status IN ('Pending', 'Confirmed') THEN total_amount ELSE 0 END), 0) as exchange_value
+            FROM sales_orders WHERE order_type = 'Exchange'
+        ''').fetchone()
+        context['sales']['total_exchanges'] = exchange_stats['total_exchanges'] or 0
+        context['sales']['open_exchanges'] = exchange_stats['open_exchanges'] or 0
+        context['sales']['exchange_pipeline_value'] = float(exchange_stats['exchange_value'] or 0)
+        
+        recent_work_orders = conn.execute('''
+            SELECT wo.id, wo.work_order_number, wo.status, wo.priority,
+                   p.name as product_name, wo.quantity, wo.start_date, wo.due_date
+            FROM work_orders wo
+            LEFT JOIN products p ON wo.product_id = p.id
+            ORDER BY wo.created_at DESC LIMIT 10
+        ''').fetchall()
+        context['transactions']['recent_work_orders'] = []
+        for row in recent_work_orders:
+            context['transactions']['recent_work_orders'].append({
+                'wo_number': row['work_order_number'],
+                'product': row['product_name'],
+                'status': row['status'],
+                'priority': row['priority'],
+                'quantity': row['quantity'],
+                'due_date': row['due_date']
+            })
+        
+        recent_invoices = conn.execute('''
+            SELECT i.id, i.invoice_number, c.name as customer_name,
+                   i.total_amount, i.balance_due, i.status, i.invoice_date, i.due_date
+            FROM invoices i
+            LEFT JOIN customers c ON i.customer_id = c.id
+            ORDER BY i.invoice_date DESC LIMIT 10
+        ''').fetchall()
+        context['transactions']['recent_invoices'] = []
+        for row in recent_invoices:
+            context['transactions']['recent_invoices'].append({
+                'invoice_number': row['invoice_number'],
+                'customer': row['customer_name'],
+                'total': float(row['total_amount'] or 0),
+                'balance_due': float(row['balance_due'] or 0),
+                'status': row['status'],
+                'date': row['invoice_date'],
+                'due_date': row['due_date']
+            })
+        
+        recent_pos = conn.execute('''
+            SELECT po.id, po.po_number, s.name as supplier_name,
+                   po.total_amount, po.status, po.order_date
+            FROM purchase_orders po
+            LEFT JOIN suppliers s ON po.supplier_id = s.id
+            ORDER BY po.order_date DESC LIMIT 10
+        ''').fetchall()
+        context['transactions']['recent_purchase_orders'] = []
+        for row in recent_pos:
+            context['transactions']['recent_purchase_orders'].append({
+                'po_number': row['po_number'],
+                'supplier': row['supplier_name'],
+                'amount': float(row['total_amount'] or 0),
+                'status': row['status'],
+                'date': row['order_date']
+            })
         
         conn.close()
     except Exception as e:
@@ -224,10 +334,16 @@ SALES:
 - Total Orders: {context['sales'].get('total_orders', 0)}
 - Open Orders: {context['sales'].get('open_orders', 0)}
 - Pipeline Value: ${context['sales'].get('pipeline_value', 0):,.2f}
+- Total Exchange Orders: {context['sales'].get('total_exchanges', 0)}
+- Open Exchanges: {context['sales'].get('open_exchanges', 0)}
+- Exchange Pipeline Value: ${context['sales'].get('exchange_pipeline_value', 0):,.2f}
 
 PROCUREMENT:
 - Total POs: {context['procurement'].get('total_purchase_orders', 0)}
 - Open POs: {context['procurement'].get('open_purchase_orders', 0)}
+
+RECENT TRANSACTIONS:
+{format_recent_transactions(context.get('transactions', {}))}
 """
         
         messages = [
