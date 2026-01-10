@@ -542,6 +542,52 @@
         accent-color: var(--neuro-accent);
     }
     
+    .voice-control-btn {
+        background: var(--neuro-surface);
+        border: 1px solid var(--neuro-border);
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: var(--neuro-text-dim);
+        font-size: 0.9rem;
+    }
+    
+    .voice-control-btn:hover {
+        border-color: var(--neuro-accent);
+        color: var(--neuro-accent);
+    }
+    
+    .voice-control-btn.stop-btn:hover {
+        border-color: var(--neuro-danger);
+        color: var(--neuro-danger);
+    }
+    
+    .voice-control-btn.pause-btn:hover {
+        border-color: var(--neuro-warning);
+        color: var(--neuro-warning);
+    }
+    
+    .voice-control-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    
+    .voice-control-btn:disabled:hover {
+        border-color: var(--neuro-border);
+        color: var(--neuro-text-dim);
+    }
+    
+    .voice-playback-controls {
+        display: flex;
+        gap: 0.25rem;
+        margin-left: 0.5rem;
+    }
+    
     .tts-toggle {
         display: flex;
         align-items: center;
@@ -624,6 +670,14 @@
                 <button class="voice-btn" id="voice-btn" onclick="window.toggleVoiceInput()" title="Voice Input">
                     <i class="bi bi-mic" id="mic-icon"></i>
                 </button>
+                <div class="voice-playback-controls">
+                    <button class="voice-control-btn pause-btn" id="pause-btn" onclick="window.togglePauseVoice()" title="Pause/Resume" disabled>
+                        <i class="bi bi-pause-fill" id="pause-icon"></i>
+                    </button>
+                    <button class="voice-control-btn stop-btn" id="stop-btn" onclick="window.stopVoice()" title="Stop" disabled>
+                        <i class="bi bi-stop-fill"></i>
+                    </button>
+                </div>
                 <div class="voice-visualizer" id="voice-visualizer">
                     <div class="bar"></div>
                     <div class="bar"></div>
@@ -822,6 +876,49 @@ window.toggleVoiceInput = function() {
     }
 };
 
+let neuroIsPaused = false;
+
+window.stopVoice = function() {
+    if (neuroSynthesis) {
+        neuroSynthesis.cancel();
+        neuroIsPaused = false;
+        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
+        document.getElementById('pause-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = true;
+        document.getElementById('voice-status-text').textContent = 'Voice stopped';
+        const visualizer = document.getElementById('voice-visualizer');
+        if (visualizer) {
+            visualizer.classList.remove('active', 'speaking');
+        }
+        document.getElementById('voice-btn').classList.remove('speaking');
+        document.getElementById('voice-status').classList.remove('speaking');
+    }
+};
+
+window.togglePauseVoice = function() {
+    if (!neuroSynthesis) return;
+    
+    if (neuroIsPaused) {
+        neuroSynthesis.resume();
+        neuroIsPaused = false;
+        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
+        document.getElementById('voice-status-text').textContent = 'Speaking...';
+        const visualizer = document.getElementById('voice-visualizer');
+        if (visualizer) {
+            visualizer.classList.add('speaking');
+        }
+    } else {
+        neuroSynthesis.pause();
+        neuroIsPaused = true;
+        document.getElementById('pause-icon').className = 'bi bi-play-fill';
+        document.getElementById('voice-status-text').textContent = 'Paused';
+        const visualizer = document.getElementById('voice-visualizer');
+        if (visualizer) {
+            visualizer.classList.remove('speaking');
+        }
+    }
+};
+
 function speakResponse(text) {
     const ttsCheckbox = document.getElementById('tts-enabled');
     if (!ttsCheckbox || !ttsCheckbox.checked) {
@@ -896,6 +993,10 @@ function speakResponse(text) {
         document.getElementById('voice-btn').classList.add('speaking');
         document.getElementById('voice-status').classList.add('speaking');
         document.getElementById('voice-status-text').textContent = 'Speaking...';
+        document.getElementById('pause-btn').disabled = false;
+        document.getElementById('stop-btn').disabled = false;
+        neuroIsPaused = false;
+        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
         if (visualizer) {
             visualizer.classList.add('active', 'speaking');
             visualizer.classList.remove('listening');
@@ -905,6 +1006,10 @@ function speakResponse(text) {
     utterance.onend = function() {
         document.getElementById('voice-btn').classList.remove('speaking');
         document.getElementById('voice-status').classList.remove('speaking');
+        document.getElementById('pause-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = true;
+        neuroIsPaused = false;
+        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
         if (visualizer) {
             visualizer.classList.remove('active', 'speaking');
         }
