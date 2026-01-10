@@ -564,7 +564,7 @@
                         rows="1"
                     ></textarea>
                 </div>
-                <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                <button class="send-btn" id="send-btn" onclick="window.sendMessage()">
                     <i class="bi bi-send-fill"></i>
                 </button>
             </div>
@@ -630,13 +630,14 @@
 
 {% block extra_js %}
 <script>
+(function() {
 document.body.classList.add('neuroiq-mode');
 
-let conversationHistory = [];
-let isProcessing = false;
-let recognition = null;
-let isListening = false;
-let synthesis = window.speechSynthesis;
+let neuroConversationHistory = [];
+let neuroIsProcessing = false;
+let neuroRecognition = null;
+let neuroIsListening = false;
+let neuroSynthesis = window.speechSynthesis;
 
 function initVoiceRecognition() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -646,28 +647,28 @@ function initVoiceRecognition() {
     }
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    neuroRecognition = new SpeechRecognition();
+    neuroRecognition.continuous = false;
+    neuroRecognition.interimResults = true;
+    neuroRecognition.lang = 'en-US';
     
-    recognition.onstart = function() {
-        isListening = true;
+    neuroRecognition.onstart = function() {
+        neuroIsListening = true;
         document.getElementById('voice-btn').classList.add('active');
         document.getElementById('mic-icon').className = 'bi bi-mic-fill';
         document.getElementById('voice-status').classList.add('listening');
         document.getElementById('voice-status-text').textContent = 'Listening...';
     };
     
-    recognition.onend = function() {
-        isListening = false;
+    neuroRecognition.onend = function() {
+        neuroIsListening = false;
         document.getElementById('voice-btn').classList.remove('active');
         document.getElementById('mic-icon').className = 'bi bi-mic';
         document.getElementById('voice-status').classList.remove('listening');
         document.getElementById('voice-status-text').textContent = 'Click mic to speak';
     };
     
-    recognition.onresult = function(event) {
+    neuroRecognition.onresult = function(event) {
         let finalTranscript = '';
         let interimTranscript = '';
         
@@ -682,43 +683,43 @@ function initVoiceRecognition() {
         
         if (finalTranscript) {
             document.getElementById('neuroiq-input').value = finalTranscript;
-            setTimeout(() => sendMessage(), 300);
+            setTimeout(() => neuroSendMessage(), 300);
         } else if (interimTranscript) {
             document.getElementById('voice-status-text').textContent = interimTranscript.substring(0, 50) + '...';
         }
     };
     
-    recognition.onerror = function(event) {
+    neuroRecognition.onerror = function(event) {
         console.error('Speech recognition error:', event.error);
-        isListening = false;
+        neuroIsListening = false;
         document.getElementById('voice-btn').classList.remove('active');
         document.getElementById('voice-status').classList.remove('listening');
         document.getElementById('voice-status-text').textContent = 'Voice error - try again';
     };
 }
 
-function toggleVoiceInput() {
-    if (!recognition) {
+window.toggleVoiceInput = function() {
+    if (!neuroRecognition) {
         initVoiceRecognition();
-        if (!recognition) return;
+        if (!neuroRecognition) return;
     }
     
-    if (isListening) {
-        recognition.stop();
+    if (neuroIsListening) {
+        neuroRecognition.stop();
     } else {
         try {
-            recognition.start();
+            neuroRecognition.start();
         } catch (e) {
             console.error('Failed to start recognition:', e);
         }
     }
-}
+};
 
 function speakResponse(text) {
     if (!document.getElementById('tts-enabled').checked) return;
-    if (!synthesis) return;
+    if (!neuroSynthesis) return;
     
-    synthesis.cancel();
+    neuroSynthesis.cancel();
     
     const cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '');
     
@@ -727,7 +728,7 @@ function speakResponse(text) {
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    const voices = synthesis.getVoices();
+    const voices = neuroSynthesis.getVoices();
     const preferredVoice = voices.find(v => 
         v.name.includes('Google') && v.lang.startsWith('en')
     ) || voices.find(v => v.lang.startsWith('en'));
@@ -748,12 +749,12 @@ function speakResponse(text) {
         document.getElementById('voice-status-text').textContent = 'Click mic to speak';
     };
     
-    synthesis.speak(utterance);
+    neuroSynthesis.speak(utterance);
 }
 
 initVoiceRecognition();
-if (synthesis) {
-    synthesis.getVoices();
+if (neuroSynthesis) {
+    neuroSynthesis.getVoices();
 }
 
 function formatCurrency(value) {
@@ -820,15 +821,15 @@ function addMessage(role, content) {
     display.scrollTop = display.scrollHeight;
 }
 
-async function sendMessage() {
-    if (isProcessing) return;
+async function neuroSendMessage() {
+    if (neuroIsProcessing) return;
     
     const input = document.getElementById('neuroiq-input');
     const message = input.value.trim();
     
     if (!message) return;
     
-    isProcessing = true;
+    neuroIsProcessing = true;
     input.value = '';
     input.style.height = 'auto';
     
@@ -836,7 +837,7 @@ async function sendMessage() {
     document.getElementById('thinking-indicator').classList.add('active');
     
     addMessage('user', message);
-    conversationHistory.push({ role: 'user', content: message });
+    neuroConversationHistory.push({ role: 'user', content: message });
     
     try {
         const response = await fetch('/neuroiq/analyze', {
@@ -844,7 +845,7 @@ async function sendMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
-                history: conversationHistory
+                history: neuroConversationHistory
             })
         });
         
@@ -854,22 +855,24 @@ async function sendMessage() {
             addMessage('assistant', 'I apologize, but I encountered an issue processing your request. Please try again.');
         } else {
             addMessage('assistant', data.response);
-            conversationHistory.push({ role: 'assistant', content: data.response });
+            neuroConversationHistory.push({ role: 'assistant', content: data.response });
             speakResponse(data.response);
         }
     } catch (error) {
         addMessage('assistant', 'I apologize, but I am currently unable to process your request. Please try again in a moment.');
     } finally {
-        isProcessing = false;
+        neuroIsProcessing = false;
         document.getElementById('send-btn').disabled = false;
         document.getElementById('thinking-indicator').classList.remove('active');
     }
 }
 
+window.sendMessage = neuroSendMessage;
+
 document.getElementById('neuroiq-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        neuroSendMessage();
     }
 });
 
@@ -883,5 +886,6 @@ loadInsights();
 
 setInterval(loadContext, 60000);
 setInterval(loadInsights, 60000);
+})();
 </script>
 {% endblock %}
