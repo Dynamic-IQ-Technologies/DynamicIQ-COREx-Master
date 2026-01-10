@@ -997,15 +997,22 @@
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <label for="qr_condition" class="form-label">Condition</label>
-                    <select class="form-select" id="qr_condition">
-                        <option value="New" selected>New</option>
-                        <option value="Serviceable">Serviceable</option>
-                        <option value="Overhauled">Overhauled</option>
-                        <option value="As Removed">As Removed</option>
-                        <option value="Unserviceable">Unserviceable</option>
-                    </select>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label for="qr_condition" class="form-label">Condition</label>
+                        <select class="form-select" id="qr_condition">
+                            <option value="New" selected>New</option>
+                            <option value="Serviceable">Serviceable</option>
+                            <option value="Overhauled">Overhauled</option>
+                            <option value="As Removed">As Removed</option>
+                            <option value="Unserviceable">Unserviceable</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="qr_expiration_date" class="form-label">Expiration Date</label>
+                        <input type="date" class="form-control" id="qr_expiration_date" placeholder="For chemicals/perishables">
+                        <small class="text-muted">For chemicals, perishables, etc.</small>
+                    </div>
                 </div>
                 
                 <div class="mb-3">
@@ -1045,6 +1052,7 @@ window.openQuickReceive = function(data) {
     document.getElementById('qr_warehouse').value = '';
     document.getElementById('qr_bin').value = '';
     document.getElementById('qr_condition').value = 'New';
+    document.getElementById('qr_expiration_date').value = '';
     document.getElementById('qr_remarks').value = '';
     
     const conversionInfo = document.getElementById('qr_conversion_info');
@@ -1086,6 +1094,7 @@ window.submitQuickReceive = async function() {
     const warehouse = document.getElementById('qr_warehouse').value.trim();
     const bin = document.getElementById('qr_bin').value.trim();
     const condition = document.getElementById('qr_condition').value;
+    const expirationDate = document.getElementById('qr_expiration_date').value;
     const remarks = document.getElementById('qr_remarks').value.trim();
     
     if (!quantity || quantity <= 0) {
@@ -1110,6 +1119,7 @@ window.submitQuickReceive = async function() {
                 warehouse_location: warehouse,
                 bin_location: bin,
                 condition: condition,
+                expiration_date: expirationDate,
                 remarks: remarks
             })
         });

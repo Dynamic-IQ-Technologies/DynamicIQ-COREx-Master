@@ -1038,6 +1038,7 @@ def api_quick_receive_po_line(po_id, line_id):
         warehouse_location = data.get('warehouse_location', '').strip()
         bin_location = data.get('bin_location', '').strip()
         condition = data.get('condition', 'New')
+        expiration_date = data.get('expiration_date', '').strip() or None
         remarks = data.get('remarks', '')
         
         if quantity_received <= 0:
@@ -1084,11 +1085,11 @@ def api_quick_receive_po_line(po_id, line_id):
             INSERT INTO receiving_transactions 
             (receipt_number, po_id, product_id, quantity_received, receipt_date, condition, 
              warehouse_location, bin_location, remarks, received_by,
-             po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt, expiration_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (receipt_number, po_id, product_id, quantity_received, receipt_date, condition,
               warehouse_location, bin_location, remarks, session['user_id'],
-              line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost))
+              line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost, expiration_date))
         
         inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
         
@@ -1096,27 +1097,44 @@ def api_quick_receive_po_line(po_id, line_id):
         
         if inventory:
             new_qty = inventory['quantity'] + base_quantity_received
-            conn.execute('''
-                UPDATE inventory 
-                SET quantity=?, 
-                    warehouse_location=?,
-                    bin_location=?,
-                    condition=?,
-                    unit_cost=?,
-                    status = CASE 
-                        WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                        ELSE status 
-                    END,
-                    last_updated=CURRENT_TIMESTAMP 
-                WHERE product_id=?
-            ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, new_qty, product_id))
+            if expiration_date:
+                conn.execute('''
+                    UPDATE inventory 
+                    SET quantity=?, 
+                        warehouse_location=?,
+                        bin_location=?,
+                        condition=?,
+                        unit_cost=?,
+                        expiration_date=?,
+                        status = CASE 
+                            WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                            ELSE status 
+                        END,
+                        last_updated=CURRENT_TIMESTAMP 
+                    WHERE product_id=?
+                ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, new_qty, product_id))
+            else:
+                conn.execute('''
+                    UPDATE inventory 
+                    SET quantity=?, 
+                        warehouse_location=?,
+                        bin_location=?,
+                        condition=?,
+                        unit_cost=?,
+                        status = CASE 
+                            WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                            ELSE status 
+                        END,
+                        last_updated=CURRENT_TIMESTAMP 
+                    WHERE product_id=?
+                ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, new_qty, product_id))
         else:
             conn.execute('''
                 INSERT INTO inventory 
                 (product_id, quantity, warehouse_location, bin_location, condition, 
-                 reorder_point, safety_stock, status, unit_cost, last_updated)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, CURRENT_TIMESTAMP)
-            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost))
+                 reorder_point, safety_stock, status, unit_cost, expiration_date, last_updated)
+                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, CURRENT_TIMESTAMP)
+            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date))
         
         new_received = already_received + quantity_received
         conn.execute('''
