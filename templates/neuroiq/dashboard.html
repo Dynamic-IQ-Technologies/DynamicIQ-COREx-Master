@@ -849,6 +849,7 @@ async function neuroSendMessage() {
         const response = await fetch('/neuroiq/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 message: message,
                 history: neuroConversationHistory
