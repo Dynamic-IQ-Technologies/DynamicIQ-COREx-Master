@@ -767,8 +767,11 @@ function formatCurrency(value) {
 }
 
 function loadContext() {
-    fetch('/neuroiq/context')
-        .then(r => r.json())
+    fetch('/neuroiq/context', { credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('Failed to fetch context');
+            return r.json();
+        })
         .then(data => {
             document.getElementById('metric-revenue').textContent = formatCurrency(data.financial?.ytd_revenue || 0);
             document.getElementById('metric-ar').textContent = formatCurrency(data.financial?.accounts_receivable || 0);
@@ -783,8 +786,11 @@ function loadContext() {
 }
 
 function loadInsights() {
-    fetch('/neuroiq/insights')
-        .then(r => r.json())
+    fetch('/neuroiq/insights', { credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('Failed to fetch insights');
+            return r.json();
+        })
         .then(data => {
             const container = document.getElementById('insights-container');
             if (data.insights && data.insights.length > 0) {
