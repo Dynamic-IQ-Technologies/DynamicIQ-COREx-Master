@@ -465,6 +465,83 @@
         color: var(--neuro-accent);
     }
     
+    .voice-visualizer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        height: 40px;
+        padding: 0 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        margin-left: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .voice-visualizer.active {
+        opacity: 1;
+    }
+    
+    .voice-visualizer .bar {
+        width: 4px;
+        height: 8px;
+        background: linear-gradient(180deg, var(--neuro-accent), #00ff88);
+        border-radius: 2px;
+        transition: height 0.1s ease;
+    }
+    
+    .voice-visualizer.speaking .bar {
+        animation: voice-wave 0.5s ease-in-out infinite;
+    }
+    
+    .voice-visualizer.speaking .bar:nth-child(1) { animation-delay: 0s; }
+    .voice-visualizer.speaking .bar:nth-child(2) { animation-delay: 0.1s; }
+    .voice-visualizer.speaking .bar:nth-child(3) { animation-delay: 0.2s; }
+    .voice-visualizer.speaking .bar:nth-child(4) { animation-delay: 0.15s; }
+    .voice-visualizer.speaking .bar:nth-child(5) { animation-delay: 0.25s; }
+    .voice-visualizer.speaking .bar:nth-child(6) { animation-delay: 0.05s; }
+    .voice-visualizer.speaking .bar:nth-child(7) { animation-delay: 0.2s; }
+    .voice-visualizer.speaking .bar:nth-child(8) { animation-delay: 0.1s; }
+    .voice-visualizer.speaking .bar:nth-child(9) { animation-delay: 0.15s; }
+    .voice-visualizer.speaking .bar:nth-child(10) { animation-delay: 0.25s; }
+    .voice-visualizer.speaking .bar:nth-child(11) { animation-delay: 0.05s; }
+    .voice-visualizer.speaking .bar:nth-child(12) { animation-delay: 0.2s; }
+    
+    @keyframes voice-wave {
+        0%, 100% { height: 8px; }
+        25% { height: 28px; }
+        50% { height: 16px; }
+        75% { height: 32px; }
+    }
+    
+    .voice-visualizer.listening .bar {
+        background: linear-gradient(180deg, var(--neuro-danger), #ff8866);
+        animation: listen-wave 0.8s ease-in-out infinite;
+    }
+    
+    @keyframes listen-wave {
+        0%, 100% { height: 6px; opacity: 0.5; }
+        50% { height: 24px; opacity: 1; }
+    }
+    
+    .continuous-mode {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--neuro-text-dim);
+        margin-left: 1rem;
+        padding: 0.25rem 0.75rem;
+        background: rgba(0, 212, 255, 0.1);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+    
+    .continuous-mode input[type="checkbox"] {
+        accent-color: var(--neuro-accent);
+    }
+    
     .tts-toggle {
         display: flex;
         align-items: center;
@@ -547,8 +624,26 @@
                 <button class="voice-btn" id="voice-btn" onclick="window.toggleVoiceInput()" title="Voice Input">
                     <i class="bi bi-mic" id="mic-icon"></i>
                 </button>
+                <div class="voice-visualizer" id="voice-visualizer">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
                 <div class="voice-status" id="voice-status">
                     <span id="voice-status-text">Click mic to speak</span>
+                </div>
+                <div class="continuous-mode">
+                    <input type="checkbox" id="continuous-mode" checked>
+                    <label for="continuous-mode">Continuous</label>
                 </div>
                 <div class="tts-toggle">
                     <input type="checkbox" id="tts-enabled" checked>
@@ -658,6 +753,11 @@ function initVoiceRecognition() {
         document.getElementById('mic-icon').className = 'bi bi-mic-fill';
         document.getElementById('voice-status').classList.add('listening');
         document.getElementById('voice-status-text').textContent = 'Listening...';
+        const visualizer = document.getElementById('voice-visualizer');
+        if (visualizer) {
+            visualizer.classList.add('active', 'listening');
+            visualizer.classList.remove('speaking');
+        }
     };
     
     neuroRecognition.onend = function() {
@@ -665,7 +765,14 @@ function initVoiceRecognition() {
         document.getElementById('voice-btn').classList.remove('active');
         document.getElementById('mic-icon').className = 'bi bi-mic';
         document.getElementById('voice-status').classList.remove('listening');
-        document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+        const visualizer = document.getElementById('voice-visualizer');
+        if (visualizer) {
+            visualizer.classList.remove('active', 'listening');
+        }
+        const continuousMode = document.getElementById('continuous-mode');
+        if (!continuousMode || !continuousMode.checked) {
+            document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+        }
     };
     
     neuroRecognition.onresult = function(event) {
@@ -774,21 +881,49 @@ function speakResponse(text) {
         }
     }
     
+    const visualizer = document.getElementById('voice-visualizer');
+    
     utterance.onstart = function() {
         document.getElementById('voice-btn').classList.add('speaking');
         document.getElementById('voice-status').classList.add('speaking');
         document.getElementById('voice-status-text').textContent = 'Speaking...';
+        if (visualizer) {
+            visualizer.classList.add('active', 'speaking');
+            visualizer.classList.remove('listening');
+        }
     };
     
     utterance.onend = function() {
         document.getElementById('voice-btn').classList.remove('speaking');
         document.getElementById('voice-status').classList.remove('speaking');
-        document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+        if (visualizer) {
+            visualizer.classList.remove('active', 'speaking');
+        }
+        
+        const continuousMode = document.getElementById('continuous-mode');
+        if (continuousMode && continuousMode.checked) {
+            document.getElementById('voice-status-text').textContent = 'Listening...';
+            setTimeout(() => {
+                if (!neuroIsListening && neuroRecognition) {
+                    try {
+                        neuroRecognition.start();
+                    } catch (e) {
+                        console.error('Failed to restart recognition:', e);
+                        document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+                    }
+                }
+            }, 500);
+        } else {
+            document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+        }
     };
     
     utterance.onerror = function(event) {
         console.error('Speech synthesis error:', event.error);
         document.getElementById('voice-status-text').textContent = 'Speech error';
+        if (visualizer) {
+            visualizer.classList.remove('active', 'speaking');
+        }
     };
     
     setTimeout(() => {
