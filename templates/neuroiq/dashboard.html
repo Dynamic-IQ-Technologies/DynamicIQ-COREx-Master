@@ -1,0 +1,887 @@
+{% extends "base.html" %}
+
+{% block title %}COREx NeuroIQ - Executive Intelligence{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --neuro-bg: #0a0a0f;
+        --neuro-surface: #12121a;
+        --neuro-border: #1e1e2e;
+        --neuro-accent: #00d4ff;
+        --neuro-accent-glow: rgba(0, 212, 255, 0.3);
+        --neuro-success: #00ff88;
+        --neuro-warning: #ffaa00;
+        --neuro-danger: #ff4466;
+        --neuro-text: #e0e0e0;
+        --neuro-text-dim: #888;
+    }
+    
+    body.neuroiq-mode {
+        background: var(--neuro-bg);
+    }
+    
+    .neuroiq-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, var(--neuro-bg) 0%, #0f0f1a 50%, var(--neuro-bg) 100%);
+        padding: 2rem;
+        color: var(--neuro-text);
+    }
+    
+    .neuroiq-header {
+        text-align: center;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    
+    .neuroiq-logo {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(90deg, var(--neuro-accent), #00ff88, var(--neuro-accent));
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: gradient-shift 3s ease infinite;
+        letter-spacing: 0.1em;
+    }
+    
+    @keyframes gradient-shift {
+        0% { background-position: 0% center; }
+        50% { background-position: 100% center; }
+        100% { background-position: 0% center; }
+    }
+    
+    .neuroiq-subtitle {
+        color: var(--neuro-text-dim);
+        font-size: 0.9rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        margin-top: 0.5rem;
+    }
+    
+    .neuroiq-main {
+        display: grid;
+        grid-template-columns: 280px 1fr 280px;
+        gap: 1.5rem;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    @media (max-width: 1200px) {
+        .neuroiq-main {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .neuroiq-panel {
+        background: var(--neuro-surface);
+        border: 1px solid var(--neuro-border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .neuroiq-panel::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--neuro-accent), transparent);
+        opacity: 0.5;
+    }
+    
+    .panel-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--neuro-accent);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .panel-title i {
+        font-size: 0.9rem;
+    }
+    
+    .insight-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid var(--neuro-accent);
+        transition: all 0.3s ease;
+    }
+    
+    .insight-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateX(4px);
+    }
+    
+    .insight-card.warning {
+        border-left-color: var(--neuro-warning);
+    }
+    
+    .insight-card.success {
+        border-left-color: var(--neuro-success);
+    }
+    
+    .insight-card.danger {
+        border-left-color: var(--neuro-danger);
+    }
+    
+    .insight-domain {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        color: var(--neuro-text-dim);
+        letter-spacing: 0.1em;
+    }
+    
+    .insight-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0.25rem 0;
+    }
+    
+    .insight-message {
+        font-size: 0.75rem;
+        color: var(--neuro-text-dim);
+    }
+    
+    .conversation-container {
+        display: flex;
+        flex-direction: column;
+        height: 70vh;
+        min-height: 500px;
+    }
+    
+    .conversation-display {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .message {
+        margin-bottom: 1rem;
+        animation: message-fade-in 0.3s ease;
+    }
+    
+    @keyframes message-fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message-user {
+        text-align: right;
+    }
+    
+    .message-user .message-bubble {
+        background: linear-gradient(135deg, #1a3a5c, #0d2847);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        display: inline-block;
+        max-width: 80%;
+        text-align: left;
+    }
+    
+    .message-assistant .message-bubble {
+        background: linear-gradient(135deg, #1a1a2e, #16162a);
+        border: 1px solid var(--neuro-border);
+        max-width: 90%;
+    }
+    
+    .message-bubble {
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    
+    .message-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--neuro-text-dim);
+        margin-bottom: 0.25rem;
+    }
+    
+    .input-area {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-end;
+    }
+    
+    .input-wrapper {
+        flex: 1;
+        position: relative;
+    }
+    
+    #neuroiq-input {
+        width: 100%;
+        background: var(--neuro-surface);
+        border: 1px solid var(--neuro-border);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        color: var(--neuro-text);
+        font-size: 0.95rem;
+        resize: none;
+        min-height: 56px;
+        max-height: 150px;
+        transition: all 0.3s ease;
+    }
+    
+    #neuroiq-input:focus {
+        outline: none;
+        border-color: var(--neuro-accent);
+        box-shadow: 0 0 0 3px var(--neuro-accent-glow);
+    }
+    
+    #neuroiq-input::placeholder {
+        color: var(--neuro-text-dim);
+    }
+    
+    .send-btn {
+        background: linear-gradient(135deg, var(--neuro-accent), #0099cc);
+        border: none;
+        border-radius: 12px;
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: #000;
+        font-size: 1.2rem;
+    }
+    
+    .send-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px var(--neuro-accent-glow);
+    }
+    
+    .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .metric-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .metric-item:last-child {
+        border-bottom: none;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--neuro-text-dim);
+    }
+    
+    .metric-value {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--neuro-accent);
+    }
+    
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--neuro-success);
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--neuro-success);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+        50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+    }
+    
+    .thinking-indicator {
+        display: none;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: rgba(0, 212, 255, 0.1);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: var(--neuro-accent);
+    }
+    
+    .thinking-indicator.active {
+        display: flex;
+    }
+    
+    .thinking-dots span {
+        width: 6px;
+        height: 6px;
+        background: var(--neuro-accent);
+        border-radius: 50%;
+        display: inline-block;
+        margin: 0 2px;
+        animation: thinking-bounce 1.4s infinite ease-in-out both;
+    }
+    
+    .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0s; }
+    
+    @keyframes thinking-bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+    }
+    
+    .role-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        background: rgba(0, 212, 255, 0.15);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        border-radius: 4px;
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-right: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .welcome-message {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--neuro-text-dim);
+    }
+    
+    .welcome-icon {
+        font-size: 3rem;
+        color: var(--neuro-accent);
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .welcome-text {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        color: var(--neuro-text);
+    }
+    
+    .welcome-subtext {
+        font-size: 0.85rem;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--neuro-text-dim);
+        text-decoration: none;
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+    
+    .back-link:hover {
+        color: var(--neuro-accent);
+        background: rgba(0, 212, 255, 0.1);
+    }
+    
+    .voice-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .voice-btn {
+        background: var(--neuro-surface);
+        border: 1px solid var(--neuro-border);
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: var(--neuro-text-dim);
+    }
+    
+    .voice-btn:hover {
+        border-color: var(--neuro-accent);
+        color: var(--neuro-accent);
+    }
+    
+    .voice-btn.active {
+        background: rgba(255, 68, 102, 0.2);
+        border-color: var(--neuro-danger);
+        color: var(--neuro-danger);
+        animation: voice-pulse 1.5s infinite;
+    }
+    
+    .voice-btn.speaking {
+        background: rgba(0, 212, 255, 0.2);
+        border-color: var(--neuro-accent);
+        color: var(--neuro-accent);
+    }
+    
+    @keyframes voice-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 102, 0.4); }
+        50% { box-shadow: 0 0 0 10px rgba(255, 68, 102, 0); }
+    }
+    
+    .voice-status {
+        font-size: 0.75rem;
+        color: var(--neuro-text-dim);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .voice-status.listening {
+        color: var(--neuro-danger);
+    }
+    
+    .voice-status.speaking {
+        color: var(--neuro-accent);
+    }
+    
+    .tts-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--neuro-text-dim);
+        margin-left: auto;
+    }
+    
+    .tts-toggle input[type="checkbox"] {
+        accent-color: var(--neuro-accent);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="neuroiq-container">
+    <a href="/" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+    
+    <div class="neuroiq-header">
+        <div class="neuroiq-logo">COREx NeuroIQ</div>
+        <div class="neuroiq-subtitle">Executive Intelligence System</div>
+        <div class="status-indicator mt-2" style="justify-content: center;">
+            <span class="status-dot"></span>
+            <span>Online</span>
+        </div>
+    </div>
+    
+    <div class="neuroiq-main">
+        <div class="left-panels">
+            <div class="neuroiq-panel mb-3">
+                <div class="panel-title">
+                    <i class="bi bi-lightning-charge"></i>
+                    Proactive Insights
+                </div>
+                <div id="insights-container">
+                    <div class="text-center py-3" style="color: var(--neuro-text-dim); font-size: 0.8rem;">
+                        Loading insights...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="neuroiq-panel">
+                <div class="panel-title">
+                    <i class="bi bi-cpu"></i>
+                    Executive Roles
+                </div>
+                <div class="role-badge">CEO</div>
+                <div class="role-badge">CFO</div>
+                <div class="role-badge">COO</div>
+                <div class="role-badge">GM</div>
+                <div class="role-badge">Analyst</div>
+                <div class="role-badge">Strategy</div>
+                <div class="role-badge">Supply Chain</div>
+                <div class="role-badge">BD/VP</div>
+            </div>
+        </div>
+        
+        <div class="neuroiq-panel conversation-container">
+            <div class="conversation-display" id="conversation-display">
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="bi bi-stars"></i>
+                    </div>
+                    <div class="welcome-text">COREx NeuroIQ is online. I am ready to advise.</div>
+                    <div class="welcome-subtext">Ask me about strategy, operations, finance, or any executive decision.</div>
+                </div>
+            </div>
+            
+            <div class="thinking-indicator" id="thinking-indicator">
+                <div class="thinking-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <span>Analyzing and formulating response...</span>
+            </div>
+            
+            <div class="voice-controls">
+                <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()" title="Voice Input">
+                    <i class="bi bi-mic" id="mic-icon"></i>
+                </button>
+                <div class="voice-status" id="voice-status">
+                    <span id="voice-status-text">Click mic to speak</span>
+                </div>
+                <div class="tts-toggle">
+                    <input type="checkbox" id="tts-enabled" checked>
+                    <label for="tts-enabled">Voice Response</label>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="neuroiq-input" 
+                        placeholder="Ask COREx NeuroIQ for strategic insights, operational guidance, or financial analysis..."
+                        rows="1"
+                    ></textarea>
+                </div>
+                <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="right-panels">
+            <div class="neuroiq-panel mb-3">
+                <div class="panel-title">
+                    <i class="bi bi-graph-up"></i>
+                    Financial Snapshot
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">YTD Revenue</span>
+                    <span class="metric-value" id="metric-revenue">--</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Accounts Receivable</span>
+                    <span class="metric-value" id="metric-ar">--</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Accounts Payable</span>
+                    <span class="metric-value" id="metric-ap">--</span>
+                </div>
+            </div>
+            
+            <div class="neuroiq-panel mb-3">
+                <div class="panel-title">
+                    <i class="bi bi-gear"></i>
+                    Operations Status
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Work Orders (Active)</span>
+                    <span class="metric-value" id="metric-wo">--</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">On Hold</span>
+                    <span class="metric-value" id="metric-hold">--</span>
+                </div>
+            </div>
+            
+            <div class="neuroiq-panel">
+                <div class="panel-title">
+                    <i class="bi bi-box-seam"></i>
+                    Inventory & Sales
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Inventory Value</span>
+                    <span class="metric-value" id="metric-inv">--</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Pipeline Value</span>
+                    <span class="metric-value" id="metric-pipeline">--</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Low Stock Alerts</span>
+                    <span class="metric-value" id="metric-lowstock">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.body.classList.add('neuroiq-mode');
+
+let conversationHistory = [];
+let isProcessing = false;
+let recognition = null;
+let isListening = false;
+let synthesis = window.speechSynthesis;
+
+function initVoiceRecognition() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        document.getElementById('voice-btn').style.display = 'none';
+        document.getElementById('voice-status-text').textContent = 'Voice not supported';
+        return;
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    
+    recognition.onstart = function() {
+        isListening = true;
+        document.getElementById('voice-btn').classList.add('active');
+        document.getElementById('mic-icon').className = 'bi bi-mic-fill';
+        document.getElementById('voice-status').classList.add('listening');
+        document.getElementById('voice-status-text').textContent = 'Listening...';
+    };
+    
+    recognition.onend = function() {
+        isListening = false;
+        document.getElementById('voice-btn').classList.remove('active');
+        document.getElementById('mic-icon').className = 'bi bi-mic';
+        document.getElementById('voice-status').classList.remove('listening');
+        document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+    };
+    
+    recognition.onresult = function(event) {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+        
+        if (finalTranscript) {
+            document.getElementById('neuroiq-input').value = finalTranscript;
+            setTimeout(() => sendMessage(), 300);
+        } else if (interimTranscript) {
+            document.getElementById('voice-status-text').textContent = interimTranscript.substring(0, 50) + '...';
+        }
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        isListening = false;
+        document.getElementById('voice-btn').classList.remove('active');
+        document.getElementById('voice-status').classList.remove('listening');
+        document.getElementById('voice-status-text').textContent = 'Voice error - try again';
+    };
+}
+
+function toggleVoiceInput() {
+    if (!recognition) {
+        initVoiceRecognition();
+        if (!recognition) return;
+    }
+    
+    if (isListening) {
+        recognition.stop();
+    } else {
+        try {
+            recognition.start();
+        } catch (e) {
+            console.error('Failed to start recognition:', e);
+        }
+    }
+}
+
+function speakResponse(text) {
+    if (!document.getElementById('tts-enabled').checked) return;
+    if (!synthesis) return;
+    
+    synthesis.cancel();
+    
+    const cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '');
+    
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    const voices = synthesis.getVoices();
+    const preferredVoice = voices.find(v => 
+        v.name.includes('Google') && v.lang.startsWith('en')
+    ) || voices.find(v => v.lang.startsWith('en'));
+    
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+    
+    utterance.onstart = function() {
+        document.getElementById('voice-btn').classList.add('speaking');
+        document.getElementById('voice-status').classList.add('speaking');
+        document.getElementById('voice-status-text').textContent = 'Speaking...';
+    };
+    
+    utterance.onend = function() {
+        document.getElementById('voice-btn').classList.remove('speaking');
+        document.getElementById('voice-status').classList.remove('speaking');
+        document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+    };
+    
+    synthesis.speak(utterance);
+}
+
+initVoiceRecognition();
+if (synthesis) {
+    synthesis.getVoices();
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(value);
+}
+
+function loadContext() {
+    fetch('/neuroiq/context')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('metric-revenue').textContent = formatCurrency(data.financial?.ytd_revenue || 0);
+            document.getElementById('metric-ar').textContent = formatCurrency(data.financial?.accounts_receivable || 0);
+            document.getElementById('metric-ap').textContent = formatCurrency(data.financial?.accounts_payable || 0);
+            document.getElementById('metric-wo').textContent = data.operations?.wo_in_progress || 0;
+            document.getElementById('metric-hold').textContent = data.operations?.wo_on_hold || 0;
+            document.getElementById('metric-inv').textContent = formatCurrency(data.inventory?.total_value || 0);
+            document.getElementById('metric-pipeline').textContent = formatCurrency(data.sales?.pipeline_value || 0);
+            document.getElementById('metric-lowstock').textContent = data.inventory?.low_stock_count || 0;
+        })
+        .catch(err => console.error('Failed to load context:', err));
+}
+
+function loadInsights() {
+    fetch('/neuroiq/insights')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('insights-container');
+            if (data.insights && data.insights.length > 0) {
+                container.innerHTML = data.insights.map(insight => `
+                    <div class="insight-card ${insight.type}">
+                        <div class="insight-domain">${insight.domain}</div>
+                        <div class="insight-title">${insight.title}</div>
+                        <div class="insight-message">${insight.message}</div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<div style="color: var(--neuro-text-dim); font-size: 0.8rem; text-align: center;">No active alerts</div>';
+            }
+        })
+        .catch(err => console.error('Failed to load insights:', err));
+}
+
+function addMessage(role, content) {
+    const display = document.getElementById('conversation-display');
+    const welcome = display.querySelector('.welcome-message');
+    if (welcome) welcome.remove();
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message message-${role}`;
+    
+    const label = role === 'user' ? 'You' : 'COREx NeuroIQ';
+    
+    messageDiv.innerHTML = `
+        <div class="message-label">${label}</div>
+        <div class="message-bubble">${content.replace(/\n/g, '<br>')}</div>
+    `;
+    
+    display.appendChild(messageDiv);
+    display.scrollTop = display.scrollHeight;
+}
+
+async function sendMessage() {
+    if (isProcessing) return;
+    
+    const input = document.getElementById('neuroiq-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    isProcessing = true;
+    input.value = '';
+    input.style.height = 'auto';
+    
+    document.getElementById('send-btn').disabled = true;
+    document.getElementById('thinking-indicator').classList.add('active');
+    
+    addMessage('user', message);
+    conversationHistory.push({ role: 'user', content: message });
+    
+    try {
+        const response = await fetch('/neuroiq/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message,
+                history: conversationHistory
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            addMessage('assistant', 'I apologize, but I encountered an issue processing your request. Please try again.');
+        } else {
+            addMessage('assistant', data.response);
+            conversationHistory.push({ role: 'assistant', content: data.response });
+            speakResponse(data.response);
+        }
+    } catch (error) {
+        addMessage('assistant', 'I apologize, but I am currently unable to process your request. Please try again in a moment.');
+    } finally {
+        isProcessing = false;
+        document.getElementById('send-btn').disabled = false;
+        document.getElementById('thinking-indicator').classList.remove('active');
+    }
+}
+
+document.getElementById('neuroiq-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+document.getElementById('neuroiq-input').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+});
+
+loadContext();
+loadInsights();
+
+setInterval(loadContext, 60000);
+setInterval(loadInsights, 60000);
+</script>
+{% endblock %}
