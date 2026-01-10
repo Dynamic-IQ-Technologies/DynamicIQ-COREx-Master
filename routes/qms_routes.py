@@ -1812,7 +1812,7 @@ def training_list():
         sort_dir = 'desc'
     
     query = '''
-        SELECT t.*, u.username, u.full_name,
+        SELECT t.*, u.username,
                CASE t.document_type 
                    WHEN 'SOP' THEN (SELECT sop_number FROM qms_sops WHERE id = t.document_id)
                    WHEN 'WorkInstruction' THEN (SELECT wi_number FROM qms_work_instructions WHERE id = t.document_id)
@@ -1845,7 +1845,7 @@ def training_list():
     query += f' ORDER BY {sort_col} {sort_dir.upper()}'
     
     records = conn.execute(query, params).fetchall()
-    users = conn.execute('SELECT id, username, full_name FROM users ORDER BY username').fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     
     conn.close()
     
