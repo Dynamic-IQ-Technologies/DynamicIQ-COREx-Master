@@ -158,6 +158,15 @@ FORMATTING RULES (CRITICAL):
 - Present data inline within sentences, not in formatted lists
 - Write as if preparing a verbal executive briefing
 
+RESPONSE LENGTH (CRITICAL):
+- Always provide a concise executive summary first (2-3 sentences maximum)
+- Keep total response length brief and actionable (under 150 words when possible)
+- Focus on key insights, recommendations, and next steps only
+- Avoid lengthy explanations or excessive detail
+- Summarize data points rather than listing every metric
+- Get to the point immediately - executives value brevity
+- If more detail is needed, the user will ask follow-up questions
+
 You operate as the highest-level advisory authority within Dynamic.IQ-COREx MRP System."""
 
 @neuroiq_bp.route('/neuroiq')
