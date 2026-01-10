@@ -76,6 +76,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Leads Management System**: CRM-grade lead capture, evaluation, and conversion module with AI-powered sales engagement.
 -   **Component Buyout Workflow**: Integrated workflow to create Component Buyout Purchase Orders directly from Work Orders.
 -   **Core Due Days Tracking for Exchange Orders**: Automatic calculation of Expected Core Return Date based on Order Date + Core Due Days. Core Due Days field is required for Exchange Sales Orders (0-365 days). Expected Core Return Date is read-only and auto-calculated in real-time. Changes to Core Due Days are logged in the audit trail. Visible on create, edit, and view pages for Exchange type orders only.
+-   **COREx NeuroIQ Executive Intelligence System**: AI-powered conversational interface with dual-mode interaction (voice and text). Features Web Speech API for voice input (speech-to-text), Speech Synthesis for voice responses (text-to-speech), real-time business context gathering, proactive insights panel, and executive role perspective indicators. Uses OpenAI GPT-4o via Replit AI Integrations.
 
 ## External Dependencies
 
