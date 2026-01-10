@@ -845,58 +845,48 @@ function speakResponse(text) {
     
     const voices = neuroSynthesis.getVoices();
     if (voices.length > 0) {
-        const premiumExecutiveVoices = [
-            'Microsoft Aria Online (Natural)',
-            'Microsoft Jenny Online (Natural)',
-            'Google US English Female',
-            'Samantha (Enhanced)',
-            'Samantha',
-            'Ava (Premium)',
-            'Ava',
-            'Microsoft Aria',
-            'Microsoft Jenny',
-            'Allison',
-            'Susan'
+        const femaleVoiceNames = [
+            'Samantha', 'Ava', 'Allison', 'Susan', 'Nicky', 'Victoria', 'Karen',
+            'Aria', 'Jenny', 'Zira', 'Siri', 'Cortana',
+            'Google US English Female', 'Google UK English Female'
+        ];
+        
+        const maleVoiceNames = [
+            'Alex', 'Daniel', 'David', 'James', 'Tom', 'Fred', 'Ralph',
+            'Mark', 'Guy', 'Aaron', 'Gordon', 'Microsoft David', 'Microsoft Mark'
         ];
         
         let preferredVoice = null;
         
-        for (const name of premiumExecutiveVoices) {
+        for (const name of femaleVoiceNames) {
             preferredVoice = voices.find(v => 
-                v.name.includes(name) && v.lang.startsWith('en-US')
+                v.name.includes(name) && v.lang.startsWith('en')
             );
             if (preferredVoice) break;
         }
         
         if (!preferredVoice) {
             preferredVoice = voices.find(v => 
-                v.lang === 'en-US' && v.name.toLowerCase().includes('natural')
+                v.lang.startsWith('en') && 
+                v.name.toLowerCase().includes('female')
             );
         }
         
         if (!preferredVoice) {
-            preferredVoice = voices.find(v => 
-                v.lang === 'en-US' && 
-                (v.name.includes('Aria') || v.name.includes('Jenny') ||
-                 v.name.includes('Samantha') || v.name.includes('Ava'))
-            );
+            preferredVoice = voices.find(v => {
+                const nameLower = v.name.toLowerCase();
+                const isMale = maleVoiceNames.some(m => nameLower.includes(m.toLowerCase()));
+                return v.lang.startsWith('en') && !isMale;
+            });
         }
         
         if (!preferredVoice) {
-            preferredVoice = voices.find(v => v.lang === 'en-US') ||
-                            voices.find(v => v.lang.startsWith('en')) ||
-                            voices[0];
+            preferredVoice = voices.find(v => v.lang.startsWith('en-US')) || voices[0];
         }
         
         if (preferredVoice) {
             utterance.voice = preferredVoice;
-            
-            if (preferredVoice.name.toLowerCase().includes('natural') || 
-                preferredVoice.name.toLowerCase().includes('enhanced') ||
-                preferredVoice.name.toLowerCase().includes('premium')) {
-                utterance.rate = 0.92;
-                utterance.pitch = 1.0;
-            }
+            console.log('COREx Voice:', preferredVoice.name);
         }
     }
     
