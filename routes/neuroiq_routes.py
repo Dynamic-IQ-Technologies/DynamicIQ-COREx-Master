@@ -132,8 +132,8 @@ def gather_system_context():
         context['procurement']['open_purchase_orders'] = po_stats['open_pos'] or 0
         
         recent_sales = conn.execute('''
-            SELECT so.id, so.order_number, so.customer_id, c.name as customer_name,
-                   so.order_type, so.status, so.total_amount, so.order_date
+            SELECT so.id, so.so_number, so.customer_id, c.name as customer_name,
+                   so.sales_type, so.status, so.total_amount, so.order_date
             FROM sales_orders so
             LEFT JOIN customers c ON so.customer_id = c.id
             ORDER BY so.order_date DESC LIMIT 10
@@ -141,9 +141,9 @@ def gather_system_context():
         context['transactions'] = {'recent_sales_orders': []}
         for row in recent_sales:
             context['transactions']['recent_sales_orders'].append({
-                'order_number': row['order_number'],
+                'order_number': row['so_number'],
                 'customer': row['customer_name'],
-                'type': row['order_type'],
+                'type': row['sales_type'],
                 'status': row['status'],
                 'amount': float(row['total_amount'] or 0),
                 'date': row['order_date']
@@ -152,9 +152,9 @@ def gather_system_context():
         exchange_stats = conn.execute('''
             SELECT 
                 COUNT(*) as total_exchanges,
-                SUM(CASE WHEN status IN ('Pending', 'Confirmed') THEN 1 ELSE 0 END) as open_exchanges,
-                COALESCE(SUM(CASE WHEN status IN ('Pending', 'Confirmed') THEN total_amount ELSE 0 END), 0) as exchange_value
-            FROM sales_orders WHERE order_type = 'Exchange'
+                SUM(CASE WHEN status IN ('Pending', 'Confirmed', 'Draft', 'In Production', 'Released to Shipping') THEN 1 ELSE 0 END) as open_exchanges,
+                COALESCE(SUM(CASE WHEN status IN ('Pending', 'Confirmed', 'Draft', 'In Production', 'Released to Shipping') THEN total_amount ELSE 0 END), 0) as exchange_value
+            FROM sales_orders WHERE sales_type = 'Exchange'
         ''').fetchone()
         context['sales']['total_exchanges'] = exchange_stats['total_exchanges'] or 0
         context['sales']['open_exchanges'] = exchange_stats['open_exchanges'] or 0
