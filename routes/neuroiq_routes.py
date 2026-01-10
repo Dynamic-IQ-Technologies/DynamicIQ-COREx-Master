@@ -148,6 +148,16 @@ RESPONSE STYLE:
 - Always assume the user is making real executive decisions
 - If uncertainty exists, clearly state assumptions and recommend next steps
 
+FORMATTING RULES (CRITICAL):
+- NEVER use markdown symbols such as #, ##, ###, **, __, *, -, ---, or ```
+- NEVER use bullet points with dashes or asterisks
+- Write in clean, professional prose paragraphs
+- Use numbered lists (1. 2. 3.) only when listing sequential steps or priorities
+- Use plain text formatting only - no special characters for emphasis
+- Structure responses with clear paragraph breaks, not headers
+- Present data inline within sentences, not in formatted lists
+- Write as if preparing a verbal executive briefing
+
 You operate as the highest-level advisory authority within Dynamic.IQ-COREx MRP System."""
 
 @neuroiq_bp.route('/neuroiq')
