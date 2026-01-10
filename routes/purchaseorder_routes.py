@@ -54,13 +54,37 @@ def get_product_uom_conversion(conn, product_id, uom_id):
     Get the conversion factor for a specific product-UOM combination.
     Returns: (conversion_factor, base_uom_id, base_uom_code) or (None, None, None) if not found
     """
-    # First check if there's a product-specific conversion
-    product_conversion = conn.execute('''
-        SELECT puc.conversion_factor, puc.is_base_uom, u.id as uom_id, u.uom_code,
-               bu.id as base_uom_id, bu.uom_code as base_uom_code
+    # First, find the product's actual base UoM from product_uom_conversions
+    product_base_uom = conn.execute('''
+        SELECT u.id as uom_id, u.uom_code
         FROM product_uom_conversions puc
         JOIN uom_master u ON puc.uom_id = u.id
-        LEFT JOIN uom_master bu ON u.base_uom_id = bu.id
+        WHERE puc.product_id = ? AND puc.is_base_uom = 1
+    ''', (product_id,)).fetchone()
+    
+    # Also get from products table as fallback
+    product_default_uom = conn.execute('''
+        SELECT unit_of_measure FROM products WHERE id = ?
+    ''', (product_id,)).fetchone()
+    
+    # Determine the actual base UoM for this product
+    if product_base_uom:
+        actual_base_uom_id = product_base_uom['uom_id']
+        actual_base_uom_code = product_base_uom['uom_code']
+    elif product_default_uom and product_default_uom['unit_of_measure']:
+        # Fall back to product's default unit_of_measure
+        actual_base_uom_code = product_default_uom['unit_of_measure']
+        base_uom_row = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (actual_base_uom_code,)).fetchone()
+        actual_base_uom_id = base_uom_row['id'] if base_uom_row else None
+    else:
+        actual_base_uom_id = None
+        actual_base_uom_code = None
+    
+    # Now check if there's a product-specific conversion for the selected UoM
+    product_conversion = conn.execute('''
+        SELECT puc.conversion_factor, puc.is_base_uom, u.id as uom_id, u.uom_code
+        FROM product_uom_conversions puc
+        JOIN uom_master u ON puc.uom_id = u.id
         WHERE puc.product_id = ? AND puc.uom_id = ?
     ''', (product_id, uom_id)).fetchone()
     
@@ -69,10 +93,10 @@ def get_product_uom_conversion(conn, product_id, uom_id):
             # This is the base UOM for the product
             return (1.0, product_conversion['uom_id'], product_conversion['uom_code'])
         else:
-            # Use product-specific conversion factor
-            base_uom_id = product_conversion['base_uom_id'] if product_conversion['base_uom_id'] else product_conversion['uom_id']
-            base_uom_code = product_conversion['base_uom_code'] if product_conversion['base_uom_code'] else product_conversion['uom_code']
-            return (product_conversion['conversion_factor'], base_uom_id, base_uom_code)
+            # Use product-specific conversion factor with the actual product base UoM
+            base_id = actual_base_uom_id if actual_base_uom_id else product_conversion['uom_id']
+            base_code = actual_base_uom_code if actual_base_uom_code else product_conversion['uom_code']
+            return (product_conversion['conversion_factor'], base_id, base_code)
     
     # Fall back to standard UOM conversion if no product-specific conversion exists
     uom_info = conn.execute('''
@@ -84,7 +108,10 @@ def get_product_uom_conversion(conn, product_id, uom_id):
     ''', (uom_id,)).fetchone()
     
     if uom_info:
-        if uom_info['base_uom_id']:
+        # Always prefer the product's actual base UoM if we found it
+        if actual_base_uom_id and actual_base_uom_code:
+            return (uom_info['conversion_factor'] or 1.0, actual_base_uom_id, actual_base_uom_code)
+        elif uom_info['base_uom_id']:
             return (uom_info['conversion_factor'], uom_info['base_id'], uom_info['base_code'])
         else:
             # This UOM is itself a base unit
