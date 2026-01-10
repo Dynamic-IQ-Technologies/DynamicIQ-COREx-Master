@@ -1011,6 +1011,158 @@ def receive_purchaseorder(id):
     
     return redirect(url_for('po_routes.list_purchaseorders'))
 
+@po_bp.route('/api/purchaseorders/<int:po_id>/lines/<int:line_id>/quick-receive', methods=['POST'])
+@role_required('Admin', 'Procurement')
+def api_quick_receive_po_line(po_id, line_id):
+    """Quick receive a single PO line item directly from the PO view page"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (po_id,)).fetchone()
+        if not po:
+            return jsonify({'success': False, 'error': 'Purchase Order not found'}), 404
+        
+        po_line = conn.execute('''
+            SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure
+            FROM purchase_order_lines pol
+            JOIN products p ON pol.product_id = p.id
+            WHERE pol.id = ? AND pol.po_id = ?
+        ''', (line_id, po_id)).fetchone()
+        
+        if not po_line:
+            return jsonify({'success': False, 'error': 'PO Line not found'}), 404
+        
+        data = request.get_json()
+        quantity_received = float(data.get('quantity_received', 0))
+        warehouse_location = data.get('warehouse_location', '').strip()
+        bin_location = data.get('bin_location', '').strip()
+        condition = data.get('condition', 'New')
+        remarks = data.get('remarks', '')
+        
+        if quantity_received <= 0:
+            return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
+        
+        if not warehouse_location:
+            return jsonify({'success': False, 'error': 'Warehouse location is required'}), 400
+        
+        if not bin_location:
+            return jsonify({'success': False, 'error': 'Bin location is required'}), 400
+        
+        ordered_qty = po_line['quantity'] or 0
+        already_received = po_line['received_quantity'] or 0
+        remaining = ordered_qty - already_received
+        
+        if quantity_received > remaining:
+            return jsonify({'success': False, 'error': f'Quantity exceeds remaining amount ({remaining})'}), 400
+        
+        last_receipt = conn.execute('''
+            SELECT receipt_number FROM receiving_transactions 
+            WHERE receipt_number LIKE 'RCV-%'
+            ORDER BY CAST(SUBSTR(receipt_number, 5) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_receipt:
+            try:
+                last_number = int(last_receipt['receipt_number'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        receipt_number = f'RCV-{next_number:06d}'
+        receipt_date = datetime.now().strftime('%Y-%m-%d')
+        product_id = po_line['product_id']
+        
+        conversion_factor = po_line['conversion_factor_used'] if po_line['conversion_factor_used'] else 1.0
+        base_quantity_received = quantity_received * conversion_factor
+        unit_cost = po_line['unit_price'] or 0
+        
+        conn.execute('''
+            INSERT INTO receiving_transactions 
+            (receipt_number, po_id, product_id, quantity_received, receipt_date, condition, 
+             warehouse_location, bin_location, remarks, received_by,
+             po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (receipt_number, po_id, product_id, quantity_received, receipt_date, condition,
+              warehouse_location, bin_location, remarks, session['user_id'],
+              line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost))
+        
+        inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
+        
+        if inventory:
+            new_qty = inventory['quantity'] + base_quantity_received
+            conn.execute('''
+                UPDATE inventory 
+                SET quantity=?, 
+                    warehouse_location=?,
+                    bin_location=?,
+                    condition=?,
+                    status = CASE 
+                        WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                        ELSE status 
+                    END,
+                    last_updated=CURRENT_TIMESTAMP 
+                WHERE product_id=?
+            ''', (new_qty, warehouse_location, bin_location, condition, new_qty, product_id))
+        else:
+            conn.execute('''
+                INSERT INTO inventory 
+                (product_id, quantity, warehouse_location, bin_location, condition, 
+                 reorder_point, safety_stock, status, last_updated)
+                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', CURRENT_TIMESTAMP)
+            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition))
+        
+        new_received = already_received + quantity_received
+        conn.execute('''
+            UPDATE purchase_order_lines 
+            SET received_quantity = ?
+            WHERE id = ?
+        ''', (new_received, line_id))
+        
+        total_ordered = conn.execute('SELECT SUM(quantity) as total FROM purchase_order_lines WHERE po_id = ?', (po_id,)).fetchone()['total'] or 0
+        total_received = conn.execute('SELECT SUM(received_quantity) as total FROM purchase_order_lines WHERE po_id = ?', (po_id,)).fetchone()['total'] or 0
+        
+        if total_received >= total_ordered:
+            new_status = 'Received'
+        elif total_received > 0:
+            new_status = 'Partially Received'
+        else:
+            new_status = po['status']
+        
+        conn.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', (new_status, po_id))
+        
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='receiving_transaction',
+            record_id=receipt_number,
+            action_type='Quick Receive',
+            modified_by=session.get('user_id'),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            details=f'Quick received {quantity_received} {po_line["product_code"]} from PO {po["po_number"]}'
+        )
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'receipt_number': receipt_number,
+            'quantity_received': quantity_received,
+            'base_quantity_received': base_quantity_received,
+            'new_total_received': new_received,
+            'po_status': new_status,
+            'message': f'Successfully received {quantity_received} units. Receipt: {receipt_number}'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
 @po_bp.route('/purchaseorders/suggestions')
 @role_required('Admin', 'Procurement', 'Planner')
 def purchase_suggestions():

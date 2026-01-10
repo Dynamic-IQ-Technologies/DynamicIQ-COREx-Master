@@ -398,6 +398,7 @@
                         <th>Base Unit Cost</th>
                         <th>Extended Cost</th>
                         <th>In Stock</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -473,13 +474,27 @@
                             <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
+                        <td>
+                            {% set remaining = (line.quantity or 0) - (line.received_quantity or 0) %}
+                            {% if remaining > 0 and po.status not in ['Cancelled', 'Closed'] %}
+                            <button type="button" class="btn btn-sm btn-success" 
+                                    onclick="openQuickReceive({{ line.id }}, '{{ line.product_code }}', '{{ line.product_name|e }}', {{ remaining }}, '{{ line.uom_code or line.unit_of_measure }}')"
+                                    title="Quick Receive">
+                                <i class="bi bi-box-arrow-in-down"></i> Receive
+                            </button>
+                            {% elif remaining <= 0 %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Complete</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% set ns.total = ns.total + (line.extended_cost or line_total) %}
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr class="table-light">
-                        <td colspan="9" class="text-end"><strong>Total Order Value:</strong></td>
+                        <td colspan="10" class="text-end"><strong>Total Order Value:</strong></td>
                         <td colspan="2" class="fw-bold text-primary">{{ ns.total|currency }}</td>
                     </tr>
                 </tfoot>
@@ -901,7 +916,148 @@
 </div>
 {% endif %}
 
+<!-- Quick Receive Modal -->
+<div class="modal fade" id="quickReceiveModal" tabindex="-1" aria-labelledby="quickReceiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="quickReceiveModalLabel">
+                    <i class="bi bi-box-arrow-in-down me-2"></i>Quick Receive
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="qr_line_id">
+                <input type="hidden" id="qr_po_id" value="{{ po.id }}">
+                
+                <div class="alert alert-info mb-3">
+                    <strong id="qr_product_code"></strong> - <span id="qr_product_name"></span>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Remaining Qty</label>
+                        <div class="form-control-plaintext fw-bold text-primary" id="qr_remaining"></div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">UOM</label>
+                        <div class="form-control-plaintext" id="qr_uom"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="qr_quantity" class="form-label">Quantity to Receive *</label>
+                    <input type="number" class="form-control" id="qr_quantity" step="0.01" min="0.01" required>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label for="qr_warehouse" class="form-label">Warehouse Location *</label>
+                        <input type="text" class="form-control" id="qr_warehouse" placeholder="e.g., MAIN" required>
+                    </div>
+                    <div class="col-6">
+                        <label for="qr_bin" class="form-label">Bin Location *</label>
+                        <input type="text" class="form-control" id="qr_bin" placeholder="e.g., A-01" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="qr_condition" class="form-label">Condition</label>
+                    <select class="form-select" id="qr_condition">
+                        <option value="New" selected>New</option>
+                        <option value="Serviceable">Serviceable</option>
+                        <option value="Overhauled">Overhauled</option>
+                        <option value="As Removed">As Removed</option>
+                        <option value="Unserviceable">Unserviceable</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="qr_remarks" class="form-label">Remarks (Optional)</label>
+                    <textarea class="form-control" id="qr_remarks" rows="2" placeholder="Optional notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitQuickReceive()">
+                    <i class="bi bi-check2-circle me-1"></i> Receive
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let quickReceiveModal = null;
+
+window.openQuickReceive = function(lineId, productCode, productName, remaining, uom) {
+    if (!quickReceiveModal) {
+        quickReceiveModal = new bootstrap.Modal(document.getElementById('quickReceiveModal'));
+    }
+    document.getElementById('qr_line_id').value = lineId;
+    document.getElementById('qr_product_code').textContent = productCode;
+    document.getElementById('qr_product_name').textContent = productName;
+    document.getElementById('qr_remaining').textContent = remaining;
+    document.getElementById('qr_uom').textContent = uom;
+    document.getElementById('qr_quantity').value = remaining;
+    document.getElementById('qr_quantity').max = remaining;
+    document.getElementById('qr_warehouse').value = '';
+    document.getElementById('qr_bin').value = '';
+    document.getElementById('qr_condition').value = 'New';
+    document.getElementById('qr_remarks').value = '';
+    quickReceiveModal.show();
+};
+
+window.submitQuickReceive = async function() {
+    const poId = document.getElementById('qr_po_id').value;
+    const lineId = document.getElementById('qr_line_id').value;
+    const quantity = parseFloat(document.getElementById('qr_quantity').value);
+    const warehouse = document.getElementById('qr_warehouse').value.trim();
+    const bin = document.getElementById('qr_bin').value.trim();
+    const condition = document.getElementById('qr_condition').value;
+    const remarks = document.getElementById('qr_remarks').value.trim();
+    
+    if (!quantity || quantity <= 0) {
+        showNotification('Please enter a valid quantity', 'danger');
+        return;
+    }
+    if (!warehouse) {
+        showNotification('Warehouse location is required', 'danger');
+        return;
+    }
+    if (!bin) {
+        showNotification('Bin location is required', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/purchaseorders/${poId}/lines/${lineId}/quick-receive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                quantity_received: quantity,
+                warehouse_location: warehouse,
+                bin_location: bin,
+                condition: condition,
+                remarks: remarks
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            quickReceiveModal.hide();
+            showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.error || 'Failed to receive items', 'danger');
+        }
+    } catch (error) {
+        console.error('Quick receive error:', error);
+        showNotification('An error occurred while receiving items', 'danger');
+    }
+};
+
 async function confirmCancelPO() {
     const confirmed = await showConfirm('Are you sure you want to cancel this purchase order?', {
         title: 'Cancel Purchase Order',
