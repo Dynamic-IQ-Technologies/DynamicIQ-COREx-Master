@@ -197,10 +197,12 @@ def create_workorder():
                 
                 is_aog = 1 if request.form.get('is_aog') else 0
                 
+                serial_number = request.form.get('serial_number', '').strip() or None
+                
                 conn.execute('''
                     INSERT INTO work_orders 
-                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name, operational_status, stage_id, repair_category, workorder_type, is_aog)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name, operational_status, stage_id, repair_category, workorder_type, is_aog, serial_number)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     wo_number,
                     int(request.form['product_id']),
@@ -218,7 +220,8 @@ def create_workorder():
                     stage_id,
                     request.form.get('repair_category') or None,
                     request.form.get('workorder_type') or None,
-                    is_aog
+                    is_aog,
+                    serial_number
                 ))
                 
                 wo_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
