@@ -1211,6 +1211,9 @@
                                         <th class="text-center">Issued</th>
                                         <th class="text-end">Unit Cost</th>
                                         <th class="text-end">Total Cost</th>
+                                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                        <th class="text-center">Actions</th>
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1231,12 +1234,34 @@
                                         <td class="text-center">{{ mat.issued_qty }}</td>
                                         <td class="text-end">{{ (mat.unit_cost or 0)|currency }}</td>
                                         <td class="text-end">{{ (mat.total_cost or 0)|currency }}</td>
+                                        {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                        <td class="text-center">
+                                            {% set remaining = (mat.required_quantity or 0) - (mat.issued_qty or 0) %}
+                                            {% if remaining > 0 %}
+                                                {% if mat.source_type == 'task' %}
+                                                <button type="button" class="btn btn-sm btn-success" 
+                                                        onclick="openIssueMaterialModal({{ mat.task_id }}, {{ mat.material_id }}, '{{ mat.code }}', {{ mat.required_quantity or 0 }}, {{ mat.issued_qty or 0 }})"
+                                                        title="Issue Material">
+                                                    <i class="bi bi-box-arrow-right"></i> Issue
+                                                </button>
+                                                {% else %}
+                                                <button type="button" class="btn btn-sm btn-success" 
+                                                        onclick="openIssueModal({{ mat.material_id }}, '{{ mat.code }}', {{ mat.required_quantity or 0 }}, {{ mat.allocated_quantity or 0 }}, {{ mat.issued_qty or 0 }})"
+                                                        title="Issue Material">
+                                                    <i class="bi bi-box-arrow-right"></i> Issue
+                                                </button>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i> Issued</span>
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
-                                        <th colspan="6" class="text-end">Total Material Cost:</th>
+                                        <th colspan="{% if session.role in ['Admin', 'Planner', 'Production Staff'] %}7{% else %}6{% endif %}" class="text-end">Total Material Cost:</th>
                                         <th class="text-end">{{ cost_info.material_cost|currency }}</th>
                                     </tr>
                                 </tfoot>

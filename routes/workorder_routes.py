@@ -499,7 +499,8 @@ def view_workorder(id):
     
     # Detailed cost breakdowns for Cost tab (include both WO-level and task-level materials)
     material_cost_details = conn.execute('''
-        SELECT code, name, required_quantity, issued_qty, unit_cost, total_cost, inventory_id FROM (
+        SELECT code, name, required_quantity, issued_qty, unit_cost, total_cost, inventory_id, 
+               material_id, source_type, allocated_quantity, task_id FROM (
             SELECT 
                 p.code as code, p.name as name, mr.required_quantity as required_quantity,
                 COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
@@ -507,7 +508,11 @@ def view_workorder(id):
                 p.cost as unit_cost,
                 COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
                           WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) * COALESCE(p.cost, 0) as total_cost,
-                (SELECT i.id FROM inventory i WHERE i.product_id = mr.product_id LIMIT 1) as inventory_id
+                (SELECT i.id FROM inventory i WHERE i.product_id = mr.product_id LIMIT 1) as inventory_id,
+                mr.id as material_id,
+                'wo' as source_type,
+                mr.allocated_quantity as allocated_quantity,
+                NULL as task_id
             FROM material_requirements mr
             JOIN products p ON mr.product_id = p.id
             WHERE mr.work_order_id = ?
@@ -517,7 +522,11 @@ def view_workorder(id):
                 tm.issued_qty as issued_qty,
                 tm.unit_cost as unit_cost,
                 tm.issued_qty * COALESCE(tm.unit_cost, 0) as total_cost,
-                (SELECT i.id FROM inventory i WHERE i.product_id = tm.product_id LIMIT 1) as inventory_id
+                (SELECT i.id FROM inventory i WHERE i.product_id = tm.product_id LIMIT 1) as inventory_id,
+                tm.id as material_id,
+                'task' as source_type,
+                tm.required_qty as allocated_quantity,
+                tm.task_id as task_id
             FROM work_order_task_materials tm
             JOIN work_order_tasks wot ON tm.task_id = wot.id
             JOIN products p ON tm.product_id = p.id
