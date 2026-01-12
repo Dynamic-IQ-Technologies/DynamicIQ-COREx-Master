@@ -184,6 +184,16 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Description / Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Auto-populated from product description when product is selected"></textarea>
+                        <small class="text-muted">Auto-populated from product description. You can edit as needed.</small>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Work Order</button>
@@ -191,4 +201,23 @@
         </form>
     </div>
 </div>
+
+<script>
+const productDescriptions = {
+    {% for product in products %}
+    "{{ product.id }}": {{ product.description|tojson if product.description else '""' }},
+    {% endfor %}
+};
+
+document.getElementById('product_id').addEventListener('change', function() {
+    const productId = this.value;
+    const notesField = document.getElementById('notes');
+    
+    if (productId && productDescriptions[productId]) {
+        if (!notesField.value.trim()) {
+            notesField.value = productDescriptions[productId];
+        }
+    }
+});
+</script>
 {% endblock %}
