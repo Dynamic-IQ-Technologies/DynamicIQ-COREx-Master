@@ -49,7 +49,7 @@ def list_issues():
     db = Database()
     conn = db.get_connection()
     
-    # Get available materials ready to be issued
+    # Get available materials ready to be issued with associated work orders
     available_materials = conn.execute('''
         SELECT 
             i.id,
@@ -63,7 +63,12 @@ def list_issues():
             i.warehouse_location,
             i.bin_location,
             i.condition,
-            i.status
+            i.status,
+            (SELECT GROUP_CONCAT(DISTINCT wo.wo_number || ':' || wo.id) 
+             FROM material_requirements mr 
+             JOIN work_orders wo ON mr.work_order_id = wo.id 
+             WHERE mr.product_id = p.id AND wo.status NOT IN ('Completed', 'Cancelled')
+            ) as associated_work_orders
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0 

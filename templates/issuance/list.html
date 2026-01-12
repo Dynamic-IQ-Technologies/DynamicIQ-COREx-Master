@@ -28,11 +28,14 @@
         {% if available_materials %}
         <!-- Filter Controls -->
         <div class="row mb-3 g-2">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
                     <input type="text" class="form-control" id="materialSearchInput" placeholder="Search product code or name...">
                 </div>
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="workOrderFilter" placeholder="Filter by WO#...">
             </div>
             <div class="col-md-2">
                 <select class="form-select" id="warehouseFilter">
@@ -61,9 +64,9 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-outline-secondary w-100" id="clearFiltersBtn">
-                    <i class="bi bi-x-circle"></i> Clear
+            <div class="col-md-1">
+                <button type="button" class="btn btn-outline-secondary w-100" id="clearFiltersBtn" title="Clear Filters">
+                    <i class="bi bi-x-circle"></i>
                 </button>
             </div>
         </div>
@@ -79,6 +82,7 @@
                         <th class="sortable" data-sort="inv-id" style="cursor:pointer;">Inventory ID <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable" data-sort="code" style="cursor:pointer;">Product Code <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable" data-sort="name" style="cursor:pointer;">Product Name <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="workorders" style="cursor:pointer;">Work Orders <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable" data-sort="available" style="cursor:pointer;">Available Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable" data-sort="reserved" style="cursor:pointer;">Reserved <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable" data-sort="total" style="cursor:pointer;">Total Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
@@ -100,7 +104,8 @@
                         data-available="{{ item.available_quantity }}"
                         data-reserved="{{ item.reserved_quantity or 0 }}"
                         data-total="{{ item.quantity }}"
-                        data-bin="{{ item.bin_location or '' }}">
+                        data-bin="{{ item.bin_location or '' }}"
+                        data-workorders="{{ item.associated_work_orders or '' }}">
                         {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
                         <td>
                             <input type="checkbox" class="material-checkbox" 
@@ -116,6 +121,18 @@
                         <td><span class="badge bg-secondary">INV-{{ "%06d"|format(item.id) }}</span></td>
                         <td><strong>{{ item.product_code }}</strong></td>
                         <td>{{ item.product_name }}</td>
+                        <td>
+                            {% if item.associated_work_orders %}
+                            {% for wo_pair in item.associated_work_orders.split(',') %}
+                            {% set wo_parts = wo_pair.strip().split(':') %}
+                            {% set wo_number = wo_parts[0] %}
+                            {% set wo_id = wo_parts[1] if wo_parts|length > 1 else '' %}
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=wo_id) }}" class="badge bg-primary text-decoration-none me-1" title="View Work Order">{{ wo_number }}</a>
+                            {% endfor %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge bg-success" style="font-size: 1em;">
                                 {{ "%.2f"|format(item.available_quantity) }} {{ item.unit_of_measure }}
@@ -398,6 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ============ FILTERING ============
     const materialSearchInput = document.getElementById('materialSearchInput');
+    const workOrderFilter = document.getElementById('workOrderFilter');
     const warehouseFilter = document.getElementById('warehouseFilter');
     const conditionFilter = document.getElementById('conditionFilter');
     const statusFilter = document.getElementById('statusFilter');
@@ -407,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function applyFilters() {
         const searchTerm = materialSearchInput ? materialSearchInput.value.toLowerCase() : '';
+        const woFilterValue = workOrderFilter ? workOrderFilter.value.toLowerCase() : '';
         const warehouseValue = warehouseFilter ? warehouseFilter.value : '';
         const conditionValue = conditionFilter ? conditionFilter.value : '';
         const statusValue = statusFilter ? statusFilter.value : '';
@@ -416,16 +435,18 @@ document.addEventListener('DOMContentLoaded', function() {
         materialRows.forEach(row => {
             const code = row.dataset.code || '';
             const name = row.dataset.name || '';
+            const workorders = (row.dataset.workorders || '').toLowerCase();
             const warehouse = row.dataset.warehouse || '';
             const condition = row.dataset.condition || '';
             const status = row.dataset.status || '';
             
             const matchesSearch = !searchTerm || code.includes(searchTerm) || name.includes(searchTerm);
+            const matchesWorkOrder = !woFilterValue || workorders.includes(woFilterValue);
             const matchesWarehouse = !warehouseValue || warehouse === warehouseValue;
             const matchesCondition = !conditionValue || condition === conditionValue;
             const matchesStatus = !statusValue || status === statusValue;
             
-            if (matchesSearch && matchesWarehouse && matchesCondition && matchesStatus) {
+            if (matchesSearch && matchesWorkOrder && matchesWarehouse && matchesCondition && matchesStatus) {
                 row.style.display = '';
                 visibleCount++;
             } else {
@@ -443,6 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (materialSearchInput) materialSearchInput.addEventListener('input', applyFilters);
+    if (workOrderFilter) workOrderFilter.addEventListener('input', applyFilters);
     if (warehouseFilter) warehouseFilter.addEventListener('change', applyFilters);
     if (conditionFilter) conditionFilter.addEventListener('change', applyFilters);
     if (statusFilter) statusFilter.addEventListener('change', applyFilters);
@@ -450,6 +472,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function() {
             if (materialSearchInput) materialSearchInput.value = '';
+            if (workOrderFilter) workOrderFilter.value = '';
             if (warehouseFilter) warehouseFilter.value = '';
             if (conditionFilter) conditionFilter.value = '';
             if (statusFilter) statusFilter.value = '';
