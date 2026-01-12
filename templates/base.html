@@ -2189,7 +2189,560 @@
             }
         }
     }, true);
+    
+    // COREx Guide - Proactive Transaction Assistant
+    window.CORExGuide = {
+        panel: null,
+        isOpen: false,
+        transactionType: 'general',
+        pageContext: {},
+        
+        init: function(config) {
+            this.transactionType = config?.transactionType || 'general';
+            this.pageContext = config?.pageContext || {};
+            this.createPanel();
+            this.createToggleButton();
+        },
+        
+        createPanel: function() {
+            if (document.getElementById('corex-guide-panel')) return;
+            
+            const panel = document.createElement('div');
+            panel.id = 'corex-guide-panel';
+            panel.innerHTML = `
+                <div class="guide-header">
+                    <div class="d-flex align-items-center">
+                        <div class="guide-avatar me-2">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 text-white">COREx Guide</h6>
+                            <small class="text-white-50">Transaction Assistant</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm text-white" onclick="CORExGuide.toggle()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div class="guide-body" id="guide-messages">
+                    <div class="guide-message assistant">
+                        <div class="message-content">
+                            <p>Hello! I'm here to help you complete this transaction. What would you like assistance with?</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="guide-suggestions" id="guide-suggestions">
+                    <button class="suggestion-chip" onclick="CORExGuide.quickAction('What should I do next?')">
+                        <i class="bi bi-arrow-right-circle me-1"></i>Next step
+                    </button>
+                    <button class="suggestion-chip" onclick="CORExGuide.quickAction('Explain required fields')">
+                        <i class="bi bi-info-circle me-1"></i>Required fields
+                    </button>
+                    <button class="suggestion-chip" onclick="CORExGuide.quickAction('Check for issues')">
+                        <i class="bi bi-check-circle me-1"></i>Check entries
+                    </button>
+                </div>
+                <div class="guide-input">
+                    <input type="text" id="guide-input-field" placeholder="Ask me anything..." 
+                           onkeypress="if(event.key==='Enter')CORExGuide.sendMessage()">
+                    <button class="btn btn-primary btn-sm" onclick="CORExGuide.sendMessage()">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(panel);
+            this.panel = panel;
+        },
+        
+        createToggleButton: function() {
+            if (document.getElementById('corex-guide-toggle')) return;
+            
+            const btn = document.createElement('button');
+            btn.id = 'corex-guide-toggle';
+            btn.className = 'guide-toggle-btn';
+            btn.innerHTML = '<i class="bi bi-chat-dots-fill"></i>';
+            btn.title = 'COREx Guide - AI Assistant';
+            btn.onclick = () => this.toggle();
+            document.body.appendChild(btn);
+        },
+        
+        toggle: function() {
+            this.isOpen = !this.isOpen;
+            const panel = document.getElementById('corex-guide-panel');
+            const toggle = document.getElementById('corex-guide-toggle');
+            if (panel) {
+                panel.classList.toggle('open', this.isOpen);
+            }
+            if (toggle) {
+                toggle.classList.toggle('active', this.isOpen);
+            }
+        },
+        
+        sendMessage: function() {
+            const input = document.getElementById('guide-input-field');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            this.addMessage(message, 'user');
+            input.value = '';
+            this.showTyping();
+            
+            this.callAPI(message);
+        },
+        
+        quickAction: function(action) {
+            this.addMessage(action, 'user');
+            this.showTyping();
+            this.callAPI(action);
+        },
+        
+        addMessage: function(text, type) {
+            const container = document.getElementById('guide-messages');
+            const msg = document.createElement('div');
+            msg.className = 'guide-message ' + type;
+            msg.innerHTML = '<div class="message-content"><p>' + this.formatMessage(text) + '</p></div>';
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        },
+        
+        formatMessage: function(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/• /g, '<br>• ');
+        },
+        
+        showTyping: function() {
+            const container = document.getElementById('guide-messages');
+            const typing = document.createElement('div');
+            typing.className = 'guide-message assistant typing';
+            typing.id = 'typing-indicator';
+            typing.innerHTML = '<div class="message-content"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+            container.appendChild(typing);
+            container.scrollTop = container.scrollHeight;
+        },
+        
+        hideTyping: function() {
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+        },
+        
+        updateSuggestions: function(suggestions) {
+            const container = document.getElementById('guide-suggestions');
+            if (!suggestions || suggestions.length === 0) return;
+            
+            container.innerHTML = suggestions.map(s => 
+                '<button class="suggestion-chip" onclick="CORExGuide.quickAction(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>'
+            ).join('');
+        },
+        
+        callAPI: async function(query) {
+            const formData = this.gatherFormData();
+            
+            try {
+                const response = await fetch('/api/corex-guide/assist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        transaction_type: this.transactionType,
+                        context: {
+                            page: window.location.pathname,
+                            action: formData.hasData ? 'editing' : 'viewing'
+                        },
+                        page_data: formData.data,
+                        field_context: formData.focusedField
+                    })
+                });
+                
+                const data = await response.json();
+                this.hideTyping();
+                
+                if (data.response) {
+                    this.addMessage(data.response, 'assistant');
+                }
+                if (data.suggestions) {
+                    this.updateSuggestions(data.suggestions);
+                }
+            } catch (error) {
+                this.hideTyping();
+                this.addMessage("I'm having trouble connecting. Please try again.", 'assistant');
+            }
+        },
+        
+        gatherFormData: function() {
+            const forms = document.querySelectorAll('form');
+            const data = {};
+            let hasData = false;
+            
+            forms.forEach(form => {
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    if (input.name && input.value) {
+                        data[input.name] = input.value;
+                        hasData = true;
+                    }
+                });
+            });
+            
+            const focused = document.activeElement;
+            const focusedField = focused && focused.name ? {
+                name: focused.name,
+                value: focused.value,
+                type: focused.type
+            } : {};
+            
+            return { data, hasData, focusedField };
+        },
+        
+        autoDetectTransactionType: function() {
+            const path = window.location.pathname;
+            const typeMap = {
+                '/salesorders': 'sales_order',
+                '/purchaseorders': 'purchase_order',
+                '/workorders': 'work_order',
+                '/inventory': 'inventory',
+                '/invoices': 'invoice',
+                '/quotes': 'quote',
+                '/receiving': 'receiving'
+            };
+            for (const [prefix, type] of Object.entries(typeMap)) {
+                if (path.startsWith(prefix)) return type;
+            }
+            return 'general';
+        }
+    };
+    
+    // Auto-initialize COREx Guide on transaction pages
+    document.addEventListener('DOMContentLoaded', function() {
+        const transactionPages = ['/salesorders', '/purchaseorders', '/workorders', '/inventory', '/invoices', '/quotes', '/receiving'];
+        const path = window.location.pathname;
+        const isTransactionPage = transactionPages.some(p => path.startsWith(p) && (path.includes('/create') || path.includes('/edit')));
+        
+        if (isTransactionPage) {
+            CORExGuide.init({
+                transactionType: CORExGuide.autoDetectTransactionType()
+            });
+            CORExGuide.attachFieldListeners();
+            CORExGuide.attachFormListeners();
+            setTimeout(() => CORExGuide.proactiveGreeting(), 1500);
+        }
+    });
+    
+    // Field-level validation and proactive features
+    CORExGuide.attachFieldListeners = function() {
+        const inputs = document.querySelectorAll('form input, form select, form textarea');
+        inputs.forEach(input => {
+            input.addEventListener('blur', (e) => this.onFieldBlur(e.target));
+        });
+    };
+    
+    CORExGuide.attachFormListeners = function() {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', (e) => this.onFormSubmit(e, form));
+        });
+    };
+    
+    CORExGuide.onFieldBlur = async function(field) {
+        if (!field.name) return;
+        
+        const isRequired = field.hasAttribute('required');
+        const isEmpty = !field.value || field.value.trim() === '';
+        const fieldValue = isEmpty ? '(empty)' : field.value;
+        
+        const relatedFields = {};
+        const form = field.closest('form');
+        if (form) {
+            form.querySelectorAll('input, select, textarea').forEach(f => {
+                if (f.name && f !== field) {
+                    relatedFields[f.name] = f.value || '(empty)';
+                }
+            });
+        }
+        
+        try {
+            const response = await fetch('/api/corex-guide/validate-field', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    field_name: field.name,
+                    field_value: fieldValue,
+                    field_type: field.type || 'text',
+                    transaction_type: this.transactionType,
+                    is_required: isRequired,
+                    related_fields: relatedFields
+                })
+            });
+            
+            const data = await response.json();
+            if (data.message && data.severity !== 'info') {
+                this.showFieldHint(field, data.message, data.severity);
+            }
+        } catch (error) {
+            console.log('Field validation skipped');
+        }
+    };
+    
+    CORExGuide.showFieldHint = function(field, message, severity) {
+        const existingHint = field.parentElement.querySelector('.guide-field-hint');
+        if (existingHint) existingHint.remove();
+        
+        const hint = document.createElement('div');
+        hint.className = 'guide-field-hint ' + severity;
+        hint.innerHTML = '<i class="bi bi-' + (severity === 'warning' ? 'exclamation-circle' : 'check-circle') + ' me-1"></i>' + message;
+        field.parentElement.appendChild(hint);
+        
+        setTimeout(() => hint.remove(), 8000);
+    };
+    
+    CORExGuide.onFormSubmit = async function(e, form) {
+        // Only intercept if Guide is open and user hasn't confirmed
+        if (!this.isOpen || form.dataset.guideChecked === 'true') return;
+        
+        e.preventDefault();
+        
+        const formData = {};
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            if (input.name) formData[input.name] = input.value;
+        });
+        
+        const requiredFields = Array.from(form.querySelectorAll('[required]')).map(f => f.name);
+        
+        try {
+            const response = await fetch('/api/corex-guide/transaction-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transaction_type: this.transactionType,
+                    form_data: formData,
+                    required_fields: requiredFields
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.ready) {
+                form.dataset.guideChecked = 'true';
+                form.submit();
+            } else {
+                if (!this.isOpen) this.toggle();
+                this.addMessage(data.message, 'assistant');
+            }
+        } catch (error) {
+            form.dataset.guideChecked = 'true';
+            form.submit();
+        }
+    };
+    
+    CORExGuide.proactiveGreeting = async function() {
+        if (!this.panel) return;
+        
+        const typeNames = {
+            'sales_order': 'Sales Order',
+            'purchase_order': 'Purchase Order',
+            'work_order': 'Work Order',
+            'inventory': 'Inventory Transaction',
+            'invoice': 'Invoice',
+            'quote': 'Quote',
+            'receiving': 'Receiving'
+        };
+        
+        const typeName = typeNames[this.transactionType] || 'transaction';
+        const action = window.location.pathname.includes('/create') ? 'create a new' : 'edit this';
+        
+        const container = document.getElementById('guide-messages');
+        if (container) {
+            container.innerHTML = `
+                <div class="guide-message assistant">
+                    <div class="message-content">
+                        <p>I see you're about to ${action} <strong>${typeName}</strong>. I'll be here to help with any questions or validate your entries as you go.</p>
+                    </div>
+                </div>
+            `;
+        }
+    };
     </script>
+    
+    <style>
+    #corex-guide-panel {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        width: 380px;
+        max-height: 500px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        display: flex;
+        flex-direction: column;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(20px) scale(0.95);
+        transition: all 0.3s ease;
+    }
+    #corex-guide-panel.open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+    }
+    .guide-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        padding: 16px;
+        border-radius: 16px 16px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .guide-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+    .guide-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        max-height: 280px;
+        background: #f8fafc;
+    }
+    .guide-message {
+        margin-bottom: 12px;
+        display: flex;
+    }
+    .guide-message.user {
+        justify-content: flex-end;
+    }
+    .guide-message.user .message-content {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border-radius: 16px 16px 4px 16px;
+    }
+    .guide-message.assistant .message-content {
+        background: white;
+        color: #1e293b;
+        border-radius: 16px 16px 16px 4px;
+        border: 1px solid #e2e8f0;
+    }
+    .message-content {
+        padding: 12px 16px;
+        max-width: 85%;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    .message-content p { margin: 0; }
+    .guide-suggestions {
+        padding: 8px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        background: white;
+        border-top: 1px solid #e2e8f0;
+    }
+    .suggestion-chip {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .suggestion-chip:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    .guide-input {
+        padding: 12px 16px;
+        display: flex;
+        gap: 8px;
+        background: white;
+        border-radius: 0 0 16px 16px;
+        border-top: 1px solid #e2e8f0;
+    }
+    .guide-input input {
+        flex: 1;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    .guide-input input:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+    .guide-toggle-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        border: none;
+        color: white;
+        font-size: 1.4rem;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+        z-index: 9998;
+        transition: all 0.3s ease;
+    }
+    .guide-toggle-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 24px rgba(59, 130, 246, 0.5);
+    }
+    .guide-toggle-btn.active {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    }
+    .typing-dots {
+        display: flex;
+        gap: 4px;
+        padding: 4px 0;
+    }
+    .typing-dots span {
+        width: 8px;
+        height: 8px;
+        background: #94a3b8;
+        border-radius: 50%;
+        animation: typing 1.4s infinite both;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+        0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+        30% { opacity: 1; transform: scale(1); }
+    }
+    .guide-field-hint {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+        margin-top: 4px;
+        border-radius: 6px;
+        animation: slideIn 0.3s ease;
+    }
+    .guide-field-hint.warning {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+    }
+    .guide-field-hint.success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    </style>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
