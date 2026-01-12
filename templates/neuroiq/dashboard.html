@@ -932,40 +932,53 @@ function speakResponse(text) {
     
     neuroSynthesis.cancel();
     
-    const cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '').substring(0, 800);
+    let cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '');
+    cleanText = cleanText.replace(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g, '$1 dollars');
+    cleanText = cleanText.replace(/(\d+)%/g, '$1 percent');
+    cleanText = cleanText.replace(/\.\s+/g, '. ... ');
+    cleanText = cleanText.replace(/,\s+/g, ', ');
+    cleanText = cleanText.substring(0, 1200);
     
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 0.95;
+    utterance.rate = 0.92;
+    utterance.pitch = 1.05;
+    utterance.volume = 1.0;
     utterance.lang = 'en-US';
     
     const voices = neuroSynthesis.getVoices();
     if (voices.length > 0) {
-        const femaleVoiceNames = [
-            'Samantha', 'Ava', 'Allison', 'Susan', 'Nicky', 'Victoria', 'Karen',
-            'Aria', 'Jenny', 'Zira', 'Siri', 'Cortana',
-            'Google US English Female', 'Google UK English Female'
+        const premiumVoices = [
+            'Microsoft Aria Online', 'Microsoft Jenny Online', 'Microsoft Ava Online',
+            'Google US English', 'Samantha (Enhanced)', 'Samantha',
+            'Ava (Premium)', 'Ava', 'Karen (Enhanced)', 'Karen',
+            'Allison', 'Victoria', 'Moira', 'Fiona'
         ];
         
         const maleVoiceNames = [
             'Alex', 'Daniel', 'David', 'James', 'Tom', 'Fred', 'Ralph',
-            'Mark', 'Guy', 'Aaron', 'Gordon', 'Microsoft David', 'Microsoft Mark'
+            'Mark', 'Guy', 'Aaron', 'Gordon', 'Microsoft David', 'Microsoft Mark',
+            'Microsoft Guy', 'Microsoft Roger'
         ];
         
         let preferredVoice = null;
         
-        for (const name of femaleVoiceNames) {
+        for (const name of premiumVoices) {
             preferredVoice = voices.find(v => 
-                v.name.includes(name) && v.lang.startsWith('en')
+                v.name.toLowerCase().includes(name.toLowerCase()) && v.lang.startsWith('en')
             );
-            if (preferredVoice) break;
+            if (preferredVoice) {
+                if (name.includes('Online') || name.includes('Enhanced') || name.includes('Premium')) {
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.02;
+                }
+                break;
+            }
         }
         
         if (!preferredVoice) {
             preferredVoice = voices.find(v => 
                 v.lang.startsWith('en') && 
-                v.name.toLowerCase().includes('female')
+                (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('neural'))
             );
         }
         
@@ -973,7 +986,7 @@ function speakResponse(text) {
             preferredVoice = voices.find(v => {
                 const nameLower = v.name.toLowerCase();
                 const isMale = maleVoiceNames.some(m => nameLower.includes(m.toLowerCase()));
-                return v.lang.startsWith('en') && !isMale;
+                return v.lang.startsWith('en') && !isMale && !nameLower.includes('male');
             });
         }
         
@@ -983,7 +996,7 @@ function speakResponse(text) {
         
         if (preferredVoice) {
             utterance.voice = preferredVoice;
-            console.log('COREx Voice:', preferredVoice.name);
+            console.log('COREx Voice:', preferredVoice.name, '| Rate:', utterance.rate, '| Pitch:', utterance.pitch);
         }
     }
     
