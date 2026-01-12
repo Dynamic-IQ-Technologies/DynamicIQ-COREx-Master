@@ -108,7 +108,7 @@ def dashboard():
         SELECT 
             COUNT(*) as total_items,
             COALESCE(SUM(quantity), 0) as total_qty,
-            COALESCE(SUM(i.quantity * COALESCE(p.cost, 0)), 0) as total_value
+            COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total_value
         FROM inventory i
         LEFT JOIN products p ON i.product_id = p.id
     ''').fetchone()
