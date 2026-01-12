@@ -334,10 +334,25 @@ function confirmDeleteSource(button) {
     const sourceId = button.getAttribute('data-source-id');
     const sourceName = button.getAttribute('data-source-name');
     
-    if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\nThis will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n- AI-generated insights\n\nThis action cannot be undone.')) {
-        const form = document.getElementById('deleteForm');
-        form.action = '/market-analysis/delete/' + sourceId;
-        form.submit();
+    const message = 'This will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n- AI-generated insights\n\nThis action cannot be undone.';
+    
+    if (typeof showConfirm === 'function') {
+        showConfirm(message, { 
+            type: 'danger', 
+            title: 'Delete "' + sourceName + '"?' 
+        }).then(function(confirmed) {
+            if (confirmed) {
+                const form = document.getElementById('deleteForm');
+                form.action = '/market-analysis/delete/' + sourceId;
+                form.submit();
+            }
+        });
+    } else {
+        if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\n' + message)) {
+            const form = document.getElementById('deleteForm');
+            form.action = '/market-analysis/delete/' + sourceId;
+            form.submit();
+        }
     }
 }
 </script>

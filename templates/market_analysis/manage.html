@@ -206,16 +206,44 @@
 
 <script>
 function confirmDelete(sourceId, sourceName) {
-    if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\nThis will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n\nThis action cannot be undone.')) {
-        const form = document.getElementById('deleteForm');
-        form.action = '/market-analysis/delete/' + sourceId;
-        form.submit();
+    const message = 'This will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n\nThis action cannot be undone.';
+    
+    if (typeof showConfirm === 'function') {
+        showConfirm(message, { 
+            type: 'danger', 
+            title: 'Delete "' + sourceName + '"?' 
+        }).then(function(confirmed) {
+            if (confirmed) {
+                const form = document.getElementById('deleteForm');
+                form.action = '/market-analysis/delete/' + sourceId;
+                form.submit();
+            }
+        });
+    } else {
+        if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\n' + message)) {
+            const form = document.getElementById('deleteForm');
+            form.action = '/market-analysis/delete/' + sourceId;
+            form.submit();
+        }
     }
 }
 
 function confirmClearAll() {
-    if (confirm('Are you sure you want to clear ALL fleet data?\n\nThis will permanently delete:\n- All data sources\n- All aircraft and parts\n- All capability matches\n- All analysis runs and reports\n\nThis action cannot be undone.')) {
-        alert('Please delete each source individually for safety.');
+    const message = 'This will permanently delete:\n- All data sources\n- All aircraft and parts\n- All capability matches\n- All analysis runs and reports\n\nThis action cannot be undone.';
+    
+    if (typeof showConfirm === 'function') {
+        showConfirm(message, { 
+            type: 'danger', 
+            title: 'Clear ALL fleet data?' 
+        }).then(function(confirmed) {
+            if (confirmed) {
+                showAlert('Please delete each source individually for safety.', { type: 'info', title: 'Notice' });
+            }
+        });
+    } else {
+        if (confirm('Are you sure you want to clear ALL fleet data?\n\n' + message)) {
+            alert('Please delete each source individually for safety.');
+        }
     }
 }
 </script>
