@@ -2397,18 +2397,13 @@
         
         autoDetectTransactionType: function() {
             const path = window.location.pathname;
-            const typeMap = {
-                '/sales-orders': 'sales_order',
-                '/purchase-orders': 'purchase_order',
-                '/work-orders': 'work_order',
-                '/inventory': 'inventory',
-                '/invoices': 'invoice',
-                '/quotes': 'quote',
-                '/receiving': 'receiving'
-            };
-            for (const [prefix, type] of Object.entries(typeMap)) {
-                if (path.includes(prefix)) return type;
-            }
+            if (path.includes('sales-order')) return 'sales_order';
+            if (path.includes('purchaseorder')) return 'purchase_order';
+            if (path.includes('workorder')) return 'work_order';
+            if (path.includes('inventory')) return 'inventory';
+            if (path.includes('invoice')) return 'invoice';
+            if (path.includes('quote')) return 'quote';
+            if (path.includes('receiving')) return 'receiving';
             return 'general';
         }
     };
@@ -2416,12 +2411,16 @@
     // Auto-initialize COREx Guide on transaction pages
     document.addEventListener('DOMContentLoaded', function() {
         const path = window.location.pathname;
-        const transactionPatterns = [
-            '/sales-orders', '/purchase-orders', '/work-orders', 
-            '/inventory', '/invoices', '/quotes', '/receiving'
-        ];
-        const isTransactionPage = transactionPatterns.some(p => path.includes(p)) && 
-                                  (path.includes('/create') || path.includes('/edit'));
+        const isCreateOrEdit = path.includes('/create') || path.includes('/edit');
+        const isTransactionPage = (
+            path.includes('sales-order') || 
+            path.includes('purchaseorder') || 
+            path.includes('workorder') || 
+            path.includes('inventory') || 
+            path.includes('invoice') || 
+            path.includes('quote') || 
+            path.includes('receiving')
+        ) && isCreateOrEdit;
         
         if (isTransactionPage) {
             CORExGuide.init({
