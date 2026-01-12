@@ -885,7 +885,6 @@ def update_workorder_status(id):
                 ]
                 
                 from models import GLAutoPost
-                from datetime import datetime
                 
                 GLAutoPost.create_auto_journal_entry(
                     conn=conn,
@@ -1202,7 +1201,6 @@ def update_workorder_management(id):
                 ]
                 
                 from models import GLAutoPost
-                from datetime import datetime
                 
                 GLAutoPost.create_gl_entry(
                     conn=conn,
