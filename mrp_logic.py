@@ -133,6 +133,7 @@ class MRPEngine:
             conn.close()
             return None
         
+        # WO-level material requirements
         requirements = conn.execute('''
             SELECT mr.*, p.cost
             FROM material_requirements mr
@@ -140,7 +141,19 @@ class MRPEngine:
             WHERE mr.work_order_id = ?
         ''', (work_order_id,)).fetchall()
         
-        material_cost = sum(req['required_quantity'] * req['cost'] for req in requirements)
+        wo_material_cost = sum(req['required_quantity'] * (req['cost'] or 0) for req in requirements)
+        
+        # Task-level material requirements (use issued_qty * unit_cost for actual cost)
+        task_materials = conn.execute('''
+            SELECT tm.issued_qty, tm.unit_cost
+            FROM work_order_task_materials tm
+            JOIN work_order_tasks wot ON tm.task_id = wot.id
+            WHERE wot.work_order_id = ?
+        ''', (work_order_id,)).fetchall()
+        
+        task_material_cost = sum((tm['issued_qty'] or 0) * (tm['unit_cost'] or 0) for tm in task_materials)
+        
+        material_cost = wo_material_cost + task_material_cost
         
         conn.close()
         

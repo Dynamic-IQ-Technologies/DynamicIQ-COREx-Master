@@ -497,20 +497,32 @@ def view_workorder(id):
         'total_lines': (misc_cost_data['total_lines'] if misc_cost_data else 0) + (buyout_cost_data['total_lines'] if buyout_cost_data else 0)
     }
     
-    # Detailed cost breakdowns for Cost tab
+    # Detailed cost breakdowns for Cost tab (include both WO-level and task-level materials)
     material_cost_details = conn.execute('''
-        SELECT 
-            p.code, p.name, mr.required_quantity,
-            COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
-                      WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) as issued_qty,
-            p.cost as unit_cost,
-            COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
-                      WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) * COALESCE(p.cost, 0) as total_cost
-        FROM material_requirements mr
-        JOIN products p ON mr.product_id = p.id
-        WHERE mr.work_order_id = ?
-        ORDER BY p.code
-    ''', (id,)).fetchall()
+        SELECT p.code, p.name, required_quantity, issued_qty, unit_cost, total_cost FROM (
+            SELECT 
+                p.code, p.name, mr.required_quantity,
+                COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
+                          WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) as issued_qty,
+                p.cost as unit_cost,
+                COALESCE((SELECT SUM(mi.quantity_issued) FROM material_issues mi 
+                          WHERE mi.work_order_id = mr.work_order_id AND mi.product_id = mr.product_id), 0) * COALESCE(p.cost, 0) as total_cost
+            FROM material_requirements mr
+            JOIN products p ON mr.product_id = p.id
+            WHERE mr.work_order_id = ?
+            UNION ALL
+            SELECT 
+                p.code, p.name, tm.required_qty as required_quantity,
+                tm.issued_qty,
+                tm.unit_cost,
+                tm.issued_qty * COALESCE(tm.unit_cost, 0) as total_cost
+            FROM work_order_task_materials tm
+            JOIN work_order_tasks wot ON tm.task_id = wot.id
+            JOIN products p ON tm.product_id = p.id
+            WHERE wot.work_order_id = ?
+        )
+        ORDER BY code
+    ''', (id, id)).fetchall()
     
     labor_cost_details = conn.execute('''
         SELECT 
