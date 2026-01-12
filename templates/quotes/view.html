@@ -104,12 +104,6 @@
                             {% endfor %}
                         </tbody>
                         <tfoot>
-                            {% if quote.markup_percent and quote.markup_percent > 0 %}
-                            <tr class="table-info">
-                                <td colspan="4" class="text-end"><em>Markup Applied: {{ quote.markup_percent }}%</em></td>
-                                <td></td>
-                            </tr>
-                            {% endif %}
                             <tr>
                                 <td colspan="4" class="text-end"><strong>Parts Subtotal:</strong></td>
                                 <td><strong>{{ quote.subtotal|currency }}</strong></td>
