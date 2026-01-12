@@ -412,7 +412,7 @@ def add_task_material(task_id):
             conn.close()
             return jsonify({'success': False, 'error': 'Material and quantity are required'}), 400
         
-        product = conn.execute('SELECT code, name, uom FROM products WHERE id = ?', (material_id,)).fetchone()
+        product = conn.execute('SELECT code, name, unit_of_measure FROM products WHERE id = ?', (material_id,)).fetchone()
         if not product:
             conn.close()
             return jsonify({'success': False, 'error': 'Product not found'}), 404
@@ -421,7 +421,7 @@ def add_task_material(task_id):
             INSERT INTO task_material_requirements 
             (task_id, material_id, description, quantity_required, unit_of_measure, is_optional, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (task_id, material_id, product['name'], quantity_required, product['uom'], is_optional, 
+        ''', (task_id, material_id, product['name'], quantity_required, product['unit_of_measure'], is_optional, 
               session.get('user_id')))
         
         conn.commit()
