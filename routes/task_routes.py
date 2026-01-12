@@ -722,3 +722,135 @@ def apply_template(wo_id):
         flash(f'Error applying template: {str(e)}', 'danger')
     
     return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+
+@task_bp.route('/work-orders/<int:wo_id>/tasks/mass-edit', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def mass_edit_tasks(wo_id):
+    """Mass edit multiple work order tasks at once"""
+    db = Database()
+    conn = db.get_connection()
+    
+    work_order = conn.execute('SELECT * FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
+    if not work_order:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Work order not found'}), 404
+    
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+    updates = data.get('updates', {})
+    
+    if not task_ids:
+        conn.close()
+        return jsonify({'success': False, 'error': 'No tasks selected'}), 400
+    
+    if not updates:
+        conn.close()
+        return jsonify({'success': False, 'error': 'No updates specified'}), 400
+    
+    try:
+        updated_count = 0
+        
+        for task_id in task_ids:
+            task = conn.execute('''
+                SELECT * FROM work_order_tasks WHERE id = ? AND work_order_id = ?
+            ''', (task_id, wo_id)).fetchone()
+            
+            if not task:
+                continue
+            
+            update_fields = []
+            update_values = []
+            
+            if 'status' in updates and updates['status']:
+                if updates['status'] not in ['Not Started', 'Cancelled'] and task['status'] == 'Not Started':
+                    required_skills = conn.execute('''
+                        SELECT COUNT(*) as cnt FROM task_required_skills WHERE task_id = ?
+                    ''', (task_id,)).fetchone()
+                    if required_skills and required_skills['cnt'] > 0:
+                        update_fields.append('status = ?')
+                        update_values.append(updates['status'])
+                else:
+                    update_fields.append('status = ?')
+                    update_values.append(updates['status'])
+            
+            if 'priority' in updates and updates['priority']:
+                update_fields.append('priority = ?')
+                update_values.append(updates['priority'])
+            
+            if 'category' in updates and updates['category']:
+                update_fields.append('category = ?')
+                update_values.append(updates['category'])
+            
+            if 'assigned_resource_id' in updates:
+                resource_id = updates['assigned_resource_id']
+                if resource_id == '' or resource_id is None:
+                    update_fields.append('assigned_resource_id = ?')
+                    update_values.append(None)
+                else:
+                    update_fields.append('assigned_resource_id = ?')
+                    update_values.append(int(resource_id))
+            
+            if 'work_center_id' in updates:
+                wc_id = updates['work_center_id']
+                if wc_id == '' or wc_id is None:
+                    update_fields.append('work_center_id = ?')
+                    update_values.append(None)
+                else:
+                    update_fields.append('work_center_id = ?')
+                    update_values.append(int(wc_id))
+            
+            if 'planned_start_date' in updates and updates['planned_start_date']:
+                update_fields.append('planned_start_date = ?')
+                update_values.append(updates['planned_start_date'])
+            
+            if 'planned_end_date' in updates and updates['planned_end_date']:
+                update_fields.append('planned_end_date = ?')
+                update_values.append(updates['planned_end_date'])
+            
+            if update_fields:
+                update_values.append(task_id)
+                conn.execute(f'''
+                    UPDATE work_order_tasks 
+                    SET {', '.join(update_fields)}
+                    WHERE id = ?
+                ''', update_values)
+                updated_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully updated {updated_count} task(s)',
+            'updated_count': updated_count
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@task_bp.route('/work-orders/<int:wo_id>/tasks/data', methods=['GET'])
+@login_required
+def get_tasks_data(wo_id):
+    """Get labor resources and work centers for mass edit modal"""
+    db = Database()
+    conn = db.get_connection()
+    
+    labor_resources = conn.execute('''
+        SELECT id, employee_code, first_name, last_name 
+        FROM labor_resources WHERE status = 'Active' ORDER BY first_name
+    ''').fetchall()
+    
+    work_centers = conn.execute('''
+        SELECT id, code, name FROM work_centers WHERE status = 'Active' ORDER BY code
+    ''').fetchall()
+    
+    conn.close()
+    
+    return jsonify({
+        'labor_resources': [dict(r) for r in labor_resources],
+        'work_centers': [dict(w) for w in work_centers]
+    })

@@ -12,9 +12,14 @@
         <h2>Tasks for WO {{ work_order.wo_number }}</h2>
         <p class="text-muted mb-0">{{ work_order.code }} - {{ work_order.name }}</p>
     </div>
-    {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
-    <a href="{{ url_for('task_routes.create_task', wo_id=work_order.id) }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Task</a>
-    {% endif %}
+    <div class="d-flex gap-2">
+        {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+        <button type="button" class="btn btn-outline-primary" id="massEditBtn" style="display: none;" onclick="openMassEditModal()">
+            <i class="bi bi-pencil-square"></i> Mass Edit (<span id="selectedCount">0</span>)
+        </button>
+        <a href="{{ url_for('task_routes.create_task', wo_id=work_order.id) }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Task</a>
+        {% endif %}
+    </div>
 </div>
 
 <div class="card">
@@ -24,6 +29,11 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
+                        {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAllTasks" onchange="toggleSelectAll(this)">
+                        </th>
+                        {% endif %}
                         <th>Task #</th>
                         <th>Task Name</th>
                         <th>Category</th>
@@ -38,6 +48,11 @@
                 <tbody>
                     {% for task in tasks %}
                     <tr>
+                        {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+                        <td>
+                            <input type="checkbox" class="form-check-input task-checkbox" value="{{ task.id }}" onchange="updateSelectedCount()">
+                        </td>
+                        {% endif %}
                         <td><a href="{{ url_for('task_routes.view_task', task_id=task.id) }}">{{ task.task_number }}</a></td>
                         <td>{{ task.task_name }}</td>
                         <td>{{ task.category }}</td>
@@ -88,6 +103,9 @@
                 </tbody>
                 <tfoot>
                     <tr class="fw-bold">
+                        {% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+                        <td></td>
+                        {% endif %}
                         <td colspan="5" class="text-end">Totals:</td>
                         <td>{{ "%.2f"|format(tasks|sum(attribute='planned_hours') or 0) }}</td>
                         <td>{{ "%.2f"|format(tasks|sum(attribute='actual_hours') or 0) }}</td>
@@ -108,4 +126,226 @@
         {% endif %}
     </div>
 </div>
+
+{% if user.role in ['Admin', 'Planner', 'Production Staff'] %}
+<div class="modal fade" id="massEditModal" tabindex="-1" aria-labelledby="massEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white;">
+                <h5 class="modal-title" id="massEditModalLabel">
+                    <i class="bi bi-pencil-square me-2"></i>Mass Edit Tasks
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong><span id="modalSelectedCount">0</span> task(s) selected.</strong> 
+                    Only fill in fields you want to change. Empty fields will be left unchanged.
+                </div>
+                
+                <form id="massEditForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="massStatus" name="status">
+                                <option value="">-- No Change --</option>
+                                <option value="Not Started">Not Started</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" id="massPriority" name="priority">
+                                <option value="">-- No Change --</option>
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" id="massCategory" name="category">
+                                <option value="">-- No Change --</option>
+                                <option value="General">General</option>
+                                <option value="Assembly">Assembly</option>
+                                <option value="Inspection">Inspection</option>
+                                <option value="Testing">Testing</option>
+                                <option value="Packaging">Packaging</option>
+                                <option value="Quality">Quality</option>
+                                <option value="Repair">Repair</option>
+                                <option value="Setup">Setup</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Assigned Resource</label>
+                            <select class="form-select" id="massAssignedResource" name="assigned_resource_id">
+                                <option value="">-- No Change --</option>
+                                <option value="clear">Clear Assignment</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Work Center</label>
+                            <select class="form-select" id="massWorkCenter" name="work_center_id">
+                                <option value="">-- No Change --</option>
+                                <option value="clear">Clear Work Center</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Planned Start Date</label>
+                            <input type="date" class="form-control" id="massPlannedStart" name="planned_start_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Planned End Date</label>
+                            <input type="date" class="form-control" id="massPlannedEnd" name="planned_end_date">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitMassEdit()">
+                    <i class="bi bi-check-lg me-1"></i>Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    const woId = {{ work_order.id }};
+    let laborResources = [];
+    let workCenters = [];
+    
+    function toggleSelectAll(checkbox) {
+        const taskCheckboxes = document.querySelectorAll('.task-checkbox');
+        taskCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        updateSelectedCount();
+    }
+    
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.task-checkbox:checked').length;
+        const total = document.querySelectorAll('.task-checkbox').length;
+        
+        document.getElementById('selectedCount').textContent = selected;
+        document.getElementById('massEditBtn').style.display = selected > 0 ? 'inline-flex' : 'none';
+        
+        const selectAllCheckbox = document.getElementById('selectAllTasks');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = selected === total && total > 0;
+            selectAllCheckbox.indeterminate = selected > 0 && selected < total;
+        }
+    }
+    
+    async function openMassEditModal() {
+        const selected = document.querySelectorAll('.task-checkbox:checked').length;
+        document.getElementById('modalSelectedCount').textContent = selected;
+        
+        if (laborResources.length === 0) {
+            try {
+                const response = await fetch(`/work-orders/${woId}/tasks/data`);
+                const data = await response.json();
+                laborResources = data.labor_resources || [];
+                workCenters = data.work_centers || [];
+                
+                const resourceSelect = document.getElementById('massAssignedResource');
+                laborResources.forEach(r => {
+                    const option = document.createElement('option');
+                    option.value = r.id;
+                    option.textContent = `${r.first_name} ${r.last_name} (${r.employee_code})`;
+                    resourceSelect.appendChild(option);
+                });
+                
+                const wcSelect = document.getElementById('massWorkCenter');
+                workCenters.forEach(wc => {
+                    const option = document.createElement('option');
+                    option.value = wc.id;
+                    option.textContent = `${wc.code} - ${wc.name}`;
+                    wcSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+        
+        document.getElementById('massEditForm').reset();
+        
+        const modal = new bootstrap.Modal(document.getElementById('massEditModal'));
+        modal.show();
+    }
+    
+    async function submitMassEdit() {
+        const selectedTaskIds = Array.from(document.querySelectorAll('.task-checkbox:checked')).map(cb => parseInt(cb.value));
+        
+        if (selectedTaskIds.length === 0) {
+            showAlert('No tasks selected', 'warning');
+            return;
+        }
+        
+        const updates = {};
+        
+        const status = document.getElementById('massStatus').value;
+        if (status) updates.status = status;
+        
+        const priority = document.getElementById('massPriority').value;
+        if (priority) updates.priority = priority;
+        
+        const category = document.getElementById('massCategory').value;
+        if (category) updates.category = category;
+        
+        const resourceId = document.getElementById('massAssignedResource').value;
+        if (resourceId === 'clear') {
+            updates.assigned_resource_id = null;
+        } else if (resourceId) {
+            updates.assigned_resource_id = resourceId;
+        }
+        
+        const wcId = document.getElementById('massWorkCenter').value;
+        if (wcId === 'clear') {
+            updates.work_center_id = null;
+        } else if (wcId) {
+            updates.work_center_id = wcId;
+        }
+        
+        const plannedStart = document.getElementById('massPlannedStart').value;
+        if (plannedStart) updates.planned_start_date = plannedStart;
+        
+        const plannedEnd = document.getElementById('massPlannedEnd').value;
+        if (plannedEnd) updates.planned_end_date = plannedEnd;
+        
+        if (Object.keys(updates).length === 0) {
+            showAlert('Please select at least one field to update', 'warning');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/work-orders/${woId}/tasks/mass-edit`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    task_ids: selectedTaskIds,
+                    updates: updates
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                bootstrap.Modal.getInstance(document.getElementById('massEditModal')).hide();
+                showAlert(result.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(result.error || 'Failed to update tasks', 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('An error occurred while updating tasks', 'danger');
+        }
+    }
+</script>
 {% endblock %}
