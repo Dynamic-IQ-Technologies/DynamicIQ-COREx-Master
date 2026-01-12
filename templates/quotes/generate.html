@@ -73,6 +73,35 @@
                 </div>
             </div>
             
+            {% if task_discrepancies %}
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Task Discrepancies</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for disc in task_discrepancies %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="text-primary">{{ disc.task_number }}</strong> - {{ disc.task_name }}
+                                </div>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-muted">Discrepancy:</small>
+                                <p class="mb-1">{{ disc.discrepancies }}</p>
+                                {% if disc.corrective_actions %}
+                                <small class="text-muted">Corrective Action:</small>
+                                <p class="mb-0 text-success">{{ disc.corrective_actions }}</p>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Line Items</h5>
@@ -115,35 +144,6 @@
                     </div>
                 </div>
             </div>
-            
-            {% if task_discrepancies %}
-            <div class="card mb-4">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Task Discrepancies</h5>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        {% for disc in task_discrepancies %}
-                        <li class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong class="text-primary">{{ disc.task_number }}</strong> - {{ disc.task_name }}
-                                </div>
-                            </div>
-                            <div class="mt-1">
-                                <small class="text-muted">Discrepancy:</small>
-                                <p class="mb-1">{{ disc.discrepancies }}</p>
-                                {% if disc.corrective_actions %}
-                                <small class="text-muted">Corrective Action:</small>
-                                <p class="mb-0 text-success">{{ disc.corrective_actions }}</p>
-                                {% endif %}
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-            {% endif %}
 
             <div class="mb-3">
                 <label for="notes" class="form-label">Notes</label>
