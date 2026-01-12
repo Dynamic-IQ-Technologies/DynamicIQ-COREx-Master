@@ -1049,19 +1049,35 @@ def update_receiving_inspection(id):
             else:
                 incoming_task_id = incoming_task['id']
             
+            # Find or create the "Work Order Crate" product (non-inventory item)
+            crate_product = conn.execute('''
+                SELECT id FROM products WHERE code = 'WO-CRATE'
+            ''').fetchone()
+            
+            if not crate_product:
+                # Create a special non-inventory crate product
+                cursor = conn.execute('''
+                    INSERT INTO products (code, name, description, product_type, status, is_purchasable, is_sellable)
+                    VALUES ('WO-CRATE', 'Work Order Crate', 'Non-inventory packaging crate for work orders', 
+                            'Non-Inventory', 'Active', 0, 0)
+                ''')
+                crate_product_id = cursor.lastrowid
+            else:
+                crate_product_id = crate_product['id']
+            
             # Check if "Work Order Crate" material already exists for this task
             existing_crate = conn.execute('''
                 SELECT id FROM work_order_task_materials 
-                WHERE task_id = ? AND unit_of_measure = 'Work Order Crate'
-            ''', (incoming_task_id,)).fetchone()
+                WHERE task_id = ? AND product_id = ?
+            ''', (incoming_task_id, crate_product_id)).fetchone()
             
             if not existing_crate:
-                # Add non-inventory "Work Order Crate" material
+                # Add "Work Order Crate" material requirement
                 conn.execute('''
                     INSERT INTO work_order_task_materials 
                     (task_id, product_id, required_qty, unit_of_measure, notes, material_status, created_by)
-                    VALUES (?, NULL, 1, 'Work Order Crate', 'Non-inventory crate requirement', 'Planned', ?)
-                ''', (incoming_task_id, session.get('user_id')))
+                    VALUES (?, ?, 1, 'EA', 'Crate requirement for work order packaging', 'Planned', ?)
+                ''', (incoming_task_id, crate_product_id, session.get('user_id')))
         
         conn.commit()
         flash('Receiving inspection updated successfully!', 'success')
