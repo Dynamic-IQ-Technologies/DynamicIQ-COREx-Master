@@ -568,3 +568,61 @@ def generate_pdf(id):
         as_attachment=True,
         download_name=f"Quote_{quote['quote_number']}.pdf"
     )
+
+@quote_bp.route('/quotes/<int:id>/delete', methods=['POST'])
+@role_required('Admin', 'Planner')
+def delete_quote(id):
+    """Delete a work order quote"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get quote for validation and audit
+        quote = conn.execute('SELECT * FROM work_order_quotes WHERE id = ?', (id,)).fetchone()
+        
+        if not quote:
+            flash('Quote not found.', 'danger')
+            conn.close()
+            return redirect(url_for('quote_routes.list_quotes'))
+        
+        # Only allow deletion of Draft quotes
+        if quote['status'] != 'Draft':
+            flash('Only Draft quotes can be deleted.', 'warning')
+            conn.close()
+            return redirect(url_for('quote_routes.view_quote', id=id))
+        
+        work_order_id = quote['work_order_id']
+        quote_number = quote['quote_number']
+        
+        # Delete quote lines first
+        conn.execute('DELETE FROM work_order_quote_lines WHERE quote_id = ?', (id,))
+        
+        # Delete the quote
+        conn.execute('DELETE FROM work_order_quotes WHERE id = ?', (id,))
+        
+        # Log audit trail
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='work_order_quote',
+            record_id=id,
+            action_type='Deleted',
+            modified_by=session.get('user_id'),
+            changed_fields={'quote_number': quote_number, 'status': 'Deleted'},
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        flash(f'Quote {quote_number} has been deleted.', 'success')
+        
+        # Redirect back to work order if available
+        if work_order_id:
+            return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
+        return redirect(url_for('quote_routes.list_quotes'))
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting quote: {str(e)}', 'danger')
+        return redirect(url_for('quote_routes.view_quote', id=id))
+    finally:
+        conn.close()

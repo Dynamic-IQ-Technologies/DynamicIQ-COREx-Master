@@ -11,6 +11,11 @@
             <i class="bi bi-pencil"></i> Edit
         </a>
         {% endif %}
+        {% if session.role in ['Admin', 'Planner'] and quote.status == 'Draft' %}
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteQuoteModal">
+            <i class="bi bi-trash"></i> Delete
+        </button>
+        {% endif %}
         <a href="{{ url_for('quote_routes.generate_pdf', id=quote.id) }}" class="btn btn-danger">
             <i class="bi bi-file-pdf"></i> Download PDF
         </a>
@@ -186,6 +191,30 @@
                 <a href="{{ url_for('quote_routes.list_quotes') }}" class="btn btn-secondary">
                     <i class="bi bi-list"></i> All Quotes
                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Quote Modal -->
+<div class="modal fade" id="deleteQuoteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Quote</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete quote <strong>{{ quote.quote_number }}</strong>?</p>
+                <p class="text-muted">This action cannot be undone. All quote line items will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('quote_routes.delete_quote', id=quote.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Quote
+                    </button>
+                </form>
             </div>
         </div>
     </div>
