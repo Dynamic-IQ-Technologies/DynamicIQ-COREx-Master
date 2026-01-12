@@ -1057,9 +1057,9 @@ def update_receiving_inspection(id):
             if not crate_product:
                 # Create a special non-inventory crate product
                 cursor = conn.execute('''
-                    INSERT INTO products (code, name, description, product_type, status, is_purchasable, is_sellable)
+                    INSERT INTO products (code, name, description, unit_of_measure, product_type, cost)
                     VALUES ('WO-CRATE', 'Work Order Crate', 'Non-inventory packaging crate for work orders', 
-                            'Non-Inventory', 'Active', 0, 0)
+                            'EA', 'Non-Inventory', 0)
                 ''')
                 crate_product_id = cursor.lastrowid
             else:
