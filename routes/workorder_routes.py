@@ -680,13 +680,13 @@ def edit_workorder(id):
             stage_id = request.form.get('stage_id')
             stage_id = int(stage_id) if stage_id else None
             
-            # Get product description for auto-population if description not provided
+            # Get product description for auto-population if notes not provided
             product_id = int(request.form['product_id'])
-            description = request.form.get('description', '').strip()
-            if not description:
+            notes = request.form.get('notes', '').strip()
+            if not notes:
                 product = conn.execute('SELECT description FROM products WHERE id = ?', (product_id,)).fetchone()
                 if product:
-                    description = product['description'] or ''
+                    notes = product['description'] or ''
             
             is_aog = 1 if request.form.get('is_aog') else 0
             
@@ -699,7 +699,7 @@ def edit_workorder(id):
                     status = ?,
                     priority = ?,
                     serial_number = ?,
-                    description = ?,
+                    notes = ?,
                     planned_start_date = ?,
                     planned_end_date = ?,
                     customer_id = ?,
@@ -717,7 +717,7 @@ def edit_workorder(id):
                 request.form['status'],
                 request.form.get('priority', 'Medium'),
                 request.form.get('serial_number', '').strip() or None,
-                description or None,
+                notes or None,
                 request.form.get('planned_start_date') or None,
                 request.form.get('planned_end_date') or None,
                 customer_id,
