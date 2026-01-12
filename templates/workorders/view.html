@@ -1064,22 +1064,19 @@
                 <h6 class="mb-0"><i class="bi bi-list-check me-2"></i> All Task Materials Summary</h6>
             </div>
             <div class="card-body">
-                {% set all_task_materials = [] %}
+                {% set tasks_with_materials = [] %}
                 {% for task in tasks %}
                     {% if task_materials[task.id] %}
-                        {% for mat in task_materials[task.id] %}
-                            {% set _ = all_task_materials.append({'task': task, 'mat': mat}) %}
-                        {% endfor %}
+                        {% set _ = tasks_with_materials.append(task) %}
                     {% endif %}
                 {% endfor %}
                 
-                {% if all_task_materials %}
+                {% if tasks_with_materials %}
                 {% set ns = namespace(total_cost=0) %}
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
+                    <table class="table table-sm mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Task</th>
                                 <th>Part #</th>
                                 <th>Description</th>
                                 <th class="text-center">Required</th>
@@ -1091,15 +1088,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in all_task_materials %}
-                            {% set task = item.task %}
-                            {% set mat = item.mat %}
+                            {% for task in tasks_with_materials %}
+                            <tr class="table-primary">
+                                <td colspan="8">
+                                    <strong><i class="bi bi-list-task me-2"></i><span class="badge bg-primary me-2">{{ task.task_number }}</span>{{ task.task_name }}</strong>
+                                </td>
+                            </tr>
+                            {% for mat in task_materials[task.id] %}
                             {% set line_cost = (mat.required_qty or 0) * (mat.unit_cost or 0) %}
                             {% set ns.total_cost = ns.total_cost + line_cost %}
                             <tr class="{% if (mat.issued_qty or 0) < (mat.required_qty or 0) %}table-warning{% endif %}">
-                                <td><span class="badge bg-secondary">{{ task.task_number }}</span> {{ task.task_name[:20] }}{% if task.task_name|length > 20 %}...{% endif %}</td>
-                                <td><strong>{{ mat.code }}</strong></td>
-                                <td>{{ mat.name[:30] }}{% if mat.name|length > 30 %}...{% endif %}</td>
+                                <td class="ps-4"><strong>{{ mat.code }}</strong></td>
+                                <td>{{ mat.name[:40] }}{% if mat.name|length > 40 %}...{% endif %}</td>
                                 <td class="text-center">{{ "%.2f"|format(mat.required_qty or 0) }}</td>
                                 <td class="text-end">{{ (mat.unit_cost or 0)|currency }}</td>
                                 <td class="text-end"><strong>{{ line_cost|currency }}</strong></td>
@@ -1118,10 +1118,11 @@
                                 </td>
                             </tr>
                             {% endfor %}
+                            {% endfor %}
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="5" class="text-end"><strong>Total Material Cost:</strong></td>
+                                <td colspan="4" class="text-end"><strong>Total Material Cost:</strong></td>
                                 <td class="text-end"><strong>{{ ns.total_cost|currency }}</strong></td>
                                 <td colspan="3"></td>
                             </tr>
