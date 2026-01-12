@@ -120,9 +120,9 @@ def dashboard():
     # KPI 6: Net Income
     net_income = revenue - expenses
     
-    # KPI 7: Inventory Value
+    # KPI 7: Inventory Value (uses inventory unit_cost if set, otherwise product cost)
     inventory_value_query = '''
-        SELECT COALESCE(SUM(i.quantity * p.cost), 0) as inventory_value
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0

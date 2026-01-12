@@ -69,7 +69,7 @@ def calculate_cash_metrics(conn):
     ''').fetchone()['total']
     
     inventory_value = conn.execute('''
-        SELECT COALESCE(SUM(i.quantity * p.cost), 0) as total 
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total 
         FROM inventory i
         JOIN products p ON i.product_id = p.id
     ''').fetchone()['total']
@@ -251,7 +251,7 @@ def calculate_efficiency_metrics(conn):
         revenue_per_employee = revenue_data['total_revenue'] / employee_count
     
     inventory_value = conn.execute('''
-        SELECT COALESCE(SUM(i.quantity * p.cost), 0) as total 
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total 
         FROM inventory i JOIN products p ON i.product_id = p.id
     ''').fetchone()['total']
     
@@ -619,7 +619,7 @@ def calculate_pnl_data(conn):
         data['revenue_growth'] = ((data['revenue_mtd'] - data['revenue_last_month']) / data['revenue_last_month']) * 100
     
     data['beginning_inventory'] = conn.execute('''
-        SELECT COALESCE(SUM(i.quantity * p.cost), 0) as total 
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total 
         FROM inventory i JOIN products p ON i.product_id = p.id
     ''').fetchone()['total']
     
