@@ -2398,16 +2398,16 @@
         autoDetectTransactionType: function() {
             const path = window.location.pathname;
             const typeMap = {
-                '/salesorders': 'sales_order',
-                '/purchaseorders': 'purchase_order',
-                '/workorders': 'work_order',
+                '/sales-orders': 'sales_order',
+                '/purchase-orders': 'purchase_order',
+                '/work-orders': 'work_order',
                 '/inventory': 'inventory',
                 '/invoices': 'invoice',
                 '/quotes': 'quote',
                 '/receiving': 'receiving'
             };
             for (const [prefix, type] of Object.entries(typeMap)) {
-                if (path.startsWith(prefix)) return type;
+                if (path.includes(prefix)) return type;
             }
             return 'general';
         }
@@ -2415,9 +2415,13 @@
     
     // Auto-initialize COREx Guide on transaction pages
     document.addEventListener('DOMContentLoaded', function() {
-        const transactionPages = ['/salesorders', '/purchaseorders', '/workorders', '/inventory', '/invoices', '/quotes', '/receiving'];
         const path = window.location.pathname;
-        const isTransactionPage = transactionPages.some(p => path.startsWith(p) && (path.includes('/create') || path.includes('/edit')));
+        const transactionPatterns = [
+            '/sales-orders', '/purchase-orders', '/work-orders', 
+            '/inventory', '/invoices', '/quotes', '/receiving'
+        ];
+        const isTransactionPage = transactionPatterns.some(p => path.includes(p)) && 
+                                  (path.includes('/create') || path.includes('/edit'));
         
         if (isTransactionPage) {
             CORExGuide.init({
