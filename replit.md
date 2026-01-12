@@ -77,6 +77,14 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Component Buyout Workflow**: Integrated workflow to create Component Buyout Purchase Orders directly from Work Orders.
 -   **Core Due Days Tracking for Exchange Orders**: Automatic calculation of Expected Core Return Date based on Order Date + Core Due Days. Core Due Days field is required for Exchange Sales Orders (0-365 days). Expected Core Return Date is read-only and auto-calculated in real-time. Changes to Core Due Days are logged in the audit trail. Visible on create, edit, and view pages for Exchange type orders only.
 -   **COREx NeuroIQ Executive Intelligence System**: AI-powered conversational interface with dual-mode interaction (voice and text). Features Web Speech API for voice input (speech-to-text), Speech Synthesis for voice responses (text-to-speech), real-time business context gathering, proactive insights panel, and executive role perspective indicators. Uses OpenAI GPT-4o via Replit AI Integrations.
+-   **COREx Guide Transaction Assistant**: AI-powered proactive assistant embedded in transaction forms (Sales Orders, Purchase Orders, Work Orders, Inventory, Invoices, Quotes, Receiving). Features include:
+    - Auto-initialization on create/edit pages with context-aware greeting
+    - Field-level validation on blur with inline hint notifications
+    - Required field detection with proactive reminders
+    - Pre-submit transaction integrity checks
+    - Conversational chat interface for guidance requests
+    - Contextual quick-action suggestions based on transaction type
+    - Backend API routes: `/api/corex-guide/assist`, `/api/corex-guide/validate-field`, `/api/corex-guide/transaction-check`
 
 ## External Dependencies
 
