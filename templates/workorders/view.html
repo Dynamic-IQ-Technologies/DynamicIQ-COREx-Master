@@ -1085,18 +1085,23 @@
                                 <th class="text-center">Issued</th>
                                 <th class="text-center">Consumed</th>
                                 <th>Status</th>
+                                {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                <th class="text-center">Actions</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
                             {% for task in tasks_with_materials %}
                             <tr class="table-primary">
-                                <td colspan="8">
+                                <td colspan="{% if session.role in ['Admin', 'Planner', 'Production Staff'] %}9{% else %}8{% endif %}">
                                     <strong><i class="bi bi-list-task me-2"></i><span class="badge bg-primary me-2">{{ task.task_number }}</span>{{ task.task_name }}</strong>
                                 </td>
                             </tr>
                             {% for mat in task_materials[task.id] %}
                             {% set line_cost = (mat.required_qty or 0) * (mat.unit_cost or 0) %}
                             {% set ns.total_cost = ns.total_cost + line_cost %}
+                            {% set remaining_to_issue = (mat.required_qty or 0) - (mat.issued_qty or 0) %}
+                            {% set remaining_to_consume = (mat.issued_qty or 0) - (mat.consumed_qty or 0) %}
                             <tr class="{% if (mat.issued_qty or 0) < (mat.required_qty or 0) %}table-warning{% endif %}">
                                 <td class="ps-4"><strong>{{ mat.code }}</strong></td>
                                 <td>{{ mat.name[:40] }}{% if mat.name|length > 40 %}...{% endif %}</td>
@@ -1116,6 +1121,30 @@
                                     <span class="badge bg-secondary">{{ mat.material_status or 'Planned' }}</span>
                                     {% endif %}
                                 </td>
+                                {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        {% if remaining_to_issue > 0 %}
+                                        <button type="button" class="btn btn-success btn-sm" title="Issue Material"
+                                                onclick="openIssueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.required_qty or 0 }}, {{ mat.issued_qty or 0 }})">
+                                            <i class="bi bi-box-arrow-right"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if (mat.issued_qty or 0) > 0 and remaining_to_consume > 0 %}
+                                        <button type="button" class="btn btn-info btn-sm" title="Consume Material"
+                                                onclick="openConsumeMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.issued_qty or 0 }}, {{ mat.consumed_qty or 0 }})">
+                                            <i class="bi bi-check2-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if (mat.issued_qty or 0) > (mat.consumed_qty or 0) %}
+                                        <button type="button" class="btn btn-warning btn-sm" title="Return/Unissue Material"
+                                                onclick="openUnissueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.issued_qty or 0 }}, {{ mat.consumed_qty or 0 }})">
+                                            <i class="bi bi-arrow-return-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                             {% endfor %}
@@ -1124,7 +1153,7 @@
                             <tr>
                                 <td colspan="4" class="text-end"><strong>Total Material Cost:</strong></td>
                                 <td class="text-end"><strong>{{ ns.total_cost|currency }}</strong></td>
-                                <td colspan="3"></td>
+                                <td colspan="{% if session.role in ['Admin', 'Planner', 'Production Staff'] %}4{% else %}3{% endif %}"></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -1941,6 +1970,35 @@
     </div>
 </div>
 
+<div class="modal fade" id="unissueMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="unissueMaterialForm">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title"><i class="bi bi-arrow-return-left"></i> Return/Unissue Material</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Part:</strong> <span id="unissueMatCode"></span></p>
+                    <p><strong>Issued:</strong> <span id="unissueMatIssued"></span></p>
+                    <p><strong>Already Consumed:</strong> <span id="unissueMatConsumed"></span></p>
+                    <p class="text-warning"><strong>Available to Return:</strong> <span id="unissueMatAvailable"></span></p>
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity to Return <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="unissueMatQty" name="unissue_qty" step="0.01" min="0.01" required>
+                        <small class="text-muted">Material will be returned to inventory</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Return to Inventory</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="editMaterialModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -2062,6 +2120,18 @@ function openConsumeMaterialModal(taskId, matId, code, issued, consumed) {
     document.getElementById('consumeMatQty').value = '';
     document.getElementById('consumeMaterialForm').action = `/workorders/tasks/${taskId}/materials/${matId}/consume`;
     new bootstrap.Modal(document.getElementById('consumeMaterialModal')).show();
+}
+
+function openUnissueMaterialModal(taskId, matId, code, issued, consumed) {
+    document.getElementById('unissueMatCode').textContent = code;
+    document.getElementById('unissueMatIssued').textContent = issued.toFixed(2);
+    document.getElementById('unissueMatConsumed').textContent = consumed.toFixed(2);
+    const availableToReturn = issued - consumed;
+    document.getElementById('unissueMatAvailable').textContent = availableToReturn.toFixed(2);
+    document.getElementById('unissueMatQty').max = availableToReturn;
+    document.getElementById('unissueMatQty').value = '';
+    document.getElementById('unissueMaterialForm').action = `/workorders/tasks/${taskId}/materials/${matId}/unissue`;
+    new bootstrap.Modal(document.getElementById('unissueMaterialModal')).show();
 }
 
 function openEditMaterialModal(taskId, matId, qty, location, notes) {

@@ -3092,6 +3092,74 @@ def consume_task_material(task_id, material_id):
     return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
 
 
+@workorder_bp.route('/workorders/tasks/<int:task_id>/materials/<int:material_id>/unissue', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff', 'Planner')
+def unissue_task_material(task_id, material_id):
+    """Return/Unissue issued materials back to inventory"""
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('''
+        SELECT tm.*, wot.work_order_id, p.code, p.name
+        FROM work_order_task_materials tm
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        JOIN products p ON tm.product_id = p.id
+        WHERE tm.id = ? AND tm.task_id = ?
+    ''', (material_id, task_id)).fetchone()
+    
+    if not material:
+        flash('Material not found', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.list_workorders'))
+    
+    try:
+        unissue_qty = float(request.form.get('unissue_qty', 0))
+    except (ValueError, TypeError):
+        unissue_qty = 0
+    
+    if unissue_qty <= 0:
+        flash('Return quantity must be greater than zero', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
+    max_unissue = (material['issued_qty'] or 0) - (material['consumed_qty'] or 0)
+    
+    if unissue_qty > max_unissue:
+        flash(f'Cannot return more than available. Maximum: {max_unissue}', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
+    try:
+        new_issued = (material['issued_qty'] or 0) - unissue_qty
+        
+        if new_issued <= 0:
+            new_status = 'Planned'
+        elif new_issued < (material['required_qty'] or 0):
+            new_status = 'Partially Issued'
+        else:
+            new_status = 'Issued'
+        
+        conn.execute('''
+            UPDATE work_order_task_materials 
+            SET issued_qty = ?, material_status = ?
+            WHERE id = ?
+        ''', (new_issued, new_status, material_id))
+        
+        AuditLogger.log(conn, 'work_order_task_materials', material_id, 'UNISSUE',
+                       {'unissue_qty': unissue_qty, 'new_issued_total': new_issued, 'reason': 'Return to inventory'},
+                       session.get('user_id'))
+        
+        conn.commit()
+        flash(f'Returned {unissue_qty} of {material["code"]} - {material["name"]} to inventory', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error returning material: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#materialsPane')
+
+
 @workorder_bp.route('/workorders/<int:wo_id>/bulk-update-tasks', methods=['POST'])
 @login_required
 @role_required('Admin', 'Production Staff')
