@@ -1848,6 +1848,38 @@
             color: #4a5568;
             font-size: 1rem;
             line-height: 1.6;
+            white-space: pre-line;
+        }
+        .confirm-modal-body .confirm-list {
+            text-align: left;
+            margin: 0.75rem 0 0;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid #94a3b8;
+        }
+        .confirm-modal-body .confirm-list-item {
+            padding: 0.25rem 0;
+            color: #475569;
+            font-size: 0.9rem;
+        }
+        .confirm-modal-body .confirm-warning {
+            margin-top: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: #fef3c7;
+            border-radius: 6px;
+            color: #92400e;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .confirm-modal-body .confirm-danger-warning {
+            margin-top: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: #fee2e2;
+            border-radius: 6px;
+            color: #991b1b;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
         .confirm-modal-footer {
             border: none;
@@ -1918,9 +1950,42 @@
             const cancelBtn = document.getElementById('confirmCancelBtn');
             
             title.textContent = options.title || 'Confirm Action';
-            msg.textContent = message;
             cancelBtn.textContent = options.cancelText || 'Cancel';
             okBtn.textContent = options.confirmText || 'Confirm';
+            
+            // Parse message for list items and format professionally
+            const lines = message.split('\n');
+            let mainMessage = '';
+            let listItems = [];
+            let warningLine = '';
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+                    listItems.push(trimmed.substring(2));
+                } else if (trimmed.toLowerCase().includes('cannot be undone') || trimmed.toLowerCase().includes('permanent')) {
+                    warningLine = trimmed;
+                } else if (trimmed) {
+                    if (mainMessage) mainMessage += ' ';
+                    mainMessage += trimmed;
+                }
+            });
+            
+            // Build HTML content
+            let htmlContent = '<span style="display:block;margin-bottom:0.5rem;">' + mainMessage + '</span>';
+            if (listItems.length > 0) {
+                htmlContent += '<div class="confirm-list">';
+                listItems.forEach(item => {
+                    htmlContent += '<div class="confirm-list-item"><i class="bi bi-dot me-1"></i>' + item + '</div>';
+                });
+                htmlContent += '</div>';
+            }
+            if (warningLine) {
+                const warningClass = (options.type === 'danger') ? 'confirm-danger-warning' : 'confirm-warning';
+                htmlContent += '<div class="' + warningClass + '"><i class="bi bi-exclamation-triangle me-1"></i>' + warningLine + '</div>';
+            }
+            
+            msg.innerHTML = htmlContent;
             
             iconWrapper.className = 'confirm-icon-wrapper';
             okBtn.className = 'btn btn-primary';
@@ -2008,23 +2073,81 @@
         });
     }
     
-    // Override native confirm() and alert() for elegant modals
-    const nativeConfirm = window.confirm;
-    const nativeAlert = window.alert;
+    // Store pending confirm callbacks for async confirm replacement
+    let pendingConfirmCallback = null;
+    let pendingConfirmReject = null;
+    
+    // Override native confirm() globally - returns a Promise-like behavior
+    window.confirm = function(message) {
+        // Detect multi-line messages and format appropriately
+        const lines = message.split('\n').filter(l => l.trim());
+        let title = 'Please Confirm';
+        let displayMessage = message;
+        let type = 'question';
+        
+        // Check for warning keywords
+        if (message.toLowerCase().includes('delete') || message.toLowerCase().includes('remove') || message.toLowerCase().includes('permanently')) {
+            type = 'danger';
+            title = 'Confirm Delete';
+        } else if (message.toLowerCase().includes('warning') || message.toLowerCase().includes('caution')) {
+            type = 'warning';
+            title = 'Warning';
+        }
+        
+        // If first line looks like a question, use it as title
+        if (lines.length > 1 && lines[0].endsWith('?')) {
+            title = lines[0];
+            displayMessage = lines.slice(1).join('\n');
+        }
+        
+        // Show the professional modal (async)
+        showConfirm(displayMessage, { type: type, title: title });
+        
+        // Return false initially - the actual action will be triggered by modal
+        return false;
+    };
+    
+    // Override alert() globally
+    window.alert = function(message) {
+        let type = 'info';
+        let title = 'Notice';
+        
+        if (message.toLowerCase().includes('error') || message.toLowerCase().includes('failed')) {
+            type = 'error';
+            title = 'Error';
+        } else if (message.toLowerCase().includes('success') || message.toLowerCase().includes('complete')) {
+            type = 'success';
+            title = 'Success';
+        } else if (message.toLowerCase().includes('warning')) {
+            type = 'warning';
+            title = 'Warning';
+        }
+        
+        showAlert(message, { type: type, title: title });
+    };
     
     // For synchronous confirm() calls in onclick handlers, intercept and handle elegantly
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('[onclick*="confirm("]');
         if (btn) {
             const onclickAttr = btn.getAttribute('onclick');
-            const confirmMatch = onclickAttr.match(/confirm\(['"](.+?)['"]\)/);
+            const confirmMatch = onclickAttr.match(/confirm\((['"`])(.+?)\1\)/s);
             if (confirmMatch) {
                 e.preventDefault();
                 e.stopPropagation();
-                const message = confirmMatch[1];
+                let message = confirmMatch[2];
+                // Handle escaped characters
+                message = message.replace(/\\n/g, '\n').replace(/\\'/g, "'").replace(/\\"/g, '"');
                 const form = btn.closest('form');
                 
-                showConfirm(message, { type: 'question', title: 'Please Confirm' }).then(confirmed => {
+                let type = 'question';
+                let title = 'Please Confirm';
+                if (message.toLowerCase().includes('delete') || message.toLowerCase().includes('remove') || message.toLowerCase().includes('permanently')) {
+                    type = 'danger';
+                    title = 'Confirm Delete';
+                }
+                
+                showConfirm(message, { type: type, title: title }).then(confirmed => {
                     if (confirmed) {
                         if (form) {
                             btn.removeAttribute('onclick');
@@ -2038,22 +2161,25 @@
         }
     }, true);
     
-    // Override alert() globally
-    window.alert = function(message) {
-        showAlert(message, { type: 'info', title: 'Notice' });
-    };
-    
     // Handle forms with onsubmit confirm
     document.addEventListener('submit', function(e) {
         const form = e.target;
         const onsubmitAttr = form.getAttribute('onsubmit');
         if (onsubmitAttr && onsubmitAttr.includes('confirm(')) {
-            const confirmMatch = onsubmitAttr.match(/confirm\(['"](.+?)['"]\)/);
+            const confirmMatch = onsubmitAttr.match(/confirm\((['"`])(.+?)\1\)/s);
             if (confirmMatch && !form.dataset.confirmed) {
                 e.preventDefault();
-                const message = confirmMatch[1];
+                let message = confirmMatch[2];
+                message = message.replace(/\\n/g, '\n').replace(/\\'/g, "'").replace(/\\"/g, '"');
                 
-                showConfirm(message, { type: 'question', title: 'Please Confirm' }).then(confirmed => {
+                let type = 'question';
+                let title = 'Please Confirm';
+                if (message.toLowerCase().includes('delete') || message.toLowerCase().includes('permanently')) {
+                    type = 'danger';
+                    title = 'Confirm Delete';
+                }
+                
+                showConfirm(message, { type: type, title: title }).then(confirmed => {
                     if (confirmed) {
                         form.dataset.confirmed = 'true';
                         form.removeAttribute('onsubmit');
