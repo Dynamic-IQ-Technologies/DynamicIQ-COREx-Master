@@ -897,6 +897,83 @@ def delete_analysis(source_id):
     
     return redirect(url_for('market_analysis_routes.dashboard'))
 
+@market_analysis_bp.route('/market-analysis/manage')
+def manage_data():
+    """Data management page for fleet data"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    sources = conn.execute('''
+        SELECT afs.*, u.username as uploaded_by_name,
+               (SELECT COUNT(*) FROM airline_fleet_aircraft WHERE source_id = afs.id) as aircraft_count,
+               (SELECT COUNT(*) FROM airline_fleet_parts afp 
+                JOIN airline_fleet_aircraft afa ON afp.aircraft_id = afa.id 
+                WHERE afa.source_id = afs.id) as parts_count,
+               (SELECT COUNT(*) FROM capability_matches cm 
+                JOIN airline_fleet_parts afp ON cm.fleet_part_id = afp.id
+                JOIN airline_fleet_aircraft afa ON afp.aircraft_id = afa.id
+                WHERE afa.source_id = afs.id AND cm.is_active = 1) as matches_count
+        FROM airline_fleet_sources afs
+        LEFT JOIN users u ON afs.uploaded_by = u.id
+        ORDER BY afs.upload_date DESC
+    ''').fetchall()
+    
+    airlines = conn.execute('''
+        SELECT DISTINCT airline_name, COUNT(*) as count, 
+               (SELECT source_name FROM airline_fleet_sources WHERE id = source_id LIMIT 1) as source
+        FROM airline_fleet_aircraft 
+        WHERE status = 'Active'
+        GROUP BY airline_name
+        ORDER BY count DESC
+    ''').fetchall()
+    
+    aircraft_models = conn.execute('''
+        SELECT DISTINCT aircraft_model, COUNT(*) as count
+        FROM airline_fleet_aircraft 
+        WHERE status = 'Active'
+        GROUP BY aircraft_model
+        ORDER BY count DESC
+        LIMIT 20
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('market_analysis/manage.html',
+                         sources=sources,
+                         airlines=airlines,
+                         aircraft_models=aircraft_models)
+
+@market_analysis_bp.route('/market-analysis/source/<int:source_id>/aircraft')
+def view_source_aircraft(source_id):
+    """View aircraft in a source"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    source = conn.execute('SELECT * FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+    if not source:
+        flash('Source not found', 'danger')
+        return redirect(url_for('market_analysis_routes.manage_data'))
+    
+    aircraft = conn.execute('''
+        SELECT afa.*, 
+               (SELECT COUNT(*) FROM airline_fleet_parts WHERE aircraft_id = afa.id) as parts_count
+        FROM airline_fleet_aircraft afa
+        WHERE afa.source_id = ?
+        ORDER BY afa.airline_name, afa.aircraft_model
+    ''', (source_id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('market_analysis/source_aircraft.html',
+                         source=source,
+                         aircraft=aircraft)
+
 @market_analysis_bp.route('/market-analysis/add-capabilities/<int:source_id>', methods=['POST'])
 def add_capabilities_from_analysis(source_id):
     """Add selected capability gaps as new MRO Capabilities"""

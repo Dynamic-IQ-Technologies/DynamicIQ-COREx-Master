@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Aircraft - {{ source.source_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('market_analysis_routes.dashboard') }}">Market Analysis</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('market_analysis_routes.manage_data') }}">Manage Data</a></li>
+                    <li class="breadcrumb-item active">{{ source.source_name }}</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">
+                <i class="bi bi-airplane me-2"></i>{{ source.source_name }}
+            </h2>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('market_analysis_routes.view_results', source_id=source.id) }}" class="btn btn-success">
+                <i class="bi bi-graph-up me-1"></i>View Analysis
+            </a>
+            <a href="{{ url_for('market_analysis_routes.manage_data') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-1">Total Aircraft</h6>
+                    <h2 class="mb-0 text-primary">{{ aircraft|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-1">Total Parts</h6>
+                    <h2 class="mb-0 text-info">{{ aircraft|sum(attribute='parts_count') }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-1">Airlines</h6>
+                    <h2 class="mb-0 text-success">{{ aircraft|map(attribute='airline_name')|unique|list|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-1">Upload Date</h6>
+                    <h5 class="mb-0">{{ source.upload_date[:10] if source.upload_date else 'N/A' }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Aircraft List</h5>
+                <input type="text" class="form-control form-control-sm" id="searchInput" 
+                       placeholder="Search aircraft..." style="max-width: 250px;">
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if aircraft %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="aircraftTable">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Airline</th>
+                            <th>Aircraft Model</th>
+                            <th>Variant</th>
+                            <th>Tail Number</th>
+                            <th>Region</th>
+                            <th class="text-center">Parts</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ac in aircraft %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-2" 
+                                         style="width: 32px; height: 32px;">
+                                        <i class="bi bi-building text-primary small"></i>
+                                    </div>
+                                    <span class="fw-medium">{{ ac.airline_name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">{{ ac.aircraft_model }}</span>
+                            </td>
+                            <td>{{ ac.aircraft_variant or '-' }}</td>
+                            <td><code>{{ ac.tail_number or '-' }}</code></td>
+                            <td>{{ ac.region or '-' }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-primary rounded-pill">{{ ac.parts_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if ac.status == 'Active' else 'secondary' }}-subtle 
+                                             text-{{ 'success' if ac.status == 'Active' else 'secondary' }}">
+                                    {{ ac.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3">No aircraft in this source</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('searchInput').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#aircraftTable tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+});
+</script>
+
+<style>
+.bg-info-subtle { background-color: rgba(6, 182, 212, 0.1) !important; }
+.bg-success-subtle { background-color: rgba(16, 185, 129, 0.1) !important; }
+</style>
+{% endblock %}

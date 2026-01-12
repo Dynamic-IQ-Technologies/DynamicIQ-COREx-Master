@@ -5,138 +5,90 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">
-            <i class="bi bi-graph-up-arrow me-2"></i>Market & Capability Analysis
-        </h2>
-        <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-primary">
-            <i class="bi bi-upload me-1"></i>Upload Fleet Data
-        </a>
-    </div>
-
-    <!-- AI Auto-Generate Quick Access -->
-    <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #10b981 !important;">
-        <div class="card-header py-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="mb-0">
-                        <i class="bi bi-stars me-2"></i>AI Auto-Generate Fleet Data & Analysis
-                    </h5>
-                    <small class="d-block mt-1 opacity-75">
-                        <i class="bi bi-magic me-1"></i>Instantly create realistic fleet data and get comprehensive market insights - no upload required!
-                    </small>
-                </div>
-                <span class="badge bg-white text-success px-3 py-2">
-                    <i class="bi bi-robot me-1"></i>Powered by GPT-4o
-                </span>
-            </div>
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-graph-up-arrow me-2"></i>Market & Capability Analysis
+            </h2>
+            <p class="text-muted mb-0">Strategic intelligence for fleet capability matching and market opportunities</p>
         </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('market_analysis_routes.auto_generate_fleet_data') }}" class="row g-3">
-                <div class="col-md-3">
-                    <label for="quick_num_airlines" class="form-label fw-bold">Airlines</label>
-                    <select class="form-select" id="quick_num_airlines" name="num_airlines">
-                        <option value="5" selected>5 Airlines</option>
-                        <option value="10">10 Airlines</option>
-                        <option value="15">15 Airlines</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="quick_num_aircraft" class="form-label fw-bold">Aircraft Each</label>
-                    <select class="form-select" id="quick_num_aircraft" name="num_aircraft">
-                        <option value="10" selected>10 Aircraft</option>
-                        <option value="20">20 Aircraft</option>
-                        <option value="30">30 Aircraft</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Regions</label>
-                    <div class="d-flex flex-wrap gap-2">
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="regions" value="North America" id="quick_region1" checked>
-                            <label class="form-check-label" for="quick_region1">Americas</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="regions" value="Europe" id="quick_region2" checked>
-                            <label class="form-check-label" for="quick_region2">Europe</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="regions" value="Asia Pacific" id="quick_region3" checked>
-                            <label class="form-check-label" for="quick_region3">Asia</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-success w-100">
-                        <i class="bi bi-stars me-1"></i>Generate & Analyze
-                    </button>
-                </div>
-            </form>
-            <div class="alert alert-success mt-3 mb-0 py-2" role="alert">
-                <small>
-                    <i class="bi bi-lightning-charge-fill me-1"></i>
-                    <strong>Fully Automated:</strong> AI generates fleet data → Matches capabilities → Creates 10-section strategic report → All in seconds!
-                </small>
-            </div>
+        <div class="btn-group">
+            <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-primary">
+                <i class="bi bi-upload me-1"></i>Upload Fleet Data
+            </a>
+            <a href="{{ url_for('market_analysis_routes.manage_data') }}" class="btn btn-outline-primary">
+                <i class="bi bi-database-gear me-1"></i>Manage Data
+            </a>
         </div>
     </div>
 
-    <!-- Summary Statistics -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #3b82f6 !important;">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-airplane fs-1 text-primary"></i>
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 56px; height: 56px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                                <i class="bi bi-airplane-fill text-white fs-4"></i>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Aircraft</h6>
-                            <h3 class="mb-0">{{ total_aircraft }}</h3>
+                        <div>
+                            <h6 class="text-muted text-uppercase small mb-1">Aircraft Tracked</h6>
+                            <h2 class="mb-0 fw-bold">{{ total_aircraft }}</h2>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #06b6d4 !important;">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-gear fs-1 text-info"></i>
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 56px; height: 56px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+                                <i class="bi bi-gear-wide-connected text-white fs-4"></i>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Parts Tracked</h6>
-                            <h3 class="mb-0">{{ total_parts }}</h3>
+                        <div>
+                            <h6 class="text-muted text-uppercase small mb-1">Parts Tracked</h6>
+                            <h2 class="mb-0 fw-bold">{{ total_parts }}</h2>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #10b981 !important;">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-check-circle fs-1 text-success"></i>
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 56px; height: 56px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                <i class="bi bi-check2-all text-white fs-4"></i>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Total Matches</h6>
-                            <h3 class="mb-0">{{ total_matches }}</h3>
+                        <div>
+                            <h6 class="text-muted text-uppercase small mb-1">Capability Matches</h6>
+                            <h2 class="mb-0 fw-bold">{{ total_matches }}</h2>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #f59e0b !important;">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-star-fill fs-1" style="color: #FFD700;"></i>
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                <i class="bi bi-star-fill text-white fs-4"></i>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">High Matches</h6>
-                            <h3 class="mb-0">{{ high_matches }}</h3>
+                        <div>
+                            <h6 class="text-muted text-uppercase small mb-1">High-Value Matches</h6>
+                            <h2 class="mb-0 fw-bold">{{ high_matches }}</h2>
                         </div>
                     </div>
                 </div>
@@ -144,57 +96,144 @@
         </div>
     </div>
 
-    <!-- Fleet Data Sources -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white py-3">
-            <h5 class="mb-0">Fleet Data Sources</h5>
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #065f46 0%, #047857 50%, #10b981 100%);">
+        <div class="card-body py-4">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-white bg-opacity-20 p-3 me-3">
+                            <i class="bi bi-stars fs-3 text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-white mb-1">AI-Powered Fleet Analysis</h4>
+                            <p class="text-white text-opacity-75 mb-0">
+                                Generate realistic fleet data and receive comprehensive market intelligence instantly
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <form method="POST" action="{{ url_for('market_analysis_routes.auto_generate_fleet_data') }}" 
+                          class="d-flex flex-wrap gap-2 align-items-end" id="aiGenerateForm">
+                        <div class="flex-grow-1" style="min-width: 120px;">
+                            <label class="form-label text-white small mb-1">Airlines</label>
+                            <select class="form-select form-select-sm" name="num_airlines">
+                                <option value="5" selected>5 Airlines</option>
+                                <option value="10">10 Airlines</option>
+                                <option value="15">15 Airlines</option>
+                            </select>
+                        </div>
+                        <div class="flex-grow-1" style="min-width: 120px;">
+                            <label class="form-label text-white small mb-1">Aircraft Each</label>
+                            <select class="form-select form-select-sm" name="num_aircraft">
+                                <option value="10" selected>10 Aircraft</option>
+                                <option value="20">20 Aircraft</option>
+                                <option value="30">30 Aircraft</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-light btn-sm fw-semibold" id="generateBtn">
+                                <i class="bi bi-magic me-1"></i>Generate & Analyze
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="d-flex flex-wrap gap-3 text-white text-opacity-75 small">
+                        <span><i class="bi bi-check-circle-fill me-1"></i>AI generates fleet data</span>
+                        <span><i class="bi bi-check-circle-fill me-1"></i>Matches your capabilities</span>
+                        <span><i class="bi bi-check-circle-fill me-1"></i>Creates strategic report</span>
+                        <span class="badge bg-white bg-opacity-20"><i class="bi bi-robot me-1"></i>Powered by GPT-4o</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Fleet Data Sources</h5>
+                <span class="badge bg-primary rounded-pill">{{ sources|length }} Sources</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
             {% if sources %}
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
                         <tr>
-                            <th>Source Name</th>
-                            <th>File Name</th>
-                            <th>Upload Date</th>
+                            <th class="ps-4">Source Name</th>
+                            <th>Type</th>
                             <th>Records</th>
+                            <th>Upload Date</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for source in sources %}
                         <tr>
-                            <td>{{ source.source_name }}</td>
-                            <td>{{ source.file_name }}</td>
-                            <td>{{ source.upload_date }}</td>
-                            <td>{{ source.record_count }}</td>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-3" 
+                                         style="width: 40px; height: 40px;">
+                                        {% if 'AI Generated' in source.source_name %}
+                                        <i class="bi bi-robot text-success"></i>
+                                        {% else %}
+                                        <i class="bi bi-file-earmark-spreadsheet text-primary"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ source.source_name }}</div>
+                                        <small class="text-muted">{{ source.file_name or 'AI Generated' }}</small>
+                                    </div>
+                                </div>
+                            </td>
                             <td>
-                                <span class="badge bg-{{ 'success' if source.status == 'Active' else 'secondary' }}">
+                                {% if 'AI Generated' in source.source_name %}
+                                <span class="badge bg-success-subtle text-success">AI Generated</span>
+                                {% else %}
+                                <span class="badge bg-primary-subtle text-primary">CSV Upload</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-semibold">{{ source.record_count }}</span>
+                                <small class="text-muted d-block">records</small>
+                            </td>
+                            <td>
+                                <small>{{ source.upload_date[:10] if source.upload_date else 'N/A' }}</small>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill bg-{{ 'success' if source.status == 'Active' else 'secondary' }}">
                                     {{ source.status }}
                                 </span>
                             </td>
-                            <td>
-                                <a href="{{ url_for('market_analysis_routes.view_results', source_id=source.id) }}" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye"></i> View
-                                </a>
-                                <a href="{{ url_for('market_analysis_routes.run_analysis', source_id=source.id) }}" 
-                                   class="btn btn-sm btn-outline-success">
-                                    <i class="bi bi-arrow-repeat"></i> Re-run
-                                </a>
-                                <a href="{{ url_for('market_analysis_routes.export_results', source_id=source.id) }}" 
-                                   class="btn btn-sm btn-outline-info">
-                                    <i class="bi bi-download"></i> Export
-                                </a>
-                                <button type="button" 
-                                        class="btn btn-sm btn-outline-danger"
-                                        data-source-id="{{ source.id }}"
-                                        data-source-name="{{ source.source_name }}"
-                                        onclick="confirmDelete(this)">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
+                            <td class="text-end pe-4">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('market_analysis_routes.view_results', source_id=source.id) }}" 
+                                       class="btn btn-outline-primary" title="View Results">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('market_analysis_routes.run_analysis', source_id=source.id) }}" 
+                                       class="btn btn-outline-success" title="Re-run Analysis">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </a>
+                                    <a href="{{ url_for('market_analysis_routes.export_results', source_id=source.id) }}" 
+                                       class="btn btn-outline-info" title="Export to Excel">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-outline-danger"
+                                            data-source-id="{{ source.id }}"
+                                            data-source-name="{{ source.source_name }}"
+                                            onclick="confirmDeleteSource(this)"
+                                            title="Delete Source">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -203,28 +242,39 @@
             </div>
             {% else %}
             <div class="text-center py-5">
-                <i class="bi bi-inbox fs-1 text-muted"></i>
-                <p class="text-muted mt-3">No fleet data sources uploaded yet.</p>
-                <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-primary">
-                    <i class="bi bi-upload me-1"></i>Upload Your First Dataset
-                </a>
+                <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3" 
+                     style="width: 80px; height: 80px;">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                </div>
+                <h5 class="text-muted">No Fleet Data Sources Yet</h5>
+                <p class="text-muted mb-4">Get started by uploading fleet data or generating with AI</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i>Upload Dataset
+                    </a>
+                    <button type="button" class="btn btn-success" onclick="document.getElementById('aiGenerateForm').scrollIntoView({behavior: 'smooth'})">
+                        <i class="bi bi-stars me-1"></i>Generate with AI
+                    </button>
+                </div>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Recent Analysis Runs -->
     {% if recent_runs %}
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3">
-            <h5 class="mb-0">Recent Analysis Runs</h5>
+        <div class="card-header bg-white py-3 border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Analysis Runs</h5>
+                <span class="badge bg-secondary rounded-pill">Last {{ recent_runs|length }}</span>
+            </div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
                         <tr>
-                            <th>Source</th>
+                            <th class="ps-4">Source</th>
                             <th>Run Type</th>
                             <th>Started</th>
                             <th>Triggered By</th>
@@ -234,14 +284,30 @@
                     <tbody>
                         {% for run in recent_runs %}
                         <tr>
-                            <td>{{ run.source_name or 'N/A' }}</td>
-                            <td><span class="badge bg-info">{{ run.run_type }}</span></td>
-                            <td>{{ run.started_at }}</td>
+                            <td class="ps-4">
+                                <span class="fw-medium">{{ run.source_name or 'N/A' }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">{{ run.run_type }}</span>
+                            </td>
+                            <td>
+                                <small>{{ run.started_at[:16] if run.started_at else 'N/A' }}</small>
+                            </td>
                             <td>{{ run.triggered_by_name or 'System' }}</td>
                             <td>
-                                <span class="badge bg-{{ 'success' if run.status == 'Completed' else 'warning' }}">
+                                {% if run.status == 'Completed' %}
+                                <span class="badge bg-success-subtle text-success">
+                                    <i class="bi bi-check-circle me-1"></i>Completed
+                                </span>
+                                {% elif run.status == 'Running' %}
+                                <span class="badge bg-primary-subtle text-primary">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Running
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning">
                                     {{ run.status }}
                                 </span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -253,13 +319,18 @@
     {% endif %}
 </div>
 
-<!-- Hidden form for delete confirmation -->
 <form id="deleteForm" method="POST" style="display: none;">
     <input type="hidden" name="source_id" id="deleteSourceId">
 </form>
 
 <script>
-function confirmDelete(button) {
+document.getElementById('aiGenerateForm').addEventListener('submit', function() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+});
+
+function confirmDeleteSource(button) {
     const sourceId = button.getAttribute('data-source-id');
     const sourceName = button.getAttribute('data-source-name');
     
@@ -271,4 +342,11 @@ function confirmDelete(button) {
 }
 </script>
 
+<style>
+.bg-success-subtle { background-color: rgba(16, 185, 129, 0.1) !important; }
+.bg-primary-subtle { background-color: rgba(59, 130, 246, 0.1) !important; }
+.bg-info-subtle { background-color: rgba(6, 182, 212, 0.1) !important; }
+.bg-warning-subtle { background-color: rgba(245, 158, 11, 0.1) !important; }
+.text-success { color: #059669 !important; }
+</style>
 {% endblock %}

@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Fleet Data{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('market_analysis_routes.dashboard') }}">Market Analysis</a></li>
+                    <li class="breadcrumb-item active">Manage Data</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">
+                <i class="bi bi-database-gear me-2"></i>Manage Fleet Data
+            </h2>
+        </div>
+        <a href="{{ url_for('market_analysis_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Data Sources</h5>
+                        <span class="badge bg-primary rounded-pill">{{ sources|length }} Sources</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if sources %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Source</th>
+                                    <th class="text-center">Aircraft</th>
+                                    <th class="text-center">Parts</th>
+                                    <th class="text-center">Matches</th>
+                                    <th>Uploaded By</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for source in sources %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-semibold">{{ source.source_name }}</div>
+                                        <small class="text-muted">{{ source.upload_date[:10] if source.upload_date else '' }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary-subtle text-primary rounded-pill">
+                                            {{ source.aircraft_count or 0 }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info-subtle text-info rounded-pill">
+                                            {{ source.parts_count or 0 }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success-subtle text-success rounded-pill">
+                                            {{ source.matches_count or 0 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small>{{ source.uploaded_by_name or 'System' }}</small>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('market_analysis_routes.view_source_aircraft', source_id=source.id) }}" 
+                                               class="btn btn-outline-primary" title="View Aircraft">
+                                                <i class="bi bi-airplane"></i>
+                                            </a>
+                                            <a href="{{ url_for('market_analysis_routes.view_results', source_id=source.id) }}" 
+                                               class="btn btn-outline-success" title="View Analysis">
+                                                <i class="bi bi-graph-up"></i>
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger"
+                                                    onclick="confirmDelete({{ source.id }}, '{{ source.source_name }}')"
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox fs-1 text-muted"></i>
+                        <p class="text-muted mt-3">No data sources available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="mb-0"><i class="bi bi-building me-2"></i>Airlines in Database</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                    {% if airlines %}
+                    <ul class="list-group list-group-flush">
+                        {% for airline in airlines %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                            <span class="text-truncate" style="max-width: 200px;">{{ airline.airline_name }}</span>
+                            <span class="badge bg-primary rounded-pill">{{ airline.count }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <small class="text-muted">No airlines tracked</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="mb-0"><i class="bi bi-airplane-engines me-2"></i>Aircraft Models</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                    {% if aircraft_models %}
+                    <ul class="list-group list-group-flush">
+                        {% for model in aircraft_models %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                            <span class="text-truncate" style="max-width: 200px;">{{ model.aircraft_model }}</span>
+                            <span class="badge bg-info rounded-pill">{{ model.count }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <small class="text-muted">No aircraft tracked</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Data Management Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-2">
+                                <i class="bi bi-upload text-primary"></i>
+                            </div>
+                            <h6 class="mb-0">Upload New Data</h6>
+                        </div>
+                        <p class="text-muted small mb-3">Import fleet data from CSV or Excel files</p>
+                        <a href="{{ url_for('market_analysis_routes.upload_fleet_data') }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-upload me-1"></i>Upload File
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle bg-success bg-opacity-10 p-2 me-2">
+                                <i class="bi bi-stars text-success"></i>
+                            </div>
+                            <h6 class="mb-0">AI Generate Data</h6>
+                        </div>
+                        <p class="text-muted small mb-3">Create realistic fleet data using AI</p>
+                        <a href="{{ url_for('market_analysis_routes.dashboard') }}#aiGenerateForm" class="btn btn-sm btn-success">
+                            <i class="bi bi-magic me-1"></i>Generate
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle bg-danger bg-opacity-10 p-2 me-2">
+                                <i class="bi bi-trash text-danger"></i>
+                            </div>
+                            <h6 class="mb-0">Clear All Data</h6>
+                        </div>
+                        <p class="text-muted small mb-3">Remove all fleet data and start fresh</p>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmClearAll()">
+                            <i class="bi bi-trash me-1"></i>Clear All
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="deleteForm" method="POST" style="display: none;"></form>
+
+<script>
+function confirmDelete(sourceId, sourceName) {
+    if (confirm('Are you sure you want to delete "' + sourceName + '"?\n\nThis will permanently delete:\n- All fleet data (aircraft, parts)\n- All capability matches\n- All analysis runs\n\nThis action cannot be undone.')) {
+        const form = document.getElementById('deleteForm');
+        form.action = '/market-analysis/delete/' + sourceId;
+        form.submit();
+    }
+}
+
+function confirmClearAll() {
+    if (confirm('Are you sure you want to clear ALL fleet data?\n\nThis will permanently delete:\n- All data sources\n- All aircraft and parts\n- All capability matches\n- All analysis runs and reports\n\nThis action cannot be undone.')) {
+        alert('Please delete each source individually for safety.');
+    }
+}
+</script>
+
+<style>
+.bg-primary-subtle { background-color: rgba(59, 130, 246, 0.1) !important; }
+.bg-info-subtle { background-color: rgba(6, 182, 212, 0.1) !important; }
+.bg-success-subtle { background-color: rgba(16, 185, 129, 0.1) !important; }
+</style>
+{% endblock %}
