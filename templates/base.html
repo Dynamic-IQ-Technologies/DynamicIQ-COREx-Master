@@ -302,6 +302,22 @@
             animation: slideUp 0.3s ease;
         }
         
+        .erp-helper-panel.expanded {
+            width: 600px;
+            max-height: 80vh;
+            bottom: 20px;
+            right: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .erp-helper-panel.expanded .erp-helper-messages {
+            max-height: 50vh;
+        }
+        
+        .erp-helper-panel.expanded .erp-helper-insights {
+            max-height: 200px;
+        }
+        
         @keyframes slideUp {
             from {
                 opacity: 0;
@@ -1342,7 +1358,12 @@
     <div class="erp-helper-panel" id="erpHelperPanel">
         <div class="erp-helper-header">
             <h5><i class="bi bi-robot"></i> ERP Copilot</h5>
-            <button type="button" class="btn-close" onclick="toggleERPHelper()"></button>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-link text-white p-0" onclick="toggleERPHelperExpand()" title="Expand/Collapse">
+                    <i class="bi bi-arrows-angle-expand" id="expandIcon"></i>
+                </button>
+                <button type="button" class="btn-close btn-close-white" onclick="toggleERPHelper()"></button>
+            </div>
         </div>
         
         <div class="erp-helper-insights" id="erpHelperInsights">
@@ -1372,6 +1393,7 @@
     
     <script>
         let erpHelperOpen = false;
+        let erpHelperExpanded = false;
         let conversationHistory = [];
         let currentContext = {
             module: '',
@@ -1393,6 +1415,28 @@
                 document.getElementById('erpHelperInput').focus();
             } else {
                 panel.classList.remove('open');
+                panel.classList.remove('expanded');
+                erpHelperExpanded = false;
+                updateExpandIcon();
+            }
+        }
+        
+        function toggleERPHelperExpand() {
+            erpHelperExpanded = !erpHelperExpanded;
+            const panel = document.getElementById('erpHelperPanel');
+            
+            if (erpHelperExpanded) {
+                panel.classList.add('expanded');
+            } else {
+                panel.classList.remove('expanded');
+            }
+            updateExpandIcon();
+        }
+        
+        function updateExpandIcon() {
+            const icon = document.getElementById('expandIcon');
+            if (icon) {
+                icon.className = erpHelperExpanded ? 'bi bi-arrows-angle-contract' : 'bi bi-arrows-angle-expand';
             }
         }
         
