@@ -871,7 +871,6 @@ def delete_analysis(source_id):
     conn = db.get_connection()
     
     try:
-        # Get source name for confirmation message
         source = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
         
         if not source:
@@ -880,10 +879,22 @@ def delete_analysis(source_id):
         
         source_name = source[0]
         
-        # Delete match runs associated with this source
-        conn.execute('DELETE FROM match_runs WHERE source_id = ?', (source_id,))
+        aircraft_ids = conn.execute('SELECT id FROM airline_fleet_aircraft WHERE source_id = ?', (source_id,)).fetchall()
+        aircraft_id_list = [a[0] for a in aircraft_ids]
         
-        # Delete the source (CASCADE will handle aircraft, parts, and matches)
+        if aircraft_id_list:
+            placeholders = ','.join(['?' for _ in aircraft_id_list])
+            
+            conn.execute(f'''
+                DELETE FROM capability_matches WHERE fleet_part_id IN (
+                    SELECT id FROM airline_fleet_parts WHERE aircraft_id IN ({placeholders})
+                )
+            ''', aircraft_id_list)
+            
+            conn.execute(f'DELETE FROM airline_fleet_parts WHERE aircraft_id IN ({placeholders})', aircraft_id_list)
+        
+        conn.execute('DELETE FROM airline_fleet_aircraft WHERE source_id = ?', (source_id,))
+        conn.execute('DELETE FROM match_runs WHERE source_id = ?', (source_id,))
         conn.execute('DELETE FROM airline_fleet_sources WHERE id = ?', (source_id,))
         
         conn.commit()
