@@ -7,6 +7,16 @@ from routes.master_routing_routes import apply_routing_to_work_order
 
 workorder_bp = Blueprint('workorder_routes', __name__)
 
+def generate_task_number_wo(conn):
+    """Generate unique task number for work order tasks"""
+    last_task = conn.execute('SELECT task_number FROM work_order_tasks ORDER BY id DESC LIMIT 1').fetchone()
+    if last_task:
+        last_number = int(last_task['task_number'].split('-')[1])
+        new_number = last_number + 1
+    else:
+        new_number = 1
+    return f'TASK-{new_number:06d}'
+
 @workorder_bp.route('/workorders')
 @login_required
 def list_workorders():
@@ -1016,6 +1026,42 @@ def update_receiving_inspection(id):
                 ip_address=request.remote_addr,
                 user_agent=request.headers.get('User-Agent')
             )
+        
+        # Auto-create "Work Order Crate" material when crate requirement is Yes
+        if pkg_crate_requirement == 'Yes':
+            # Find or create "Incoming Inspection" task
+            incoming_task = conn.execute('''
+                SELECT id FROM work_order_tasks 
+                WHERE work_order_id = ? AND task_name = 'Incoming Inspection'
+            ''', (id,)).fetchone()
+            
+            if not incoming_task:
+                # Create "Incoming Inspection" task
+                task_number = generate_task_number_wo(conn)
+                cursor = conn.execute('''
+                    INSERT INTO work_order_tasks 
+                    (task_number, work_order_id, task_name, description, category, 
+                     sequence_number, priority, status)
+                    VALUES (?, ?, 'Incoming Inspection', 'Incoming inspection task for receiving', 
+                            'Inspection', 10, 'High', 'Not Started')
+                ''', (task_number, id))
+                incoming_task_id = cursor.lastrowid
+            else:
+                incoming_task_id = incoming_task['id']
+            
+            # Check if "Work Order Crate" material already exists for this task
+            existing_crate = conn.execute('''
+                SELECT id FROM work_order_task_materials 
+                WHERE task_id = ? AND unit_of_measure = 'Work Order Crate'
+            ''', (incoming_task_id,)).fetchone()
+            
+            if not existing_crate:
+                # Add non-inventory "Work Order Crate" material
+                conn.execute('''
+                    INSERT INTO work_order_task_materials 
+                    (task_id, product_id, required_qty, unit_of_measure, notes, material_status, created_by)
+                    VALUES (?, NULL, 1, 'Work Order Crate', 'Non-inventory crate requirement', 'Planned', ?)
+                ''', (incoming_task_id, session.get('user_id')))
         
         conn.commit()
         flash('Receiving inspection updated successfully!', 'success')
