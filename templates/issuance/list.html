@@ -26,6 +26,47 @@
     </div>
     <div class="card-body">
         {% if available_materials %}
+        <!-- Filter Controls -->
+        <div class="row mb-3 g-2">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="materialSearchInput" placeholder="Search product code or name...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="warehouseFilter">
+                    <option value="">All Warehouses</option>
+                    {% set warehouses = available_materials|map(attribute='warehouse_location')|unique|list %}
+                    {% for wh in warehouses if wh %}
+                    <option value="{{ wh }}">{{ wh }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="conditionFilter">
+                    <option value="">All Conditions</option>
+                    {% set conditions = available_materials|map(attribute='condition')|unique|list %}
+                    {% for cond in conditions if cond %}
+                    <option value="{{ cond }}">{{ cond }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Statuses</option>
+                    {% set statuses = available_materials|map(attribute='status')|unique|list %}
+                    {% for st in statuses if st %}
+                    <option value="{{ st }}">{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-secondary w-100" id="clearFiltersBtn">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover" id="availableMaterialsTable">
                 <thead>
@@ -35,21 +76,31 @@
                             <input type="checkbox" id="selectAllMaterials" title="Select All">
                         </th>
                         {% endif %}
-                        <th>Inventory ID</th>
-                        <th>Product Code</th>
-                        <th>Product Name</th>
-                        <th>Available Qty</th>
-                        <th>Reserved</th>
-                        <th>Total Qty</th>
-                        <th>Warehouse</th>
-                        <th>Bin Location</th>
+                        <th class="sortable" data-sort="inv-id" style="cursor:pointer;">Inventory ID <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="code" style="cursor:pointer;">Product Code <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="name" style="cursor:pointer;">Product Name <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="available" style="cursor:pointer;">Available Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="reserved" style="cursor:pointer;">Reserved <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="total" style="cursor:pointer;">Total Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="warehouse" style="cursor:pointer;">Warehouse <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable" data-sort="bin" style="cursor:pointer;">Bin Location <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th>Condition</th>
                         <th>Status</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="materialsTableBody">
                     {% for item in available_materials %}
-                    <tr>
+                    <tr class="material-row" 
+                        data-code="{{ item.product_code|lower }}" 
+                        data-name="{{ item.product_name|lower }}"
+                        data-warehouse="{{ item.warehouse_location or '' }}"
+                        data-condition="{{ item.condition or 'Serviceable' }}"
+                        data-status="{{ item.status }}"
+                        data-inv-id="{{ item.id }}"
+                        data-available="{{ item.available_quantity }}"
+                        data-reserved="{{ item.reserved_quantity or 0 }}"
+                        data-total="{{ item.quantity }}"
+                        data-bin="{{ item.bin_location or '' }}">
                         {% if session.role in ['Admin', 'Production Staff', 'Planner'] %}
                         <td>
                             <input type="checkbox" class="material-checkbox" 
@@ -91,6 +142,9 @@
                 </tbody>
             </table>
         </div>
+        <div id="noResultsMessage" class="alert alert-warning d-none">
+            <i class="bi bi-exclamation-triangle"></i> No materials match your filter criteria.
+        </div>
         {% else %}
         <div class="alert alert-warning mb-0">
             <i class="bi bi-exclamation-triangle"></i> No materials currently available for issuance.
@@ -107,9 +161,18 @@
     </div>
     <div class="card-body">
         {% if grouped_issues %}
+        <!-- History Search -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="historySearchInput" placeholder="Search work order, product, or issue number...">
+                </div>
+            </div>
+        </div>
         <div class="accordion" id="issuesAccordion">
             {% for wo_number, wo_data in grouped_issues.items() %}
-            <div class="accordion-item">
+            <div class="accordion-item history-item" data-wo="{{ wo_number|lower }}" data-search-text="{{ wo_number|lower }} {% for issue in wo_data.issues %}{{ issue.product_code|lower }} {{ issue.product_name|lower }} {{ issue.issue_number|lower }} {% endfor %}">
                 <h2 class="accordion-header" id="heading{{ loop.index }}">
                     <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
                             data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" 
@@ -282,33 +345,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const batchIssueForm = document.getElementById('batchIssueForm');
     
     // Set today's date as default
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('issue_date').value = today;
+    const issueDateInput = document.getElementById('issue_date');
+    if (issueDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        issueDateInput.value = today;
+    }
     
     // Load work orders
     fetch('/workorders/list-json')
         .then(response => response.json())
         .then(data => {
             const woSelect = document.getElementById('work_order_id');
-            data.forEach(wo => {
-                if (wo.status !== 'Completed') {
-                    const option = document.createElement('option');
-                    option.value = wo.id;
-                    option.textContent = `${wo.wo_number} - ${wo.product_code} (${wo.status})`;
-                    woSelect.appendChild(option);
-                }
-            });
+            if (woSelect) {
+                data.forEach(wo => {
+                    if (wo.status !== 'Completed') {
+                        const option = document.createElement('option');
+                        option.value = wo.id;
+                        option.textContent = `${wo.wo_number} - ${wo.product_code} (${wo.status})`;
+                        woSelect.appendChild(option);
+                    }
+                });
+            }
         });
     
     function updateSelectedCount() {
+        const visibleCheckboxes = document.querySelectorAll('.material-row:not([style*="display: none"]) .material-checkbox');
         const checkedCount = document.querySelectorAll('.material-checkbox:checked').length;
-        selectedCountSpan.textContent = checkedCount;
-        issueSelectedBtn.disabled = checkedCount === 0;
+        if (selectedCountSpan) selectedCountSpan.textContent = checkedCount;
+        if (issueSelectedBtn) issueSelectedBtn.disabled = checkedCount === 0;
     }
     
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            materialCheckboxes.forEach(checkbox => {
+            const visibleCheckboxes = document.querySelectorAll('.material-row:not([style*="display: none"]) .material-checkbox');
+            visibleCheckboxes.forEach(checkbox => {
                 checkbox.checked = this.checked;
             });
             updateSelectedCount();
@@ -319,10 +389,147 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.addEventListener('change', function() {
             updateSelectedCount();
             if (selectAllCheckbox) {
-                selectAllCheckbox.checked = document.querySelectorAll('.material-checkbox:checked').length === materialCheckboxes.length;
+                const visibleCheckboxes = document.querySelectorAll('.material-row:not([style*="display: none"]) .material-checkbox');
+                const checkedVisible = document.querySelectorAll('.material-row:not([style*="display: none"]) .material-checkbox:checked');
+                selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedVisible.length === visibleCheckboxes.length;
             }
         });
     });
+    
+    // ============ FILTERING ============
+    const materialSearchInput = document.getElementById('materialSearchInput');
+    const warehouseFilter = document.getElementById('warehouseFilter');
+    const conditionFilter = document.getElementById('conditionFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    const noResultsMessage = document.getElementById('noResultsMessage');
+    const materialRows = document.querySelectorAll('.material-row');
+    
+    function applyFilters() {
+        const searchTerm = materialSearchInput ? materialSearchInput.value.toLowerCase() : '';
+        const warehouseValue = warehouseFilter ? warehouseFilter.value : '';
+        const conditionValue = conditionFilter ? conditionFilter.value : '';
+        const statusValue = statusFilter ? statusFilter.value : '';
+        
+        let visibleCount = 0;
+        
+        materialRows.forEach(row => {
+            const code = row.dataset.code || '';
+            const name = row.dataset.name || '';
+            const warehouse = row.dataset.warehouse || '';
+            const condition = row.dataset.condition || '';
+            const status = row.dataset.status || '';
+            
+            const matchesSearch = !searchTerm || code.includes(searchTerm) || name.includes(searchTerm);
+            const matchesWarehouse = !warehouseValue || warehouse === warehouseValue;
+            const matchesCondition = !conditionValue || condition === conditionValue;
+            const matchesStatus = !statusValue || status === statusValue;
+            
+            if (matchesSearch && matchesWarehouse && matchesCondition && matchesStatus) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+                const checkbox = row.querySelector('.material-checkbox');
+                if (checkbox) checkbox.checked = false;
+            }
+        });
+        
+        if (noResultsMessage) {
+            noResultsMessage.classList.toggle('d-none', visibleCount > 0);
+        }
+        
+        updateSelectedCount();
+    }
+    
+    if (materialSearchInput) materialSearchInput.addEventListener('input', applyFilters);
+    if (warehouseFilter) warehouseFilter.addEventListener('change', applyFilters);
+    if (conditionFilter) conditionFilter.addEventListener('change', applyFilters);
+    if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+    
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            if (materialSearchInput) materialSearchInput.value = '';
+            if (warehouseFilter) warehouseFilter.value = '';
+            if (conditionFilter) conditionFilter.value = '';
+            if (statusFilter) statusFilter.value = '';
+            applyFilters();
+        });
+    }
+    
+    // ============ SORTING ============
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    let currentSort = { column: null, direction: 'asc' };
+    
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const sortKey = this.dataset.sort;
+            const tbody = document.getElementById('materialsTableBody');
+            if (!tbody) return;
+            
+            const rows = Array.from(tbody.querySelectorAll('.material-row'));
+            
+            if (currentSort.column === sortKey) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = sortKey;
+                currentSort.direction = 'asc';
+            }
+            
+            rows.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch(sortKey) {
+                    case 'inv-id':
+                    case 'available':
+                    case 'reserved':
+                    case 'total':
+                        aVal = parseFloat(a.dataset[sortKey.replace('-', '')] || a.dataset[sortKey] || 0);
+                        bVal = parseFloat(b.dataset[sortKey.replace('-', '')] || b.dataset[sortKey] || 0);
+                        break;
+                    default:
+                        aVal = (a.dataset[sortKey] || '').toLowerCase();
+                        bVal = (b.dataset[sortKey] || '').toLowerCase();
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+            
+            sortableHeaders.forEach(h => {
+                const icon = h.querySelector('i');
+                if (icon) {
+                    icon.className = 'bi bi-arrow-down-up text-muted';
+                }
+            });
+            const thisIcon = this.querySelector('i');
+            if (thisIcon) {
+                thisIcon.className = currentSort.direction === 'asc' ? 'bi bi-arrow-up text-primary' : 'bi bi-arrow-down text-primary';
+            }
+        });
+    });
+    
+    // ============ HISTORY SEARCH ============
+    const historySearchInput = document.getElementById('historySearchInput');
+    const historyItems = document.querySelectorAll('.history-item');
+    
+    if (historySearchInput) {
+        historySearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            historyItems.forEach(item => {
+                const searchText = item.dataset.searchText || '';
+                if (!searchTerm || searchText.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
     
     // When modal is shown, populate selected materials
     if (batchIssueModal) {
@@ -331,25 +538,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const modalCount = document.getElementById('modalSelectedCount');
             const materialsList = document.getElementById('selectedMaterialsList');
             
-            modalCount.textContent = selectedMaterials.length;
-            materialsList.innerHTML = '';
-            
-            selectedMaterials.forEach((checkbox, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${checkbox.dataset.productCode}</td>
-                    <td>${checkbox.dataset.productName}</td>
-                    <td><span class="badge bg-success">${checkbox.dataset.availableQty} ${checkbox.dataset.uom}</span></td>
-                    <td>
-                        <input type="hidden" name="materials[${index}][product_id]" value="${checkbox.dataset.productId}">
-                        <input type="number" step="0.01" min="0.01" max="${checkbox.dataset.availableQty}" 
-                               class="form-control form-control-sm" name="materials[${index}][quantity]" 
-                               value="${checkbox.dataset.availableQty}" required>
-                    </td>
-                    <td>${checkbox.dataset.warehouse}${checkbox.dataset.bin ? ' / ' + checkbox.dataset.bin : ''}</td>
-                `;
-                materialsList.appendChild(row);
-            });
+            if (modalCount) modalCount.textContent = selectedMaterials.length;
+            if (materialsList) {
+                materialsList.innerHTML = '';
+                
+                selectedMaterials.forEach((checkbox, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${checkbox.dataset.productCode}</td>
+                        <td>${checkbox.dataset.productName}</td>
+                        <td><span class="badge bg-success">${checkbox.dataset.availableQty} ${checkbox.dataset.uom}</span></td>
+                        <td>
+                            <input type="hidden" name="materials[${index}][product_id]" value="${checkbox.dataset.productId}">
+                            <input type="number" step="0.01" min="0.01" max="${checkbox.dataset.availableQty}" 
+                                   class="form-control form-control-sm" name="materials[${index}][quantity]" 
+                                   value="${checkbox.dataset.availableQty}" required>
+                        </td>
+                        <td>${checkbox.dataset.warehouse}${checkbox.dataset.bin ? ' / ' + checkbox.dataset.bin : ''}</td>
+                    `;
+                    materialsList.appendChild(row);
+                });
+            }
         });
     }
     
