@@ -226,6 +226,35 @@ def material_requirements_report():
           AND swm.allocated_from_inventory = 0
     ''').fetchall()
     
+    # Get work order task material requirements (includes non-inventory items like crates)
+    task_material_requirements = conn.execute('''
+        SELECT 
+            'Production' as source_type,
+            wo.wo_number as order_number,
+            wo.status as order_status,
+            wo.planned_start_date as order_date,
+            tm.product_id,
+            p.code,
+            p.name,
+            p.unit_of_measure,
+            COALESCE(p.cost, 0) as cost,
+            tm.required_qty as required_quantity,
+            COALESCE(tm.issued_qty, 0) as available_quantity,
+            (tm.required_qty - COALESCE(tm.issued_qty, 0)) as shortage_quantity,
+            tm.material_status as status,
+            (tm.required_qty * COALESCE(p.cost, 0)) as total_cost
+        FROM work_order_task_materials tm
+        JOIN products p ON tm.product_id = p.id
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        JOIN work_orders wo ON wot.work_order_id = wo.id
+        WHERE wo.status NOT IN ('Completed', 'Closed', 'Cancelled')
+          AND COALESCE(tm.issued_qty, 0) < tm.required_qty
+          AND NOT EXISTS (
+              SELECT 1 FROM material_requirements mr 
+              WHERE mr.work_order_id = wo.id AND mr.product_id = tm.product_id
+          )
+    ''').fetchall()
+    
     # Track net available inventory per product as we process requirements
     net_inventory = inventory_dict.copy()
     
@@ -286,6 +315,25 @@ def material_requirements_report():
             'status': 'Shortage' if shortage_qty > 0 else 'Available',
             'total_cost': required_qty * (req['cost'] or 0)
         }
+        all_requirements.append(req_dict)
+        
+        if shortage_qty > 0:
+            if product_id not in product_shortages:
+                product_shortages[product_id] = {
+                    'code': req['code'],
+                    'name': req['name'],
+                    'total_shortage': 0,
+                    'shortage_value': 0
+                }
+            product_shortages[product_id]['total_shortage'] += shortage_qty
+            product_shortages[product_id]['shortage_value'] += shortage_qty * (req['cost'] or 0)
+    
+    # Process task material requirements (includes items like WO-CRATE)
+    for req in task_material_requirements:
+        req_dict = dict(req)
+        product_id = req['product_id']
+        shortage_qty = req['shortage_quantity'] if req['shortage_quantity'] > 0 else 0
+        
         all_requirements.append(req_dict)
         
         if shortage_qty > 0:

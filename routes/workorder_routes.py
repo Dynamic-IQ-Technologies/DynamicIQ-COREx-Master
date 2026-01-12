@@ -1072,24 +1072,12 @@ def update_receiving_inspection(id):
             ''', (incoming_task_id, crate_product_id)).fetchone()
             
             if not existing_crate:
-                # Add "Work Order Crate" material requirement to task materials
+                # Add "Work Order Crate" material requirement to task materials only
                 conn.execute('''
                     INSERT INTO work_order_task_materials 
                     (task_id, product_id, required_qty, unit_of_measure, notes, material_status, created_by)
                     VALUES (?, ?, 1, 'EA', 'Crate requirement for work order packaging', 'Planned', ?)
                 ''', (incoming_task_id, crate_product_id, session.get('user_id')))
-                
-                # Also add to main material_requirements table so it shows in All Material Requirements report
-                existing_main_req = conn.execute('''
-                    SELECT id FROM material_requirements WHERE work_order_id = ? AND product_id = ?
-                ''', (id, crate_product_id)).fetchone()
-                
-                if not existing_main_req:
-                    conn.execute('''
-                        INSERT INTO material_requirements 
-                        (work_order_id, product_id, required_quantity, available_quantity, shortage_quantity, status)
-                        VALUES (?, ?, 1, 0, 1, 'Shortage')
-                    ''', (id, crate_product_id))
         
         conn.commit()
         flash('Receiving inspection updated successfully!', 'success')
