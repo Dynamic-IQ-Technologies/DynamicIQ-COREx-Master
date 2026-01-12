@@ -650,6 +650,7 @@ def view_workorder(id):
                          component_buyout_pos=component_buyout_pos)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
 @role_required('Admin', 'Planner', 'Production Staff')
 def edit_workorder(id):
     db = Database()
@@ -1119,6 +1120,7 @@ def update_receiving_inspection(id):
     return redirect(url_for('workorder_routes.view_workorder', id=id))
 
 @workorder_bp.route('/workorders/<int:id>/management', methods=['POST'])
+@login_required
 @role_required('Admin', 'Planner', 'Production Staff')
 def update_workorder_management(id):
     db = Database()
