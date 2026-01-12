@@ -919,6 +919,13 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Add inventory_id column to work_order_task_materials to track source inventory
+        if 'inventory_id' not in wotm_columns:
+            try:
+                cursor.execute('ALTER TABLE work_order_task_materials ADD COLUMN inventory_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        
         # Add work_order_id, task_id, and ndt_work_order_id columns to time_clock_punches if they don't exist
         tcp_columns = [row[1] for row in cursor.execute('PRAGMA table_info(time_clock_punches)').fetchall()]
         if 'work_order_id' not in tcp_columns:

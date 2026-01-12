@@ -950,7 +950,7 @@
                                                             <div class="btn-group btn-group-sm">
                                                                 {% if (mat.required_qty or 0) > (mat.issued_qty or 0) %}
                                                                 <button type="button" class="btn btn-outline-success" title="Issue" 
-                                                                        onclick="openIssueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.required_qty or 0 }}, {{ mat.issued_qty or 0 }})">
+                                                                        onclick="openIssueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.required_qty or 0 }}, {{ mat.issued_qty or 0 }}, {{ mat.product_id }})">
                                                                     <i class="bi bi-box-arrow-right"></i>
                                                                 </button>
                                                                 {% endif %}
@@ -1126,7 +1126,7 @@
                                     <div class="btn-group btn-group-sm">
                                         {% if remaining_to_issue > 0 %}
                                         <button type="button" class="btn btn-success btn-sm" title="Issue Material"
-                                                onclick="openIssueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.required_qty or 0 }}, {{ mat.issued_qty or 0 }})">
+                                                onclick="openIssueMaterialModal({{ task.id }}, {{ mat.id }}, '{{ mat.code }}', {{ mat.required_qty or 0 }}, {{ mat.issued_qty or 0 }}, {{ mat.product_id }})">
                                             <i class="bi bi-box-arrow-right"></i>
                                         </button>
                                         {% endif %}
@@ -1269,7 +1269,7 @@
                                             {% if remaining > 0 %}
                                                 {% if mat.source_type == 'task' %}
                                                 <button type="button" class="btn btn-sm btn-success" 
-                                                        onclick="openIssueMaterialModal({{ mat.task_id }}, {{ mat.material_id }}, '{{ mat.code }}', {{ mat.required_quantity or 0 }}, {{ mat.issued_qty or 0 }})"
+                                                        onclick="openIssueMaterialModal({{ mat.task_id }}, {{ mat.material_id }}, '{{ mat.code }}', {{ mat.required_quantity or 0 }}, {{ mat.issued_qty or 0 }}, {{ mat.product_id }})"
                                                         title="Issue Material">
                                                     <i class="bi bi-box-arrow-right"></i> Issue
                                                 </button>
@@ -1915,20 +1915,28 @@
                     <p class="text-success"><strong>Remaining to Issue:</strong> <span id="issueMatRemaining"></span></p>
                     <hr>
                     <div class="mb-3">
+                        <label class="form-label">Select Inventory Source <span class="text-danger">*</span></label>
+                        <select class="form-select" id="issueMatInventoryId" name="inventory_id" required>
+                            <option value="">Loading inventory...</option>
+                        </select>
+                        <small class="text-muted" id="issueMatInventoryHelp">Select which inventory line to issue from</small>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Quantity to Issue <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="issueMatQty" name="issue_qty" step="0.01" min="0.01" required>
+                        <small class="text-muted">Available: <span id="issueMatAvailableQty">-</span></small>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Lot Number</label>
-                                <input type="text" class="form-control" name="lot_number">
+                                <input type="text" class="form-control" id="issueMatLotNumber" name="lot_number" readonly>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Serial Number</label>
-                                <input type="text" class="form-control" name="serial_number">
+                                <input type="text" class="form-control" id="issueMatSerialNumber" name="serial_number" readonly>
                             </div>
                         </div>
                     </div>
@@ -2100,16 +2108,68 @@ function openIssueModal(reqId, prodCode, allocatedQty, issuedQty) {
     new bootstrap.Modal(document.getElementById('issueModal')).show();
 }
 
-function openIssueMaterialModal(taskId, matId, code, required, issued) {
+let currentInventoryData = [];
+
+async function openIssueMaterialModal(taskId, matId, code, required, issued, productId) {
     document.getElementById('issueMatCode').textContent = code;
     document.getElementById('issueMatRequired').textContent = required.toFixed(2);
     document.getElementById('issueMatIssued').textContent = issued.toFixed(2);
     document.getElementById('issueMatRemaining').textContent = (required - issued).toFixed(2);
     document.getElementById('issueMatQty').max = required - issued;
     document.getElementById('issueMatQty').value = '';
+    document.getElementById('issueMatLotNumber').value = '';
+    document.getElementById('issueMatSerialNumber').value = '';
+    document.getElementById('issueMatAvailableQty').textContent = '-';
     document.getElementById('issueMaterialForm').action = `/workorders/tasks/${taskId}/materials/${matId}/issue`;
+    
+    const inventorySelect = document.getElementById('issueMatInventoryId');
+    inventorySelect.innerHTML = '<option value="">Loading inventory...</option>';
+    
     new bootstrap.Modal(document.getElementById('issueMaterialModal')).show();
+    
+    try {
+        const response = await fetch(`/api/inventory/by-product/${productId}`);
+        const data = await response.json();
+        
+        if (data.success && data.inventory.length > 0) {
+            currentInventoryData = data.inventory;
+            inventorySelect.innerHTML = '<option value="">-- Select Inventory Line --</option>';
+            data.inventory.forEach(inv => {
+                const option = document.createElement('option');
+                option.value = inv.id;
+                option.textContent = inv.label;
+                option.dataset.qty = inv.quantity;
+                option.dataset.lot = inv.lot_number || '';
+                option.dataset.serial = inv.serial_number || '';
+                inventorySelect.appendChild(option);
+            });
+        } else {
+            inventorySelect.innerHTML = '<option value="">No inventory available</option>';
+            currentInventoryData = [];
+        }
+    } catch (error) {
+        inventorySelect.innerHTML = '<option value="">Error loading inventory</option>';
+        currentInventoryData = [];
+    }
 }
+
+document.getElementById('issueMatInventoryId').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption && selectedOption.value) {
+        const qty = parseFloat(selectedOption.dataset.qty) || 0;
+        const remaining = parseFloat(document.getElementById('issueMatRemaining').textContent) || 0;
+        const maxIssue = Math.min(qty, remaining);
+        
+        document.getElementById('issueMatAvailableQty').textContent = qty.toFixed(2);
+        document.getElementById('issueMatQty').max = maxIssue;
+        document.getElementById('issueMatLotNumber').value = selectedOption.dataset.lot || '';
+        document.getElementById('issueMatSerialNumber').value = selectedOption.dataset.serial || '';
+    } else {
+        document.getElementById('issueMatAvailableQty').textContent = '-';
+        document.getElementById('issueMatLotNumber').value = '';
+        document.getElementById('issueMatSerialNumber').value = '';
+    }
+});
 
 function openConsumeMaterialModal(taskId, matId, code, issued, consumed) {
     document.getElementById('consumeMatCode').textContent = code;

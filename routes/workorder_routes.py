@@ -3000,6 +3000,7 @@ def issue_task_material(task_id, material_id):
         conn.close()
         return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
     
+    inventory_id = request.form.get('inventory_id', '')
     lot_number = request.form.get('lot_number', '')
     serial_number = request.form.get('serial_number', '')
     
@@ -3009,26 +3010,63 @@ def issue_task_material(task_id, material_id):
         conn.close()
         return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
     
+    # Validate inventory selection and check available quantity
+    if inventory_id:
+        try:
+            inventory_id = int(inventory_id)
+            inventory = conn.execute('''
+                SELECT * FROM inventory WHERE id = ? AND product_id = ?
+            ''', (inventory_id, material['product_id'])).fetchone()
+            
+            if not inventory:
+                flash('Selected inventory not found or does not match product', 'danger')
+                conn.close()
+                return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+            
+            if inventory['quantity'] < issue_qty:
+                flash(f'Insufficient inventory. Available: {inventory["quantity"]}', 'danger')
+                conn.close()
+                return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+        except (ValueError, TypeError):
+            flash('Invalid inventory selection', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    else:
+        flash('Please select an inventory source', 'danger')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+    
     try:
         new_issued = (material['issued_qty'] or 0) + issue_qty
         new_status = 'Issued' if new_issued >= (material['required_qty'] or 0) else 'Partially Issued'
         
+        # Update task material
         conn.execute('''
             UPDATE work_order_task_materials 
             SET issued_qty = ?, lot_number = COALESCE(?, lot_number), 
                 serial_number = COALESCE(?, serial_number),
-                material_status = ?, issued_by = ?, issued_at = CURRENT_TIMESTAMP
+                material_status = ?, issued_by = ?, issued_at = CURRENT_TIMESTAMP,
+                inventory_id = ?
             WHERE id = ?
         ''', (new_issued, lot_number or None, serial_number or None, 
-              new_status, session.get('user_id'), material_id))
+              new_status, session.get('user_id'), inventory_id, material_id))
+        
+        # Deduct from inventory
+        new_inv_qty = inventory['quantity'] - issue_qty
+        conn.execute('''
+            UPDATE inventory 
+            SET quantity = ?, last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (new_inv_qty, inventory_id))
         
         AuditLogger.log(conn, 'work_order_task_materials', material_id, 'ISSUE',
                        {'issue_qty': issue_qty, 'new_total': new_issued, 
-                        'lot_number': lot_number, 'serial_number': serial_number},
+                        'lot_number': lot_number, 'serial_number': serial_number,
+                        'inventory_id': inventory_id, 'inventory_deducted': issue_qty},
                        session.get('user_id'))
         
         conn.commit()
-        flash(f'Issued {issue_qty} of {material["code"]} - {material["name"]}', 'success')
+        flash(f'Issued {issue_qty} of {material["code"]} - {material["name"]} from inventory', 'success')
     except Exception as e:
         conn.rollback()
         flash(f'Error issuing material: {str(e)}', 'danger')
@@ -4066,5 +4104,52 @@ def create_component_buyout(wo_id):
         print(f"Component Buyout Error: {str(e)}")
         print(traceback.format_exc())
         conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@workorder_bp.route('/api/inventory/by-product/<int:product_id>')
+@login_required
+def get_inventory_by_product(product_id):
+    """Get all inventory lines for a specific product"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        inventory_lines = conn.execute('''
+            SELECT i.id, i.quantity, i.location, i.lot_number, i.serial_number,
+                   i.condition_code, i.unit_of_measure,
+                   p.code as product_code, p.name as product_name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.product_id = ? AND i.quantity > 0
+            ORDER BY i.location, i.lot_number
+        ''', (product_id,)).fetchall()
+        
+        result = []
+        for inv in inventory_lines:
+            label = f"{inv['location'] or 'No Location'}"
+            if inv['lot_number']:
+                label += f" | Lot: {inv['lot_number']}"
+            if inv['serial_number']:
+                label += f" | S/N: {inv['serial_number']}"
+            if inv['condition_code']:
+                label += f" | {inv['condition_code']}"
+            label += f" | Qty: {inv['quantity']:.2f}"
+            
+            result.append({
+                'id': inv['id'],
+                'quantity': float(inv['quantity']),
+                'location': inv['location'],
+                'lot_number': inv['lot_number'],
+                'serial_number': inv['serial_number'],
+                'condition_code': inv['condition_code'],
+                'label': label
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'inventory': result})
+        
+    except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
