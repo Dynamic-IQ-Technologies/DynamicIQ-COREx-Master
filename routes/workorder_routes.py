@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database, AuditLogger
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
@@ -4117,33 +4117,34 @@ def get_inventory_by_product(product_id):
     
     try:
         inventory_lines = conn.execute('''
-            SELECT i.id, i.quantity, i.location, i.lot_number, i.serial_number,
-                   i.condition_code, i.unit_of_measure,
+            SELECT i.id, i.quantity, i.lot_number, i.serial_number,
+                   i.unit_cost, i.trace_tag, i.source,
                    p.code as product_code, p.name as product_name
             FROM inventory i
             JOIN products p ON i.product_id = p.id
             WHERE i.product_id = ? AND i.quantity > 0
-            ORDER BY i.location, i.lot_number
+            ORDER BY i.lot_number, i.id
         ''', (product_id,)).fetchall()
         
         result = []
         for inv in inventory_lines:
-            label = f"{inv['location'] or 'No Location'}"
+            label = f"INV-{inv['id']:06d}"
             if inv['lot_number']:
                 label += f" | Lot: {inv['lot_number']}"
             if inv['serial_number']:
                 label += f" | S/N: {inv['serial_number']}"
-            if inv['condition_code']:
-                label += f" | {inv['condition_code']}"
+            if inv['trace_tag']:
+                label += f" | Tag: {inv['trace_tag']}"
+            if inv['source']:
+                label += f" | {inv['source']}"
             label += f" | Qty: {inv['quantity']:.2f}"
             
             result.append({
                 'id': inv['id'],
                 'quantity': float(inv['quantity']),
-                'location': inv['location'],
                 'lot_number': inv['lot_number'],
                 'serial_number': inv['serial_number'],
-                'condition_code': inv['condition_code'],
+                'trace_tag': inv['trace_tag'],
                 'label': label
             })
         
