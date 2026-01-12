@@ -1204,6 +1204,7 @@
                             <table class="table table-sm table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        <th>Inventory ID</th>
                                         <th>Part Number</th>
                                         <th>Description</th>
                                         <th class="text-center">Required</th>
@@ -1215,6 +1216,15 @@
                                 <tbody>
                                     {% for mat in material_cost_details %}
                                     <tr>
+                                        <td>
+                                            {% if mat.inventory_id %}
+                                            <a href="{{ url_for('inventory_routes.view_inventory', id=mat.inventory_id) }}" class="text-primary">
+                                                <i class="bi bi-box-seam me-1"></i>INV-{{ '%06d'|format(mat.inventory_id) }}
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
                                         <td><code>{{ mat.code }}</code></td>
                                         <td>{{ mat.name }}</td>
                                         <td class="text-center">{{ mat.required_quantity }}</td>
@@ -1226,7 +1236,7 @@
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
-                                        <th colspan="5" class="text-end">Total Material Cost:</th>
+                                        <th colspan="6" class="text-end">Total Material Cost:</th>
                                         <th class="text-end">{{ cost_info.material_cost|currency }}</th>
                                     </tr>
                                 </tfoot>
