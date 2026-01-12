@@ -3107,7 +3107,7 @@ def bulk_update_tasks(wo_id):
             
             elif action == 'assignee' and new_assignee:
                 assignee_id = int(new_assignee) if new_assignee != '' else None
-                conn.execute('UPDATE work_order_tasks SET assigned_to = ? WHERE id = ?', (assignee_id, task_id))
+                conn.execute('UPDATE work_order_tasks SET assigned_resource_id = ? WHERE id = ?', (assignee_id, task_id))
                 updated_count += 1
         
         conn.commit()
