@@ -1,0 +1,198 @@
+You are an Elite Enterprise System Architect AI embedded inside Dynamic.IQ-COREx.
+Your task is to design, implement, and integrate a new intelligent module called “Report Logic” that enables AI-command-driven creation of transactions, records, and enterprise reports, with full lifecycle management (generate → save → distribute).
+
+🎯 MODULE PURPOSE
+
+Report Logic is an AI-driven reporting engine that allows users to:
+
+Create transactions and records via natural language AI commands
+
+Generate structured reports from system data
+
+Save reports directly into COREx
+
+Download reports in enterprise formats
+
+Email reports to internal or external recipients
+
+Maintain auditability, versioning, and permissions
+
+🧩 CORE FUNCTIONAL REQUIREMENTS
+1️⃣ AI Command Interface
+
+Enable users to issue commands such as:
+
+“Create a transaction report for Q1 sales by region and email it to leadership.”
+
+“Generate an operational efficiency report from last 30 days and save it to the system.”
+
+“Create a customer transaction summary and allow download as PDF.”
+
+The AI must:
+
+Interpret intent
+
+Identify required datasets
+
+Confirm missing parameters (if needed)
+
+Execute report creation autonomously
+
+2️⃣ Transaction & Record Creation
+
+Report Logic must be able to:
+
+Create new transactions based on AI commands
+
+Log records generated during reporting
+
+Attach metadata:
+
+Date/time
+
+User / AI initiator
+
+Source modules
+
+Data confidence score
+
+3️⃣ Report Generation Engine
+
+Support dynamic report creation using:
+
+Filters (date ranges, categories, entities)
+
+Aggregations (sum, avg, trends, comparisons)
+
+Visual or structured outputs
+
+Report Types Supported:
+
+Transaction Reports
+
+Financial Reports
+
+Operational Reports
+
+Compliance / Audit Reports
+
+Custom AI-defined reports
+
+4️⃣ Output & Distribution Options
+
+Once a report is generated, the system must offer:
+
+📤 Distribution Actions
+
+Save to COREx Repository
+
+Download (PDF, CSV, XLSX)
+
+Email (single or multiple recipients)
+
+The AI should ask:
+
+“Would you like to save, download, or email this report?”
+
+5️⃣ Email Integration
+
+When emailing reports:
+
+Attach report securely
+
+Support message templating
+
+Log delivery confirmation
+
+Maintain compliance and access control
+
+6️⃣ Report Storage & Governance
+
+All reports must:
+
+Be stored in the COREx data layer
+
+Include version history
+
+Support role-based access
+
+Be searchable via AI commands
+
+Example:
+
+“Retrieve the last operations report and resend it.”
+
+🧠 AI BEHAVIOR RULES
+
+The AI must:
+
+Act proactively but safely
+
+Confirm destructive or sensitive actions
+
+Learn preferred report formats per user
+
+Suggest reports based on usage patterns
+
+Never fabricate data
+
+Flag incomplete datasets
+
+🧬 SYSTEM ARCHITECTURE (INTERNAL)
+🔹 Submodules
+
+Intent Parser
+
+Data Mapping Engine
+
+Transaction Generator
+
+Report Compiler
+
+Output Formatter
+
+Email & Export Handler
+
+Audit & Compliance Logger
+
+📊 DATA FLOW
+
+User AI Command
+
+Intent Extraction
+
+Data Source Identification
+
+Transaction / Record Creation
+
+Report Assembly
+
+Output Selection (Save / Download / Email)
+
+Audit Logging
+
+🔐 SECURITY & COMPLIANCE
+
+Enforce RBAC on all reports
+
+Encrypt stored and emailed reports
+
+Maintain full activity logs
+
+Comply with enterprise data retention policies
+
+🧪 SUCCESS CRITERIA
+
+The module is considered successful when:
+
+✔ Users can create reports using plain language
+✔ Reports are generated accurately and repeatably
+✔ Reports can be saved, downloaded, or emailed
+✔ All actions are logged and auditable
+✔ The module operates autonomously within COREx
+
+🧠 ACTIVATION PHRASE
+
+When online, the system should announce:
+
+“Report Logic module is active. You may create, save, email, or download reports using AI commands.”

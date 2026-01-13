@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Report {{ report.report_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('report_logic_routes.report_logic_dashboard') }}">Report Logic</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('report_logic_routes.report_repository') }}">Repository</a></li>
+                    <li class="breadcrumb-item active">{{ report.report_number }}</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">
+                {{ report.name }}
+                {% if report.ai_generated %}
+                <span class="badge bg-success">AI Generated</span>
+                {% endif %}
+            </h2>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('report_logic_routes.download_report', id=report.id, format='pdf') }}" class="btn btn-primary">
+                <i class="bi bi-file-pdf"></i> PDF
+            </a>
+            <a href="{{ url_for('report_logic_routes.download_report', id=report.id, format='xlsx') }}" class="btn btn-success">
+                <i class="bi bi-file-excel"></i> Excel
+            </a>
+            <a href="{{ url_for('report_logic_routes.download_report', id=report.id, format='csv') }}" class="btn btn-secondary">
+                <i class="bi bi-filetype-csv"></i> CSV
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Report Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Report Number:</strong> {{ report.report_number }}</p>
+                            <p><strong>Type:</strong> <span class="badge bg-secondary">{{ report.report_type }}</span></p>
+                            <p><strong>Generated:</strong> {{ report.generated_at }}</p>
+                            <p><strong>By:</strong> {{ report.generated_by_name or 'System' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong> <span class="badge bg-success">{{ report.status }}</span></p>
+                            <p><strong>Version:</strong> {{ report.version }}</p>
+                            {% if report.confidence_score %}
+                            <p><strong>AI Confidence:</strong> {{ (report.confidence_score * 100)|round }}%</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if report.description %}
+                    <p><strong>Description:</strong> {{ report.description }}</p>
+                    {% endif %}
+                    {% if report.ai_command %}
+                    <div class="alert alert-info">
+                        <strong>AI Command:</strong> "{{ report.ai_command }}"
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if report_data.summary %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for key, value in report_data.summary.items() %}
+                        <div class="col-md-3 col-6">
+                            <div class="border rounded p-3 text-center">
+                                <small class="text-muted d-block">{{ key.replace('_', ' ').title() }}</small>
+                                <div class="fs-5 fw-bold">
+                                    {% if value is number %}
+                                        {% if 'value' in key or 'cost' in key or 'revenue' in key or 'income' in key or 'expense' in key %}
+                                        ${{ '{:,.2f}'.format(value) }}
+                                        {% elif 'rate' in key or 'margin' in key %}
+                                        {{ '{:.1f}'.format(value) }}%
+                                        {% else %}
+                                        {{ '{:,.0f}'.format(value) if value == value|int else '{:,.2f}'.format(value) }}
+                                        {% endif %}
+                                    {% else %}
+                                    {{ value }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if report_data.data %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Data ({{ report_data.data|length }} records)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-sm table-striped table-hover mb-0">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    {% for col in report_data.columns %}
+                                    <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in report_data.data[:100] %}
+                                <tr>
+                                    {% for col in report_data.columns %}
+                                    {% set col_key = col.lower().replace(' ', '_') %}
+                                    {% set value = row.get(col_key, row.get(col, '')) %}
+                                    <td>
+                                        {% if value is number and ('cost' in col_key or 'value' in col_key or 'amount' in col_key or 'price' in col_key) %}
+                                        ${{ '{:,.2f}'.format(value) }}
+                                        {% elif value is number %}
+                                        {{ '{:,.2f}'.format(value) if value != value|int else '{:,}'.format(value|int) }}
+                                        {% else %}
+                                        {{ value if value is not none else '' }}
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if report_data.data|length > 100 %}
+                    <div class="card-footer text-muted text-center">
+                        Showing first 100 of {{ report_data.data|length }} records. Download for full data.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-send"></i> Distribution History</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for dist in distributions %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <span>
+                                {% if dist.distribution_type == 'email' %}
+                                <i class="bi bi-envelope text-primary"></i>
+                                {% elif dist.distribution_type == 'download' %}
+                                <i class="bi bi-download text-success"></i>
+                                {% endif %}
+                                {{ dist.distribution_type|title }}
+                            </span>
+                            <small class="text-muted">{{ dist.created_at[:16] if dist.created_at else '' }}</small>
+                        </div>
+                        {% if dist.recipient_email %}
+                        <small class="text-muted">{{ dist.recipient_email }}</small>
+                        {% endif %}
+                        <span class="badge {% if dist.delivery_status == 'Sent' %}bg-success{% elif dist.delivery_status == 'Failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ dist.delivery_status }}
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="list-group-item text-muted">No distributions yet</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-clock-history"></i> Audit Trail</h6>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                    {% for log in audit_log %}
+                    <div class="list-group-item py-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="badge bg-secondary">{{ log.action_type }}</span>
+                            <small class="text-muted">{{ log.performed_at[:16] if log.performed_at else '' }}</small>
+                        </div>
+                        <small>{{ log.action_description }}</small>
+                        {% if log.username %}
+                        <small class="text-muted d-block">by {{ log.username }}</small>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="list-group-item text-muted">No audit entries</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

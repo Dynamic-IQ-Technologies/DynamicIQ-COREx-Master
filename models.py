@@ -5431,6 +5431,128 @@ def init_qms_tables(cursor):
     except:
         pass
     
+    # === REPORT LOGIC MODULE TABLES ===
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            report_type TEXT NOT NULL,
+            query_config TEXT,
+            filter_config TEXT,
+            aggregation_config TEXT,
+            output_format TEXT DEFAULT 'table',
+            is_system INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_repository (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_number TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            report_type TEXT NOT NULL,
+            template_id INTEGER,
+            parameters TEXT,
+            data_sources TEXT,
+            generated_data TEXT,
+            file_path TEXT,
+            file_format TEXT,
+            file_size INTEGER,
+            version INTEGER DEFAULT 1,
+            parent_id INTEGER,
+            status TEXT DEFAULT 'Generated',
+            confidence_score REAL,
+            ai_generated INTEGER DEFAULT 0,
+            ai_command TEXT,
+            generated_by INTEGER,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP,
+            access_roles TEXT,
+            is_archived INTEGER DEFAULT 0,
+            FOREIGN KEY (template_id) REFERENCES report_templates(id),
+            FOREIGN KEY (parent_id) REFERENCES report_repository(id),
+            FOREIGN KEY (generated_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_distribution (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_id INTEGER NOT NULL,
+            distribution_type TEXT NOT NULL,
+            recipient_email TEXT,
+            recipient_name TEXT,
+            recipient_user_id INTEGER,
+            subject TEXT,
+            message TEXT,
+            sent_at TIMESTAMP,
+            delivery_status TEXT DEFAULT 'Pending',
+            delivery_response TEXT,
+            downloaded_at TIMESTAMP,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (report_id) REFERENCES report_repository(id) ON DELETE CASCADE,
+            FOREIGN KEY (recipient_user_id) REFERENCES users(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_id INTEGER,
+            action_type TEXT NOT NULL,
+            action_description TEXT,
+            ai_command TEXT,
+            data_sources TEXT,
+            parameters_used TEXT,
+            result_summary TEXT,
+            performed_by INTEGER,
+            performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (report_id) REFERENCES report_repository(id) ON DELETE SET NULL,
+            FOREIGN KEY (performed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            template_id INTEGER,
+            report_type TEXT,
+            frequency TEXT NOT NULL,
+            next_run TIMESTAMP,
+            last_run TIMESTAMP,
+            parameters TEXT,
+            recipients TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (template_id) REFERENCES report_templates(id)
+        )
+    ''')
+    
+    # Report Logic indexes
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_repo_type ON report_repository(report_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_repo_status ON report_repository(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_repo_number ON report_repository(report_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_repo_user ON report_repository(generated_by)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_dist_report ON report_distribution(report_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_audit_report ON report_audit_log(report_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_sub_user ON report_subscriptions(user_id)')
+    except:
+        pass
+    
     # Create indexes for QMS tables
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')
