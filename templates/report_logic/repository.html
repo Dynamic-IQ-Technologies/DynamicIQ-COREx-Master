@@ -88,6 +88,12 @@
                                 <a href="{{ url_for('report_logic_routes.download_report', id=report.id, format='xlsx') }}" class="btn btn-outline-success" title="Excel">
                                     <i class="bi bi-file-excel"></i>
                                 </a>
+                                {% if session.get('role') in ['Admin', 'Planner', 'Manager'] %}
+                                <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                        onclick="confirmDeleteReport('{{ report.id }}', '{{ report.report_number }}', '{{ report.name|e }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -104,4 +110,42 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="deleteReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger"></i> Delete Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete this report?</p>
+                <div class="alert alert-warning">
+                    <strong>Report:</strong> <span id="deleteReportNumber"></span><br>
+                    <strong>Name:</strong> <span id="deleteReportName"></span>
+                </div>
+                <p class="text-muted small mb-0">This action cannot be undone. All associated distribution records and audit logs will also be removed.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteReportForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDeleteReport(reportId, reportNumber, reportName) {
+    document.getElementById('deleteReportNumber').textContent = reportNumber;
+    document.getElementById('deleteReportName').textContent = reportName;
+    document.getElementById('deleteReportForm').action = '/report-logic/delete/' + reportId;
+    new bootstrap.Modal(document.getElementById('deleteReportModal')).show();
+}
+</script>
 {% endblock %}

@@ -1026,6 +1026,45 @@ def view_report(id):
                           audit_log=audit_log)
 
 
+@report_logic_bp.route('/report-logic/delete/<int:id>', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Planner', 'Manager'])
+def delete_report(id):
+    """Delete a report from the repository"""
+    db = Database()
+    conn = db.get_connection()
+    
+    report = conn.execute('SELECT * FROM report_repository WHERE id = ?', (id,)).fetchone()
+    
+    if not report:
+        conn.close()
+        flash('Report not found', 'danger')
+        return redirect(url_for('report_logic_routes.report_repository'))
+    
+    report_number = report['report_number']
+    report_name = report['name']
+    
+    log_report_action(
+        id, 'DELETE', 
+        f'Report {report_number} deleted',
+        user_id=session.get('user_id')
+    )
+    
+    conn.execute('DELETE FROM report_distribution WHERE report_id = ?', (id,))
+    conn.execute('DELETE FROM report_audit_log WHERE report_id = ?', (id,))
+    conn.execute('DELETE FROM report_subscriptions WHERE report_id = ?', (id,))
+    conn.execute('DELETE FROM report_repository WHERE id = ?', (id,))
+    
+    conn.commit()
+    conn.close()
+    
+    AuditLogger.log('report_repository', id, 'DELETE', session.get('user_id'),
+                   {'report_number': report_number, 'name': report_name})
+    
+    flash(f'Report {report_number} has been deleted successfully', 'success')
+    return redirect(url_for('report_logic_routes.report_repository'))
+
+
 @report_logic_bp.route('/api/report-logic/search', methods=['POST'])
 @login_required
 def search_reports():
