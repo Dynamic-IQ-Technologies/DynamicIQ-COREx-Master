@@ -1,0 +1,9 @@
+{
+  "name": "dynamiciq-corex",
+  "version": "1.0.0",
+  "description": "Dynamic.IQ-COREx MRP System",
+  "private": true,
+  "scripts": {
+    "build": "echo 'No build required for Python Flask app'"
+  }
+}
