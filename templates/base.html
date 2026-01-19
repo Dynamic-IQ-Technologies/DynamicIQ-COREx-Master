@@ -580,12 +580,6 @@
                     <span>COREx NeuroIQ</span>
                 </a>
             </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('report_logic_routes.report_logic_dashboard') }}" style="background: linear-gradient(90deg, rgba(138,43,226,0.1), transparent); border-left: 2px solid #8a2be2;">
-                    <i class="bi bi-robot" style="color: #8a2be2;"></i>
-                    <span>Report Logic</span>
-                </a>
-            </li>
             {% endif %}
             {% if session.role == 'Admin' or user_permissions.get('menu_dashboard', 1) == 1 %}
             <li class="sidebar-nav-item">

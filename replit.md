@@ -85,16 +85,6 @@ The system incorporates a novel architecture for ERP exchange management, compri
     - Conversational chat interface for guidance requests
     - Contextual quick-action suggestions based on transaction type
     - Backend API routes: `/api/corex-guide/assist`, `/api/corex-guide/validate-field`, `/api/corex-guide/transaction-check`
--   **Report Logic AI-Driven Reporting Engine**: Intelligent module enabling AI-command-driven creation of reports with full lifecycle management (generate, save, distribute). Features include:
-    - Natural language AI command interface for report creation
-    - Support for Transaction, Financial, Operational, Inventory, Compliance, and Custom report types
-    - Dynamic report generation with filters, aggregations, and data summaries
-    - Multiple output formats: PDF, Excel (XLSX), CSV
-    - Email distribution via Brevo API integration
-    - Report repository with version history and audit trails
-    - Role-based access control for reports
-    - Database tables: report_templates, report_repository, report_distribution, report_audit_log, report_subscriptions
-    - Backend API routes: `/api/report-logic/command`, `/api/report-logic/generate`, `/api/report-logic/email`, `/api/report-logic/search`
 
 ## External Dependencies
 
