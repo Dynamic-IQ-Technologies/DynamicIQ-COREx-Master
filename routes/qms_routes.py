@@ -1,16 +1,15 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
-import sqlite3
 from datetime import datetime, timedelta
 import json
 import os
 from auth import login_required
+from models import Database
 
 qms_bp = Blueprint('qms', __name__, url_prefix='/qms')
 
 def get_db():
-    conn = sqlite3.connect('mrp.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    db = Database()
+    return db.get_connection()
 
 def generate_sop_number(conn):
     """Generate next SOP number"""
