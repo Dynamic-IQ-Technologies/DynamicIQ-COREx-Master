@@ -138,10 +138,14 @@
         border-top: 4px solid;
         box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
     }
     .stage-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+    .stage-card:active {
+        transform: translateY(-1px);
     }
     .stage-card .stage-header {
         display: flex;
@@ -527,7 +531,9 @@
             <div class="section-title"><i class="bi bi-layers"></i>Work Order Stage Pipeline</div>
             <div class="stage-pipeline">
                 {% for stage in stage_load %}
-                <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};">
+                <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};" 
+                     onclick="showStageWorkOrders({{ stage.id }}, '{{ stage.stage_name }}', '{{ stage.color or '#6c757d' }}')"
+                     title="Click to view work orders in {{ stage.stage_name }}">
                     <div class="stage-header">
                         <div>
                             <div class="stage-count">{{ stage.wo_count or 0 }}</div>
@@ -1105,5 +1111,140 @@ if (window.location.hash === '#schedule-panel') {
         tab.show();
     }
 }
+
+function showStageWorkOrders(stageId, stageName, stageColor) {
+    const modal = new bootstrap.Modal(document.getElementById('stageWorkOrdersModal'));
+    const modalTitle = document.getElementById('stageModalTitle');
+    const modalBody = document.getElementById('stageModalBody');
+    const stageIndicator = document.getElementById('stageIndicator');
+    
+    modalTitle.textContent = stageName;
+    stageIndicator.style.backgroundColor = stageColor;
+    modalBody.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading work orders...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    fetch(`/api/operations/stage/${stageId}/work-orders`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                modalBody.innerHTML = `<div class="alert alert-danger">${data.error || 'Failed to load work orders'}</div>`;
+                return;
+            }
+            
+            if (data.work_orders.length === 0) {
+                modalBody.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                        <p class="mt-2 text-muted">No active work orders in this stage</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-muted"><strong>${data.count}</strong> work order${data.count !== 1 ? 's' : ''} in this stage</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Product</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Tasks</th>
+                                <th>Due Date</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.work_orders.forEach(wo => {
+                const urgencyClass = wo.urgency === 'overdue' ? 'table-danger' : 
+                                    wo.urgency === 'critical' ? 'table-warning' : '';
+                const daysDisplay = wo.days_remaining !== null ? 
+                    (wo.days_remaining < 0 ? 
+                        `<span class="badge bg-danger">${Math.abs(Math.round(wo.days_remaining))}d overdue</span>` :
+                        wo.days_remaining <= 3 ? 
+                            `<span class="badge bg-warning text-dark">${Math.round(wo.days_remaining)}d left</span>` :
+                            `<span class="text-muted">${Math.round(wo.days_remaining)}d left</span>`) :
+                    '<span class="text-muted">-</span>';
+                
+                const taskProgress = wo.total_tasks > 0 ? 
+                    `<div class="progress" style="height: 6px; width: 60px;">
+                        <div class="progress-bar bg-success" style="width: ${(wo.completed_tasks/wo.total_tasks)*100}%"></div>
+                    </div>
+                    <small class="text-muted">${wo.completed_tasks}/${wo.total_tasks}</small>` :
+                    '<span class="text-muted">-</span>';
+                
+                html += `
+                    <tr class="${urgencyClass}">
+                        <td>
+                            <a href="/workorders/${wo.id}" class="fw-semibold text-decoration-none">${wo.wo_number}</a>
+                            <br><small class="text-muted">Qty: ${wo.quantity}</small>
+                        </td>
+                        <td>
+                            <small>${wo.product_code || ''}</small>
+                            <br><small class="text-muted">${(wo.product_name || '').substring(0, 25)}${(wo.product_name || '').length > 25 ? '...' : ''}</small>
+                        </td>
+                        <td><small>${wo.customer_name}</small></td>
+                        <td><span class="badge bg-${wo.status === 'In Progress' ? 'warning text-dark' : wo.status === 'Released' ? 'info' : 'secondary'}">${wo.status}</span></td>
+                        <td>${taskProgress}</td>
+                        <td>
+                            ${wo.planned_end_date ? `<small>${wo.planned_end_date}</small><br>` : ''}
+                            ${daysDisplay}
+                            <br><small class="text-muted">${wo.days_in_stage}d in stage</small>
+                        </td>
+                        <td class="text-center">
+                            <a href="/workorders/${wo.id}" class="btn btn-sm btn-outline-primary" title="View Work Order">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            modalBody.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading work orders:', error);
+            modalBody.innerHTML = `<div class="alert alert-danger">Failed to load work orders. Please try again.</div>`;
+        });
+}
 </script>
+
+<div class="modal fade" id="stageWorkOrdersModal" tabindex="-1" aria-labelledby="stageModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+                <div class="d-flex align-items-center gap-2">
+                    <span id="stageIndicator" style="width: 12px; height: 12px; border-radius: 50%; background: #6c757d;"></span>
+                    <h5 class="modal-title text-white mb-0" id="stageModalTitle">Stage Work Orders</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="stageModalBody">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

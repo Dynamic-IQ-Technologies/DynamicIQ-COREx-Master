@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session
+from flask import Blueprint, render_template, request, session, jsonify
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime, timedelta
@@ -528,3 +528,100 @@ def work_order_quotes_dashboard():
                          quotes_awaiting_approval=quotes_awaiting_approval,
                          recently_approved=recently_approved,
                          summary_stats=summary_stats)
+
+
+@operations_bp.route('/api/operations/stage/<int:stage_id>/work-orders')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Accountant')
+def get_stage_work_orders(stage_id):
+    """Get detailed list of work orders for a specific pipeline stage"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get stage info
+    stage = conn.execute('''
+        SELECT id, name, color, sequence FROM work_order_stages WHERE id = ?
+    ''', (stage_id,)).fetchone()
+    
+    if not stage:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Stage not found'}), 404
+    
+    # Get work orders in this stage
+    work_orders = conn.execute('''
+        SELECT 
+            wo.id,
+            wo.wo_number,
+            wo.status,
+            wo.quantity,
+            wo.planned_start_date,
+            wo.planned_end_date,
+            wo.notes,
+            p.code as product_code,
+            p.name as product_name,
+            c.name as customer_name,
+            so.so_number,
+            (SELECT COUNT(*) FROM work_order_tasks wot WHERE wot.work_order_id = wo.id AND wot.status = 'Completed') as completed_tasks,
+            (SELECT COUNT(*) FROM work_order_tasks wot WHERE wot.work_order_id = wo.id) as total_tasks,
+            CASE 
+                WHEN wo.planned_end_date IS NOT NULL 
+                THEN (julianday(wo.planned_end_date) - julianday('now'))
+                ELSE NULL 
+            END as days_remaining,
+            wosh.entered_at as stage_entered_at,
+            CASE 
+                WHEN wosh.entered_at IS NOT NULL 
+                THEN (julianday('now') - julianday(wosh.entered_at))
+                ELSE 0 
+            END as days_in_stage
+        FROM work_orders wo
+        LEFT JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        LEFT JOIN sales_orders so ON wo.so_id = so.id
+        LEFT JOIN work_order_stage_history wosh ON wo.id = wosh.work_order_id AND wosh.stage_id = ? AND wosh.exited_at IS NULL
+        WHERE wo.current_stage_id = ? AND wo.status NOT IN ('Completed', 'Cancelled')
+        ORDER BY wo.planned_end_date ASC NULLS LAST, wo.wo_number
+    ''', (stage_id, stage_id)).fetchall()
+    
+    conn.close()
+    
+    work_orders_list = []
+    for wo in work_orders:
+        days_remaining = wo['days_remaining']
+        urgency = 'normal'
+        if days_remaining is not None:
+            if days_remaining < 0:
+                urgency = 'overdue'
+            elif days_remaining <= 3:
+                urgency = 'critical'
+            elif days_remaining <= 7:
+                urgency = 'warning'
+        
+        work_orders_list.append({
+            'id': wo['id'],
+            'wo_number': wo['wo_number'],
+            'status': wo['status'],
+            'quantity': wo['quantity'],
+            'product_code': wo['product_code'],
+            'product_name': wo['product_name'],
+            'customer_name': wo['customer_name'] or 'N/A',
+            'so_number': wo['so_number'] or 'N/A',
+            'planned_start_date': wo['planned_start_date'],
+            'planned_end_date': wo['planned_end_date'],
+            'completed_tasks': wo['completed_tasks'] or 0,
+            'total_tasks': wo['total_tasks'] or 0,
+            'days_remaining': round(days_remaining, 1) if days_remaining is not None else None,
+            'days_in_stage': round(wo['days_in_stage'], 1) if wo['days_in_stage'] else 0,
+            'urgency': urgency
+        })
+    
+    return jsonify({
+        'success': True,
+        'stage': {
+            'id': stage['id'],
+            'name': stage['name'],
+            'color': stage['color']
+        },
+        'work_orders': work_orders_list,
+        'count': len(work_orders_list)
+    })
