@@ -626,6 +626,25 @@ def manager_dashboard():
         ORDER BY tcp.punch_time DESC
     ''').fetchall()
     
+    # Get employees who have NOT clocked in today (Non Active Labor)
+    non_active = conn.execute('''
+        SELECT 
+            lr.id,
+            lr.employee_code,
+            lr.first_name || ' ' || lr.last_name as name,
+            lr.role,
+            lr.hourly_rate,
+            (SELECT MAX(punch_time) FROM time_clock_punches WHERE employee_id = lr.id) as last_punch_time
+        FROM labor_resources lr
+        WHERE lr.status = 'Active'
+        AND lr.id NOT IN (
+            SELECT DISTINCT tcp.employee_id 
+            FROM time_clock_punches tcp
+            WHERE DATE(tcp.punch_time) = ?
+        )
+        ORDER BY lr.employee_code
+    ''', (today,)).fetchall()
+    
     total_hours = sum(emp['hours'] for emp in employee_stats)
     total_labor_cost = sum(emp['labor_cost'] for emp in employee_stats)
     
@@ -634,6 +653,7 @@ def manager_dashboard():
     return render_template('clock_station/manager.html',
                          employees=employee_stats,
                          clocked_in=clocked_in,
+                         non_active=non_active,
                          total_hours=total_hours,
                          total_labor_cost=total_labor_cost,
                          period=period,

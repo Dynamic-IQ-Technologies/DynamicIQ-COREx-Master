@@ -75,7 +75,7 @@
 <!-- Horizontal Accordion Layout -->
 <div class="row g-4">
     <!-- Currently Clocked In -->
-    <div class="col-lg-6">
+    <div class="col-lg-4">
         <div class="accordion" id="clockedInAccordion">
             <div class="accordion-item border-success">
                 <h2 class="accordion-header" id="clockedInHeader">
@@ -138,8 +138,62 @@
         </div>
     </div>
 
+    <!-- Non Active Labor -->
+    <div class="col-lg-4">
+        <div class="accordion" id="nonActiveAccordion">
+            <div class="accordion-item border-secondary">
+                <h2 class="accordion-header" id="nonActiveHeader">
+                    <button class="accordion-button bg-secondary text-white" type="button" data-bs-toggle="collapse" data-bs-target="#nonActiveCollapse" aria-expanded="true" aria-controls="nonActiveCollapse">
+                        <i class="bi bi-person-dash me-2"></i> Non Active Labor
+                        <span class="badge bg-light text-secondary ms-2">{{ non_active|length }}</span>
+                    </button>
+                </h2>
+                <div id="nonActiveCollapse" class="accordion-collapse collapse show" aria-labelledby="nonActiveHeader">
+                    <div class="accordion-body p-0" style="max-height: 400px; overflow-y: auto;">
+                        {% if non_active %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Role</th>
+                                        <th>Last Punch</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for emp in non_active %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ emp.employee_code }}</strong><br>
+                                            <small class="text-muted">{{ emp.name }}</small>
+                                        </td>
+                                        <td><small>{{ emp.role or '-' }}</small></td>
+                                        <td>
+                                            {% if emp.last_punch_time %}
+                                            <small class="text-muted">{{ emp.last_punch_time[:10] }}</small>
+                                            {% else %}
+                                            <small class="text-muted">Never</small>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                            <p class="mb-0 mt-2">All employees have clocked in today</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Employee Time Summary -->
-    <div class="col-lg-6">
+    <div class="col-lg-4">
         <div class="accordion" id="timeSummaryAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="timeSummaryHeader">
