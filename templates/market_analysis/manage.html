@@ -49,7 +49,7 @@
                                 <tr>
                                     <td class="ps-4">
                                         <div class="fw-semibold">{{ source.source_name }}</div>
-                                        <small class="text-muted">{{ source.upload_date[:10] if source.upload_date else '' }}</small>
+                                        <small class="text-muted">{{ source.upload_date.strftime('%Y-%m-%d') if source.upload_date else '' }}</small>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge bg-primary-subtle text-primary rounded-pill">

@@ -56,7 +56,7 @@
             <div class="card border-0 shadow-sm text-center">
                 <div class="card-body">
                     <h6 class="text-muted small mb-1">Upload Date</h6>
-                    <h5 class="mb-0">{{ source.upload_date[:10] if source.upload_date else 'N/A' }}</h5>
+                    <h5 class="mb-0">{{ source.upload_date.strftime('%Y-%m-%d') if source.upload_date else 'N/A' }}</h5>
                 </div>
             </div>
         </div>

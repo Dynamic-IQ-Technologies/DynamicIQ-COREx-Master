@@ -117,6 +117,10 @@ class PostgresConnection:
         query = re.sub(r"DATE\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
         query = re.sub(r"date\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
         
+        # Replace date(column) with column::date for PostgreSQL (skip if already translated)
+        # Must be done after date('now') translations to avoid conflicts
+        query = re.sub(r"\bdate\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
+        
         # Replace strftime('%Y', 'now') with TO_CHAR(CURRENT_DATE, 'YYYY')
         query = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*'now'\s*\)", "TO_CHAR(CURRENT_DATE, 'YYYY')", query, flags=re.IGNORECASE)
         

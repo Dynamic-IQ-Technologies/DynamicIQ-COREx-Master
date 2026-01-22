@@ -205,7 +205,7 @@
                                 <small class="text-muted d-block">records</small>
                             </td>
                             <td>
-                                <small>{{ source.upload_date[:10] if source.upload_date else 'N/A' }}</small>
+                                <small>{{ source.upload_date.strftime('%Y-%m-%d') if source.upload_date else 'N/A' }}</small>
                             </td>
                             <td>
                                 <span class="badge rounded-pill bg-{{ 'success' if source.status == 'Active' else 'secondary' }}">
@@ -292,7 +292,7 @@
                                 <span class="badge bg-info-subtle text-info">{{ run.run_type }}</span>
                             </td>
                             <td>
-                                <small>{{ run.started_at[:16] if run.started_at else 'N/A' }}</small>
+                                <small>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else 'N/A' }}</small>
                             </td>
                             <td>{{ run.triggered_by_name or 'System' }}</td>
                             <td>

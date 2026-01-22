@@ -178,14 +178,14 @@ def calculate_workforce_kpis(conn):
     total_hours_mtd = conn.execute('''
         SELECT COALESCE(SUM(
             CASE WHEN punch_type = 'Clock Out' THEN 
-                (julianday(punch_time) - julianday((
+                EXTRACT(EPOCH FROM (punch_time - (
                     SELECT MAX(punch_time) FROM time_clock_punches p2 
                     WHERE p2.employee_id = time_clock_punches.employee_id 
                     AND p2.punch_type = 'Clock In' 
                     AND p2.punch_time < time_clock_punches.punch_time
-                ))) * 24
+                ))) / 3600.0
             ELSE 0 END
-        ), 0) as hours FROM time_clock_punches WHERE date(punch_time) >= ?
+        ), 0) as hours FROM time_clock_punches WHERE punch_time::date >= ?
     ''', (month_start,)).fetchone()['hours']
     
     productivity_per_employee = 0

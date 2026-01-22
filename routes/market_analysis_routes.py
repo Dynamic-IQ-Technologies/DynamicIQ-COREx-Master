@@ -50,10 +50,10 @@ def dashboard():
     ''').fetchall()
     
     # Get summary statistics
-    total_aircraft = conn.execute('SELECT COUNT(*) FROM airline_fleet_aircraft WHERE status = "Active"').fetchone()[0]
-    total_parts = conn.execute('SELECT COUNT(*) FROM airline_fleet_parts').fetchone()[0]
-    total_matches = conn.execute('SELECT COUNT(*) FROM capability_matches WHERE is_active = 1').fetchone()[0]
-    high_matches = conn.execute('SELECT COUNT(*) FROM capability_matches WHERE match_score = "High" AND is_active = 1').fetchone()[0]
+    total_aircraft = conn.execute("SELECT COUNT(*) as count FROM airline_fleet_aircraft WHERE status = 'Active'").fetchone()['count']
+    total_parts = conn.execute('SELECT COUNT(*) as count FROM airline_fleet_parts').fetchone()['count']
+    total_matches = conn.execute('SELECT COUNT(*) as count FROM capability_matches WHERE is_active = 1').fetchone()['count']
+    high_matches = conn.execute("SELECT COUNT(*) as count FROM capability_matches WHERE match_score = 'High' AND is_active = 1").fetchone()['count']
     
     conn.close()
     
@@ -692,7 +692,7 @@ def view_results(source_id):
     # Get filter options
     regions = conn.execute('''
         SELECT DISTINCT region FROM airline_fleet_aircraft 
-        WHERE source_id = ? AND region IS NOT NULL AND region != ""
+        WHERE source_id = ? AND region IS NOT NULL AND region != ''
         ORDER BY region
     ''', (source_id,)).fetchall()
     
@@ -837,7 +837,7 @@ def chart_data(source_id):
         FROM capability_matches cm
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-        WHERE afa.source_id = ? AND cm.is_active = 1 AND afa.region IS NOT NULL AND afa.region != ""
+        WHERE afa.source_id = ? AND cm.is_active = 1 AND afa.region IS NOT NULL AND afa.region != ''
         GROUP BY afa.region, cm.match_score
     ''', (source_id,)).fetchall()
     
