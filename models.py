@@ -39,37 +39,64 @@ class PostgresConnection:
         """Translate SQLite-specific date functions to PostgreSQL equivalents"""
         import re
         
-        # Replace DATE('now') and date('now') with CURRENT_DATE
-        query = re.sub(r"DATE\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
-        query = re.sub(r"date\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
-        
-        # Replace DATE('now', '-X days/months/years') with CURRENT_DATE - INTERVAL
+        # Replace DATE('now', '-X days/months/years') with CURRENT_DATE - INTERVAL (do this first before simpler patterns)
         def replace_date_offset(match):
             sign = match.group(1) if match.group(1) else ''
             num = match.group(2)
             unit = match.group(3).lower()
             if unit == 'days' or unit == 'day':
-                return f"CURRENT_DATE - INTERVAL '{num} days'"
+                return f"(CURRENT_DATE - INTERVAL '{num} days')::date"
             elif unit == 'months' or unit == 'month':
-                return f"CURRENT_DATE - INTERVAL '{num} months'"
+                return f"(CURRENT_DATE - INTERVAL '{num} months')::date"
             elif unit == 'weeks' or unit == 'week':
-                return f"CURRENT_DATE - INTERVAL '{int(num) * 7} days'"
+                return f"(CURRENT_DATE - INTERVAL '{int(num) * 7} days')::date"
             elif unit == 'years' or unit == 'year':
-                return f"CURRENT_DATE - INTERVAL '{num} years'"
+                return f"(CURRENT_DATE - INTERVAL '{num} years')::date"
             return match.group(0)
         
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'(-?)(\d+)\s+(days?|months?|weeks?|years?)'\s*\)", replace_date_offset, query, flags=re.IGNORECASE)
         query = re.sub(r"DATE\s*\(\s*'now'\s*,\s*'(-?)(\d+)\s+(days?|months?|weeks?|years?)'\s*\)", replace_date_offset, query, flags=re.IGNORECASE)
         
+        # Replace date('now', '+X days') pattern  
+        def replace_date_plus(match):
+            num = match.group(1)
+            unit = match.group(2).lower()
+            if unit == 'days' or unit == 'day':
+                return f"(CURRENT_DATE + INTERVAL '{num} days')::date"
+            elif unit == 'months' or unit == 'month':
+                return f"(CURRENT_DATE + INTERVAL '{num} months')::date"
+            return match.group(0)
+        
+        query = re.sub(r"date\s*\(\s*'now'\s*,\s*'\+(\d+)\s+(days?|months?)'\s*\)", replace_date_plus, query, flags=re.IGNORECASE)
+        
         # Replace date('now', 'start of year/month')
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'start\s+of\s+year'\s*\)", "DATE_TRUNC('year', CURRENT_DATE)::date", query, flags=re.IGNORECASE)
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'start\s+of\s+month'\s*\)", "DATE_TRUNC('month', CURRENT_DATE)::date", query, flags=re.IGNORECASE)
         
+        # Replace DATE('now') and date('now') with CURRENT_DATE
+        query = re.sub(r"DATE\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
+        query = re.sub(r"date\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
+        
+        # Replace strftime('%Y', 'now') with TO_CHAR(CURRENT_DATE, 'YYYY')
+        query = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*'now'\s*\)", "TO_CHAR(CURRENT_DATE, 'YYYY')", query, flags=re.IGNORECASE)
+        
+        # Replace strftime('%Y', 'now', '-1 year') with TO_CHAR(CURRENT_DATE - INTERVAL '1 year', 'YYYY')
+        query = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*'now'\s*,\s*'-(\d+)\s+year'\s*\)", r"TO_CHAR(CURRENT_DATE - INTERVAL '\1 years', 'YYYY')", query, flags=re.IGNORECASE)
+        
+        # Replace JULIANDAY(CURRENT_DATE) - JULIANDAY(date) pattern (after DATE('now') is already replaced)
+        query = re.sub(r"JULIANDAY\s*\(\s*CURRENT_DATE\s*\)\s*-\s*JULIANDAY\s*\(\s*([^)]+)\s*\)", r"(CURRENT_DATE - (\1)::date)", query, flags=re.IGNORECASE)
+        
         # Replace julianday('now') - julianday(date) with CURRENT_DATE - date
-        query = re.sub(r"julianday\s*\(\s*'now'\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"EXTRACT(DAY FROM CURRENT_DATE - (\1)::date)", query, flags=re.IGNORECASE)
+        query = re.sub(r"julianday\s*\(\s*'now'\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"(CURRENT_DATE - (\1)::date)", query, flags=re.IGNORECASE)
+        
+        # Replace julianday(date) - julianday('now') with date - CURRENT_DATE
+        query = re.sub(r"julianday\s*\(\s*([^)']+)\s*\)\s*-\s*julianday\s*\(\s*'now'\s*\)", r"((\1)::date - CURRENT_DATE)", query, flags=re.IGNORECASE)
+        
+        # Replace julianday(date) - julianday(CURRENT_DATE) 
+        query = re.sub(r"julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*CURRENT_DATE\s*\)", r"((\1)::date - CURRENT_DATE)", query, flags=re.IGNORECASE)
         
         # Replace julianday(date1) - julianday(date2) with date difference
-        query = re.sub(r"julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"EXTRACT(DAY FROM (\1)::date - (\2)::date)", query, flags=re.IGNORECASE)
+        query = re.sub(r"julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"((\1)::date - (\2)::date)", query, flags=re.IGNORECASE)
         
         # Replace strftime('%Y-%m', date) with TO_CHAR(date, 'YYYY-MM')
         query = re.sub(r"strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'YYYY-MM')", query, flags=re.IGNORECASE)
@@ -80,8 +107,14 @@ class PostgresConnection:
         # Replace strftime('%Y-%W', date) with TO_CHAR(date, 'IYYY-IW')
         query = re.sub(r"strftime\s*\(\s*'%Y-%W'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'IYYY-IW')", query, flags=re.IGNORECASE)
         
+        # Replace strftime('%Y', date) with TO_CHAR(date, 'YYYY')
+        query = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'YYYY')", query, flags=re.IGNORECASE)
+        
         # Replace datetime('now') with CURRENT_TIMESTAMP
         query = re.sub(r"datetime\s*\(\s*'now'\s*\)", "CURRENT_TIMESTAMP", query, flags=re.IGNORECASE)
+        
+        # Replace DATE(column) with column::date for casting
+        query = re.sub(r"DATE\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
         
         return query
     
