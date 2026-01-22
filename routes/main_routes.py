@@ -3,8 +3,11 @@ from models import Database
 from mrp_logic import MRPEngine
 from auth import login_required
 from datetime import datetime, timedelta
+import os
 
 main_bp = Blueprint('main_routes', __name__)
+
+USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
 
 @main_bp.route('/health')
 def health_check():
@@ -206,27 +209,50 @@ def dashboard():
     shortage_items = mrp.get_shortage_items()
     
     # === WORK ORDER TRENDS (Last 30 days by week) ===
-    wo_trend = conn.execute('''
-        SELECT 
-            strftime('%Y-%W', created_at) as week,
-            COUNT(*) as count
-        FROM work_orders 
-        WHERE created_at >= ?
-        GROUP BY week
-        ORDER BY week
-    ''', (thirty_days_ago,)).fetchall()
+    if USE_POSTGRES:
+        wo_trend = conn.execute('''
+            SELECT 
+                TO_CHAR(created_at, 'IYYY-IW') as week,
+                COUNT(*) as count
+            FROM work_orders 
+            WHERE created_at >= ?
+            GROUP BY TO_CHAR(created_at, 'IYYY-IW')
+            ORDER BY week
+        ''', (thirty_days_ago,)).fetchall()
+    else:
+        wo_trend = conn.execute('''
+            SELECT 
+                strftime('%Y-%W', created_at) as week,
+                COUNT(*) as count
+            FROM work_orders 
+            WHERE created_at >= ?
+            GROUP BY week
+            ORDER BY week
+        ''', (thirty_days_ago,)).fetchall()
     
     # === SALES TREND (Last 30 days) ===
-    sales_trend = conn.execute('''
-        SELECT 
-            strftime('%Y-%m-%d', order_date) as day,
-            COUNT(*) as count,
-            COALESCE(SUM(total_amount), 0) as value
-        FROM sales_orders 
-        WHERE order_date >= ?
-        GROUP BY day
-        ORDER BY day
-    ''', (thirty_days_ago,)).fetchall()
+    if USE_POSTGRES:
+        sales_trend = conn.execute('''
+            SELECT 
+                TO_CHAR(order_date, 'YYYY-MM-DD') as day,
+                COUNT(*) as count,
+                COALESCE(SUM(total_amount), 0) as value
+            FROM sales_orders 
+            WHERE order_date >= ?
+            GROUP BY TO_CHAR(order_date, 'YYYY-MM-DD')
+            ORDER BY day
+        ''', (thirty_days_ago,)).fetchall()
+    else:
+        sales_trend = conn.execute('''
+            SELECT 
+                strftime('%Y-%m-%d', order_date) as day,
+                COUNT(*) as count,
+                COALESCE(SUM(total_amount), 0) as value
+            FROM sales_orders 
+            WHERE order_date >= ?
+            GROUP BY day
+            ORDER BY day
+        ''', (thirty_days_ago,)).fetchall()
     
     conn.close()
     
