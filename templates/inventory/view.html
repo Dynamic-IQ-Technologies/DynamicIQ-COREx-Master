@@ -37,7 +37,7 @@
         </a>
         {% endif %}
         {% if session.role in ['Admin', 'Production Staff', 'Planner'] and inventory.product_type in ['Assembly', 'Part', 'Finished Good'] %}
-        <a href="{{ url_for('workorder_routes.create_workorder', product_id=inventory.product_id, serial_number=inventory.serial_number or '', customer_id=inventory.customer_id or '') }}" class="btn btn-success">
+        <a href="{{ url_for('workorder_routes.create_workorder', product_id=inventory.product_id, serial_number=inventory.serial_number or '', customer_id=inventory.customer_id or '', from_inventory='1', workorder_type='Internal', stage_name='Receiving') }}" class="btn btn-success">
             <i class="bi bi-clipboard-plus"></i> Create Work Order
         </a>
         {% endif %}

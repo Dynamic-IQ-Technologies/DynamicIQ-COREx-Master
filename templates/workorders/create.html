@@ -126,8 +126,8 @@
                         <label for="workorder_type" class="form-label">Work Order Type</label>
                         <select class="form-select" id="workorder_type" name="workorder_type">
                             <option value="">Select Type</option>
-                            <option value="Internal">Internal</option>
-                            <option value="External">External</option>
+                            <option value="Internal" {{ 'selected' if prefill.workorder_type == 'Internal' else '' }}>Internal</option>
+                            <option value="External" {{ 'selected' if prefill.workorder_type == 'External' else '' }}>External</option>
                         </select>
                     </div>
                 </div>
@@ -137,7 +137,7 @@
                         <select class="form-select" id="stage_id" name="stage_id">
                             <option value="">Select Stage (Optional)</option>
                             {% for stage in stages %}
-                            <option value="{{ stage.id }}">{{ stage.name }}</option>
+                            <option value="{{ stage.id }}" {{ 'selected' if prefill.stage_id and prefill.stage_id|string == stage.id|string else '' }}>{{ stage.name }}</option>
                             {% endfor %}
                         </select>
                     </div>

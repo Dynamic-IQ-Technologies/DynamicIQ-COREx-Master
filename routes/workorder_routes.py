@@ -351,8 +351,20 @@ def create_workorder():
     prefill = {
         'product_id': request.args.get('product_id', ''),
         'serial_number': request.args.get('serial_number', ''),
-        'customer_id': request.args.get('customer_id', '')
+        'customer_id': request.args.get('customer_id', ''),
+        'workorder_type': request.args.get('workorder_type', ''),
+        'from_inventory': request.args.get('from_inventory', '')
     }
+    
+    # If coming from inventory, find the Receiving stage
+    stage_name = request.args.get('stage_name', '')
+    if stage_name:
+        receiving_stage = conn.execute(
+            'SELECT id FROM work_order_stages WHERE name = ? AND is_active = 1', 
+            (stage_name,)
+        ).fetchone()
+        if receiving_stage:
+            prefill['stage_id'] = receiving_stage['id']
     
     conn.close()
     
