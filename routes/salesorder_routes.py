@@ -354,9 +354,9 @@ def edit_sales_order(id):
         ORDER BY sol.line_number
     ''', (id,)).fetchall()
     
-    # Get products for adding lines
+    # Get products for adding lines (show actual available = quantity - reserved)
     products = conn.execute('''
-        SELECT p.*, COALESCE(i.quantity, 0) as available_qty
+        SELECT p.*, COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0) as available_qty
         FROM products p
         LEFT JOIN inventory i ON p.id = i.product_id
         ORDER BY p.code
