@@ -1,0 +1,850 @@
+{% extends "base.html" %}
+
+{% block title %}Dynamic Material Issue - WO {{ wo.wo_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wo-context-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .wo-context-header .wo-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .wo-context-header .kpi-badge {
+        background: rgba(255,255,255,0.15);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+    }
+    .wo-context-header .kpi-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+    .wo-context-header .kpi-label {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    .material-grid-container {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .material-row {
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.75rem;
+        transition: background-color 0.15s;
+    }
+    .material-row:hover {
+        background-color: #f8f9fa;
+    }
+    .material-row.has-error {
+        background-color: #fff5f5;
+        border-left: 3px solid #dc3545;
+    }
+    .material-row.has-warning {
+        background-color: #fffbeb;
+        border-left: 3px solid #f59e0b;
+    }
+    .material-row.valid {
+        border-left: 3px solid #10b981;
+    }
+    .availability-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    .availability-sufficient { background: #d1fae5; color: #065f46; }
+    .availability-partial { background: #fef3c7; color: #92400e; }
+    .availability-insufficient { background: #fee2e2; color: #991b1b; }
+    .qty-input {
+        width: 100px;
+        text-align: right;
+    }
+    .qty-input.is-invalid {
+        border-color: #dc3545;
+        background-color: #fff5f5;
+    }
+    .qty-input.is-warning {
+        border-color: #f59e0b;
+        background-color: #fffbeb;
+    }
+    .inline-error {
+        color: #dc3545;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    .inline-warning {
+        color: #f59e0b;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    .summary-panel {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        position: sticky;
+        top: 120px;
+    }
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+    .summary-total {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e3a5f;
+    }
+    .product-search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .product-search-results.show {
+        display: block;
+    }
+    .product-search-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .product-search-item:hover {
+        background-color: #f8fafc;
+    }
+    .product-search-item .product-code {
+        font-weight: 600;
+        color: #1e3a5f;
+    }
+    .product-search-item .availability {
+        font-size: 0.75rem;
+    }
+    .issue-btn-container {
+        padding: 1rem;
+        background: white;
+        border-top: 1px solid #e2e8f0;
+        position: sticky;
+        bottom: 0;
+    }
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        display: none;
+    }
+    .loading-overlay.show {
+        display: flex;
+    }
+    .remove-row-btn {
+        opacity: 0.5;
+        transition: opacity 0.15s;
+    }
+    .material-row:hover .remove-row-btn {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+        <p class="text-muted" id="loadingMessage">Processing transaction...</p>
+    </div>
+</div>
+
+<div class="wo-context-header" id="woContextHeader">
+    <div class="row align-items-center">
+        <div class="col-md-4">
+            <div class="wo-number">
+                <i class="bi bi-gear-wide-connected me-2"></i>{{ wo.wo_number }}
+            </div>
+            <div class="mt-1">
+                <span class="badge bg-light text-dark">{{ wo.product_code }}</span>
+                <span class="ms-2">{{ wo.product_name }}</span>
+            </div>
+            {% if wo.customer_name %}
+            <div class="small opacity-75 mt-1">
+                <i class="bi bi-building me-1"></i>{{ wo.customer_name }}
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-md-8">
+            <div class="row g-3">
+                <div class="col">
+                    <div class="kpi-badge">
+                        <div class="kpi-value">{{ wo.status }}</div>
+                        <div class="kpi-label">Status</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-badge">
+                        <div class="kpi-value">{{ wo.quantity_completed or 0 }} / {{ wo.quantity }}</div>
+                        <div class="kpi-label">Qty Complete</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-badge">
+                        <div class="kpi-value">${{ '{:,.2f}'.format(wo.material_cost or 0) }}</div>
+                        <div class="kpi-label">Material Cost</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-badge">
+                        <div class="kpi-value">{{ wo.warehouse_location or 'Main' }}</div>
+                        <div class="kpi-label">Location</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-9">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-grid-3x3 me-2"></i>Material Issue Grid</h5>
+                <div>
+                    <button type="button" class="btn btn-light btn-sm me-2" id="loadBomBtn">
+                        <i class="bi bi-list-check me-1"></i>Load BOM Materials
+                    </button>
+                    {% if user_permissions.can_add_non_bom %}
+                    <button type="button" class="btn btn-outline-light btn-sm" id="addMaterialBtn">
+                        <i class="bi bi-plus-circle me-1"></i>Add Material
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body p-0 material-grid-container">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0" id="materialIssueTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th style="width: 130px;">Part Number</th>
+                                <th>Description</th>
+                                <th style="width: 90px;" class="text-center">Required</th>
+                                <th style="width: 90px;" class="text-center">Available</th>
+                                <th style="width: 110px;" class="text-center">Issue Qty</th>
+                                <th style="width: 70px;">UOM</th>
+                                <th style="width: 100px;">Location</th>
+                                <th style="width: 100px;" class="text-end">Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materialGrid">
+                            <tr id="emptyStateRow">
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mt-2 mb-0">Click "Load BOM Materials" to auto-populate from BOM, or "Add Material" to add manually.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Issue Date</label>
+                <input type="date" class="form-control" id="issueDate" value="{{ today }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Issued To</label>
+                <input type="text" class="form-control" id="issuedTo" placeholder="Operator / Station">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Task Reference</label>
+                <input type="text" class="form-control" id="taskReference" placeholder="Task or operation">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Remarks</label>
+            <textarea class="form-control" id="remarks" rows="2" placeholder="Optional notes..."></textarea>
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="summary-panel">
+            <h6 class="mb-3"><i class="bi bi-calculator me-2"></i>Transaction Summary</h6>
+            <div class="summary-item">
+                <span>Materials</span>
+                <span id="summaryMaterialCount">0</span>
+            </div>
+            <div class="summary-item">
+                <span>Total Quantity</span>
+                <span id="summaryTotalQty">0</span>
+            </div>
+            <div class="summary-item summary-total">
+                <span>Total Cost</span>
+                <span id="summaryTotalCost">$0.00</span>
+            </div>
+            <div id="summaryWarnings" class="mt-3" style="display: none;">
+                <div class="alert alert-warning py-2 mb-0 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <span id="warningText"></span>
+                </div>
+            </div>
+            <div id="summaryErrors" class="mt-3" style="display: none;">
+                <div class="alert alert-danger py-2 mb-0 small">
+                    <i class="bi bi-x-circle me-1"></i>
+                    <span id="errorText"></span>
+                </div>
+            </div>
+            
+            {% if user_permissions.can_override_shortage %}
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" id="overrideShortages">
+                <label class="form-check-label small" for="overrideShortages">
+                    Override shortages (Admin)
+                </label>
+            </div>
+            {% endif %}
+
+            <hr>
+            <button type="button" class="btn btn-success w-100 btn-lg" id="issueAllBtn" disabled>
+                <i class="bi bi-check2-circle me-2"></i>Issue Materials
+            </button>
+            <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="issueAvailableBtn" style="display: none;">
+                <i class="bi bi-check-circle me-2"></i>Issue Available Only
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Material</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3 position-relative">
+                    <label class="form-label">Search Product</label>
+                    <input type="text" class="form-control" id="productSearchInput" placeholder="Enter part number or name..." autocomplete="off">
+                    <div class="product-search-results" id="productSearchResults"></div>
+                </div>
+                <div id="selectedProductInfo" style="display: none;">
+                    <div class="alert alert-info">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong id="selectedProductCode"></strong>
+                                <div class="small" id="selectedProductName"></div>
+                            </div>
+                            <span class="badge bg-primary" id="selectedProductAvail"></span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <label class="form-label">Issue Quantity</label>
+                            <input type="number" class="form-control" id="addMaterialQty" min="0" step="0.01" value="1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">UOM</label>
+                            <input type="text" class="form-control" id="addMaterialUom" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAddMaterial" disabled>Add to Grid</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <div class="text-success mb-3">
+                    <i class="bi bi-check-circle-fill" style="font-size: 4rem;"></i>
+                </div>
+                <h4>Materials Issued Successfully!</h4>
+                <p class="text-muted" id="successMessage"></p>
+                <div class="mt-4">
+                    <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-primary me-2">
+                        <i class="bi bi-eye me-1"></i>View Work Order
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                        <i class="bi bi-plus-circle me-1"></i>Issue More
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const woId = {{ wo.id }};
+const userPermissions = {{ user_permissions | tojson }};
+let materialRows = [];
+let selectedProduct = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initEventListeners();
+});
+
+function initEventListeners() {
+    document.getElementById('loadBomBtn').addEventListener('click', loadBomMaterials);
+    document.getElementById('addMaterialBtn')?.addEventListener('click', () => {
+        new bootstrap.Modal(document.getElementById('addMaterialModal')).show();
+    });
+    document.getElementById('issueAllBtn').addEventListener('click', executeIssue);
+    document.getElementById('issueAvailableBtn')?.addEventListener('click', () => executeIssue(true));
+    document.getElementById('productSearchInput').addEventListener('input', debounce(searchProducts, 300));
+    document.getElementById('confirmAddMaterial').addEventListener('click', addSelectedMaterial);
+    document.getElementById('overrideShortages')?.addEventListener('change', updateSummary);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+async function loadBomMaterials() {
+    showLoading('Loading BOM materials...');
+    try {
+        const response = await fetch(`/api/issuance/bom-materials/${woId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.materials.length === 0) {
+                hideLoading();
+                alert('No BOM components found for this work order.');
+                return;
+            }
+            
+            materialRows = [];
+            data.materials.forEach(mat => {
+                if (mat.remaining_to_issue > 0) {
+                    addMaterialRow({
+                        product_id: mat.product_id,
+                        product_code: mat.product_code,
+                        product_name: mat.product_name,
+                        required_qty: mat.remaining_to_issue,
+                        available_qty: mat.available_qty,
+                        issue_qty: Math.min(mat.remaining_to_issue, mat.available_qty),
+                        unit_of_measure: mat.unit_of_measure,
+                        unit_cost: mat.unit_cost || 0,
+                        warehouse_location: mat.warehouse_location || '',
+                        bin_location: mat.bin_location || '',
+                        availability_status: mat.availability_status,
+                        is_bom: true
+                    });
+                }
+            });
+            
+            renderMaterialGrid();
+            updateSummary();
+        } else {
+            alert('Error loading BOM: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to load BOM materials.');
+    }
+    hideLoading();
+}
+
+function addMaterialRow(mat) {
+    const existingIndex = materialRows.findIndex(r => r.product_id === mat.product_id);
+    if (existingIndex >= 0) {
+        materialRows[existingIndex].issue_qty += mat.issue_qty;
+    } else {
+        materialRows.push({
+            ...mat,
+            row_id: Date.now() + Math.random(),
+            validation: { valid: true, status: 'valid', message: '' }
+        });
+    }
+}
+
+function renderMaterialGrid() {
+    const grid = document.getElementById('materialGrid');
+    const emptyRow = document.getElementById('emptyStateRow');
+    
+    if (materialRows.length === 0) {
+        emptyRow.style.display = '';
+        return;
+    }
+    
+    emptyRow.style.display = 'none';
+    
+    grid.innerHTML = materialRows.map((row, idx) => `
+        <tr class="material-row ${getRowClass(row)}" data-row-id="${row.row_id}">
+            <td class="text-center">
+                <button type="button" class="btn btn-link btn-sm text-danger remove-row-btn p-0" onclick="removeRow(${idx})">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </td>
+            <td>
+                <span class="fw-medium">${escapeHtml(row.product_code)}</span>
+                ${row.is_bom ? '<span class="badge bg-info ms-1" title="From BOM">BOM</span>' : ''}
+            </td>
+            <td>
+                <span class="text-truncate d-block" style="max-width: 200px;" title="${escapeHtml(row.product_name)}">
+                    ${escapeHtml(row.product_name)}
+                </span>
+            </td>
+            <td class="text-center">${formatNumber(row.required_qty)}</td>
+            <td class="text-center">
+                <span class="availability-badge availability-${row.availability_status}">${formatNumber(row.available_qty)}</span>
+            </td>
+            <td>
+                <input type="number" 
+                    class="form-control form-control-sm qty-input ${getQtyInputClass(row)}" 
+                    value="${row.issue_qty}" 
+                    min="0" 
+                    step="0.01"
+                    data-idx="${idx}"
+                    onchange="updateQty(${idx}, this.value)"
+                    onblur="validateRow(${idx})">
+                ${row.validation.message ? `<div class="${row.validation.valid ? 'inline-warning' : 'inline-error'}">${row.validation.message}</div>` : ''}
+            </td>
+            <td>${escapeHtml(row.unit_of_measure || '')}</td>
+            <td>
+                <small class="text-muted">${escapeHtml(row.warehouse_location || '')}</small>
+            </td>
+            <td class="text-end">
+                <span class="fw-medium">$${formatCurrency(row.unit_cost * row.issue_qty)}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getRowClass(row) {
+    if (!row.validation.valid) return 'has-error';
+    if (row.validation.status === 'warning') return 'has-warning';
+    if (row.issue_qty > 0) return 'valid';
+    return '';
+}
+
+function getQtyInputClass(row) {
+    if (!row.validation.valid) return 'is-invalid';
+    if (row.validation.status === 'warning') return 'is-warning';
+    return '';
+}
+
+function updateQty(idx, value) {
+    materialRows[idx].issue_qty = parseFloat(value) || 0;
+    validateRow(idx);
+    updateSummary();
+}
+
+async function validateRow(idx) {
+    const row = materialRows[idx];
+    const issueQty = row.issue_qty;
+    
+    if (issueQty <= 0) {
+        row.validation = { valid: false, status: 'invalid', message: 'Quantity must be > 0' };
+        renderMaterialGrid();
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/issuance/validate-inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                product_id: row.product_id,
+                issue_qty: issueQty,
+                work_order_id: woId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            row.validation = {
+                valid: data.valid,
+                status: data.status,
+                message: data.valid ? '' : data.message
+            };
+            row.available_qty = data.available_qty;
+            row.unit_cost = data.unit_cost;
+            
+            if (data.status === 'warning') {
+                row.validation.message = data.message;
+            }
+        }
+    } catch (error) {
+        console.error('Validation error:', error);
+    }
+    
+    renderMaterialGrid();
+    updateSummary();
+}
+
+function removeRow(idx) {
+    materialRows.splice(idx, 1);
+    renderMaterialGrid();
+    updateSummary();
+}
+
+async function searchProducts() {
+    const query = document.getElementById('productSearchInput').value;
+    const resultsDiv = document.getElementById('productSearchResults');
+    
+    if (query.length < 2) {
+        resultsDiv.classList.remove('show');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/issuance/search-products?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success && data.products.length > 0) {
+            resultsDiv.innerHTML = data.products.map(p => `
+                <div class="product-search-item" onclick="selectProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                    <div class="product-code">${escapeHtml(p.product_code)}</div>
+                    <div class="small text-muted">${escapeHtml(p.product_name)}</div>
+                    <div class="availability ${p.available_qty > 0 ? 'text-success' : 'text-danger'}">
+                        Available: ${formatNumber(p.available_qty)} ${p.unit_of_measure || ''}
+                    </div>
+                </div>
+            `).join('');
+            resultsDiv.classList.add('show');
+        } else {
+            resultsDiv.innerHTML = '<div class="p-3 text-muted text-center">No products found</div>';
+            resultsDiv.classList.add('show');
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+    }
+}
+
+function selectProduct(product) {
+    selectedProduct = product;
+    document.getElementById('productSearchResults').classList.remove('show');
+    document.getElementById('productSearchInput').value = product.product_code;
+    document.getElementById('selectedProductCode').textContent = product.product_code;
+    document.getElementById('selectedProductName').textContent = product.product_name;
+    document.getElementById('selectedProductAvail').textContent = `Avail: ${formatNumber(product.available_qty)}`;
+    document.getElementById('addMaterialUom').value = product.unit_of_measure || '';
+    document.getElementById('selectedProductInfo').style.display = 'block';
+    document.getElementById('confirmAddMaterial').disabled = false;
+    document.getElementById('addMaterialQty').value = Math.min(1, product.available_qty);
+    document.getElementById('addMaterialQty').max = product.available_qty;
+}
+
+function addSelectedMaterial() {
+    if (!selectedProduct) return;
+    
+    const qty = parseFloat(document.getElementById('addMaterialQty').value) || 0;
+    if (qty <= 0) {
+        alert('Please enter a valid quantity.');
+        return;
+    }
+    
+    addMaterialRow({
+        product_id: selectedProduct.product_id,
+        product_code: selectedProduct.product_code,
+        product_name: selectedProduct.product_name,
+        required_qty: qty,
+        available_qty: selectedProduct.available_qty,
+        issue_qty: qty,
+        unit_of_measure: selectedProduct.unit_of_measure || '',
+        unit_cost: selectedProduct.unit_cost || 0,
+        warehouse_location: selectedProduct.warehouse_location || '',
+        bin_location: selectedProduct.bin_location || '',
+        availability_status: selectedProduct.available_qty >= qty ? 'sufficient' : (selectedProduct.available_qty > 0 ? 'partial' : 'insufficient'),
+        is_bom: false
+    });
+    
+    renderMaterialGrid();
+    updateSummary();
+    
+    bootstrap.Modal.getInstance(document.getElementById('addMaterialModal')).hide();
+    resetAddMaterialModal();
+}
+
+function resetAddMaterialModal() {
+    selectedProduct = null;
+    document.getElementById('productSearchInput').value = '';
+    document.getElementById('selectedProductInfo').style.display = 'none';
+    document.getElementById('confirmAddMaterial').disabled = true;
+}
+
+function updateSummary() {
+    const validRows = materialRows.filter(r => r.issue_qty > 0);
+    const hasErrors = materialRows.some(r => !r.validation.valid);
+    const hasShortages = materialRows.some(r => r.issue_qty > r.available_qty);
+    const overrideShortages = document.getElementById('overrideShortages')?.checked || false;
+    
+    let totalQty = 0;
+    let totalCost = 0;
+    
+    validRows.forEach(r => {
+        totalQty += r.issue_qty;
+        totalCost += r.unit_cost * r.issue_qty;
+    });
+    
+    document.getElementById('summaryMaterialCount').textContent = validRows.length;
+    document.getElementById('summaryTotalQty').textContent = formatNumber(totalQty);
+    document.getElementById('summaryTotalCost').textContent = '$' + formatCurrency(totalCost);
+    
+    const issueBtn = document.getElementById('issueAllBtn');
+    const issueAvailableBtn = document.getElementById('issueAvailableBtn');
+    const warningsDiv = document.getElementById('summaryWarnings');
+    const errorsDiv = document.getElementById('summaryErrors');
+    
+    if (hasErrors) {
+        errorsDiv.style.display = 'block';
+        document.getElementById('errorText').textContent = 'Fix validation errors before issuing.';
+        issueBtn.disabled = true;
+    } else if (hasShortages && !overrideShortages) {
+        errorsDiv.style.display = 'block';
+        document.getElementById('errorText').textContent = 'Some materials have insufficient inventory.';
+        issueBtn.disabled = true;
+        if (issueAvailableBtn) {
+            issueAvailableBtn.style.display = 'block';
+        }
+    } else {
+        errorsDiv.style.display = 'none';
+        issueBtn.disabled = validRows.length === 0;
+        if (issueAvailableBtn) {
+            issueAvailableBtn.style.display = 'none';
+        }
+    }
+    
+    if (validRows.length > 0 && !hasErrors && !hasShortages) {
+        warningsDiv.style.display = 'none';
+    }
+}
+
+async function executeIssue(availableOnly = false) {
+    let materialsToIssue = materialRows.filter(r => r.issue_qty > 0);
+    
+    if (availableOnly) {
+        materialsToIssue = materialsToIssue.filter(r => r.issue_qty <= r.available_qty);
+        materialsToIssue = materialsToIssue.map(r => ({
+            ...r,
+            issue_qty: Math.min(r.issue_qty, r.available_qty)
+        }));
+    }
+    
+    if (materialsToIssue.length === 0) {
+        alert('No valid materials to issue.');
+        return;
+    }
+    
+    showLoading('Issuing materials...');
+    
+    try {
+        const response = await fetch('/api/issuance/execute-multi-issue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_order_id: woId,
+                issue_date: document.getElementById('issueDate').value,
+                issued_to: document.getElementById('issuedTo').value,
+                task_reference: document.getElementById('taskReference').value,
+                remarks: document.getElementById('remarks').value,
+                materials: materialsToIssue.map(r => ({
+                    product_id: r.product_id,
+                    issue_qty: r.issue_qty,
+                    warehouse_location: r.warehouse_location,
+                    bin_location: r.bin_location
+                })),
+                override_shortages: document.getElementById('overrideShortages')?.checked || false
+            })
+        });
+        
+        const data = await response.json();
+        
+        hideLoading();
+        
+        if (data.success) {
+            document.getElementById('successMessage').textContent = 
+                `${data.issued_count} material(s) issued totaling $${formatCurrency(data.total_cost)}`;
+            new bootstrap.Modal(document.getElementById('successModal')).show();
+        } else {
+            if (data.validation_errors) {
+                data.validation_errors.forEach(err => {
+                    if (materialRows[err.row]) {
+                        materialRows[err.row].validation = {
+                            valid: false,
+                            status: 'error',
+                            message: err.error
+                        };
+                    }
+                });
+                renderMaterialGrid();
+                updateSummary();
+                alert('Validation errors found. Please review highlighted rows.');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Issue error:', error);
+        alert('Failed to issue materials. Please try again.');
+    }
+}
+
+function showLoading(message) {
+    document.getElementById('loadingMessage').textContent = message;
+    document.getElementById('loadingOverlay').classList.add('show');
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+function formatNumber(num) {
+    return (num || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatCurrency(num) {
+    return (num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

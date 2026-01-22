@@ -1060,8 +1060,13 @@
 
     <div class="tab-pane fade" id="materialsPane" role="tabpanel">
         <div class="card mb-3">
-            <div class="card-header bg-primary text-white">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-list-check me-2"></i> All Task Materials Summary</h6>
+                {% if session.role in ['Admin', 'Planner', 'Production Staff'] and workorder.status not in ['Completed', 'Cancelled'] %}
+                <a href="{{ url_for('issuance_routes.dynamic_material_issue', wo_id=workorder.id) }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-lightning-charge me-1"></i>Dynamic Issue
+                </a>
+                {% endif %}
             </div>
             <div class="card-body">
                 {% set tasks_with_materials = [] %}

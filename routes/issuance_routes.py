@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database, GLAutoPost
 from auth import login_required, role_required
 from datetime import datetime
+import json
 
 issuance_bp = Blueprint('issuance_routes', __name__)
 
@@ -489,3 +490,574 @@ def batch_issue():
         conn.close()
     
     return redirect(url_for('issuance_routes.list_issues'))
+
+
+# ===== DYNAMIC MATERIAL ISSUE MODULE =====
+
+@issuance_bp.route('/issuance/dynamic/<int:wo_id>')
+@login_required
+@role_required('Admin', 'Production Staff', 'Planner')
+def dynamic_material_issue(wo_id):
+    """Dynamic Material Issue page for multi-material issuance"""
+    db = Database()
+    conn = db.get_connection()
+    
+    wo = conn.execute('''
+        SELECT 
+            wo.*,
+            p.code as product_code,
+            p.name as product_name,
+            p.unit_of_measure,
+            c.name as customer_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE wo.id = ?
+    ''', (wo_id,)).fetchone()
+    
+    if not wo:
+        flash('Work Order not found.', 'danger')
+        conn.close()
+        return redirect(url_for('issuance_routes.list_issues'))
+    
+    if wo['status'] in ('Completed', 'Cancelled'):
+        flash('Cannot issue materials to a completed or cancelled work order.', 'warning')
+        conn.close()
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    user_permissions = {
+        'can_override_shortage': session.get('role') in ['Admin', 'Planner'],
+        'can_add_non_bom': session.get('role') in ['Admin', 'Planner', 'Production Staff']
+    }
+    
+    conn.close()
+    return render_template('issuance/dynamic_issue.html', 
+                          wo=wo, 
+                          today=today,
+                          user_permissions=user_permissions)
+
+
+@issuance_bp.route('/api/issuance/wo-context/<int:wo_id>')
+@login_required
+def api_get_wo_context(wo_id):
+    """Get work order context for dynamic issue page"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        wo = conn.execute('''
+            SELECT 
+                wo.id,
+                wo.wo_number,
+                wo.status,
+                wo.quantity,
+                wo.quantity_completed,
+                wo.planned_start_date,
+                wo.planned_end_date,
+                wo.warehouse_location,
+                wo.material_cost,
+                p.code as product_code,
+                p.name as product_name,
+                p.unit_of_measure,
+                c.name as customer_name
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers c ON wo.customer_id = c.id
+            WHERE wo.id = ?
+        ''', (wo_id,)).fetchone()
+        
+        if not wo:
+            return jsonify({'success': False, 'error': 'Work Order not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'work_order': dict(wo)
+        })
+    finally:
+        conn.close()
+
+
+@issuance_bp.route('/api/issuance/bom-materials/<int:wo_id>')
+@login_required
+def api_get_bom_materials(wo_id):
+    """Get BOM materials with availability for auto-population"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        wo = conn.execute('SELECT product_id, quantity FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
+        if not wo:
+            return jsonify({'success': False, 'error': 'Work Order not found'}), 404
+        
+        wo_qty = wo['quantity'] or 1
+        
+        bom_materials = conn.execute('''
+            SELECT 
+                bc.id as bom_component_id,
+                bc.component_id as product_id,
+                p.code as product_code,
+                p.name as product_name,
+                p.unit_of_measure,
+                p.cost as unit_cost,
+                bc.quantity as bom_qty,
+                (bc.quantity * ?) as required_qty,
+                COALESCE(i.quantity, 0) as on_hand_qty,
+                COALESCE(i.reserved_quantity, 0) as allocated_qty,
+                (COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0)) as available_qty,
+                i.warehouse_location,
+                i.bin_location,
+                COALESCE(mr.issued_quantity, 0) as already_issued,
+                COALESCE(mr.required_quantity, bc.quantity * ?) as requirement_qty,
+                mr.allocation_status
+            FROM bom_components bc
+            JOIN products p ON bc.component_id = p.id
+            LEFT JOIN inventory i ON bc.component_id = i.product_id
+            LEFT JOIN material_requirements mr ON mr.work_order_id = ? AND mr.product_id = bc.component_id
+            WHERE bc.product_id = ?
+            ORDER BY p.code
+        ''', (wo_qty, wo_qty, wo_id, wo['product_id'])).fetchall()
+        
+        materials = []
+        for m in bom_materials:
+            mat = dict(m)
+            remaining_to_issue = max(0, mat['requirement_qty'] - mat['already_issued'])
+            mat['remaining_to_issue'] = remaining_to_issue
+            
+            if mat['available_qty'] >= remaining_to_issue:
+                mat['availability_status'] = 'sufficient'
+            elif mat['available_qty'] > 0:
+                mat['availability_status'] = 'partial'
+            else:
+                mat['availability_status'] = 'insufficient'
+            
+            materials.append(mat)
+        
+        return jsonify({
+            'success': True,
+            'materials': materials,
+            'wo_quantity': wo_qty
+        })
+    finally:
+        conn.close()
+
+
+@issuance_bp.route('/api/issuance/search-products')
+@login_required
+def api_search_products():
+    """Search products for manual addition with inventory availability"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        query = request.args.get('q', '').strip()
+        if len(query) < 2:
+            return jsonify({'success': True, 'products': []})
+        
+        products = conn.execute('''
+            SELECT 
+                p.id as product_id,
+                p.code as product_code,
+                p.name as product_name,
+                p.unit_of_measure,
+                p.cost as unit_cost,
+                COALESCE(i.quantity, 0) as on_hand_qty,
+                COALESCE(i.reserved_quantity, 0) as allocated_qty,
+                (COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0)) as available_qty,
+                i.warehouse_location,
+                i.bin_location
+            FROM products p
+            LEFT JOIN inventory i ON p.id = i.product_id
+            WHERE (p.code LIKE ? OR p.name LIKE ?)
+              AND p.product_type IN ('Component', 'Raw Material', 'Consumable')
+            ORDER BY p.code
+            LIMIT 20
+        ''', (f'%{query}%', f'%{query}%')).fetchall()
+        
+        return jsonify({
+            'success': True,
+            'products': [dict(p) for p in products]
+        })
+    finally:
+        conn.close()
+
+
+@issuance_bp.route('/api/issuance/validate-inventory', methods=['POST'])
+@login_required
+def api_validate_inventory():
+    """Real-time inventory validation for issue quantities"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        issue_qty = float(data.get('issue_qty', 0))
+        wo_id = data.get('work_order_id')
+        
+        inventory = conn.execute('''
+            SELECT 
+                i.quantity as on_hand,
+                COALESCE(i.reserved_quantity, 0) as allocated,
+                (i.quantity - COALESCE(i.reserved_quantity, 0)) as available,
+                i.warehouse_location,
+                i.bin_location,
+                p.code as product_code,
+                p.name as product_name,
+                p.cost as unit_cost,
+                p.unit_of_measure
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.product_id = ?
+        ''', (product_id,)).fetchone()
+        
+        if not inventory:
+            return jsonify({
+                'success': True,
+                'valid': False,
+                'status': 'not_found',
+                'message': 'Product not found in inventory',
+                'available_qty': 0
+            })
+        
+        available = inventory['available']
+        
+        if issue_qty <= 0:
+            status = 'invalid'
+            valid = False
+            message = 'Issue quantity must be greater than zero'
+        elif issue_qty > available:
+            status = 'insufficient'
+            valid = False
+            message = f'Insufficient inventory. Available: {available}'
+        elif issue_qty > available * 0.8:
+            status = 'warning'
+            valid = True
+            message = f'This will consume {(issue_qty/available*100):.0f}% of available stock'
+        else:
+            status = 'valid'
+            valid = True
+            message = 'Quantity available'
+        
+        return jsonify({
+            'success': True,
+            'valid': valid,
+            'status': status,
+            'message': message,
+            'available_qty': available,
+            'on_hand_qty': inventory['on_hand'],
+            'allocated_qty': inventory['allocated'],
+            'unit_cost': inventory['unit_cost'] or 0,
+            'total_cost': (inventory['unit_cost'] or 0) * issue_qty,
+            'warehouse_location': inventory['warehouse_location'],
+            'bin_location': inventory['bin_location']
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@issuance_bp.route('/api/issuance/execute-multi-issue', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff', 'Planner')
+def api_execute_multi_issue():
+    """Execute atomic multi-material issuance transaction"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        data = request.get_json()
+        wo_id = data.get('work_order_id')
+        issue_date = data.get('issue_date', datetime.now().strftime('%Y-%m-%d'))
+        issued_to = data.get('issued_to', '')
+        task_reference = data.get('task_reference', '')
+        remarks = data.get('remarks', '')
+        materials = data.get('materials', [])
+        override_shortages = data.get('override_shortages', False)
+        
+        if not materials:
+            return jsonify({
+                'success': False,
+                'error': 'No materials to issue'
+            }), 400
+        
+        wo = conn.execute('''
+            SELECT wo.*, p.code as product_code 
+            FROM work_orders wo 
+            JOIN products p ON wo.product_id = p.id
+            WHERE wo.id = ? AND wo.status NOT IN ('Completed', 'Cancelled')
+        ''', (wo_id,)).fetchone()
+        
+        if not wo:
+            return jsonify({
+                'success': False,
+                'error': 'Work Order not found or not active'
+            }), 400
+        
+        validation_errors = []
+        validated_materials = []
+        
+        for idx, mat in enumerate(materials):
+            product_id = mat.get('product_id')
+            issue_qty = float(mat.get('issue_qty', 0))
+            
+            if issue_qty <= 0:
+                validation_errors.append({
+                    'row': idx,
+                    'product_id': product_id,
+                    'field': 'issue_qty',
+                    'error': 'Issue quantity must be greater than zero'
+                })
+                continue
+            
+            inventory = conn.execute('''
+                SELECT 
+                    i.*,
+                    p.code as product_code,
+                    p.name as product_name,
+                    p.cost,
+                    p.unit_of_measure,
+                    (i.quantity - COALESCE(i.reserved_quantity, 0)) as available
+                FROM inventory i
+                JOIN products p ON i.product_id = p.id
+                WHERE i.product_id = ?
+            ''', (product_id,)).fetchone()
+            
+            if not inventory:
+                validation_errors.append({
+                    'row': idx,
+                    'product_id': product_id,
+                    'field': 'product_id',
+                    'error': 'Product not found in inventory'
+                })
+                continue
+            
+            if issue_qty > inventory['available']:
+                if not override_shortages:
+                    validation_errors.append({
+                        'row': idx,
+                        'product_id': product_id,
+                        'product_code': inventory['product_code'],
+                        'field': 'issue_qty',
+                        'error': f'Insufficient inventory. Available: {inventory["available"]}',
+                        'available': inventory['available'],
+                        'requested': issue_qty
+                    })
+                    continue
+            
+            validated_materials.append({
+                'product_id': product_id,
+                'product_code': inventory['product_code'],
+                'product_name': inventory['product_name'],
+                'issue_qty': issue_qty,
+                'unit_cost': inventory['cost'] or 0,
+                'total_cost': (inventory['cost'] or 0) * issue_qty,
+                'unit_of_measure': inventory['unit_of_measure'],
+                'warehouse_location': mat.get('warehouse_location') or inventory['warehouse_location'],
+                'bin_location': mat.get('bin_location') or inventory['bin_location'],
+                'current_qty': inventory['quantity'],
+                'available_qty': inventory['available']
+            })
+        
+        if validation_errors:
+            return jsonify({
+                'success': False,
+                'error': 'Validation failed',
+                'validation_errors': validation_errors,
+                'partial_valid': len(validated_materials)
+            }), 400
+        
+        issued_items = []
+        total_cost = 0
+        
+        try:
+            last_issue = conn.execute('''
+                SELECT issue_number FROM material_issues 
+                WHERE issue_number LIKE 'ISS-%'
+                ORDER BY CAST(SUBSTR(issue_number, 5) AS INTEGER) DESC 
+                LIMIT 1
+            ''').fetchone()
+            
+            if last_issue:
+                try:
+                    base_number = int(last_issue['issue_number'].split('-')[1])
+                except (ValueError, IndexError):
+                    base_number = 0
+            else:
+                base_number = 0
+            
+            for idx, mat in enumerate(validated_materials):
+                issue_number = f'ISS-{base_number + idx + 1:06d}'
+                
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO material_issues 
+                    (issue_number, work_order_id, product_id, quantity_issued, issue_date,
+                     warehouse_location, bin_location, issued_to, task_reference, 
+                     unit_cost, total_cost, remarks, issued_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (issue_number, wo_id, mat['product_id'], mat['issue_qty'], issue_date,
+                      mat['warehouse_location'], mat['bin_location'], issued_to, task_reference,
+                      mat['unit_cost'], mat['total_cost'], remarks, session['user_id']))
+                
+                issue_id = cursor.lastrowid
+                
+                new_qty = mat['current_qty'] - mat['issue_qty']
+                conn.execute('''
+                    UPDATE inventory 
+                    SET quantity = ?,
+                        status = CASE WHEN ? <= 0 THEN 'Out of Stock' ELSE status END,
+                        last_updated = CURRENT_TIMESTAMP
+                    WHERE product_id = ?
+                ''', (new_qty, new_qty, mat['product_id']))
+                
+                update_material_requirement_status(conn, wo_id, mat['product_id'])
+                
+                gl_lines = [
+                    {
+                        'account_code': '1140',
+                        'debit': mat['total_cost'],
+                        'credit': 0,
+                        'description': f'Material issued to WO {wo["wo_number"]} - {mat["product_name"]} ({issue_number})'
+                    },
+                    {
+                        'account_code': '1130',
+                        'debit': 0,
+                        'credit': mat['total_cost'],
+                        'description': f'Material issued from inventory - {mat["product_name"]} ({issue_number})'
+                    }
+                ]
+                
+                GLAutoPost.create_auto_journal_entry(
+                    conn=conn,
+                    entry_date=issue_date,
+                    description=f'Material Issuance - {issue_number}',
+                    transaction_source='Material Issuance',
+                    reference_type='material_issue',
+                    reference_id=issue_id,
+                    lines=gl_lines,
+                    created_by=session['user_id']
+                )
+                
+                total_cost += mat['total_cost']
+                issued_items.append({
+                    'issue_number': issue_number,
+                    'product_code': mat['product_code'],
+                    'product_name': mat['product_name'],
+                    'quantity': mat['issue_qty'],
+                    'total_cost': mat['total_cost']
+                })
+            
+            conn.execute('''
+                UPDATE work_orders 
+                SET material_cost = COALESCE(material_cost, 0) + ?
+                WHERE id = ?
+            ''', (total_cost, wo_id))
+            
+            conn.execute('''
+                INSERT INTO audit_trail 
+                (table_name, record_id, action_type, performed_by, action_timestamp, changed_fields)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', ('material_issues', wo_id, 'Multi-Issue', session['user_id'], 
+                  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                  f'Issued {len(issued_items)} materials totaling ${total_cost:.2f} to WO {wo["wo_number"]}'))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully issued {len(issued_items)} material(s)',
+                'issued_count': len(issued_items),
+                'total_cost': total_cost,
+                'issued_items': issued_items,
+                'work_order': wo['wo_number']
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Transaction failed: {str(e)}',
+                'rollback': True
+            }), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@issuance_bp.route('/api/issuance/transaction-summary', methods=['POST'])
+@login_required
+def api_transaction_summary():
+    """Get live transaction summary before commit"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        data = request.get_json()
+        materials = data.get('materials', [])
+        wo_id = data.get('work_order_id')
+        
+        summary = {
+            'total_materials': len(materials),
+            'total_quantity': 0,
+            'total_cost': 0,
+            'shortages': [],
+            'warnings': [],
+            'inventory_impacts': []
+        }
+        
+        for mat in materials:
+            product_id = mat.get('product_id')
+            issue_qty = float(mat.get('issue_qty', 0))
+            
+            if issue_qty <= 0:
+                continue
+            
+            inventory = conn.execute('''
+                SELECT 
+                    p.code, p.name, p.cost, p.unit_of_measure,
+                    COALESCE(i.quantity, 0) as on_hand,
+                    (COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0)) as available
+                FROM products p
+                LEFT JOIN inventory i ON p.id = i.product_id
+                WHERE p.id = ?
+            ''', (product_id,)).fetchone()
+            
+            if inventory:
+                unit_cost = inventory['cost'] or 0
+                line_cost = unit_cost * issue_qty
+                summary['total_quantity'] += issue_qty
+                summary['total_cost'] += line_cost
+                
+                remaining = inventory['available'] - issue_qty
+                summary['inventory_impacts'].append({
+                    'product_code': inventory['code'],
+                    'product_name': inventory['name'],
+                    'current_available': inventory['available'],
+                    'issue_qty': issue_qty,
+                    'remaining': remaining,
+                    'unit_of_measure': inventory['unit_of_measure'],
+                    'line_cost': line_cost
+                })
+                
+                if remaining < 0:
+                    summary['shortages'].append({
+                        'product_code': inventory['code'],
+                        'shortage': abs(remaining)
+                    })
+                elif remaining < inventory['on_hand'] * 0.1:
+                    summary['warnings'].append({
+                        'product_code': inventory['code'],
+                        'message': f'Low stock after issue: {remaining} remaining'
+                    })
+        
+        return jsonify({
+            'success': True,
+            'summary': summary
+        })
+    finally:
+        conn.close()

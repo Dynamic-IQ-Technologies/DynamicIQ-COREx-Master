@@ -102,6 +102,18 @@ The system incorporates a novel architecture for ERP exchange management, compri
     - Admin configuration panel under Administration > Duplicate Detection
     - Reusable modal component (`templates/components/duplicate_modal.html`) for form integration
     - Database tables: duplicate_detection_config, duplicate_detection_log, duplicate_detection_cache
+-   **Dynamic Material Issue Module**: High-performance multi-material issuance page for work orders with:
+    - Sticky work order context header with live KPIs (status, quantity, material cost)
+    - Multi-material issue grid with add/remove rows and inline editing
+    - BOM-driven auto-population with remaining quantity calculation
+    - Real-time inventory validation with availability status indicators (sufficient/partial/insufficient)
+    - Product search with autocomplete for manual additions
+    - Transaction summary panel with cost calculation and shortage warnings
+    - Atomic multi-material commit with rollback on failure
+    - GL auto-posting for inventory/WIP accounting entries
+    - Role-based permissions for shortage override and non-BOM material addition
+    - Comprehensive audit logging of all multi-issue transactions
+    - API routes: `/api/issuance/bom-materials`, `/api/issuance/validate-inventory`, `/api/issuance/execute-multi-issue`
 
 ## External Dependencies
 
