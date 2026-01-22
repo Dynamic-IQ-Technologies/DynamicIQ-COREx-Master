@@ -172,18 +172,19 @@ def dashboard():
     # KPI 11: Purchase Orders Created During Period
     po_created_params = [start_date, end_date]
     po_created_query = '''
-        SELECT COALESCE(SUM(total_amount), 0) as total_ordered,
-               COUNT(*) as po_count
-        FROM purchase_orders
-        WHERE order_date BETWEEN ? AND ?
-        AND status != 'Cancelled'
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as total_ordered,
+               COUNT(DISTINCT po.id) as po_count
+        FROM purchase_orders po
+        LEFT JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.order_date BETWEEN ? AND ?
+        AND po.status != 'Cancelled'
     '''
     if vendor_filter:
-        po_created_query += ' AND supplier_id = ?'
+        po_created_query += ' AND po.supplier_id = ?'
         po_created_params.append(vendor_filter)
     po_result = conn.execute(po_created_query, po_created_params).fetchone()
-    po_ordered = po_result['total_ordered']
-    po_count = po_result['po_count']
+    po_ordered = po_result['total_ordered'] or 0
+    po_count = po_result['po_count'] or 0
     
     # KPI 12: Work Orders Completed During Period
     wo_completed_query = '''
