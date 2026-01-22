@@ -1221,6 +1221,112 @@
             <span class="fs-4 fw-bold">{{ (cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</span>
         </div>
         
+        <!-- Quote vs Actual Cost Comparison -->
+        {% if quote_for_comparison %}
+        {% set actual_total = cost_info.total_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0) %}
+        {% set quote_total = quote_for_comparison.total_amount or 0 %}
+        {% set variance = quote_total - actual_total %}
+        {% set variance_percent = ((variance / quote_total) * 100) if quote_total > 0 else 0 %}
+        <div class="card border-info mb-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Quote vs Actual Cost Comparison</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <div class="border-end">
+                            <small class="text-muted d-block">Quote Amount</small>
+                            <h4 class="text-info mb-1">{{ quote_total|currency }}</h4>
+                            <span class="badge bg-{{ 'success' if quote_for_comparison.status == 'Customer Approved' else 'primary' if quote_for_comparison.status == 'Approved' else 'warning' }}">
+                                {{ quote_for_comparison.status }}
+                            </span>
+                            <small class="text-muted d-block mt-1">{{ quote_for_comparison.quote_number }}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="border-end">
+                            <small class="text-muted d-block">Actual Cost</small>
+                            <h4 class="text-primary mb-1">{{ actual_total|currency }}</h4>
+                            <small class="text-muted d-block">Work Order Total</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <small class="text-muted d-block">Variance (Profit/Loss)</small>
+                        <h4 class="mb-1 {% if variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if variance >= 0 %}+{% endif %}{{ variance|currency }}
+                        </h4>
+                        <span class="badge {% if variance >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if variance >= 0 %}<i class="bi bi-arrow-up"></i>{% else %}<i class="bi bi-arrow-down"></i>{% endif %}
+                            {{ "%.1f"|format(variance_percent|abs) }}% {{ 'Profit Margin' if variance >= 0 else 'Over Budget' }}
+                        </span>
+                    </div>
+                </div>
+                {% if quote_for_comparison.subtotal or quote_for_comparison.labor_amount %}
+                <hr class="my-3">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <h6 class="text-muted mb-2">Quote Breakdown vs Actual</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Category</th>
+                                        <th class="text-end">Quote</th>
+                                        <th class="text-end">Actual</th>
+                                        <th class="text-end">Variance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Material Cost</td>
+                                        <td class="text-end">{{ (quote_for_comparison.consumables_amount or 0)|currency }}</td>
+                                        <td class="text-end">{{ cost_info.material_cost|currency }}</td>
+                                        {% set mat_var = (quote_for_comparison.consumables_amount or 0) - cost_info.material_cost %}
+                                        <td class="text-end {% if mat_var >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if mat_var >= 0 %}+{% endif %}{{ mat_var|currency }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Labor Cost</td>
+                                        <td class="text-end">{{ (quote_for_comparison.labor_amount or 0)|currency }}</td>
+                                        <td class="text-end">{{ cost_info.labor_cost|currency }}</td>
+                                        {% set lab_var = (quote_for_comparison.labor_amount or 0) - cost_info.labor_cost %}
+                                        <td class="text-end {% if lab_var >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if lab_var >= 0 %}+{% endif %}{{ lab_var|currency }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Overhead/Other</td>
+                                        <td class="text-end">{{ (quote_for_comparison.other_fees_amount or 0)|currency }}</td>
+                                        <td class="text-end">{{ (cost_info.overhead_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0))|currency }}</td>
+                                        {% set oh_var = (quote_for_comparison.other_fees_amount or 0) - (cost_info.overhead_cost + (misc_cost_info.total_misc_cost if misc_cost_info else 0)) %}
+                                        <td class="text-end {% if oh_var >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if oh_var >= 0 %}+{% endif %}{{ oh_var|currency }}
+                                        </td>
+                                    </tr>
+                                    <tr class="table-light fw-bold">
+                                        <td>Total</td>
+                                        <td class="text-end">{{ quote_total|currency }}</td>
+                                        <td class="text-end">{{ actual_total|currency }}</td>
+                                        <td class="text-end {% if variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if variance >= 0 %}+{% endif %}{{ variance|currency }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            No approved or submitted quote available for comparison. Create and approve a quote to enable cost comparison.
+        </div>
+        {% endif %}
+        
         <!-- Cost Detail Accordions -->
         <div class="accordion" id="costDetailsAccordion">
             <!-- Material Cost Details -->

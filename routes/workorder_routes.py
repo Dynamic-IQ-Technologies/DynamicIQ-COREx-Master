@@ -614,6 +614,23 @@ def view_workorder(id):
         ORDER BY q.created_at DESC
     ''', (id,)).fetchall()
     
+    # Get approved or submitted quote for cost comparison
+    quote_for_comparison = conn.execute('''
+        SELECT q.quote_number, q.total_amount, q.status, q.subtotal, q.tax_amount,
+               q.labor_amount, q.consumables_amount, q.other_fees_amount, q.markup_percent
+        FROM work_order_quotes q
+        WHERE q.work_order_id = ?
+        AND q.status IN ('Approved', 'Submitted', 'Customer Approved')
+        ORDER BY 
+            CASE q.status 
+                WHEN 'Customer Approved' THEN 1 
+                WHEN 'Approved' THEN 2 
+                WHEN 'Submitted' THEN 3 
+            END,
+            q.created_at DESC
+        LIMIT 1
+    ''', (id,)).fetchone()
+    
     # Fetch work order invoices
     wo_invoices = conn.execute('''
         SELECT i.*, c.name as customer_name,
@@ -666,7 +683,8 @@ def view_workorder(id):
                          wo_invoices=wo_invoices,
                          suppliers=suppliers,
                          buyout_customers=buyout_customers,
-                         component_buyout_pos=component_buyout_pos)
+                         component_buyout_pos=component_buyout_pos,
+                         quote_for_comparison=quote_for_comparison)
 
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
