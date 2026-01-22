@@ -132,6 +132,70 @@
         </div>
     </div>
 
+    <div class="alert alert-secondary mb-4">
+        <h6 class="mb-3"><i class="bi bi-calendar-range"></i> Period Activity ({{ period_label }})</h6>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="card h-100 border-success">
+                    <div class="card-body py-3">
+                        <h6 class="card-subtitle mb-1 text-muted small">A/P Payments Made</h6>
+                        <h4 class="card-title text-success mb-0">{{ ap_payments|currency }}</h4>
+                        <small class="text-muted">{{ period_label }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100 border-primary">
+                    <div class="card-body py-3">
+                        <h6 class="card-subtitle mb-1 text-muted small">Invoices Billed</h6>
+                        <h4 class="card-title text-primary mb-0">{{ ar_billed|currency }}</h4>
+                        <small class="text-muted">{{ ar_invoice_count }} invoice(s)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100 border-info">
+                    <div class="card-body py-3">
+                        <h6 class="card-subtitle mb-1 text-muted small">A/R Collections</h6>
+                        <h4 class="card-title text-info mb-0">{{ ar_collections|currency }}</h4>
+                        <small class="text-muted">{{ period_label }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100 border-warning">
+                    <div class="card-body py-3">
+                        <h6 class="card-subtitle mb-1 text-muted small">Purchase Orders</h6>
+                        <h4 class="card-title text-warning mb-0">{{ po_ordered|currency }}</h4>
+                        <small class="text-muted">{{ po_count }} PO(s) created</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row g-3 mt-2">
+            <div class="col-md-6">
+                <div class="card h-100 border-secondary">
+                    <div class="card-body py-3">
+                        <h6 class="card-subtitle mb-1 text-muted small">Work Orders Completed</h6>
+                        <h4 class="card-title text-secondary mb-0">{{ wo_completed_count }} WO(s)</h4>
+                        <small class="text-muted">Total Cost: {{ wo_completed_cost|currency }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 {% if (ar_collections - ap_payments) >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body py-3">
+                        <h6 class="card-subtitle mb-1 text-muted small">Net Cash Flow (Collections - Payments)</h6>
+                        <h4 class="card-title {% if (ar_collections - ap_payments) >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">
+                            {{ (ar_collections - ap_payments)|currency }}
+                        </h4>
+                        <small class="text-muted">{{ period_label }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-md-8">
             <div class="card">

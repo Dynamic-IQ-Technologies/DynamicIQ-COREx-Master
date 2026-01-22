@@ -134,6 +134,67 @@ def dashboard():
     '''
     inventory_value = conn.execute(inventory_value_query).fetchone()['inventory_value']
     
+    # Period-based KPIs
+    # KPI 8: A/P Payments Made During Period
+    ap_payments_params = [start_date, end_date]
+    ap_payments_query = '''
+        SELECT COALESCE(SUM(vp.amount), 0) as payments_made
+        FROM vendor_payments vp
+        WHERE vp.payment_date BETWEEN ? AND ?
+    '''
+    if vendor_filter:
+        ap_payments_query += ' AND vp.vendor_id = ?'
+        ap_payments_params.append(vendor_filter)
+    ap_payments = conn.execute(ap_payments_query, ap_payments_params).fetchone()['payments_made']
+    
+    # KPI 9: Invoices Billed During Period (Customer Revenue)
+    ar_billed_query = '''
+        SELECT COALESCE(SUM(total_amount), 0) as total_billed,
+               COUNT(*) as invoice_count
+        FROM invoices
+        WHERE invoice_date BETWEEN ? AND ?
+        AND status != 'Cancelled'
+    '''
+    ar_billed_result = conn.execute(ar_billed_query, (start_date, end_date)).fetchone()
+    ar_billed = ar_billed_result['total_billed']
+    ar_invoice_count = ar_billed_result['invoice_count']
+    
+    # KPI 10: A/R Collections During Period
+    ar_collections_query = '''
+        SELECT COALESCE(SUM(ip.amount), 0) as collections
+        FROM invoice_payments ip
+        WHERE ip.payment_date BETWEEN ? AND ?
+    '''
+    ar_collections = conn.execute(ar_collections_query, (start_date, end_date)).fetchone()['collections']
+    
+    # KPI 11: Purchase Orders Created During Period
+    po_created_params = [start_date, end_date]
+    po_created_query = '''
+        SELECT COALESCE(SUM(total_amount), 0) as total_ordered,
+               COUNT(*) as po_count
+        FROM purchase_orders
+        WHERE order_date BETWEEN ? AND ?
+        AND status != 'Cancelled'
+    '''
+    if vendor_filter:
+        po_created_query += ' AND supplier_id = ?'
+        po_created_params.append(vendor_filter)
+    po_result = conn.execute(po_created_query, po_created_params).fetchone()
+    po_ordered = po_result['total_ordered']
+    po_count = po_result['po_count']
+    
+    # KPI 12: Work Orders Completed During Period
+    wo_completed_query = '''
+        SELECT COUNT(*) as wo_count,
+               COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as total_cost
+        FROM work_orders
+        WHERE actual_end_date BETWEEN ? AND ?
+        AND status = 'Completed'
+    '''
+    wo_result = conn.execute(wo_completed_query, (start_date, end_date)).fetchone()
+    wo_completed_count = wo_result['wo_count']
+    wo_completed_cost = wo_result['total_cost']
+    
     # Chart Data: Revenue vs Expense Trend (Last 12 months)
     trend_query = '''
         WITH months AS (
@@ -264,6 +325,14 @@ def dashboard():
                          cash_balance=cash_balance,
                          net_income=net_income,
                          inventory_value=inventory_value,
+                         ap_payments=ap_payments,
+                         ar_billed=ar_billed,
+                         ar_invoice_count=ar_invoice_count,
+                         ar_collections=ar_collections,
+                         po_ordered=po_ordered,
+                         po_count=po_count,
+                         wo_completed_count=wo_completed_count,
+                         wo_completed_cost=wo_completed_cost,
                          period_label=period_label,
                          date_filter=date_filter,
                          vendor_filter=vendor_filter,
