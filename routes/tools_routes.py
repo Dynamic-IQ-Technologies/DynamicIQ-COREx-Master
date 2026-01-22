@@ -202,6 +202,7 @@ def list_tools():
                          })
 
 @tools_bp.route('/tools/create', methods=['GET', 'POST'])
+@login_required
 @role_required('Admin', 'Procurement')
 def create_tool():
     db = Database()
@@ -300,6 +301,7 @@ def view_tool(tool_id):
     return render_template('tools/view.html', tool=tool, checkouts=checkouts, now=datetime.now().strftime('%Y-%m-%d'))
 
 @tools_bp.route('/tools/<int:tool_id>/edit', methods=['GET', 'POST'])
+@login_required
 @role_required('Admin', 'Procurement')
 def edit_tool(tool_id):
     db = Database()
@@ -360,6 +362,7 @@ def edit_tool(tool_id):
     return render_template('tools/edit.html', tool=tool, categories=categories, labor_resources=labor_resources, suppliers=suppliers)
 
 @tools_bp.route('/tools/<int:tool_id>/checkout', methods=['POST'])
+@login_required
 @role_required('Admin', 'Procurement', 'Production Staff')
 def checkout_tool(tool_id):
     db = Database()
@@ -397,6 +400,7 @@ def checkout_tool(tool_id):
     return redirect(url_for('tools_routes.view_tool', tool_id=tool_id))
 
 @tools_bp.route('/tools/<int:tool_id>/checkin', methods=['POST'])
+@login_required
 @role_required('Admin', 'Procurement', 'Production Staff')
 def checkin_tool(tool_id):
     db = Database()
@@ -429,6 +433,7 @@ def checkin_tool(tool_id):
     return redirect(url_for('tools_routes.view_tool', tool_id=tool_id))
 
 @tools_bp.route('/tools/<int:tool_id>/delete', methods=['POST'])
+@login_required
 @role_required('Admin')
 def delete_tool(tool_id):
     db = Database()
@@ -456,6 +461,7 @@ def delete_tool(tool_id):
 
 
 @tools_bp.route('/tools/mass-update', methods=['POST'])
+@login_required
 @role_required('Admin', 'Procurement')
 def mass_update_tools():
     """Mass update selected tools"""
@@ -687,7 +693,7 @@ def generate_tool_label(tool_id):
         
         buffer = io.BytesIO()
         label_size = request.args.get('size', '4x3')
-        copies = int(request.args.get('copies', 1))
+        copies = min(max(int(request.args.get('copies', 1)), 1), 10)
         
         if label_size == '4x6':
             page_width = 4 * inch

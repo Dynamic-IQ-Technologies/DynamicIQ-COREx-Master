@@ -1,0 +1,247 @@
+You are a Principal ERP System Architect and UX-Oriented Transaction Designer.
+Your task is to redesign the Material Issue Module in Dynamic.IQ-COREx into a dynamic, high-performance, and intuitive page that supports issuing multiple materials to a single work order in one transaction.
+
+Objective
+
+Transform the material issue function into a modern, dynamic transaction page that:
+
+Allows issuing multiple materials at once
+
+Minimizes user clicks and data entry
+
+Prevents errors and shortages
+
+Maintains inventory, costing, and audit integrity
+
+Feels fast, simple, and guided for shop-floor and admin users
+
+Core Functional Requirements
+1. Dynamic Page Architecture
+
+Implement the material issue screen as a single dynamic page (no reloads) with:
+
+Live validation
+
+Inline editing
+
+Real-time inventory checks
+
+Transaction preview before commit
+
+The page must be optimized for:
+
+Desktop
+
+Tablet
+
+Shop-floor use
+
+2. Work Order Context Header
+
+At the top of the page, display a sticky Work Order context panel:
+
+Work Order Number
+
+Part / Assembly
+
+WO Status
+
+Quantity Required vs Completed
+
+Default Issue Location
+
+This context must remain visible while scrolling.
+
+3. Multi-Material Issue Grid
+
+Provide an editable material issue grid where users can issue multiple items in one transaction.
+
+Grid Capabilities
+
+Add / remove material rows dynamically
+
+Each row includes:
+
+Part Number (search + autocomplete)
+
+Description (auto-populated)
+
+Required Qty (from BOM if applicable)
+
+Available Qty (real-time)
+
+Issue Qty (editable)
+
+UOM
+
+Lot / Serial (if applicable)
+
+Issue Location
+
+Shortage indicator
+
+UX Rules
+
+Keyboard-first navigation (tab/enter)
+
+Inline error highlighting
+
+Auto-focus next logical field
+
+One-click “Add Material”
+
+4. BOM-Driven Auto-Population
+
+If the Work Order has a BOM:
+
+Auto-load required materials into the grid
+
+Pre-calculate required quantities
+
+Highlight:
+
+Shortages
+
+Partial availability
+
+Allow manual additions beyond BOM (role-based)
+
+5. Real-Time Inventory Validation
+
+As quantities are entered:
+
+Validate against:
+
+On-hand
+
+Allocated
+
+Lot / serial availability
+
+Display:
+
+Green = sufficient
+
+Yellow = partial
+
+Red = insufficient (blocking unless override)
+
+No save allowed if:
+
+Negative inventory would occur
+
+Serialized quantity mismatch exists
+
+6. Transaction Summary Panel
+
+Before issuing, show a live summary panel:
+
+Total materials issued
+
+Inventory impact
+
+Cost impact (if authorized)
+
+Backflushed vs manual issue distinction
+
+7. One-Click Issue Execution
+
+Provide a single “Issue Materials” action that:
+
+Commits all valid rows atomically
+
+Rolls back entirely on failure
+
+Prevents partial posting
+
+Post-issue actions:
+
+Update inventory
+
+Update work order WIP
+
+Record transaction history
+
+Trigger downstream events (costing, analytics)
+
+8. Error Handling & Guidance
+
+If an issue fails:
+
+Highlight exact row and field
+
+Provide human-readable error messages
+
+Suggest corrective actions
+
+Never show raw system errors to the user.
+
+Security, Audit & Compliance
+
+Role-based permissions:
+
+Issue
+
+Override shortages
+
+Add non-BOM materials
+
+Log:
+
+User
+
+Timestamp
+
+Materials issued
+
+Quantities
+
+Work Order
+
+ISO / AS compliant transaction traceability
+
+Performance Requirements
+
+Inventory checks < 150ms per row
+
+Support issuing 50+ materials in one transaction
+
+No full-page reloads
+
+Optimized queries and caching
+
+Optional Smart Enhancements (Recommended)
+
+“Issue All Available” button
+
+Auto-suggest alternate locations or lots
+
+Highlight commonly issued materials
+
+NeuroIQ recommendations (shortages, substitutions)
+
+Deliverables
+
+Dynamic Material Issue UI page
+
+Multi-row transaction engine
+
+Inventory validation service
+
+Atomic commit logic
+
+Audit logging
+
+UX error handling framework
+
+Success Criteria
+
+Faster issuing with fewer errors
+
+Zero partial transactions
+
+High shop-floor usability
+
+Accurate inventory and WIP updates
+
+Scalable for high-volume operations
