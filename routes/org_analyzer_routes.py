@@ -175,18 +175,34 @@ def calculate_workforce_kpis(conn):
     ''', (today, today)).fetchone()['count']
     
     month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
-    total_hours_mtd = conn.execute('''
-        SELECT COALESCE(SUM(
-            CASE WHEN punch_type = 'Clock Out' THEN 
-                EXTRACT(EPOCH FROM (punch_time - (
-                    SELECT MAX(punch_time) FROM time_clock_punches p2 
-                    WHERE p2.employee_id = time_clock_punches.employee_id 
-                    AND p2.punch_type = 'Clock In' 
-                    AND p2.punch_time < time_clock_punches.punch_time
-                ))) / 3600.0
-            ELSE 0 END
-        ), 0) as hours FROM time_clock_punches WHERE punch_time::date >= ?
-    ''', (month_start,)).fetchone()['hours']
+    # Use database-specific syntax for time calculations
+    is_postgres = os.environ.get('REPLIT_DEPLOYMENT') == '1'
+    if is_postgres:
+        total_hours_mtd = conn.execute('''
+            SELECT COALESCE(SUM(
+                CASE WHEN punch_type = 'Clock Out' THEN 
+                    EXTRACT(EPOCH FROM (punch_time - (
+                        SELECT MAX(punch_time) FROM time_clock_punches p2 
+                        WHERE p2.employee_id = time_clock_punches.employee_id 
+                        AND p2.punch_type = 'Clock In' 
+                        AND p2.punch_time < time_clock_punches.punch_time
+                    ))) / 3600.0
+                ELSE 0 END
+            ), 0) as hours FROM time_clock_punches WHERE punch_time::date >= ?
+        ''', (month_start,)).fetchone()['hours']
+    else:
+        total_hours_mtd = conn.execute('''
+            SELECT COALESCE(SUM(
+                CASE WHEN punch_type = 'Clock Out' THEN 
+                    (julianday(punch_time) - julianday((
+                        SELECT MAX(punch_time) FROM time_clock_punches p2 
+                        WHERE p2.employee_id = time_clock_punches.employee_id 
+                        AND p2.punch_type = 'Clock In' 
+                        AND p2.punch_time < time_clock_punches.punch_time
+                    ))) * 24.0
+                ELSE 0 END
+            ), 0) as hours FROM time_clock_punches WHERE date(punch_time) >= ?
+        ''', (month_start,)).fetchone()['hours']
     
     productivity_per_employee = 0
     if total_employees > 0 and total_hours_mtd > 0:
