@@ -3980,12 +3980,12 @@ class Database:
         cursor.execute("SELECT COUNT(*) FROM work_order_stages")
         if cursor.fetchone()[0] == 0:
             default_stages = [
-                ('Received', 'Work order received and logged', '#17a2b8', 1),
+                ('Receiving', 'Work order received and logged', '#17a2b8', 1),
                 ('Inspection', 'Initial inspection in progress', '#ffc107', 2),
                 ('Awaiting Parts', 'Waiting for parts/materials', '#fd7e14', 3),
                 ('In Work', 'Active work in progress', '#007bff', 4),
-                ('Teardown', 'Teardown and disassembly in progress', '#795548', 5),
-                ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', 6),
+                ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', 5),
+                ('Assembly', 'Assembly in progress', '#20c997', 6),
                 ('Quality Check', 'Quality assurance review', '#6f42c1', 7),
                 ('Ready to Ship', 'Completed and ready for shipping', '#28a745', 8)
             ]
@@ -3995,31 +3995,14 @@ class Database:
                     VALUES (?, ?, ?, ?, 1)
                 ''', (name, desc, color, seq))
         
-        cursor.execute("SELECT name FROM work_order_stages WHERE name = 'Teardown'")
+        cursor.execute("SELECT name FROM work_order_stages WHERE name = 'NDT'")
         if not cursor.fetchone():
             cursor.execute("SELECT MAX(sequence) FROM work_order_stages")
             max_seq = cursor.fetchone()[0] or 0
             cursor.execute('''
                 INSERT INTO work_order_stages (name, description, color, sequence, is_active)
-                VALUES ('Teardown', 'Teardown and disassembly in progress', '#795548', ?, 1)
-            ''', (max_seq + 1,))
-        
-        cursor.execute("SELECT name FROM work_order_stages WHERE name = 'NDT'")
-        if not cursor.fetchone():
-            cursor.execute("SELECT sequence FROM work_order_stages WHERE name = 'Teardown'")
-            teardown_seq = cursor.fetchone()
-            ndt_seq = (teardown_seq[0] + 1) if teardown_seq else 6
-            cursor.execute('''
-                INSERT INTO work_order_stages (name, description, color, sequence, is_active)
                 VALUES ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', ?, 1)
-            ''', (ndt_seq,))
-        else:
-            cursor.execute("SELECT sequence FROM work_order_stages WHERE name = 'Teardown'")
-            teardown_result = cursor.fetchone()
-            if teardown_result:
-                teardown_seq = teardown_result[0]
-                cursor.execute("UPDATE work_order_stages SET sequence = ? WHERE name = 'NDT'", (teardown_seq + 1,))
-                cursor.execute("UPDATE work_order_stages SET sequence = sequence + 1 WHERE sequence > ? AND name != 'NDT'", (teardown_seq,))
+            ''', (max_seq + 1,))
     
     def _migrate_rfq_enhancements(self, cursor):
         """Add buyer contact and condition columns to RFQ tables for supplier portal"""
