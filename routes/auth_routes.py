@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models import User
-import sqlite3
+from models import User, Database
 from datetime import datetime
 
 auth_bp = Blueprint('auth_routes', __name__)
@@ -8,21 +7,8 @@ auth_bp = Blueprint('auth_routes', __name__)
 def log_access_event(user_id, username, action_type, success, details=None):
     """Log access events to IT access audit table"""
     try:
-        conn = sqlite3.connect('mrp.db')
-        conn.row_factory = sqlite3.Row
-        
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS it_access_audit (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                username TEXT,
-                action_type TEXT,
-                success INTEGER DEFAULT 1,
-                ip_address TEXT,
-                details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+        db = Database()
+        conn = db.get_connection()
         
         ip_address = request.remote_addr if request else 'unknown'
         
