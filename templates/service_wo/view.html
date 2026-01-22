@@ -476,7 +476,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Work Date</label>
-                        <input type="date" name="work_date" class="form-control" value="{{ swo.created_at[:10] }}">
+                        <input type="date" name="work_date" class="form-control" value="{{ swo.created_at|datestr }}">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
@@ -628,7 +628,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Expense Date</label>
-                        <input type="date" name="expense_date" class="form-control" value="{{ swo.created_at[:10] }}">
+                        <input type="date" name="expense_date" class="form-control" value="{{ swo.created_at|datestr }}">
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -147,7 +147,7 @@
                                         <a href="{{ url_for('sf_migration_routes.view_migration', id=mig.id) }}">
                                             <strong>{{ mig.migration_name }}</strong>
                                         </a>
-                                        <br><small class="text-muted">{{ mig.created_at[:10] if mig.created_at else '' }}</small>
+                                        <br><small class="text-muted">{{ mig.created_at|datestr if mig.created_at else '' }}</small>
                                     </td>
                                     <td>{{ mig.connection_name }}</td>
                                     <td>

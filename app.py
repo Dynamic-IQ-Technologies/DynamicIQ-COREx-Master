@@ -105,6 +105,28 @@ def format_date_filter(value):
     except Exception:
         return str(value) if value else '-'
 
+@app.template_filter('datestr')
+def datestr_filter(value, length=10):
+    """Extract date string from datetime or string. Handles PostgreSQL datetime objects and SQLite strings."""
+    if value is None or value == '':
+        return ''
+    try:
+        from datetime import datetime, date
+        if isinstance(value, (datetime, date)):
+            if length == 10:
+                return value.strftime('%Y-%m-%d')
+            elif length == 16:
+                return value.strftime('%Y-%m-%d %H:%M')
+            elif length == 19:
+                return value.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                return value.strftime('%Y-%m-%d')
+        elif isinstance(value, str):
+            return value[:length]
+        return str(value)[:length]
+    except Exception:
+        return str(value)[:length] if value else ''
+
 @app.context_processor
 def inject_now():
     """Make datetime.now available to all templates."""

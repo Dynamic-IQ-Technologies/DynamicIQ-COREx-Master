@@ -65,7 +65,7 @@
                                 {% for assessment in assessments %}
                                 <tr>
                                     <td>{{ assessment.framework }}</td>
-                                    <td>{{ assessment.assessment_date[:10] if assessment.assessment_date else '-' }}</td>
+                                    <td>{{ assessment.assessment_date|datestr if assessment.assessment_date else '-' }}</td>
                                     <td>
                                         <span class="badge {% if assessment.overall_score >= 80 %}bg-success{% elif assessment.overall_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
                                             {{ assessment.overall_score|int }}%

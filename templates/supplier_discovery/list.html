@@ -100,7 +100,7 @@
                     <td>
                         <span class="badge bg-primary">{{ req.supplier_count }}</span>
                     </td>
-                    <td>{{ req.created_at[:10] if req.created_at else '' }}</td>
+                    <td>{{ req.created_at|datestr if req.created_at else '' }}</td>
                     <td>
                         <a href="{{ url_for('supplier_discovery_routes.view_request', id=req.id) }}" 
                            class="btn btn-sm btn-outline-primary" title="View">

@@ -224,7 +224,7 @@
                 <p class="mb-2"><strong>Number:</strong> {{ shipment.shipment_number }}</p>
                 <p class="mb-2"><strong>Type:</strong> <span class="badge bg-secondary">{{ shipment.shipment_type }}</span></p>
                 <p class="mb-2"><strong>Status:</strong> <span class="badge bg-warning">{{ shipment.status }}</span></p>
-                <p class="mb-0"><strong>Created:</strong> {{ shipment.created_at[:10] }}</p>
+                <p class="mb-0"><strong>Created:</strong> {{ shipment.created_at|datestr }}</p>
             </div>
         </div>
 

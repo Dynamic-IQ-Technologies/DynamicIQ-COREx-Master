@@ -38,7 +38,7 @@
                     <tbody>
                         {% for override in overrides %}
                         <tr class="{{ 'table-warning' if not override.risk_acknowledged else '' }}">
-                            <td>{{ override.created_at[:10] }}</td>
+                            <td>{{ override.created_at|datestr }}</td>
                             <td>{{ override.schedule_number }}</td>
                             <td><strong>{{ override.order_number }}</strong></td>
                             <td>{{ override.override_type }}</td>

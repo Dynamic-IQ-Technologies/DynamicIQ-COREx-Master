@@ -114,7 +114,7 @@
                                         {% if fb.wo_number %} | WO: {{ fb.wo_number }}{% endif %}
                                     </small>
                                 </div>
-                                <small class="text-muted">{{ fb.submitted_at[:10] if fb.submitted_at else '' }}</small>
+                                <small class="text-muted">{{ fb.submitted_at|datestr if fb.submitted_at else '' }}</small>
                             </div>
                         </div>
                         {% endfor %}

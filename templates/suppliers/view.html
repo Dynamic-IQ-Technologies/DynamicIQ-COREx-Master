@@ -199,7 +199,7 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <strong><i class="bi bi-check-circle me-1"></i>Portal Link Active</strong>
-                            <p class="mb-1 small">Expires: {{ portal_token.expires_at[:10] if portal_token.expires_at else 'N/A' }}</p>
+                            <p class="mb-1 small">Expires: {{ portal_token.expires_at|datestr if portal_token.expires_at else 'N/A' }}</p>
                             <p class="mb-1 small">Created by: {{ portal_token.created_by_name or 'System' }}</p>
                             {% if portal_token.access_count > 0 %}
                             <p class="mb-0 small">Accessed: {{ portal_token.access_count }} times</p>

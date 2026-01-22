@@ -95,7 +95,7 @@
                                 <span class="badge bg-danger me-1">SoD Conflict</span>
                                 {% endif %}
                             </td>
-                            <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
+                            <td>{{ user.last_login|datestr if user.last_login else 'Never' }}</td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary" onclick="calculateRisk({{ user.id }})">
                                     <i class="bi bi-arrow-clockwise"></i>

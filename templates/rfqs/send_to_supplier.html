@@ -88,7 +88,7 @@
                                 {% for es in existing_suppliers %}
                                 <tr>
                                     <td>{{ es.supplier_name }}</td>
-                                    <td>{{ es.sent_date[:10] if es.sent_date else '-' }}</td>
+                                    <td>{{ es.sent_date|datestr if es.sent_date else '-' }}</td>
                                     <td>
                                         {% if es.response_status == 'Received' %}
                                         <span class="badge bg-success">{{ es.response_status }}</span>

@@ -113,7 +113,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            {{ line.released_to_shipping_at[:10] if line.released_to_shipping_at else '-' }}<br>
+                            {{ line.released_to_shipping_at|datestr if line.released_to_shipping_at else '-' }}<br>
                             <small class="text-muted">by {{ line.released_by_name or 'System' }}</small>
                         </td>
                         <td>
@@ -186,7 +186,7 @@
                         <td>{{ shipment.ship_to_name }}</td>
                         <td>{{ shipment.item_count }} items</td>
                         <td>{{ shipment.carrier or 'TBD' }}</td>
-                        <td>{{ shipment.created_at[:10] }}</td>
+                        <td>{{ shipment.created_at|datestr }}</td>
                         <td>
                             <a href="{{ url_for('shipping_routes.edit_shipment', id=shipment.id) }}" class="btn btn-sm btn-primary">
                                 <i class="bi bi-pencil"></i>

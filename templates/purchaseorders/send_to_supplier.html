@@ -36,7 +36,7 @@
                         {% if existing_token %}
                         <div class="alert alert-success mb-3">
                             <i class="bi bi-check-circle me-2"></i>
-                            <strong>Link Generated</strong> - Valid until {{ existing_token.expires_at[:10] }}
+                            <strong>Link Generated</strong> - Valid until {{ existing_token.expires_at|datestr }}
                             {% if existing_token.email_sent %}
                             <br><small class="text-muted">Email sent on {{ existing_token.email_sent_at[:16] if existing_token.email_sent_at else 'N/A' }}</small>
                             {% endif %}

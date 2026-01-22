@@ -15,7 +15,7 @@
     <div>
         <strong>Quote Approved</strong><br>
         {% if quote.customer_approved_by %}
-        Approved by {{ quote.customer_approved_by }}{% if quote.customer_approver_title %} ({{ quote.customer_approver_title }}){% endif %} on {{ quote.customer_approved_at[:10] if quote.customer_approved_at else 'N/A' }}
+        Approved by {{ quote.customer_approved_by }}{% if quote.customer_approver_title %} ({{ quote.customer_approver_title }}){% endif %} on {{ quote.customer_approved_at|datestr if quote.customer_approved_at else 'N/A' }}
         {% else %}
         This quote has been approved.
         {% endif %}
@@ -61,7 +61,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>Quote Date:</strong> {{ quote.created_at[:10] if quote.created_at else 'N/A' }}</p>
+                        <p class="mb-1"><strong>Quote Date:</strong> {{ quote.created_at|datestr if quote.created_at else 'N/A' }}</p>
                         {% if quote.estimated_turnaround_days %}
                         <p class="mb-1"><strong>Est. Turnaround:</strong> {{ quote.estimated_turnaround_days }} days</p>
                         {% endif %}

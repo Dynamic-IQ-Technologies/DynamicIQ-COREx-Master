@@ -129,13 +129,13 @@
                         {% if capa.completion_date %}
                         <tr>
                             <th class="text-muted">Completed</th>
-                            <td>{{ capa.completion_date[:10] }}</td>
+                            <td>{{ capa.completion_date|datestr }}</td>
                         </tr>
                         {% endif %}
                         {% if capa.verified_date %}
                         <tr>
                             <th class="text-muted">Verified</th>
-                            <td>{{ capa.verified_date[:10] }} by {{ capa.verified_by_name or '-' }}</td>
+                            <td>{{ capa.verified_date|datestr }} by {{ capa.verified_by_name or '-' }}</td>
                         </tr>
                         {% endif %}
                         <tr>

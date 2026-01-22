@@ -187,7 +187,7 @@
                                         <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ wo.created_at[:10] if wo.created_at else 'N/A' }}</td>
+                                    <td>{{ wo.created_at|datestr if wo.created_at else 'N/A' }}</td>
                                     <td class="text-center">
                                         {% set tat = wo.tat_days or 0 %}
                                         {% if tat >= 7 %}
@@ -280,7 +280,7 @@
                                         <span class="badge bg-warning text-dark">{{ quote.status }}</span>
                                     </td>
                                     <td>{{ quote.prepared_by_name or 'N/A' }}</td>
-                                    <td>{{ quote.updated_at[:10] if quote.updated_at else quote.created_at[:10] if quote.created_at else 'N/A' }}</td>
+                                    <td>{{ quote.updated_at|datestr if quote.updated_at else quote.created_at|datestr if quote.created_at else 'N/A' }}</td>
                                     <td class="text-center">
                                         {% set tat = quote.tat_days or 0 %}
                                         {% if tat >= 7 %}
@@ -368,7 +368,7 @@
                                     </td>
                                     <td>{{ quote.customer_name or 'N/A' }}</td>
                                     <td class="fw-medium">$ {{ "{:,.2f}".format(quote.total_amount or 0) }}</td>
-                                    <td>{{ quote.customer_approved_at[:10] if quote.customer_approved_at else 'N/A' }}</td>
+                                    <td>{{ quote.customer_approved_at|datestr if quote.customer_approved_at else 'N/A' }}</td>
                                     <td>{{ quote.customer_approved_by or 'N/A' }}</td>
                                     <td>
                                         {% if quote.acknowledged %}

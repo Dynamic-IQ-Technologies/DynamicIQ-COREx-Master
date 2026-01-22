@@ -67,7 +67,7 @@
                         {% endif %}
                         <p><strong>Created By:</strong> {{ routing.created_by_name or '-' }}</p>
                         {% if routing.approved_by_name %}
-                        <p><strong>Approved By:</strong> {{ routing.approved_by_name }} ({{ routing.approved_at[:10] if routing.approved_at else '' }})</p>
+                        <p><strong>Approved By:</strong> {{ routing.approved_by_name }} ({{ routing.approved_at|datestr if routing.approved_at else '' }})</p>
                         {% endif %}
                     </div>
                 </div>

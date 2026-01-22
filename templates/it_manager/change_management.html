@@ -73,7 +73,7 @@
                                     {{ change.status }}
                                 </span>
                             </td>
-                            <td>{{ change.scheduled_at[:10] if change.scheduled_at else '-' }}</td>
+                            <td>{{ change.scheduled_at|datestr if change.scheduled_at else '-' }}</td>
                         </tr>
                         {% else %}
                         <tr>

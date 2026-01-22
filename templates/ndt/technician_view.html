@@ -31,7 +31,7 @@
                         <tr><th>Email</th><td>{{ technician.email or '-' }}</td></tr>
                         <tr><th>Phone</th><td>{{ technician.phone or '-' }}</td></tr>
                         <tr><th>Employer</th><td>{{ technician.employer or '-' }}</td></tr>
-                        <tr><th>Created</th><td>{{ technician.created_at[:10] if technician.created_at else '-' }}</td></tr>
+                        <tr><th>Created</th><td>{{ technician.created_at|datestr if technician.created_at else '-' }}</td></tr>
                     </table>
                     {% if technician.notes %}
                     <div class="mt-3">

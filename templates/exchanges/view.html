@@ -83,7 +83,7 @@
                         <dt class="col-5">Exchange Type:</dt>
                         <dd class="col-7">{{ exchange.exchange_type }}</dd>
                         <dt class="col-5">Created:</dt>
-                        <dd class="col-7">{{ exchange.created_at[:10] if exchange.created_at else '-' }}</dd>
+                        <dd class="col-7">{{ exchange.created_at|datestr if exchange.created_at else '-' }}</dd>
                         <dt class="col-5">Created By:</dt>
                         <dd class="col-7">{{ exchange.created_by_name or '-' }}</dd>
                     </dl>
@@ -310,7 +310,7 @@
                                             <td>{{ agr.agreement_number }}</td>
                                             <td>v{{ agr.version }}</td>
                                             <td><span class="badge bg-{% if agr.status == 'Active' %}success{% elif agr.status == 'Draft' %}warning{% else %}secondary{% endif %}">{{ agr.status }}</span></td>
-                                            <td>{{ agr.generated_at[:10] if agr.generated_at else '-' }}</td>
+                                            <td>{{ agr.generated_at|datestr if agr.generated_at else '-' }}</td>
                                             <td>{% if agr.sent_to_customer %}<i class="bi bi-check-circle text-success"></i>{% else %}-{% endif %}</td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></button>
@@ -433,7 +433,7 @@
                                     <strong>{{ alert.title }}</strong>
                                     <p class="mb-0 small">{{ alert.message }}</p>
                                 </div>
-                                <small class="text-muted">{{ alert.created_at[:10] if alert.created_at else '' }}</small>
+                                <small class="text-muted">{{ alert.created_at|datestr if alert.created_at else '' }}</small>
                             </div>
                             {% endfor %}
                             {% else %}
@@ -673,7 +673,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Planned Start Date</label>
-                            <input type="date" name="planned_start_date" class="form-control" value="{{ exchange.created_at[:10] if exchange.created_at else '' }}">
+                            <input type="date" name="planned_start_date" class="form-control" value="{{ exchange.created_at|datestr if exchange.created_at else '' }}">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Planned End Date</label>

@@ -56,7 +56,7 @@
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Created:</strong> {{ quote.created_at[:10] }}</p>
+                        <p><strong>Created:</strong> {{ quote.created_at|datestr }}</p>
                         <p><strong>Prepared By:</strong> {{ quote.prepared_by_name or 'N/A' }}</p>
                         <p><strong>Approved By:</strong> {{ quote.approved_by_name or 'N/A' }}</p>
                         <p><strong>Turnaround:</strong> {{ quote.estimated_turnaround_days or 'N/A' }} days</p>

@@ -423,7 +423,7 @@
                                 <i class="bi bi-{{ 'box-arrow-in-right' if punch.punch_type == 'Clock In' else 'box-arrow-left' }}"></i>
                                 {{ punch.punch_type }}
                             </span>
-                            <div class="punch-time">{{ punch.punch_time[:10] }} {{ punch.punch_time[11:19] }}</div>
+                            <div class="punch-time">{{ punch.punch_time|datestr }} {{ punch.punch_time[11:19] }}</div>
                             {% if punch.wo_number %}
                             <small class="text-muted d-block"><i class="bi bi-gear"></i> WO: {{ punch.wo_number }}</small>
                             {% endif %}

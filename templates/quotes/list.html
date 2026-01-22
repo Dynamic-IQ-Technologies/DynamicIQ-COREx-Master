@@ -47,7 +47,7 @@
                             <span class="badge bg-warning">{{ quote.status }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ quote.created_at[:10] }}</td>
+                        <td>{{ quote.created_at|datestr }}</td>
                         <td>{{ quote.prepared_by_name or 'N/A' }}</td>
                         <td>
                             <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>

@@ -51,7 +51,7 @@
                         </div>
                         {% endif %}
                         <div class="col-6 mb-2">
-                            <strong><i class="bi bi-calendar me-1"></i>Created:</strong> {{ rec.created_at[:10] }}
+                            <strong><i class="bi bi-calendar me-1"></i>Created:</strong> {{ rec.created_at|datestr }}
                         </div>
                     </div>
                     
@@ -74,7 +74,7 @@
                 </div>
                 {% if rec.reviewed_by_name %}
                 <div class="card-footer bg-transparent small text-muted">
-                    Reviewed by {{ rec.reviewed_by_name }} on {{ rec.reviewed_at[:10] if rec.reviewed_at else 'N/A' }}
+                    Reviewed by {{ rec.reviewed_by_name }} on {{ rec.reviewed_at|datestr if rec.reviewed_at else 'N/A' }}
                 </div>
                 {% endif %}
             </div>

@@ -67,7 +67,7 @@ def list_invoices():
             so.so_number,
             wo.wo_number,
             u.username as created_by_name,
-            COUNT(il.id) as line_count,
+            COALESCE(lc.line_count, 0) as line_count,
             'Standard' as invoice_type,
             NULL as ndt_wo_number
         FROM invoices i
@@ -75,7 +75,9 @@ def list_invoices():
         LEFT JOIN sales_orders so ON i.so_id = so.id
         LEFT JOIN work_orders wo ON i.wo_id = wo.id
         LEFT JOIN users u ON i.created_by = u.id
-        LEFT JOIN invoice_lines il ON i.id = il.invoice_id
+        LEFT JOIN (
+            SELECT invoice_id, COUNT(*) as line_count FROM invoice_lines GROUP BY invoice_id
+        ) lc ON lc.invoice_id = i.id
         WHERE 1=1
     '''
     
@@ -92,8 +94,6 @@ def list_invoices():
     if date_to:
         query += ' AND i.invoice_date <= ?'
         params.append(date_to)
-    
-    query += ' GROUP BY i.id'
     
     # Get regular invoices if not filtering to NDT only
     if invoice_type != 'ndt':
@@ -154,10 +154,10 @@ def list_invoices():
     total_outstanding = sum(inv['balance_due'] for inv in invoices if inv['status'] != 'Void')
     
     # Overdue invoices
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now().date()
     overdue_amount = sum(
         inv['balance_due'] for inv in invoices 
-        if inv['status'] in ['Posted', 'Approved'] and inv['due_date'] < today and inv['balance_due'] > 0
+        if inv['status'] in ['Posted', 'Approved'] and inv['due_date'] and (inv['due_date'] if hasattr(inv['due_date'], 'date') else datetime.strptime(str(inv['due_date'])[:10], '%Y-%m-%d').date()) < today and inv['balance_due'] > 0
     )
     
     conn.close()

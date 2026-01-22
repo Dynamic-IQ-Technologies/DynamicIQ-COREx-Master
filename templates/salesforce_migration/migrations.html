@@ -72,7 +72,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {{ mig.created_at[:10] if mig.created_at else '' }}
+                                {{ mig.created_at|datestr if mig.created_at else '' }}
                                 <br><small class="text-muted">{{ mig.created_by_name }}</small>
                             </td>
                             <td>

@@ -160,6 +160,20 @@ class PostgresConnection:
         # Replace DATE(column) with column::date for casting
         query = re.sub(r"DATE\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
         
+        # Convert double-quoted strings to single-quoted strings for PostgreSQL
+        # PostgreSQL uses double quotes for identifiers, single quotes for strings
+        # Pattern matches: = "string", != "string", LIKE "string", IN ("a", "b")
+        def convert_double_to_single(match):
+            return match.group(0).replace('"', "'")
+        
+        # Match double-quoted strings after operators (=, !=, <>, LIKE, IN, etc.)
+        query = re.sub(r'(=\s*)"([^"]*)"', r"\1'\2'", query)
+        query = re.sub(r'(!=\s*)"([^"]*)"', r"\1'\2'", query)
+        query = re.sub(r'(<>\s*)"([^"]*)"', r"\1'\2'", query)
+        query = re.sub(r'(LIKE\s*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
+        query = re.sub(r'(NOT LIKE\s*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
+        query = re.sub(r'(IN\s*\([^)]*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
+        
         return query
     
     def execute(self, query, params=None):

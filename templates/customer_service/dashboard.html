@@ -358,7 +358,7 @@
                                             <td><span class="fw-medium">{{ quote.product_code }}</span></td>
                                             <td>{{ quote.customer_name or 'N/A' }}</td>
                                             <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
-                                            <td><small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small></td>
+                                            <td><small class="text-muted">{{ quote.created_at|datestr if quote.created_at else 'N/A' }}</small></td>
                                             <td>
                                                 <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" class="btn btn-sm btn-outline-primary" title="View Quote"><i class="bi bi-eye"></i></a>
                                             </td>
@@ -399,7 +399,7 @@
                                             <td>{{ quote.customer_name or 'N/A' }}</td>
                                             <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
                                             <td><span class="badge bg-warning text-dark">{{ quote.status }}</span></td>
-                                            <td><small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small></td>
+                                            <td><small class="text-muted">{{ quote.created_at|datestr if quote.created_at else 'N/A' }}</small></td>
                                             <td>
                                                 <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" class="btn btn-sm btn-outline-primary" title="View Quote"><i class="bi bi-eye"></i></a>
                                             </td>
@@ -438,7 +438,7 @@
                                             <td><span class="fw-medium">{{ quote.product_code }}</span></td>
                                             <td>{{ quote.customer_name or 'N/A' }}</td>
                                             <td><span class="badge bg-secondary">{{ quote.line_count }}</span></td>
-                                            <td><small class="text-muted">{{ quote.created_at[:10] if quote.created_at else 'N/A' }}</small></td>
+                                            <td><small class="text-muted">{{ quote.created_at|datestr if quote.created_at else 'N/A' }}</small></td>
                                             <td>
                                                 <a href="{{ url_for('workorder_routes.view_workorder', id=quote.work_order_id) }}#quote-{{ quote.id }}" class="btn btn-sm btn-outline-primary" title="View Quote"><i class="bi bi-eye"></i></a>
                                                 <a href="{{ url_for('customer_service.acknowledge_quote', quote_id=quote.id) }}" class="btn btn-sm btn-outline-success" title="Acknowledge"><i class="bi bi-check-lg"></i></a>

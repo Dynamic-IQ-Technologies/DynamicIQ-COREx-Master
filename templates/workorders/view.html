@@ -1652,7 +1652,7 @@
                                             -
                                             {% endif %}
                                         </td>
-                                        <td>{{ doc.uploaded_at[:10] if doc.uploaded_at else '-' }}</td>
+                                        <td>{{ doc.uploaded_at|datestr if doc.uploaded_at else '-' }}</td>
                                         <td class="text-center">
                                             <a href="{{ url_for('workorder_routes.view_wo_document', wo_id=workorder.id, doc_id=doc.id) }}" class="btn btn-sm btn-outline-success" title="View" target="_blank">
                                                 <i class="bi bi-eye"></i>
@@ -1775,7 +1775,7 @@
                                 </td>
                                 <td>{{ quote.total_amount|currency }}</td>
                                 <td>{{ quote.prepared_by_name or '-' }}</td>
-                                <td>{{ quote.created_at[:10] if quote.created_at else '-' }}</td>
+                                <td>{{ quote.created_at|datestr if quote.created_at else '-' }}</td>
                                 <td class="text-center">
                                     <a href="{{ url_for('quote_routes.view_quote', id=quote.id) }}" class="btn btn-sm btn-outline-info">
                                         <i class="bi bi-eye"></i> View

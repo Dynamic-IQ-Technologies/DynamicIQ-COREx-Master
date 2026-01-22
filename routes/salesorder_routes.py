@@ -64,10 +64,12 @@ def list_sales_orders():
     
     query = '''
         SELECT so.*, c.name as customer_name, c.customer_number,
-               COUNT(sol.id) as line_count
+               COALESCE(lc.line_count, 0) as line_count
         FROM sales_orders so
         JOIN customers c ON so.customer_id = c.id
-        LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+        LEFT JOIN (
+            SELECT so_id, COUNT(*) as line_count FROM sales_order_lines GROUP BY so_id
+        ) lc ON lc.so_id = so.id
         WHERE 1=1
     '''
     
@@ -79,7 +81,7 @@ def list_sales_orders():
         query += ' AND so.sales_type = ?'
         params.append(type_filter)
     
-    query += ' GROUP BY so.id ORDER BY so.order_date DESC, so.id DESC'
+    query += ' ORDER BY so.order_date DESC, so.id DESC'
     
     sales_orders = conn.execute(query, params).fetchall()
     conn.close()

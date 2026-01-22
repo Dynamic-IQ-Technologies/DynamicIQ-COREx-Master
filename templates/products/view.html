@@ -537,7 +537,7 @@
                                     {{ wo.priority }}
                                 </span>
                             </td>
-                            <td>{{ wo.created_at[:10] if wo.created_at else '-' }}</td>
+                            <td>{{ wo.created_at|datestr if wo.created_at else '-' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -789,7 +789,7 @@
                             <td><code>.{{ file.file_type }}</code></td>
                             <td>{{ (file.file_size / 1024)|round(1) }} KB</td>
                             <td>{{ file.uploaded_by or '-' }}</td>
-                            <td>{{ file.uploaded_at[:10] if file.uploaded_at else '-' }}</td>
+                            <td>{{ file.uploaded_at|datestr if file.uploaded_at else '-' }}</td>
                             <td>
                                 <a href="{{ url_for('product_routes.download_product_file', file_id=file.id) }}" class="btn btn-sm btn-outline-primary" title="Download">
                                     <i class="bi bi-download"></i>

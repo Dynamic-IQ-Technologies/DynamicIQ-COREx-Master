@@ -170,7 +170,7 @@
                                         <td><small>{{ emp.role or '-' }}</small></td>
                                         <td>
                                             {% if emp.last_punch_time %}
-                                            <small class="text-muted">{{ emp.last_punch_time[:10] }}</small>
+                                            <small class="text-muted">{{ emp.last_punch_time|datestr }}</small>
                                             {% else %}
                                             <small class="text-muted">Never</small>
                                             {% endif %}

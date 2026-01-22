@@ -139,7 +139,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <small>{{ intake.captured_at[:10] if intake.captured_at else '-' }}</small>
+                            <small>{{ intake.captured_at|datestr if intake.captured_at else '-' }}</small>
                             <div class="text-muted small">{{ intake.captured_by_name }}</div>
                         </td>
                         <td>

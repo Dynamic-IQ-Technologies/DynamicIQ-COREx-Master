@@ -292,7 +292,7 @@
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Created</small>
-                        <span>{{ lead.created_at[:10] if lead.created_at else '-' }}</span>
+                        <span>{{ lead.created_at|datestr if lead.created_at else '-' }}</span>
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Created By</small>
@@ -312,7 +312,7 @@
                                 Supplier {{ lead.supplier_code }}
                             </a>
                             {% endif %}
-                            <div class="small">by {{ lead.converted_username }} on {{ lead.converted_at[:10] if lead.converted_at else '' }}</div>
+                            <div class="small">by {{ lead.converted_username }} on {{ lead.converted_at|datestr if lead.converted_at else '' }}</div>
                         </div>
                     </div>
                     {% endif %}

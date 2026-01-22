@@ -184,7 +184,7 @@
                             </span>
                         </td>
                         <td>{{ lead.assigned_username or '-' }}</td>
-                        <td>{{ lead.created_at[:10] if lead.created_at else '-' }}</td>
+                        <td>{{ lead.created_at|datestr if lead.created_at else '-' }}</td>
                         <td class="text-end">
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ url_for('leads.view_lead', lead_id=lead.id) }}" class="btn btn-outline-primary" title="View">

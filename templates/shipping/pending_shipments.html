@@ -89,7 +89,7 @@
                             {% endif %}
                         </td>
                         <td>{{ shipment.released_by_name or '-' }}</td>
-                        <td>{{ shipment.released_at[:10] if shipment.released_at else '-' }}</td>
+                        <td>{{ shipment.released_at|datestr if shipment.released_at else '-' }}</td>
                         <td>
                             <a href="{{ url_for('shipping_routes.view_pending_shipment', id=shipment.id) }}" class="btn btn-sm btn-info">
                                 <i class="bi bi-eye"></i> View

@@ -126,7 +126,7 @@
                                     <span class="badge bg-info">{{ analysis.analysis_type }}</span>
                                     <small class="d-block text-muted mt-1">{{ analysis.context[:40] }}{% if analysis.context|length > 40 %}...{% endif %}</small>
                                 </div>
-                                <small class="text-muted">{{ analysis.created_at[:10] }}</small>
+                                <small class="text-muted">{{ analysis.created_at|datestr }}</small>
                             </div>
                         </div>
                         {% endfor %}

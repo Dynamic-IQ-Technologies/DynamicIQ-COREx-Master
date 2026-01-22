@@ -37,7 +37,7 @@
                     {% for entry in entries %}
                     <tr>
                         <td>{{ entry.entry_number }}</td>
-                        <td>{{ entry.clock_in_time[:10] }}</td>
+                        <td>{{ entry.clock_in_time|datestr }}</td>
                         <td>{{ entry.wo_number }} - {{ entry.product_name }}</td>
                         <td>{{ entry.task_name or 'General' }}</td>
                         <td>{{ entry.clock_in_time[11:16] }}</td>
