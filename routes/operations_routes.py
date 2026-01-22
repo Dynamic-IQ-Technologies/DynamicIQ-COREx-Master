@@ -2,8 +2,11 @@ from flask import Blueprint, render_template, request, session
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+import os
 
 operations_bp = Blueprint('operations_routes', __name__)
+
+USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
 
 @operations_bp.route('/operations-dashboard')
 @login_required
@@ -214,27 +217,54 @@ def operations_dashboard():
         LIMIT 10
     ''').fetchall()
     
-    weekly_completion = conn.execute('''
-        SELECT 
-            strftime('%Y-%W', actual_end_date) as week,
-            COUNT(*) as completed_count
-        FROM work_orders
-        WHERE status = 'Completed'
-        AND actual_end_date >= date('now', '-8 weeks')
-        GROUP BY strftime('%Y-%W', actual_end_date)
-        ORDER BY week
-    ''').fetchall()
+    eight_weeks_ago = (datetime.now() - timedelta(weeks=8)).strftime('%Y-%m-%d')
+    six_months_ago = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
     
-    monthly_wo_trend_raw = conn.execute('''
-        SELECT 
-            strftime('%Y-%m', created_at) as month,
-            COUNT(*) as created,
-            SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
-        FROM work_orders
-        WHERE created_at >= date('now', '-6 months')
-        GROUP BY strftime('%Y-%m', created_at)
-        ORDER BY month
-    ''').fetchall()
+    if USE_POSTGRES:
+        weekly_completion = conn.execute('''
+            SELECT 
+                TO_CHAR(actual_end_date, 'IYYY-IW') as week,
+                COUNT(*) as completed_count
+            FROM work_orders
+            WHERE status = 'Completed'
+            AND actual_end_date >= ?
+            GROUP BY TO_CHAR(actual_end_date, 'IYYY-IW')
+            ORDER BY week
+        ''', (eight_weeks_ago,)).fetchall()
+    else:
+        weekly_completion = conn.execute('''
+            SELECT 
+                strftime('%Y-%W', actual_end_date) as week,
+                COUNT(*) as completed_count
+            FROM work_orders
+            WHERE status = 'Completed'
+            AND actual_end_date >= date('now', '-8 weeks')
+            GROUP BY strftime('%Y-%W', actual_end_date)
+            ORDER BY week
+        ''').fetchall()
+    
+    if USE_POSTGRES:
+        monthly_wo_trend_raw = conn.execute('''
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM') as month,
+                COUNT(*) as created,
+                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
+            FROM work_orders
+            WHERE created_at >= ?
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+            ORDER BY month
+        ''', (six_months_ago,)).fetchall()
+    else:
+        monthly_wo_trend_raw = conn.execute('''
+            SELECT 
+                strftime('%Y-%m', created_at) as month,
+                COUNT(*) as created,
+                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
+            FROM work_orders
+            WHERE created_at >= date('now', '-6 months')
+            GROUP BY strftime('%Y-%m', created_at)
+            ORDER BY month
+        ''').fetchall()
     monthly_wo_trend = [{'month': row['month'], 'created': row['created'], 'completed': row['completed']} for row in monthly_wo_trend_raw]
     
     on_time_delivery = conn.execute('''

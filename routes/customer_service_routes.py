@@ -2,8 +2,11 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from auth import login_required, role_required
 from models import Database
 from datetime import datetime, timedelta
+import os
 
 customer_service_bp = Blueprint('customer_service', __name__)
+
+USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
 
 DEFAULT_STAGES = [
     ('Order Received', 1),
@@ -908,13 +911,23 @@ def analytics():
     ''').fetchall()
     comms_by_type = [{'type': r['communication_type'], 'count': r['count']} for r in comms_by_type_rows]
     
-    comms_by_month_rows = conn.execute('''
-        SELECT strftime('%Y-%m', communication_date) as month, COUNT(*) as count
-        FROM customer_communications
-        WHERE communication_date >= DATE('now', '-6 months')
-        GROUP BY month
-        ORDER BY month
-    ''').fetchall()
+    six_months_ago = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
+    if USE_POSTGRES:
+        comms_by_month_rows = conn.execute('''
+            SELECT TO_CHAR(communication_date, 'YYYY-MM') as month, COUNT(*) as count
+            FROM customer_communications
+            WHERE communication_date >= ?
+            GROUP BY TO_CHAR(communication_date, 'YYYY-MM')
+            ORDER BY month
+        ''', (six_months_ago,)).fetchall()
+    else:
+        comms_by_month_rows = conn.execute('''
+            SELECT strftime('%Y-%m', communication_date) as month, COUNT(*) as count
+            FROM customer_communications
+            WHERE communication_date >= DATE('now', '-6 months')
+            GROUP BY month
+            ORDER BY month
+        ''').fetchall()
     comms_by_month = [{'month': r['month'], 'count': r['count']} for r in comms_by_month_rows]
     
     top_customers_rows = conn.execute('''

@@ -5,8 +5,11 @@ from datetime import datetime, timedelta
 import csv
 from io import StringIO
 from flask import make_response
+import os
 
 executive_routes = Blueprint('executive_routes', __name__)
+
+USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
 
 def role_required(*roles):
     def decorator(f):
@@ -199,53 +202,103 @@ def dashboard():
     wo_completed_cost = wo_result['total_cost']
     
     # Chart Data: Revenue vs Expense Trend (Last 12 months)
-    trend_query = '''
-        WITH months AS (
-            SELECT DISTINCT strftime('%Y-%m', ge.entry_date) as month
-            FROM gl_entries ge
-            WHERE ge.entry_date >= date('now', '-12 months')
-        )
-        SELECT 
-            m.month,
-            COALESCE((
-                SELECT SUM(gll.credit - gll.debit)
-                FROM gl_entry_lines gll
-                JOIN gl_entries ge ON gll.gl_entry_id = ge.id
-                JOIN chart_of_accounts coa ON gll.account_id = coa.id
-                WHERE coa.account_type = 'Revenue'
-                AND strftime('%Y-%m', ge.entry_date) = m.month
-                AND ge.status = 'Posted'
-            ), 0) as revenue,
-            COALESCE((
-                SELECT SUM(gll.debit - gll.credit)
-                FROM gl_entry_lines gll
-                JOIN gl_entries ge ON gll.gl_entry_id = ge.id
-                JOIN chart_of_accounts coa ON gll.account_id = coa.id
-                WHERE coa.account_type = 'Expense'
-                AND strftime('%Y-%m', ge.entry_date) = m.month
-                AND ge.status = 'Posted'
-            ), 0) as expenses
-        FROM months m
-        GROUP BY m.month
-        ORDER BY m.month
-    '''
-    trend_data = conn.execute(trend_query).fetchall()
+    twelve_months_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+    
+    if USE_POSTGRES:
+        trend_query = '''
+            WITH months AS (
+                SELECT DISTINCT TO_CHAR(ge.entry_date, 'YYYY-MM') as month
+                FROM gl_entries ge
+                WHERE ge.entry_date >= ?
+            )
+            SELECT 
+                m.month,
+                COALESCE((
+                    SELECT SUM(gll.credit - gll.debit)
+                    FROM gl_entry_lines gll
+                    JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+                    JOIN chart_of_accounts coa ON gll.account_id = coa.id
+                    WHERE coa.account_type = 'Revenue'
+                    AND TO_CHAR(ge.entry_date, 'YYYY-MM') = m.month
+                    AND ge.status = 'Posted'
+                ), 0) as revenue,
+                COALESCE((
+                    SELECT SUM(gll.debit - gll.credit)
+                    FROM gl_entry_lines gll
+                    JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+                    JOIN chart_of_accounts coa ON gll.account_id = coa.id
+                    WHERE coa.account_type = 'Expense'
+                    AND TO_CHAR(ge.entry_date, 'YYYY-MM') = m.month
+                    AND ge.status = 'Posted'
+                ), 0) as expenses
+            FROM months m
+            GROUP BY m.month
+            ORDER BY m.month
+        '''
+        trend_data = conn.execute(trend_query, (twelve_months_ago,)).fetchall()
+    else:
+        trend_query = '''
+            WITH months AS (
+                SELECT DISTINCT strftime('%Y-%m', ge.entry_date) as month
+                FROM gl_entries ge
+                WHERE ge.entry_date >= date('now', '-12 months')
+            )
+            SELECT 
+                m.month,
+                COALESCE((
+                    SELECT SUM(gll.credit - gll.debit)
+                    FROM gl_entry_lines gll
+                    JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+                    JOIN chart_of_accounts coa ON gll.account_id = coa.id
+                    WHERE coa.account_type = 'Revenue'
+                    AND strftime('%Y-%m', ge.entry_date) = m.month
+                    AND ge.status = 'Posted'
+                ), 0) as revenue,
+                COALESCE((
+                    SELECT SUM(gll.debit - gll.credit)
+                    FROM gl_entry_lines gll
+                    JOIN gl_entries ge ON gll.gl_entry_id = ge.id
+                    JOIN chart_of_accounts coa ON gll.account_id = coa.id
+                    WHERE coa.account_type = 'Expense'
+                    AND strftime('%Y-%m', ge.entry_date) = m.month
+                    AND ge.status = 'Posted'
+                ), 0) as expenses
+            FROM months m
+            GROUP BY m.month
+            ORDER BY m.month
+        '''
+        trend_data = conn.execute(trend_query).fetchall()
     
     # Chart Data: A/P Aging
     ap_aging_params = []
-    ap_aging_query = '''
-        SELECT 
-            CASE 
-                WHEN julianday('now') - julianday(due_date) <= 0 THEN 'Current'
-                WHEN julianday('now') - julianday(due_date) BETWEEN 1 AND 30 THEN '1-30 Days'
-                WHEN julianday('now') - julianday(due_date) BETWEEN 31 AND 60 THEN '31-60 Days'
-                WHEN julianday('now') - julianday(due_date) BETWEEN 61 AND 90 THEN '61-90 Days'
-                ELSE '90+ Days'
-            END as aging_bucket,
-            COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
-        FROM vendor_invoices
-        WHERE status NOT IN ('Paid', 'Cancelled')
-    '''
+    if USE_POSTGRES:
+        ap_aging_query = '''
+            SELECT 
+                CASE 
+                    WHEN CURRENT_DATE - due_date <= 0 THEN 'Current'
+                    WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN '1-30 Days'
+                    WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN '31-60 Days'
+                    WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN '61-90 Days'
+                    ELSE '90+ Days'
+                END as aging_bucket,
+                COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
+            FROM vendor_invoices
+            WHERE status NOT IN ('Paid', 'Cancelled')
+        '''
+    else:
+        ap_aging_query = '''
+            SELECT 
+                CASE 
+                    WHEN julianday('now') - julianday(due_date) <= 0 THEN 'Current'
+                    WHEN julianday('now') - julianday(due_date) BETWEEN 1 AND 30 THEN '1-30 Days'
+                    WHEN julianday('now') - julianday(due_date) BETWEEN 31 AND 60 THEN '31-60 Days'
+                    WHEN julianday('now') - julianday(due_date) BETWEEN 61 AND 90 THEN '61-90 Days'
+                    ELSE '90+ Days'
+                END as aging_bucket,
+                COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
+            FROM vendor_invoices
+            WHERE status NOT IN ('Paid', 'Cancelled')
+        '''
     if vendor_filter:
         ap_aging_query += ' AND vendor_id = ?'
         ap_aging_params.append(vendor_filter)
