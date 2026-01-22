@@ -552,87 +552,85 @@ def mass_update_tools():
 
 def draw_tool_label(c, tool_data, width, height):
     """Draw a single tool label on the canvas"""
-    margin = 0.25 * inch
+    margin = 0.2 * inch
     y = height - margin
     
     c.setLineWidth(2)
     c.rect(margin/2, margin/2, width - margin, height - margin)
     
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(margin, y - 20, "TOOL IDENTIFICATION LABEL")
-    y -= 35
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(margin, y - 15, "TOOL IDENTIFICATION LABEL")
+    y -= 25
     
     c.setLineWidth(1)
     c.line(margin, y, width - margin, y)
-    y -= 20
+    y -= 14
     
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont("Helvetica-Bold", 9)
     c.drawString(margin, y, "Tool Name:")
-    c.setFont("Helvetica", 11)
+    c.setFont("Helvetica", 9)
     tool_name = tool_data.get('name', 'N/A')
-    if len(tool_name) > 35:
-        tool_name = tool_name[:32] + "..."
-    c.drawString(margin + 80, y, tool_name)
-    y -= 18
+    if len(tool_name) > 40:
+        tool_name = tool_name[:37] + "..."
+    c.drawString(margin + 60, y, tool_name)
+    y -= 12
     
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 9)
     c.drawString(margin, y, "Tool #:")
-    c.setFont("Helvetica", 10)
-    c.drawString(margin + 50, y, tool_data.get('tool_number', 'N/A'))
-    y -= 16
+    c.setFont("Helvetica", 9)
+    c.drawString(margin + 40, y, tool_data.get('tool_number', 'N/A'))
+    y -= 12
     
     if tool_data.get('description'):
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(margin, y, "Description:")
-        c.setFont("Helvetica", 9)
-        desc = tool_data.get('description', '')[:50]
-        if len(tool_data.get('description', '')) > 50:
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(margin, y, "Desc:")
+        c.setFont("Helvetica", 8)
+        desc = tool_data.get('description', '')[:55]
+        if len(tool_data.get('description', '')) > 55:
             desc += "..."
-        c.drawString(margin + 65, y, desc)
-        y -= 14
+        c.drawString(margin + 30, y, desc)
+        y -= 11
     
-    y -= 5
+    y -= 3
     c.setLineWidth(0.5)
     c.line(margin, y, width - margin, y)
-    y -= 15
+    y -= 11
     
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont("Helvetica-Bold", 8)
     c.drawString(margin, y, "Manufacturer:")
-    c.setFont("Helvetica", 9)
-    c.drawString(margin + 75, y, tool_data.get('manufacturer', 'N/A') or 'N/A')
-    y -= 14
+    c.setFont("Helvetica", 8)
+    c.drawString(margin + 65, y, (tool_data.get('manufacturer', 'N/A') or 'N/A')[:25])
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(width/2, y, "Supplier:")
+    c.setFont("Helvetica", 8)
+    c.drawString(width/2 + 45, y, (tool_data.get('supplier_name', 'N/A') or 'N/A')[:20])
+    y -= 11
     
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(margin, y, "Supplier:")
-    c.setFont("Helvetica", 9)
-    c.drawString(margin + 55, y, tool_data.get('supplier_name', 'N/A') or 'N/A')
-    y -= 14
-    
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont("Helvetica-Bold", 8)
     c.drawString(margin, y, "Purchase Date:")
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 8)
     purchase_date = tool_data.get('purchase_date', 'N/A') or 'N/A'
-    c.drawString(margin + 80, y, str(purchase_date))
-    y -= 18
+    c.drawString(margin + 70, y, str(purchase_date))
+    y -= 12
     
     c.setLineWidth(0.5)
     c.line(margin, y, width - margin, y)
-    y -= 15
+    y -= 11
     
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 9)
     c.drawString(margin, y, "CALIBRATION INFORMATION")
-    y -= 16
+    y -= 12
     
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont("Helvetica-Bold", 8)
     c.drawString(margin, y, "Last Calibration:")
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 8)
     last_cal = tool_data.get('last_calibration_date', 'N/A') or 'N/A'
-    c.drawString(margin + 90, y, str(last_cal))
-    y -= 14
+    c.drawString(margin + 80, y, str(last_cal))
+    y -= 11
     
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont("Helvetica-Bold", 8)
     c.drawString(margin, y, "Next Calibration:")
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 8)
     next_cal = tool_data.get('next_calibration_date', 'N/A') or 'N/A'
     if next_cal != 'N/A':
         try:
@@ -645,26 +643,26 @@ def draw_tool_label(c, tool_data, width, height):
                 next_cal = f"{next_cal} (DUE SOON)"
         except:
             pass
-    c.drawString(margin + 90, y, str(next_cal))
+    c.drawString(margin + 80, y, str(next_cal))
     c.setFillColor(colors.black)
-    y -= 14
+    y -= 11
     
     if tool_data.get('calibration_interval_days'):
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(margin, y, "Cal. Interval:")
-        c.setFont("Helvetica", 9)
-        c.drawString(margin + 75, y, f"{tool_data.get('calibration_interval_days')} days")
-        y -= 14
-    
-    y -= 5
-    try:
-        barcode = code128.Code128(tool_data.get('tool_number', 'N/A'), barHeight=25, barWidth=1.2)
-        barcode.drawOn(c, margin, y - 30)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(margin, y, "Interval:")
         c.setFont("Helvetica", 8)
-        c.drawCentredString(width/2, y - 42, tool_data.get('tool_number', 'N/A'))
+        c.drawString(margin + 45, y, f"{tool_data.get('calibration_interval_days')} days")
+        y -= 11
+    
+    y -= 3
+    try:
+        barcode = code128.Code128(tool_data.get('tool_number', 'N/A'), barHeight=20, barWidth=1.0)
+        barcode.drawOn(c, margin, y - 22)
+        c.setFont("Helvetica", 7)
+        c.drawCentredString(width/2, y - 32, tool_data.get('tool_number', 'N/A'))
     except:
-        c.setFont("Helvetica", 10)
-        c.drawString(margin, y - 20, f"Tool #: {tool_data.get('tool_number', 'N/A')}")
+        c.setFont("Helvetica", 9)
+        c.drawString(margin, y - 15, f"Tool #: {tool_data.get('tool_number', 'N/A')}")
     
     c.setFont("Helvetica", 7)
     c.drawString(margin, margin + 5, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
