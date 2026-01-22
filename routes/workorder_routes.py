@@ -319,7 +319,7 @@ def create_workorder():
             flash('Failed to create work order after multiple attempts', 'danger')
             return redirect(url_for('workorder_routes.list_workorders'))
     
-    products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
+    products = conn.execute('SELECT * FROM products WHERE product_type IN ("Assembly", "Part", "Finished Good") ORDER BY code').fetchall()
     customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     master_routings = conn.execute('''
@@ -836,7 +836,7 @@ def edit_workorder(id):
         conn.close()
         return redirect(url_for('workorder_routes.view_workorder', id=id))
     
-    products = conn.execute('SELECT * FROM products WHERE product_type="Finished Good" ORDER BY code').fetchall()
+    products = conn.execute('SELECT * FROM products WHERE product_type IN ("Assembly", "Part", "Finished Good") ORDER BY code').fetchall()
     customers = conn.execute('SELECT * FROM customers WHERE status = "Active" ORDER BY name').fetchall()
     stages = conn.execute('SELECT * FROM work_order_stages WHERE is_active = 1 ORDER BY sequence').fetchall()
     
