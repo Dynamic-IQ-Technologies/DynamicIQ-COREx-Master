@@ -1,0 +1,238 @@
+<!-- Duplicate Detection Modal Component -->
+<!-- Include this in any form that needs duplicate checking -->
+
+<div class="modal fade" id="duplicateDetectionModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <span id="dupModalTitle">Potential Duplicate Detected</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" id="dupModalClose"></button>
+            </div>
+            <div class="modal-body">
+                <div id="dupExactWarning" class="alert alert-danger d-none">
+                    <i class="bi bi-x-octagon"></i>
+                    <strong>Exact Match Found!</strong> A record with identical key fields already exists.
+                </div>
+                
+                <p id="dupDescription">
+                    We found existing records that may be duplicates. Please review before proceeding.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover" id="dupMatchesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Existing Record</th>
+                                <th>Match Type</th>
+                                <th>Matched Field</th>
+                                <th>Similarity</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dupMatchesList">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="dupOverrideSection" class="mt-3 d-none">
+                    <hr>
+                    <div class="form-group">
+                        <label class="form-label"><strong>Justification for Override</strong> <span class="text-danger">*</span></label>
+                        <textarea id="dupJustification" class="form-control" rows="3" 
+                                  placeholder="Please explain why you need to create this record despite the potential duplicate..."></textarea>
+                        <small class="text-muted">This justification will be logged for audit purposes.</small>
+                    </div>
+                </div>
+
+                <div id="dupNoOverride" class="alert alert-info mt-3 d-none">
+                    <i class="bi bi-info-circle"></i>
+                    You do not have permission to override this duplicate check. Please review the existing records or contact an administrator.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="dupCancelBtn">
+                    <i class="bi bi-x"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary d-none" id="dupViewExistingBtn">
+                    <i class="bi bi-eye"></i> View Existing Record
+                </button>
+                <button type="button" class="btn btn-warning d-none" id="dupProceedBtn">
+                    <i class="bi bi-check-lg"></i> Proceed Anyway
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dup-score-high { background-color: #f8d7da !important; }
+.dup-score-medium { background-color: #fff3cd !important; }
+.dup-score-low { background-color: #d1e7dd !important; }
+</style>
+
+<script>
+class DuplicateDetectionHandler {
+    constructor(options) {
+        this.recordType = options.recordType || '';
+        this.formId = options.formId || '';
+        this.fieldMapping = options.fieldMapping || {};
+        this.excludeId = options.excludeId || null;
+        this.onProceed = options.onProceed || null;
+        this.modal = null;
+        this.currentDuplicates = [];
+        this.canOverride = false;
+    }
+
+    init() {
+        this.modal = new bootstrap.Modal(document.getElementById('duplicateDetectionModal'));
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        document.getElementById('dupCancelBtn').addEventListener('click', () => {
+            this.logDecision('cancel');
+        });
+
+        document.getElementById('dupProceedBtn').addEventListener('click', () => {
+            this.handleProceed();
+        });
+
+        document.getElementById('dupModalClose').addEventListener('click', () => {
+            this.logDecision('cancel');
+        });
+    }
+
+    getFieldValues() {
+        const values = {};
+        for (const [apiField, formField] of Object.entries(this.fieldMapping)) {
+            const element = document.querySelector(`[name="${formField}"]`) || 
+                           document.getElementById(formField);
+            if (element) {
+                values[apiField] = element.value;
+            }
+        }
+        return values;
+    }
+
+    async checkDuplicates() {
+        const fieldValues = this.getFieldValues();
+        
+        try {
+            const response = await fetch('/api/duplicate-detection/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    record_type: this.recordType,
+                    field_values: fieldValues,
+                    exclude_id: this.excludeId
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.has_duplicates) {
+                this.showDuplicateModal(result);
+                return false;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Duplicate check failed:', error);
+            return true;
+        }
+    }
+
+    showDuplicateModal(result) {
+        this.currentDuplicates = result.duplicates;
+        this.canOverride = result.can_override;
+
+        const exactWarning = document.getElementById('dupExactWarning');
+        const overrideSection = document.getElementById('dupOverrideSection');
+        const noOverride = document.getElementById('dupNoOverride');
+        const proceedBtn = document.getElementById('dupProceedBtn');
+        const viewBtn = document.getElementById('dupViewExistingBtn');
+        const matchesList = document.getElementById('dupMatchesList');
+
+        exactWarning.classList.toggle('d-none', !result.is_exact_match);
+        
+        document.getElementById('dupModalTitle').textContent = 
+            result.is_exact_match ? 'Exact Duplicate Found' : 'Potential Duplicate Detected';
+
+        matchesList.innerHTML = '';
+        result.duplicates.forEach(dup => {
+            const scoreClass = dup.similarity_score >= 0.95 ? 'dup-score-high' : 
+                              dup.similarity_score >= 0.85 ? 'dup-score-medium' : 'dup-score-low';
+            
+            const row = document.createElement('tr');
+            row.className = scoreClass;
+            row.innerHTML = `
+                <td><strong>${dup.display_value}</strong></td>
+                <td><span class="badge ${dup.match_type === 'exact' ? 'bg-danger' : dup.match_type === 'normalized' ? 'bg-warning text-dark' : 'bg-info'}">${dup.match_type}</span></td>
+                <td>${dup.match_field}</td>
+                <td>${dup.similarity_percent}%</td>
+                <td><a href="${dup.view_url}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+            `;
+            matchesList.appendChild(row);
+        });
+
+        if (this.canOverride) {
+            overrideSection.classList.remove('d-none');
+            noOverride.classList.add('d-none');
+            proceedBtn.classList.remove('d-none');
+        } else {
+            overrideSection.classList.add('d-none');
+            noOverride.classList.remove('d-none');
+            proceedBtn.classList.add('d-none');
+        }
+
+        if (result.duplicates.length === 1) {
+            viewBtn.classList.remove('d-none');
+            viewBtn.onclick = () => window.open(result.duplicates[0].view_url, '_blank');
+        } else {
+            viewBtn.classList.add('d-none');
+        }
+
+        this.modal.show();
+    }
+
+    async handleProceed() {
+        const justification = document.getElementById('dupJustification').value.trim();
+        
+        if (!justification) {
+            alert('Please provide a justification for overriding the duplicate check.');
+            return;
+        }
+
+        await this.logDecision('override', justification);
+        this.modal.hide();
+        
+        if (this.onProceed) {
+            this.onProceed();
+        }
+    }
+
+    async logDecision(decision, justification = '') {
+        try {
+            await fetch('/api/duplicate-detection/log-decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    record_type: this.recordType,
+                    action_type: this.excludeId ? 'UPDATE' : 'CREATE',
+                    source_data: this.getFieldValues(),
+                    duplicates: this.currentDuplicates,
+                    decision: decision,
+                    justification: justification
+                })
+            });
+        } catch (error) {
+            console.error('Failed to log decision:', error);
+        }
+    }
+}
+
+window.DuplicateDetectionHandler = DuplicateDetectionHandler;
+</script>

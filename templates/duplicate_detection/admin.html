@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Duplicate Detection Configuration{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-shield-check text-primary"></i> Duplicate Detection Control Panel</h2>
+            <p class="text-muted mb-0">Configure duplicate detection rules and thresholds for each record type</p>
+        </div>
+        <div>
+            <a href="{{ url_for('duplicate_detection.audit_log') }}" class="btn btn-outline-primary">
+                <i class="bi bi-journal-text"></i> View Audit Log
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Record Type Configurations</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Record Type</th>
+                                <th>Status</th>
+                                <th>Detection Mode</th>
+                                <th>Similarity Threshold</th>
+                                <th>Key Fields</th>
+                                <th>Override Allowed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in record_types %}
+                            <tr>
+                                <td>
+                                    <i class="bi bi-database"></i>
+                                    <strong>{{ record.display_name }}</strong>
+                                    <small class="text-muted d-block">{{ record.table }}</small>
+                                </td>
+                                <td>
+                                    {% if record.is_enabled %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Enabled</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.detection_mode == 'hard' %}
+                                    <span class="badge bg-danger">Hard Block</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Soft Warning</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ (record.similarity_threshold * 100)|round(0)|int }}%</span>
+                                </td>
+                                <td>
+                                    {% for field in record.key_fields[:3] %}
+                                    <span class="badge bg-light text-dark">{{ field }}</span>
+                                    {% endfor %}
+                                    {% if record.key_fields|length > 3 %}
+                                    <span class="text-muted">+{{ record.key_fields|length - 3 }} more</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.allow_override %}
+                                    <span class="text-success"><i class="bi bi-check-lg"></i> Yes</span>
+                                    {% else %}
+                                    <span class="text-danger"><i class="bi bi-x-lg"></i> No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('duplicate_detection.edit_config', record_type=record.type) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i> Configure
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Detection Modes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6><span class="badge bg-warning text-dark">Soft Warning</span></h6>
+                        <p class="text-muted mb-0">Users are warned about potential duplicates but can proceed with justification (default).</p>
+                    </div>
+                    <div>
+                        <h6><span class="badge bg-danger">Hard Block</span></h6>
+                        <p class="text-muted mb-0">Exact matches are blocked. Only administrators can override with documented justification.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-layers"></i> Detection Layers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong><i class="bi bi-bullseye text-danger"></i> Exact Match</strong>
+                        <span class="text-muted">- Primary identifiers (codes, IDs, emails)</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong><i class="bi bi-type text-warning"></i> Normalized Match</strong>
+                        <span class="text-muted">- Case-insensitive, whitespace-trimmed</span>
+                    </div>
+                    <div>
+                        <strong><i class="bi bi-diagram-3 text-info"></i> Fuzzy Match</strong>
+                        <span class="text-muted">- Similarity scoring with configurable threshold</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

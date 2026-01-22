@@ -1,0 +1,224 @@
+You are a Principal Software Architect and Data Integrity Engineer responsible for enhancing Dynamic.IQ-COREx with enterprise-grade duplicate record prevention.
+Your solution must preserve data integrity, auditability, performance, and user experience.
+
+Objective
+
+Add a duplicate detection, blocking, and user-prompt mechanism that:
+
+Prevents creation of exact and near-duplicate records
+
+Warns users before save when a potential duplicate is detected
+
+Allows controlled override with justification (where permitted)
+
+Maintains ISO/AS-style traceability and audit logs
+
+Scope of Coverage
+
+Apply duplicate detection across all master and transactional records, including but not limited to:
+
+Customers
+
+Suppliers
+
+Parts / Items
+
+Assets / Equipment
+
+Work Orders
+
+Purchase Orders
+
+Quality Records (NCRs, CAPAs, Audits)
+
+The system must be configurable per record type.
+
+Functional Requirements
+1. Duplicate Detection Engine
+
+Implement a multi-layer duplicate detection service:
+
+Detection Types
+
+Exact Match
+
+Primary identifiers (e.g., Part Number, Supplier ID, Customer Code)
+
+Normalized Match
+
+Case-insensitive
+
+Trimmed whitespace
+
+Special-character removal
+
+Fuzzy / Similarity Match
+
+Levenshtein distance
+
+Token similarity (name + address, description, etc.)
+
+Configurable similarity threshold (default: 85%)
+
+Architecture
+
+Centralized DuplicateDetectionService
+
+Invoked on:
+
+Record creation
+
+Record update (key fields only)
+
+Bulk imports / API ingestion
+
+2. Pre-Save Validation Flow
+
+Before any record is committed:
+
+Validate against duplicate detection rules
+
+If duplicate probability > threshold:
+
+Block auto-save
+
+Trigger user prompt modal
+
+If exact duplicate:
+
+Hard block save (no override unless admin)
+
+3. User Prompt & Decision Handling
+
+When a potential duplicate is detected, display a modal with:
+
+Detected matching records
+
+Similarity score
+
+Fields causing the match
+
+Action options:
+
+View existing record
+
+Cancel creation
+
+Proceed anyway (if permitted)
+
+Override Rules
+
+Override allowed only for:
+
+Authorized roles
+
+Configurable record types
+
+Override requires:
+
+Mandatory justification comment
+
+Logged user ID, timestamp, record type
+
+4. Configuration & Administration
+
+Add a Duplicate Control Configuration Panel:
+
+Enable/disable duplicate checks per module
+
+Define:
+
+Key fields
+
+Match weights
+
+Similarity thresholds
+
+Configure:
+
+Hard-block vs soft-warning behavior
+
+Role-based override permissions
+
+Data Integrity & Auditability
+Audit Logging
+
+Log all duplicate events:
+
+Record type
+
+Detected duplicate IDs
+
+Similarity score
+
+User decision
+
+Justification (if overridden)
+
+Timestamp
+
+Logs must be:
+
+Immutable
+
+Queryable
+
+Exportable for ISO / AS audits
+
+Performance & Scalability
+
+Use indexed fields for exact matches
+
+Cache recent duplicate checks
+
+Async fuzzy matching for large datasets
+
+Ensure <200ms response time on save for standard records
+
+Security Requirements
+
+Prevent bypass via API or bulk upload
+
+Apply duplicate checks at:
+
+UI layer
+
+API/service layer
+
+Enforce role permissions server-side
+
+AI Enhancement (Optional but Recommended)
+
+Integrate Dynamic.IQ Intelligence:
+
+Learn from override patterns
+
+Suggest record merges
+
+Improve similarity weighting over time
+
+Flag systemic duplication risks
+
+Deliverables
+
+Duplicate Detection Service
+
+Pre-save validation hooks
+
+User prompt UI components
+
+Configuration & admin panel
+
+Audit logging mechanism
+
+API enforcement for external integrations
+
+Success Criteria
+
+Zero silent duplicate creation
+
+Full traceability of overrides
+
+Configurable and scalable across modules
+
+Enterprise-grade data integrity compliance

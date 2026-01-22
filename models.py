@@ -5553,6 +5553,72 @@ def init_qms_tables(cursor):
     except:
         pass
     
+    # Duplicate Detection Configuration table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS duplicate_detection_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_type TEXT NOT NULL UNIQUE,
+            is_enabled INTEGER DEFAULT 1,
+            detection_mode TEXT DEFAULT 'soft',
+            similarity_threshold REAL DEFAULT 0.85,
+            key_fields TEXT,
+            match_weights TEXT,
+            allow_override INTEGER DEFAULT 1,
+            override_roles TEXT DEFAULT 'Admin',
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            modified_by INTEGER,
+            modified_at TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id),
+            FOREIGN KEY (modified_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Duplicate Detection Audit Log table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS duplicate_detection_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_type TEXT NOT NULL,
+            action_type TEXT NOT NULL,
+            source_record_data TEXT,
+            detected_duplicates TEXT,
+            highest_similarity_score REAL,
+            match_details TEXT,
+            user_decision TEXT,
+            justification TEXT,
+            override_approved INTEGER DEFAULT 0,
+            performed_by INTEGER,
+            performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            session_id TEXT,
+            FOREIGN KEY (performed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Duplicate Detection Cache table for performance
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS duplicate_detection_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_type TEXT NOT NULL,
+            record_id INTEGER NOT NULL,
+            normalized_key TEXT NOT NULL,
+            key_fields_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP
+        )
+    ''')
+    
+    # Duplicate Detection indexes
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_config_type ON duplicate_detection_config(record_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_log_type ON duplicate_detection_log(record_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_log_user ON duplicate_detection_log(performed_by)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_log_date ON duplicate_detection_log(performed_at)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_cache_type ON duplicate_detection_cache(record_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_cache_key ON duplicate_detection_cache(normalized_key)')
+    except:
+        pass
+    
     # Create indexes for QMS tables
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_qms_sops_status ON qms_sops(status)')

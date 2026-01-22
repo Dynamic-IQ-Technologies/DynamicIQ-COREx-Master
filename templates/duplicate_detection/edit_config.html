@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Configure {{ type_config.display_name }} Duplicate Detection{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-gear text-primary"></i> {{ type_config.display_name }} Detection Settings</h2>
+            <p class="text-muted mb-0">Configure duplicate detection rules for {{ type_config.display_name }} records</p>
+        </div>
+        <div>
+            <a href="{{ url_for('duplicate_detection.admin_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">General Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Detection Status</label>
+                                <select name="is_enabled" class="form-select">
+                                    <option value="1" {% if config.is_enabled %}selected{% endif %}>Enabled</option>
+                                    <option value="0" {% if not config.is_enabled %}selected{% endif %}>Disabled</option>
+                                </select>
+                                <small class="text-muted">Enable or disable duplicate detection for this record type</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Detection Mode</label>
+                                <select name="detection_mode" class="form-select">
+                                    <option value="soft" {% if config.detection_mode == 'soft' %}selected{% endif %}>Soft Warning</option>
+                                    <option value="hard" {% if config.detection_mode == 'hard' %}selected{% endif %}>Hard Block</option>
+                                </select>
+                                <small class="text-muted">Hard block prevents all saves on exact matches</small>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Similarity Threshold</label>
+                                <div class="input-group">
+                                    <input type="number" name="similarity_threshold" class="form-control" 
+                                           value="{{ (config.similarity_threshold * 100)|round(0)|int }}" 
+                                           min="50" max="100" step="1">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">Minimum similarity score to flag as potential duplicate (50-100%)</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Allow Override</label>
+                                <select name="allow_override" class="form-select">
+                                    <option value="1" {% if config.allow_override %}selected{% endif %}>Yes - With Justification</option>
+                                    <option value="0" {% if not config.allow_override %}selected{% endif %}>No - Never Allow</option>
+                                </select>
+                                <small class="text-muted">Allow authorized users to override duplicate warnings</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">Override Permissions</h5>
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label">Roles Allowed to Override</label>
+                        <div class="row">
+                            {% for role in ['Admin', 'Manager', 'Planner', 'Supervisor', 'User'] %}
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="override_roles" 
+                                           value="{{ role }}" id="role_{{ role }}"
+                                           {% if role in config.override_roles %}checked{% endif %}>
+                                    <label class="form-check-label" for="role_{{ role }}">{{ role }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">Field Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Exact Match Fields</h6>
+                        <p class="text-muted small">These fields require exact matches:</p>
+                        <ul class="list-unstyled">
+                            {% for field in type_config.exact_fields %}
+                            <li><span class="badge bg-danger">{{ field }}</span></li>
+                            {% endfor %}
+                        </ul>
+
+                        <h6 class="mt-3">Fuzzy Match Fields</h6>
+                        <p class="text-muted small">These fields use similarity scoring:</p>
+                        <ul class="list-unstyled">
+                            {% for field in type_config.fuzzy_fields %}
+                            <li><span class="badge bg-info">{{ field }}</span></li>
+                            {% endfor %}
+                        </ul>
+
+                        <h6 class="mt-3">All Key Fields</h6>
+                        <p class="text-muted small">Fields used in duplicate detection:</p>
+                        <ul class="list-unstyled">
+                            {% for field in type_config.key_fields %}
+                            <li><span class="badge bg-secondary">{{ field }}</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm bg-light">
+                    <div class="card-body">
+                        <h6><i class="bi bi-lightbulb text-warning"></i> Tips</h6>
+                        <ul class="small text-muted mb-0">
+                            <li>Use 85% threshold for balanced detection</li>
+                            <li>Hard block mode is recommended for critical identifiers</li>
+                            <li>Require justification for all overrides</li>
+                            <li>Review audit logs regularly</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('duplicate_detection.admin_dashboard') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> Save Configuration
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    var threshold = parseInt(document.querySelector('input[name="similarity_threshold"]').value);
+    if (threshold < 50 || threshold > 100) {
+        e.preventDefault();
+        alert('Similarity threshold must be between 50 and 100');
+        return;
+    }
+    document.querySelector('input[name="similarity_threshold"]').value = threshold / 100;
+});
+</script>
+{% endblock %}

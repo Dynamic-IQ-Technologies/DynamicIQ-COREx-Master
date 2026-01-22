@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Duplicate Detection Audit Log{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-journal-text text-primary"></i> Duplicate Detection Audit Log</h2>
+            <p class="text-muted mb-0">Complete history of duplicate detection events and user decisions</p>
+        </div>
+        <div>
+            <a href="{{ url_for('duplicate_detection.admin_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Configuration
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Record Type</label>
+                    <select name="type" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Record Types</option>
+                        {% for key, config in record_types.items() %}
+                        <option value="{{ key }}" {% if filter_type == key %}selected{% endif %}>{{ config.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Record Type</th>
+                        <th>Action</th>
+                        <th>Duplicates Found</th>
+                        <th>Similarity</th>
+                        <th>Decision</th>
+                        <th>User</th>
+                        <th>Justification</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>
+                            <small>{{ log.performed_at[:19] if log.performed_at else '' }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ log.record_type }}</span>
+                        </td>
+                        <td>{{ log.action_type }}</td>
+                        <td>
+                            {% if log.detected_duplicates %}
+                            {% set dups = log.detected_duplicates|tojson|safe %}
+                            <span class="badge bg-warning text-dark">
+                                {{ (dups|from_json|length if dups else 0) }} found
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.highest_similarity_score %}
+                            <span class="badge {% if log.highest_similarity_score >= 0.95 %}bg-danger{% elif log.highest_similarity_score >= 0.85 %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                {{ (log.highest_similarity_score * 100)|round(1) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.user_decision == 'override' %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Override</span>
+                            {% elif log.user_decision == 'cancel' %}
+                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Cancelled</span>
+                            {% elif log.user_decision == 'proceed' %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Proceeded</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark">{{ log.user_decision or '-' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.performed_by_name or 'System' }}</td>
+                        <td>
+                            {% if log.justification %}
+                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ log.justification }}">
+                                {{ log.justification[:50] }}{% if log.justification|length > 50 %}...{% endif %}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-journal display-6 d-block mb-2"></i>
+                            No duplicate detection events recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
