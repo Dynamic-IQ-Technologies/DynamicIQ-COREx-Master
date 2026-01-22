@@ -85,6 +85,17 @@ The system incorporates a novel architecture for ERP exchange management, compri
     - Conversational chat interface for guidance requests
     - Contextual quick-action suggestions based on transaction type
     - Backend API routes: `/api/corex-guide/assist`, `/api/corex-guide/validate-field`, `/api/corex-guide/transaction-check`
+-   **Duplicate Detection System**: Enterprise-grade duplicate record prevention with multi-layer detection:
+    - Three detection algorithms: exact match (100%), normalized match (case/whitespace insensitive), fuzzy match (Levenshtein distance-based similarity)
+    - Configurable similarity thresholds (50-100%) per record type
+    - Two detection modes: 'soft' (warning with override) and 'hard' (block with admin-only override)
+    - Supported record types: customers, suppliers, products, work_orders, purchase_orders, sales_orders, assets, labor_resources, leads
+    - Role-based override permissions with required justification
+    - Server-side enforcement via `/api/duplicate-detection/enforce` endpoint
+    - Comprehensive audit logging of all detection events and override decisions
+    - Admin configuration panel under Administration > Duplicate Detection
+    - Reusable modal component (`templates/components/duplicate_modal.html`) for form integration
+    - Database tables: duplicate_detection_config, duplicate_detection_log, duplicate_detection_cache
 
 ## External Dependencies
 

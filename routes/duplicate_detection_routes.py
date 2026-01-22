@@ -55,10 +55,15 @@ def edit_config(record_type):
     type_config = RECORD_TYPE_CONFIG[record_type]
     
     if request.method == 'POST':
+        threshold_raw = float(request.form.get('similarity_threshold', 0.85))
+        if threshold_raw > 1.0:
+            threshold_raw = threshold_raw / 100.0
+        threshold_raw = max(0.5, min(1.0, threshold_raw))
+        
         config_data = {
             'is_enabled': request.form.get('is_enabled') == '1',
             'detection_mode': request.form.get('detection_mode', 'soft'),
-            'similarity_threshold': float(request.form.get('similarity_threshold', 0.85)),
+            'similarity_threshold': threshold_raw,
             'allow_override': request.form.get('allow_override') == '1',
             'override_roles': request.form.getlist('override_roles')
         }
@@ -206,6 +211,48 @@ def bulk_check():
         'exact_matches': exact_matches,
         'results': results
     })
+
+
+@duplicate_detection_bp.route('/api/duplicate-detection/enforce', methods=['POST'])
+@login_required
+def enforce_duplicate_check():
+    """Server-side enforcement for form submissions - MUST be called before saves"""
+    data = request.get_json()
+    record_type = data.get('record_type')
+    field_values = data.get('field_values', {})
+    override_token = data.get('override_token')
+    exclude_id = data.get('exclude_id')
+    
+    if not record_type:
+        return jsonify({'error': 'Missing record_type'}), 400
+    
+    if record_type not in RECORD_TYPE_CONFIG:
+        return jsonify({'allowed': True, 'reason': 'Unknown record type'})
+    
+    user_role = session.get('role', 'User')
+    
+    service = get_duplicate_service()
+    result = service.enforce_server_side(
+        record_type=record_type,
+        field_values=field_values,
+        user_role=user_role,
+        override_token=override_token,
+        exclude_id=exclude_id
+    )
+    
+    if not result['allowed']:
+        service.log_detection_event(
+            record_type=record_type,
+            action_type='CREATE' if not exclude_id else 'UPDATE',
+            source_data=field_values,
+            duplicates=result.get('duplicates', []),
+            user_decision='blocked',
+            justification=result['reason'],
+            user_id=session.get('user_id'),
+            ip_address=request.remote_addr
+        )
+    
+    return jsonify(result)
 
 
 def get_view_url(record_type, record_id):

@@ -133,7 +133,7 @@ class DuplicateDetectionService:
         return previous_row[-1]
     
     def similarity_score(self, s1, s2):
-        """Calculate similarity score between 0 and 1"""
+        """Calculate similarity score between 0 and 1 using Levenshtein distance"""
         if not s1 or not s2:
             return 0.0
         s1_norm = self.normalize_text(s1)
@@ -142,7 +142,12 @@ class DuplicateDetectionService:
         if s1_norm == s2_norm:
             return 1.0
         
-        return SequenceMatcher(None, s1_norm, s2_norm).ratio()
+        if not s1_norm or not s2_norm:
+            return 0.0
+        
+        distance = self.levenshtein_distance(s1_norm, s2_norm)
+        max_len = max(len(s1_norm), len(s2_norm))
+        return 1.0 - (distance / max_len)
     
     def token_similarity(self, s1, s2):
         """Calculate token-based similarity for multi-word strings"""
@@ -497,6 +502,70 @@ class DuplicateDetectionService:
                 }
         
         return result
+    
+    def enforce_server_side(self, record_type, field_values, user_role, override_token=None, exclude_id=None):
+        """
+        Server-side enforcement for duplicate detection.
+        Returns: {'allowed': bool, 'reason': str, 'duplicates': list}
+        
+        This method MUST be called in create/update routes to prevent bypass of client-side checks.
+        """
+        config = self.get_config(record_type)
+        
+        if not config['is_enabled']:
+            return {'allowed': True, 'reason': 'Detection disabled', 'duplicates': []}
+        
+        result = self.detect_duplicates(record_type, field_values, exclude_id=exclude_id)
+        
+        if not result['has_duplicates']:
+            return {'allowed': True, 'reason': 'No duplicates found', 'duplicates': []}
+        
+        if result['is_exact_match'] and config['detection_mode'] == 'hard':
+            if not config['allow_override']:
+                return {
+                    'allowed': False,
+                    'reason': 'Exact duplicate exists. Hard block mode - no overrides allowed.',
+                    'duplicates': result['duplicates']
+                }
+            
+            if user_role not in config['override_roles']:
+                return {
+                    'allowed': False,
+                    'reason': f'Exact duplicate exists. Only {", ".join(config["override_roles"])} can override.',
+                    'duplicates': result['duplicates']
+                }
+            
+            if not override_token:
+                return {
+                    'allowed': False,
+                    'reason': 'Override token required for exact match in hard block mode.',
+                    'duplicates': result['duplicates']
+                }
+        
+        if result['highest_score'] >= config['similarity_threshold']:
+            if config['detection_mode'] == 'soft':
+                return {
+                    'allowed': True,
+                    'reason': 'Soft warning - proceed with caution',
+                    'duplicates': result['duplicates'],
+                    'warning': True
+                }
+            
+            if user_role in config['override_roles'] and override_token:
+                return {
+                    'allowed': True,
+                    'reason': 'Override granted',
+                    'duplicates': result['duplicates']
+                }
+            
+            if not config['allow_override']:
+                return {
+                    'allowed': False,
+                    'reason': 'Potential duplicate detected. Overrides are disabled.',
+                    'duplicates': result['duplicates']
+                }
+        
+        return {'allowed': True, 'reason': 'Below threshold', 'duplicates': []}
     
     def get_audit_logs(self, record_type=None, limit=100):
         """Get duplicate detection audit logs"""

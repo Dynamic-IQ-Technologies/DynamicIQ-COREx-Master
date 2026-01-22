@@ -17,6 +17,16 @@
                     <strong>Exact Match Found!</strong> A record with identical key fields already exists.
                 </div>
                 
+                <div id="dupHardBlockWarning" class="alert alert-danger d-none">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <strong>Hard Block Mode:</strong> This duplicate detection is configured to block saves. You must have administrator approval or use an existing record.
+                </div>
+                
+                <div id="dupSoftWarning" class="alert alert-warning d-none">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Warning Mode:</strong> Potential duplicates detected. You may proceed with justification if needed.
+                </div>
+                
                 <p id="dupDescription">
                     We found existing records that may be duplicates. Please review before proceeding.
                 </p>
@@ -148,8 +158,11 @@ class DuplicateDetectionHandler {
     showDuplicateModal(result) {
         this.currentDuplicates = result.duplicates;
         this.canOverride = result.can_override;
+        this.detectionMode = result.detection_mode || 'soft';
 
         const exactWarning = document.getElementById('dupExactWarning');
+        const hardBlockWarning = document.getElementById('dupHardBlockWarning');
+        const softWarning = document.getElementById('dupSoftWarning');
         const overrideSection = document.getElementById('dupOverrideSection');
         const noOverride = document.getElementById('dupNoOverride');
         const proceedBtn = document.getElementById('dupProceedBtn');
@@ -157,6 +170,8 @@ class DuplicateDetectionHandler {
         const matchesList = document.getElementById('dupMatchesList');
 
         exactWarning.classList.toggle('d-none', !result.is_exact_match);
+        hardBlockWarning.classList.toggle('d-none', this.detectionMode !== 'hard');
+        softWarning.classList.toggle('d-none', this.detectionMode !== 'soft');
         
         document.getElementById('dupModalTitle').textContent = 
             result.is_exact_match ? 'Exact Duplicate Found' : 'Potential Duplicate Detected';
