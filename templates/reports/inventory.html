@@ -3,14 +3,22 @@
 {% block title %}Inventory Report - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Inventory Report</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-box-seam"></i> Inventory Report</h2>
+    <div>
+        <a href="{{ url_for('report_routes.inventory_report', **filters, sort_by=sort_by, sort_order=sort_order) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </a>
+    </div>
+</div>
 
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="card">
             <div class="card-body">
-                <h5 class="text-muted mb-1">Total Inventory Value</h5>
+                <h5 class="text-muted mb-1">Total Inventory Value (Filtered)</h5>
                 <h3 class="mb-0">{{ total_value|currency }}</h3>
+                <small class="text-muted">{{ inventory_data|length }} items</small>
             </div>
         </div>
     </div>
@@ -29,26 +37,114 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-funnel"></i> Filters & Sorting</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" action="{{ url_for('report_routes.inventory_report') }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" name="search" value="{{ filters.search }}" placeholder="Code, name, or serial...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Product Type</label>
+                    <select class="form-select" name="product_type">
+                        <option value="">All Types</option>
+                        {% for pt in product_types %}
+                        <option value="{{ pt.product_type }}" {{ 'selected' if filters.product_type == pt.product_type else '' }}>{{ pt.product_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Location</label>
+                    <input type="text" class="form-control" name="location" value="{{ filters.location }}" placeholder="Location...">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Min Qty</label>
+                    <input type="number" class="form-control" name="min_qty" value="{{ filters.min_qty }}" step="any">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Max Qty</label>
+                    <input type="number" class="form-control" name="max_qty" value="{{ filters.max_qty }}" step="any">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Sort By</label>
+                    <select class="form-select" name="sort_by">
+                        <option value="total_value" {{ 'selected' if sort_by == 'total_value' else '' }}>Total Value</option>
+                        <option value="code" {{ 'selected' if sort_by == 'code' else '' }}>Code</option>
+                        <option value="name" {{ 'selected' if sort_by == 'name' else '' }}>Product Name</option>
+                        <option value="quantity" {{ 'selected' if sort_by == 'quantity' else '' }}>Quantity</option>
+                        <option value="effective_cost" {{ 'selected' if sort_by == 'effective_cost' else '' }}>Unit Cost</option>
+                        <option value="product_type" {{ 'selected' if sort_by == 'product_type' else '' }}>Product Type</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Order</label>
+                    <select class="form-select" name="sort_order">
+                        <option value="desc" {{ 'selected' if sort_order == 'desc' else '' }}>Desc</option>
+                        <option value="asc" {{ 'selected' if sort_order == 'asc' else '' }}>Asc</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Apply Filters
+                    </button>
+                    <a href="{{ url_for('report_routes.inventory_report') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
+            <table class="table table-striped table-hover">
+                <thead class="table-light">
                     <tr>
-                        <th>Code</th>
-                        <th>Product</th>
+                        <th>
+                            <a href="{{ url_for('report_routes.inventory_report', search=filters.search, product_type=filters.product_type, location=filters.location, min_qty=filters.min_qty, max_qty=filters.max_qty, sort_by='code', sort_order='asc' if sort_by == 'code' and sort_order == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Code {% if sort_by == 'code' %}<i class="bi bi-caret-{{ 'up' if sort_order == 'asc' else 'down' }}-fill"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('report_routes.inventory_report', search=filters.search, product_type=filters.product_type, location=filters.location, min_qty=filters.min_qty, max_qty=filters.max_qty, sort_by='name', sort_order='asc' if sort_by == 'name' and sort_order == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Product {% if sort_by == 'name' %}<i class="bi bi-caret-{{ 'up' if sort_order == 'asc' else 'down' }}-fill"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>Type</th>
                         <th>Serial Number</th>
-                        <th>Quantity</th>
+                        <th>Location</th>
+                        <th>
+                            <a href="{{ url_for('report_routes.inventory_report', search=filters.search, product_type=filters.product_type, location=filters.location, min_qty=filters.min_qty, max_qty=filters.max_qty, sort_by='quantity', sort_order='asc' if sort_by == 'quantity' and sort_order == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Qty {% if sort_by == 'quantity' %}<i class="bi bi-caret-{{ 'up' if sort_order == 'asc' else 'down' }}-fill"></i>{% endif %}
+                            </a>
+                        </th>
                         <th>UOM</th>
-                        <th>Unit Cost</th>
-                        <th>Total Value</th>
+                        <th>
+                            <a href="{{ url_for('report_routes.inventory_report', search=filters.search, product_type=filters.product_type, location=filters.location, min_qty=filters.min_qty, max_qty=filters.max_qty, sort_by='effective_cost', sort_order='asc' if sort_by == 'effective_cost' and sort_order == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Unit Cost {% if sort_by == 'effective_cost' %}<i class="bi bi-caret-{{ 'up' if sort_order == 'asc' else 'down' }}-fill"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('report_routes.inventory_report', search=filters.search, product_type=filters.product_type, location=filters.location, min_qty=filters.min_qty, max_qty=filters.max_qty, sort_by='total_value', sort_order='asc' if sort_by == 'total_value' and sort_order == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                Total Value {% if sort_by == 'total_value' %}<i class="bi bi-caret-{{ 'up' if sort_order == 'asc' else 'down' }}-fill"></i>{% endif %}
+                            </a>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in inventory_data %}
                     <tr>
-                        <td>{{ item.code }}</td>
+                        <td><a href="{{ url_for('inventory_routes.view_inventory', id=item.id) }}">{{ item.code }}</a></td>
                         <td>{{ item.name }}</td>
+                        <td><span class="badge bg-secondary">{{ item.product_type }}</span></td>
                         <td>
                             {% if item.is_serialized and item.serial_number %}
                             <span class="badge bg-info">{{ item.serial_number }}</span>
@@ -58,15 +154,28 @@
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
+                        <td>{{ item.location or '-' }}</td>
                         <td>{{ item.quantity }}</td>
                         <td>{{ item.unit_of_measure }}</td>
                         <td>{{ item.effective_cost|currency }}</td>
-                        <td>{{ item.total_value|currency }}</td>
+                        <td><strong>{{ item.total_value|currency }}</strong></td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="8" class="text-end">Total:</th>
+                        <th>{{ total_value|currency }}</th>
+                    </tr>
+                </tfoot>
             </table>
         </div>
+        {% if not inventory_data %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+            <p class="mb-0 mt-2">No inventory items match your filters</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

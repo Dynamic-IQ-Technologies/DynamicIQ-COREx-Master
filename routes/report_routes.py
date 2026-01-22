@@ -20,17 +20,69 @@ def inventory_report():
     db = Database()
     conn = db.get_connection()
     
-    # Use actual unit_cost from inventory, fall back to product cost if not set
-    inventory_data = conn.execute('''
-        SELECT i.*, p.code, p.name, p.unit_of_measure, p.cost as product_cost,
+    # Get filter parameters
+    search = request.args.get('search', '').strip()
+    product_type = request.args.get('product_type', '')
+    location = request.args.get('location', '')
+    min_qty = request.args.get('min_qty', '')
+    max_qty = request.args.get('max_qty', '')
+    
+    # Get sort parameters
+    sort_by = request.args.get('sort_by', 'total_value')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    valid_sort_cols = ['code', 'name', 'serial_number', 'quantity', 'effective_cost', 'total_value', 'product_type', 'location']
+    if sort_by not in valid_sort_cols:
+        sort_by = 'total_value'
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    # Build query with filters
+    query = '''
+        SELECT i.*, p.code, p.name, p.unit_of_measure, p.cost as product_cost, p.product_type,
                COALESCE(i.unit_cost, p.cost, 0) as effective_cost,
                (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
-        ORDER BY total_value DESC
-    ''').fetchall()
+        WHERE 1=1
+    '''
+    params = []
+    
+    if search:
+        query += ' AND (p.code LIKE ? OR p.name LIKE ? OR i.serial_number LIKE ?)'
+        search_pattern = f'%{search}%'
+        params.extend([search_pattern, search_pattern, search_pattern])
+    
+    if product_type:
+        query += ' AND p.product_type = ?'
+        params.append(product_type)
+    
+    if location:
+        query += ' AND i.location LIKE ?'
+        params.append(f'%{location}%')
+    
+    if min_qty:
+        try:
+            query += ' AND i.quantity >= ?'
+            params.append(float(min_qty))
+        except ValueError:
+            pass
+    
+    if max_qty:
+        try:
+            query += ' AND i.quantity <= ?'
+            params.append(float(max_qty))
+        except ValueError:
+            pass
+    
+    query += f' ORDER BY {sort_by} {sort_order.upper()}'
+    
+    inventory_data = conn.execute(query, params).fetchall()
     
     total_inventory_value = sum(item['total_value'] or 0 for item in inventory_data)
+    
+    # Get product types for filter dropdown
+    product_types = conn.execute('SELECT DISTINCT product_type FROM products ORDER BY product_type').fetchall()
     
     # Get GL balance for comparison
     gl_balance = conn.execute('''
@@ -47,7 +99,17 @@ def inventory_report():
     return render_template('reports/inventory.html', 
                          inventory_data=inventory_data,
                          total_value=total_inventory_value,
-                         gl_balance=gl_balance['balance'] if gl_balance else 0)
+                         gl_balance=gl_balance['balance'] if gl_balance else 0,
+                         product_types=product_types,
+                         filters={
+                             'search': search,
+                             'product_type': product_type,
+                             'location': location,
+                             'min_qty': min_qty,
+                             'max_qty': max_qty
+                         },
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @report_bp.route('/reports/workorder-costs')
 @login_required
