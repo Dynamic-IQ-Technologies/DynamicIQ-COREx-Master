@@ -71,6 +71,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Invoice Customer Email Portal**: Token-based secure customer portal for viewing invoices with email delivery.
 -   **Supplier Portal for Interactive PO Management**: Token-based secure supplier portal for viewing and updating open purchase orders.
 -   **FAA-Compliant Inventory Labels**: Generate printable PDF labels for inventory items complying with FAA regulations.
+-   **Tool Labels with Calibration Tracking**: Generate printable PDF labels for tools and equipment including Tool Name, Description, Purchase Date, Supplier, Manufacturer, Last Calibration Date, and Next Calibration Date. Supports multiple label sizes (4x6, 4x4, 4x3, 3x2) and mass printing for multiple tools.
 -   **Executive Sales Dashboard**: C-Suite strategic intelligence dashboard for MRO operations with KPIs and AI Copilot.
 -   **Executive Procurement Dashboard**: Supply chain strategic intelligence dashboard for procurement operations with KPIs and AI Copilot.
 -   **Leads Management System**: CRM-grade lead capture, evaluation, and conversion module with AI-powered sales engagement.
