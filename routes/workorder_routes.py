@@ -347,9 +347,16 @@ def create_workorder():
     
     next_wo_number = f'WO-{next_number:06d}'
     
+    # Pre-populate from URL parameters (e.g., from inventory page)
+    prefill = {
+        'product_id': request.args.get('product_id', ''),
+        'serial_number': request.args.get('serial_number', ''),
+        'customer_id': request.args.get('customer_id', '')
+    }
+    
     conn.close()
     
-    return render_template('workorders/create.html', products=products, customers=customers, stages=stages, next_wo_number=next_wo_number, master_routings=master_routings)
+    return render_template('workorders/create.html', products=products, customers=customers, stages=stages, next_wo_number=next_wo_number, master_routings=master_routings, prefill=prefill)
 
 @workorder_bp.route('/workorders/<int:id>')
 @login_required

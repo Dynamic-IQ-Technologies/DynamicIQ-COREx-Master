@@ -135,15 +135,16 @@ def dashboard():
     inventory_value = conn.execute(inventory_value_query).fetchone()['inventory_value']
     
     # Period-based KPIs
-    # KPI 8: A/P Payments Made During Period
+    # KPI 8: A/P Payments Made During Period (from vendor_invoices paid during period)
     ap_payments_params = [start_date, end_date]
     ap_payments_query = '''
-        SELECT COALESCE(SUM(vp.amount), 0) as payments_made
-        FROM vendor_payments vp
-        WHERE vp.payment_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(vi.amount_paid), 0) as payments_made
+        FROM vendor_invoices vi
+        WHERE vi.payment_date BETWEEN ? AND ?
+        AND vi.status = 'Paid'
     '''
     if vendor_filter:
-        ap_payments_query += ' AND vp.vendor_id = ?'
+        ap_payments_query += ' AND vi.vendor_id = ?'
         ap_payments_params.append(vendor_filter)
     ap_payments = conn.execute(ap_payments_query, ap_payments_params).fetchone()['payments_made']
     
@@ -159,11 +160,12 @@ def dashboard():
     ar_billed = ar_billed_result['total_billed']
     ar_invoice_count = ar_billed_result['invoice_count']
     
-    # KPI 10: A/R Collections During Period
+    # KPI 10: A/R Collections During Period (from payments table)
     ar_collections_query = '''
-        SELECT COALESCE(SUM(ip.amount), 0) as collections
-        FROM invoice_payments ip
-        WHERE ip.payment_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(p.amount), 0) as collections
+        FROM payments p
+        WHERE p.payment_date BETWEEN ? AND ?
+        AND p.reference_type = 'invoice'
     '''
     ar_collections = conn.execute(ar_collections_query, (start_date, end_date)).fetchone()['collections']
     

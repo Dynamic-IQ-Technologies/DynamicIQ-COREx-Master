@@ -19,7 +19,7 @@
                         <select class="form-select" id="product_id" name="product_id" required>
                             <option value="">Select Product</option>
                             {% for product in products %}
-                            <option value="{{ product.id }}">{{ product.code }} - {{ product.name }}</option>
+                            <option value="{{ product.id }}" {% if prefill and prefill.product_id|string == product.id|string %}selected{% endif %}>{{ product.code }} - {{ product.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -30,7 +30,7 @@
                         <select class="form-select" id="customer_id" name="customer_id">
                             <option value="">Select Customer (Optional)</option>
                             {% for customer in customers %}
-                            <option value="{{ customer.id }}">{{ customer.customer_number }} - {{ customer.name }}</option>
+                            <option value="{{ customer.id }}" {% if prefill and prefill.customer_id|string == customer.id|string %}selected{% endif %}>{{ customer.customer_number }} - {{ customer.name }}</option>
                             {% endfor %}
                         </select>
                         <small class="text-muted">Select from customer database or leave blank</small>
@@ -63,7 +63,7 @@
                 <div class="col-md-2">
                     <div class="mb-3">
                         <label for="serial_number" class="form-label">Serial Number</label>
-                        <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Optional">
+                        <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Optional" value="{{ prefill.serial_number if prefill and prefill.serial_number else '' }}">
                     </div>
                 </div>
                 <div class="col-md-2">
