@@ -5608,6 +5608,20 @@ def init_qms_tables(cursor):
         )
     ''')
     
+    # NeuroIQ Audit Log table for transactional intelligence
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS neuroiq_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            user_message TEXT NOT NULL,
+            parsed_intent TEXT,
+            transaction_data TEXT,
+            ai_response TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    
     # Duplicate Detection indexes
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_config_type ON duplicate_detection_config(record_type)')

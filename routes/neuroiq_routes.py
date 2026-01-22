@@ -2,10 +2,12 @@ from flask import Blueprint, render_template, request, jsonify, session
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+from services.neuroiq_transaction_intelligence import TransactionIntelligenceService
 import json
 import os
 
 neuroiq_bp = Blueprint('neuroiq', __name__)
+transaction_intelligence = TransactionIntelligenceService()
 
 AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 AI_INTEGRATIONS_OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
@@ -161,8 +163,8 @@ def gather_system_context():
         context['sales']['exchange_pipeline_value'] = float(exchange_stats['exchange_value'] or 0)
         
         recent_work_orders = conn.execute('''
-            SELECT wo.id, wo.work_order_number, wo.status, wo.priority,
-                   p.name as product_name, wo.quantity, wo.start_date, wo.due_date
+            SELECT wo.id, wo.wo_number, wo.status, wo.priority,
+                   p.name as product_name, wo.quantity, wo.planned_start_date, wo.planned_end_date
             FROM work_orders wo
             LEFT JOIN products p ON wo.product_id = p.id
             ORDER BY wo.created_at DESC LIMIT 10
@@ -170,12 +172,12 @@ def gather_system_context():
         context['transactions']['recent_work_orders'] = []
         for row in recent_work_orders:
             context['transactions']['recent_work_orders'].append({
-                'wo_number': row['work_order_number'],
+                'wo_number': row['wo_number'],
                 'product': row['product_name'],
                 'status': row['status'],
                 'priority': row['priority'],
                 'quantity': row['quantity'],
-                'due_date': row['due_date']
+                'due_date': row['planned_end_date']
             })
         
         recent_invoices = conn.execute('''
@@ -256,6 +258,64 @@ All responses must be clear, confident, executive-level, and action-oriented. Av
 IDENTITY STATEMENT (IMMUTABLE):
 You are not a chatbot. You are not a dashboard. You are not a static assistant. You are a self-evolving executive intelligence designed to think with the organization and ahead of it. You operate as the highest-level advisory authority within Dynamic.IQ-COREx MRP System."""
 
+def get_transaction_intelligence_prompt():
+    """Generate the transaction intelligence enhancement prompt"""
+    return """TRANSACTION INTELLIGENCE CAPABILITIES:
+
+You have real-time access to query live transactional data across all system modules. When users ask about specific transactions, you receive detailed query results including status, blocking conditions, dependencies, and recommendations.
+
+TRANSACTION QUERY UNDERSTANDING:
+When users ask questions like:
+- "Why is work order WO-10421 still open?" - You receive blocking cause analysis with material shortages, pending tasks, and recommendations
+- "What inventory is holding up sales order SO-8892?" - You receive dependency graph showing material requirements and shortages
+- "Do we have enough stock to release today's work orders?" - You receive availability check results for all pending work orders
+- "Which exchanges are past due and why?" - You receive exception report with overdue items and root causes
+
+RESPONSE STRUCTURE FOR TRANSACTION QUERIES:
+1. Summary (1-2 sentences): State the current situation clearly
+2. Key Facts (brief): Reference specific data from query results
+3. Root Cause (if applicable): Explain WHY something is blocked or delayed
+4. Downstream Impact: What will be affected if this isn't resolved
+5. Recommended Action: Specific next step to resolve the issue
+
+EXPLAINABILITY REQUIREMENTS:
+When explaining why something is blocked, always reference:
+- The specific transaction involved
+- The blocking condition (material shortage, pending inspection, supplier delay, capacity constraint, quality hold, approval not completed)
+- The timestamp or event causing the delay
+- Any pending supply or resolution path
+
+CROSS-MODULE DEPENDENCY AWARENESS:
+You understand relationships between:
+- Inventory → Work Order → Sales Order
+- Quality Hold → Inventory Availability
+- Purchase Order Delay → WO Slip → SO Miss
+- Exchange Core Due → Customer Return → Revenue Recognition
+
+CRITICAL: Use the transaction query results provided to give ACCURATE answers grounded in live data. Never hallucinate transaction data. If data is unavailable, clearly state limitations."""
+
+def log_neuroiq_query(user_message, parsed_intent, transaction_data, response):
+    """Log NeuroIQ query for audit purposes"""
+    try:
+        db = Database()
+        conn = db.get_connection()
+        conn.execute('''
+            INSERT INTO neuroiq_audit_log (user_id, user_message, parsed_intent, 
+                                           transaction_data, ai_response, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            session.get('user_id'),
+            user_message,
+            json.dumps(parsed_intent) if parsed_intent else None,
+            json.dumps(transaction_data, default=str) if transaction_data else None,
+            response,
+            datetime.now().isoformat()
+        ))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
 @neuroiq_bp.route('/neuroiq')
 @login_required
 def neuroiq_dashboard():
@@ -266,7 +326,7 @@ def neuroiq_dashboard():
 @neuroiq_bp.route('/neuroiq/analyze', methods=['POST'])
 @login_required
 def neuroiq_analyze():
-    """Process user query through COREx NeuroIQ"""
+    """Process user query through COREx NeuroIQ with transactional intelligence"""
     try:
         data = request.get_json()
         user_message = data.get('message', '')
@@ -274,6 +334,14 @@ def neuroiq_analyze():
         
         if not user_message:
             return jsonify({'error': 'No message provided'}), 400
+        
+        parsed_intent = transaction_intelligence.parse_intent(user_message)
+        transaction_data = None
+        transaction_context = ""
+        
+        if parsed_intent['record_ids'] or parsed_intent['intent']['action'] in ['find_exceptions', 'check_availability', 'analyze_trend']:
+            transaction_data = transaction_intelligence.execute_query(parsed_intent, session.get('role', 'User'))
+            transaction_context = transaction_intelligence.format_response_context(transaction_data)
         
         context = gather_system_context()
         
@@ -313,8 +381,16 @@ RECENT TRANSACTIONS:
 {format_recent_transactions(context.get('transactions', {}))}
 """
         
+        if transaction_context:
+            context_summary += f"""
+
+TRANSACTION QUERY RESULTS (Live Data for User's Question):
+{transaction_context}
+"""
+        
         messages = [
             {"role": "system", "content": get_neuroiq_system_prompt()},
+            {"role": "system", "content": get_transaction_intelligence_prompt()},
             {"role": "system", "content": context_summary}
         ]
         
@@ -333,9 +409,12 @@ RECENT TRANSACTIONS:
         
         assistant_message = response.choices[0].message.content
         
+        log_neuroiq_query(user_message, parsed_intent, transaction_data, assistant_message)
+        
         return jsonify({
             'response': assistant_message,
-            'context_updated': context['timestamp']
+            'context_updated': context['timestamp'],
+            'parsed_intent': parsed_intent if data.get('include_debug') else None
         })
         
     except Exception as e:
