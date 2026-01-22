@@ -28,11 +28,15 @@ The environment is determined by the `REPLIT_DEPLOYMENT` flag:
 
 **Migration Script**: `python scripts/init_postgres.py` - Mirrors SQLite schema to PostgreSQL and migrates all data.
 
-**PostgreSQL Compatibility Layer**: The `PostgresConnection` wrapper in `models.py` provides SQLite-like interface:
+**PostgreSQL Compatibility Layer**: The `PostgresConnection` and `PostgresTranslatingCursor` wrappers in `models.py` provide comprehensive SQLite-to-PostgreSQL translation:
 -   Converts `?` placeholders to `%s` for PostgreSQL
+-   Translates `INTEGER PRIMARY KEY AUTOINCREMENT` to `SERIAL PRIMARY KEY`
+-   Converts SQLite date functions: `DATE('now')` → `CURRENT_DATE`, `DATE('now', '-X days')` → `CURRENT_DATE - INTERVAL 'X days'`
+-   Translates `strftime('%Y-%m', col)` → `TO_CHAR(col, 'YYYY-MM')` and other format patterns
+-   Converts `JULIANDAY(date)` → PostgreSQL Julian day calculation
 -   Automatically adds `RETURNING id` for simple INSERT statements
 -   Intercepts `SELECT last_insert_rowid()` calls and returns cached insert ID
--   Note: For full PostgreSQL parity, future refactoring should replace `SELECT last_insert_rowid()` calls with `cursor.lastrowid` usage
+-   `PostgresTranslatingCursor` wraps cursor.execute() to apply translations for services using cursor() method
 
 ### Patent-Eligible Architecture
 

@@ -23,6 +23,42 @@ if USE_POSTGRES:
     import psycopg2
     from psycopg2.extras import RealDictCursor
 
+class PostgresTranslatingCursor:
+    """Cursor wrapper that translates SQLite SQL to PostgreSQL"""
+    def __init__(self, cursor, translate_func):
+        self._cursor = cursor
+        self._translate = translate_func
+    
+    def execute(self, query, params=None):
+        query = self._translate(query)
+        query = query.replace('?', '%s')
+        if params:
+            self._cursor.execute(query, params)
+        else:
+            self._cursor.execute(query)
+        return self
+    
+    def fetchone(self):
+        return self._cursor.fetchone()
+    
+    def fetchall(self):
+        return self._cursor.fetchall()
+    
+    def fetchmany(self, size=None):
+        return self._cursor.fetchmany(size)
+    
+    def close(self):
+        self._cursor.close()
+    
+    @property
+    def description(self):
+        return self._cursor.description
+    
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+
 class PostgresConnection:
     """Wrapper to make psycopg2 connection behave more like sqlite3 connection"""
     def __init__(self, conn):
@@ -31,13 +67,17 @@ class PostgresConnection:
         self._last_insert_id = None
     
     def cursor(self):
-        """Return a cursor object for compatibility with code that uses conn.cursor()"""
+        """Return a wrapped cursor object that applies SQL translation"""
         from psycopg2.extras import RealDictCursor as RDC
-        return self._conn.cursor(cursor_factory=RDC)
+        raw_cursor = self._conn.cursor(cursor_factory=RDC)
+        return PostgresTranslatingCursor(raw_cursor, self._translate_sqlite_to_postgres)
     
     def _translate_sqlite_to_postgres(self, query):
-        """Translate SQLite-specific date functions to PostgreSQL equivalents"""
+        """Translate SQLite-specific functions to PostgreSQL equivalents"""
         import re
+        
+        # Replace SQLite AUTOINCREMENT with PostgreSQL SERIAL
+        query = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', query, flags=re.IGNORECASE)
         
         # Replace DATE('now', '-X days/months/years') with CURRENT_DATE - INTERVAL (do this first before simpler patterns)
         def replace_date_offset(match):
