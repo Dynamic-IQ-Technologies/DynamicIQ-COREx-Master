@@ -2423,6 +2423,7 @@ class Database:
                 condition TEXT DEFAULT 'Good',
                 purchase_date DATE,
                 purchase_cost REAL DEFAULT 0,
+                supplier_id INTEGER,
                 last_calibration_date DATE,
                 next_calibration_date DATE,
                 calibration_interval_days INTEGER,
@@ -2430,7 +2431,8 @@ class Database:
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP,
-                FOREIGN KEY (assigned_to) REFERENCES labor_resources(id)
+                FOREIGN KEY (assigned_to) REFERENCES labor_resources(id),
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
             )
         ''')
         
@@ -2456,6 +2458,11 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tools_category ON tools(category)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tool_checkouts_tool ON tool_checkouts(tool_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tool_checkouts_return ON tool_checkouts(return_date)')
+        
+        try:
+            cursor.execute('ALTER TABLE tools ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)')
+        except:
+            pass
         
         # RFQ (Request for Quotation) Module Tables
         cursor.execute('''

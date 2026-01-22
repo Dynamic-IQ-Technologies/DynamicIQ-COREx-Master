@@ -80,6 +80,15 @@
                         <input type="number" name="purchase_cost" class="form-control" step="0.01" min="0">
                     </div>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Supplier</label>
+                    <select name="supplier_id" class="form-select">
+                        <option value="">Select Supplier</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 
                 <div class="col-12"><hr class="my-2"><h6 class="text-muted">Calibration Information</h6></div>
                 <div class="col-md-4">

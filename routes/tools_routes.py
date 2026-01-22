@@ -1,7 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 from models import Database, AuditLogger
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter, inch
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+from reportlab.graphics.barcode import code128
+import io
 
 tools_bp = Blueprint('tools_routes', __name__)
 
@@ -212,9 +218,9 @@ def create_tool():
         cursor.execute('''
             INSERT INTO tools (tool_number, name, description, category, manufacturer, 
                              model_number, serial_number, location, status, condition,
-                             purchase_date, purchase_cost, last_calibration_date, 
+                             purchase_date, purchase_cost, supplier_id, last_calibration_date, 
                              next_calibration_date, calibration_interval_days, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             tool_number,
             request.form['name'],
@@ -228,6 +234,7 @@ def create_tool():
             request.form.get('condition', 'Good'),
             request.form.get('purchase_date') or None,
             float(request.form.get('purchase_cost') or 0),
+            int(request.form.get('supplier_id')) if request.form.get('supplier_id') else None,
             last_calibration,
             next_calibration,
             calibration_interval,
@@ -255,8 +262,9 @@ def create_tool():
         return redirect(url_for('tools_routes.list_tools'))
     
     categories = ['Hand Tool', 'Power Tool', 'Measuring', 'Calibrated', 'Safety', 'Specialty', 'Other']
+    suppliers = conn.execute("SELECT id, name FROM suppliers WHERE status = 'Active' ORDER BY name").fetchall()
     conn.close()
-    return render_template('tools/create.html', categories=categories)
+    return render_template('tools/create.html', categories=categories, suppliers=suppliers)
 
 @tools_bp.route('/tools/<int:tool_id>')
 @login_required
@@ -265,9 +273,11 @@ def view_tool(tool_id):
     conn = db.get_connection()
     
     tool = conn.execute('''
-        SELECT t.*, (lr.first_name || ' ' || lr.last_name) as assigned_to_name
+        SELECT t.*, (lr.first_name || ' ' || lr.last_name) as assigned_to_name,
+               s.name as supplier_name
         FROM tools t
         LEFT JOIN labor_resources lr ON t.assigned_to = lr.id
+        LEFT JOIN suppliers s ON t.supplier_id = s.id
         WHERE t.id = ?
     ''', (tool_id,)).fetchone()
     
@@ -311,7 +321,7 @@ def edit_tool(tool_id):
         conn.execute('''
             UPDATE tools SET name = ?, description = ?, category = ?, manufacturer = ?,
                            model_number = ?, serial_number = ?, location = ?, status = ?,
-                           condition = ?, purchase_date = ?, purchase_cost = ?,
+                           condition = ?, purchase_date = ?, purchase_cost = ?, supplier_id = ?,
                            last_calibration_date = ?, next_calibration_date = ?,
                            calibration_interval_days = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -327,6 +337,7 @@ def edit_tool(tool_id):
             request.form.get('condition', 'Good'),
             request.form.get('purchase_date') or None,
             float(request.form.get('purchase_cost') or 0),
+            int(request.form.get('supplier_id')) if request.form.get('supplier_id') else None,
             last_calibration,
             next_calibration,
             calibration_interval,
@@ -344,8 +355,9 @@ def edit_tool(tool_id):
     
     categories = ['Hand Tool', 'Power Tool', 'Measuring', 'Calibrated', 'Safety', 'Specialty', 'Other']
     labor_resources = conn.execute("SELECT id, (first_name || ' ' || last_name) as employee_name FROM labor_resources WHERE status = 'Active' ORDER BY last_name, first_name").fetchall()
+    suppliers = conn.execute("SELECT id, name FROM suppliers WHERE status = 'Active' ORDER BY name").fetchall()
     conn.close()
-    return render_template('tools/edit.html', tool=tool, categories=categories, labor_resources=labor_resources)
+    return render_template('tools/edit.html', tool=tool, categories=categories, labor_resources=labor_resources, suppliers=suppliers)
 
 @tools_bp.route('/tools/<int:tool_id>/checkout', methods=['POST'])
 @role_required('Admin', 'Procurement', 'Production Staff')
@@ -530,3 +542,269 @@ def mass_update_tools():
         conn.close()
         flash(f'Error updating tools: {str(e)}', 'danger')
         return redirect(url_for('tools_routes.list_tools'))
+
+
+def draw_tool_label(c, tool_data, width, height):
+    """Draw a single tool label on the canvas"""
+    margin = 0.25 * inch
+    y = height - margin
+    
+    c.setLineWidth(2)
+    c.rect(margin/2, margin/2, width - margin, height - margin)
+    
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin, y - 20, "TOOL IDENTIFICATION LABEL")
+    y -= 35
+    
+    c.setLineWidth(1)
+    c.line(margin, y, width - margin, y)
+    y -= 20
+    
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin, y, "Tool Name:")
+    c.setFont("Helvetica", 11)
+    tool_name = tool_data.get('name', 'N/A')
+    if len(tool_name) > 35:
+        tool_name = tool_name[:32] + "..."
+    c.drawString(margin + 80, y, tool_name)
+    y -= 18
+    
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin, y, "Tool #:")
+    c.setFont("Helvetica", 10)
+    c.drawString(margin + 50, y, tool_data.get('tool_number', 'N/A'))
+    y -= 16
+    
+    if tool_data.get('description'):
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(margin, y, "Description:")
+        c.setFont("Helvetica", 9)
+        desc = tool_data.get('description', '')[:50]
+        if len(tool_data.get('description', '')) > 50:
+            desc += "..."
+        c.drawString(margin + 65, y, desc)
+        y -= 14
+    
+    y -= 5
+    c.setLineWidth(0.5)
+    c.line(margin, y, width - margin, y)
+    y -= 15
+    
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(margin, y, "Manufacturer:")
+    c.setFont("Helvetica", 9)
+    c.drawString(margin + 75, y, tool_data.get('manufacturer', 'N/A') or 'N/A')
+    y -= 14
+    
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(margin, y, "Supplier:")
+    c.setFont("Helvetica", 9)
+    c.drawString(margin + 55, y, tool_data.get('supplier_name', 'N/A') or 'N/A')
+    y -= 14
+    
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(margin, y, "Purchase Date:")
+    c.setFont("Helvetica", 9)
+    purchase_date = tool_data.get('purchase_date', 'N/A') or 'N/A'
+    c.drawString(margin + 80, y, str(purchase_date))
+    y -= 18
+    
+    c.setLineWidth(0.5)
+    c.line(margin, y, width - margin, y)
+    y -= 15
+    
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin, y, "CALIBRATION INFORMATION")
+    y -= 16
+    
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(margin, y, "Last Calibration:")
+    c.setFont("Helvetica", 9)
+    last_cal = tool_data.get('last_calibration_date', 'N/A') or 'N/A'
+    c.drawString(margin + 90, y, str(last_cal))
+    y -= 14
+    
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(margin, y, "Next Calibration:")
+    c.setFont("Helvetica", 9)
+    next_cal = tool_data.get('next_calibration_date', 'N/A') or 'N/A'
+    if next_cal != 'N/A':
+        try:
+            next_date = datetime.strptime(str(next_cal), '%Y-%m-%d')
+            if next_date < datetime.now():
+                c.setFillColor(colors.red)
+                next_cal = f"{next_cal} (OVERDUE)"
+            elif next_date < datetime.now() + timedelta(days=30):
+                c.setFillColor(colors.orange)
+                next_cal = f"{next_cal} (DUE SOON)"
+        except:
+            pass
+    c.drawString(margin + 90, y, str(next_cal))
+    c.setFillColor(colors.black)
+    y -= 14
+    
+    if tool_data.get('calibration_interval_days'):
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(margin, y, "Cal. Interval:")
+        c.setFont("Helvetica", 9)
+        c.drawString(margin + 75, y, f"{tool_data.get('calibration_interval_days')} days")
+        y -= 14
+    
+    y -= 5
+    try:
+        barcode = code128.Code128(tool_data.get('tool_number', 'N/A'), barHeight=25, barWidth=1.2)
+        barcode.drawOn(c, margin, y - 30)
+        c.setFont("Helvetica", 8)
+        c.drawCentredString(width/2, y - 42, tool_data.get('tool_number', 'N/A'))
+    except:
+        c.setFont("Helvetica", 10)
+        c.drawString(margin, y - 20, f"Tool #: {tool_data.get('tool_number', 'N/A')}")
+    
+    c.setFont("Helvetica", 7)
+    c.drawString(margin, margin + 5, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+
+@tools_bp.route('/tools/<int:tool_id>/label')
+@login_required
+def generate_tool_label(tool_id):
+    """Generate printable tool label PDF"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        tool = conn.execute('''
+            SELECT t.*, s.name as supplier_name
+            FROM tools t
+            LEFT JOIN suppliers s ON t.supplier_id = s.id
+            WHERE t.id = ?
+        ''', (tool_id,)).fetchone()
+        
+        if not tool:
+            flash('Tool not found', 'danger')
+            return redirect(url_for('tools_routes.list_tools'))
+        
+        tool_data = dict(tool)
+        
+        buffer = io.BytesIO()
+        label_size = request.args.get('size', '4x3')
+        copies = int(request.args.get('copies', 1))
+        
+        if label_size == '4x6':
+            page_width = 4 * inch
+            page_height = 6 * inch
+        elif label_size == '4x4':
+            page_width = 4 * inch
+            page_height = 4 * inch
+        elif label_size == '4x3':
+            page_width = 4 * inch
+            page_height = 3 * inch
+        elif label_size == '3x2':
+            page_width = 3 * inch
+            page_height = 2 * inch
+        else:
+            page_width = 4 * inch
+            page_height = 3 * inch
+        
+        c = canvas.Canvas(buffer, pagesize=(page_width, page_height))
+        
+        for copy_num in range(copies):
+            if copy_num > 0:
+                c.showPage()
+            draw_tool_label(c, tool_data, page_width, page_height)
+        
+        c.save()
+        buffer.seek(0)
+        
+        tool_number = tool['tool_number'] or 'UNKNOWN'
+        filename = f"Tool_Label_{tool_number}.pdf"
+        
+        return Response(
+            buffer.getvalue(),
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{filename}"',
+                'Content-Type': 'application/pdf'
+            }
+        )
+        
+    finally:
+        conn.close()
+
+
+@tools_bp.route('/tools/mass-print-labels')
+@login_required
+def mass_print_labels():
+    """Generate labels for multiple tools"""
+    ids_param = request.args.get('ids', '')
+    label_size = request.args.get('size', '4x3')
+    
+    if not ids_param:
+        flash('No tools selected', 'warning')
+        return redirect(url_for('tools_routes.list_tools'))
+    
+    try:
+        ids = [int(id.strip()) for id in ids_param.split(',') if id.strip().isdigit()]
+    except ValueError:
+        flash('Invalid tool IDs provided', 'danger')
+        return redirect(url_for('tools_routes.list_tools'))
+    
+    if not ids:
+        flash('No valid tools selected', 'warning')
+        return redirect(url_for('tools_routes.list_tools'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        placeholders = ','.join(['?' for _ in ids])
+        tools = conn.execute(f'''
+            SELECT t.*, s.name as supplier_name
+            FROM tools t
+            LEFT JOIN suppliers s ON t.supplier_id = s.id
+            WHERE t.id IN ({placeholders})
+        ''', ids).fetchall()
+        
+        if not tools:
+            flash('No tools found', 'warning')
+            return redirect(url_for('tools_routes.list_tools'))
+        
+        if label_size == '4x6':
+            page_width = 4 * inch
+            page_height = 6 * inch
+        elif label_size == '4x4':
+            page_width = 4 * inch
+            page_height = 4 * inch
+        elif label_size == '4x3':
+            page_width = 4 * inch
+            page_height = 3 * inch
+        elif label_size == '3x2':
+            page_width = 3 * inch
+            page_height = 2 * inch
+        else:
+            page_width = 4 * inch
+            page_height = 3 * inch
+        
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=(page_width, page_height))
+        
+        for i, tool in enumerate(tools):
+            if i > 0:
+                c.showPage()
+            draw_tool_label(c, dict(tool), page_width, page_height)
+        
+        c.save()
+        buffer.seek(0)
+        
+        filename = f"Tool_Labels_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
+        return Response(
+            buffer.getvalue(),
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{filename}"',
+                'Content-Type': 'application/pdf'
+            }
+        )
+        
+    finally:
+        conn.close()
