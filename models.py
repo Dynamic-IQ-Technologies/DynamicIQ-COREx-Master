@@ -35,10 +35,63 @@ class PostgresConnection:
         from psycopg2.extras import RealDictCursor as RDC
         return self._conn.cursor(cursor_factory=RDC)
     
+    def _translate_sqlite_to_postgres(self, query):
+        """Translate SQLite-specific date functions to PostgreSQL equivalents"""
+        import re
+        
+        # Replace DATE('now') and date('now') with CURRENT_DATE
+        query = re.sub(r"DATE\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
+        query = re.sub(r"date\s*\(\s*'now'\s*\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
+        
+        # Replace DATE('now', '-X days/months/years') with CURRENT_DATE - INTERVAL
+        def replace_date_offset(match):
+            sign = match.group(1) if match.group(1) else ''
+            num = match.group(2)
+            unit = match.group(3).lower()
+            if unit == 'days' or unit == 'day':
+                return f"CURRENT_DATE - INTERVAL '{num} days'"
+            elif unit == 'months' or unit == 'month':
+                return f"CURRENT_DATE - INTERVAL '{num} months'"
+            elif unit == 'weeks' or unit == 'week':
+                return f"CURRENT_DATE - INTERVAL '{int(num) * 7} days'"
+            elif unit == 'years' or unit == 'year':
+                return f"CURRENT_DATE - INTERVAL '{num} years'"
+            return match.group(0)
+        
+        query = re.sub(r"date\s*\(\s*'now'\s*,\s*'(-?)(\d+)\s+(days?|months?|weeks?|years?)'\s*\)", replace_date_offset, query, flags=re.IGNORECASE)
+        query = re.sub(r"DATE\s*\(\s*'now'\s*,\s*'(-?)(\d+)\s+(days?|months?|weeks?|years?)'\s*\)", replace_date_offset, query, flags=re.IGNORECASE)
+        
+        # Replace date('now', 'start of year/month')
+        query = re.sub(r"date\s*\(\s*'now'\s*,\s*'start\s+of\s+year'\s*\)", "DATE_TRUNC('year', CURRENT_DATE)::date", query, flags=re.IGNORECASE)
+        query = re.sub(r"date\s*\(\s*'now'\s*,\s*'start\s+of\s+month'\s*\)", "DATE_TRUNC('month', CURRENT_DATE)::date", query, flags=re.IGNORECASE)
+        
+        # Replace julianday('now') - julianday(date) with CURRENT_DATE - date
+        query = re.sub(r"julianday\s*\(\s*'now'\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"EXTRACT(DAY FROM CURRENT_DATE - (\1)::date)", query, flags=re.IGNORECASE)
+        
+        # Replace julianday(date1) - julianday(date2) with date difference
+        query = re.sub(r"julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"EXTRACT(DAY FROM (\1)::date - (\2)::date)", query, flags=re.IGNORECASE)
+        
+        # Replace strftime('%Y-%m', date) with TO_CHAR(date, 'YYYY-MM')
+        query = re.sub(r"strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'YYYY-MM')", query, flags=re.IGNORECASE)
+        
+        # Replace strftime('%Y-%m-%d', date) with TO_CHAR(date, 'YYYY-MM-DD')
+        query = re.sub(r"strftime\s*\(\s*'%Y-%m-%d'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'YYYY-MM-DD')", query, flags=re.IGNORECASE)
+        
+        # Replace strftime('%Y-%W', date) with TO_CHAR(date, 'IYYY-IW')
+        query = re.sub(r"strftime\s*\(\s*'%Y-%W'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'IYYY-IW')", query, flags=re.IGNORECASE)
+        
+        # Replace datetime('now') with CURRENT_TIMESTAMP
+        query = re.sub(r"datetime\s*\(\s*'now'\s*\)", "CURRENT_TIMESTAMP", query, flags=re.IGNORECASE)
+        
+        return query
+    
     def execute(self, query, params=None):
         """Execute a query and return a cursor-like object"""
         import re
         from psycopg2.extras import RealDictCursor as RDC
+        
+        # Translate SQLite date functions to PostgreSQL
+        query = self._translate_sqlite_to_postgres(query)
         
         query = query.replace('?', '%s')
         
