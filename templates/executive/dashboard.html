@@ -27,6 +27,7 @@
         <div class="col-md-3">
             <label for="date_range" class="form-label">Period</label>
             <select class="form-select" id="date_range" name="date_range" onchange="this.form.submit()">
+                <option value="wtd" {% if date_filter == 'wtd' %}selected{% endif %}>Week to Date</option>
                 <option value="mtd" {% if date_filter == 'mtd' %}selected{% endif %}>Month to Date</option>
                 <option value="qtd" {% if date_filter == 'qtd' %}selected{% endif %}>Quarter to Date</option>
                 <option value="ytd" {% if date_filter == 'ytd' %}selected{% endif %}>Year to Date</option>

@@ -36,7 +36,12 @@ def dashboard():
     current_year = today.year
     current_month = today.month
     
-    if date_filter == 'mtd':
+    if date_filter == 'wtd':
+        days_since_monday = today.weekday()
+        start_date = (today - timedelta(days=days_since_monday)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+        period_label = "Week to Date"
+    elif date_filter == 'mtd':
         start_date = datetime(current_year, current_month, 1).strftime('%Y-%m-%d')
         end_date = today.strftime('%Y-%m-%d')
         period_label = "Month to Date"
@@ -286,7 +291,11 @@ def export_dashboard():
     current_year = today.year
     current_month = today.month
     
-    if date_filter == 'mtd':
+    if date_filter == 'wtd':
+        days_since_monday = today.weekday()
+        start_date = (today - timedelta(days=days_since_monday)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+    elif date_filter == 'mtd':
         start_date = datetime(current_year, current_month, 1).strftime('%Y-%m-%d')
         end_date = today.strftime('%Y-%m-%d')
     elif date_filter == 'qtd':
