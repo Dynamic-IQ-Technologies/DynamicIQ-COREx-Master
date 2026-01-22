@@ -232,6 +232,19 @@ def view_inventory(id):
         ORDER BY id.uploaded_at DESC
     ''', (id,)).fetchall()
     
+    # Get cost transfers for this inventory record (as source or destination)
+    cost_transfers = conn.execute('''
+        SELECT t.*, p.code as part_code,
+               CASE WHEN t.source_inventory_id = ? THEN 'Out' ELSE 'In' END as direction,
+               u.username as transferred_by_name
+        FROM inventory_cost_transfers t
+        JOIN products p ON t.product_id = p.id
+        LEFT JOIN users u ON t.transferred_by = u.id
+        WHERE t.source_inventory_id = ? OR t.destination_inventory_id = ?
+        ORDER BY t.transferred_at DESC
+        LIMIT 20
+    ''', (id, id, id)).fetchall()
+    
     conn.close()
     
     return render_template('inventory/view.html', 
@@ -243,7 +256,8 @@ def view_inventory(id):
                           adjustments=adjustments,
                           wo_turnins=wo_turnins,
                           audit_trail=audit_trail,
-                          documents=documents)
+                          documents=documents,
+                          cost_transfers=cost_transfers)
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
@@ -1428,3 +1442,515 @@ def draw_faa_label(c, label_data, width, height):
     
     c.setFont("Helvetica", 5)
     c.drawString(margin, y, f"14 CFR Part 45 | INV:{inventory['id']} | {datetime.now().strftime('%m/%d/%Y %I:%M %p')}")
+
+
+# ============================================================================
+# INVENTORY COST TRANSFER ROUTES
+# ============================================================================
+
+COST_TRANSFER_REASON_CODES = [
+    'Cost Correction',
+    'Inventory Revaluation', 
+    'Accounting Adjustment',
+    'Physical Count Reconciliation',
+    'Lot Merge',
+    'Serial Number Transfer',
+    'Intercompany Transfer',
+    'Audit Adjustment',
+    'Other'
+]
+
+@inventory_bp.route('/inventory/<int:id>/cost-transfer', methods=['GET'])
+@login_required
+@role_required(['Admin', 'Accounting', 'Finance'])
+def cost_transfer_form(id):
+    """Display cost transfer form for an inventory record"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get source inventory
+    source = conn.execute('''
+        SELECT i.*, p.code, p.name, p.is_serialized,
+               COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.id = ?
+    ''', (id,)).fetchone()
+    
+    if not source:
+        conn.close()
+        flash('Inventory record not found', 'danger')
+        return redirect(url_for('inventory_routes.list_inventory'))
+    
+    # Get eligible destination inventory records (same product, different record)
+    destinations = conn.execute('''
+        SELECT i.*, p.code, p.name,
+               COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.product_id = ? AND i.id != ?
+        AND (i.status IS NULL OR i.status NOT IN ('Locked', 'Audit Hold'))
+        ORDER BY i.serial_number, i.warehouse_location
+    ''', (source['product_id'], id)).fetchall()
+    
+    conn.close()
+    
+    return render_template('inventory/cost_transfer.html',
+                         source=source,
+                         destinations=destinations,
+                         reason_codes=COST_TRANSFER_REASON_CODES)
+
+
+@inventory_bp.route('/api/inventory/cost-transfer/validate', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Accounting', 'Finance'])
+def validate_cost_transfer():
+    """Validate cost transfer before execution"""
+    db = Database()
+    conn = db.get_connection()
+    
+    data = request.get_json()
+    source_id = data.get('source_id')
+    destination_id = data.get('destination_id')
+    transfer_amount = data.get('transfer_amount', 0)
+    
+    errors = []
+    warnings = []
+    
+    try:
+        transfer_amount = float(transfer_amount)
+    except (ValueError, TypeError):
+        errors.append('Invalid transfer amount')
+        conn.close()
+        return jsonify({'valid': False, 'errors': errors, 'warnings': warnings})
+    
+    # Get source and destination records
+    source = conn.execute('''
+        SELECT i.*, p.code, p.name, p.is_serialized,
+               COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.id = ?
+    ''', (source_id,)).fetchone()
+    
+    destination = conn.execute('''
+        SELECT i.*, p.code, p.name, p.is_serialized,
+               COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+        FROM inventory i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.id = ?
+    ''', (destination_id,)).fetchone()
+    
+    conn.close()
+    
+    if not source:
+        errors.append('Source inventory record not found')
+    if not destination:
+        errors.append('Destination inventory record not found')
+    
+    if source and destination:
+        # Validation rules
+        if source['product_id'] != destination['product_id']:
+            errors.append('Source and destination must reference the same part number')
+        
+        if source.get('status') in ['Locked', 'Audit Hold']:
+            errors.append('Source inventory is locked or on audit hold')
+        
+        if destination.get('status') in ['Locked', 'Audit Hold']:
+            errors.append('Destination inventory is locked or on audit hold')
+        
+        if transfer_amount <= 0:
+            errors.append('Transfer amount must be greater than zero')
+        
+        if transfer_amount > source['total_cost']:
+            errors.append(f'Transfer amount (${transfer_amount:,.2f}) exceeds available cost (${source["total_cost"]:,.2f})')
+        
+        # Serialization match check
+        if source['is_serialized'] != destination.get('is_serialized', 0):
+            warnings.append('Source and destination have different serialization settings')
+    
+    valid = len(errors) == 0
+    
+    result = {
+        'valid': valid,
+        'errors': errors,
+        'warnings': warnings
+    }
+    
+    if valid and source and destination:
+        result['preview'] = {
+            'source': {
+                'id': source['id'],
+                'code': source['code'],
+                'serial_number': source.get('serial_number'),
+                'cost_before': source['total_cost'],
+                'cost_after': source['total_cost'] - transfer_amount
+            },
+            'destination': {
+                'id': destination['id'],
+                'code': destination['code'],
+                'serial_number': destination.get('serial_number'),
+                'cost_before': destination['total_cost'],
+                'cost_after': destination['total_cost'] + transfer_amount
+            },
+            'transfer_amount': transfer_amount
+        }
+    
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/inventory/cost-transfer/execute', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Accounting', 'Finance'])
+def execute_cost_transfer():
+    """Execute a cost transfer between two inventory records"""
+    db = Database()
+    conn = db.get_connection()
+    
+    data = request.get_json()
+    source_id = data.get('source_id')
+    destination_id = data.get('destination_id')
+    reason_code = data.get('reason_code', '').strip()
+    justification = data.get('justification', '')
+    
+    # Server-side validation
+    try:
+        transfer_amount = float(data.get('transfer_amount', 0))
+    except (ValueError, TypeError):
+        conn.close()
+        return jsonify({'success': False, 'error': 'Invalid transfer amount'})
+    
+    if transfer_amount <= 0:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Transfer amount must be greater than zero'})
+    
+    if not reason_code:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Reason code is required'})
+    
+    if not source_id or not destination_id:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Source and destination inventory IDs are required'})
+    
+    if source_id == destination_id:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Source and destination must be different records'})
+    
+    user_id = session.get('user_id')
+    ip_address = request.remote_addr
+    user_agent = request.headers.get('User-Agent', '')[:255]
+    
+    try:
+        # Get current values with status checks
+        source = conn.execute('''
+            SELECT i.*, p.code, p.name,
+                   COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+                   (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (source_id,)).fetchone()
+        
+        destination = conn.execute('''
+            SELECT i.*, p.code, p.name,
+                   COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+                   (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (destination_id,)).fetchone()
+        
+        if not source or not destination:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid inventory records'})
+        
+        if source['product_id'] != destination['product_id']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Part numbers do not match'})
+        
+        # Check status locks
+        if source.get('status') in ['Locked', 'Audit Hold']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Source inventory is locked or on audit hold'})
+        
+        if destination.get('status') in ['Locked', 'Audit Hold']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Destination inventory is locked or on audit hold'})
+        
+        if transfer_amount > source['total_cost']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Insufficient cost balance'})
+        
+        # Calculate new values
+        source_cost_before = source['total_cost']
+        source_cost_after = source_cost_before - transfer_amount
+        destination_cost_before = destination['total_cost']
+        destination_cost_after = destination_cost_before + transfer_amount
+        
+        # Generate unique transfer number with UUID suffix to prevent race conditions
+        transfer_number = f"XFER-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+        
+        # Insert transfer record
+        conn.execute('''
+            INSERT INTO inventory_cost_transfers (
+                transfer_number, source_inventory_id, destination_inventory_id,
+                product_id, transfer_amount, currency,
+                source_cost_before, source_cost_after,
+                destination_cost_before, destination_cost_after,
+                reason_code, justification, status,
+                transferred_by, ip_address, user_agent
+            ) VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, 'Posted', ?, ?, ?)
+        ''', (transfer_number, source_id, destination_id, source['product_id'],
+              transfer_amount, source_cost_before, source_cost_after,
+              destination_cost_before, destination_cost_after,
+              reason_code, justification, user_id, ip_address, user_agent))
+        
+        # Get the transfer ID
+        transfer_id = conn.execute('SELECT last_insert_rowid() as id').fetchone()['id']
+        
+        # Update source inventory cost (recalculate unit_cost)
+        if source['quantity'] > 0:
+            new_source_unit_cost = source_cost_after / source['quantity']
+            conn.execute('UPDATE inventory SET unit_cost = ? WHERE id = ?', 
+                        (new_source_unit_cost, source_id))
+        
+        # Update destination inventory cost (recalculate unit_cost)
+        if destination['quantity'] > 0:
+            new_dest_unit_cost = destination_cost_after / destination['quantity']
+            conn.execute('UPDATE inventory SET unit_cost = ? WHERE id = ?',
+                        (new_dest_unit_cost, destination_id))
+        
+        # Log audit trail on SOURCE record
+        source_audit_details = {
+            'transfer_number': transfer_number,
+            'transfer_id': transfer_id,
+            'direction': 'Cost Transferred Out',
+            'amount': transfer_amount,
+            'currency': 'USD',
+            'cost_before': source_cost_before,
+            'cost_after': source_cost_after,
+            'destination_inventory_id': destination_id,
+            'destination_code': destination['code'],
+            'destination_serial': destination.get('serial_number'),
+            'reason_code': reason_code,
+            'justification': justification
+        }
+        AuditLogger.log(conn, 'inventory', str(source_id), 'Cost Transfer Out',
+                       user_id, source_audit_details, ip_address, user_agent)
+        
+        # Log audit trail on DESTINATION record
+        dest_audit_details = {
+            'transfer_number': transfer_number,
+            'transfer_id': transfer_id,
+            'direction': 'Cost Transferred In',
+            'amount': transfer_amount,
+            'currency': 'USD',
+            'cost_before': destination_cost_before,
+            'cost_after': destination_cost_after,
+            'source_inventory_id': source_id,
+            'source_code': source['code'],
+            'source_serial': source.get('serial_number'),
+            'reason_code': reason_code,
+            'justification': justification
+        }
+        AuditLogger.log(conn, 'inventory', str(destination_id), 'Cost Transfer In',
+                       user_id, dest_audit_details, ip_address, user_agent)
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'transfer_number': transfer_number,
+            'transfer_id': transfer_id,
+            'message': f'Cost transfer {transfer_number} completed successfully'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@inventory_bp.route('/inventory/cost-transfers')
+@login_required
+@role_required(['Admin', 'Accounting', 'Finance'])
+def list_cost_transfers():
+    """List all cost transfer transactions"""
+    db = Database()
+    conn = db.get_connection()
+    
+    transfers = conn.execute('''
+        SELECT t.*, 
+               p.code as part_code, p.name as part_name,
+               si.serial_number as source_serial,
+               di.serial_number as destination_serial,
+               u.username as transferred_by_name
+        FROM inventory_cost_transfers t
+        JOIN products p ON t.product_id = p.id
+        JOIN inventory si ON t.source_inventory_id = si.id
+        JOIN inventory di ON t.destination_inventory_id = di.id
+        LEFT JOIN users u ON t.transferred_by = u.id
+        ORDER BY t.transferred_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('inventory/cost_transfers_list.html', transfers=transfers)
+
+
+@inventory_bp.route('/inventory/cost-transfers/<int:id>')
+@login_required
+@role_required(['Admin', 'Accounting', 'Finance'])
+def view_cost_transfer(id):
+    """View a specific cost transfer transaction"""
+    db = Database()
+    conn = db.get_connection()
+    
+    transfer = conn.execute('''
+        SELECT t.*, 
+               p.code as part_code, p.name as part_name,
+               si.serial_number as source_serial,
+               di.serial_number as destination_serial,
+               u.username as transferred_by_name
+        FROM inventory_cost_transfers t
+        JOIN products p ON t.product_id = p.id
+        JOIN inventory si ON t.source_inventory_id = si.id
+        JOIN inventory di ON t.destination_inventory_id = di.id
+        LEFT JOIN users u ON t.transferred_by = u.id
+        WHERE t.id = ?
+    ''', (id,)).fetchone()
+    
+    if not transfer:
+        conn.close()
+        flash('Cost transfer not found', 'danger')
+        return redirect(url_for('inventory_routes.list_cost_transfers'))
+    
+    # Get reversal if exists
+    reversal = None
+    if not transfer['is_reversal']:
+        reversal = conn.execute('''
+            SELECT * FROM inventory_cost_transfers 
+            WHERE original_transfer_id = ? AND is_reversal = 1
+        ''', (id,)).fetchone()
+    
+    conn.close()
+    
+    return render_template('inventory/cost_transfer_view.html', 
+                         transfer=transfer, reversal=reversal)
+
+
+@inventory_bp.route('/api/inventory/cost-transfers/<int:id>/reverse', methods=['POST'])
+@login_required
+@role_required(['Admin'])
+def reverse_cost_transfer(id):
+    """Create a reversing transaction for a cost transfer"""
+    db = Database()
+    conn = db.get_connection()
+    
+    original = conn.execute('''
+        SELECT t.*, p.code as part_code
+        FROM inventory_cost_transfers t
+        JOIN products p ON t.product_id = p.id
+        WHERE t.id = ?
+    ''', (id,)).fetchone()
+    
+    if not original:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Transfer not found'})
+    
+    if original['is_reversal']:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Cannot reverse a reversal transaction'})
+    
+    # Check if already reversed
+    existing_reversal = conn.execute('''
+        SELECT id FROM inventory_cost_transfers 
+        WHERE original_transfer_id = ? AND is_reversal = 1
+    ''', (id,)).fetchone()
+    
+    if existing_reversal:
+        conn.close()
+        return jsonify({'success': False, 'error': 'This transfer has already been reversed'})
+    
+    user_id = session.get('user_id')
+    ip_address = request.remote_addr
+    user_agent = request.headers.get('User-Agent', '')[:255]
+    
+    try:
+        # Get current inventory values
+        source = conn.execute('''
+            SELECT i.*, COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+                   (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+            FROM inventory i JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (original['source_inventory_id'],)).fetchone()
+        
+        destination = conn.execute('''
+            SELECT i.*, COALESCE(i.unit_cost, p.cost, 0) as current_unit_cost,
+                   (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as total_cost
+            FROM inventory i JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (original['destination_inventory_id'],)).fetchone()
+        
+        transfer_amount = original['transfer_amount']
+        
+        # Generate unique reversal number with UUID suffix
+        reversal_number = f"XFER-REV-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+        
+        # Insert reversal (swap source and destination)
+        conn.execute('''
+            INSERT INTO inventory_cost_transfers (
+                transfer_number, source_inventory_id, destination_inventory_id,
+                product_id, transfer_amount, currency,
+                source_cost_before, source_cost_after,
+                destination_cost_before, destination_cost_after,
+                reason_code, justification, status, is_reversal, original_transfer_id,
+                transferred_by, ip_address, user_agent
+            ) VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, 'Posted', 1, ?, ?, ?, ?)
+        ''', (reversal_number, original['destination_inventory_id'], original['source_inventory_id'],
+              original['product_id'], transfer_amount,
+              destination['total_cost'], destination['total_cost'] - transfer_amount,
+              source['total_cost'], source['total_cost'] + transfer_amount,
+              'Reversal', f"Reversal of {original['transfer_number']}", id,
+              user_id, ip_address, user_agent))
+        
+        # Update inventory costs
+        if destination['quantity'] > 0:
+            new_dest_cost = (destination['total_cost'] - transfer_amount) / destination['quantity']
+            conn.execute('UPDATE inventory SET unit_cost = ? WHERE id = ?',
+                        (new_dest_cost, original['destination_inventory_id']))
+        
+        if source['quantity'] > 0:
+            new_source_cost = (source['total_cost'] + transfer_amount) / source['quantity']
+            conn.execute('UPDATE inventory SET unit_cost = ? WHERE id = ?',
+                        (new_source_cost, original['source_inventory_id']))
+        
+        # Log audit trails
+        AuditLogger.log(conn, 'inventory', str(original['destination_inventory_id']), 
+                       'Cost Transfer Reversal Out', user_id,
+                       {'reversal_of': original['transfer_number'], 'amount': transfer_amount},
+                       ip_address, user_agent)
+        
+        AuditLogger.log(conn, 'inventory', str(original['source_inventory_id']),
+                       'Cost Transfer Reversal In', user_id,
+                       {'reversal_of': original['transfer_number'], 'amount': transfer_amount},
+                       ip_address, user_agent)
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'reversal_number': reversal_number,
+            'message': f'Reversal {reversal_number} completed successfully'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})

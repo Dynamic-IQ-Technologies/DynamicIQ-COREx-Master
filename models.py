@@ -5756,6 +5756,46 @@ def init_qms_tables(cursor):
         )
     ''')
     
+    # Inventory Cost Transfer table for controlled cost transfers between inventory records
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inventory_cost_transfers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transfer_number TEXT UNIQUE NOT NULL,
+            source_inventory_id INTEGER NOT NULL,
+            destination_inventory_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            transfer_amount REAL NOT NULL,
+            currency TEXT DEFAULT 'USD',
+            source_cost_before REAL NOT NULL,
+            source_cost_after REAL NOT NULL,
+            destination_cost_before REAL NOT NULL,
+            destination_cost_after REAL NOT NULL,
+            reason_code TEXT NOT NULL,
+            justification TEXT,
+            status TEXT DEFAULT 'Posted',
+            is_reversal INTEGER DEFAULT 0,
+            original_transfer_id INTEGER,
+            transferred_by INTEGER NOT NULL,
+            transferred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (source_inventory_id) REFERENCES inventory(id),
+            FOREIGN KEY (destination_inventory_id) REFERENCES inventory(id),
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (transferred_by) REFERENCES users(id),
+            FOREIGN KEY (original_transfer_id) REFERENCES inventory_cost_transfers(id)
+        )
+    ''')
+    
+    # Add indexes for cost transfer queries
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cost_xfer_source ON inventory_cost_transfers(source_inventory_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cost_xfer_dest ON inventory_cost_transfers(destination_inventory_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cost_xfer_product ON inventory_cost_transfers(product_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cost_xfer_date ON inventory_cost_transfers(transferred_at)')
+    except:
+        pass
+    
     # Duplicate Detection indexes
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_dup_config_type ON duplicate_detection_config(record_type)')

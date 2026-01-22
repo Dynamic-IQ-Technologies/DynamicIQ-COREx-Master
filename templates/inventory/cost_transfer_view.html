@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Cost Transfer {{ transfer.transfer_number }} - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>
+            <i class="bi bi-arrow-left-right text-primary me-2"></i>
+            {{ transfer.transfer_number }}
+            {% if transfer.is_reversal %}
+            <span class="badge bg-warning text-dark ms-2">Reversal</span>
+            {% endif %}
+        </h2>
+        <p class="text-muted mb-0">Cost Transfer Transaction Details</p>
+    </div>
+    <div>
+        {% if not transfer.is_reversal and not reversal and session.role == 'Admin' %}
+        <button type="button" class="btn btn-warning me-2" onclick="reverseTransfer({{ transfer.id }})">
+            <i class="bi bi-arrow-counterclockwise"></i> Reverse Transfer
+        </button>
+        {% endif %}
+        <a href="{{ url_for('inventory_routes.list_cost_transfers') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<!-- Reversal Notice -->
+{% if reversal %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>This transfer has been reversed.</strong>
+    Reversal Transaction: <a href="{{ url_for('inventory_routes.view_cost_transfer', id=reversal.id) }}">{{ reversal.transfer_number }}</a>
+</div>
+{% endif %}
+
+{% if transfer.is_reversal and transfer.original_transfer_id %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    This is a reversal of transfer: <a href="{{ url_for('inventory_routes.view_cost_transfer', id=transfer.original_transfer_id) }}">View Original</a>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Transaction Summary -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Transaction Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <label class="text-muted small">Transfer Number</label>
+                        <p class="fw-bold mb-0">{{ transfer.transfer_number }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Date & Time</label>
+                        <p class="mb-0">{{ transfer.transferred_at|datestr(16) if transfer.transferred_at else 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Transferred By</label>
+                        <p class="mb-0">{{ transfer.transferred_by_name or 'System' }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Status</label>
+                        <p class="mb-0">
+                            <span class="badge bg-{{ 'success' if transfer.status == 'Posted' else 'secondary' }}">{{ transfer.status }}</span>
+                        </p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="text-muted small">Part Number</label>
+                        <p class="fw-bold mb-0">{{ transfer.part_code }}</p>
+                        <small class="text-muted">{{ transfer.part_name }}</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Transfer Amount</label>
+                        <p class="h4 text-primary mb-0">${{ "%.2f"|format(transfer.transfer_amount) }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Currency</label>
+                        <p class="mb-0">{{ transfer.currency or 'USD' }}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="text-muted small">Reason Code</label>
+                        <p class="mb-0"><span class="badge bg-secondary">{{ transfer.reason_code }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Justification</label>
+                        <p class="mb-0">{{ transfer.justification or 'N/A' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Source & Destination Details -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0"><i class="bi bi-box-arrow-up me-2"></i>Source (Cost Out)</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <strong>Inventory ID:</strong>
+                            <a href="{{ url_for('inventory_routes.view_inventory', id=transfer.source_inventory_id) }}">
+                                INV-{{ transfer.source_inventory_id }}
+                            </a>
+                        </p>
+                        {% if transfer.source_serial %}
+                        <p class="mb-2"><strong>Serial Number:</strong> {{ transfer.source_serial }}</p>
+                        {% endif %}
+                        <div class="d-flex justify-content-between mt-3">
+                            <div>
+                                <small class="text-muted d-block">Cost Before</small>
+                                <span class="h5">${{ "%.2f"|format(transfer.source_cost_before) }}</span>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-arrow-right text-danger"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Cost After</small>
+                                <span class="h5 text-danger">${{ "%.2f"|format(transfer.source_cost_after) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-box-arrow-in-down me-2"></i>Destination (Cost In)</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <strong>Inventory ID:</strong>
+                            <a href="{{ url_for('inventory_routes.view_inventory', id=transfer.destination_inventory_id) }}">
+                                INV-{{ transfer.destination_inventory_id }}
+                            </a>
+                        </p>
+                        {% if transfer.destination_serial %}
+                        <p class="mb-2"><strong>Serial Number:</strong> {{ transfer.destination_serial }}</p>
+                        {% endif %}
+                        <div class="d-flex justify-content-between mt-3">
+                            <div>
+                                <small class="text-muted d-block">Cost Before</small>
+                                <span class="h5">${{ "%.2f"|format(transfer.destination_cost_before) }}</span>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-arrow-right text-success"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Cost After</small>
+                                <span class="h5 text-success">${{ "%.2f"|format(transfer.destination_cost_after) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-shield-check me-2"></i>Compliance Info</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2 small">
+                    <strong>Transaction ID:</strong><br>
+                    <code>{{ transfer.id }}</code>
+                </p>
+                <p class="mb-2 small">
+                    <strong>IP Address:</strong><br>
+                    {{ transfer.ip_address or 'N/A' }}
+                </p>
+                <p class="mb-0 small">
+                    <strong>Immutability:</strong><br>
+                    <span class="badge bg-success">Non-Editable</span>
+                    <span class="badge bg-success">Non-Deletable</span>
+                </p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Quick Links</h6>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('inventory_routes.view_inventory', id=transfer.source_inventory_id) }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                    <i class="bi bi-box-seam me-1"></i> View Source Inventory
+                </a>
+                <a href="{{ url_for('inventory_routes.view_inventory', id=transfer.destination_inventory_id) }}" class="btn btn-outline-success btn-sm w-100 mb-2">
+                    <i class="bi bi-box-seam me-1"></i> View Destination Inventory
+                </a>
+                <a href="{{ url_for('inventory_routes.list_cost_transfers') }}" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-list me-1"></i> All Transfers
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function reverseTransfer(id) {
+    if (!confirm('Are you sure you want to reverse this cost transfer? This will create a new reversing transaction.')) {
+        return;
+    }
+    
+    fetch('/api/inventory/cost-transfers/' + id + '/reverse', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(err => alert('Error: ' + err));
+}
+</script>
+{% endblock %}

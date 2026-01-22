@@ -118,6 +118,19 @@ The system incorporates a novel architecture for ERP exchange management, compri
     - Role-based permissions for shortage override and non-BOM material addition
     - Comprehensive audit logging of all multi-issue transactions
     - API routes: `/api/issuance/bom-materials`, `/api/issuance/validate-inventory`, `/api/issuance/execute-multi-issue`
+-   **Inventory Cost Transfer System**: Controlled cost transfer between inventory records with full financial integrity:
+    - Transfer cost value between two inventory records for the same part number
+    - Eligibility validation: same part, active status, sufficient cost balance, no locks or audit holds
+    - Dual audit trail logging on both source and destination inventory records
+    - Cross-record linking in audit entries for bidirectional navigation
+    - Role-based access control (Admin, Accounting, Finance roles only)
+    - Immutable transactions: non-editable, non-deletable, reversal-only modification
+    - Unique UUID-based transfer numbers to prevent race conditions
+    - Pre-transfer validation and confirmation workflow
+    - Reason code selection and justification tracking
+    - Reversal transaction capability for Admin users only
+    - Database table: inventory_cost_transfers
+    - API routes: `/api/inventory/cost-transfer/validate`, `/api/inventory/cost-transfer/execute`, `/api/inventory/cost-transfers/<id>/reverse`
 
 ## External Dependencies
 

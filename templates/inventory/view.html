@@ -49,6 +49,11 @@
             <i class="bi bi-arrow-left-right"></i> Adjust
         </a>
         {% endif %}
+        {% if session.role in ['Admin', 'Accounting', 'Finance'] %}
+        <a href="{{ url_for('inventory_routes.cost_transfer_form', id=inventory.id) }}" class="btn btn-outline-success">
+            <i class="bi bi-currency-dollar"></i> Transfer Cost
+        </a>
+        {% endif %}
         <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Back to List
         </a>
@@ -497,6 +502,11 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cost-transfers-tab" data-bs-toggle="tab" data-bs-target="#cost-transfers" type="button">
+                    <i class="bi bi-currency-dollar me-1"></i> Cost Transfers ({{ cost_transfers|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button">
                     <i class="bi bi-file-earmark me-1"></i> Documents ({{ documents|length }})
                 </button>
@@ -765,6 +775,72 @@
                 <div class="text-center py-4">
                     <i class="bi bi-journal-text display-4 text-muted"></i>
                     <p class="text-muted mt-2">No audit trail entries found for this inventory record.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="cost-transfers" role="tabpanel">
+                {% if cost_transfers %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Transfer #</th>
+                                <th>Date</th>
+                                <th>Direction</th>
+                                <th class="text-end">Amount</th>
+                                <th>Reason</th>
+                                <th>By</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in cost_transfers %}
+                            <tr class="{{ 'table-warning' if t.is_reversal else '' }}">
+                                <td>
+                                    <a href="{{ url_for('inventory_routes.view_cost_transfer', id=t.id) }}" class="text-decoration-none">
+                                        {{ t.transfer_number }}
+                                    </a>
+                                    {% if t.is_reversal %}
+                                    <span class="badge bg-warning text-dark">Rev</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ t.transferred_at|datestr(16) }}</small></td>
+                                <td>
+                                    {% if t.direction == 'Out' %}
+                                    <span class="badge bg-danger"><i class="bi bi-arrow-up-right"></i> Out</span>
+                                    {% else %}
+                                    <span class="badge bg-success"><i class="bi bi-arrow-down-left"></i> In</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold {{ 'text-danger' if t.direction == 'Out' else 'text-success' }}">
+                                    {{ '-' if t.direction == 'Out' else '+' }}${{ "%.2f"|format(t.transfer_amount) }}
+                                </td>
+                                <td><span class="badge bg-secondary">{{ t.reason_code }}</span></td>
+                                <td><small>{{ t.transferred_by_name }}</small></td>
+                                <td>
+                                    <a href="{{ url_for('inventory_routes.view_cost_transfer', id=t.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-end">
+                    <a href="{{ url_for('inventory_routes.list_cost_transfers') }}" class="btn btn-sm btn-outline-secondary">
+                        View All Transfers
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-currency-dollar display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No cost transfers for this inventory record.</p>
+                    {% if session.role in ['Admin', 'Accounting', 'Finance'] %}
+                    <a href="{{ url_for('inventory_routes.cost_transfer_form', id=inventory.id) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Transfer Cost
+                    </a>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>

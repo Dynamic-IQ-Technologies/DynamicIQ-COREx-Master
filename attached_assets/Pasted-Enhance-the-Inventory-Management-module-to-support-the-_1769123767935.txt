@@ -1,0 +1,160 @@
+Enhance the Inventory Management module to support the controlled transfer of inventory cost between two inventory records while maintaining full financial integrity and traceability. The system must log the transaction in the audit trail of both the source and destination inventory record pages.
+
+Functional Requirements
+
+Inventory Cost Transfer Capability
+
+Enable authorized users to initiate a Cost Transfer transaction between:
+
+Source Inventory Record
+
+Destination Inventory Record
+
+The transfer applies to cost value only and does not alter:
+
+Quantity on hand
+
+Part number
+
+Serial or lot traceability
+
+Eligibility & Validation Rules
+
+Source and destination inventory records must:
+
+Be in an Active status
+
+Reference the same part number
+
+Match serial-controlled or non-serialized conditions
+
+Source inventory must have:
+
+Sufficient available cost balance
+
+Transfers must be blocked if:
+
+Inventory is locked
+
+Inventory is allocated to a closed financial period
+
+Part or inventory is flagged for audit hold
+
+Cost Transfer Transaction Logic
+
+Upon execution:
+
+Deduct the specified cost amount from the source inventory record
+
+Add the same cost amount to the destination inventory record
+
+Cost values must remain balanced at the system level (no net cost creation or loss)
+
+All calculations must support:
+
+Decimal precision
+
+Currency consistency
+
+Audit Trail & Traceability Requirements
+
+Dual Audit Logging
+
+Automatically create an audit trail entry on both inventory record pages:
+
+Source Inventory Audit Entry
+
+Destination Inventory Audit Entry
+
+Audit Log Data Elements
+Each audit entry must capture:
+
+Transaction Type: Inventory Cost Transfer
+
+Transfer Direction:
+
+Cost Transferred Out (Source)
+
+Cost Transferred In (Destination)
+
+Transfer Amount
+
+Currency
+
+Source Inventory ID
+
+Destination Inventory ID
+
+Part Number
+
+Serial / Lot Number (if applicable)
+
+User ID
+
+Date and Timestamp
+
+Reason Code (user-selectable or required free-text justification)
+
+System Transaction ID (shared between both records)
+
+Cross-Record Linking
+
+Audit entries must include a clickable reference allowing users to navigate:
+
+From source inventory audit log → destination inventory record
+
+From destination inventory audit log → source inventory record
+
+User Interface Requirements
+
+Inventory Record Page Enhancement
+
+Add a new action:
+
+Transfer Inventory Cost
+
+Launch a guided modal or dynamic page allowing users to:
+
+Select destination inventory
+
+Enter transfer amount
+
+Provide transfer reason
+
+Review pre-transaction and post-transaction cost impact
+
+Confirmation & Safeguards
+
+Display a confirmation summary prior to execution
+
+Require explicit user acknowledgment before posting the transaction
+
+Prevent page exit if changes are unsaved
+
+Security & Governance Controls
+
+Role-Based Access
+
+Restrict cost transfer capability to authorized financial or inventory roles
+
+Log permission overrides (if applicable)
+
+Immutability & Compliance
+
+Once posted, cost transfer transactions must be:
+
+Non-editable
+
+Non-deletable
+
+Reversals must occur through a new system-generated reversing transaction
+
+System Outcomes
+
+Ensures accurate redistribution of inventory cost without impacting stock levels
+
+Maintains full auditability for ISO, financial, and internal controls
+
+Preserves data integrity across inventory records
+
+Provides transparent, traceable cost movement at the transaction level
