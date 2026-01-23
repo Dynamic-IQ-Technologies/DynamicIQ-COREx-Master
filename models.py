@@ -37,10 +37,23 @@ if USE_POSTGRES:
     from psycopg2.extras import RealDictCursor
 
 class PostgresTranslatingCursor:
-    """Cursor wrapper that translates SQLite SQL to PostgreSQL"""
+    """Cursor wrapper that translates SQLite SQL to PostgreSQL and converts Decimal to float"""
     def __init__(self, cursor, translate_func):
         self._cursor = cursor
         self._translate = translate_func
+    
+    def _convert_row(self, row):
+        """Convert Decimal values to float in a row dictionary"""
+        if row is None:
+            return None
+        from decimal import Decimal
+        converted = {}
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                converted[key] = float(value)
+            else:
+                converted[key] = value
+        return converted
     
     def execute(self, query, params=None):
         query = self._translate(query)
@@ -52,13 +65,16 @@ class PostgresTranslatingCursor:
         return self
     
     def fetchone(self):
-        return self._cursor.fetchone()
+        row = self._cursor.fetchone()
+        return self._convert_row(row)
     
     def fetchall(self):
-        return self._cursor.fetchall()
+        rows = self._cursor.fetchall()
+        return [self._convert_row(row) for row in rows]
     
     def fetchmany(self, size=None):
-        return self._cursor.fetchmany(size)
+        rows = self._cursor.fetchmany(size)
+        return [self._convert_row(row) for row in rows]
     
     def close(self):
         self._cursor.close()
