@@ -155,7 +155,7 @@
                                 <span class="badge bg-success">{{ esc.status }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ esc.escalated_at.strftime('%Y-%m-%d %H:%M') if esc.escalated_at else '-' }}</td>
+                            <td>{{ format_dt(esc.escalated_at) }}</td>
                             <td>
                                 {% if esc.status != 'Resolved' %}
                                 <button type="button" class="btn btn-sm btn-outline-primary" 

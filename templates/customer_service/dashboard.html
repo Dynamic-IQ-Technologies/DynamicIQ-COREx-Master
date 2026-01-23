@@ -491,7 +491,7 @@
                                         </a>: {{ activity.activity_description }}
                                     </p>
                                     <small class="text-muted">
-                                        {{ activity.created_at.strftime('%Y-%m-%d %H:%M') if activity.created_at else '-' }}
+                                        {{ format_dt(activity.created_at) }}
                                         {% if activity.created_by_name %} - {{ activity.created_by_name }}{% endif %}
                                     </small>
                                 </div>
@@ -529,7 +529,7 @@
                                 <tr>
                                     <td>{{ conf.wo_number }}</td>
                                     <td>{{ conf.confirmed_by_name }}</td>
-                                    <td>{{ conf.confirmation_date.strftime('%Y-%m-%d %H:%M') if conf.confirmation_date else '-' }}</td>
+                                    <td>{{ format_dt(conf.confirmation_date) }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

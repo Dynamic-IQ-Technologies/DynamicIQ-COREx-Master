@@ -268,7 +268,7 @@
                         {% for log in audit_trail %}
                         <tr>
                             <td>
-                                <small>{{ log.modified_at.strftime('%Y-%m-%d %H:%M:%S') if log.modified_at else '-' }}</small>
+                                <small>{{ format_dt(log.modified_at, '%Y-%m-%d %H:%M:%S') }}</small>
                             </td>
                             <td>
                                 <span class="badge {% if log.action_type == 'CREATE' or log.action_type == 'Created' %}bg-success{% elif log.action_type == 'UPDATE' or log.action_type == 'Updated' %}bg-warning text-dark{% elif log.action_type == 'DELETE' or log.action_type == 'Deleted' %}bg-danger{% else %}bg-secondary{% endif %}">

@@ -38,7 +38,7 @@
                             <i class="bi bi-check-circle me-2"></i>
                             <strong>Link Generated</strong> - Valid until {{ existing_token.expires_at|datestr }}
                             {% if existing_token.email_sent %}
-                            <br><small class="text-muted">Email sent on {{ existing_token.email_sent_at.strftime('%Y-%m-%d %H:%M') if existing_token.email_sent_at else '-' }}</small>
+                            <br><small class="text-muted">Email sent on {{ format_dt(existing_token.email_sent_at) }}</small>
                             {% endif %}
                         </div>
                         

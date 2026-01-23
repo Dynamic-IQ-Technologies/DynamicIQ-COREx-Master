@@ -202,7 +202,7 @@
                     </div>
                     <div class="mb-2">
                         <label class="text-muted small">Created At</label>
-                        <div>{{ capability.created_at.strftime('%Y-%m-%d %H:%M:%S') if capability.created_at else '-' }}</div>
+                        <div>{{ format_dt(capability.created_at, '%Y-%m-%d %H:%M:%S') }}</div>
                     </div>
                     <div class="mb-2">
                         <label class="text-muted small">Last Modified By</label>
@@ -210,7 +210,7 @@
                     </div>
                     <div>
                         <label class="text-muted small">Last Modified At</label>
-                        <div>{{ capability.updated_at.strftime('%Y-%m-%d %H:%M:%S') if capability.updated_at else '-' }}</div>
+                        <div>{{ format_dt(capability.updated_at, '%Y-%m-%d %H:%M:%S') }}</div>
                     </div>
                 </div>
             </div>

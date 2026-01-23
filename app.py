@@ -244,11 +244,23 @@ def coalesce(*values):
             return v
     return None
 
+def format_dt(value, fmt='%Y-%m-%d %H:%M'):
+    """Format datetime safely - handles both string (SQLite) and datetime (PostgreSQL) values."""
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value[:16] if fmt == '%Y-%m-%d %H:%M' else value[:19]
+    try:
+        return value.strftime(fmt)
+    except (AttributeError, ValueError):
+        return str(value)[:16] if fmt == '%Y-%m-%d %H:%M' else str(value)[:19]
+
 app.jinja_env.globals['safe_get'] = safe_get
 app.jinja_env.globals['safe_int'] = safe_int
 app.jinja_env.globals['safe_float'] = safe_float
 app.jinja_env.globals['safe_str'] = safe_str
 app.jinja_env.globals['coalesce'] = coalesce
+app.jinja_env.globals['format_dt'] = format_dt
 
 @app.context_processor
 def inject_now():

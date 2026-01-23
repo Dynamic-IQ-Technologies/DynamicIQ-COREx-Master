@@ -80,7 +80,7 @@
                     <tbody>
                         {% for comm in communications %}
                         <tr>
-                            <td>{{ comm.communication_date.strftime('%Y-%m-%d %H:%M') if comm.communication_date else '-' }}</td>
+                            <td>{{ format_dt(comm.communication_date) }}</td>
                             <td>
                                 {% if comm.communication_type == 'Call' %}
                                 <span class="badge bg-info"><i class="bi bi-telephone me-1"></i>Call</span>

@@ -37,7 +37,7 @@
                             </td>
                             <td><strong>{{ alert.title }}</strong></td>
                             <td>{{ alert.message or '-' }}</td>
-                            <td>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else '-' }}</td>
+                            <td>{{ format_dt(alert.created_at) }}</td>
                             <td>
                                 {% if alert.is_acknowledged %}
                                 <span class="badge bg-success">Acknowledged</span>

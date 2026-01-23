@@ -88,7 +88,7 @@
                                     {{ incident.status }}
                                 </span>
                             </td>
-                            <td>{{ incident.detected_at.strftime('%Y-%m-%d %H:%M') if incident.detected_at else '-' }}</td>
+                            <td>{{ format_dt(incident.detected_at) }}</td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>

@@ -166,7 +166,7 @@
                                     <span class="badge bg-info">{{ entry.action }}</span>
                                     <small class="d-block text-muted">{{ entry.user_name }}</small>
                                 </div>
-                                <small class="text-muted">{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') if entry.timestamp else '-' }}</small>
+                                <small class="text-muted">{{ format_dt(entry.timestamp) }}</small>
                             </div>
                         </div>
                         {% endfor %}
