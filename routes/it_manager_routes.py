@@ -630,12 +630,12 @@ def get_access_metrics(conn):
     
     total_logins = conn.execute('''
         SELECT COUNT(*) as count FROM it_access_audit 
-        WHERE action_type = 'login' AND created_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+        WHERE action_type = 'login' AND created_at >= datetime('now', '-24 hours')
     ''').fetchone()
     
     failed_logins = conn.execute('''
         SELECT COUNT(*) as count FROM it_access_audit 
-        WHERE action_type = 'login' AND success = 0 AND created_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+        WHERE action_type = 'login' AND success = 0 AND created_at >= datetime('now', '-24 hours')
     ''').fetchone()
     
     return {

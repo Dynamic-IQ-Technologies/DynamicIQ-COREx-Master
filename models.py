@@ -258,6 +258,9 @@ class PostgresConnection:
         # Replace strftime('%Y', date) with TO_CHAR(date, 'YYYY')
         query = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'YYYY')", query, flags=re.IGNORECASE)
         
+        # Replace datetime('now', '-X hours') with CURRENT_TIMESTAMP - INTERVAL 'X hours'
+        query = re.sub(r"datetime\s*\(\s*'now'\s*,\s*'-(\d+)\s+hours?'\s*\)", r"CURRENT_TIMESTAMP - INTERVAL '\1 hours'", query, flags=re.IGNORECASE)
+        
         # Replace datetime('now') with CURRENT_TIMESTAMP
         query = re.sub(r"datetime\s*\(\s*'now'\s*\)", "CURRENT_TIMESTAMP", query, flags=re.IGNORECASE)
         
