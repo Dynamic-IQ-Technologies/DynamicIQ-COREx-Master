@@ -102,7 +102,7 @@ def dashboard():
     capacity_data = []
     for wc in work_centers:
         operations_load = conn.execute('''
-            SELECT COALESCE(SUM(woo.planned_hours + woo.setup_hours), 0) as total_planned
+            SELECT COALESCE(SUM(COALESCE(woo.planned_hours, 0) + COALESCE(woo.setup_hours, 0)), 0) as total_planned
             FROM work_order_operations woo
             JOIN work_orders wo ON woo.work_order_id = wo.id
             WHERE woo.work_center_id = ?
@@ -113,7 +113,7 @@ def dashboard():
         ''', (wc['id'], date_to, date_from)).fetchone()
         
         tasks_load = conn.execute('''
-            SELECT COALESCE(SUM(wot.planned_hours), 0) as total_planned
+            SELECT COALESCE(SUM(COALESCE(wot.planned_hours, 0)), 0) as total_planned
             FROM work_order_tasks wot
             JOIN work_orders wo ON wot.work_order_id = wo.id
             WHERE wot.work_center_id = ?
@@ -123,7 +123,9 @@ def dashboard():
             AND (COALESCE(wot.planned_end_date, wo.planned_end_date) IS NULL OR COALESCE(wot.planned_end_date, wo.planned_end_date) >= ?)
         ''', (wc['id'], date_to, date_from)).fetchone()
         
-        planned_load = {'total_planned': operations_load['total_planned'] + tasks_load['total_planned']}
+        ops_total = float(operations_load['total_planned'] or 0) if operations_load else 0
+        tasks_total = float(tasks_load['total_planned'] or 0) if tasks_load else 0
+        planned_load = {'total_planned': ops_total + tasks_total}
         
         available_capacity = calculate_available_capacity(
             conn, wc['id'], date_from, date_to,

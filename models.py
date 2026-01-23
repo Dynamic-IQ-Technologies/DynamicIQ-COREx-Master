@@ -163,6 +163,9 @@ class PostgresConnection:
         # GROUP_CONCAT(column) -> STRING_AGG(column::text, ', ')
         query = re.sub(r"GROUP_CONCAT\s*\(\s*([^)]+)\s*\)", r"STRING_AGG((\1)::text, ', ')", query, flags=re.IGNORECASE)
         
+        # Replace SUBSTR with SUBSTRING for PostgreSQL
+        query = re.sub(r"\bSUBSTR\s*\(", "SUBSTRING(", query, flags=re.IGNORECASE)
+        
         # Replace DATE(column) with column::date for casting
         query = re.sub(r"DATE\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
         
