@@ -18,6 +18,9 @@
                     </nav>
                 </div>
                 <div>
+                    <a href="{{ url_for('invoice_routes.download_pdf', id=invoice.id) }}" class="btn btn-primary me-2">
+                        <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                    </a>
                     <a href="{{ url_for('invoice_routes.list_invoices') }}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back to List
                     </a>

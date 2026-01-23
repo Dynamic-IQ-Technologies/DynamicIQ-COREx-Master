@@ -1,9 +1,16 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from models import Database, AuditLogger
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 import secrets
 import os
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 
 def get_brevo_credentials():
@@ -154,10 +161,11 @@ def list_invoices():
     total_outstanding = sum(inv['balance_due'] for inv in invoices if inv['status'] != 'Void')
     
     # Overdue invoices
-    today = datetime.now().date()
+    today_date = datetime.now().date()
+    today_str = today_date.strftime('%Y-%m-%d')
     overdue_amount = sum(
         inv['balance_due'] for inv in invoices 
-        if inv['status'] in ['Posted', 'Approved'] and inv['due_date'] and (inv['due_date'] if hasattr(inv['due_date'], 'date') else datetime.strptime(str(inv['due_date'])[:10], '%Y-%m-%d').date()) < today and inv['balance_due'] > 0
+        if inv['status'] in ['Posted', 'Approved'] and inv['due_date'] and str(inv['due_date'])[:10] < today_str and inv['balance_due'] > 0
     )
     
     conn.close()
@@ -174,7 +182,7 @@ def list_invoices():
                          total_paid=total_paid,
                          total_outstanding=total_outstanding,
                          overdue_amount=overdue_amount,
-                         today=today)
+                         today=today_str)
 
 @invoice_bp.route('/invoices/<int:id>')
 @login_required
@@ -1090,3 +1098,206 @@ def customer_view_invoice(token):
                          invoice=invoice,
                          company=company,
                          lines=lines)
+
+@invoice_bp.route('/invoices/<int:id>/pdf')
+@login_required
+@role_required('Admin', 'Accountant', 'Planner', 'Finance')
+def download_pdf(id):
+    """Generate and download invoice PDF"""
+    db = Database()
+    conn = db.get_connection()
+    
+    invoice = conn.execute('''
+        SELECT 
+            i.*,
+            c.name as customer_name,
+            c.customer_number,
+            c.email as customer_email,
+            c.billing_address,
+            c.shipping_address,
+            so.so_number,
+            wo.wo_number
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN sales_orders so ON i.so_id = so.id
+        LEFT JOIN work_orders wo ON i.wo_id = wo.id
+        WHERE i.id = ?
+    ''', (id,)).fetchone()
+    
+    if not invoice:
+        flash('Invoice not found', 'danger')
+        conn.close()
+        return redirect(url_for('invoice_routes.list_invoices'))
+    
+    lines = conn.execute('''
+        SELECT il.*, p.code as product_code, p.name as product_name
+        FROM invoice_lines il
+        LEFT JOIN products p ON il.product_id = p.id
+        WHERE il.invoice_id = ?
+        ORDER BY il.line_number
+    ''', (id,)).fetchall()
+    
+    company = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+    
+    conn.close()
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch, 
+                           leftMargin=0.5*inch, rightMargin=0.5*inch)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'InvoiceTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#1e3a5f'),
+        spaceAfter=5,
+        alignment=TA_CENTER
+    )
+    
+    company_style = ParagraphStyle(
+        'Company',
+        parent=styles['Normal'],
+        fontSize=12,
+        textColor=colors.HexColor('#1e3a5f'),
+        alignment=TA_CENTER,
+        spaceAfter=5
+    )
+    
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#475569'),
+        alignment=TA_CENTER
+    )
+    
+    if company and company['company_name']:
+        story.append(Paragraph(company['company_name'], company_style))
+        addr_parts = []
+        if company['address_line1']:
+            addr_parts.append(company['address_line1'])
+        if company['city']:
+            city_line = company['city']
+            if company['state']:
+                city_line += f", {company['state']}"
+            if company['postal_code']:
+                city_line += f" {company['postal_code']}"
+            addr_parts.append(city_line)
+        if addr_parts:
+            story.append(Paragraph(' | '.join(addr_parts), header_style))
+        story.append(Spacer(1, 0.2*inch))
+    
+    doc_type = "QUOTE" if invoice['invoice_number'].startswith('QUO') else "INVOICE"
+    story.append(Paragraph(doc_type, title_style))
+    story.append(Spacer(1, 0.1*inch))
+    
+    inv_num_style = ParagraphStyle(
+        'InvNum',
+        parent=styles['Normal'],
+        fontSize=14,
+        textColor=colors.HexColor('#f97316'),
+        alignment=TA_CENTER,
+        spaceAfter=20
+    )
+    story.append(Paragraph(invoice['invoice_number'], inv_num_style))
+    story.append(Spacer(1, 0.2*inch))
+    
+    info_data = [
+        ['Invoice Date:', str(invoice['invoice_date'] or '')[:10], 'Customer:', invoice['customer_name']],
+        ['Due Date:', str(invoice['due_date'] or '')[:10], 'Account #:', invoice['customer_number'] or '-'],
+        ['Status:', invoice['status'], 'Payment Terms:', invoice['payment_terms'] or 'Net 30'],
+    ]
+    
+    if invoice['so_number']:
+        info_data.append(['Sales Order:', invoice['so_number'], '', ''])
+    if invoice['wo_number']:
+        info_data.append(['Work Order:', invoice['wo_number'], '', ''])
+    
+    info_table = Table(info_data, colWidths=[1.2*inch, 2*inch, 1.2*inch, 2.5*inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#334155')),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    if invoice['billing_address']:
+        story.append(Paragraph('<b>Bill To:</b>', styles['Normal']))
+        story.append(Paragraph(invoice['billing_address'].replace('\n', '<br/>'), styles['Normal']))
+        story.append(Spacer(1, 0.2*inch))
+    
+    line_data = [['#', 'Description', 'Qty', 'Unit Price', 'Amount']]
+    for i, line in enumerate(lines, 1):
+        desc = line['description'] or ''
+        if line['product_code']:
+            desc = f"{line['product_code']} - {desc}"
+        line_data.append([
+            str(i),
+            desc[:50],
+            str(line['quantity']),
+            f"${line['unit_price']:,.2f}",
+            f"${line['line_total']:,.2f}"
+        ])
+    
+    line_table = Table(line_data, colWidths=[0.4*inch, 4*inch, 0.7*inch, 1*inch, 1*inch])
+    line_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+    ]))
+    story.append(line_table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    totals_data = [
+        ['Subtotal:', f"${invoice['subtotal']:,.2f}"],
+    ]
+    if invoice['discount_amount'] and invoice['discount_amount'] > 0:
+        totals_data.append(['Discount:', f"-${invoice['discount_amount']:,.2f}"])
+    if invoice['tax_amount'] and invoice['tax_amount'] > 0:
+        totals_data.append(['Tax:', f"${invoice['tax_amount']:,.2f}"])
+    totals_data.append(['Total:', f"${invoice['total_amount']:,.2f}"])
+    if invoice['amount_paid'] and invoice['amount_paid'] > 0:
+        totals_data.append(['Amount Paid:', f"${invoice['amount_paid']:,.2f}"])
+        totals_data.append(['Balance Due:', f"${invoice['balance_due']:,.2f}"])
+    
+    totals_table = Table(totals_data, colWidths=[5.5*inch, 1.5*inch])
+    totals_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1e3a5f')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#1e3a5f')),
+    ]))
+    story.append(totals_table)
+    
+    if invoice['notes']:
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph('<b>Notes:</b>', styles['Normal']))
+        story.append(Paragraph(invoice['notes'], styles['Normal']))
+    
+    doc.build(story)
+    
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    response = make_response(pdf_data)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename={invoice["invoice_number"]}.pdf'
+    
+    return response
