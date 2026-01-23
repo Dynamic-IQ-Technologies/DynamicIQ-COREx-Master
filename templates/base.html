@@ -729,12 +729,6 @@
                     <span>Receiving</span>
                 </a>
             </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('unplanned_receipt_routes.list_receipts') }}" style="color: #f97316;">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <span>Unplanned Receipts</span>
-                </a>
-            </li>
             {% endif %}
             {% if session.role == 'Admin' or user_permissions.get('menu_inventory', 1) == 1 %}
             <li class="sidebar-nav-item">
@@ -1019,6 +1013,12 @@
                 <a class="sidebar-nav-link" href="{{ url_for('shipping_routes.list_pending_shipments') }}">
                     <i class="bi bi-clock-history"></i>
                     <span>Pending Shipments</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('unplanned_receipt_routes.list_receipts') }}" style="color: #f97316;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Unplanned Receipts</span>
                 </a>
             </li>
         </ul>
