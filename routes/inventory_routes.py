@@ -2014,28 +2014,25 @@ def split_inventory(id):
         cursor.execute('''
             INSERT INTO inventory (
                 product_id, quantity, unit_cost, condition, warehouse_location, bin_location,
-                serial_number, batch_number, lot_number, expiration_date, status,
+                lot_number, expiration_date, status,
                 last_received_date, last_calibration_date, calibration_frequency, next_calibration_date,
-                customer_id, notes, created_at
+                notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             source['product_id'],
             split_quantity,
             unit_cost,
-            new_condition or source['condition'],
-            new_warehouse or source['warehouse_location'],
-            new_bin or source['bin_location'],
-            None,  # New record doesn't inherit serial
-            source['batch_number'],
-            source['lot_number'],
-            source['expiration_date'],
+            new_condition or source.get('condition', 'New'),
+            new_warehouse or source.get('warehouse_location', ''),
+            new_bin or source.get('bin_location', ''),
+            source.get('lot_number'),
+            source.get('expiration_date'),
             new_status,
-            source['last_received_date'],
-            source['last_calibration_date'],
-            source['calibration_frequency'],
-            source['next_calibration_date'],
-            source['customer_id'],
+            source.get('last_received_date'),
+            source.get('last_calibration_date'),
+            source.get('calibration_frequency'),
+            source.get('next_calibration_date'),
             f"Split from Inv#{id}. {reason}" if reason else f"Split from Inv#{id}"
         ))
         new_id = cursor.lastrowid
