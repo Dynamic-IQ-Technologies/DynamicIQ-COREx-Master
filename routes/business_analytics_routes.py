@@ -3,7 +3,7 @@ Business Analytics AI Super Agent Routes
 Autonomous intelligent manager for ERP process optimization and predictive analytics
 """
 from flask import Blueprint, render_template, request, jsonify, session
-from models import Database
+from models import Database, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 import json
@@ -527,7 +527,7 @@ def get_active_alerts(conn):
         alerts.append({
             'type': 'warning',
             'category': 'Finance',
-            'message': f"${outstanding['total']:,.2f} in overdue invoices ({outstanding['count']} invoices)",
+            'message': f"${safe_float(outstanding['total']):,.2f} in overdue invoices ({outstanding['count']} invoices)",
             'priority': 'high'
         })
     

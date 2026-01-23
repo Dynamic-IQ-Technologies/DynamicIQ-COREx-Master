@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import Database, AuditLogger
+from models import Database, AuditLogger, safe_float
 from datetime import datetime, date, timedelta
 import json
 import os
@@ -410,10 +410,10 @@ The Customer agrees to return a serviceable core unit within the specified timef
     penalty_terms = request.form.get('penalty_terms', f'''
 Core Return Terms:
 - Core Due Date: {exchange['core_due_date']}
-- Core Value: ${exchange['core_value']:,.2f}
+- Core Value: ${safe_float(exchange['core_value']):,.2f}
 
 Failure to return the core by the due date will result in:
-- Full core charge of ${exchange['core_value']:,.2f}
+- Full core charge of ${safe_float(exchange['core_value']):,.2f}
 - Additional administrative fees may apply
 ''')
     

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, make_response
-from models import Database
+from models import Database, safe_float
 from datetime import datetime, timedelta
 import json
 import os
@@ -390,48 +390,48 @@ FINANCIAL SNAPSHOT - CFO BRIEFING
 ==================================
 
 CASH POSITION & LIQUIDITY:
-- Cash Balance (GL): ${cash['cash_balance']:,.2f}
-- Current Assets: ${cash['current_assets']:,.2f}
-- Current Liabilities: ${cash['current_liabilities']:,.2f}
-- Net Working Capital: ${cash['net_working_capital']:,.2f}
-- Cash In (MTD): ${cash['cash_in_mtd']:,.2f}
-- Cash Out (MTD): ${cash['cash_out_mtd']:,.2f}
-- Net Cash Flow (MTD): ${cash['net_cash_flow_mtd']:,.2f}
-- Monthly Burn Rate: ${cash['monthly_burn_rate']:,.2f}
+- Cash Balance (GL): ${safe_float(cash['cash_balance']):,.2f}
+- Current Assets: ${safe_float(cash['current_assets']):,.2f}
+- Current Liabilities: ${safe_float(cash['current_liabilities']):,.2f}
+- Net Working Capital: ${safe_float(cash['net_working_capital']):,.2f}
+- Cash In (MTD): ${safe_float(cash['cash_in_mtd']):,.2f}
+- Cash Out (MTD): ${safe_float(cash['cash_out_mtd']):,.2f}
+- Net Cash Flow (MTD): ${safe_float(cash['net_cash_flow_mtd']):,.2f}
+- Monthly Burn Rate: ${safe_float(cash['monthly_burn_rate']):,.2f}
 - Estimated Runway: {cash['runway_months']} months
-- A/R Outstanding: ${cash['ar_outstanding']:,.2f}
-- A/P Outstanding: ${cash['ap_outstanding']:,.2f}
-- Inventory Value: ${cash['inventory_value']:,.2f}
-- Open PO Commitments: ${cash['open_po_value']:,.2f}
+- A/R Outstanding: ${safe_float(cash['ar_outstanding']):,.2f}
+- A/P Outstanding: ${safe_float(cash['ap_outstanding']):,.2f}
+- Inventory Value: ${safe_float(cash['inventory_value']):,.2f}
+- Open PO Commitments: ${safe_float(cash['open_po_value']):,.2f}
 
 REVENUE & MARGINS:
-- Total Revenue: ${revenue['total_revenue']:,.2f}
-- Revenue MTD: ${revenue['revenue_mtd']:,.2f}
-- Revenue Growth: {revenue['revenue_growth']:.1f}%
-- Revenue YTD: ${revenue['revenue_ytd']:,.2f}
-- Gross Profit: ${revenue['gross_profit']:,.2f}
-- Gross Margin: {revenue['gross_margin']:.1f}%
-- Avg Order Value: ${revenue['avg_order_value']:,.2f}
-- Revenue/Customer: ${revenue['revenue_per_customer']:,.2f}
-- Total COGS: ${revenue['total_cogs']:,.2f}
+- Total Revenue: ${safe_float(revenue['total_revenue']):,.2f}
+- Revenue MTD: ${safe_float(revenue['revenue_mtd']):,.2f}
+- Revenue Growth: {safe_float(revenue['revenue_growth']):.1f}%
+- Revenue YTD: ${safe_float(revenue['revenue_ytd']):,.2f}
+- Gross Profit: ${safe_float(revenue['gross_profit']):,.2f}
+- Gross Margin: {safe_float(revenue['gross_margin']):.1f}%
+- Avg Order Value: ${safe_float(revenue['avg_order_value']):,.2f}
+- Revenue/Customer: ${safe_float(revenue['revenue_per_customer']):,.2f}
+- Total COGS: ${safe_float(revenue['total_cogs']):,.2f}
 
 OPERATIONAL EFFICIENCY:
 - Employees: {efficiency['employee_count']}
-- Revenue/Employee: ${efficiency['revenue_per_employee']:,.2f}
-- Monthly Labor Expense: ${efficiency['total_monthly_labor_expense']:,.2f}
-- Avg WO Cost: ${efficiency['avg_wo_total_cost']:,.2f}
-- WO Completion Rate: {efficiency['wo_completion_rate']:.1f}%
+- Revenue/Employee: ${safe_float(efficiency['revenue_per_employee']):,.2f}
+- Monthly Labor Expense: ${safe_float(efficiency['total_monthly_labor_expense']):,.2f}
+- Avg WO Cost: ${safe_float(efficiency['avg_wo_total_cost']):,.2f}
+- WO Completion Rate: {safe_float(efficiency['wo_completion_rate']):.1f}%
 - Inventory Turnover: {efficiency['inventory_turnover']}x
 - Days Inventory: {efficiency['days_inventory']} days
 
 RISK INDICATORS:
-- A/R Current: ${risk['ar_current']:,.2f}
-- A/R 31-60 Days: ${risk['ar_31_60']:,.2f}
-- A/R 61-90 Days: ${risk['ar_61_90']:,.2f}
-- A/R Over 90 Days: ${risk['ar_over_90']:,.2f}
-- A/R Risk %: {risk['ar_risk_percentage']:.1f}%
-- Revenue Concentration: {risk['revenue_concentration']:.1f}%
-- Supplier Concentration: {risk['supplier_concentration']:.1f}%
+- A/R Current: ${safe_float(risk['ar_current']):,.2f}
+- A/R 31-60 Days: ${safe_float(risk['ar_31_60']):,.2f}
+- A/R 61-90 Days: ${safe_float(risk['ar_61_90']):,.2f}
+- A/R Over 90 Days: ${safe_float(risk['ar_over_90']):,.2f}
+- A/R Risk %: {safe_float(risk['ar_risk_percentage']):.1f}%
+- Revenue Concentration: {safe_float(risk['revenue_concentration']):.1f}%
+- Supplier Concentration: {safe_float(risk['supplier_concentration']):.1f}%
 - Overdue A/R: {risk['overdue_ar_count']} invoices
 - Overdue A/P: {risk['overdue_ap_count']} invoices
 """

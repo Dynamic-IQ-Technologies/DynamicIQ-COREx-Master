@@ -1,7 +1,20 @@
 import sqlite3
 import os
 from datetime import datetime
+from decimal import Decimal
 from werkzeug.security import generate_password_hash, check_password_hash
+
+def safe_float(value, default=0):
+    """Safely convert Decimal/numeric values to float for formatting.
+    PostgreSQL returns Decimal objects which can't be directly formatted with :,.2f"""
+    if value is None:
+        return default
+    if isinstance(value, Decimal):
+        return float(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 IS_PRODUCTION = os.environ.get('REPLIT_DEPLOYMENT') == '1'

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 from functools import wraps
-from models import Database
+from models import Database, safe_float
 from datetime import datetime, timedelta
 import csv
 from io import StringIO

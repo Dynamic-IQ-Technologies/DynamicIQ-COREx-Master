@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, session
-from models import Database
+from models import Database, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 import json
@@ -345,7 +345,7 @@ def executive_sales_dashboard():
             'type': 'warning',
             'icon': 'exclamation-triangle',
             'title': f'High-value deal at risk',
-            'message': f'{deal["so_number"]} (${deal["total_amount"]:,.2f}) - {deal["customer_name"]} has unallocated items'
+            'message': f'{deal["so_number"]} (${safe_float(deal["total_amount"]):,.2f}) - {deal["customer_name"]} has unallocated items'
         })
     
     overdue_quotes = conn.execute('''
@@ -360,7 +360,7 @@ def executive_sales_dashboard():
             'type': 'warning',
             'icon': 'clock-history',
             'title': 'Quote aging beyond SLA',
-            'message': f'{overdue_quotes["count"]} quotes (${overdue_quotes["value"]:,.2f}) pending > 14 days'
+            'message': f'{overdue_quotes["count"]} quotes (${safe_float(overdue_quotes["value"]):,.2f}) pending > 14 days'
         })
     
     capacity_overload = conn.execute('''
@@ -511,17 +511,17 @@ def sales_copilot():
         
         context_str = f"""
 Current Business Metrics:
-- YTD Revenue: ${context_data['ytd_revenue']:,.2f}
-- MTD Revenue: ${context_data['mtd_revenue']:,.2f}
-- Previous Month Revenue: ${context_data['prev_month_revenue']:,.2f}
-- Pipeline Value: ${context_data['pipeline']['value']:,.2f} ({context_data['pipeline']['count']} orders)
+- YTD Revenue: ${safe_float(context_data['ytd_revenue']):,.2f}
+- MTD Revenue: ${safe_float(context_data['mtd_revenue']):,.2f}
+- Previous Month Revenue: ${safe_float(context_data['prev_month_revenue']):,.2f}
+- Pipeline Value: ${safe_float(context_data['pipeline']['value']):,.2f} ({context_data['pipeline']['count']} orders)
 - Active Work Orders: {context_data['wo_capacity']['in_progress']} in progress, {context_data['wo_capacity']['upcoming']} upcoming in 60 days
 
 Top 5 Customers by Revenue:
-{chr(10).join([f"- {c['name']}: ${c['revenue']:,.2f}" for c in context_data['top_customers']])}
+{chr(10).join([f"- {c['name']}: ${safe_float(c['revenue']):,.2f}" for c in context_data['top_customers']])}
 
 High Value Deals:
-{chr(10).join([f"- {d['so_number']}: ${d['total_amount']:,.2f} ({d['name']}) - {d['status']}" for d in context_data['high_value_deals']])}
+{chr(10).join([f"- {d['so_number']}: ${safe_float(d['total_amount']):,.2f} ({d['name']}) - {d['status']}" for d in context_data['high_value_deals']])}
 """
         
         response = client.chat.completions.create(

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, session
-from models import Database
+from models import Database, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 from services.neuroiq_transaction_intelligence import TransactionIntelligenceService
@@ -19,7 +19,7 @@ def format_recent_transactions(transactions):
     if transactions.get('recent_sales_orders'):
         lines.append("Recent Sales Orders:")
         for so in transactions['recent_sales_orders'][:5]:
-            lines.append(f"  - {so['order_number']}: {so['customer']} ({so['type']}) - ${so['amount']:,.2f} - {so['status']}")
+            lines.append(f"  - {so['order_number']}: {so['customer']} ({so['type']}) - ${safe_float(so['amount']):,.2f} - {so['status']}")
     
     if transactions.get('recent_work_orders'):
         lines.append("Recent Work Orders:")
@@ -29,13 +29,13 @@ def format_recent_transactions(transactions):
     if transactions.get('recent_invoices'):
         lines.append("Recent Invoices:")
         for inv in transactions['recent_invoices'][:5]:
-            balance_info = f"Balance: ${inv['balance_due']:,.2f}" if inv['balance_due'] > 0 else "Paid"
-            lines.append(f"  - {inv['invoice_number']}: {inv['customer']} - ${inv['total']:,.2f} - {inv['status']} - {balance_info}")
+            balance_info = f"Balance: ${safe_float(inv['balance_due']):,.2f}" if inv['balance_due'] > 0 else "Paid"
+            lines.append(f"  - {inv['invoice_number']}: {inv['customer']} - ${safe_float(inv['total']):,.2f} - {inv['status']} - {balance_info}")
     
     if transactions.get('recent_purchase_orders'):
         lines.append("Recent Purchase Orders:")
         for po in transactions['recent_purchase_orders'][:5]:
-            lines.append(f"  - {po['po_number']}: {po['supplier']} - ${po['amount']:,.2f} - {po['status']}")
+            lines.append(f"  - {po['po_number']}: {po['supplier']} - ${safe_float(po['amount']):,.2f} - {po['status']}")
     
     return "\n".join(lines) if lines else "No recent transactions available"
 
@@ -350,9 +350,9 @@ CURRENT SYSTEM STATE (Real-Time Data):
 - Timestamp: {context['timestamp']}
 
 FINANCIAL METRICS:
-- YTD Revenue: ${context['financial'].get('ytd_revenue', 0):,.2f}
-- Accounts Receivable: ${context['financial'].get('accounts_receivable', 0):,.2f}
-- Accounts Payable: ${context['financial'].get('accounts_payable', 0):,.2f}
+- YTD Revenue: ${safe_float(context['financial'].get('ytd_revenue', 0)):,.2f}
+- Accounts Receivable: ${safe_float(context['financial'].get('accounts_receivable', 0)):,.2f}
+- Accounts Payable: ${safe_float(context['financial'].get('accounts_payable', 0)):,.2f}
 
 OPERATIONS:
 - Total Work Orders: {context['operations'].get('total_work_orders', 0)}
@@ -361,17 +361,17 @@ OPERATIONS:
 - On Hold: {context['operations'].get('wo_on_hold', 0)}
 
 INVENTORY:
-- Total Value: ${context['inventory'].get('total_value', 0):,.2f}
+- Total Value: ${safe_float(context['inventory'].get('total_value', 0)):,.2f}
 - Total Items: {context['inventory'].get('total_items', 0)}
 - Low Stock Alerts: {context['inventory'].get('low_stock_count', 0)}
 
 SALES:
 - Total Orders: {context['sales'].get('total_orders', 0)}
 - Open Orders: {context['sales'].get('open_orders', 0)}
-- Pipeline Value: ${context['sales'].get('pipeline_value', 0):,.2f}
+- Pipeline Value: ${safe_float(context['sales'].get('pipeline_value', 0)):,.2f}
 - Total Exchange Orders: {context['sales'].get('total_exchanges', 0)}
 - Open Exchanges: {context['sales'].get('open_exchanges', 0)}
-- Exchange Pipeline Value: ${context['sales'].get('exchange_pipeline_value', 0):,.2f}
+- Exchange Pipeline Value: ${safe_float(context['sales'].get('exchange_pipeline_value', 0)):,.2f}
 
 PROCUREMENT:
 - Total POs: {context['procurement'].get('total_purchase_orders', 0)}

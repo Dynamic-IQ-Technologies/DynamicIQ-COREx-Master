@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from auth import login_required
-from models import Database
+from models import Database, safe_float
 from datetime import datetime, timedelta
 import json
 import os
@@ -426,14 +426,14 @@ def procurement_copilot():
 You are a Procurement AI Copilot for an Aviation MRO company. Answer questions about procurement, suppliers, and inventory.
 
 CURRENT DATA:
-- Total Spend (12 months): ${context_data['spend_summary']['total_spend']:,.2f}
+- Total Spend (12 months): ${safe_float(context_data['spend_summary']['total_spend']):,.2f}
 - Active POs: {context_data['spend_summary']['po_count']}
 - Active Suppliers: {context_data['spend_summary']['supplier_count']}
 
 TOP SUPPLIERS BY SPEND:
-{chr(10).join([f"- {s['name']}: ${s['spend']:,.2f}" for s in context_data['top_suppliers']])}
+{chr(10).join([f"- {s['name']}: ${safe_float(s['spend']):,.2f}" for s in context_data['top_suppliers']])}
 
-OVERDUE POs: {context_data['overdue_pos']['count']} orders (${context_data['overdue_pos']['value']:,.2f} at risk)
+OVERDUE POs: {context_data['overdue_pos']['count']} orders (${safe_float(context_data['overdue_pos']['value']):,.2f} at risk)
 
 LOW STOCK ITEMS:
 {chr(10).join([f"- {item['part_number']}: {item['quantity']} on hand, reorder at {item['reorder_point']}" for item in context_data['low_stock'][:5]])}
