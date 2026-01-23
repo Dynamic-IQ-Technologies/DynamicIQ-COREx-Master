@@ -2044,9 +2044,12 @@ def split_inventory(id):
             record_type='inventory',
             record_id=id,
             action_type='Split',
-            old_values={'quantity': current_qty},
-            new_values={'quantity': remaining_qty, 'split_to_inventory_id': new_id, 'split_quantity': split_quantity},
             modified_by=session.get('user_id'),
+            changed_fields={
+                'quantity': {'old': current_qty, 'new': remaining_qty},
+                'split_to_inventory_id': {'old': None, 'new': new_id},
+                'split_quantity': {'old': None, 'new': split_quantity}
+            },
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent')
         )
@@ -2057,8 +2060,12 @@ def split_inventory(id):
             record_type='inventory',
             record_id=new_id,
             action_type='Created (Split)',
-            new_values={'quantity': split_quantity, 'split_from_inventory_id': id, 'reason': reason},
             modified_by=session.get('user_id'),
+            changed_fields={
+                'quantity': {'old': None, 'new': split_quantity},
+                'split_from_inventory_id': {'old': None, 'new': id},
+                'reason': {'old': None, 'new': reason}
+            },
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent')
         )
