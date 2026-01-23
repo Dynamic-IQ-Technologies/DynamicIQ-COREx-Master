@@ -165,8 +165,8 @@
                         <tr><th>API Version</th><td>{{ connection.api_version }}</td></tr>
                         <tr><th>Type</th><td>{% if connection.sandbox %}Sandbox{% else %}Production{% endif %}</td></tr>
                         <tr><th>Client ID</th><td class="text-truncate" style="max-width: 150px;">{{ connection.client_id[:20] }}...</td></tr>
-                        <tr><th>Last Connected</th><td>{{ connection.last_connected_at[:16] if connection.last_connected_at else 'Never' }}</td></tr>
-                        <tr><th>Created</th><td>{{ connection.created_at[:16] if connection.created_at else '' }}</td></tr>
+                        <tr><th>Last Connected</th><td>{{ connection.last_connected_at.strftime('%Y-%m-%d %H:%M') if connection.last_connected_at else '-' }}</td></tr>
+                        <tr><th>Created</th><td>{{ connection.created_at.strftime('%Y-%m-%d %H:%M') if connection.created_at else '-' }}</td></tr>
                     </table>
                 </div>
             </div>
@@ -186,7 +186,7 @@
                                         <small class="text-muted">{{ event.event_description }}</small>
                                     </div>
                                 </div>
-                                <small class="text-muted">{{ event.created_at[:16] }} by {{ event.username or 'System' }}</small>
+                                <small class="text-muted">{{ event.created_at.strftime('%Y-%m-%d %H:%M') if event.created_at else '-' }} by {{ event.username or 'System' }}</small>
                             </li>
                             {% else %}
                             <li class="list-group-item text-center text-muted py-3">No events yet</li>

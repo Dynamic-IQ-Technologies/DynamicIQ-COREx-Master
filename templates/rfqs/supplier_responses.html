@@ -79,7 +79,7 @@
                                 <strong>{{ response.supplier_name }}</strong>
                                 <br><small class="text-muted">{{ response.supplier_code }}</small>
                             </td>
-                            <td>{{ response.submitted_at[:16] if response.submitted_at else '-' }}</td>
+                            <td>{{ response.submitted_at.strftime('%Y-%m-%d %H:%M') if response.submitted_at else '-' }}</td>
                             <td>
                                 <span class="fw-bold">${{ (response.total_amount or 0)|money }}</span>
                                 {% if loop.first %}

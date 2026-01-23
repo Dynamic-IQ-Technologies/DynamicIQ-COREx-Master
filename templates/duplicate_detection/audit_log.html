@@ -51,7 +51,7 @@
                     {% for log in logs %}
                     <tr>
                         <td>
-                            <small>{{ log.performed_at[:19] if log.performed_at else '' }}</small>
+                            <small>{{ log.performed_at.strftime('%Y-%m-%d %H:%M:%S') if log.performed_at else '-' }}</small>
                         </td>
                         <td>
                             <span class="badge bg-secondary">{{ log.record_type }}</span>

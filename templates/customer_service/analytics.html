@@ -213,7 +213,7 @@
                             </td>
                             <td>{{ note.note_text[:80] }}{% if note.note_text|length > 80 %}...{% endif %}</td>
                             <td>{{ note.created_by_name }}</td>
-                            <td>{{ note.created_at[:16] if note.created_at else 'N/A' }}</td>
+                            <td>{{ note.created_at.strftime('%Y-%m-%d %H:%M') if note.created_at else '-' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

@@ -47,7 +47,7 @@
                                 <span class="badge bg-{% if analysis.risk_level == 'High' %}danger{% elif analysis.risk_level == 'Medium' %}warning{% else %}success{% endif %}">
                                     {{ analysis.risk_level or 'Mixed' }}
                                 </span>
-                                <small class="text-muted">{{ analysis.analyzed_at[:16] if analysis.analyzed_at else '' }}</small>
+                                <small class="text-muted">{{ analysis.analyzed_at.strftime('%Y-%m-%d %H:%M') if analysis.analyzed_at else '-' }}</small>
                             </div>
                             <small class="text-muted">{{ analysis.analysis_type }}</small>
                         </div>
