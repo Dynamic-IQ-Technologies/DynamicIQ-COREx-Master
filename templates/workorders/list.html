@@ -70,13 +70,13 @@
                         </select>
                     </div>
                     
-                    <!-- Operational Status Filter -->
+                    <!-- Stage Filter -->
                     <div class="col-md-2">
-                        <label for="operational_status" class="form-label">Operational Status</label>
-                        <select class="form-select" id="operational_status" name="operational_status">
-                            <option value="">All Operational Statuses</option>
-                            {% for os in operational_statuses %}
-                            <option value="{{ os.operational_status }}" {% if filters.operational_status == os.operational_status %}selected{% endif %}>{{ os.operational_status }}</option>
+                        <label for="stage_id" class="form-label">Stage</label>
+                        <select class="form-select" id="stage_id" name="stage_id">
+                            <option value="">All Stages</option>
+                            {% for stage in stages %}
+                            <option value="{{ stage.id }}" {% if filters.stage_id|string == stage.id|string %}selected{% endif %}>{{ stage.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -150,7 +150,13 @@
 {% if filters.status %}{% set _ = active_filters.append(('Status', filters.status)) %}{% endif %}
 {% if filters.disposition %}{% set _ = active_filters.append(('Disposition', filters.disposition)) %}{% endif %}
 {% if filters.priority %}{% set _ = active_filters.append(('Priority', filters.priority)) %}{% endif %}
-{% if filters.operational_status %}{% set _ = active_filters.append(('Operational Status', filters.operational_status)) %}{% endif %}
+{% if filters.stage_id %}
+    {% for stage in stages %}
+        {% if stage.id|string == filters.stage_id|string %}
+            {% set _ = active_filters.append(('Stage', stage.name)) %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
 {% if filters.customer %}
     {% for c in customers %}
         {% if c.id|string == filters.customer %}

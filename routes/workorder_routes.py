@@ -27,7 +27,7 @@ def list_workorders():
     status_filter = request.args.get('status', '')
     disposition_filter = request.args.get('disposition', '')
     priority_filter = request.args.get('priority', '')
-    operational_status_filter = request.args.get('operational_status', '')
+    stage_id_filter = request.args.get('stage_id', '')
     customer_filter = request.args.get('customer', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
@@ -62,9 +62,9 @@ def list_workorders():
         query += ' AND wo.priority = ?'
         params.append(priority_filter)
     
-    if operational_status_filter:
-        query += ' AND wo.operational_status = ?'
-        params.append(operational_status_filter)
+    if stage_id_filter:
+        query += ' AND wo.stage_id = ?'
+        params.append(int(stage_id_filter))
     
     if customer_filter:
         query += ' AND wo.customer_id = ?'
@@ -126,7 +126,7 @@ def list_workorders():
                              'status': status_filter,
                              'disposition': disposition_filter,
                              'priority': priority_filter,
-                             'operational_status': operational_status_filter,
+                             'stage_id': stage_id_filter,
                              'customer': customer_filter,
                              'date_from': date_from,
                              'date_to': date_to,
