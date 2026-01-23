@@ -600,7 +600,7 @@ def dashboard():
         LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
         LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
         WHERE s.status = 'Pending'
-        GROUP BY s.id
+        GROUP BY s.id, so.so_number, wo.wo_number
         ORDER BY s.created_at DESC
         LIMIT 10
     ''').fetchall()
@@ -614,7 +614,7 @@ def dashboard():
         LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
         LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
         WHERE s.status = 'Shipped'
-        GROUP BY s.id
+        GROUP BY s.id, so.so_number, wo.wo_number
         ORDER BY s.ship_date DESC
         LIMIT 10
     ''').fetchall()
