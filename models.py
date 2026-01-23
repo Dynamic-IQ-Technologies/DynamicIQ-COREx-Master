@@ -5304,13 +5304,13 @@ def init_qms_tables(cursor):
                 except:
                     pass
             else:
-                # SQLite: Check if sqlite_autoindex for UNIQUE(product_id) exists
-                indexes = cursor.execute(
-                    "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='inventory' AND sql IS NULL"
-                ).fetchall()
-                has_unique_autoindex = any('product_id' in str(idx) or 'sqlite_autoindex' in str(idx) for idx in indexes)
+                # SQLite: Check the table SQL directly for UNIQUE(product_id) constraint
+                table_sql = cursor.execute(
+                    "SELECT sql FROM sqlite_master WHERE type='table' AND name='inventory'"
+                ).fetchone()
+                has_unique_constraint = table_sql and 'UNIQUE(product_id)' in str(table_sql[0])
                 
-                if has_unique_autoindex:
+                if has_unique_constraint:
                     # Get original CREATE TABLE statement and modify it
                     original_sql = cursor.execute(
                         "SELECT sql FROM sqlite_master WHERE type='table' AND name='inventory'"
