@@ -1159,7 +1159,7 @@ function submitWoAllocation() {
                                     {% for po in related_pos %}
                                     <tr>
                                         <td><a href="{{ url_for('purchaseorder_routes.view_po', id=po.id) }}" class="text-decoration-none fw-bold">{{ po.po_number }}</a></td>
-                                        <td><span class="badge bg-warning text-dark">{{ po.order_type or 'Standard' }}</span></td>
+                                        <td><span class="badge bg-warning text-dark">{{ po.po_type or 'Standard' }}</span></td>
                                         <td>{{ po.supplier_name }}</td>
                                         <td>{{ (po.order_date|string)[:10] if po.order_date else '-' }}</td>
                                         <td>

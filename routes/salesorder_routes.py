@@ -261,7 +261,7 @@ def view_sales_order(id):
     
     # Get related purchase orders (linked through work orders or directly)
     related_pos = conn.execute('''
-        SELECT DISTINCT po.id, po.po_number, po.order_type, po.status, po.order_date,
+        SELECT DISTINCT po.id, po.po_number, po.po_type, po.status, po.order_date,
                s.name as supplier_name,
                (SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) 
                 FROM purchase_order_lines pol WHERE pol.po_id = po.id) as total_amount
