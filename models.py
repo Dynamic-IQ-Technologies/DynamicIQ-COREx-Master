@@ -157,6 +157,12 @@ class PostgresConnection:
         # Replace datetime('now') with CURRENT_TIMESTAMP
         query = re.sub(r"datetime\s*\(\s*'now'\s*\)", "CURRENT_TIMESTAMP", query, flags=re.IGNORECASE)
         
+        # Replace GROUP_CONCAT with STRING_AGG for PostgreSQL
+        # GROUP_CONCAT(DISTINCT column) -> STRING_AGG(DISTINCT column::text, ', ')
+        query = re.sub(r"GROUP_CONCAT\s*\(\s*DISTINCT\s+([^)]+)\s*\)", r"STRING_AGG(DISTINCT (\1)::text, ', ')", query, flags=re.IGNORECASE)
+        # GROUP_CONCAT(column) -> STRING_AGG(column::text, ', ')
+        query = re.sub(r"GROUP_CONCAT\s*\(\s*([^)]+)\s*\)", r"STRING_AGG((\1)::text, ', ')", query, flags=re.IGNORECASE)
+        
         # Replace DATE(column) with column::date for casting
         query = re.sub(r"DATE\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
         
