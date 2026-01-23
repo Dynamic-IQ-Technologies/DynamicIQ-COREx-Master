@@ -1974,18 +1974,21 @@ def split_inventory(id):
         reason = data.get('reason', '')
         
         # Get source inventory
-        source = conn.execute('''
+        source_row = conn.execute('''
             SELECT i.*, p.code, p.name
             FROM inventory i
             JOIN products p ON i.product_id = p.id
             WHERE i.id = ?
         ''', (id,)).fetchone()
         
-        if not source:
+        if not source_row:
             conn.close()
             return jsonify({'success': False, 'error': 'Inventory record not found'})
         
-        if source['status'] in ['Locked', 'Audit Hold']:
+        # Convert to dict for safe access
+        source = dict(source_row)
+        
+        if source.get('status') in ['Locked', 'Audit Hold']:
             conn.close()
             return jsonify({'success': False, 'error': 'Cannot split locked or held inventory'})
         
