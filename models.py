@@ -121,16 +121,18 @@ class PostgresConnection:
             """Replace JULIANDAY(x) - JULIANDAY(y) with proper date arithmetic, handling nested functions"""
             result = query
             pattern = re.compile(r'julianday\s*\(', re.IGNORECASE)
+            search_pos = 0
             
             while True:
-                match = pattern.search(result)
+                match = pattern.search(result, search_pos)
                 if not match:
                     break
                     
                 start1 = match.end() - 1  # Position of opening paren
                 end1 = find_matching_paren(result, start1)
                 if end1 == -1:
-                    break
+                    search_pos = match.end()
+                    continue
                     
                 arg1 = result[start1+1:end1]
                 
@@ -144,13 +146,13 @@ class PostgresConnection:
                     if end2 != -1:
                         arg2 = result[start2+1:end2]
                         # Replace the entire JULIANDAY(...) - JULIANDAY(...) with date diff
-                        old_expr = result[match.start():end2+1]
                         new_expr = f"(({arg1})::date - ({arg2})::date)"
                         result = result[:match.start()] + new_expr + result[end2+1:]
+                        # Don't advance search_pos since we replaced content, restart from same position
                         continue
                 
-                # Single JULIANDAY without subtraction - just move past it
-                break
+                # Single JULIANDAY without subtraction - skip past it and continue searching
+                search_pos = end1 + 1
             
             return result
         
