@@ -389,16 +389,14 @@ def create_work_order(id):
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO work_orders (
-            wo_number, status, priority, work_type, description,
-            notes, created_by, created_at
-        ) VALUES (?, 'Draft', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            wo_number, status, priority, workorder_type,
+            notes, created_at
+        ) VALUES (?, 'Draft', ?, ?, ?, CURRENT_TIMESTAMP)
     ''', (
         wo_number,
         priority,
         wo_type,
-        f"Unplanned Receipt Processing: {receipt['item_description'][:200]}",
-        f"Source: Unplanned Receipt {receipt['intake_number']}\nSerial Numbers: {receipt['serial_numbers'] or 'N/A'}\n{notes}",
-        session.get('user_id')
+        f"Source: Unplanned Receipt {receipt['intake_number']}\nDescription: {receipt['item_description'][:200]}\nSerial Numbers: {receipt['serial_numbers'] or 'N/A'}\n{notes}"
     ))
     wo_id = cursor.lastrowid
     
