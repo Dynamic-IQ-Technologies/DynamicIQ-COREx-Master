@@ -981,6 +981,283 @@ function submitWoAllocation() {
     </div>
 </div>
 
+<!-- Related Records Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Related Records & Documents</h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="relatedRecordsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="work-orders-tab" data-bs-toggle="tab" data-bs-target="#work-orders-pane" type="button" role="tab">
+                            <i class="bi bi-tools me-1"></i>Work Orders
+                            {% if related_work_orders %}<span class="badge bg-primary ms-1">{{ related_work_orders|length }}</span>{% endif %}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices-pane" type="button" role="tab">
+                            <i class="bi bi-receipt-cutoff me-1"></i>Invoices
+                            {% if related_invoices %}<span class="badge bg-success ms-1">{{ related_invoices|length }}</span>{% endif %}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="purchase-orders-tab" data-bs-toggle="tab" data-bs-target="#purchase-orders-pane" type="button" role="tab">
+                            <i class="bi bi-cart me-1"></i>Purchase Orders
+                            {% if related_pos %}<span class="badge bg-warning text-dark ms-1">{{ related_pos|length }}</span>{% endif %}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="shipments-tab" data-bs-toggle="tab" data-bs-target="#shipments-pane" type="button" role="tab">
+                            <i class="bi bi-truck me-1"></i>Shipments
+                            {% if related_shipments %}<span class="badge bg-info ms-1">{{ related_shipments|length }}</span>{% endif %}
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3" id="relatedRecordsContent">
+                    <!-- Work Orders Tab -->
+                    <div class="tab-pane fade show active" id="work-orders-pane" role="tabpanel">
+                        {% if related_work_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>WO Number</th>
+                                        <th>Type</th>
+                                        <th>Product</th>
+                                        <th>Stage</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for wo in related_work_orders %}
+                                    <tr>
+                                        <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="text-decoration-none fw-bold">{{ wo.wo_number }}</a></td>
+                                        <td><span class="badge bg-secondary">{{ wo.workorder_type or 'Standard' }}</span></td>
+                                        <td>{{ wo.product_code or '' }} {{ wo.product_name or '' }}</td>
+                                        <td>
+                                            {% if wo.stage_name %}
+                                            <span class="badge" style="background-color: {{ wo.stage_color or '#6c757d' }}">{{ wo.stage_name }}</span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if wo.status == 'Open' %}
+                                            <span class="badge bg-primary">{{ wo.status }}</span>
+                                            {% elif wo.status == 'Completed' %}
+                                            <span class="badge bg-success">{{ wo.status }}</span>
+                                            {% elif wo.status == 'Cancelled' %}
+                                            <span class="badge bg-danger">{{ wo.status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ wo.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ (wo.created_at|string)[:10] if wo.created_at else '-' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-tools fs-1 mb-2 d-block"></i>
+                            <p>No work orders linked to this sales order.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Invoices Tab -->
+                    <div class="tab-pane fade" id="invoices-pane" role="tabpanel">
+                        {% if related_invoices %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Invoice Number</th>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Balance</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for inv in related_invoices %}
+                                    <tr>
+                                        <td><a href="{{ url_for('invoice_routes.view_invoice', id=inv.id) }}" class="text-decoration-none fw-bold">{{ inv.invoice_number }}</a></td>
+                                        <td><span class="badge bg-info">{{ inv.invoice_type or 'Standard' }}</span></td>
+                                        <td>{{ (inv.invoice_date|string)[:10] if inv.invoice_date else '-' }}</td>
+                                        <td>
+                                            {% if inv.status == 'Paid' %}
+                                            <span class="badge bg-success">{{ inv.status }}</span>
+                                            {% elif inv.status == 'Posted' %}
+                                            <span class="badge bg-primary">{{ inv.status }}</span>
+                                            {% elif inv.status == 'Draft' %}
+                                            <span class="badge bg-secondary">{{ inv.status }}</span>
+                                            {% elif inv.status == 'Void' %}
+                                            <span class="badge bg-dark">{{ inv.status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark">{{ inv.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">${{ "%.2f"|format(inv.total_amount or 0) }}</td>
+                                        <td class="text-end">
+                                            {% if inv.balance_due > 0 %}
+                                            <span class="text-warning fw-bold">${{ "%.2f"|format(inv.balance_due) }}</span>
+                                            {% else %}
+                                            <span class="text-success">${{ "%.2f"|format(inv.balance_due or 0) }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('invoice_routes.view_invoice', id=inv.id) }}" class="btn btn-sm btn-outline-primary me-1">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('invoice_routes.download_pdf', id=inv.id) }}" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-file-pdf"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-receipt-cutoff fs-1 mb-2 d-block"></i>
+                            <p>No invoices linked to this sales order.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Purchase Orders Tab -->
+                    <div class="tab-pane fade" id="purchase-orders-pane" role="tabpanel">
+                        {% if related_pos %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>PO Number</th>
+                                        <th>Type</th>
+                                        <th>Supplier</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for po in related_pos %}
+                                    <tr>
+                                        <td><a href="{{ url_for('purchaseorder_routes.view_po', id=po.id) }}" class="text-decoration-none fw-bold">{{ po.po_number }}</a></td>
+                                        <td><span class="badge bg-warning text-dark">{{ po.order_type or 'Standard' }}</span></td>
+                                        <td>{{ po.supplier_name }}</td>
+                                        <td>{{ (po.order_date|string)[:10] if po.order_date else '-' }}</td>
+                                        <td>
+                                            {% if po.status == 'Completed' or po.status == 'Received' %}
+                                            <span class="badge bg-success">{{ po.status }}</span>
+                                            {% elif po.status == 'Approved' %}
+                                            <span class="badge bg-primary">{{ po.status }}</span>
+                                            {% elif po.status == 'Draft' %}
+                                            <span class="badge bg-secondary">{{ po.status }}</span>
+                                            {% elif po.status == 'Cancelled' %}
+                                            <span class="badge bg-danger">{{ po.status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-info">{{ po.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">${{ "%.2f"|format(po.total_amount or 0) }}</td>
+                                        <td>
+                                            <a href="{{ url_for('purchaseorder_routes.view_po', id=po.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-cart fs-1 mb-2 d-block"></i>
+                            <p>No purchase orders linked to this sales order.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Shipments Tab -->
+                    <div class="tab-pane fade" id="shipments-pane" role="tabpanel">
+                        {% if related_shipments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Shipment Number</th>
+                                        <th>Type</th>
+                                        <th>Ship Date</th>
+                                        <th>Carrier</th>
+                                        <th>Tracking</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sh in related_shipments %}
+                                    <tr>
+                                        <td><a href="{{ url_for('shipping_routes.view_shipment', id=sh.id) }}" class="text-decoration-none fw-bold">{{ sh.shipment_number }}</a></td>
+                                        <td><span class="badge bg-info">{{ sh.shipment_type or 'Standard' }}</span></td>
+                                        <td>{{ (sh.ship_date|string)[:10] if sh.ship_date else '-' }}</td>
+                                        <td>{{ sh.carrier or '-' }}</td>
+                                        <td>
+                                            {% if sh.tracking_number %}
+                                            <span class="font-monospace small">{{ sh.tracking_number }}</span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if sh.status == 'Delivered' %}
+                                            <span class="badge bg-success">{{ sh.status }}</span>
+                                            {% elif sh.status == 'Shipped' %}
+                                            <span class="badge bg-primary">{{ sh.status }}</span>
+                                            {% elif sh.status == 'Pending' %}
+                                            <span class="badge bg-warning text-dark">{{ sh.status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ sh.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('shipping_routes.view_shipment', id=sh.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-truck fs-1 mb-2 d-block"></i>
+                            <p>No shipments linked to this sales order.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Sales Order Modal -->
 <div class="modal fade" id="deleteSalesOrderModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">

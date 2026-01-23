@@ -238,10 +238,58 @@ def view_sales_order(id):
             ORDER BY po.created_at DESC
         ''', (id,)).fetchall()
     
+    # Get related work orders
+    related_work_orders = conn.execute('''
+        SELECT wo.id, wo.wo_number, wo.workorder_type, wo.status, wo.created_at,
+               wos.name as stage_name, wos.color as stage_color,
+               p.code as product_code, p.name as product_name
+        FROM work_orders wo
+        LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
+        LEFT JOIN products p ON wo.product_id = p.id
+        WHERE wo.so_id = ?
+        ORDER BY wo.created_at DESC
+    ''', (id,)).fetchall()
+    
+    # Get related invoices
+    related_invoices = conn.execute('''
+        SELECT i.id, i.invoice_number, i.invoice_type, i.invoice_date, i.status,
+               i.total_amount, i.balance_due
+        FROM invoices i
+        WHERE i.so_id = ?
+        ORDER BY i.created_at DESC
+    ''', (id,)).fetchall()
+    
+    # Get related purchase orders (linked through work orders or directly)
+    related_pos = conn.execute('''
+        SELECT DISTINCT po.id, po.po_number, po.order_type, po.status, po.order_date,
+               s.name as supplier_name,
+               (SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) 
+                FROM purchase_order_lines pol WHERE pol.po_id = po.id) as total_amount
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        WHERE po.source_sales_order_id = ? OR po.id IN (
+            SELECT DISTINCT wo.po_id FROM work_orders wo WHERE wo.so_id = ? AND wo.po_id IS NOT NULL
+        )
+        ORDER BY po.order_date DESC
+    ''', (id, id)).fetchall()
+    
+    # Get related shipments
+    related_shipments = conn.execute('''
+        SELECT sh.id, sh.shipment_number, sh.shipment_type, sh.ship_date, sh.status,
+               sh.carrier, sh.tracking_number,
+               c.name as customer_name
+        FROM shipments sh
+        LEFT JOIN customers c ON sh.customer_id = c.id
+        WHERE sh.so_id = ?
+        ORDER BY sh.ship_date DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('salesorders/view.html', 
-                         sales_order=sales_order, lines=lines, payments=payments, exchange_pos=exchange_pos)
+                         sales_order=sales_order, lines=lines, payments=payments, exchange_pos=exchange_pos,
+                         related_work_orders=related_work_orders, related_invoices=related_invoices,
+                         related_pos=related_pos, related_shipments=related_shipments)
 
 @salesorder_bp.route('/sales-orders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
