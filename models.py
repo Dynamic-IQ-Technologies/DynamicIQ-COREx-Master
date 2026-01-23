@@ -76,6 +76,22 @@ class PostgresConnection:
         """Translate SQLite-specific functions to PostgreSQL equivalents"""
         import re
         
+        # CRITICAL: Convert double-quoted string literals to single quotes for PostgreSQL
+        # PostgreSQL uses double quotes for identifiers, single quotes for strings
+        # This handles patterns like: status = "Active", type = "Standard", etc.
+        def replace_double_quoted_strings(match):
+            # Preserve the comparison operator and convert double quotes to single quotes
+            return match.group(1) + "'" + match.group(2) + "'"
+        
+        # Match patterns like: = "value", != "value", <> "value", LIKE "value", IN ("value"
+        query = re.sub(r'(=\s*)"([^"]*)"', replace_double_quoted_strings, query)
+        query = re.sub(r'(!=\s*)"([^"]*)"', replace_double_quoted_strings, query)
+        query = re.sub(r'(<>\s*)"([^"]*)"', replace_double_quoted_strings, query)
+        query = re.sub(r'(LIKE\s*)"([^"]*)"', replace_double_quoted_strings, query, flags=re.IGNORECASE)
+        query = re.sub(r'(NOT LIKE\s*)"([^"]*)"', replace_double_quoted_strings, query, flags=re.IGNORECASE)
+        query = re.sub(r'(\(\s*)"([^"]*)"', replace_double_quoted_strings, query)  # For IN clauses
+        query = re.sub(r'(,\s*)"([^"]*)"', replace_double_quoted_strings, query)   # For IN clause values
+        
         # Replace SQLite AUTOINCREMENT with PostgreSQL SERIAL
         query = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', query, flags=re.IGNORECASE)
         
