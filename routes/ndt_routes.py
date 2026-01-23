@@ -153,8 +153,8 @@ def dashboard():
         LEFT JOIN ndt_work_orders nw ON t.id = nw.assigned_technician_id
             AND nw.status NOT IN ('Draft', 'Closed')
         WHERE t.contract_status = 'Active'
-        GROUP BY t.id
-        ORDER BY work_orders DESC
+        GROUP BY t.id, t.first_name, t.last_name
+        ORDER BY 2 DESC
         LIMIT 5
     ''').fetchall()
     

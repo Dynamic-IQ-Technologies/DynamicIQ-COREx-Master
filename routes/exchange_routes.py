@@ -141,7 +141,10 @@ def exchange_dashboard():
         LEFT JOIN suppliers sup ON po.exchange_owner_type = 'Supplier' AND po.exchange_owner_id = sup.id
         LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
         WHERE po.is_exchange = 1
-        GROUP BY po.id
+        GROUP BY po.id, po.po_number, po.status, po.order_date, po.expected_delivery_date,
+                 po.exchange_owner_type, po.exchange_owner_id, po.exchange_reference_id,
+                 po.exchange_status, po.source_sales_order_id, po.created_at,
+                 s.name, so.so_number, c.name, sup.name
         ORDER BY po.expected_delivery_date ASC, po.created_at DESC
     ''').fetchall()
     
@@ -289,7 +292,9 @@ def view_exchange(exchange_id):
             LEFT JOIN suppliers sup ON po.exchange_owner_type = 'Supplier' AND po.exchange_owner_id = sup.id
             LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
             WHERE po.source_sales_order_id = ? AND po.is_exchange = 1
-            GROUP BY po.id
+            GROUP BY po.id, po.po_number, po.status, po.order_date, po.expected_delivery_date,
+                     po.exchange_owner_type, po.exchange_owner_id, po.exchange_reference_id,
+                     po.exchange_status, s.name, c.name, sup.name
         ''', (exchange['sales_order_id'],)).fetchall()
     
     agreements = conn.execute('''

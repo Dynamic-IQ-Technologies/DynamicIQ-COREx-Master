@@ -29,6 +29,7 @@ The system supports dual database environments (SQLite for development, PostgreS
 - Preserves time precision in JULIANDAY calculations using EXTRACT(EPOCH FROM ...) / 86400.0 (returns fractional days)
 - Handles SUBSTR → SUBSTRING, datetime('now') → CURRENT_TIMESTAMP translations
 - Date parameter casting: date(?, '+7 days') → ((?::date) + INTERVAL '7 days')::date
+- GROUP_CONCAT → STRING_AGG with balanced parenthesis matching for complex nested expressions
 
 **PostgreSQL Query Compatibility Notes:**
 - Use GROUP BY 1, 2, etc. instead of column aliases (PostgreSQL strict mode)

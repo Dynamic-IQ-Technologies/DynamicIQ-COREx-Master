@@ -261,11 +261,38 @@ class PostgresConnection:
         # Replace datetime('now') with CURRENT_TIMESTAMP
         query = re.sub(r"datetime\s*\(\s*'now'\s*\)", "CURRENT_TIMESTAMP", query, flags=re.IGNORECASE)
         
-        # Replace GROUP_CONCAT with STRING_AGG for PostgreSQL
-        # GROUP_CONCAT(DISTINCT column) -> STRING_AGG(DISTINCT column::text, ', ')
-        query = re.sub(r"GROUP_CONCAT\s*\(\s*DISTINCT\s+([^)]+)\s*\)", r"STRING_AGG(DISTINCT (\1)::text, ', ')", query, flags=re.IGNORECASE)
-        # GROUP_CONCAT(column) -> STRING_AGG(column::text, ', ')
-        query = re.sub(r"GROUP_CONCAT\s*\(\s*([^)]+)\s*\)", r"STRING_AGG((\1)::text, ', ')", query, flags=re.IGNORECASE)
+        # Replace GROUP_CONCAT with STRING_AGG for PostgreSQL using balanced parenthesis matching
+        def replace_group_concat(query):
+            pattern = re.compile(r"GROUP_CONCAT\s*\(", re.IGNORECASE)
+            result = []
+            last_end = 0
+            
+            for match in pattern.finditer(query):
+                result.append(query[last_end:match.start()])
+                start_paren = match.end() - 1
+                content_start = match.end()
+                depth = 1
+                i = content_start
+                while i < len(query) and depth > 0:
+                    if query[i] == '(':
+                        depth += 1
+                    elif query[i] == ')':
+                        depth -= 1
+                    i += 1
+                content = query[content_start:i-1].strip()
+                
+                # Check for DISTINCT
+                if content.upper().startswith('DISTINCT'):
+                    content = content[8:].strip()
+                    result.append(f"STRING_AGG(DISTINCT ({content})::text, ', ')")
+                else:
+                    result.append(f"STRING_AGG(({content})::text, ', ')")
+                last_end = i
+            
+            result.append(query[last_end:])
+            return ''.join(result)
+        
+        query = replace_group_concat(query)
         
         # Replace SUBSTR with SUBSTRING for PostgreSQL
         query = re.sub(r"\bSUBSTR\s*\(", "SUBSTRING(", query, flags=re.IGNORECASE)

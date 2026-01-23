@@ -713,8 +713,8 @@ def get_detailed_revenue(conn, month_start):
         FROM sales_orders so
         JOIN customers c ON so.customer_id = c.id
         WHERE so.status NOT IN ('Cancelled', 'Draft') AND so.order_date >= ?
-        GROUP BY c.id
-        ORDER BY revenue DESC
+        GROUP BY c.id, c.name
+        ORDER BY 3 DESC
         LIMIT 10
     ''', (month_start.isoformat(),)).fetchall()
     
@@ -782,8 +782,8 @@ def get_detailed_workforce(conn):
         SELECT s.name as skill, COUNT(*) as count
         FROM labor_resource_skillsets lrs
         JOIN skillsets s ON lrs.skillset_id = s.id
-        GROUP BY s.id
-        ORDER BY count DESC
+        GROUP BY s.id, s.name
+        ORDER BY 2 DESC
     ''').fetchall()
     
     return {'by_skill': [dict(r) for r in by_skill]}
