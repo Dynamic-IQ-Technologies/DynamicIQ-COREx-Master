@@ -993,6 +993,11 @@ class Database:
                 cursor.execute('ALTER TABLE receiving_transactions ADD COLUMN bin_location TEXT')
             except sqlite3.OperationalError:
                 pass
+        if 'inventory_id' not in rt_columns:
+            try:
+                cursor.execute('ALTER TABLE receiving_transactions ADD COLUMN inventory_id INTEGER REFERENCES inventory(id)')
+            except sqlite3.OperationalError:
+                pass
         
         # Add auto_post_invoice_gl column to company_settings if it doesn't exist
         cs_columns = [row[1] for row in cursor.execute('PRAGMA table_info(company_settings)').fetchall()]

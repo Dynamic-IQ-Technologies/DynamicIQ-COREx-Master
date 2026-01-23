@@ -426,7 +426,8 @@ def view_purchaseorder(id):
         SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure,
                uom.uom_code, uom.uom_name,
                base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name,
-               i.quantity as inventory_quantity
+               i.quantity as inventory_quantity,
+               i.id as inventory_id
         FROM purchase_order_lines pol
         JOIN products p ON pol.product_id = p.id
         LEFT JOIN uom_master uom ON pol.uom_id = uom.id

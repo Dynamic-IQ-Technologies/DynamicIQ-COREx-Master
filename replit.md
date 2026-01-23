@@ -74,6 +74,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 -   **Work Order Reconciliation Module**: Formal cost reconciliation process for work orders with variance analysis and audit trails.
 -   **Invoice Customer Email Portal**: Token-based secure customer portal for viewing invoices with email delivery.
 -   **Supplier Portal for Interactive PO Management**: Token-based secure supplier portal for viewing and updating open purchase orders.
+-   **PO Receiving to Inventory Quick Access**: Quick access link to inventory records directly from purchase order view. When PO lines are received, an inventory link button appears allowing one-click navigation to the created/updated inventory record. Receiving transactions are linked to inventory records via inventory_id column.
 -   **FAA-Compliant Inventory Labels**: Generate printable PDF labels for inventory items complying with FAA regulations.
 -   **Tool Labels with Calibration Tracking**: Generate printable PDF labels for tools and equipment including Tool Name, Description, Purchase Date, Supplier, Manufacturer, Last Calibration Date, and Next Calibration Date. Supports multiple label sizes (4x6, 4x4, 4x3, 3x2) and mass printing for multiple tools.
 -   **Executive Sales Dashboard**: C-Suite strategic intelligence dashboard for MRO operations with KPIs and AI Copilot.

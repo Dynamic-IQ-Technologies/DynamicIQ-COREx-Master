@@ -290,7 +290,9 @@ def create_receiving():
                 SELECT * FROM inventory WHERE product_id = ?
             ''', (product_id,)).fetchone()
             
+            inventory_id = None
             if inventory:
+                inventory_id = inventory['id']
                 new_qty = inventory['quantity'] + base_quantity_for_receipt
                 # Build update fields dynamically based on what's provided
                 update_fields = ['quantity = ?', 'unit_cost = ?', 'last_received_date = ?', 'last_updated = CURRENT_TIMESTAMP']
@@ -318,11 +320,19 @@ def create_receiving():
                 ''', tuple(update_params))
             else:
                 # Create inventory record with location info using base quantity
-                conn.execute('''
+                inv_cursor = conn.cursor()
+                inv_cursor.execute('''
                     INSERT INTO inventory 
                     (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, expiration_date, last_calibration_date, calibration_frequency, next_calibration_date, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')
                 ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, next_calibration_date))
+                inventory_id = inv_cursor.lastrowid
+            
+            # Link receiving transaction to the inventory record
+            if inventory_id:
+                conn.execute('''
+                    UPDATE receiving_transactions SET inventory_id = ? WHERE id = ?
+                ''', (inventory_id, receipt_id))
             
             # Update base received quantity on PO line
             base_received_so_far = po_line['base_received_quantity'] if po_line['base_received_quantity'] else 0
