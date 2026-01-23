@@ -33,6 +33,8 @@ Key features include:
 - **Quality & Compliance**: Duplicate Detection System with multiple algorithms and configurable thresholds.
 - **Core Tracking**: Core Due Days tracking for exchange orders.
 - **Dynamic Material Issue Module**: High-performance multi-material issuance with real-time inventory validation.
+- **Unplanned Receipt Module**: Registration and controlled management of items arriving without documentation, supporting full lifecycle tracking from intake through inventory conversion or work order processing, with role-based approvals and complete audit trail.
+- **Inventory Split Function**: Ability to split inventory records into multiple records for the same product, enabling flexible location/condition management.
 
 ## External Dependencies
 
