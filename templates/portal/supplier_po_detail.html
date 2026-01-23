@@ -41,7 +41,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label text-muted small text-uppercase">Total Amount</label>
-                        <p class="mb-0 fw-bold text-success fs-5">${{ "{:,.2f}".format(total_amount) }}</p>
+                        <p class="mb-0 fw-bold text-success fs-5">${{ fmt("{:,.2f}", total_amount) }}</p>
                     </div>
                 </div>
                 {% if po.notes %}
@@ -107,8 +107,8 @@
                                 {{ recv }}
                             </span>
                         </td>
-                        <td class="text-end">${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
-                        <td class="text-end">${{ "{:,.2f}".format((line.quantity or 0) * (line.unit_price or 0)) }}</td>
+                        <td class="text-end">${{ fmt("{:,.2f}", line.unit_price or 0) }}</td>
+                        <td class="text-end">${{ fmt("{:,.2f}", (line.quantity or 0) * (line.unit_price or 0)) }}</td>
                         <td>
                             {% if line.tracking_number %}
                             <span class="badge bg-info"><i class="bi bi-truck me-1"></i>{{ line.tracking_number }}</span>
@@ -135,7 +135,7 @@
                 <tfoot class="table-light">
                     <tr>
                         <th colspan="6" class="text-end">Total:</th>
-                        <th class="text-end">${{ "{:,.2f}".format(total_amount) }}</th>
+                        <th class="text-end">${{ fmt("{:,.2f}", total_amount) }}</th>
                         <th colspan="2"></th>
                     </tr>
                 </tfoot>

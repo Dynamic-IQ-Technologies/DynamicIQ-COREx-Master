@@ -30,7 +30,7 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center">
                     {% set min_price = responses|map(attribute='total_amount')|min %}
-                    <h3 class="mb-0 text-success">${{ "{:,.2f}".format(min_price or 0) }}</h3>
+                    <h3 class="mb-0 text-success">${{ (min_price or 0)|money }}</h3>
                     <small class="text-muted">Lowest Quote</small>
                 </div>
             </div>
@@ -39,7 +39,7 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center">
                     {% set max_price = responses|map(attribute='total_amount')|max %}
-                    <h3 class="mb-0 text-danger">${{ "{:,.2f}".format(max_price or 0) }}</h3>
+                    <h3 class="mb-0 text-danger">${{ (max_price or 0)|money }}</h3>
                     <small class="text-muted">Highest Quote</small>
                 </div>
             </div>
@@ -48,7 +48,7 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center">
                     {% set avg_price = responses|map(attribute='total_amount')|sum / responses|length if responses else 0 %}
-                    <h3 class="mb-0 text-info">${{ "{:,.2f}".format(avg_price) }}</h3>
+                    <h3 class="mb-0 text-info">${{ avg_price|money }}</h3>
                     <small class="text-muted">Average Quote</small>
                 </div>
             </div>
@@ -81,7 +81,7 @@
                             </td>
                             <td>{{ response.submitted_at[:16] if response.submitted_at else '-' }}</td>
                             <td>
-                                <span class="fw-bold">${{ "{:,.2f}".format(response.total_amount or 0) }}</span>
+                                <span class="fw-bold">${{ (response.total_amount or 0)|money }}</span>
                                 {% if loop.first %}
                                 <span class="badge bg-success ms-1">Lowest</span>
                                 {% endif %}
@@ -128,9 +128,9 @@
                                             <tr>
                                                 <td>{{ rl.description }}</td>
                                                 <td>{{ rl.quantity }}</td>
-                                                <td>${{ "{:,.2f}".format(rl.unit_price) }}</td>
+                                                <td>${{ rl.unit_price|money }}</td>
                                                 <td>{{ rl.lead_time_days }} days</td>
-                                                <td>${{ "{:,.2f}".format(rl.unit_price * rl.quantity) }}</td>
+                                                <td>${{ (rl.unit_price * rl.quantity)|money }}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>

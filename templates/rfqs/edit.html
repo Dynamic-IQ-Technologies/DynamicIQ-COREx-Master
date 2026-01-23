@@ -88,7 +88,7 @@
                                 <td>{{ line.description }}</td>
                                 <td>{{ line.part_number or '-' }}</td>
                                 <td>{{ line.quantity }} {{ line.uom_code or 'EA' }}</td>
-                                <td>{{ "$ {:,.2f}".format(line.target_price) if line.target_price else '-' }}</td>
+                                <td>{{ ('$ ' ~ line.target_price|money) if line.target_price else '-' }}</td>
                                 <td class="text-nowrap">
                                     <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEditLine({{ line.id }})">
                                         <i class="bi bi-pencil"></i>

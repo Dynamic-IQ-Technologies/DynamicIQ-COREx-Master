@@ -104,11 +104,11 @@
                                         </tr>
                                         <tr>
                                             <td class="text-muted">Unit Cost:</td>
-                                            <td class="fw-bold text-end">${{ "{:,.2f}".format(item.product.unit_cost or 0) }}</td>
+                                            <td class="fw-bold text-end">${{ fmt("{:,.2f}", item.product.unit_cost or 0) }}</td>
                                         </tr>
                                         <tr>
                                             <td class="text-muted">Inventory Value:</td>
-                                            <td class="fw-bold text-end text-success">${{ "{:,.2f}".format(item.inventory_value) }}</td>
+                                            <td class="fw-bold text-end text-success">${{ fmt("{:,.2f}", item.inventory_value) }}</td>
                                         </tr>
                                         <tr>
                                             <td class="text-muted">Lead Time:</td>

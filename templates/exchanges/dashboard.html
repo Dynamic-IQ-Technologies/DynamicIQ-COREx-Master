@@ -243,7 +243,7 @@
                                 <span class="text-success">On Time</span>
                                 {% endif %}
                             </td>
-                            <td>${{ "{:,.2f}".format(epo.total_amount or 0) }}</td>
+                            <td>${{ fmt("{:,.2f}", epo.total_amount or 0) }}</td>
                             <td>
                                 {% if epo.status == 'Received' %}
                                 <span class="badge bg-success">{{ epo.status }}</span>
@@ -358,7 +358,7 @@
                                 -
                                 {% endif %}
                             </td>
-                            <td>${{ "{:,.2f}".format(ex.core_value or 0) }}</td>
+                            <td>${{ fmt("{:,.2f}", ex.core_value or 0) }}</td>
                             <td>
                                 {% if ex.status == 'Open' %}
                                 <span class="badge bg-primary">{{ ex.status }}</span>

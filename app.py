@@ -184,6 +184,19 @@ def num_filter(value, decimals=2):
     """Format value as number with specified decimal places."""
     return "{:.{d}f}".format(safe_float_filter(value), d=decimals)
 
+def safe_format(format_string, *args):
+    """Safe format function that converts Decimal values to float before formatting."""
+    from decimal import Decimal
+    converted_args = []
+    for arg in args:
+        if isinstance(arg, Decimal):
+            converted_args.append(float(arg))
+        else:
+            converted_args.append(arg)
+    return format_string.format(*converted_args)
+
+app.jinja_env.globals['fmt'] = safe_format
+
 @app.context_processor
 def inject_now():
     """Make datetime.now available to all templates."""

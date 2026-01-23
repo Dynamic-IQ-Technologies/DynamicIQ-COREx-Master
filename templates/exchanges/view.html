@@ -97,13 +97,13 @@
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-6">Core Value:</dt>
-                        <dd class="col-6 text-end fw-bold">${{ "{:,.2f}".format(exchange.core_value or 0) }}</dd>
+                        <dd class="col-6 text-end fw-bold">${{ fmt("{:,.2f}", exchange.core_value or 0) }}</dd>
                         <dt class="col-6">Exchange Fee:</dt>
-                        <dd class="col-6 text-end">${{ "{:,.2f}".format(exchange.exchange_fee or 0) }}</dd>
+                        <dd class="col-6 text-end">${{ fmt("{:,.2f}", exchange.exchange_fee or 0) }}</dd>
                         <dt class="col-6">Deposit:</dt>
-                        <dd class="col-6 text-end">${{ "{:,.2f}".format(exchange.deposit_amount or 0) }}</dd>
+                        <dd class="col-6 text-end">${{ fmt("{:,.2f}", exchange.deposit_amount or 0) }}</dd>
                         <dt class="col-6">Penalties:</dt>
-                        <dd class="col-6 text-end text-danger">${{ "{:,.2f}".format(exchange.penalty_amount or 0) }}</dd>
+                        <dd class="col-6 text-end text-danger">${{ fmt("{:,.2f}", exchange.penalty_amount or 0) }}</dd>
                     </dl>
                 </div>
             </div>
@@ -146,7 +146,7 @@
                         <dt class="col-6">Ownership:</dt>
                         <dd class="col-6">{{ core.ownership_responsibility }}</dd>
                         <dt class="col-6">Exposure:</dt>
-                        <dd class="col-6 text-danger">${{ "{:,.2f}".format(core.financial_exposure or 0) }}</dd>
+                        <dd class="col-6 text-danger">${{ fmt("{:,.2f}", core.financial_exposure or 0) }}</dd>
                         {% if core.condition_on_receipt %}
                         <dt class="col-6">Condition:</dt>
                         <dd class="col-6">{{ core.condition_on_receipt }}</dd>
@@ -366,7 +366,7 @@
                                             </td>
                                             <td><strong>{{ depo.owner_name or '-' }}</strong></td>
                                             <td>{{ depo.expected_date or '-' }}</td>
-                                            <td>${{ "{:,.2f}".format(depo.total_amount or 0) }}</td>
+                                            <td>${{ fmt("{:,.2f}", depo.total_amount or 0) }}</td>
                                             <td>
                                                 {% if depo.status == 'Received' %}
                                                 <span class="badge bg-success">{{ depo.status }}</span>
@@ -407,9 +407,9 @@
                                         <tr>
                                             <td><a href="{{ url_for('po_routes.view_purchaseorder', id=po.purchase_order_id) }}">{{ po.po_number }}</a></td>
                                             <td>{{ po.supplier_name or '-' }}</td>
-                                            <td>${{ "{:,.2f}".format(po.po_exchange_fee or 0) }}</td>
-                                            <td>${{ "{:,.2f}".format(po.po_core_charge or 0) }}</td>
-                                            <td>${{ "{:,.2f}".format(po.po_penalty or 0) }}</td>
+                                            <td>${{ fmt("{:,.2f}", po.po_exchange_fee or 0) }}</td>
+                                            <td>${{ fmt("{:,.2f}", po.po_core_charge or 0) }}</td>
+                                            <td>${{ fmt("{:,.2f}", po.po_penalty or 0) }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>

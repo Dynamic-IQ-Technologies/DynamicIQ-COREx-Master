@@ -47,7 +47,7 @@
                                     </td>
                                     <td class="text-center">{{ exp.exchange_count }}</td>
                                     <td class="text-end fw-bold {% if exp.total_exposure > 50000 %}text-danger{% endif %}">
-                                        ${{ "{:,.2f}".format(exp.total_exposure or 0) }}
+                                        ${{ fmt("{:,.2f}", exp.total_exposure or 0) }}
                                     </td>
                                 </tr>
                                 {% else %}
@@ -130,7 +130,7 @@
                                 <span class="badge bg-danger">90+ Days</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end fw-bold">${{ "{:,.2f}".format(item.financial_exposure or item.core_value or 0) }}</td>
+                            <td class="text-end fw-bold">${{ fmt("{:,.2f}", item.financial_exposure or item.core_value or 0) }}</td>
                         </tr>
                         {% else %}
                         <tr>

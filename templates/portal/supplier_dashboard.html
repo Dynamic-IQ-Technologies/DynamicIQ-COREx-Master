@@ -31,7 +31,7 @@
     <div class="col-6 col-md-3">
         <div class="card shadow-sm h-100 kpi-card" style="border-top: 3px solid var(--success);">
             <div class="card-body text-center">
-                <h2 class="display-5 fw-bold text-success mb-0">${{ "{:,.2f}".format(stats.total_value) }}</h2>
+                <h2 class="display-5 fw-bold text-success mb-0">${{ fmt("{:,.2f}", stats.total_value) }}</h2>
                 <p class="text-muted mb-0">Total Value</p>
             </div>
         </div>
@@ -91,7 +91,7 @@
                             </span>
                         </td>
                         <td class="text-end">{{ po.line_count }}</td>
-                        <td class="text-end">${{ "{:,.2f}".format(po.total_amount or 0) }}</td>
+                        <td class="text-end">${{ fmt("{:,.2f}", po.total_amount or 0) }}</td>
                         <td class="text-end">
                             <a href="{{ url_for('portal.supplier_portal_po_detail', token=token, po_id=po.id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye me-1"></i>View

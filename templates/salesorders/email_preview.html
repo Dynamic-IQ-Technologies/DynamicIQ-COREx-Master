@@ -392,8 +392,8 @@
                                             </td>
                                             <td>{{ line.unit_of_measure or 'EA' }}</td>
                                             <td>{{ line.quantity }}</td>
-                                            <td>${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
-                                            <td>${{ "{:,.2f}".format((line.quantity or 0) * (line.unit_price or 0)) }}</td>
+                                            <td>${{ fmt("{:,.2f}", line.unit_price or 0) }}</td>
+                                            <td>${{ fmt("{:,.2f}", (line.quantity or 0) * (line.unit_price or 0)) }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -403,23 +403,23 @@
                                     <div class="email-totals-box">
                                         <div class="email-totals-row">
                                             <span>Subtotal:</span>
-                                            <span>${{ "{:,.2f}".format(sales_order.subtotal or 0) }}</span>
+                                            <span>${{ fmt("{:,.2f}", sales_order.subtotal or 0) }}</span>
                                         </div>
                                         {% if sales_order.tax_amount %}
                                         <div class="email-totals-row">
                                             <span>Tax:</span>
-                                            <span>${{ "{:,.2f}".format(sales_order.tax_amount) }}</span>
+                                            <span>${{ fmt("{:,.2f}", sales_order.tax_amount) }}</span>
                                         </div>
                                         {% endif %}
                                         {% if sales_order.shipping_amount %}
                                         <div class="email-totals-row">
                                             <span>Shipping:</span>
-                                            <span>${{ "{:,.2f}".format(sales_order.shipping_amount) }}</span>
+                                            <span>${{ fmt("{:,.2f}", sales_order.shipping_amount) }}</span>
                                         </div>
                                         {% endif %}
                                         <div class="email-totals-row grand-total">
                                             <span>Total:</span>
-                                            <span>${{ "{:,.2f}".format(sales_order.total_amount or 0) }}</span>
+                                            <span>${{ fmt("{:,.2f}", sales_order.total_amount or 0) }}</span>
                                         </div>
                                     </div>
                                 </div>

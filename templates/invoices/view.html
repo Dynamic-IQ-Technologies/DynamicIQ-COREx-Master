@@ -183,7 +183,7 @@
                             <td>{{ line.line_number }}</td>
                             <td>{{ line.product_code or '-' }}</td>
                             <td>{{ line.description }}</td>
-                            <td class="text-end">{{ "{:,.2f}".format(line.quantity) }}</td>
+                            <td class="text-end">{{ fmt("{:,.2f}", line.quantity) }}</td>
                             <td class="text-end">{{ line.unit_price|currency }}</td>
                             <td class="text-end">{{ "{:.1f}".format(line.discount_percent) }}%</td>
                             <td class="text-end"><strong>{{ line.line_total|currency }}</strong></td>

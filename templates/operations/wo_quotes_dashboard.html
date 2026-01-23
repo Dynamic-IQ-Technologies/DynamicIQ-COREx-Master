@@ -27,7 +27,7 @@
                         <div>
                             <div class="text-muted small">In Quoting Stage</div>
                             <div class="fs-3 fw-bold">{{ summary_stats.wo_in_quoting }}</div>
-                            <div class="small text-muted">$ {{ "{:,.2f}".format(summary_stats.total_quoting_value) }}</div>
+                            <div class="small text-muted">$ {{ fmt("{:,.2f}", summary_stats.total_quoting_value) }}</div>
                         </div>
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                         <div>
                             <div class="text-muted small">Awaiting Approval</div>
                             <div class="fs-3 fw-bold">{{ summary_stats.awaiting_approval }}</div>
-                            <div class="small text-muted">$ {{ "{:,.2f}".format(summary_stats.total_pending_value) }}</div>
+                            <div class="small text-muted">$ {{ fmt("{:,.2f}", summary_stats.total_pending_value) }}</div>
                         </div>
                     </div>
                 </div>
@@ -59,7 +59,7 @@
                         <div>
                             <div class="text-muted small">Recently Approved</div>
                             <div class="fs-3 fw-bold">{{ summary_stats.recently_approved }}</div>
-                            <div class="small text-muted">$ {{ "{:,.2f}".format(summary_stats.total_approved_value) }}</div>
+                            <div class="small text-muted">$ {{ fmt("{:,.2f}", summary_stats.total_approved_value) }}</div>
                         </div>
                     </div>
                 </div>
@@ -167,7 +167,7 @@
                                     </td>
                                     <td class="fw-medium">
                                         {% if wo.quote_amount %}
-                                        $ {{ "{:,.2f}".format(wo.quote_amount) }}
+                                        $ {{ fmt("{:,.2f}", wo.quote_amount) }}
                                         {% else %}
                                         <span class="text-muted">-</span>
                                         {% endif %}
@@ -275,7 +275,7 @@
                                         {{ (quote.product_name or 'N/A')[:25] }}{% if quote.product_name and quote.product_name|length > 25 %}...{% endif %}
                                     </td>
                                     <td>{{ quote.customer_name or quote.quote_customer_name or 'N/A' }}</td>
-                                    <td class="fw-medium">$ {{ "{:,.2f}".format(quote.total_amount or 0) }}</td>
+                                    <td class="fw-medium">$ {{ fmt("{:,.2f}", quote.total_amount or 0) }}</td>
                                     <td>
                                         <span class="badge bg-warning text-dark">{{ quote.status }}</span>
                                     </td>
@@ -367,7 +367,7 @@
                                         {{ (quote.product_name or 'N/A')[:25] }}{% if quote.product_name and quote.product_name|length > 25 %}...{% endif %}
                                     </td>
                                     <td>{{ quote.customer_name or 'N/A' }}</td>
-                                    <td class="fw-medium">$ {{ "{:,.2f}".format(quote.total_amount or 0) }}</td>
+                                    <td class="fw-medium">$ {{ fmt("{:,.2f}", quote.total_amount or 0) }}</td>
                                     <td>{{ quote.customer_approved_at|datestr if quote.customer_approved_at else 'N/A' }}</td>
                                     <td>{{ quote.customer_approved_by or 'N/A' }}</td>
                                     <td>

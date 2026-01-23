@@ -70,7 +70,7 @@
                                 <td>{{ line.part_number or '-' }}</td>
                                 <td>{{ line.quantity }}</td>
                                 <td>{{ line.uom_code or 'EA' }}</td>
-                                <td>{{ "$ {:,.2f}".format(line.target_price) if line.target_price else '-' }}</td>
+                                <td>{{ ('$ ' ~ line.target_price|money) if line.target_price else '-' }}</td>
                                 <td>{{ line.required_date or '-' }}</td>
                             </tr>
                             {% endfor %}
@@ -162,7 +162,7 @@
                             <tr class="{% if quote.is_selected %}table-success{% endif %}">
                                 <td>{{ quote.line_desc }}</td>
                                 <td class="fw-medium">{{ quote.supplier_name }}</td>
-                                <td class="fw-bold">{{ "$ {:,.2f}".format(quote.quoted_price) }}</td>
+                                <td class="fw-bold">$ {{ quote.quoted_price|money }}</td>
                                 <td>{{ quote.lead_time_days }} days</td>
                                 <td>{{ quote.valid_until or '-' }}</td>
                                 <td>
