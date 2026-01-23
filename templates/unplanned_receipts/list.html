@@ -96,6 +96,7 @@
                     <tr>
                         <th>Intake #</th>
                         <th>Received</th>
+                        <th>Part Number</th>
                         <th>Description</th>
                         <th>Qty</th>
                         <th>Classification</th>
@@ -116,6 +117,13 @@
                         <td>
                             <small>{{ r.received_date|datestr if r.received_date else 'N/A' }}</small><br>
                             <small class="text-muted">{{ r.received_by_name }}</small>
+                        </td>
+                        <td>
+                            {% if r.part_number %}
+                            <strong>{{ r.part_number }}</strong>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             <span title="{{ r.item_description }}">{{ r.item_description[:50] }}{% if r.item_description|length > 50 %}...{% endif %}</span>

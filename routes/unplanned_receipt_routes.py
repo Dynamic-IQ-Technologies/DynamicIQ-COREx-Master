@@ -126,6 +126,7 @@ def register_receipt():
         intake_number = generate_intake_number()
         
         physical_location = request.form.get('physical_location', '').strip()
+        part_number = request.form.get('part_number', '').strip()
         item_description = request.form.get('item_description', '').strip()
         quantity = float(request.form.get('quantity_received', 1))
         condition = request.form.get('condition_at_receipt', 'Unknown')
@@ -142,14 +143,15 @@ def register_receipt():
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO unplanned_receipts (
-                intake_number, received_by, physical_location, item_description,
+                intake_number, received_by, physical_location, part_number, item_description,
                 quantity_received, condition_at_receipt, serial_numbers,
                 classification, intake_notes, priority, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Registered')
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Registered')
         ''', (
             intake_number,
             session.get('user_id'),
             physical_location,
+            part_number or None,
             item_description,
             quantity,
             condition,
@@ -438,7 +440,7 @@ def edit_receipt(id):
     if request.method == 'POST':
         changes = {}
         
-        fields = ['physical_location', 'item_description', 'quantity_received', 
+        fields = ['physical_location', 'part_number', 'item_description', 'quantity_received', 
                  'condition_at_receipt', 'serial_numbers', 'classification', 
                  'intake_notes', 'priority']
         

@@ -39,6 +39,7 @@
                         <p><strong>Received Date:</strong> {{ receipt.received_date|datestr if receipt.received_date else 'N/A' }}</p>
                         <p><strong>Received By:</strong> {{ receipt.received_by_name }}</p>
                         <p><strong>Physical Location:</strong> {{ receipt.physical_location }}</p>
+                        <p><strong>Part Number:</strong> {{ receipt.part_number or 'Not specified' }}</p>
                         <p><strong>Quantity:</strong> {{ receipt.quantity_received }}</p>
                         <p><strong>Condition:</strong> {{ receipt.condition_at_receipt }}</p>
                     </div>

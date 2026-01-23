@@ -5660,6 +5660,7 @@ def init_qms_tables(cursor):
             received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             received_by INTEGER NOT NULL,
             physical_location TEXT NOT NULL,
+            part_number TEXT,
             item_description TEXT NOT NULL,
             quantity_received REAL NOT NULL DEFAULT 1,
             condition_at_receipt TEXT DEFAULT 'Unknown',
@@ -5731,6 +5732,12 @@ def init_qms_tables(cursor):
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_classification ON unplanned_receipts(classification)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_priority ON unplanned_receipts(priority)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_received_date ON unplanned_receipts(received_date)')
+    except:
+        pass
+    
+    # Migration: Add part_number column to unplanned_receipts
+    try:
+        cursor.execute('ALTER TABLE unplanned_receipts ADD COLUMN part_number TEXT')
     except:
         pass
     

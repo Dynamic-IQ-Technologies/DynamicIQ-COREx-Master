@@ -33,6 +33,11 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label class="form-label">Part Number</label>
+                        <input type="text" name="part_number" class="form-control" value="{{ receipt.part_number or '' }}" placeholder="Enter part number if known">
+                    </div>
+                    
+                    <div class="mb-3">
                         <label class="form-label">Item Description <span class="text-danger">*</span></label>
                         <textarea name="item_description" class="form-control" rows="3" required>{{ receipt.item_description }}</textarea>
                     </div>
