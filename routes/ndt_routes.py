@@ -1265,7 +1265,7 @@ def invoices_list():
         total_paid=total_paid,
         total_outstanding=total_outstanding,
         overdue_count=overdue_count,
-        today=date.today().isoformat()
+        today=date.today()
     )
 
 

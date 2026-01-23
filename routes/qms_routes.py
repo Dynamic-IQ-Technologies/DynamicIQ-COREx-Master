@@ -1161,7 +1161,7 @@ def capa_list():
         query += ' AND c.priority = ?'
         params.append(priority_filter)
     
-    query += ' ORDER BY CASE c.priority WHEN "Critical" THEN 1 WHEN "High" THEN 2 WHEN "Medium" THEN 3 ELSE 4 END, c.target_date'
+    query += " ORDER BY CASE c.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, c.target_date"
     
     capas = conn.execute(query, params).fetchall()
     conn.close()
