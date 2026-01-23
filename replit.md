@@ -28,6 +28,14 @@ The system supports dual database environments (SQLite for development, PostgreS
 - Uses balanced parenthesis parser for complex nested functions like JULIANDAY(COALESCE(...))
 - Preserves time precision in JULIANDAY calculations using EXTRACT(EPOCH FROM ...) / 86400.0 (returns fractional days)
 - Handles SUBSTR → SUBSTRING, datetime('now') → CURRENT_TIMESTAMP translations
+- Date parameter casting: date(?, '+7 days') → ((?::date) + INTERVAL '7 days')::date
+
+**PostgreSQL Query Compatibility Notes:**
+- Use GROUP BY 1, 2, etc. instead of column aliases (PostgreSQL strict mode)
+- Use HAVING COUNT(*) > 0 instead of HAVING alias > 0 (aliases not allowed in HAVING)
+- Use ORDER BY 1 DESC instead of ORDER BY alias DESC (prefer column indices)
+- All non-aggregated columns must appear in GROUP BY clause
+- Use CASE WHEN instead of COALESCE when mixing TEXT and TIMESTAMP types
 
 ### Error Handling & Reliability
 

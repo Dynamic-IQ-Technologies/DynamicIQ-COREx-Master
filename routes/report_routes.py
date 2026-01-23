@@ -1516,7 +1516,7 @@ def executive_inventory_dashboard():
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.quantity > 0
-        GROUP BY aging_bucket
+        GROUP BY 1
         ORDER BY 
             CASE 
                 WHEN {days_since_update} <= 30 THEN 1

@@ -143,9 +143,9 @@ def executive_procurement_dashboard():
             AND po.order_date >= ?
             AND po.status NOT IN ('Draft', 'Cancelled')
         LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
-        GROUP BY s.id
-        HAVING spend > 0
-        ORDER BY spend DESC
+        GROUP BY s.id, s.name, s.code
+        HAVING COALESCE(SUM(pol.quantity * pol.unit_price), 0) > 0
+        ORDER BY 3 DESC
         LIMIT 15
     ''', (dates['ytd_start'],)).fetchall()
     
@@ -160,7 +160,7 @@ def executive_procurement_dashboard():
         WHERE po.order_date >= ?
         AND po.status NOT IN ('Draft', 'Cancelled')
         GROUP BY p.part_category
-        ORDER BY spend DESC
+        ORDER BY 2 DESC
     ''', (dates['ytd_start'],)).fetchall()
     
     monthly_spend = conn.execute('''
@@ -188,9 +188,9 @@ def executive_procurement_dashboard():
         LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
         WHERE po.status = 'Received'
         AND po.order_date >= ?
-        GROUP BY s.id
-        HAVING total_pos >= 1
-        ORDER BY total_spend DESC
+        GROUP BY s.id, s.name, s.code
+        HAVING COUNT(po.id) >= 1
+        ORDER BY 6 DESC
         LIMIT 10
     ''', (dates['ytd_start'],)).fetchall()
     
@@ -206,7 +206,7 @@ def executive_procurement_dashboard():
         LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
         WHERE po.status IN ('Approved', 'Ordered', 'Sent')
         AND po.expected_delivery_date IS NOT NULL
-        GROUP BY po.id
+        GROUP BY po.id, po.po_number, s.name, po.expected_delivery_date
         ORDER BY po.expected_delivery_date
         LIMIT 10
     ''').fetchall()
@@ -398,8 +398,8 @@ def procurement_copilot():
             JOIN purchase_order_lines pol ON pol.po_id = po.id
             WHERE po.order_date >= ?
             AND po.status NOT IN ('Draft', 'Cancelled')
-            GROUP BY s.id
-            ORDER BY spend DESC
+            GROUP BY s.id, s.name
+            ORDER BY 2 DESC
             LIMIT 5
         ''', (dates['ytd_start'],)).fetchall()
         

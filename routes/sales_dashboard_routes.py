@@ -124,7 +124,11 @@ def executive_sales_dashboard():
     
     quote_cycle = conn.execute('''
         SELECT AVG(
-            JULIANDAY(COALESCE(customer_approved_at, updated_at)) - JULIANDAY(created_at)
+            CASE 
+                WHEN customer_approved_at IS NOT NULL 
+                THEN JULIANDAY(customer_approved_at) - JULIANDAY(created_at)
+                ELSE JULIANDAY(updated_at) - JULIANDAY(created_at)
+            END
         ) as avg_days
         FROM work_order_quotes
         WHERE status = 'Approved' AND created_at >= ?
@@ -221,18 +225,18 @@ def executive_sales_dashboard():
                 WHEN JULIANDAY('now') - JULIANDAY(created_at) <= 30 THEN '15-30 days'
                 ELSE '30+ days'
             END as age_bucket,
+            CASE 
+                WHEN JULIANDAY('now') - JULIANDAY(created_at) <= 7 THEN 1
+                WHEN JULIANDAY('now') - JULIANDAY(created_at) <= 14 THEN 2
+                WHEN JULIANDAY('now') - JULIANDAY(created_at) <= 30 THEN 3
+                ELSE 4
+            END as sort_order,
             COUNT(*) as count,
             COALESCE(SUM(total_amount), 0) as value
         FROM work_order_quotes
         WHERE status = 'Pending'
-        GROUP BY age_bucket
-        ORDER BY 
-            CASE age_bucket
-                WHEN '0-7 days' THEN 1
-                WHEN '8-14 days' THEN 2
-                WHEN '15-30 days' THEN 3
-                ELSE 4
-            END
+        GROUP BY 1, 2
+        ORDER BY 2
     ''').fetchall()
     
     upcoming_inductions = conn.execute('''
@@ -254,7 +258,11 @@ def executive_sales_dashboard():
     
     avg_quote_turnaround = conn.execute('''
         SELECT AVG(
-            JULIANDAY(COALESCE(customer_approved_at, customer_declined_at, updated_at)) - JULIANDAY(created_at)
+            CASE 
+                WHEN customer_approved_at IS NOT NULL THEN JULIANDAY(customer_approved_at) - JULIANDAY(created_at)
+                WHEN customer_declined_at IS NOT NULL THEN JULIANDAY(customer_declined_at) - JULIANDAY(created_at)
+                ELSE JULIANDAY(updated_at) - JULIANDAY(created_at)
+            END
         ) as avg_days
         FROM work_order_quotes
         WHERE status IN ('Approved', 'Rejected')

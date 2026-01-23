@@ -214,13 +214,14 @@ class PostgresConnection:
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'\+(\d+)\s+(days?|months?)'\s*\)", replace_date_plus, query, flags=re.IGNORECASE)
         
         # Replace date(?, '+X days') pattern - parameter with date arithmetic
+        # Must cast parameter to date first, since PostgreSQL can't add interval to string
         def replace_date_param_plus(match):
             num = match.group(1)
             unit = match.group(2).lower()
             if unit == 'days' or unit == 'day':
-                return f"(? + INTERVAL '{num} days')::date"
+                return f"((?::date) + INTERVAL '{num} days')::date"
             elif unit == 'months' or unit == 'month':
-                return f"(? + INTERVAL '{num} months')::date"
+                return f"((?::date) + INTERVAL '{num} months')::date"
             return match.group(0)
         query = re.sub(r"date\s*\(\s*\?\s*,\s*'\+(\d+)\s+(days?|months?)'\s*\)", replace_date_param_plus, query, flags=re.IGNORECASE)
         

@@ -771,7 +771,7 @@ def get_detailed_finance(conn):
             COALESCE(SUM(balance_due), 0) as amount
         FROM invoices
         WHERE status != 'Paid'
-        GROUP BY aging_bucket
+        GROUP BY 1
     ''').fetchall()
     
     return {'ar_aging': [dict(r) for r in ar_aging]}
