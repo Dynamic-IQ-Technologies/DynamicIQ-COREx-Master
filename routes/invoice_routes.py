@@ -261,17 +261,24 @@ def create_from_sales_order(so_id):
                 conn.close()
                 return redirect(url_for('invoice_routes.list_invoices'))
             
-            # Generate invoice number
+            # Generate invoice number - find max INV- number
             last_inv = conn.execute('''
                 SELECT invoice_number FROM invoices 
-                ORDER BY id DESC LIMIT 1
-            ''').fetchone()
+                WHERE invoice_number LIKE 'INV-%'
+                ORDER BY id DESC
+            ''').fetchall()
             
-            if last_inv:
-                last_num = int(last_inv['invoice_number'].split('-')[1])
-                invoice_number = f'INV-{last_num + 1:06d}'
-            else:
-                invoice_number = 'INV-000001'
+            max_num = 0
+            for inv in last_inv:
+                try:
+                    parts = inv['invoice_number'].replace('INV-', '').split('-')
+                    num = int(parts[-1])
+                    if num > max_num:
+                        max_num = num
+                except (ValueError, IndexError):
+                    continue
+            
+            invoice_number = f'INV-{max_num + 1:06d}'
             
             # Create invoice
             cursor = conn.execute('''
@@ -646,14 +653,20 @@ def create_from_ndt_wo(ndt_wo_id):
             last_inv = conn.execute(f'''
                 SELECT invoice_number FROM invoices 
                 WHERE invoice_number LIKE '{prefix}-%'
-                ORDER BY id DESC LIMIT 1
-            ''').fetchone()
+                ORDER BY id DESC
+            ''').fetchall()
             
-            if last_inv:
-                last_num = int(last_inv['invoice_number'].split('-')[1])
-                invoice_number = f'{prefix}-{last_num + 1:06d}'
-            else:
-                invoice_number = f'{prefix}-000001'
+            max_num = 0
+            for inv in last_inv:
+                try:
+                    parts = inv['invoice_number'].replace(f'{prefix}-', '').split('-')
+                    num = int(parts[-1])
+                    if num > max_num:
+                        max_num = num
+                except (ValueError, IndexError):
+                    continue
+            
+            invoice_number = f'{prefix}-{max_num + 1:06d}'
             
             subtotal = 0
             line_items = []
