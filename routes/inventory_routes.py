@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, session, send_from_directory, jsonify
-from models import Database, AuditLogger
+from models import Database, AuditLogger, safe_float
 from auth import login_required, role_required
 from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter, inch

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from auth import login_required, role_required
-from models import Database
+from models import Database, safe_float
 from datetime import datetime, timedelta
 import os
 

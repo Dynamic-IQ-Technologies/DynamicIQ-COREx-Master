@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from models import Database, AuditLogger
+from models import Database, AuditLogger, safe_float
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime

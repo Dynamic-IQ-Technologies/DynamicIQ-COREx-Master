@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from models import Database
+from models import Database, safe_float
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 import json

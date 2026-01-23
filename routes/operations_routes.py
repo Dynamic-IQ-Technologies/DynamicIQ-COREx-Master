@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, session, jsonify
-from models import Database
+from models import Database, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 import os
