@@ -91,7 +91,7 @@
                         <td>{{ sop.effective_date or '-' }}</td>
                         <td>
                             {% if sop.review_date %}
-                                {% if sop.review_date < today %}
+                                {% if is_past_date(sop.review_date) %}
                                 <span class="text-danger"><i class="bi bi-exclamation-circle"></i> {{ sop.review_date }}</span>
                                 {% else %}
                                 {{ sop.review_date }}

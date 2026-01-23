@@ -80,7 +80,7 @@
                         <td>{{ capa.assigned_to_name or '-' }}</td>
                         <td>
                             {% if capa.target_date %}
-                                {% if capa.target_date < today and capa.status not in ['Closed', 'Verified'] %}
+                                {% if is_past_date(capa.target_date) and capa.status not in ['Closed', 'Verified'] %}
                                 <span class="text-danger"><i class="bi bi-exclamation-circle"></i> {{ capa.target_date }}</span>
                                 {% else %}
                                 {{ capa.target_date }}

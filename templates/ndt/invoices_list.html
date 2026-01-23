@@ -116,7 +116,7 @@
                         <td>{{ inv.invoice_date }}</td>
                         <td>
                             {{ inv.due_date }}
-                            {% if inv.status not in ['Paid', 'Cancelled'] and inv.due_date < today %}
+                            {% if inv.status not in ['Paid', 'Cancelled'] and is_past_date(inv.due_date) %}
                             <span class="badge bg-danger">Overdue</span>
                             {% endif %}
                         </td>

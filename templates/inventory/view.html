@@ -393,13 +393,8 @@
             <div class="col-md-3">
                 <p><strong>Status:</strong> 
                     {% if inventory.next_calibration_date %}
-                        {% set today = now().strftime('%Y-%m-%d') %}
-                        {% set next_cal = inventory.next_calibration_date %}
-                        {% set days_diff = ((next_cal|string|replace('-','')|int) - (today|replace('-','')|int)) %}
-                        {% if next_cal < today %}
+                        {% if is_past_date(inventory.next_calibration_date) %}
                         <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>OVERDUE</span>
-                        {% elif days_diff <= 30 %}
-                        <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Due Soon</span>
                         {% else %}
                         <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Current</span>
                         {% endif %}

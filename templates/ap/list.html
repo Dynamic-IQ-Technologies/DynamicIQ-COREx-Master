@@ -96,7 +96,7 @@
                             <td>{{ ap.invoice_date }}</td>
                             <td>
                                 {{ ap.due_date }}
-                                {% if ap.due_date < today_date and ap.status in ['Open', 'Pending Invoice'] %}
+                                {% if is_past_date(ap.due_date) and ap.status in ['Open', 'Pending Invoice'] %}
                                 <span class="badge bg-danger">Overdue</span>
                                 {% endif %}
                             </td>
