@@ -20,7 +20,11 @@ The system incorporates a novel architecture for ERP exchange management, compri
 
 ### System Design Choices
 
-The system supports dual database environments (SQLite for development, PostgreSQL for production) with a PostgreSQL compatibility layer for seamless integration.
+The system supports dual database environments (SQLite for development, PostgreSQL for production) with a comprehensive PostgreSQL compatibility layer that:
+- Translates SQLite functions to PostgreSQL equivalents (JULIANDAY → date arithmetic, strftime → TO_CHAR, GROUP_CONCAT → STRING_AGG)
+- Converts double-quoted strings to single quotes for PostgreSQL
+- Automatically converts Decimal values to float when fetching data (prevents TypeError in templates)
+- Handles date arithmetic patterns (date('now', '+7 days') → CURRENT_DATE + INTERVAL '7 days')
 
 Key features include:
 - **Inventory Management**: Real-time tracking, alerts, FAA-compliant labels, and cost transfer system.
