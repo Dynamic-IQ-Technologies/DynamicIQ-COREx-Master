@@ -166,6 +166,10 @@ class PostgresConnection:
         # Replace SUBSTR with SUBSTRING for PostgreSQL
         query = re.sub(r"\bSUBSTR\s*\(", "SUBSTRING(", query, flags=re.IGNORECASE)
         
+        # Replace boolean comparisons for PostgreSQL (is_active = 1 -> is_active = TRUE)
+        query = re.sub(r"(\w+\.)?is_active\s*=\s*1", r"\1is_active = TRUE", query, flags=re.IGNORECASE)
+        query = re.sub(r"(\w+\.)?is_active\s*=\s*0", r"\1is_active = FALSE", query, flags=re.IGNORECASE)
+        
         # Replace DATE(column) with column::date for casting
         query = re.sub(r"DATE\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
         
