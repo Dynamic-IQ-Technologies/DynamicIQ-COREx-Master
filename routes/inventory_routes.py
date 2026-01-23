@@ -1954,3 +1954,129 @@ def reverse_cost_transfer(id):
         conn.rollback()
         conn.close()
         return jsonify({'success': False, 'error': str(e)})
+
+
+@inventory_bp.route('/api/inventory/<int:id>/split', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff', 'Procurement')
+def split_inventory(id):
+    """Split an inventory record into two separate records"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        data = request.get_json()
+        split_quantity = float(data.get('split_quantity', 0))
+        new_warehouse = data.get('warehouse_location', '')
+        new_bin = data.get('bin_location', '')
+        new_condition = data.get('condition', '')
+        new_status = data.get('status', 'Available')
+        reason = data.get('reason', '')
+        
+        # Get source inventory
+        source = conn.execute('''
+            SELECT i.*, p.code, p.name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (id,)).fetchone()
+        
+        if not source:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Inventory record not found'})
+        
+        if source['status'] in ['Locked', 'Audit Hold']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Cannot split locked or held inventory'})
+        
+        current_qty = source['quantity'] or 0
+        if split_quantity <= 0:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Split quantity must be greater than zero'})
+        
+        if split_quantity >= current_qty:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Split quantity must be less than total quantity'})
+        
+        # Calculate proportional cost
+        unit_cost = source['unit_cost'] or 0
+        
+        # Update source inventory (reduce quantity)
+        remaining_qty = current_qty - split_quantity
+        conn.execute('''
+            UPDATE inventory 
+            SET quantity = ?, last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (remaining_qty, id))
+        
+        # Create new inventory record with split quantity
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO inventory (
+                product_id, quantity, unit_cost, condition, warehouse_location, bin_location,
+                serial_number, batch_number, lot_number, expiration_date, status,
+                last_received_date, last_calibration_date, calibration_frequency, next_calibration_date,
+                customer_id, notes, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (
+            source['product_id'],
+            split_quantity,
+            unit_cost,
+            new_condition or source['condition'],
+            new_warehouse or source['warehouse_location'],
+            new_bin or source['bin_location'],
+            None,  # New record doesn't inherit serial
+            source['batch_number'],
+            source['lot_number'],
+            source['expiration_date'],
+            new_status,
+            source['last_received_date'],
+            source['last_calibration_date'],
+            source['calibration_frequency'],
+            source['next_calibration_date'],
+            source['customer_id'],
+            f"Split from Inv#{id}. {reason}" if reason else f"Split from Inv#{id}"
+        ))
+        new_id = cursor.lastrowid
+        
+        # Log audit trail on source
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='inventory',
+            record_id=id,
+            action_type='Split',
+            old_values={'quantity': current_qty},
+            new_values={'quantity': remaining_qty, 'split_to_inventory_id': new_id, 'split_quantity': split_quantity},
+            modified_by=session.get('user_id'),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        # Log audit trail on new record
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='inventory',
+            record_id=new_id,
+            action_type='Created (Split)',
+            new_values={'quantity': split_quantity, 'split_from_inventory_id': id, 'reason': reason},
+            modified_by=session.get('user_id'),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'new_inventory_id': new_id,
+            'source_remaining': remaining_qty,
+            'split_quantity': split_quantity,
+            'message': f'Successfully split {split_quantity} units to new inventory record #{new_id}'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})

@@ -49,6 +49,11 @@
             <i class="bi bi-arrow-left-right"></i> Adjust
         </a>
         {% endif %}
+        {% if session.role in ['Admin', 'Production Staff', 'Procurement'] and inventory.quantity > 1 %}
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#splitInventoryModal">
+            <i class="bi bi-scissors"></i> Split
+        </button>
+        {% endif %}
         {% if session.role in ['Admin', 'Accounting', 'Finance'] %}
         <a href="{{ url_for('inventory_routes.cost_transfer_form', id=inventory.id) }}" class="btn btn-outline-success">
             <i class="bi bi-currency-dollar"></i> Transfer Cost
@@ -977,4 +982,163 @@
     </div>
 </div>
 
+<div class="modal fade" id="splitInventoryModal" tabindex="-1" aria-labelledby="splitInventoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+                <h5 class="modal-title text-white" id="splitInventoryModalLabel">
+                    <i class="bi bi-scissors me-2"></i>Split Inventory
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Split this inventory record into two separate records. The original record will keep the remaining quantity.
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Current Quantity</label>
+                    <div class="fw-bold fs-4">{{ inventory.quantity }} {{ inventory.unit_of_measure }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="splitQuantity" class="form-label">Quantity to Split Off <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="splitQuantity" 
+                           min="0.01" max="{{ inventory.quantity - 0.01 }}" step="0.01"
+                           placeholder="Enter quantity to move to new record" required>
+                    <div class="form-text">Must be less than {{ inventory.quantity }}</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="splitWarehouse" class="form-label">Warehouse Location</label>
+                        <input type="text" class="form-control" id="splitWarehouse" 
+                               value="{{ inventory.warehouse_location or '' }}" placeholder="Optional">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="splitBin" class="form-label">Bin Location</label>
+                        <input type="text" class="form-control" id="splitBin" 
+                               value="{{ inventory.bin_location or '' }}" placeholder="Optional">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="splitCondition" class="form-label">Condition</label>
+                        <select class="form-select" id="splitCondition">
+                            <option value="">Same as original</option>
+                            <option value="New">New</option>
+                            <option value="Serviceable">Serviceable</option>
+                            <option value="Overhauled">Overhauled</option>
+                            <option value="Repaired">Repaired</option>
+                            <option value="Used">Used</option>
+                            <option value="Unserviceable">Unserviceable</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="splitStatus" class="form-label">Status</label>
+                        <select class="form-select" id="splitStatus">
+                            <option value="Available" selected>Available</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Quarantine">Quarantine</option>
+                            <option value="In Transit">In Transit</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="splitReason" class="form-label">Reason for Split</label>
+                    <textarea class="form-control" id="splitReason" rows="2" 
+                              placeholder="Optional - reason for splitting inventory"></textarea>
+                </div>
+                
+                <div id="splitPreview" class="border rounded p-3 bg-light d-none">
+                    <h6 class="text-muted mb-2">Preview</h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Original Record:</small>
+                            <div class="fw-bold" id="previewOriginal">-</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">New Record:</small>
+                            <div class="fw-bold text-primary" id="previewNew">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSplitBtn" onclick="executeSplit()">
+                    <i class="bi bi-scissors me-1"></i>Split Inventory
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('splitQuantity').addEventListener('input', function() {
+    const qty = parseFloat(this.value) || 0;
+    const total = {{ inventory.quantity }};
+    const preview = document.getElementById('splitPreview');
+    const previewOriginal = document.getElementById('previewOriginal');
+    const previewNew = document.getElementById('previewNew');
+    
+    if (qty > 0 && qty < total) {
+        preview.classList.remove('d-none');
+        previewOriginal.textContent = (total - qty).toFixed(2) + ' {{ inventory.unit_of_measure }}';
+        previewNew.textContent = qty.toFixed(2) + ' {{ inventory.unit_of_measure }}';
+    } else {
+        preview.classList.add('d-none');
+    }
+});
+
+function executeSplit() {
+    const qty = parseFloat(document.getElementById('splitQuantity').value);
+    const total = {{ inventory.quantity }};
+    
+    if (!qty || qty <= 0 || qty >= total) {
+        alert('Please enter a valid split quantity (must be between 0 and ' + total + ')');
+        return;
+    }
+    
+    const btn = document.getElementById('confirmSplitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Splitting...';
+    
+    fetch('/api/inventory/{{ inventory.id }}/split', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            split_quantity: qty,
+            warehouse_location: document.getElementById('splitWarehouse').value,
+            bin_location: document.getElementById('splitBin').value,
+            condition: document.getElementById('splitCondition').value,
+            status: document.getElementById('splitStatus').value,
+            reason: document.getElementById('splitReason').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (confirm('Split successful! New inventory record #' + data.new_inventory_id + ' created.\n\nWould you like to view the new record?')) {
+                window.location.href = '/inventory/' + data.new_inventory_id + '/view';
+            } else {
+                window.location.reload();
+            }
+        } else {
+            alert('Error: ' + (data.error || 'Failed to split inventory'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-scissors me-1"></i>Split Inventory';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to split inventory. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-scissors me-1"></i>Split Inventory';
+    });
+}
+</script>
 {% endblock %}
