@@ -259,7 +259,7 @@ def view_sales_order(id):
         ORDER BY i.created_at DESC
     ''', (id,)).fetchall()
     
-    # Get related purchase orders (linked through work orders or directly)
+    # Get related purchase orders (linked directly or via work order buyout)
     related_pos = conn.execute('''
         SELECT DISTINCT po.id, po.po_number, po.po_type, po.status, po.order_date,
                s.name as supplier_name,
@@ -268,7 +268,7 @@ def view_sales_order(id):
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         WHERE po.source_sales_order_id = ? OR po.id IN (
-            SELECT DISTINCT wo.po_id FROM work_orders wo WHERE wo.so_id = ? AND wo.po_id IS NOT NULL
+            SELECT DISTINCT wo.buyout_po_id FROM work_orders wo WHERE wo.so_id = ? AND wo.buyout_po_id IS NOT NULL
         )
         ORDER BY po.order_date DESC
     ''', (id, id)).fetchall()
