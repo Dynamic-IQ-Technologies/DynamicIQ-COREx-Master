@@ -255,12 +255,30 @@ def format_dt(value, fmt='%Y-%m-%d %H:%M'):
     except (AttributeError, ValueError):
         return str(value)[:16] if fmt == '%Y-%m-%d %H:%M' else str(value)[:19]
 
+def is_past_date(value):
+    """Check if a date is in the past - handles both string (SQLite) and date (PostgreSQL) values."""
+    from datetime import date, datetime
+    if value is None:
+        return False
+    if isinstance(value, str):
+        try:
+            parsed = datetime.strptime(value[:10], '%Y-%m-%d').date()
+            return parsed < date.today()
+        except (ValueError, TypeError):
+            return False
+    if isinstance(value, datetime):
+        return value.date() < date.today()
+    if isinstance(value, date):
+        return value < date.today()
+    return False
+
 app.jinja_env.globals['safe_get'] = safe_get
 app.jinja_env.globals['safe_int'] = safe_int
 app.jinja_env.globals['safe_float'] = safe_float
 app.jinja_env.globals['safe_str'] = safe_str
 app.jinja_env.globals['coalesce'] = coalesce
 app.jinja_env.globals['format_dt'] = format_dt
+app.jinja_env.globals['is_past_date'] = is_past_date
 
 @app.context_processor
 def inject_now():

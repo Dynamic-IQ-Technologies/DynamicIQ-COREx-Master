@@ -179,7 +179,7 @@
                     <label class="form-label text-muted small">Next Calibration</label>
                     <p class="mb-0 fw-medium">
                         {% if tool.next_calibration_date %}
-                            {% if tool.next_calibration_date <= now %}
+                            {% if is_past_date(tool.next_calibration_date) %}
                             <span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ tool.next_calibration_date }} (Overdue)</span>
                             {% else %}
                             {{ tool.next_calibration_date }}

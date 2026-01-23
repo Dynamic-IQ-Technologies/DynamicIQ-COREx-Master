@@ -114,7 +114,7 @@
                         <td>{{ rfq.issue_date or '-' }}</td>
                         <td>
                             {% if rfq.due_date %}
-                                {% if rfq.due_date < now and rfq.status not in ['Closed', 'Cancelled'] %}
+                                {% if is_past_date(rfq.due_date) and rfq.status not in ['Closed', 'Cancelled'] %}
                                 <span class="text-danger">{{ rfq.due_date }}</span>
                                 {% else %}
                                 {{ rfq.due_date }}

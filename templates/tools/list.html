@@ -280,7 +280,7 @@
                         </td>
                         <td>
                             {% if tool.next_calibration_date %}
-                                {% if tool.next_calibration_date <= now %}
+                                {% if is_past_date(tool.next_calibration_date) %}
                                 <span class="text-danger fw-medium"><i class="bi bi-exclamation-triangle me-1"></i>{{ tool.next_calibration_date }}</span>
                                 {% else %}
                                 {{ tool.next_calibration_date }}
