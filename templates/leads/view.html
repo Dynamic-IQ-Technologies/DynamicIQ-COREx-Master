@@ -183,7 +183,7 @@
                                 <span class="badge bg-primary me-2">{{ activity.activity_type }}</span>
                                 <strong>{{ activity.subject }}</strong>
                             </div>
-                            <small class="text-muted">{{ activity.created_at[:16] if activity.created_at else '' }}</small>
+                            <small class="text-muted">{{ activity.created_at.strftime('%Y-%m-%d %H:%M') if activity.created_at else '' }}</small>
                         </div>
                         {% if activity.description %}
                         <p class="mb-1 mt-2">{{ activity.description }}</p>
