@@ -404,8 +404,7 @@ class Database:
                 reorder_point REAL DEFAULT 0,
                 safety_stock REAL DEFAULT 0,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (product_id) REFERENCES products(id),
-                UNIQUE(product_id)
+                FOREIGN KEY (product_id) REFERENCES products(id)
             )
         ''')
         
@@ -5265,6 +5264,89 @@ def init_qms_tables(cursor):
             FOREIGN KEY (resolved_by) REFERENCES users(id)
         )
     ''')
+    
+    # Migration: Remove UNIQUE constraint on inventory.product_id to allow multiple records per product
+    # This enables inventory splitting functionality
+    # Uses migration tracking table to ensure it only runs once
+    try:
+        # Create migrations tracking table if not exists
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_name TEXT UNIQUE NOT NULL,
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Check if this migration has already been applied
+        migration_applied = cursor.execute(
+            "SELECT 1 FROM schema_migrations WHERE migration_name = 'remove_inventory_product_id_unique'"
+        ).fetchone()
+        
+        if not migration_applied:
+            if USE_POSTGRES:
+                # PostgreSQL: Find and drop any unique constraint on product_id
+                try:
+                    # Query to find constraint name dynamically
+                    constraint_query = cursor.execute('''
+                        SELECT conname FROM pg_constraint 
+                        WHERE conrelid = 'inventory'::regclass 
+                        AND contype = 'u' 
+                        AND array_to_string(conkey, ',') LIKE '%2%'
+                    ''').fetchall()
+                    for constraint in constraint_query:
+                        cursor.execute(f'ALTER TABLE inventory DROP CONSTRAINT IF EXISTS {constraint[0]}')
+                except:
+                    pass
+                # Also try common constraint names
+                try:
+                    cursor.execute('ALTER TABLE inventory DROP CONSTRAINT IF EXISTS inventory_product_id_key')
+                except:
+                    pass
+            else:
+                # SQLite: Check if sqlite_autoindex for UNIQUE(product_id) exists
+                indexes = cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='inventory' AND sql IS NULL"
+                ).fetchall()
+                has_unique_autoindex = any('product_id' in str(idx) or 'sqlite_autoindex' in str(idx) for idx in indexes)
+                
+                if has_unique_autoindex:
+                    # Get original CREATE TABLE statement and modify it
+                    original_sql = cursor.execute(
+                        "SELECT sql FROM sqlite_master WHERE type='table' AND name='inventory'"
+                    ).fetchone()
+                    
+                    if original_sql and original_sql[0]:
+                        import re
+                        original_create = original_sql[0]
+                        
+                        # Remove UNIQUE(product_id) constraint from the CREATE statement
+                        new_create = re.sub(r',?\s*UNIQUE\s*\(\s*product_id\s*\)', '', original_create, flags=re.IGNORECASE)
+                        # Clean up any trailing commas before closing paren
+                        new_create = re.sub(r',\s*\)', ')', new_create)
+                        # Change table name to new table
+                        new_create = new_create.replace('CREATE TABLE inventory', 'CREATE TABLE inventory_no_unique', 1)
+                        new_create = new_create.replace('CREATE TABLE IF NOT EXISTS inventory', 'CREATE TABLE IF NOT EXISTS inventory_no_unique', 1)
+                        
+                        # Get column list for data copy
+                        cursor.execute("PRAGMA table_info(inventory)")
+                        columns_info = cursor.fetchall()
+                        column_names = [col[1] for col in columns_info]
+                        columns_str = ', '.join(column_names)
+                        
+                        # Create new table, copy data, swap
+                        cursor.execute(new_create)
+                        cursor.execute(f'INSERT INTO inventory_no_unique ({columns_str}) SELECT {columns_str} FROM inventory')
+                        cursor.execute('DROP TABLE inventory')
+                        cursor.execute('ALTER TABLE inventory_no_unique RENAME TO inventory')
+            
+            # Mark migration as applied
+            cursor.execute(
+                "INSERT INTO schema_migrations (migration_name) VALUES ('remove_inventory_product_id_unique')"
+            )
+    except Exception as e:
+        # Migration may have already been applied or table structure different
+        pass
     
     # Migrations for exchange tables
     try:
