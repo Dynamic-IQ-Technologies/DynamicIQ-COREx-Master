@@ -173,12 +173,25 @@ def list_tools():
     tools = conn.execute(query, params).fetchall()
     
     all_tools = conn.execute('SELECT * FROM tools').fetchall()
+    today = datetime.now().date()
+    
+    def is_calibration_due(cal_date):
+        if not cal_date:
+            return False
+        if isinstance(cal_date, str):
+            from datetime import datetime as dt
+            try:
+                cal_date = dt.strptime(cal_date, '%Y-%m-%d').date()
+            except:
+                return False
+        return cal_date <= today
+    
     stats = {
         'total': len(all_tools),
         'available': sum(1 for t in all_tools if t['status'] == 'Available'),
         'in_use': sum(1 for t in all_tools if t['status'] == 'In Use'),
         'maintenance': sum(1 for t in all_tools if t['status'] == 'Maintenance'),
-        'calibration_due': sum(1 for t in all_tools if t['next_calibration_date'] and t['next_calibration_date'] <= datetime.now().strftime('%Y-%m-%d'))
+        'calibration_due': sum(1 for t in all_tools if is_calibration_due(t['next_calibration_date']))
     }
     
     categories = conn.execute('SELECT DISTINCT category FROM tools WHERE category IS NOT NULL AND category != "" ORDER BY category').fetchall()
@@ -188,7 +201,7 @@ def list_tools():
     return render_template('tools/list.html', 
                          tools=tools, 
                          stats=stats, 
-                         now=datetime.now().strftime('%Y-%m-%d'),
+                         now=datetime.now().date(),
                          categories=[c['category'] for c in categories],
                          locations=[l['location'] for l in locations],
                          filters={
