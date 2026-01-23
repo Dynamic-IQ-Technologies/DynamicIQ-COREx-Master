@@ -2018,10 +2018,9 @@ def split_inventory(id):
             INSERT INTO inventory (
                 product_id, quantity, unit_cost, condition, warehouse_location, bin_location,
                 lot_number, expiration_date, status,
-                last_received_date, last_calibration_date, calibration_frequency, next_calibration_date,
-                notes
+                last_received_date, last_calibration_date, calibration_frequency, next_calibration_date
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             source['product_id'],
             split_quantity,
@@ -2035,8 +2034,7 @@ def split_inventory(id):
             source.get('last_received_date'),
             source.get('last_calibration_date'),
             source.get('calibration_frequency'),
-            source.get('next_calibration_date'),
-            f"Split from Inv#{id}. {reason}" if reason else f"Split from Inv#{id}"
+            source.get('next_calibration_date')
         ))
         new_id = cursor.lastrowid
         
