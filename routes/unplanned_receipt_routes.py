@@ -30,7 +30,7 @@ def role_required(*roles):
         def decorated_function(*args, **kwargs):
             if session.get('role') not in roles:
                 flash('You do not have permission to access this page.', 'danger')
-                return redirect(url_for('dashboard'))
+                return redirect(url_for('main_routes.dashboard'))
             return f(*args, **kwargs)
         return decorated_function
     return decorator

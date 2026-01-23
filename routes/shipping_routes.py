@@ -32,7 +32,7 @@ def list_shipments():
             LEFT JOIN shipment_lines sl ON s.id = sl.shipment_id
             LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
             LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
-            GROUP BY s.id
+            GROUP BY s.id, u.username, u2.username, so.so_number, wo.wo_number
             ORDER BY s.created_at DESC
         ''').fetchall()
     else:
@@ -51,7 +51,7 @@ def list_shipments():
             LEFT JOIN sales_orders so ON s.reference_type = 'Sales Order' AND s.reference_id = so.id
             LEFT JOIN work_orders wo ON s.reference_type = 'Work Order' AND s.reference_id = wo.id
             WHERE s.status = ?
-            GROUP BY s.id
+            GROUP BY s.id, u.username, u2.username, so.so_number, wo.wo_number
             ORDER BY s.created_at DESC
         ''', (status_filter,)).fetchall()
     
