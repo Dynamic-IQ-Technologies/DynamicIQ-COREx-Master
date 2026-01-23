@@ -313,11 +313,30 @@ class PostgresCursor:
         self._conn = conn
         self.lastrowid = None
     
+    def _convert_row(self, row):
+        """Convert Decimal values to float in a row dictionary"""
+        if row is None:
+            return None
+        from decimal import Decimal
+        if isinstance(row, dict):
+            converted = {}
+            for key, value in row.items():
+                if isinstance(value, Decimal):
+                    converted[key] = float(value)
+                else:
+                    converted[key] = value
+            return converted
+        elif isinstance(row, (list, tuple)):
+            return type(row)(float(v) if isinstance(v, Decimal) else v for v in row)
+        return row
+    
     def fetchone(self):
-        return self._cursor.fetchone()
+        row = self._cursor.fetchone()
+        return self._convert_row(row)
     
     def fetchall(self):
-        return self._cursor.fetchall()
+        rows = self._cursor.fetchall()
+        return [self._convert_row(row) for row in rows]
     
     @property
     def lastrowid(self):
