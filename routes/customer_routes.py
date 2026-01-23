@@ -182,10 +182,10 @@ def view_customer(id):
         SELECT at.*, u.username 
         FROM audit_trail at
         LEFT JOIN users u ON at.modified_by = u.id
-        WHERE at.record_type = 'customers' AND at.record_id = ?::text
+        WHERE at.record_type = 'customers' AND at.record_id = ?
         ORDER BY at.modified_at DESC
         LIMIT 50
-    ''', (id,)).fetchall()
+    ''', (str(id),)).fetchall()
     
     conn.close()
     return render_template('customers/view.html', customer=customer, sales_history=sales_history, 
