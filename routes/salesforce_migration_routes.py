@@ -44,9 +44,9 @@ def dashboard():
     stats = {
         'total_connections': len(connections),
         'active_connections': len([c for c in connections if c['status'] == 'Connected']),
-        'total_migrations': conn.execute('SELECT COUNT(*) FROM sf_migrations').fetchone()[0],
-        'total_objects': conn.execute('SELECT COUNT(*) FROM sf_object_metadata').fetchone()[0],
-        'total_errors': conn.execute("SELECT COUNT(*) FROM sf_migration_errors WHERE resolution_status = 'Open'").fetchone()[0]
+        'total_migrations': conn.execute('SELECT COUNT(*) as cnt FROM sf_migrations').fetchone()['cnt'],
+        'total_objects': conn.execute('SELECT COUNT(*) as cnt FROM sf_object_metadata').fetchone()['cnt'],
+        'total_errors': conn.execute("SELECT COUNT(*) as cnt FROM sf_migration_errors WHERE resolution_status = 'Open'").fetchone()['cnt']
     }
     
     conn.close()
