@@ -132,6 +132,58 @@ def datestr_filter(value, length=10):
     except Exception:
         return str(value)[:length] if value else ''
 
+@app.template_filter('sf')
+def safe_float_filter(value, default=0):
+    """Safely convert Decimal/numeric values to float for Jinja formatting.
+    PostgreSQL returns Decimal objects which can cause TypeError with format filters."""
+    from decimal import Decimal
+    if value is None:
+        return float(default)
+    if isinstance(value, Decimal):
+        return float(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+# Override Jinja's default format filter to handle Decimal values
+original_format = app.jinja_env.filters.get('format')
+def safe_format(value, *args, **kwargs):
+    """Safe format filter that converts Decimal to float before formatting."""
+    from decimal import Decimal
+    if isinstance(value, Decimal):
+        value = float(value)
+    elif value is None:
+        value = 0
+    if original_format:
+        return original_format(value, *args, **kwargs)
+    return format(value, *args) if args else str(value)
+app.jinja_env.filters['format'] = safe_format
+
+# Override Jinja's round filter to handle Decimal values
+original_round = app.jinja_env.filters.get('round')
+def safe_round(value, precision=0, method='common'):
+    """Safe round filter that converts Decimal to float before rounding."""
+    from decimal import Decimal
+    if value is None:
+        return 0
+    if isinstance(value, Decimal):
+        value = float(value)
+    if original_round:
+        return original_round(value, precision, method)
+    return round(value, precision)
+app.jinja_env.filters['round'] = safe_round
+
+@app.template_filter('money')
+def money_filter(value):
+    """Format value as money with comma separators and 2 decimal places."""
+    return "{:,.2f}".format(safe_float_filter(value))
+
+@app.template_filter('num')
+def num_filter(value, decimals=2):
+    """Format value as number with specified decimal places."""
+    return "{:.{d}f}".format(safe_float_filter(value), d=decimals)
+
 @app.context_processor
 def inject_now():
     """Make datetime.now available to all templates."""
