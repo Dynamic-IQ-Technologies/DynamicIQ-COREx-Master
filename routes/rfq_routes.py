@@ -65,13 +65,12 @@ def list_rfqs():
     rfqs = conn.execute('''
         SELECT r.*, 
                u.username as created_by_name,
-               COUNT(DISTINCT rl.id) as line_count,
-               COUNT(DISTINCT rs.id) as supplier_count
+               COALESCE(lc.line_count, 0) as line_count,
+               COALESCE(sc.supplier_count, 0) as supplier_count
         FROM rfqs r
         LEFT JOIN users u ON r.created_by = u.id
-        LEFT JOIN rfq_lines rl ON r.id = rl.rfq_id
-        LEFT JOIN rfq_suppliers rs ON r.id = rs.rfq_id
-        GROUP BY r.id
+        LEFT JOIN (SELECT rfq_id, COUNT(*) as line_count FROM rfq_lines GROUP BY rfq_id) lc ON r.id = lc.rfq_id
+        LEFT JOIN (SELECT rfq_id, COUNT(*) as supplier_count FROM rfq_suppliers GROUP BY rfq_id) sc ON r.id = sc.rfq_id
         ORDER BY r.created_at DESC
     ''').fetchall()
     
