@@ -579,7 +579,7 @@ def get_stage_work_orders(stage_id):
         LEFT JOIN customers c ON wo.customer_id = c.id
         LEFT JOIN sales_orders so ON wo.so_id = so.id
         LEFT JOIN work_order_stage_history wosh ON wo.id = wosh.work_order_id AND wosh.stage_id = ? AND wosh.exited_at IS NULL
-        WHERE wo.current_stage_id = ? AND wo.status NOT IN ('Completed', 'Cancelled')
+        WHERE wo.stage_id = ? AND wo.status NOT IN ('Completed', 'Cancelled')
         ORDER BY wo.planned_end_date ASC NULLS LAST, wo.wo_number
     ''', (stage_id, stage_id)).fetchall()
     
