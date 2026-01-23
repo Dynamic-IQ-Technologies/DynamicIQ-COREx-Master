@@ -5652,6 +5652,88 @@ def init_qms_tables(cursor):
     except:
         pass
     
+    # === UNPLANNED RECEIPT / UNKNOWN ITEM INTAKE MODULE ===
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unplanned_receipts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            intake_number TEXT UNIQUE NOT NULL,
+            received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            received_by INTEGER NOT NULL,
+            physical_location TEXT NOT NULL,
+            item_description TEXT NOT NULL,
+            quantity_received REAL NOT NULL DEFAULT 1,
+            condition_at_receipt TEXT DEFAULT 'Unknown',
+            serial_numbers TEXT,
+            classification TEXT NOT NULL,
+            intake_notes TEXT,
+            status TEXT DEFAULT 'Registered',
+            priority TEXT DEFAULT 'Normal',
+            linked_product_id INTEGER,
+            linked_inventory_id INTEGER,
+            linked_work_order_id INTEGER,
+            decision_type TEXT,
+            approval_authority INTEGER,
+            approval_date TIMESTAMP,
+            approval_notes TEXT,
+            rejection_reason TEXT,
+            provisional_cost REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            closed_at TIMESTAMP,
+            closed_by INTEGER,
+            FOREIGN KEY (received_by) REFERENCES users(id),
+            FOREIGN KEY (linked_product_id) REFERENCES products(id),
+            FOREIGN KEY (linked_inventory_id) REFERENCES inventory(id),
+            FOREIGN KEY (linked_work_order_id) REFERENCES work_orders(id),
+            FOREIGN KEY (approval_authority) REFERENCES users(id),
+            FOREIGN KEY (closed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unplanned_receipt_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receipt_id INTEGER NOT NULL,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_type TEXT,
+            file_size INTEGER,
+            description TEXT,
+            uploaded_by INTEGER,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (receipt_id) REFERENCES unplanned_receipts(id) ON DELETE CASCADE,
+            FOREIGN KEY (uploaded_by) REFERENCES users(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unplanned_receipt_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receipt_id INTEGER NOT NULL,
+            action_type TEXT NOT NULL,
+            action_description TEXT,
+            old_status TEXT,
+            new_status TEXT,
+            changed_fields TEXT,
+            performed_by INTEGER,
+            performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (receipt_id) REFERENCES unplanned_receipts(id) ON DELETE CASCADE,
+            FOREIGN KEY (performed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Unplanned Receipt indexes
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_status ON unplanned_receipts(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_intake_number ON unplanned_receipts(intake_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_classification ON unplanned_receipts(classification)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_priority ON unplanned_receipts(priority)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_upr_received_date ON unplanned_receipts(received_date)')
+    except:
+        pass
+    
     # === REPORT LOGIC MODULE TABLES ===
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS report_templates (

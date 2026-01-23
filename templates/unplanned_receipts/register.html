@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Register Unplanned Receipt - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-inbox-fill me-2"></i>Register Unplanned Receipt</h2>
+    <a href="{{ url_for('unplanned_receipt_routes.list_receipts') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to List
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header text-white" style="background-color: #f97316;">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Unknown Item Intake Form</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-3">Receipt Information</h6>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Physical Location <span class="text-danger">*</span></label>
+                        <select name="physical_location" class="form-select" required>
+                            <option value="">Select Location...</option>
+                            <option value="Receiving Dock">Receiving Dock</option>
+                            <option value="Quarantine Area">Quarantine Area</option>
+                            <option value="Cage">Cage</option>
+                            <option value="Inspection Area">Inspection Area</option>
+                            <option value="Main Warehouse">Main Warehouse</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Item Description <span class="text-danger">*</span></label>
+                        <textarea name="item_description" class="form-control" rows="3" required 
+                                  placeholder="Describe the item as completely as possible..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity Received <span class="text-danger">*</span></label>
+                                <input type="number" name="quantity_received" class="form-control" value="1" min="0.01" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Condition at Receipt</label>
+                                <select name="condition_at_receipt" class="form-select">
+                                    <option value="Unknown">Unknown</option>
+                                    <option value="New">New</option>
+                                    <option value="Used">Used</option>
+                                    <option value="Serviceable">Serviceable</option>
+                                    <option value="Overhauled">Overhauled</option>
+                                    <option value="Damaged">Damaged</option>
+                                    <option value="As Removed">As Removed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Serial Number(s)</label>
+                        <input type="text" name="serial_numbers" class="form-control" placeholder="Enter serial numbers, comma-separated if multiple">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-3">Classification & Priority</h6>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Initial Classification <span class="text-danger">*</span></label>
+                        <select name="classification" class="form-select" required>
+                            <option value="Unknown Part">Unknown Part</option>
+                            <option value="Out-of-Scope Capability">Out-of-Scope Capability</option>
+                            <option value="No Documentation">No Documentation</option>
+                        </select>
+                        <small class="text-muted">Why this item cannot be received normally</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select name="priority" class="form-select">
+                            <option value="Low">Low</option>
+                            <option value="Normal" selected>Normal</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Intake Notes / Observations</label>
+                        <textarea name="intake_notes" class="form-control" rows="5" 
+                                  placeholder="Any additional observations, markings, packaging details, suspected origin, etc."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Note:</strong> This record will be created in <strong>Registered - Pending Approval</strong> status. 
+                It must be reviewed and approved before the item can be added to inventory or processed through a work order.
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('unplanned_receipt_routes.list_receipts') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>Register Receipt
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

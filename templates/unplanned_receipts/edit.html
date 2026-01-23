@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit {{ receipt.intake_number }} - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-pencil me-2"></i>Edit {{ receipt.intake_number }}</h2>
+    <a href="{{ url_for('unplanned_receipt_routes.view_receipt', id=receipt.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to View
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header text-white" style="background-color: #f97316;">
+        <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Edit Receipt Details</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-3">Receipt Information</h6>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Physical Location <span class="text-danger">*</span></label>
+                        <select name="physical_location" class="form-select" required>
+                            <option value="Receiving Dock" {{ 'selected' if receipt.physical_location == 'Receiving Dock' }}>Receiving Dock</option>
+                            <option value="Quarantine Area" {{ 'selected' if receipt.physical_location == 'Quarantine Area' }}>Quarantine Area</option>
+                            <option value="Cage" {{ 'selected' if receipt.physical_location == 'Cage' }}>Cage</option>
+                            <option value="Inspection Area" {{ 'selected' if receipt.physical_location == 'Inspection Area' }}>Inspection Area</option>
+                            <option value="Main Warehouse" {{ 'selected' if receipt.physical_location == 'Main Warehouse' }}>Main Warehouse</option>
+                            <option value="Other" {{ 'selected' if receipt.physical_location == 'Other' }}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Item Description <span class="text-danger">*</span></label>
+                        <textarea name="item_description" class="form-control" rows="3" required>{{ receipt.item_description }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity Received <span class="text-danger">*</span></label>
+                                <input type="number" name="quantity_received" class="form-control" value="{{ receipt.quantity_received }}" min="0.01" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Condition at Receipt</label>
+                                <select name="condition_at_receipt" class="form-select">
+                                    <option value="Unknown" {{ 'selected' if receipt.condition_at_receipt == 'Unknown' }}>Unknown</option>
+                                    <option value="New" {{ 'selected' if receipt.condition_at_receipt == 'New' }}>New</option>
+                                    <option value="Used" {{ 'selected' if receipt.condition_at_receipt == 'Used' }}>Used</option>
+                                    <option value="Serviceable" {{ 'selected' if receipt.condition_at_receipt == 'Serviceable' }}>Serviceable</option>
+                                    <option value="Overhauled" {{ 'selected' if receipt.condition_at_receipt == 'Overhauled' }}>Overhauled</option>
+                                    <option value="Damaged" {{ 'selected' if receipt.condition_at_receipt == 'Damaged' }}>Damaged</option>
+                                    <option value="As Removed" {{ 'selected' if receipt.condition_at_receipt == 'As Removed' }}>As Removed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Serial Number(s)</label>
+                        <input type="text" name="serial_numbers" class="form-control" value="{{ receipt.serial_numbers or '' }}">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-3">Classification & Priority</h6>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Classification <span class="text-danger">*</span></label>
+                        <select name="classification" class="form-select" required>
+                            <option value="Unknown Part" {{ 'selected' if receipt.classification == 'Unknown Part' }}>Unknown Part</option>
+                            <option value="Out-of-Scope Capability" {{ 'selected' if receipt.classification == 'Out-of-Scope Capability' }}>Out-of-Scope Capability</option>
+                            <option value="No Documentation" {{ 'selected' if receipt.classification == 'No Documentation' }}>No Documentation</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select name="priority" class="form-select">
+                            <option value="Low" {{ 'selected' if receipt.priority == 'Low' }}>Low</option>
+                            <option value="Normal" {{ 'selected' if receipt.priority == 'Normal' }}>Normal</option>
+                            <option value="High" {{ 'selected' if receipt.priority == 'High' }}>High</option>
+                            <option value="Urgent" {{ 'selected' if receipt.priority == 'Urgent' }}>Urgent</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Intake Notes / Observations</label>
+                        <textarea name="intake_notes" class="form-control" rows="5">{{ receipt.intake_notes or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('unplanned_receipt_routes.view_receipt', id=receipt.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

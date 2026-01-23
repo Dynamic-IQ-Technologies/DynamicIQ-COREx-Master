@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}Unplanned Receipt Register - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-inbox-fill me-2"></i>Unplanned Receipt Register</h2>
+    <a href="{{ url_for('unplanned_receipt_routes.register_receipt') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Register New Receipt
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center border-warning">
+            <div class="card-body py-2">
+                <h4 class="mb-0 text-warning">{{ status_counts.get('Registered', 0) }}</h4>
+                <small class="text-muted">Pending</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-info">
+            <div class="card-body py-2">
+                <h4 class="mb-0 text-info">{{ status_counts.get('Under Review', 0) }}</h4>
+                <small class="text-muted">Under Review</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-success">
+            <div class="card-body py-2">
+                <h4 class="mb-0 text-success">{{ status_counts.get('Approved for Inventory', 0) + status_counts.get('Approved for Work Order', 0) }}</h4>
+                <small class="text-muted">Approved</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-danger">
+            <div class="card-body py-2">
+                <h4 class="mb-0 text-danger">{{ status_counts.get('Rejected', 0) }}</h4>
+                <small class="text-muted">Rejected</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-secondary">
+            <div class="card-body py-2">
+                <h4 class="mb-0 text-secondary">{{ status_counts.get('Closed', 0) }}</h4>
+                <small class="text-muted">Closed</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" id="statusFilter" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="Registered" {{ 'selected' if status_filter == 'Registered' }}>Registered - Pending</option>
+                    <option value="Under Review" {{ 'selected' if status_filter == 'Under Review' }}>Under Review</option>
+                    <option value="Approved for Inventory" {{ 'selected' if status_filter == 'Approved for Inventory' }}>Approved for Inventory</option>
+                    <option value="Approved for Work Order" {{ 'selected' if status_filter == 'Approved for Work Order' }}>Approved for Work Order</option>
+                    <option value="Rejected" {{ 'selected' if status_filter == 'Rejected' }}>Rejected</option>
+                    <option value="Closed" {{ 'selected' if status_filter == 'Closed' }}>Closed</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" id="classificationFilter" onchange="applyFilters()">
+                    <option value="">All Classifications</option>
+                    <option value="Unknown Part" {{ 'selected' if classification_filter == 'Unknown Part' }}>Unknown Part</option>
+                    <option value="Out-of-Scope Capability" {{ 'selected' if classification_filter == 'Out-of-Scope Capability' }}>Out-of-Scope Capability</option>
+                    <option value="No Documentation" {{ 'selected' if classification_filter == 'No Documentation' }}>No Documentation</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" id="priorityFilter" onchange="applyFilters()">
+                    <option value="">All Priorities</option>
+                    <option value="Low" {{ 'selected' if priority_filter == 'Low' }}>Low</option>
+                    <option value="Normal" {{ 'selected' if priority_filter == 'Normal' }}>Normal</option>
+                    <option value="High" {{ 'selected' if priority_filter == 'High' }}>High</option>
+                    <option value="Urgent" {{ 'selected' if priority_filter == 'Urgent' }}>Urgent</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search..." onkeyup="filterTable()">
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0" id="receiptsTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Intake #</th>
+                        <th>Received</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Classification</th>
+                        <th>Location</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in receipts %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('unplanned_receipt_routes.view_receipt', id=r.id) }}" class="fw-bold">
+                                {{ r.intake_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <small>{{ r.received_date|datestr if r.received_date else 'N/A' }}</small><br>
+                            <small class="text-muted">{{ r.received_by_name }}</small>
+                        </td>
+                        <td>
+                            <span title="{{ r.item_description }}">{{ r.item_description[:50] }}{% if r.item_description|length > 50 %}...{% endif %}</span>
+                            {% if r.serial_numbers %}
+                            <br><small class="text-muted">S/N: {{ r.serial_numbers[:30] }}{% if r.serial_numbers|length > 30 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.quantity_received }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ r.classification }}</span>
+                        </td>
+                        <td>{{ r.physical_location }}</td>
+                        <td>
+                            {% if r.priority == 'Urgent' %}
+                            <span class="badge bg-danger">{{ r.priority }}</span>
+                            {% elif r.priority == 'High' %}
+                            <span class="badge bg-warning text-dark">{{ r.priority }}</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark">{{ r.priority }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r.status == 'Registered' %}
+                            <span class="badge bg-warning text-dark">{{ r.status }}</span>
+                            {% elif r.status == 'Under Review' %}
+                            <span class="badge bg-info">{{ r.status }}</span>
+                            {% elif r.status in ['Approved for Inventory', 'Approved for Work Order'] %}
+                            <span class="badge bg-success">{{ r.status }}</span>
+                            {% elif r.status == 'Rejected' %}
+                            <span class="badge bg-danger">{{ r.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ r.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('unplanned_receipt_routes.view_receipt', id=r.id) }}" class="btn btn-sm btn-outline-primary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if r.status not in ['Closed', 'Approved for Inventory', 'Approved for Work Order'] %}
+                            <a href="{{ url_for('unplanned_receipt_routes.edit_receipt', id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mb-0 mt-2">No unplanned receipts found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const classification = document.getElementById('classificationFilter').value;
+    const priority = document.getElementById('priorityFilter').value;
+    
+    let url = new URL(window.location.href);
+    url.searchParams.set('status', status);
+    url.searchParams.set('classification', classification);
+    url.searchParams.set('priority', priority);
+    window.location.href = url.toString();
+}
+
+function filterTable() {
+    const input = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#receiptsTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

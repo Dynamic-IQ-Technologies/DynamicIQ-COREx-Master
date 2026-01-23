@@ -65,6 +65,7 @@ from routes.leads_routes import leads_bp
 from routes.neuroiq_routes import neuroiq_bp
 from routes.corex_guide_routes import corex_guide_bp
 from routes.duplicate_detection_routes import duplicate_detection_bp
+from routes.unplanned_receipt_routes import unplanned_receipt_bp
 import os
 
 app = Flask(__name__)
@@ -198,6 +199,7 @@ app.register_blueprint(leads_bp)
 app.register_blueprint(neuroiq_bp)
 app.register_blueprint(corex_guide_bp)
 app.register_blueprint(duplicate_detection_bp)
+app.register_blueprint(unplanned_receipt_bp)
 
 @app.context_processor
 def inject_user():

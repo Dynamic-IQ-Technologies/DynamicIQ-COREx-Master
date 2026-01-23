@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ receipt.intake_number }} - Unplanned Receipt - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-inbox-fill me-2"></i>{{ receipt.intake_number }}</h2>
+        <span class="badge bg-{{ 'warning text-dark' if receipt.status == 'Registered' else 'info' if receipt.status == 'Under Review' else 'success' if receipt.status in ['Approved for Inventory', 'Approved for Work Order'] else 'danger' if receipt.status == 'Rejected' else 'secondary' }} fs-6">
+            {{ receipt.status }}
+        </span>
+        {% if receipt.priority == 'Urgent' %}
+        <span class="badge bg-danger ms-2">URGENT</span>
+        {% elif receipt.priority == 'High' %}
+        <span class="badge bg-warning text-dark ms-2">HIGH PRIORITY</span>
+        {% endif %}
+    </div>
+    <div class="btn-group">
+        <a href="{{ url_for('unplanned_receipt_routes.list_receipts') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+        {% if receipt.status not in ['Closed', 'Approved for Inventory', 'Approved for Work Order'] %}
+        <a href="{{ url_for('unplanned_receipt_routes.edit_receipt', id=receipt.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header text-white" style="background-color: #f97316;">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Receipt Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Received Date:</strong> {{ receipt.received_date|datestr if receipt.received_date else 'N/A' }}</p>
+                        <p><strong>Received By:</strong> {{ receipt.received_by_name }}</p>
+                        <p><strong>Physical Location:</strong> {{ receipt.physical_location }}</p>
+                        <p><strong>Quantity:</strong> {{ receipt.quantity_received }}</p>
+                        <p><strong>Condition:</strong> {{ receipt.condition_at_receipt }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Classification:</strong> <span class="badge bg-secondary">{{ receipt.classification }}</span></p>
+                        <p><strong>Priority:</strong> {{ receipt.priority }}</p>
+                        <p><strong>Serial Numbers:</strong> {{ receipt.serial_numbers or 'None recorded' }}</p>
+                        {% if receipt.provisional_cost > 0 %}
+                        <p><strong>Provisional Cost:</strong> ${{ "%.2f"|format(receipt.provisional_cost) }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6>Item Description</h6>
+                <p class="bg-light p-3 rounded">{{ receipt.item_description }}</p>
+                
+                {% if receipt.intake_notes %}
+                <h6>Intake Notes</h6>
+                <p class="bg-light p-3 rounded">{{ receipt.intake_notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if receipt.linked_product_id or receipt.linked_work_order_id or receipt.linked_inventory_id %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Linked Records</h5>
+            </div>
+            <div class="card-body">
+                {% if receipt.linked_product_id %}
+                <p><strong>Product:</strong> 
+                    <a href="{{ url_for('product_routes.view_product', id=receipt.linked_product_id) }}">
+                        {{ receipt.product_code }} - {{ receipt.product_name }}
+                    </a>
+                </p>
+                {% endif %}
+                {% if receipt.linked_inventory_id %}
+                <p><strong>Inventory Record:</strong> 
+                    <a href="{{ url_for('inventory_routes.view_inventory', id=receipt.linked_inventory_id) }}">
+                        Inventory #{{ receipt.linked_inventory_id }}
+                    </a>
+                </p>
+                {% endif %}
+                {% if receipt.linked_work_order_id %}
+                <p><strong>Work Order:</strong> 
+                    <a href="{{ url_for('operations_routes.view_work_order', id=receipt.linked_work_order_id) }}">
+                        {{ receipt.wo_number }}
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit Trail</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Action</th>
+                                <th>Description</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in audit_trail %}
+                            <tr>
+                                <td><small>{{ entry.performed_at|datestr if entry.performed_at else 'N/A' }}</small></td>
+                                <td><span class="badge bg-info">{{ entry.action_type }}</span></td>
+                                <td>{{ entry.action_description }}</td>
+                                <td>{{ entry.username }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No audit entries</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if receipt.status not in ['Closed'] %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Actions</h5>
+            </div>
+            <div class="card-body">
+                {% if receipt.status == 'Registered' %}
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}" class="mb-3">
+                    <input type="hidden" name="status" value="Under Review">
+                    <button type="submit" class="btn btn-info w-100">
+                        <i class="bi bi-search me-1"></i>Start Review
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}">
+                    <input type="hidden" name="status" value="Rejected">
+                    <input type="text" name="notes" class="form-control mb-2" placeholder="Rejection reason..." required>
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-x-circle me-1"></i>Reject
+                    </button>
+                </form>
+                
+                {% elif receipt.status == 'Under Review' %}
+                <div class="mb-3">
+                    <h6>Approve for:</h6>
+                    <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}" class="mb-2">
+                        <input type="hidden" name="status" value="Approved for Inventory">
+                        <textarea name="notes" class="form-control mb-2" rows="2" placeholder="Approval notes..."></textarea>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-box-seam me-1"></i>Inventory Conversion
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}" class="mb-3">
+                        <input type="hidden" name="status" value="Approved for Work Order">
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="bi bi-tools me-1"></i>Work Order Processing
+                        </button>
+                    </form>
+                </div>
+                <hr>
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}" class="mb-2">
+                    <input type="hidden" name="status" value="Registered">
+                    <button type="submit" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Return to Pending
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}">
+                    <input type="hidden" name="status" value="Rejected">
+                    <input type="text" name="notes" class="form-control mb-2" placeholder="Rejection reason..." required>
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-x-circle me-1"></i>Reject
+                    </button>
+                </form>
+                
+                {% elif receipt.status == 'Approved for Inventory' %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-1"></i>Approved for inventory conversion
+                </div>
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.convert_to_inventory', id=receipt.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Link to Product:</label>
+                        <select name="product_id" class="form-select" id="productSelect">
+                            <option value="">-- Select existing product --</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="create_new_product" class="form-check-input" id="createNewProduct">
+                        <label class="form-check-label" for="createNewProduct">Create new product</label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Provisional Cost:</label>
+                        <input type="number" name="provisional_cost" class="form-control" value="0" min="0" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warehouse Location:</label>
+                        <input type="text" name="warehouse_location" class="form-control" value="Main">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bin Location:</label>
+                        <input type="text" name="bin_location" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-box-arrow-in-down me-1"></i>Convert to Inventory
+                    </button>
+                </form>
+                
+                {% elif receipt.status == 'Approved for Work Order' %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-tools me-1"></i>Approved for work order processing
+                </div>
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.create_work_order', id=receipt.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Work Order Type:</label>
+                        <select name="work_order_type" class="form-select">
+                            <option value="Inspection">Inspection</option>
+                            <option value="Repair">Repair</option>
+                            <option value="Overhaul">Overhaul</option>
+                            <option value="Test">Test</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Priority:</label>
+                        <select name="priority" class="form-select">
+                            <option value="Low">Low</option>
+                            <option value="Normal" selected>Normal</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes:</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="bi bi-plus-circle me-1"></i>Create Work Order
+                    </button>
+                </form>
+                
+                {% elif receipt.status == 'Rejected' %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle me-1"></i>This receipt was rejected
+                    {% if receipt.rejection_reason %}
+                    <hr>
+                    <small>{{ receipt.rejection_reason }}</small>
+                    {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('unplanned_receipt_routes.update_status', id=receipt.id) }}">
+                    <input type="hidden" name="status" value="Closed">
+                    <button type="submit" class="btn btn-secondary w-100">
+                        <i class="bi bi-archive me-1"></i>Close Record
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if receipt.approval_authority %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle me-2"></i>Approval Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Decision:</strong> {{ receipt.decision_type }}</p>
+                <p><strong>Approved By:</strong> {{ receipt.approved_by_name }}</p>
+                <p><strong>Approved Date:</strong> {{ receipt.approval_date|datestr if receipt.approval_date else 'N/A' }}</p>
+                {% if receipt.approval_notes %}
+                <p><strong>Notes:</strong> {{ receipt.approval_notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-paperclip me-2"></i>Attachments</h5>
+            </div>
+            <div class="card-body">
+                {% if attachments %}
+                <ul class="list-group list-group-flush">
+                    {% for att in attachments %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-earmark me-2"></i>{{ att.file_name }}</span>
+                        <small class="text-muted">{{ att.uploaded_by_name }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center mb-0">No attachments</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

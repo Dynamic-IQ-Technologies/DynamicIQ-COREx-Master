@@ -1,0 +1,215 @@
+Update the application to enable the registration, tracking, and controlled management of parts or products that physically arrive at the facility without paperwork, outside approved capabilities, or not linked to any existing transaction. These items must be logged in a Pending Approval state and remain fully traceable until formally approved and converted into inventory or processed through a work order.
+
+Core Functional Capability
+1. Unplanned Receipt Registration
+
+Introduce a new system function called:
+
+Unplanned Receipt / Unknown Item Intake
+
+This function allows authorized users to register received items when:
+
+No purchase order, RMA, or sales order exists
+
+No documentation accompanies the item
+
+The part is not currently within approved internal capabilities
+
+The item cannot be immediately received into inventory
+
+Registration Requirements
+2. Required Intake Data Fields
+
+At minimum, the system must capture:
+
+Intake Record ID (system-generated)
+
+Date & Time Received
+
+Received By (User)
+
+Physical Location (dock, cage, quarantine area)
+
+Item Description (free-text)
+
+Quantity Received
+
+Condition at Receipt (e.g., Unknown, Damaged, Used, New)
+
+Serial Number(s) (if available)
+
+Photos or attachments (optional but supported)
+
+Initial Classification:
+
+Unknown Part
+
+Out-of-Scope Capability
+
+No Documentation
+
+Intake Notes / Observations
+
+These records must not be treated as inventory.
+
+Status & Lifecycle Control
+3. Intake Record Lifecycle States
+
+Each intake record must move through controlled states:
+
+Registered – Pending Approval
+
+Under Review
+
+Approved for Inventory Conversion
+
+Approved for Work Order Processing
+
+Rejected / Returned / Scrapped
+
+Closed
+
+State transitions must be:
+
+Role-controlled
+
+Fully logged in the audit trail
+
+Approval & Decision Workflow
+4. Review & Approval Process
+
+Authorized reviewers must be able to:
+
+Validate item identity and ownership
+
+Determine internal capability suitability
+
+Request additional information
+
+Assign disposition path
+
+Approval decisions must include:
+
+Decision Type:
+
+Convert to Inventory
+
+Create Work Order
+
+Reject / Return / Scrap
+
+Approval Authority (User + Role)
+
+Approval Date & Timestamp
+
+Approval Notes / Justification
+
+Post-Approval System Actions
+5. Inventory Conversion Path
+
+If approved for inventory:
+
+Allow the reviewer to:
+
+Create a new Part Master or
+
+Link to an existing Part Master
+
+Generate an Inventory Record in a Controlled Receipt state
+
+Receive the item into inventory with:
+
+Zero or provisional cost (configurable)
+
+Traceability back to the Intake Record ID
+
+Maintain full audit linkage
+
+6. Work Order Processing Path
+
+If approved for work order:
+
+Allow creation of a Work Order directly from the intake record
+
+Auto-link:
+
+Intake Record ID
+
+Serial numbers
+
+Part description
+
+Prevent inventory receipt until:
+
+Work order is completed
+
+Final approval is granted
+
+Upon work order completion:
+
+Enable controlled receipt into inventory
+
+Audit Trail & Traceability
+7. Full Audit Logging
+
+Every intake record must maintain a complete audit trail capturing:
+
+Registration details
+
+Status changes
+
+Approval decisions
+
+Conversion to inventory or work order
+
+Final disposition
+
+Audit logs must be:
+
+Immutable
+
+Time-stamped
+
+Cross-referenced to resulting records
+
+User Interface Requirements
+8. Intake & Review UI
+
+Add a new module or page:
+
+Unplanned Receipt Register
+
+Include:
+
+Intake dashboard with status filters
+
+Priority flags
+
+Aging indicators
+
+Intake records must be searchable and reportable
+
+Security & Governance Controls
+9. Role-Based Restrictions
+
+Only authorized roles may:
+
+Approve intake records
+
+Convert to inventory
+
+Initiate work orders
+
+Segregation of duties must be supported
+
+System Outcomes
+
+No unidentified items bypass system control
+
+Full traceability from physical receipt to final disposition
+
+Supports ISO, audit, and compliance requirements
+
+Enables operational flexibility without compromising data integrity
+
+Eliminates “ghost inventory” and undocumented material handling
