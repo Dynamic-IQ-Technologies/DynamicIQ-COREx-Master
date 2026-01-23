@@ -2,6 +2,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, AuditLogger, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+
+
+def parse_datetime(value):
+    """Parse datetime from either string (SQLite) or datetime object (PostgreSQL)"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 import secrets
 import os
 import requests
@@ -473,7 +482,7 @@ def send_to_supplier(rfq_id):
             return redirect(url_for('rfq_routes.view_rfq', rfq_id=rfq_id))
         
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.fromisoformat(rfq['due_date']) if rfq['due_date'] else datetime.now() + timedelta(days=30)
+        expires_at = parse_datetime(rfq['due_date']) if rfq['due_date'] else datetime.now() + timedelta(days=30)
         
         conn.execute('''
             INSERT INTO rfq_supplier_tokens (rfq_id, supplier_id, token, expires_at, allow_multiple_submissions)
@@ -700,7 +709,7 @@ def email_supplier_link(rfq_id, supplier_id):
         base_url = request.url_root.rstrip('/')
         supplier_link = f"{base_url}/rfq/submit/{token_record['token']}"
         
-        expires_date = datetime.fromisoformat(token_record['expires_at']).strftime('%B %d, %Y at %I:%M %p')
+        expires_date = parse_datetime(token_record['expires_at']).strftime('%B %d, %Y at %I:%M %p')
         due_date = rfq['due_date'] if rfq['due_date'] else 'Not specified'
         
         html_content = f'''

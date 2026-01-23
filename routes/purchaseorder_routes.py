@@ -3,6 +3,15 @@ from models import Database, CompanySettings, AuditLogger, safe_float
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+
+
+def parse_datetime(value):
+    """Parse datetime from either string (SQLite) or datetime object (PostgreSQL)"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 from utils.uom_conversion import (
     validate_po_line_conversion, check_conversion_defined, 
     VarianceType, ConversionResult, get_product_uom_options
@@ -2324,7 +2333,7 @@ def supplier_view_po(token):
         return render_template('errors/invalid_token.html', 
                              message='This link is invalid or has expired.'), 404
     
-    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+    if parse_datetime(token_record['expires_at']) < datetime.now():
         conn.close()
         return render_template('errors/invalid_token.html',
                              message='This link has expired. Please contact the company for a new link.'), 410

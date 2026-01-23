@@ -6,6 +6,15 @@ import secrets
 portal_bp = Blueprint('portal', __name__)
 
 
+def parse_datetime(value):
+    """Parse datetime from either string (SQLite) or datetime object (PostgreSQL)"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
+
+
 @portal_bp.route('/portal/<token>')
 def customer_portal(token):
     """Public customer portal - no login required"""
@@ -385,7 +394,7 @@ def supplier_portal(token):
         return render_template('portal/invalid.html', 
                              message='This supplier portal link is invalid.'), 404
     
-    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+    if parse_datetime(token_record['expires_at']) < datetime.now():
         conn.close()
         return render_template('portal/invalid.html',
                              message='This supplier portal link has expired.'), 410
@@ -459,7 +468,7 @@ def supplier_portal_po_detail(token, po_id):
         conn.close()
         return render_template('portal/invalid.html'), 404
     
-    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+    if parse_datetime(token_record['expires_at']) < datetime.now():
         conn.close()
         return render_template('portal/invalid.html',
                              message='This supplier portal link has expired.'), 410
@@ -523,7 +532,7 @@ def supplier_portal_update_line(token, line_id):
         conn.close()
         return render_template('portal/invalid.html'), 404
     
-    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+    if parse_datetime(token_record['expires_at']) < datetime.now():
         conn.close()
         return render_template('portal/invalid.html',
                              message='This supplier portal link has expired.'), 410

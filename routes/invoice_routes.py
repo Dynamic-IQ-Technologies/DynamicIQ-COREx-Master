@@ -2,6 +2,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, AuditLogger, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+
+
+def parse_datetime(value):
+    """Parse datetime from either string (SQLite) or datetime object (PostgreSQL)"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 import secrets
 import os
 import io
@@ -1064,7 +1073,7 @@ def customer_view_invoice(token):
         return render_template('errors/invalid_token.html', 
                              message='This link is invalid or has expired.'), 404
     
-    if datetime.fromisoformat(token_record['expires_at']) < datetime.now():
+    if parse_datetime(token_record['expires_at']) < datetime.now():
         conn.close()
         return render_template('errors/invalid_token.html',
                              message='This link has expired. Please contact us for a new link.'), 410

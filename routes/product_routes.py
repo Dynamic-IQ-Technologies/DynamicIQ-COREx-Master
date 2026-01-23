@@ -224,10 +224,10 @@ def view_product(id):
         SELECT at.*, u.username 
         FROM audit_trail at
         LEFT JOIN users u ON at.modified_by = u.id
-        WHERE at.record_type = 'product' AND at.record_id = ?::text
+        WHERE at.record_type = 'product' AND at.record_id = ?
         ORDER BY at.modified_at DESC
         LIMIT 50
-    ''', (id,)).fetchall()
+    ''', (str(id),)).fetchall()
     
     conn.close()
     

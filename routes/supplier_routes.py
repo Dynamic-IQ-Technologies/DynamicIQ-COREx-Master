@@ -230,10 +230,10 @@ def view_supplier(id):
         SELECT at.*, u.username 
         FROM audit_trail at
         LEFT JOIN users u ON at.modified_by = u.id
-        WHERE at.record_type = 'suppliers' AND at.record_id = ?::text
+        WHERE at.record_type = 'suppliers' AND at.record_id = ?
         ORDER BY at.modified_at DESC
         LIMIT 50
-    ''', (id,)).fetchall()
+    ''', (str(id),)).fetchall()
     
     portal_token = conn.execute('''
         SELECT spt.*, u.username as created_by_name

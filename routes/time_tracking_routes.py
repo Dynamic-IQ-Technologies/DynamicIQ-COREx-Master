@@ -2,6 +2,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database
 from auth import login_required, role_required
 from datetime import datetime
+
+
+def parse_datetime(value):
+    """Parse datetime from either string (SQLite) or datetime object (PostgreSQL)"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 import math
 
 time_tracking_bp = Blueprint('time_tracking_routes', __name__)
@@ -228,7 +237,7 @@ def clock_out(entry_id):
             return redirect(url_for('time_tracking_routes.time_tracking_page'))
         
         clock_out_time = datetime.now()
-        clock_in_time = datetime.fromisoformat(entry['clock_in_time'])
+        clock_in_time = parse_datetime(entry['clock_in_time'])
         
         # Calculate hours worked
         time_diff = clock_out_time - clock_in_time
@@ -341,7 +350,7 @@ def active_labor_report():
     # Calculate estimated current labor cost based on elapsed time
     current_labor_cost = 0
     for entry in active_entries:
-        clock_in = datetime.fromisoformat(entry['clock_in_time'])
+        clock_in = parse_datetime(entry['clock_in_time'])
         elapsed_hours = (datetime.now() - clock_in).total_seconds() / 3600
         current_labor_cost += elapsed_hours * entry['hourly_rate']
     

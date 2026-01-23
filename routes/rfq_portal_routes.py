@@ -1,6 +1,15 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from models import Database, AuditLogger
 from datetime import datetime, timedelta
+
+
+def parse_datetime(value):
+    """Parse datetime from either string (SQLite) or datetime object (PostgreSQL)"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 import secrets
 import os
 
@@ -30,7 +39,7 @@ def validate_token(token):
     if not token_data:
         return None, "Invalid or expired link"
     
-    if datetime.now() > datetime.fromisoformat(token_data['expires_at']):
+    if datetime.now() > parse_datetime(token_data['expires_at']):
         return None, "This RFQ link has expired"
     
     if token_data['rfq_status'] == 'Closed':
