@@ -30,7 +30,7 @@ def trial_balance():
         AND (gl.status = 'Posted' OR gl.id IS NULL)
         AND (gl.entry_date <= ? OR gl.id IS NULL)
         GROUP BY coa.id, coa.account_code, coa.account_name, coa.account_type
-        HAVING (total_debit + total_credit) > 0
+        HAVING (COALESCE(SUM(gl_lines.debit), 0) + COALESCE(SUM(gl_lines.credit), 0)) > 0
         ORDER BY coa.account_code
     ''', (end_date,)).fetchall()
     
