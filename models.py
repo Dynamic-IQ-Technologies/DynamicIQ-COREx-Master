@@ -118,7 +118,12 @@ class PostgresConnection:
             return -1
         
         def replace_julianday_diff(query):
-            """Replace JULIANDAY(x) - JULIANDAY(y) with proper date arithmetic, handling nested functions"""
+            """Replace JULIANDAY(x) - JULIANDAY(y) with proper date arithmetic, handling nested functions.
+            
+            JULIANDAY returns fractional days. In PostgreSQL:
+            - For datetime columns: use EXTRACT(EPOCH FROM ...) / 86400.0 to get fractional days
+            - This preserves time precision for calculations like hours worked
+            """
             result = query
             pattern = re.compile(r'julianday\s*\(', re.IGNORECASE)
             search_pos = 0
@@ -145,8 +150,9 @@ class PostgresConnection:
                     end2 = find_matching_paren(result, start2)
                     if end2 != -1:
                         arg2 = result[start2+1:end2]
-                        # Replace the entire JULIANDAY(...) - JULIANDAY(...) with date diff
-                        new_expr = f"(({arg1})::date - ({arg2})::date)"
+                        # Replace with EXTRACT(EPOCH FROM ...) / 86400.0 to get fractional days
+                        # This preserves time precision unlike ::date which truncates
+                        new_expr = f"(EXTRACT(EPOCH FROM (({arg1})::timestamp - ({arg2})::timestamp)) / 86400.0)"
                         result = result[:match.start()] + new_expr + result[end2+1:]
                         # Don't advance search_pos since we replaced content, restart from same position
                         continue

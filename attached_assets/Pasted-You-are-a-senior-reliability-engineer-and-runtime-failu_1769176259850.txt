@@ -1,0 +1,181 @@
+You are a senior reliability engineer and runtime failure analyst. The application has already undergone a global hardening pass, but 500 TypeError failures still occur on specific pages. Your task is to identify, isolate, and permanently neutralize page-level runtime failures.
+
+🎯 CRITICAL CONSTRAINT (READ CAREFULLY)
+
+NO PAGE IS ALLOWED TO:
+
+Throw an uncaught exception
+
+Render before required data is validated
+
+Assume backend data exists
+
+Exit an API call without a response
+
+Crash the server due to a component or hook failure
+
+If a page cannot fully load, it must degrade gracefully, never error.
+
+🧠 PHASE 1 — PAGE-LEVEL FAILURE MAPPING (MANDATORY)
+
+For each page that still errors, perform the following:
+
+Identify:
+
+Route
+
+API dependencies
+
+Required data objects
+
+Required environment variables
+
+List every execution assumption the page makes
+
+Identify:
+
+undefined access
+
+Missing props
+
+Async race conditions
+
+Conditional hooks misuse
+
+Data shape mismatches
+
+Confirm whether the error occurs:
+
+On first load
+
+On refresh
+
+On navigation
+
+Only in deployed Replit (cold start)
+
+⚠️ Do not fix anything until failure paths are fully mapped.
+
+🧱 PHASE 2 — HARD PAGE CONTRACT (NON-NEGOTIABLE)
+
+For every page, enforce this contract:
+
+Page Contract Rules
+
+Page must render even if all data is missing
+
+Page must never assume API success
+
+Page must never assume object shape
+
+Page must never crash due to child component failure
+
+Implement:
+
+Explicit PageState model:
+
+loading | ready | empty | error
+
+
+Guaranteed fallback UI for each state
+
+Null-safe guards around every data access
+
+Example rule:
+
+“If required data is missing → render error state, not throw.”
+
+🛡️ PHASE 3 — PAGE ERROR BOUNDARY ENFORCEMENT
+
+Wrap every routed page in a page-level error boundary:
+
+Catch render-time exceptions
+
+Log the error with route + stack trace
+
+Render a controlled fallback UI
+
+Return a reference ID instead of crashing
+
+No page may bypass this boundary.
+
+🔁 PHASE 4 — API RESPONSE GUARANTEE (PAGE-DRIVEN)
+
+For every API call used by failing pages:
+
+Enforce a single response schema
+
+Handle:
+
+Empty responses
+
+Partial data
+
+Permission failures
+
+Timeouts
+
+Never return raw database objects directly
+
+Always normalize output
+
+Example:
+
+{
+  "success": false,
+  "data": null,
+  "error": "RECORD_NOT_FOUND"
+}
+
+
+Frontend must treat every response as untrusted.
+
+🧪 PHASE 5 — REPLIT-SPECIFIC FAILURE CASES (VERY IMPORTANT)
+
+Explicitly check and fix:
+
+Missing env vars in Replit secrets
+
+Cold-start async timing issues
+
+Serverless execution differences
+
+Filesystem access assumptions
+
+Long-running requests exceeding Replit limits
+
+Add startup validation logging:
+
+If a required dependency is missing, log once and degrade — do NOT crash.
+
+✅ PHASE 6 — PROOF OF FIX (REQUIRED)
+
+Before completion, demonstrate:
+
+Each previously failing page now:
+
+Loads OR
+
+Shows controlled error UI
+
+No blank pages
+
+No 500 responses caused by rendering
+
+No uncaught TypeErrors in logs
+
+All errors return a Reference ID
+
+📦 FINAL DELIVERABLE
+
+Provide:
+
+List of pages that were failing
+
+Root cause per page
+
+Defensive changes applied
+
+Confirmation that page-level failures are now impossible
+
+Any remaining non-fatal warnings
