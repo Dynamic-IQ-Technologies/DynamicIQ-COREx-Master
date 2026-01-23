@@ -21,11 +21,13 @@ The system incorporates a novel architecture for ERP exchange management, compri
 ### System Design Choices
 
 The system supports dual database environments (SQLite for development, PostgreSQL for production) with a comprehensive PostgreSQL compatibility layer that:
-- Translates SQLite functions to PostgreSQL equivalents (JULIANDAY → date arithmetic, strftime → TO_CHAR, GROUP_CONCAT → STRING_AGG)
+- Translates SQLite functions to PostgreSQL equivalents (JULIANDAY → EXTRACT(EPOCH FROM ...), strftime → TO_CHAR, GROUP_CONCAT → STRING_AGG)
 - Converts double-quoted strings to single quotes for PostgreSQL
 - Automatically converts Decimal values to float when fetching data (prevents TypeError in templates)
 - Handles date arithmetic patterns (date('now', '+7 days') → CURRENT_DATE + INTERVAL '7 days')
 - Uses balanced parenthesis parser for complex nested functions like JULIANDAY(COALESCE(...))
+- Preserves time precision in JULIANDAY calculations using EXTRACT(EPOCH FROM ...) / 86400.0 (returns fractional days)
+- Handles SUBSTR → SUBSTRING, datetime('now') → CURRENT_TIMESTAMP translations
 
 ### Error Handling & Reliability
 
