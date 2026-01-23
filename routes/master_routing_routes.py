@@ -22,26 +22,23 @@ def list_routings():
     
     query = '''
         SELECT mr.*, p.code as product_code, p.name as product_name,
-               u.username as created_by_name, ua.username as approved_by_name,
+               u.username as created_by_name,
                (SELECT COUNT(*) FROM master_routing_operations WHERE routing_id = mr.id) as operation_count
         FROM master_routings mr
         LEFT JOIN products p ON mr.product_id = p.id
         LEFT JOIN users u ON mr.created_by = u.id
-        LEFT JOIN users ua ON mr.approved_by = ua.id
         WHERE 1=1
     '''
     params = []
     
     if status_filter:
-        query += ' AND mr.status = ?'
-        params.append(status_filter)
-    
-    if type_filter:
-        query += ' AND mr.routing_type = ?'
-        params.append(type_filter)
+        if status_filter == 'Active':
+            query += ' AND mr.is_active = 1'
+        elif status_filter == 'Inactive':
+            query += ' AND mr.is_active = 0'
     
     if search:
-        query += ' AND (mr.routing_code LIKE ? OR mr.routing_name LIKE ? OR p.code LIKE ?)'
+        query += ' AND (mr.routing_code LIKE ? OR mr.name LIKE ? OR p.code LIKE ?)'
         params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
     
     query += ' ORDER BY mr.created_at DESC'
