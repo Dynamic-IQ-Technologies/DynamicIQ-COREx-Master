@@ -105,6 +105,57 @@ class PostgresConnection:
         """Translate SQLite-specific functions to PostgreSQL equivalents"""
         import re
         
+        def find_matching_paren(s, start):
+            """Find the position of the matching closing parenthesis, handling nested parens"""
+            depth = 0
+            for i in range(start, len(s)):
+                if s[i] == '(':
+                    depth += 1
+                elif s[i] == ')':
+                    depth -= 1
+                    if depth == 0:
+                        return i
+            return -1
+        
+        def replace_julianday_diff(query):
+            """Replace JULIANDAY(x) - JULIANDAY(y) with proper date arithmetic, handling nested functions"""
+            result = query
+            pattern = re.compile(r'julianday\s*\(', re.IGNORECASE)
+            
+            while True:
+                match = pattern.search(result)
+                if not match:
+                    break
+                    
+                start1 = match.end() - 1  # Position of opening paren
+                end1 = find_matching_paren(result, start1)
+                if end1 == -1:
+                    break
+                    
+                arg1 = result[start1+1:end1]
+                
+                # Look for " - julianday(" after this
+                rest = result[end1+1:]
+                minus_match = re.match(r'\s*-\s*julianday\s*\(', rest, re.IGNORECASE)
+                if minus_match:
+                    start2_in_rest = minus_match.end() - 1
+                    start2 = end1 + 1 + start2_in_rest
+                    end2 = find_matching_paren(result, start2)
+                    if end2 != -1:
+                        arg2 = result[start2+1:end2]
+                        # Replace the entire JULIANDAY(...) - JULIANDAY(...) with date diff
+                        old_expr = result[match.start():end2+1]
+                        new_expr = f"(({arg1})::date - ({arg2})::date)"
+                        result = result[:match.start()] + new_expr + result[end2+1:]
+                        continue
+                
+                # Single JULIANDAY without subtraction - just move past it
+                break
+            
+            return result
+        
+        query = replace_julianday_diff(query)
+        
         # CRITICAL: Convert double-quoted string literals to single quotes for PostgreSQL
         # PostgreSQL uses double quotes for identifiers, single quotes for strings
         # This handles patterns like: status = "Active", type = "Standard", etc.
@@ -183,20 +234,8 @@ class PostgresConnection:
         # Replace strftime('%Y', 'now', '-1 year') with TO_CHAR(CURRENT_DATE - INTERVAL '1 year', 'YYYY')
         query = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*'now'\s*,\s*'-(\d+)\s+year'\s*\)", r"TO_CHAR(CURRENT_DATE - INTERVAL '\1 years', 'YYYY')", query, flags=re.IGNORECASE)
         
-        # Replace JULIANDAY(CURRENT_DATE) - JULIANDAY(date) pattern (after DATE('now') is already replaced)
-        query = re.sub(r"JULIANDAY\s*\(\s*CURRENT_DATE\s*\)\s*-\s*JULIANDAY\s*\(\s*([^)]+)\s*\)", r"(CURRENT_DATE - (\1)::date)", query, flags=re.IGNORECASE)
-        
-        # Replace julianday('now') - julianday(date) with CURRENT_DATE - date
-        query = re.sub(r"julianday\s*\(\s*'now'\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"(CURRENT_DATE - (\1)::date)", query, flags=re.IGNORECASE)
-        
-        # Replace julianday(date) - julianday('now') with date - CURRENT_DATE
-        query = re.sub(r"julianday\s*\(\s*([^)']+)\s*\)\s*-\s*julianday\s*\(\s*'now'\s*\)", r"((\1)::date - CURRENT_DATE)", query, flags=re.IGNORECASE)
-        
-        # Replace julianday(date) - julianday(CURRENT_DATE) 
-        query = re.sub(r"julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*CURRENT_DATE\s*\)", r"((\1)::date - CURRENT_DATE)", query, flags=re.IGNORECASE)
-        
-        # Replace julianday(date1) - julianday(date2) with date difference
-        query = re.sub(r"julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)", r"((\1)::date - (\2)::date)", query, flags=re.IGNORECASE)
+        # Note: JULIANDAY patterns are handled by replace_julianday_diff() at the start
+        # which properly handles nested function calls like JULIANDAY(COALESCE(...))
         
         # Replace strftime('%Y-%m', date) with TO_CHAR(date, 'YYYY-MM')
         query = re.sub(r"strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+)\s*\)", r"TO_CHAR(\1, 'YYYY-MM')", query, flags=re.IGNORECASE)
