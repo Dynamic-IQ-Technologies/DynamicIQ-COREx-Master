@@ -1,0 +1,144 @@
+You are a principal-level full-stack systems engineer and reliability architect. Your task is to identify, correct, and permanently prevent all sources of 500 Internal Server Errors and TypeErrors across this application, ensuring full operational stability in a deployed Replit environment.
+
+🎯 OBJECTIVES (MANDATORY)
+
+Eliminate all TypeError causes
+
+Prevent unhandled exceptions
+
+Ensure every page and API route returns a valid response
+
+Guarantee deployment-safe behavior in Replit
+
+Add system-wide fault tolerance, logging, and validation
+
+🧠 PHASE 1 — ROOT CAUSE IDENTIFICATION (NO ASSUMPTIONS)
+
+Perform a full audit of the application and identify every potential source of TypeError, including but not limited to:
+
+Accessing properties of undefined or null
+
+Missing or malformed request payloads
+
+Unvalidated query params, route params, or form inputs
+
+Async functions without try/catch
+
+API routes not returning a response in all execution paths
+
+Client components rendering before required data is loaded
+
+State variables used before initialization
+
+Environment variables missing in Replit
+
+Database calls returning empty or unexpected results
+
+Document each failure path before fixing it.
+
+🛠️ PHASE 2 — SYSTEMIC FIXES (NOT PATCHES)
+
+Apply the following globally, not selectively:
+
+Backend / API Layer
+
+Wrap every API handler in structured try/catch
+
+Add a global error handler middleware
+
+Validate all inputs (body, params, query) before use
+
+Ensure every endpoint always returns a response
+
+Replace silent failures with explicit error objects
+
+Normalize error responses:
+
+{
+  "success": false,
+  "errorCode": "SYSTEM_RUNTIME_ERROR",
+  "message": "Descriptive, user-safe error"
+}
+
+Frontend / UI Layer
+
+Add defensive rendering (optional chaining, fallback UI)
+
+Prevent rendering when required data is missing
+
+Add loading, empty, and error states to all pages
+
+Guard all async calls with error handling
+
+Ensure no component assumes data exists without validation
+
+🧱 PHASE 3 — REPLIT DEPLOYMENT HARDENING
+
+Ensure the app is deployment-safe by:
+
+Verifying all required environment variables
+
+Preventing server crashes due to uncaught exceptions
+
+Adding startup validation checks
+
+Ensuring the server never exits unexpectedly
+
+Making the app resilient to cold starts and retries
+
+📊 PHASE 4 — OBSERVABILITY & TRACEABILITY
+
+Implement:
+
+Centralized error logging with:
+
+Timestamp
+
+Route/page
+
+User context (if applicable)
+
+Stack trace (server only)
+
+Reference IDs returned to users that map to logs
+
+Clear separation between:
+
+User-facing errors
+
+System/internal errors
+
+Example:
+
+Reference ID: <generated-id>
+Category: System
+
+✅ PHASE 5 — VERIFICATION CHECKLIST
+
+Before completion, confirm:
+
+❌ No page can trigger a blank screen
+
+❌ No API route can exit without a response
+
+❌ No uncaught TypeError exists
+
+❌ No unsafe property access remains
+
+❌ No missing input validation paths remain
+
+✅ App runs cleanly in Replit production mode
+
+✅ Errors are logged, traceable, and user-safe
+
+📦 FINAL OUTPUT REQUIREMENTS
+
+Provide:
+
+Summary of root causes found
+
+List of system-wide fixes applied
+
+Any remaining assumptions or required env vars
+
+Confirmation that 500 errors are structurally prevented, not masked

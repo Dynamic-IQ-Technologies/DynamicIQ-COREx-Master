@@ -25,6 +25,20 @@ The system supports dual database environments (SQLite for development, PostgreS
 - Converts double-quoted strings to single quotes for PostgreSQL
 - Automatically converts Decimal values to float when fetching data (prevents TypeError in templates)
 - Handles date arithmetic patterns (date('now', '+7 days') → CURRENT_DATE + INTERVAL '7 days')
+- Uses balanced parenthesis parser for complex nested functions like JULIANDAY(COALESCE(...))
+
+### Error Handling & Reliability
+
+The system implements enterprise-grade error handling:
+- **Global Exception Handler**: Catches all unhandled exceptions with correlation IDs for traceability
+- **Request Correlation IDs**: Every request gets a unique ID (8 chars) for log correlation
+- **Structured Error Responses**: Standardized JSON/HTML error responses with category and correlation_id
+- **Error Handler Decorators**: `@route_error_handler` and `@api_error_handler` for consistent error handling
+- **Safe Template Utilities**: Global Jinja functions (`safe_get`, `safe_int`, `safe_float`, `safe_str`, `coalesce`) for null-safe data access
+- **Startup Validation**: Environment variable checks at application startup
+- **Error Categories**: Validation, Authorization, Data, System - for clear error classification
+- **Error Logging**: Full stack traces with correlation IDs logged to `error_handler` logger
+- **Utilities Module**: `utils/error_handler.py` provides reusable validation and error handling functions
 
 Key features include:
 - **Inventory Management**: Real-time tracking, alerts, FAA-compliant labels, and cost transfer system.

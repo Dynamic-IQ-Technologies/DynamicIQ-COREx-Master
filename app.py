@@ -197,6 +197,59 @@ def safe_format(format_string, *args):
 
 app.jinja_env.globals['fmt'] = safe_format
 
+def safe_get(obj, key, default=None):
+    """Safely get a value from dict or object, returning default if missing or None."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        val = obj.get(key)
+        return val if val is not None else default
+    val = getattr(obj, key, None)
+    return val if val is not None else default
+
+def safe_int(value, default=0):
+    """Safely convert to int."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+def safe_float(value, default=0.0):
+    """Safely convert to float, handling Decimal."""
+    from decimal import Decimal
+    if value is None:
+        return default
+    if isinstance(value, Decimal):
+        return float(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+def safe_str(value, default=''):
+    """Safely convert to string."""
+    if value is None:
+        return default
+    try:
+        return str(value)
+    except:
+        return default
+
+def coalesce(*values):
+    """Return first non-None value, like SQL COALESCE."""
+    for v in values:
+        if v is not None:
+            return v
+    return None
+
+app.jinja_env.globals['safe_get'] = safe_get
+app.jinja_env.globals['safe_int'] = safe_int
+app.jinja_env.globals['safe_float'] = safe_float
+app.jinja_env.globals['safe_str'] = safe_str
+app.jinja_env.globals['coalesce'] = coalesce
+
 @app.context_processor
 def inject_now():
     """Make datetime.now available to all templates."""
@@ -397,8 +450,34 @@ def handle_exception(error):
                           category='System',
                           error_detail=str(error) if app.debug else None), 500
 
+def validate_environment():
+    """Validate critical environment variables at startup"""
+    warnings = []
+    
+    if not os.environ.get('SESSION_SECRET'):
+        warnings.append("SESSION_SECRET not set - using default (insecure for production)")
+    
+    if os.environ.get('DATABASE_URL'):
+        print("[Startup] PostgreSQL DATABASE_URL detected")
+    else:
+        print("[Startup] Using SQLite database (no DATABASE_URL)")
+    
+    if os.environ.get('REPLIT_DEPLOYMENT') == '1':
+        print("[Startup] Running in PRODUCTION mode")
+        if not os.environ.get('SESSION_SECRET'):
+            print("WARNING: SESSION_SECRET should be set in production!")
+    else:
+        print("[Startup] Running in DEVELOPMENT mode")
+    
+    for warning in warnings:
+        print(f"[Startup Warning] {warning}")
+    
+    return len(warnings) == 0
+
 def initialize_application():
     """Run expensive initialization once at application startup"""
+    validate_environment()
+    
     db = Database()
     
     if db.use_postgres:
