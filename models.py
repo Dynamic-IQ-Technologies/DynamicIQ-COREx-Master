@@ -166,9 +166,23 @@ class PostgresConnection:
         # Replace SUBSTR with SUBSTRING for PostgreSQL
         query = re.sub(r"\bSUBSTR\s*\(", "SUBSTRING(", query, flags=re.IGNORECASE)
         
-        # Replace boolean comparisons for PostgreSQL (is_active = 1 -> is_active = TRUE)
-        query = re.sub(r"(\w+\.)?is_active\s*=\s*1", r"\1is_active = TRUE", query, flags=re.IGNORECASE)
-        query = re.sub(r"(\w+\.)?is_active\s*=\s*0", r"\1is_active = FALSE", query, flags=re.IGNORECASE)
+        # Replace boolean comparisons for PostgreSQL (column = 1 -> column = TRUE)
+        # Handle all common boolean columns in the system
+        bool_columns = [
+            'is_active', 'is_default', 'is_serialized', 'is_exchange', 'is_primary',
+            'is_pinned', 'follow_up_required', 'follow_up_completed', 'would_recommend',
+            'portal_enabled', 'certification_required', 'quote_approved', 
+            'materials_available', 'capacity_available', 'packing_slip_printed',
+            'label_printed', 'bill_of_lading_printed'
+        ]
+        for col in bool_columns:
+            query = re.sub(rf"(\w+\.)?{col}\s*=\s*1\b", rf"\1{col} = TRUE", query, flags=re.IGNORECASE)
+            query = re.sub(rf"(\w+\.)?{col}\s*=\s*0\b", rf"\1{col} = FALSE", query, flags=re.IGNORECASE)
+            # Handle CASE WHEN col = TRUE THEN FALSE ELSE TRUE END toggle pattern
+            query = re.sub(rf"CASE\s+WHEN\s+{col}\s*=\s*TRUE\s+THEN\s+0\s+ELSE\s+1\s+END", 
+                          f"CASE WHEN {col} = TRUE THEN FALSE ELSE TRUE END", query, flags=re.IGNORECASE)
+            query = re.sub(rf"CASE\s+WHEN\s+{col}\s*=\s*TRUE\s+THEN\s+FALSE\s+ELSE\s+TRUE\s+END", 
+                          f"NOT {col}", query, flags=re.IGNORECASE)
         
         # Replace DATE(column) with column::date for casting
         query = re.sub(r"DATE\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\)", r"(\1)::date", query, flags=re.IGNORECASE)
