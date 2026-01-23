@@ -1503,28 +1503,35 @@ def executive_inventory_dashboard():
     
     aging_query = f'''
         SELECT 
-            CASE 
-                WHEN {days_since_update} <= 30 THEN '0-30 Days'
-                WHEN {days_since_update} <= 60 THEN '31-60 Days'
-                WHEN {days_since_update} <= 90 THEN '61-90 Days'
-                WHEN {days_since_update} <= 180 THEN '91-180 Days'
-                ELSE '180+ Days'
-            END as aging_bucket,
-            SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as bucket_value,
-            SUM(i.quantity) as bucket_qty,
-            COUNT(DISTINCT i.id) as item_count
-        FROM inventory i
-        JOIN products p ON i.product_id = p.id
-        WHERE i.quantity > 0
-        GROUP BY 1
-        ORDER BY 
-            CASE 
-                WHEN {days_since_update} <= 30 THEN 1
-                WHEN {days_since_update} <= 60 THEN 2
-                WHEN {days_since_update} <= 90 THEN 3
-                WHEN {days_since_update} <= 180 THEN 4
-                ELSE 5
-            END
+            aging_bucket,
+            SUM(bucket_value) as bucket_value,
+            SUM(bucket_qty) as bucket_qty,
+            SUM(item_count) as item_count
+        FROM (
+            SELECT 
+                CASE 
+                    WHEN {days_since_update} <= 30 THEN '0-30 Days'
+                    WHEN {days_since_update} <= 60 THEN '31-60 Days'
+                    WHEN {days_since_update} <= 90 THEN '61-90 Days'
+                    WHEN {days_since_update} <= 180 THEN '91-180 Days'
+                    ELSE '180+ Days'
+                END as aging_bucket,
+                CASE 
+                    WHEN {days_since_update} <= 30 THEN 1
+                    WHEN {days_since_update} <= 60 THEN 2
+                    WHEN {days_since_update} <= 90 THEN 3
+                    WHEN {days_since_update} <= 180 THEN 4
+                    ELSE 5
+                END as bucket_order,
+                i.quantity * COALESCE(i.unit_cost, p.cost, 0) as bucket_value,
+                i.quantity as bucket_qty,
+                1 as item_count
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.quantity > 0
+        ) sub
+        GROUP BY aging_bucket, bucket_order
+        ORDER BY bucket_order
     '''
     aging_buckets = conn.execute(aging_query).fetchall()
     
@@ -1840,9 +1847,9 @@ def organizational_scorecard():
     if is_postgres:
         ar_buckets = conn.execute('''
             SELECT 
-                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 30 THEN balance_due ELSE 0 END), 0) as bucket_0_30,
-                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 30 AND EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 60 THEN balance_due ELSE 0 END), 0) as bucket_31_60,
-                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 60 THEN balance_due ELSE 0 END), 0) as bucket_60_plus
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - invoice_date::date) <= 30 THEN balance_due ELSE 0 END), 0) as bucket_0_30,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - invoice_date::date) > 30 AND (CURRENT_DATE - invoice_date::date) <= 60 THEN balance_due ELSE 0 END), 0) as bucket_31_60,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - invoice_date::date) > 60 THEN balance_due ELSE 0 END), 0) as bucket_60_plus
             FROM invoices
             WHERE status IN ('Sent', 'Posted', 'Overdue') AND balance_due > 0
         ''').fetchone()
@@ -1873,9 +1880,9 @@ def organizational_scorecard():
     if is_postgres:
         ap_buckets = conn.execute('''
             SELECT 
-                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 30 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_0_30,
-                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 30 AND EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) <= 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_31_60,
-                COALESCE(SUM(CASE WHEN EXTRACT(DAY FROM (CURRENT_DATE - invoice_date::date)) > 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_60_plus
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - invoice_date::date) <= 30 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_0_30,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - invoice_date::date) > 30 AND (CURRENT_DATE - invoice_date::date) <= 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_31_60,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - invoice_date::date) > 60 THEN (total_amount - amount_paid) ELSE 0 END), 0) as bucket_60_plus
             FROM vendor_invoices
             WHERE status IN ('Open', 'Pending', 'Overdue') AND (total_amount - amount_paid) > 0
         ''').fetchone()
@@ -1932,7 +1939,7 @@ def organizational_scorecard():
                 so.id, so.so_number as order_number, so.order_date, so.expected_ship_date as required_date, so.status,
                 so.total_amount as order_value,
                 c.name as customer_name,
-                EXTRACT(DAY FROM (so.expected_ship_date - CURRENT_DATE)) as days_until_delivery
+                (so.expected_ship_date::date - CURRENT_DATE) as days_until_delivery
             FROM sales_orders so
             LEFT JOIN customers c ON so.customer_id = c.id
             WHERE so.expected_ship_date > CURRENT_DATE

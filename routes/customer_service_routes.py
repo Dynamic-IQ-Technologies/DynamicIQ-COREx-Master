@@ -111,31 +111,31 @@ def dashboard():
         LIMIT 10
     ''').fetchall()
     
-    total_orders = conn.execute('SELECT COUNT(*) FROM sales_orders').fetchone()[0]
+    total_orders = conn.execute('SELECT COUNT(*) as cnt FROM sales_orders').fetchone()['cnt']
     active_orders = conn.execute('''
-        SELECT COUNT(*) FROM sales_orders 
+        SELECT COUNT(*) as cnt FROM sales_orders 
         WHERE status NOT IN ('Completed', 'Shipped', 'Closed', 'Cancelled')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     pending_confirmation = conn.execute('''
-        SELECT COUNT(*) FROM work_orders 
+        SELECT COUNT(*) as cnt FROM work_orders 
         WHERE status IN ('Planned', 'Pending')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     overdue_count = conn.execute('''
-        SELECT COUNT(*) FROM sales_orders 
+        SELECT COUNT(*) as cnt FROM sales_orders 
         WHERE status NOT IN ('Completed', 'Shipped', 'Closed', 'Cancelled')
           AND expected_ship_date IS NOT NULL
           AND expected_ship_date < DATE('now')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     pending_followups = conn.execute('''
-        SELECT COUNT(*) FROM customer_communications 
+        SELECT COUNT(*) as cnt FROM customer_communications 
         WHERE follow_up_required = 1 AND follow_up_completed = 0
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     open_escalations = conn.execute('''
-        SELECT COUNT(*) FROM order_escalations 
+        SELECT COUNT(*) as cnt FROM order_escalations 
         WHERE status IN ('Open', 'In Progress')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     recent_activity = conn.execute('''
         SELECT oal.*, so.so_number, u.username as created_by_name
@@ -735,9 +735,9 @@ def communications_list():
     customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
     
     pending_follow_ups = conn.execute('''
-        SELECT COUNT(*) FROM customer_communications 
+        SELECT COUNT(*) as cnt FROM customer_communications 
         WHERE follow_up_required = 1 AND follow_up_completed = 0
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     conn.close()
     
@@ -886,22 +886,22 @@ def analytics():
     db = Database()
     conn = db.get_connection()
     
-    total_communications = conn.execute('SELECT COUNT(*) FROM customer_communications').fetchone()[0]
+    total_communications = conn.execute('SELECT COUNT(*) as cnt FROM customer_communications').fetchone()['cnt']
     this_month_comms = conn.execute('''
-        SELECT COUNT(*) FROM customer_communications 
+        SELECT COUNT(*) as cnt FROM customer_communications 
         WHERE communication_date >= DATE('now', 'start of month')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     pending_followups = conn.execute('''
-        SELECT COUNT(*) FROM customer_communications 
+        SELECT COUNT(*) as cnt FROM customer_communications 
         WHERE follow_up_required = 1 AND follow_up_completed = 0
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     overdue_followups = conn.execute('''
-        SELECT COUNT(*) FROM customer_communications 
+        SELECT COUNT(*) as cnt FROM customer_communications 
         WHERE follow_up_required = 1 AND follow_up_completed = 0 
           AND follow_up_date < DATE('now')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     comms_by_type_rows = conn.execute('''
         SELECT communication_type, COUNT(*) as count
@@ -1013,12 +1013,12 @@ def escalations_list():
     
     escalations = conn.execute(query, params).fetchall()
     
-    open_count = conn.execute("SELECT COUNT(*) FROM order_escalations WHERE status = 'Open'").fetchone()[0]
-    in_progress_count = conn.execute("SELECT COUNT(*) FROM order_escalations WHERE status = 'In Progress'").fetchone()[0]
+    open_count = conn.execute("SELECT COUNT(*) as cnt FROM order_escalations WHERE status = 'Open'").fetchone()['cnt']
+    in_progress_count = conn.execute("SELECT COUNT(*) as cnt FROM order_escalations WHERE status = 'In Progress'").fetchone()['cnt']
     resolved_today = conn.execute('''
-        SELECT COUNT(*) FROM order_escalations 
+        SELECT COUNT(*) as cnt FROM order_escalations 
         WHERE status = 'Resolved' AND DATE(resolved_at) = DATE('now')
-    ''').fetchone()[0]
+    ''').fetchone()['cnt']
     
     users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
     
@@ -1287,12 +1287,12 @@ def feedback_list():
     
     feedback = conn.execute(query, params).fetchall()
     
-    avg_rating = conn.execute('SELECT AVG(rating) FROM customer_feedback').fetchone()[0] or 0
-    total_feedback = conn.execute('SELECT COUNT(*) FROM customer_feedback').fetchone()[0]
+    avg_rating = conn.execute('SELECT AVG(rating) as avg FROM customer_feedback').fetchone()['avg'] or 0
+    total_feedback = conn.execute('SELECT COUNT(*) as cnt FROM customer_feedback').fetchone()['cnt']
     recommend_rate = conn.execute('''
-        SELECT COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM customer_feedback), 0) 
+        SELECT COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM customer_feedback), 0) as rate
         FROM customer_feedback WHERE would_recommend = 1
-    ''').fetchone()[0] or 0
+    ''').fetchone()['rate'] or 0
     
     rating_distribution_rows = conn.execute('''
         SELECT rating, COUNT(*) as count
