@@ -109,6 +109,17 @@ class PostgresConnection:
         
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'\+(\d+)\s+(days?|months?)'\s*\)", replace_date_plus, query, flags=re.IGNORECASE)
         
+        # Replace date(?, '+X days') pattern - parameter with date arithmetic
+        def replace_date_param_plus(match):
+            num = match.group(1)
+            unit = match.group(2).lower()
+            if unit == 'days' or unit == 'day':
+                return f"(? + INTERVAL '{num} days')::date"
+            elif unit == 'months' or unit == 'month':
+                return f"(? + INTERVAL '{num} months')::date"
+            return match.group(0)
+        query = re.sub(r"date\s*\(\s*\?\s*,\s*'\+(\d+)\s+(days?|months?)'\s*\)", replace_date_param_plus, query, flags=re.IGNORECASE)
+        
         # Replace date('now', 'start of year/month')
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'start\s+of\s+year'\s*\)", "DATE_TRUNC('year', CURRENT_DATE)::date", query, flags=re.IGNORECASE)
         query = re.sub(r"date\s*\(\s*'now'\s*,\s*'start\s+of\s+month'\s*\)", "DATE_TRUNC('month', CURRENT_DATE)::date", query, flags=re.IGNORECASE)
