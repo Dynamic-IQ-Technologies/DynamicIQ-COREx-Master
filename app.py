@@ -1,5 +1,9 @@
-from flask import Flask, session
+from flask import Flask, session, render_template, request, jsonify
 from models import Database, User
+import uuid
+import traceback
+import logging
+from datetime import datetime
 from routes.auth_routes import auth_bp
 from routes.main_routes import main_bp
 from routes.product_routes import product_bp
@@ -209,6 +213,124 @@ def inject_user():
         user = User.get_by_id(session['user_id'])
         user_permissions = User.get_permissions(session['user_id'])
     return dict(user=user, user_permissions=user_permissions)
+
+logging.basicConfig(level=logging.INFO)
+error_logger = logging.getLogger('error_handler')
+
+@app.before_request
+def before_request():
+    request.correlation_id = str(uuid.uuid4())[:8]
+    request.start_time = datetime.now()
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    correlation_id = getattr(request, 'correlation_id', 'N/A')
+    error_logger.warning(f"[{correlation_id}] Bad Request: {error}")
+    if request.is_json:
+        return jsonify({
+            'error': 'Bad Request',
+            'message': str(error.description) if hasattr(error, 'description') else 'Invalid request data',
+            'category': 'Validation',
+            'correlation_id': correlation_id
+        }), 400
+    return render_template('errors/error.html', 
+                          error_code=400, 
+                          error_title='Bad Request',
+                          error_message='The request could not be processed. Please check your input and try again.',
+                          correlation_id=correlation_id,
+                          category='Validation'), 400
+
+@app.errorhandler(401)
+def unauthorized_error(error):
+    correlation_id = getattr(request, 'correlation_id', 'N/A')
+    error_logger.warning(f"[{correlation_id}] Unauthorized: {request.path}")
+    if request.is_json:
+        return jsonify({
+            'error': 'Unauthorized',
+            'message': 'Authentication required',
+            'category': 'Authorization',
+            'correlation_id': correlation_id
+        }), 401
+    return render_template('errors/error.html',
+                          error_code=401,
+                          error_title='Unauthorized',
+                          error_message='Please log in to access this resource.',
+                          correlation_id=correlation_id,
+                          category='Authorization'), 401
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    correlation_id = getattr(request, 'correlation_id', 'N/A')
+    error_logger.warning(f"[{correlation_id}] Forbidden: {request.path}")
+    if request.is_json:
+        return jsonify({
+            'error': 'Forbidden',
+            'message': 'You do not have permission to access this resource',
+            'category': 'Authorization',
+            'correlation_id': correlation_id
+        }), 403
+    return render_template('errors/error.html',
+                          error_code=403,
+                          error_title='Access Denied',
+                          error_message='You do not have permission to access this resource.',
+                          correlation_id=correlation_id,
+                          category='Authorization'), 403
+
+@app.errorhandler(404)
+def not_found_error(error):
+    correlation_id = getattr(request, 'correlation_id', 'N/A')
+    error_logger.info(f"[{correlation_id}] Not Found: {request.path}")
+    if request.is_json:
+        return jsonify({
+            'error': 'Not Found',
+            'message': 'The requested resource was not found',
+            'category': 'Data',
+            'correlation_id': correlation_id
+        }), 404
+    return render_template('errors/error.html',
+                          error_code=404,
+                          error_title='Page Not Found',
+                          error_message='The page you are looking for does not exist or has been moved.',
+                          correlation_id=correlation_id,
+                          category='Data'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    correlation_id = getattr(request, 'correlation_id', 'N/A')
+    error_logger.error(f"[{correlation_id}] Internal Error: {request.path}\n{traceback.format_exc()}")
+    if request.is_json:
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': 'An unexpected error occurred. Please try again or contact support.',
+            'category': 'System',
+            'correlation_id': correlation_id
+        }), 500
+    return render_template('errors/error.html',
+                          error_code=500,
+                          error_title='Internal Server Error',
+                          error_message='An unexpected error occurred. Please try again. If the problem persists, contact your administrator.',
+                          correlation_id=correlation_id,
+                          category='System'), 500
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    correlation_id = getattr(request, 'correlation_id', 'N/A')
+    error_logger.error(f"[{correlation_id}] Unhandled Exception: {request.path}\n{type(error).__name__}: {str(error)}\n{traceback.format_exc()}")
+    if request.is_json:
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': 'An unexpected error occurred. Please try again or contact support.',
+            'category': 'System',
+            'correlation_id': correlation_id,
+            'error_type': type(error).__name__
+        }), 500
+    return render_template('errors/error.html',
+                          error_code=500,
+                          error_title='Something Went Wrong',
+                          error_message=f'An unexpected error occurred ({type(error).__name__}). Please try again. If the problem persists, contact your administrator.',
+                          correlation_id=correlation_id,
+                          category='System',
+                          error_detail=str(error) if app.debug else None), 500
 
 def initialize_application():
     """Run expensive initialization once at application startup"""

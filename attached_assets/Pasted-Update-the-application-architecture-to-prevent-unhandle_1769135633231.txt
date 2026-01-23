@@ -1,0 +1,91 @@
+Update the application architecture to prevent unhandled Internal Server Errors (HTTP 500) by implementing mandatory defensive programming, structured exception handling, and observability controls across all backend services, APIs, and transactional workflows.
+
+The system must comply with the following requirements:
+
+1. Input Validation & Pre-Execution Guards
+
+Validate all incoming request payloads, query parameters, headers, and user context before executing any business logic.
+
+Reject invalid or incomplete requests with explicit client-safe error responses (400, 401, 403, 404) rather than allowing runtime failures.
+
+Enforce required field checks, type validation, referential integrity, and state validation prior to database or service calls.
+
+2. Centralized Exception Handling Layer
+
+Implement a global error-handling middleware/service that intercepts all unhandled exceptions.
+
+Prevent raw stack traces, null reference errors, and uncaught exceptions from propagating to the client.
+
+Map exceptions to deterministic response codes with standardized error objects.
+
+3. Structured Error Responses (No Generic 500s)
+
+Replace generic “Internal Server Error” responses with structured, user-safe messages containing:
+
+Error category (Validation, Authorization, Data, Integration, System)
+
+Correlation / Trace ID
+
+Actionable guidance (retry, refresh, contact admin, correct input)
+
+Ensure UI receives consistent error schemas for predictable handling.
+
+4. Transaction Safety & Rollback Controls
+
+Wrap all multi-step operations (inventory updates, work order creation, material issue, exchanges, etc.) in atomic transactions.
+
+Automatically roll back partial operations on failure to prevent data corruption.
+
+Enforce idempotency for retry-safe operations.
+
+5. Dependency & Integration Resilience
+
+Implement timeout limits, retries with backoff, and circuit breakers for all external services and internal service-to-service calls.
+
+Detect and gracefully handle downstream service failures without crashing the application.
+
+6. Logging, Diagnostics & Observability
+
+Log all exceptions with:
+
+Timestamp
+
+Service/module name
+
+Request context
+
+User/session identifier
+
+Stack trace (server-side only)
+
+Generate a unique correlation ID per request and propagate it through all layers.
+
+Enable real-time monitoring and alerting for error rate thresholds.
+
+7. User-Safe UI Error Handling
+
+Prevent UI crashes caused by backend failures.
+
+Display meaningful, non-technical messages while preserving diagnostic trace IDs.
+
+Block page transitions when a critical operation fails to save or complete.
+
+8. Self-Diagnostic & Recovery Mechanisms
+
+Automatically detect recurring failure patterns.
+
+Flag misconfigured records, invalid states, or missing dependencies.
+
+Provide administrative diagnostics dashboards for rapid root-cause analysis.
+
+9. Performance & Load Protection
+
+Implement request throttling and queueing to prevent overload conditions.
+
+Gracefully degrade non-critical features under high load instead of failing globally.
+
+10. Enforcement Rule
+
+No feature, API, or module may be deployed unless it conforms to this error-handling and resiliency standard.
+
+Any unhandled exception must be treated as a defect.
