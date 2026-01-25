@@ -458,151 +458,281 @@ def generate_pdf(id):
     
     conn.close()
     
-    # Create PDF
+    # Create PDF with professional layout
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch, 
+                           leftMargin=0.5*inch, rightMargin=0.5*inch)
     story = []
     styles = getSampleStyleSheet()
+    page_width = 7.5 * inch  # 8.5 - 0.5 margins on each side
     
-    # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
+    # Professional Header with gradient-style background
+    header_style = ParagraphStyle(
+        'CustomHeader',
         parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#1e3a8a'),
-        spaceAfter=30,
-        alignment=TA_CENTER
+        fontSize=28,
+        textColor=colors.white,
+        alignment=TA_CENTER,
+        spaceAfter=0,
+        fontName='Helvetica-Bold'
     )
-    story.append(Paragraph("WORK ORDER QUOTE", title_style))
-    story.append(Spacer(1, 0.2*inch))
     
-    # Quote info
+    # Header table with blue background
+    header_data = [[Paragraph("WORK ORDER QUOTE", header_style)]]
+    header_table = Table(header_data, colWidths=[page_width])
+    header_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e3a8a')),
+        ('TOPPADDING', (0, 0), (-1, -1), 20),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 0.25*inch))
+    
+    # Quote Information Card
+    info_header_style = ParagraphStyle('InfoHeader', parent=styles['Normal'], fontSize=9, 
+                                        textColor=colors.HexColor('#64748b'), fontName='Helvetica')
+    info_value_style = ParagraphStyle('InfoValue', parent=styles['Normal'], fontSize=11, 
+                                       textColor=colors.HexColor('#1e293b'), fontName='Helvetica-Bold')
+    
     info_data = [
-        ['Quote Number:', quote['quote_number'], 'Date:', quote['created_at'][:10]],
-        ['Work Order:', quote['wo_number'] or 'N/A', 'Status:', quote['status']],
-        ['Customer:', quote['customer_name'] or 'N/A', 'Account:', quote['customer_account'] or 'N/A'],
+        [Paragraph('QUOTE NUMBER', info_header_style), Paragraph('DATE', info_header_style), 
+         Paragraph('STATUS', info_header_style), Paragraph('WORK ORDER', info_header_style)],
+        [Paragraph(quote['quote_number'], info_value_style), 
+         Paragraph(str(quote['created_at'])[:10], info_value_style),
+         Paragraph(quote['status'], info_value_style), 
+         Paragraph(quote['wo_number'] or 'N/A', info_value_style)],
     ]
     
-    info_table = Table(info_data, colWidths=[1.5*inch, 2.5*inch, 1*inch, 2*inch])
+    info_table = Table(info_data, colWidths=[page_width/4]*4)
     info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     story.append(info_table)
-    story.append(Spacer(1, 0.3*inch))
+    story.append(Spacer(1, 0.15*inch))
     
-    # Description and scope
-    if quote['description']:
-        story.append(Paragraph(f"<b>Description:</b> {quote['description']}", styles['Normal']))
-        story.append(Spacer(1, 0.1*inch))
+    # Customer Information Card
+    customer_data = [
+        [Paragraph('CUSTOMER', info_header_style), Paragraph('ACCOUNT NUMBER', info_header_style)],
+        [Paragraph(quote['customer_name'] or 'N/A', info_value_style), 
+         Paragraph(quote['customer_account'] or 'N/A', info_value_style)],
+    ]
     
-    if quote['scope_of_work']:
-        story.append(Paragraph(f"<b>Scope of Work:</b> {quote['scope_of_work']}", styles['Normal']))
+    customer_table = Table(customer_data, colWidths=[page_width/2, page_width/2])
+    customer_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(customer_table)
+    story.append(Spacer(1, 0.2*inch))
+    
+    # Description and scope in a styled box
+    if quote['description'] or quote['scope_of_work']:
+        desc_content = []
+        if quote['description']:
+            desc_content.append(Paragraph(f"<b>Description:</b> {quote['description']}", 
+                                         ParagraphStyle('Desc', parent=styles['Normal'], fontSize=10, 
+                                                       textColor=colors.HexColor('#374151'))))
+        if quote['scope_of_work']:
+            if desc_content:
+                desc_content.append(Spacer(1, 0.1*inch))
+            desc_content.append(Paragraph(f"<b>Scope of Work:</b> {quote['scope_of_work']}", 
+                                         ParagraphStyle('Scope', parent=styles['Normal'], fontSize=10, 
+                                                       textColor=colors.HexColor('#374151'))))
+        
+        desc_data = [[desc_content]]
+        desc_table = Table(desc_data, colWidths=[page_width])
+        desc_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fffbeb')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#fcd34d')),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        story.append(desc_table)
         story.append(Spacer(1, 0.2*inch))
     
-    # Discrepancies Section (before line items)
+    # Discrepancies Section with professional red styling
     if discrepancies:
-        discrepancy_title_style = ParagraphStyle(
-            'DiscrepancyTitle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#dc2626'),
-            spaceAfter=10
-        )
-        story.append(Paragraph("DISCREPANCIES FOUND", discrepancy_title_style))
+        disc_title_style = ParagraphStyle('DiscTitle', parent=styles['Heading2'], fontSize=12,
+                                          textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_LEFT)
         
+        disc_header = [[Paragraph('<b>DISCREPANCIES FOUND</b>', disc_title_style)]]
+        disc_header_table = Table(disc_header, colWidths=[page_width])
+        disc_header_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#dc2626')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        story.append(disc_header_table)
+        
+        disc_col_widths = [1.1*inch, 1.4*inch, 2.5*inch, 2.5*inch]
         discrepancy_data = [['Task #', 'Task Name', 'Discrepancy', 'Corrective Action']]
         for d in discrepancies:
             discrepancy_data.append([
-                d['task_number'] or '-',
-                d['task_name'] or '-',
-                d['discrepancies'] or '-',
-                d['corrective_actions'] or '-'
+                Paragraph(str(d['task_number'] or '-'), ParagraphStyle('DiscCell', fontSize=9)),
+                Paragraph(str(d['task_name'] or '-'), ParagraphStyle('DiscCell', fontSize=9)),
+                Paragraph(str(d['discrepancies'] or '-'), ParagraphStyle('DiscCell', fontSize=9)),
+                Paragraph(str(d['corrective_actions'] or '-'), ParagraphStyle('DiscCell', fontSize=9))
             ])
         
-        discrepancy_table = Table(discrepancy_data, colWidths=[0.8*inch, 1.5*inch, 2.5*inch, 2.2*inch])
+        discrepancy_table = Table(discrepancy_data, colWidths=disc_col_widths)
         discrepancy_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#fef2f2')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#991b1b')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#fca5a5')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#fca5a5')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#fecaca')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]))
         story.append(discrepancy_table)
-        story.append(Spacer(1, 0.3*inch))
+        story.append(Spacer(1, 0.25*inch))
     
-    # Line items table
+    # Line Items Section Header
+    items_title_style = ParagraphStyle('ItemsTitle', parent=styles['Heading2'], fontSize=12,
+                                       textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_LEFT)
+    
+    items_header = [[Paragraph('<b>LINE ITEMS</b>', items_title_style)]]
+    items_header_table = Table(items_header, colWidths=[page_width])
+    items_header_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e40af')),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+    ]))
+    story.append(items_header_table)
+    
+    # Line items table with symmetrical columns
+    line_col_widths = [0.9*inch, 3.6*inch, 0.7*inch, 1.1*inch, 1.2*inch]
     line_data = [['Type', 'Description', 'Qty', 'Unit Price', 'Total']]
     for line in quote_lines:
         line_data.append([
             line['line_type'],
-            line['description'],
-            str(line['quantity']),
+            Paragraph(str(line['description']), ParagraphStyle('LineDesc', fontSize=9)),
+            f"{line['quantity']:.1f}",
             f"${line['unit_price']:,.2f}",
             f"${line['line_total']:,.2f}"
         ])
     
-    lines_table = Table(line_data, colWidths=[1*inch, 3.5*inch, 0.7*inch, 1.2*inch, 1.2*inch])
+    lines_table = Table(line_data, colWidths=line_col_widths)
     lines_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#3b82f6')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('ALIGN', (0, 0), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     story.append(lines_table)
-    story.append(Spacer(1, 0.2*inch))
+    story.append(Spacer(1, 0.15*inch))
     
-    # Totals
-    totals_data = []
+    # Totals Section - Right aligned summary box
+    totals_rows = []
     
-    # Add markup note if applicable
     if quote['markup_percent'] and quote['markup_percent'] > 0:
-        totals_data.append(['', '', '', f"Markup ({quote['markup_percent']}%) Applied to Parts:", ''])
+        totals_rows.append([f"Markup ({quote['markup_percent']}%) Applied", ''])
     
-    totals_data.append(['', '', '', 'Parts Subtotal:', f"${quote['subtotal']:,.2f}"])
+    totals_rows.append(['Parts Subtotal:', f"${quote['subtotal']:,.2f}"])
     
-    # Add labor, consumables, other fees if present
     if quote['labor_amount'] and quote['labor_amount'] > 0:
-        totals_data.append(['', '', '', 'Labor:', f"${quote['labor_amount']:,.2f}"])
+        totals_rows.append(['Labor:', f"${quote['labor_amount']:,.2f}"])
     
     if quote['consumables_amount'] and quote['consumables_amount'] > 0:
-        totals_data.append(['', '', '', 'Consumables:', f"${quote['consumables_amount']:,.2f}"])
+        totals_rows.append(['Consumables:', f"${quote['consumables_amount']:,.2f}"])
     
     if quote['other_fees_amount'] and quote['other_fees_amount'] > 0:
-        totals_data.append(['', '', '', 'Other Fees:', f"${quote['other_fees_amount']:,.2f}"])
+        totals_rows.append(['Other Fees:', f"${quote['other_fees_amount']:,.2f}"])
     
-    totals_data.extend([
-        ['', '', '', f"Tax ({quote['tax_rate']}%):", f"${quote['tax_amount']:,.2f}"],
-        ['', '', '', 'Total:', f"${quote['total_amount']:,.2f}"],
-    ])
+    totals_rows.append([f"Tax ({quote['tax_rate']}%):", f"${quote['tax_amount']:,.2f}"])
     
-    totals_table = Table(totals_data, colWidths=[1*inch, 3.5*inch, 0.7*inch, 1.2*inch, 1.2*inch])
-    totals_table.setStyle(TableStyle([
-        ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (3, 2), (-1, 2), 'Helvetica-Bold'),
-        ('FONTSIZE', (3, 2), (-1, 2), 12),
-        ('LINEABOVE', (3, 2), (-1, 2), 2, colors.black),
+    # Create totals table
+    totals_table = Table(totals_rows, colWidths=[1.5*inch, 1.2*inch])
+    totals_style = [
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+    ]
+    totals_table.setStyle(TableStyle(totals_style))
+    
+    # Grand Total row
+    grand_total_data = [['TOTAL:', f"${quote['total_amount']:,.2f}"]]
+    grand_total_table = Table(grand_total_data, colWidths=[1.5*inch, 1.2*inch])
+    grand_total_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e3a8a')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
     ]))
-    story.append(totals_table)
     
-    # Notes
+    # Combine totals and grand total in a container
+    summary_container = [[totals_table], [grand_total_table]]
+    summary_table = Table(summary_container, colWidths=[2.7*inch])
+    summary_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#1e3a8a')),
+        ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#f8fafc')),
+    ]))
+    
+    # Right-align the summary box
+    outer_data = [['', summary_table]]
+    outer_table = Table(outer_data, colWidths=[page_width - 2.7*inch, 2.7*inch])
+    story.append(outer_table)
+    
+    # Notes section
     if quote['notes']:
-        story.append(Spacer(1, 0.3*inch))
-        story.append(Paragraph(f"<b>Notes:</b> {quote['notes']}", styles['Normal']))
+        story.append(Spacer(1, 0.25*inch))
+        notes_style = ParagraphStyle('Notes', parent=styles['Normal'], fontSize=10, 
+                                     textColor=colors.HexColor('#374151'))
+        notes_data = [[Paragraph(f"<b>Notes:</b> {quote['notes']}", notes_style)]]
+        notes_table = Table(notes_data, colWidths=[page_width])
+        notes_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f3f4f6')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#d1d5db')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        story.append(notes_table)
     
     # Build PDF
     doc.build(story)
