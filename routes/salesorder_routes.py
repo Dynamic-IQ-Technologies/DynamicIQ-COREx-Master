@@ -2285,14 +2285,54 @@ def create_exchange_po(id):
             # Validate required fields
             owner_type = request.form.get('exchange_owner_type')
             owner_id = request.form.get('exchange_owner_id')
+            po_recipient_type = request.form.get('po_recipient_type', 'Supplier')
             supplier_id = request.form.get('supplier_id')
+            customer_supplier_id = request.form.get('customer_supplier_id')
             
             if not owner_type or not owner_id:
                 flash('Please select the owner of the exchanged unit', 'danger')
                 return render_template('salesorders/create_exchange_po.html',
                     sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
             
-            if not supplier_id:
+            # Validate PO recipient - either a supplier or a customer
+            if po_recipient_type == 'Customer':
+                if not customer_supplier_id:
+                    flash('Please select a customer for the Purchase Order', 'danger')
+                    return render_template('salesorders/create_exchange_po.html',
+                        sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)
+                # For customer recipient, we need to find or create a supplier record
+                customer_as_supplier = conn.execute('''
+                    SELECT id FROM suppliers WHERE customer_link_id = ?
+                ''', (customer_supplier_id,)).fetchone()
+                if customer_as_supplier:
+                    supplier_id = customer_as_supplier['id']
+                else:
+                    # Get customer info to create supplier record
+                    customer_info = conn.execute('SELECT * FROM customers WHERE id = ?', (customer_supplier_id,)).fetchone()
+                    if customer_info:
+                        # Create supplier record linked to customer
+                        cursor = conn.execute('''
+                            INSERT INTO suppliers (code, name, contact_name, contact_email, contact_phone, 
+                                                   address_line1, address_line2, city, state, postal_code, country, 
+                                                   customer_link_id, is_customer_supplier, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+                        ''', (
+                            f"CUST-{customer_info['customer_number']}",
+                            customer_info['name'],
+                            customer_info['contact_name'],
+                            customer_info['email'],
+                            customer_info['phone'],
+                            customer_info['address_line1'],
+                            customer_info['address_line2'],
+                            customer_info['city'],
+                            customer_info['state'],
+                            customer_info['postal_code'],
+                            customer_info['country'],
+                            customer_supplier_id
+                        ))
+                        supplier_id = cursor.lastrowid
+                        conn.commit()
+            elif not supplier_id:
                 flash('Please select a supplier for the Purchase Order', 'danger')
                 return render_template('salesorders/create_exchange_po.html',
                     sales_order=sales_order, lines=lines, suppliers=suppliers, customers=customers)

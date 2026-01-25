@@ -536,11 +536,23 @@ class Database:
                 code TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 contact_person TEXT,
+                contact_name TEXT,
+                contact_email TEXT,
+                contact_phone TEXT,
                 email TEXT,
                 phone TEXT,
                 address TEXT,
+                address_line1 TEXT,
+                address_line2 TEXT,
+                city TEXT,
+                state TEXT,
+                postal_code TEXT,
+                country TEXT,
                 payment_terms INTEGER DEFAULT 30,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                customer_link_id INTEGER,
+                is_customer_supplier INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_link_id) REFERENCES customers(id)
             )
         ''')
         
@@ -1211,6 +1223,64 @@ class Database:
         if 'key_differentiators' not in cs_columns:
             try:
                 cursor.execute('ALTER TABLE company_settings ADD COLUMN key_differentiators TEXT')
+            except sqlite3.OperationalError:
+                pass
+        
+        # Add customer-supplier link columns to suppliers table for Exchange PO support
+        supplier_columns = [row[1] for row in cursor.execute('PRAGMA table_info(suppliers)').fetchall()]
+        if 'customer_link_id' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN customer_link_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        if 'is_customer_supplier' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN is_customer_supplier INTEGER DEFAULT 0')
+            except sqlite3.OperationalError:
+                pass
+        if 'address_line1' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN address_line1 TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'address_line2' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN address_line2 TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'city' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN city TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'state' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN state TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'postal_code' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN postal_code TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'country' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN country TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'contact_name' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN contact_name TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'contact_email' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN contact_email TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'contact_phone' not in supplier_columns:
+            try:
+                cursor.execute('ALTER TABLE suppliers ADD COLUMN contact_phone TEXT')
             except sqlite3.OperationalError:
                 pass
         

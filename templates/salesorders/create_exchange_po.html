@@ -106,18 +106,42 @@
 
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-building"></i> Purchase Order Supplier</h5>
+                <h5 class="mb-0"><i class="bi bi-building"></i> Purchase Order Recipient</h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Select Supplier for PO <span class="text-danger">*</span></label>
-                        <select class="form-select" name="supplier_id" required>
-                            <option value="">-- Select Supplier --</option>
-                            {% for s in suppliers %}
-                            <option value="{{ s.id }}">{{ s.code }} - {{ s.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label fw-bold">Recipient Type <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100 mb-3" role="group">
+                            <input type="radio" class="btn-check" name="po_recipient_type" id="recipient_supplier" value="Supplier" checked>
+                            <label class="btn btn-outline-success" for="recipient_supplier">
+                                <i class="bi bi-truck"></i> Supplier
+                            </label>
+                            <input type="radio" class="btn-check" name="po_recipient_type" id="recipient_customer" value="Customer">
+                            <label class="btn btn-outline-success" for="recipient_customer">
+                                <i class="bi bi-person"></i> Customer
+                            </label>
+                        </div>
+                        
+                        <div id="po_supplier_select">
+                            <label class="form-label fw-bold">Select Supplier for PO <span class="text-danger">*</span></label>
+                            <select class="form-select" name="supplier_id" id="supplier_id_select">
+                                <option value="">-- Select Supplier --</option>
+                                {% for s in suppliers %}
+                                <option value="{{ s.id }}">{{ s.code }} - {{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div id="po_customer_select" style="display: none;">
+                            <label class="form-label fw-bold">Select Customer for PO <span class="text-danger">*</span></label>
+                            <select class="form-select" name="customer_supplier_id" id="customer_supplier_id_select">
+                                <option value="">-- Select Customer --</option>
+                                {% for c in customers %}
+                                <option value="{{ c.id }}">{{ c.customer_number }} - {{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                         <small class="text-muted">This supplier will receive the Exchange Fee PO</small>
                     </div>
                 </div>
@@ -215,6 +239,33 @@ document.addEventListener('DOMContentLoaded', function() {
     ownerSupplier.addEventListener('change', updateOwnerSelection);
     customerSelect.addEventListener('change', function() { hiddenOwnerId.value = this.value; });
     supplierSelect.addEventListener('change', function() { hiddenOwnerId.value = this.value; });
+    
+    // PO Recipient type toggle (Supplier vs Customer)
+    const recipientSupplier = document.getElementById('recipient_supplier');
+    const recipientCustomer = document.getElementById('recipient_customer');
+    const poSupplierDiv = document.getElementById('po_supplier_select');
+    const poCustomerDiv = document.getElementById('po_customer_select');
+    const supplierIdSelect = document.getElementById('supplier_id_select');
+    const customerSupplierIdSelect = document.getElementById('customer_supplier_id_select');
+    
+    function updateRecipientSelection() {
+        if (recipientSupplier.checked) {
+            poSupplierDiv.style.display = 'block';
+            poCustomerDiv.style.display = 'none';
+            supplierIdSelect.required = true;
+            customerSupplierIdSelect.required = false;
+            customerSupplierIdSelect.value = '';
+        } else if (recipientCustomer.checked) {
+            poSupplierDiv.style.display = 'none';
+            poCustomerDiv.style.display = 'block';
+            supplierIdSelect.required = false;
+            supplierIdSelect.value = '';
+            customerSupplierIdSelect.required = true;
+        }
+    }
+    
+    recipientSupplier.addEventListener('change', updateRecipientSelection);
+    recipientCustomer.addEventListener('change', updateRecipientSelection);
     
     function calculateTotal() {
         let total = 0;
