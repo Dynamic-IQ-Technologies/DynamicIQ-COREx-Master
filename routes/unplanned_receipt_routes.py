@@ -414,7 +414,7 @@ def create_work_order(id):
     conn.close()
     
     flash(f'Work order {wo_number} created successfully.', 'success')
-    return redirect(url_for('operations_routes.view_work_order', id=wo_id))
+    return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
 
 
 @unplanned_receipt_bp.route('/unplanned-receipts/<int:id>/edit', methods=['GET', 'POST'])

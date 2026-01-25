@@ -261,7 +261,7 @@ def get_view_url(record_type, record_id):
         'customers': 'customer_routes.view_customer',
         'suppliers': 'supplier_routes.view_supplier',
         'products': 'product_routes.view_product',
-        'work_orders': 'workorder_routes.view_work_order',
+        'work_orders': 'workorder_routes.view_workorder',
         'purchase_orders': 'po_routes.view_po',
         'sales_orders': 'so_routes.view_so',
         'assets': 'asset_routes.view_asset',

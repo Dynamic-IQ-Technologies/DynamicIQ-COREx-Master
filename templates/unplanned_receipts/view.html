@@ -87,7 +87,7 @@
                 {% endif %}
                 {% if receipt.linked_work_order_id %}
                 <p><strong>Work Order:</strong> 
-                    <a href="{{ url_for('operations_routes.view_work_order', id=receipt.linked_work_order_id) }}">
+                    <a href="{{ url_for('workorder_routes.view_workorder', id=receipt.linked_work_order_id) }}">
                         {{ receipt.wo_number }}
                     </a>
                 </p>
