@@ -64,6 +64,7 @@ Key features include:
 - **Dynamic Material Issue Module**: High-performance multi-material issuance with real-time inventory validation.
 - **Unplanned Receipt Module**: Registration and controlled management of items arriving without documentation, supporting full lifecycle tracking from intake through inventory conversion or work order processing, with role-based approvals and complete audit trail.
 - **Inventory Split Function**: Ability to split inventory records into multiple records for the same product, enabling flexible location/condition management.
+- **Document Template & Form Management Module**: Enterprise-grade document template system with version control, dynamic tokens, and terms library. Supports 10 document types (Work Order, Quote, Sales Order, Invoice, Purchase Order, Packing Slip, RMA, Certificate, RFQ, Receiving) with customizable headers/footers, template activation workflow, cloning, and role-based access control.
 
 ## External Dependencies
 
