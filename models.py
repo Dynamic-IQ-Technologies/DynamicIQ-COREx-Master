@@ -4937,8 +4937,8 @@ class AuditLogger:
         Compare two records and return changed fields.
         
         Args:
-            old_record: Dict of old values
-            new_record: Dict of new values
+            old_record: Dict or sqlite3.Row of old values
+            new_record: Dict or sqlite3.Row of new values
             exclude_fields: List of fields to exclude from comparison
         
         Returns:
@@ -4948,6 +4948,12 @@ class AuditLogger:
             exclude_fields = ['id', 'created_at', 'last_updated', 'modified_at']
         
         changes = {}
+        
+        # Convert sqlite3.Row to dict if needed
+        if old_record and hasattr(old_record, 'keys') and not isinstance(old_record, dict):
+            old_record = dict(old_record)
+        if new_record and hasattr(new_record, 'keys') and not isinstance(new_record, dict):
+            new_record = dict(new_record)
         
         if old_record and new_record:
             for key in new_record.keys():
