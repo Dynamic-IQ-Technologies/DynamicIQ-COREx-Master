@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.view_template', id=template.id) }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0">Edit: {{ template.name }}</h2>
+            <p class="text-muted mb-0"><code>{{ template.template_code }}</code> | {{ doc_type_name }}</p>
+        </div>
+    </div>
+    <a href="{{ url_for('document_template_routes.preview_template', id=template.id) }}" class="btn btn-outline-info" target="_blank">
+        <i class="bi bi-eye me-1"></i>Preview
+    </a>
+</div>
+
+<form method="POST">
+    <ul class="nav nav-tabs mb-4" id="templateTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button">
+                <i class="bi bi-info-circle me-1"></i>General
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="header-tab" data-bs-toggle="tab" data-bs-target="#header" type="button">
+                <i class="bi bi-card-heading me-1"></i>Header
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="footer-tab" data-bs-toggle="tab" data-bs-target="#footer" type="button">
+                <i class="bi bi-card-text me-1"></i>Footer
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button">
+                <i class="bi bi-journal-text me-1"></i>Terms
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content" id="templateTabsContent">
+        <div class="tab-pane fade show active" id="general" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Template Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       value="{{ template.name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="effective_date" class="form-label">Effective Date</label>
+                                <input type="date" class="form-control" id="effective_date" name="effective_date"
+                                       value="{{ template.effective_date or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="expiration_date" class="form-label">Expiration Date</label>
+                                <input type="date" class="form-control" id="expiration_date" name="expiration_date"
+                                       value="{{ template.expiration_date or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ template.description or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="header" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Company Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="company_name" class="form-label">Company Name</label>
+                                <input type="text" class="form-control" id="company_name" name="company_name"
+                                       value="{{ header.company_name if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="address_line1" class="form-label">Address Line 1</label>
+                                <input type="text" class="form-control" id="address_line1" name="address_line1"
+                                       value="{{ header.address_line1 if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="address_line2" class="form-label">Address Line 2</label>
+                                <input type="text" class="form-control" id="address_line2" name="address_line2"
+                                       value="{{ header.address_line2 if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="city_state_zip" class="form-label">City, State, ZIP</label>
+                                <input type="text" class="form-control" id="city_state_zip" name="city_state_zip"
+                                       value="{{ header.city_state_zip if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="country" class="form-label">Country</label>
+                                <input type="text" class="form-control" id="country" name="country"
+                                       value="{{ header.country if header else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="text" class="form-control" id="phone" name="phone"
+                                       value="{{ header.phone if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email"
+                                       value="{{ header.email if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="website" class="form-label">Website</label>
+                                <input type="text" class="form-control" id="website" name="website"
+                                       value="{{ header.website if header else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="registration_numbers" class="form-label">Registration Numbers</label>
+                                <input type="text" class="form-control" id="registration_numbers" name="registration_numbers"
+                                       value="{{ header.registration_numbers if header else '' }}"
+                                       placeholder="e.g., Tax ID, Business Registration">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="card-title mb-4">Layout Settings</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="logo_position" class="form-label">Logo Position</label>
+                                <select class="form-select" id="logo_position" name="logo_position">
+                                    <option value="left" {% if header and header.logo_position == 'left' %}selected{% endif %}>Left</option>
+                                    <option value="center" {% if header and header.logo_position == 'center' %}selected{% endif %}>Center</option>
+                                    <option value="right" {% if header and header.logo_position == 'right' %}selected{% endif %}>Right</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="header_layout" class="form-label">Header Layout</label>
+                                <select class="form-select" id="header_layout" name="header_layout">
+                                    <option value="two-column" {% if header and header.header_layout == 'two-column' %}selected{% endif %}>Two Column</option>
+                                    <option value="single" {% if header and header.header_layout == 'single' %}selected{% endif %}>Single Column</option>
+                                    <option value="three-column" {% if header and header.header_layout == 'three-column' %}selected{% endif %}>Three Column</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="company_name_font_size" class="form-label">Company Name Size</label>
+                                <input type="number" class="form-control" id="company_name_font_size" name="company_name_font_size"
+                                       value="{{ header.company_name_font_size if header else 16 }}" min="10" max="36">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Document Title</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="show_document_title" name="show_document_title"
+                                           {% if not header or header.show_document_title %}checked{% endif %}>
+                                    <label class="form-check-label" for="show_document_title">Show document title</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="document_title_position" class="form-label">Title Position</label>
+                                <select class="form-select" id="document_title_position" name="document_title_position">
+                                    <option value="left" {% if header and header.document_title_position == 'left' %}selected{% endif %}>Left</option>
+                                    <option value="center" {% if not header or header.document_title_position == 'center' %}selected{% endif %}>Center</option>
+                                    <option value="right" {% if header and header.document_title_position == 'right' %}selected{% endif %}>Right</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="document_title_font_size" class="form-label">Title Font Size</label>
+                                <input type="number" class="form-control" id="document_title_font_size" name="document_title_font_size"
+                                       value="{{ header.document_title_font_size if header else 18 }}" min="12" max="48">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="footer" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Page Numbering</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="show_page_numbers" name="show_page_numbers"
+                                       {% if not footer or footer.show_page_numbers %}checked{% endif %}>
+                                <label class="form-check-label" for="show_page_numbers">Show page numbers</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="page_number_format" class="form-label">Page Number Format</label>
+                                <input type="text" class="form-control" id="page_number_format" name="page_number_format"
+                                       value="{{ footer.page_number_format if footer else 'Page {current} of {total}' }}">
+                                <small class="text-muted">Use {current} and {total} as placeholders</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="page_number_position" class="form-label">Position</label>
+                                <select class="form-select" id="page_number_position" name="page_number_position">
+                                    <option value="left" {% if footer and footer.page_number_position == 'left' %}selected{% endif %}>Left</option>
+                                    <option value="center" {% if not footer or footer.page_number_position == 'center' %}selected{% endif %}>Center</option>
+                                    <option value="right" {% if footer and footer.page_number_position == 'right' %}selected{% endif %}>Right</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="card-title mb-4">Signature & Attribution</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="show_prepared_by" name="show_prepared_by"
+                                       {% if not footer or footer.show_prepared_by %}checked{% endif %}>
+                                <label class="form-check-label" for="show_prepared_by">Show "Prepared By"</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="show_approved_by" name="show_approved_by"
+                                       {% if footer and footer.show_approved_by %}checked{% endif %}>
+                                <label class="form-check-label" for="show_approved_by">Show "Approved By"</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="card-title mb-4">Verification & Security</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="show_qr_code" name="show_qr_code"
+                                       {% if footer and footer.show_qr_code %}checked{% endif %}>
+                                <label class="form-check-label" for="show_qr_code">Show QR Code</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="show_document_hash" name="show_document_hash"
+                                       {% if footer and footer.show_document_hash %}checked{% endif %}>
+                                <label class="form-check-label" for="show_document_hash">Show Document Hash</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="card-title mb-4">Legal & Contact</h5>
+                    <div class="mb-3">
+                        <label for="legal_text" class="form-label">Legal Text / Disclaimer</label>
+                        <textarea class="form-control" id="legal_text" name="legal_text" rows="3">{{ footer.legal_text if footer else '' }}</textarea>
+                        <small class="text-muted">This text will appear at the bottom of every page</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="footer_contact_info" class="form-label">Footer Contact Information</label>
+                        <textarea class="form-control" id="footer_contact_info" name="footer_contact_info" rows="2">{{ footer.contact_info if footer else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="terms" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Applied Terms & Conditions</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if template_terms %}
+                            <div class="list-group">
+                                {% for term in template_terms %}
+                                <div class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold">{{ term.term_name }}</div>
+                                        <span class="badge bg-secondary">{{ term.category }}</span>
+                                        <p class="mb-0 mt-2 small">{{ term.original_content[:200] }}{% if term.original_content|length > 200 %}...{% endif %}</p>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('document_template_routes.remove_term_from_template', id=template.id, term_link_id=term.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-0">No terms added to this template yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Add Term</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('document_template_routes.add_term_to_template', id=template.id) }}">
+                                <div class="mb-3">
+                                    <label for="term_id" class="form-label">Select Term</label>
+                                    <select class="form-select" id="term_id" name="term_id" required>
+                                        <option value="">Choose a term...</option>
+                                        {% for cat in term_categories %}
+                                        <optgroup label="{{ cat[1] }}">
+                                            {% for term in available_terms %}
+                                            {% if term.category == cat[0] %}
+                                            <option value="{{ term.id }}">{{ term.name }}</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-plus me-1"></i>Add to Template
+                                </button>
+                            </form>
+                            <hr>
+                            <a href="{{ url_for('document_template_routes.list_terms') }}" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-journal-text me-1"></i>Manage Terms Library
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-body d-flex justify-content-between">
+            <a href="{{ url_for('document_template_routes.view_template', id=template.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-x me-1"></i>Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check me-1"></i>Save Changes
+            </button>
+        </div>
+    </div>
+</form>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-braces me-2"></i>Available Tokens</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Use these tokens in your template. They will be replaced with actual values when generating documents.</p>
+        <div class="row">
+            {% set token_groups = {} %}
+            {% for token in tokens %}
+                {% if token.token_category not in token_groups %}
+                    {% set _ = token_groups.update({token.token_category: []}) %}
+                {% endif %}
+                {% set _ = token_groups[token.token_category].append(token) %}
+            {% endfor %}
+            
+            {% for category, category_tokens in token_groups.items() %}
+            <div class="col-md-4 mb-3">
+                <h6>{{ category }}</h6>
+                {% for token in category_tokens %}
+                <code class="d-block mb-1" style="cursor: pointer;" title="{{ token.description }}" onclick="navigator.clipboard.writeText('{{' + '{{ token.token_name }}' + '}}')">
+                    {{"{{" }}{{ token.token_name }}{{ "}}"}}
+                </code>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

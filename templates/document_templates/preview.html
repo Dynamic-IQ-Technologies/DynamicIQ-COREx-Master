@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Preview: {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.view_template', id=template.id) }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0"><i class="bi bi-eye me-2"></i>Template Preview</h2>
+            <p class="text-muted mb-0">{{ template.name }} | {{ doc_type_name }}</p>
+        </div>
+    </div>
+    <a href="{{ url_for('document_template_routes.edit_template', id=template.id) }}" class="btn btn-outline-primary">
+        <i class="bi bi-pencil me-1"></i>Edit Template
+    </a>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle me-2"></i>
+    This is a preview with sample data. Actual documents will contain real transaction data.
+</div>
+
+<div class="card shadow">
+    <div class="card-body bg-white" style="min-height: 800px;">
+        <div id="document-preview" class="p-4" style="background: white; border: 1px solid #dee2e6;">
+            
+            <div class="document-header mb-4 pb-3 border-bottom">
+                <div class="row">
+                    {% if header %}
+                    <div class="col-md-6">
+                        {% if header.logo_position == 'left' %}
+                        <div class="mb-2">
+                            <div class="bg-light border rounded p-3 d-inline-block text-muted">
+                                <i class="bi bi-image display-6"></i>
+                                <div class="small">Logo</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <h3 style="font-size: {{ header.company_name_font_size }}px; font-weight: bold;">
+                            {{ header.company_name or sample_data['Company.Name'] }}
+                        </h3>
+                        <p class="mb-0">{{ header.address_line1 or '' }}</p>
+                        {% if header.address_line2 %}
+                        <p class="mb-0">{{ header.address_line2 }}</p>
+                        {% endif %}
+                        <p class="mb-0">{{ header.city_state_zip or '' }}</p>
+                        {% if header.country %}
+                        <p class="mb-0">{{ header.country }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-end">
+                        {% if header.show_document_title %}
+                        <h2 style="font-size: {{ header.document_title_font_size }}px;" 
+                            class="text-{{ header.document_title_position }}">
+                            {{ doc_type_name|upper }}
+                        </h2>
+                        {% endif %}
+                        <p class="mb-1"><strong>Document #:</strong> {{ sample_data['Document.Number'] }}</p>
+                        <p class="mb-1"><strong>Date:</strong> {{ sample_data['Document.Date'] }}</p>
+                        <p class="mb-1"><strong>Due Date:</strong> {{ sample_data['Document.DueDate'] }}</p>
+                        {% if header.phone %}
+                        <p class="mb-1"><i class="bi bi-telephone me-1"></i>{{ header.phone }}</p>
+                        {% endif %}
+                        {% if header.email %}
+                        <p class="mb-1"><i class="bi bi-envelope me-1"></i>{{ header.email }}</p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="col-12 text-center">
+                        <h2>{{ doc_type_name|upper }}</h2>
+                        <p>Document #: {{ sample_data['Document.Number'] }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="document-recipient mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-uppercase text-muted small">Bill To / Customer:</h6>
+                        <p class="mb-0"><strong>{{ sample_data['Customer.Name'] }}</strong></p>
+                        <p class="mb-0">{{ sample_data['Customer.Address'] }}</p>
+                        <p class="mb-0">Contact: {{ sample_data['Customer.Contact'] }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-uppercase text-muted small">Reference:</h6>
+                        <p class="mb-0"><strong>Order #:</strong> {{ sample_data['Order.Number'] }}</p>
+                        <p class="mb-0"><strong>PO Reference:</strong> {{ sample_data['Order.Reference'] }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="document-body mb-4">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Description</th>
+                            <th>Part Number</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Sample Product Item</td>
+                            <td>PROD-001</td>
+                            <td class="text-center">10</td>
+                            <td class="text-end">$100.00</td>
+                            <td class="text-end">$1,000.00</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Another Product Line</td>
+                            <td>PROD-002</td>
+                            <td class="text-center">5</td>
+                            <td class="text-end">$200.00</td>
+                            <td class="text-end">$1,000.00</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Service / Labor</td>
+                            <td>SVC-001</td>
+                            <td class="text-center">8</td>
+                            <td class="text-end">$375.00</td>
+                            <td class="text-end">$3,000.00</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5" class="text-end"><strong>Subtotal:</strong></td>
+                            <td class="text-end">{{ sample_data['Total.Subtotal'] }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5" class="text-end"><strong>Tax (8%):</strong></td>
+                            <td class="text-end">{{ sample_data['Total.Tax'] }}</td>
+                        </tr>
+                        <tr class="table-light">
+                            <td colspan="5" class="text-end"><strong>TOTAL:</strong></td>
+                            <td class="text-end"><strong>{{ sample_data['Total.Amount'] }}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            {% if terms %}
+            <div class="document-terms mb-4">
+                <h6 class="text-uppercase text-muted small border-bottom pb-2">Terms & Conditions</h6>
+                {% for term in terms %}
+                <p class="small mb-2">
+                    {{ term.override_content if term.is_overridden else term.original_content }}
+                </p>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if footer %}
+            <div class="document-footer mt-5 pt-3 border-top">
+                <div class="row">
+                    <div class="col-md-6">
+                        {% if footer.show_prepared_by %}
+                        <p class="mb-1"><strong>Prepared By:</strong> {{ sample_data['PreparedBy'] }}</p>
+                        {% endif %}
+                        {% if footer.show_approved_by %}
+                        <p class="mb-1"><strong>Approved By:</strong> _____________________</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-end">
+                        {% if footer.show_qr_code %}
+                        <div class="d-inline-block border p-2 mb-2">
+                            <i class="bi bi-qr-code display-6"></i>
+                            <div class="small text-muted">QR Code</div>
+                        </div>
+                        {% endif %}
+                        {% if footer.show_page_numbers %}
+                        <p class="text-muted small">
+                            {{ footer.page_number_format|replace('{current}', '1')|replace('{total}', '1') }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if footer.legal_text %}
+                <div class="mt-3 pt-2 border-top">
+                    <p class="small text-muted mb-0">{{ footer.legal_text }}</p>
+                </div>
+                {% endif %}
+                {% if footer.contact_info %}
+                <div class="text-center mt-2">
+                    <p class="small text-muted mb-0">{{ footer.contact_info }}</p>
+                </div>
+                {% endif %}
+                {% if footer.show_document_hash %}
+                <div class="text-center mt-2">
+                    <code class="small text-muted">Document Hash: SHA256:a1b2c3d4e5f6...</code>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+        </div>
+    </div>
+</div>
+
+<style>
+    #document-preview {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        line-height: 1.4;
+    }
+    
+    @media print {
+        .btn, .alert, nav, .d-flex.justify-content-between {
+            display: none !important;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+    }
+</style>
+{% endblock %}

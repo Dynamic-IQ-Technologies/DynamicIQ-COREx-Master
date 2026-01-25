@@ -1,0 +1,211 @@
+You are an enterprise-grade ERP platform architect and developer working inside the Dynamic.IQ-COREx application. Your task is to design and implement a Document Template & Form Management Module that allows administrators to create, modify, manage, and apply standardized professional document formats across all system-generated documents.
+
+🎯 OBJECTIVE
+
+Enable Dynamic.IQ-COREx to centrally manage document formats (layout, headers, footers, terms, notes, and branding) for all transactional and operational documents so that downloaded and printed documents are consistently professional, compliant, and customer-ready.
+
+📄 DOCUMENT TYPES IN SCOPE
+
+The module must support, at minimum:
+
+Work Orders
+
+Quotes / Estimates
+
+Sales Orders
+
+Invoices
+
+Purchase Orders
+
+Packing Slips
+
+RMA / Warranty Documents
+
+Certificates (CoC, Compliance, Inspection Reports)
+
+Each document type must support multiple templates (e.g., Standard, Customer-Specific, Region-Specific).
+
+🧩 CORE FUNCTIONAL REQUIREMENTS
+1. Template Management Interface
+
+Create a Document Template Manager that allows authorized users to:
+
+Create, clone, edit, activate, and archive templates
+
+Assign templates by:
+
+Document type
+
+Business unit / legal entity
+
+Customer or supplier
+
+Region or currency
+
+Set a default system template per document type
+
+2. Header Configuration
+
+Allow full customization of document headers, including:
+
+Company logo (SVG/PNG, auto-scaling)
+
+Company name, address, registration numbers
+
+Dynamic fields (auto-populate):
+
+Document number
+
+Customer name
+
+Issue date / due date
+
+Order reference
+
+Layout controls:
+
+Alignment (left / center / right)
+
+Column structure
+
+Font family, size, weight
+
+3. Footer Configuration
+
+Footer must support:
+
+Page numbering (Page X of Y)
+
+Legal text or disclaimers
+
+Contact information
+
+Dynamic fields (e.g., prepared by, approved by)
+
+Optional QR code or document verification hash
+
+4. Body Layout & Field Control
+
+Enable configuration of:
+
+Table column visibility, order, and labels
+
+Line item grouping and subtotal logic
+
+Section headers (e.g., Scope of Work, Line Items, Summary)
+
+Auto-expanding text areas for notes and descriptions
+
+5. Standard Terms & Notes Engine
+
+Implement a Terms & Notes Library:
+
+Central repository of:
+
+Standard terms & conditions
+
+Payment terms
+
+Warranty language
+
+Shipping and tax notes
+
+Allow:
+
+Global default terms
+
+Document-specific overrides
+
+Customer-specific overrides
+
+Version control with effective dates
+
+Ability to lock terms on issued documents
+
+6. Dynamic Field & Token System
+
+Support placeholder tokens that auto-populate at generation time, such as:
+
+{{Customer.Name}}
+{{Order.Number}}
+{{Invoice.DueDate}}
+{{Total.Amount}}
+{{PreparedBy}}
+
+
+Tokens must be validated and previewable before publishing templates.
+
+7. Preview, Validation & Output
+
+Before activation, users must be able to:
+
+Preview documents with live sample data
+
+Validate formatting consistency
+
+Test multi-page behavior
+
+Export to:
+
+PDF (primary)
+
+DOCX (optional)
+
+Ensure consistent rendering across browsers and devices
+
+8. Permissions & Governance
+
+Apply role-based controls:
+
+Admin: Full template creation and publishing rights
+
+Editor: Draft and edit templates
+
+Viewer: View and preview only
+
+All changes must include:
+
+Change log
+
+User attribution
+
+Timestamp
+
+Reason for change (optional but recommended for ISO traceability)
+
+9. Compliance & Audit Readiness
+
+Ensure the module supports:
+
+ISO 9001 document control principles
+
+Template revision history
+
+Ability to lock templates tied to released transactions
+
+Traceability between document output and template version used
+
+🧠 TECHNICAL ARCHITECTURE EXPECTATIONS
+
+Template data stored in structured JSON / schema-driven format
+
+Rendering engine decoupled from business logic
+
+Support for future localization (language, date, currency)
+
+Extensible for customer-specific branding
+
+Performance optimized for bulk document generation
+
+📌 SUCCESS CRITERIA
+
+All system-generated documents download in professional, consistent, branded format
+
+Users can manage formatting without code changes
+
+Legal and commercial terms are standardized and controlled
+
+Documents are audit-ready and customer-presentable
+
+Template changes do not impact historical documents

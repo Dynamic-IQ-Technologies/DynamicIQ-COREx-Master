@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Document Tokens{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.list_templates') }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0"><i class="bi bi-braces me-2"></i>Document Tokens</h2>
+            <p class="text-muted mb-0">Dynamic placeholders that auto-populate in documents</p>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Tokens are placeholders that get replaced with actual values when generating documents.
+    Use them in template headers, footers, and content by wrapping with double curly braces: <code>{{"{{Token.Name}}"}}</code>
+</div>
+
+<div class="row">
+    {% for category, tokens in token_categories.items() %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-tag me-2"></i>{{ category }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Token</th>
+                                <th>Label</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for token in tokens %}
+                            <tr>
+                                <td>
+                                    <code class="text-primary" style="cursor: pointer;" 
+                                          onclick="navigator.clipboard.writeText('{{'+'{{'+token.token_name+'}}'+'}}')" 
+                                          title="Click to copy">
+                                        {{"{{" }}{{ token.token_name }}{{ "}}"}}
+                                    </code>
+                                </td>
+                                <td>{{ token.token_label }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ token.format_type }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Usage Examples</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>In Document Header:</h6>
+                <pre class="bg-light p-3 rounded"><code>Invoice #: {{"{{Document.Number}}"}}
+Date: {{"{{Document.Date}}"}}
+Customer: {{"{{Customer.Name}}"}}</code></pre>
+            </div>
+            <div class="col-md-6">
+                <h6>In Document Footer:</h6>
+                <pre class="bg-light p-3 rounded"><code>Prepared by: {{"{{PreparedBy}}"}}
+{{"{{Company.Name}}"}} | {{"{{Company.Phone}}"}}
+Document generated: {{"{{CurrentDate}}"}}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

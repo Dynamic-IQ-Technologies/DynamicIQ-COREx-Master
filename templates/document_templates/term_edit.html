@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Term: {{ term.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.list_terms') }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0">Edit Term</h2>
+            <p class="text-muted mb-0"><code>{{ term.term_code }}</code> | Version {{ term.version }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Term Code</label>
+                        <input type="text" class="form-control" value="{{ term.term_code }}" disabled>
+                        <small class="text-muted">Code cannot be changed</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{{ term.name }}" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category" name="category" required>
+                            {% for cat in term_categories %}
+                            <option value="{{ cat[0] }}" {% if term.category == cat[0] %}selected{% endif %}>{{ cat[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="content" class="form-label">Content <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="content" name="content" rows="6" required>{{ term.content }}</textarea>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_global_default" name="is_global_default"
+                               {% if term.is_global_default %}checked{% endif %}>
+                        <label class="form-check-label" for="is_global_default">
+                            Set as global default for this category
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                               {% if term.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">
+                            Active (available for use in templates)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                Saving this term will increment its version number to v{{ term.version + 1 }}.
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('document_template_routes.list_terms') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check me-1"></i>Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

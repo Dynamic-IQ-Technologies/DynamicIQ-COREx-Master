@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Create Term{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.list_terms') }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0">Create Term</h2>
+            <p class="text-muted mb-0">Add a new term to the library</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="term_code" class="form-label">Term Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="term_code" name="term_code" 
+                               placeholder="e.g., TERMS-PAY-001" required style="text-transform: uppercase;">
+                        <small class="text-muted">Unique identifier for this term</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               placeholder="e.g., Standard Payment Terms" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="">Select Category</option>
+                            {% for cat in term_categories %}
+                            <option value="{{ cat[0] }}">{{ cat[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="content" class="form-label">Content <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="content" name="content" rows="6" required
+                          placeholder="Enter the full text of this term..."></textarea>
+            </div>
+            
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="is_global_default" name="is_global_default">
+                <label class="form-check-label" for="is_global_default">
+                    Set as global default for this category
+                </label>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('document_template_routes.list_terms') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Create Term
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

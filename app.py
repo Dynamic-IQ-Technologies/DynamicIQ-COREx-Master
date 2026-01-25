@@ -49,6 +49,7 @@ from routes.portal_routes import portal_bp
 from routes.tools_routes import tools_bp
 from routes.rfq_routes import rfq_bp
 from routes.rfq_portal_routes import rfq_portal_bp
+from routes.document_template_routes import document_template_bp
 from routes.org_analyzer_routes import org_analyzer_bp
 from routes.financial_analyzer_routes import financial_analyzer_bp
 from routes.erp_helper_routes import erp_helper_bp
@@ -331,6 +332,7 @@ app.register_blueprint(portal_bp)
 app.register_blueprint(tools_bp)
 app.register_blueprint(rfq_bp)
 app.register_blueprint(rfq_portal_bp)
+app.register_blueprint(document_template_bp)
 app.register_blueprint(org_analyzer_bp)
 app.register_blueprint(financial_analyzer_bp)
 app.register_blueprint(erp_helper_bp)

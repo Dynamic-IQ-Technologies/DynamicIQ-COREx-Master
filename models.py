@@ -6165,3 +6165,279 @@ def init_qms_tables(cursor):
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_alerts_unread ON exchange_alerts(is_read, is_resolved)')
     except:
         pass
+    
+    # ============================================
+    # DOCUMENT TEMPLATE & FORM MANAGEMENT MODULE
+    # ============================================
+    
+    # Document Templates - Main template definitions
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS document_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            document_type TEXT NOT NULL,
+            description TEXT,
+            status TEXT DEFAULT 'Draft',
+            is_default INTEGER DEFAULT 0,
+            is_system INTEGER DEFAULT 0,
+            version INTEGER DEFAULT 1,
+            effective_date DATE,
+            expiration_date DATE,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_by INTEGER,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id),
+            FOREIGN KEY (updated_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Template Header Configuration
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_headers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            logo_path TEXT,
+            logo_width INTEGER DEFAULT 150,
+            logo_height INTEGER DEFAULT 50,
+            logo_position TEXT DEFAULT 'left',
+            company_name TEXT,
+            company_name_font_size INTEGER DEFAULT 16,
+            company_name_font_weight TEXT DEFAULT 'bold',
+            address_line1 TEXT,
+            address_line2 TEXT,
+            city_state_zip TEXT,
+            country TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            registration_numbers TEXT,
+            header_layout TEXT DEFAULT 'two-column',
+            show_document_title INTEGER DEFAULT 1,
+            document_title_position TEXT DEFAULT 'center',
+            document_title_font_size INTEGER DEFAULT 18,
+            custom_css TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Template Footer Configuration
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_footers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            show_page_numbers INTEGER DEFAULT 1,
+            page_number_format TEXT DEFAULT 'Page {current} of {total}',
+            page_number_position TEXT DEFAULT 'center',
+            legal_text TEXT,
+            contact_info TEXT,
+            prepared_by_label TEXT DEFAULT 'Prepared By',
+            show_prepared_by INTEGER DEFAULT 1,
+            approved_by_label TEXT DEFAULT 'Approved By',
+            show_approved_by INTEGER DEFAULT 0,
+            show_qr_code INTEGER DEFAULT 0,
+            qr_code_content TEXT,
+            show_document_hash INTEGER DEFAULT 0,
+            footer_height INTEGER DEFAULT 50,
+            custom_css TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Template Body Configuration - Sections
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_sections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            section_type TEXT NOT NULL,
+            section_name TEXT NOT NULL,
+            display_order INTEGER DEFAULT 0,
+            is_visible INTEGER DEFAULT 1,
+            title TEXT,
+            show_title INTEGER DEFAULT 1,
+            title_font_size INTEGER DEFAULT 14,
+            content_template TEXT,
+            table_columns TEXT,
+            show_subtotals INTEGER DEFAULT 0,
+            subtotal_label TEXT DEFAULT 'Subtotal',
+            custom_css TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Terms & Notes Library
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_terms_library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            term_code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            content TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            is_global_default INTEGER DEFAULT 0,
+            version INTEGER DEFAULT 1,
+            effective_date DATE,
+            expiration_date DATE,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_by INTEGER,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id),
+            FOREIGN KEY (updated_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Template-Terms Association
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_terms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            term_id INTEGER NOT NULL,
+            display_order INTEGER DEFAULT 0,
+            is_overridden INTEGER DEFAULT 0,
+            override_content TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE,
+            FOREIGN KEY (term_id) REFERENCES template_terms_library(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Template Assignments (Customer/Supplier/Region specific)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            assignment_type TEXT NOT NULL,
+            assignment_id INTEGER,
+            priority INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Template Tokens Registry
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token_name TEXT UNIQUE NOT NULL,
+            token_label TEXT NOT NULL,
+            token_category TEXT NOT NULL,
+            data_source TEXT NOT NULL,
+            data_field TEXT NOT NULL,
+            format_type TEXT DEFAULT 'text',
+            format_options TEXT,
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Template Version History
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            version_number INTEGER NOT NULL,
+            template_snapshot TEXT NOT NULL,
+            change_reason TEXT,
+            changed_by INTEGER,
+            changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE,
+            FOREIGN KEY (changed_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Document-Template Audit Links (which template was used for each document)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS document_template_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_type TEXT NOT NULL,
+            document_id INTEGER NOT NULL,
+            template_id INTEGER NOT NULL,
+            template_version INTEGER NOT NULL,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            generated_by INTEGER,
+            document_hash TEXT,
+            FOREIGN KEY (template_id) REFERENCES document_templates(id),
+            FOREIGN KEY (generated_by) REFERENCES users(id)
+        )
+    ''')
+    
+    # Create indexes for document template queries
+    try:
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_templates_type ON document_templates(document_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_templates_status ON document_templates(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_templates_default ON document_templates(is_default)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_template_terms_lib_cat ON template_terms_library(category)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_template_assignments_type ON template_assignments(assignment_type, assignment_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_template_links ON document_template_links(document_type, document_id)')
+    except:
+        pass
+    
+    # Insert default document tokens
+    default_tokens = [
+        ('Customer.Name', 'Customer Name', 'Customer', 'customer', 'name', 'text', None, 'Customer company name'),
+        ('Customer.Code', 'Customer Code', 'Customer', 'customer', 'code', 'text', None, 'Customer account code'),
+        ('Customer.Address', 'Customer Address', 'Customer', 'customer', 'address', 'text', None, 'Full customer address'),
+        ('Customer.Contact', 'Customer Contact', 'Customer', 'customer', 'contact_name', 'text', None, 'Primary contact name'),
+        ('Supplier.Name', 'Supplier Name', 'Supplier', 'supplier', 'name', 'text', None, 'Supplier company name'),
+        ('Supplier.Code', 'Supplier Code', 'Supplier', 'supplier', 'code', 'text', None, 'Supplier account code'),
+        ('Document.Number', 'Document Number', 'Document', 'document', 'number', 'text', None, 'Document reference number'),
+        ('Document.Date', 'Document Date', 'Document', 'document', 'date', 'date', None, 'Document issue date'),
+        ('Document.DueDate', 'Due Date', 'Document', 'document', 'due_date', 'date', None, 'Payment or delivery due date'),
+        ('Document.Status', 'Status', 'Document', 'document', 'status', 'text', None, 'Current document status'),
+        ('Order.Number', 'Order Number', 'Order', 'order', 'number', 'text', None, 'Sales or purchase order number'),
+        ('Order.Reference', 'Order Reference', 'Order', 'order', 'reference', 'text', None, 'Customer PO or reference'),
+        ('Invoice.Number', 'Invoice Number', 'Invoice', 'invoice', 'number', 'text', None, 'Invoice number'),
+        ('Invoice.DueDate', 'Invoice Due Date', 'Invoice', 'invoice', 'due_date', 'date', None, 'Invoice payment due date'),
+        ('Total.Subtotal', 'Subtotal', 'Totals', 'totals', 'subtotal', 'currency', None, 'Subtotal before tax'),
+        ('Total.Tax', 'Tax Amount', 'Totals', 'totals', 'tax', 'currency', None, 'Tax amount'),
+        ('Total.Amount', 'Total Amount', 'Totals', 'totals', 'total', 'currency', None, 'Grand total'),
+        ('PreparedBy', 'Prepared By', 'User', 'user', 'prepared_by', 'text', None, 'User who prepared document'),
+        ('ApprovedBy', 'Approved By', 'User', 'user', 'approved_by', 'text', None, 'User who approved document'),
+        ('CurrentDate', 'Current Date', 'System', 'system', 'current_date', 'date', None, 'Current date'),
+        ('Company.Name', 'Company Name', 'Company', 'company', 'name', 'text', None, 'Your company name'),
+        ('Company.Address', 'Company Address', 'Company', 'company', 'address', 'text', None, 'Your company address'),
+        ('Company.Phone', 'Company Phone', 'Company', 'company', 'phone', 'text', None, 'Your company phone'),
+        ('Company.Email', 'Company Email', 'Company', 'company', 'email', 'text', None, 'Your company email')
+    ]
+    
+    for token in default_tokens:
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO template_tokens (token_name, token_label, token_category, data_source, data_field, format_type, format_options, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', token)
+        except:
+            pass
+    
+    # Insert default terms categories
+    default_terms = [
+        ('TERMS-STD-001', 'Standard Payment Terms', 'payment', 'Payment is due within 30 days of invoice date. Late payments subject to 1.5% monthly interest.', 1, 1),
+        ('TERMS-NET15', 'Net 15 Payment Terms', 'payment', 'Payment is due within 15 days of invoice date.', 1, 0),
+        ('TERMS-NET45', 'Net 45 Payment Terms', 'payment', 'Payment is due within 45 days of invoice date.', 1, 0),
+        ('TERMS-WARRANTY-STD', 'Standard Warranty', 'warranty', 'All products are warranted against defects in materials and workmanship for a period of one (1) year from date of delivery.', 1, 1),
+        ('TERMS-WARRANTY-EXT', 'Extended Warranty', 'warranty', 'Extended warranty coverage of two (2) years is available. Contact sales for details.', 1, 0),
+        ('TERMS-SHIPPING-STD', 'Standard Shipping Terms', 'shipping', 'FOB Origin. Shipping charges will be added to invoice. Risk of loss transfers to buyer upon delivery to carrier.', 1, 1),
+        ('TERMS-TAX-EXEMPT', 'Tax Exempt Notice', 'tax', 'Prices do not include applicable taxes. Customer is responsible for providing valid tax exemption certificates.', 1, 0),
+        ('TERMS-RETURN-STD', 'Standard Return Policy', 'returns', 'Returns accepted within 30 days of receipt with RMA number. Restocking fee of 15% may apply.', 1, 1)
+    ]
+    
+    for term in default_terms:
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO template_terms_library (term_code, name, category, content, is_active, is_global_default)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', term)
+        except:
+            pass

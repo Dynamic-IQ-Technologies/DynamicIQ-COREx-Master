@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.list_templates') }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0">{{ template.name }}</h2>
+            <p class="text-muted mb-0">
+                <code>{{ template.template_code }}</code> | {{ doc_type_name }}
+                {% if template.is_default %}
+                <span class="badge bg-primary ms-2">Default</span>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('document_template_routes.preview_template', id=template.id) }}" class="btn btn-outline-info me-2" target="_blank">
+            <i class="bi bi-eye me-1"></i>Preview
+        </a>
+        {% if session.role in ['Admin', 'Editor'] %}
+        <a href="{{ url_for('document_template_routes.edit_template', id=template.id) }}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        {% endif %}
+        {% if session.role == 'Admin' and template.status == 'Draft' %}
+        <form method="POST" action="{{ url_for('document_template_routes.activate_template', id=template.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-success me-2">
+                <i class="bi bi-check-circle me-1"></i>Activate
+            </button>
+        </form>
+        {% endif %}
+        {% if session.role == 'Admin' and template.status == 'Active' and not template.is_default %}
+        <form method="POST" action="{{ url_for('document_template_routes.set_default_template', id=template.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-primary me-2">
+                <i class="bi bi-star me-1"></i>Set as Default
+            </button>
+        </form>
+        {% endif %}
+        {% if session.role == 'Admin' and template.status != 'Archived' %}
+        <form method="POST" action="{{ url_for('document_template_routes.archive_template', id=template.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to archive this template?')">
+                <i class="bi bi-archive me-1"></i>Archive
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Template Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong>
+                            {% if template.status == 'Active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% elif template.status == 'Draft' %}
+                            <span class="badge bg-warning text-dark">Draft</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ template.status }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Version:</strong> v{{ template.version }}</p>
+                        <p><strong>Document Type:</strong> {{ doc_type_name }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ format_dt(template.created_at) }} by {{ template.created_by_name or 'System' }}</p>
+                        <p><strong>Updated:</strong> {{ format_dt(template.updated_at) }}{% if template.updated_by_name %} by {{ template.updated_by_name }}{% endif %}</p>
+                        {% if template.effective_date %}
+                        <p><strong>Effective Date:</strong> {{ template.effective_date }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if template.description %}
+                <p><strong>Description:</strong> {{ template.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if header %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-card-heading me-2"></i>Header Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Company Name:</strong> {{ header.company_name or '-' }}</p>
+                        <p><strong>Address:</strong> {{ header.address_line1 or '-' }}</p>
+                        {% if header.city_state_zip %}
+                        <p>{{ header.city_state_zip }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Phone:</strong> {{ header.phone or '-' }}</p>
+                        <p><strong>Email:</strong> {{ header.email or '-' }}</p>
+                        <p><strong>Website:</strong> {{ header.website or '-' }}</p>
+                    </div>
+                </div>
+                <p><strong>Layout:</strong> {{ header.header_layout }} | <strong>Logo Position:</strong> {{ header.logo_position }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if footer %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-card-text me-2"></i>Footer Configuration</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Page Numbers:</strong> {% if footer.show_page_numbers %}Yes ({{ footer.page_number_format }}){% else %}No{% endif %}</p>
+                <p><strong>Show Prepared By:</strong> {% if footer.show_prepared_by %}Yes{% else %}No{% endif %}</p>
+                <p><strong>Show QR Code:</strong> {% if footer.show_qr_code %}Yes{% else %}No{% endif %}</p>
+                {% if footer.legal_text %}
+                <p><strong>Legal Text:</strong></p>
+                <div class="bg-light p-2 rounded small">{{ footer.legal_text }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if terms %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Terms & Conditions</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for term in terms %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ term.name }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ term.category }}</span>
+                                {% if term.is_overridden %}
+                                <span class="badge bg-warning text-dark ms-1">Overridden</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="mb-0 mt-2 small text-muted">
+                            {{ term.override_content if term.is_overridden else term.original_content }}
+                        </p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        {% if assignments %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Assignments</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for a in assignments %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ a.assignment_name }}</span>
+                        <span class="badge bg-info">{{ a.assignment_type }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if versions %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Version History</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for v in versions %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <strong>v{{ v.version_number }}</strong>
+                            <small class="text-muted">{{ format_dt(v.changed_at) }}</small>
+                        </div>
+                        <small>{{ v.change_reason or 'No reason provided' }}</small>
+                        <br><small class="text-muted">by {{ v.changed_by_name or 'System' }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if session.role in ['Admin'] %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit Trail</h5>
+            </div>
+            <div class="card-body p-0">
+                <iframe src="{{ url_for('audit_routes.view_audit_trail', record_type='document_templates', record_id=template.id) }}" 
+                        style="width: 100%; height: 300px; border: none;">
+                </iframe>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

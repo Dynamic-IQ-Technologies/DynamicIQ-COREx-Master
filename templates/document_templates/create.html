@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Create Document Template{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('document_template_routes.list_templates') }}" class="btn btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0">Create Document Template</h2>
+            <p class="text-muted mb-0">Define a new document format template</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="template_code" class="form-label">Template Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="template_code" name="template_code" 
+                               placeholder="e.g., TPL-INV-001" required style="text-transform: uppercase;">
+                        <small class="text-muted">Unique identifier for this template</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Template Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               placeholder="e.g., Standard Invoice Template" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="document_type" class="form-label">Document Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="document_type" name="document_type" required>
+                            <option value="">Select Document Type</option>
+                            {% for dt in document_types %}
+                            <option value="{{ dt[0] }}">{{ dt[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3"
+                          placeholder="Brief description of this template's purpose and usage..."></textarea>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('document_template_routes.list_templates') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Create Template
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
