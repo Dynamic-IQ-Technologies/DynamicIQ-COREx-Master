@@ -503,6 +503,42 @@ def generate_pdf(id):
         story.append(Paragraph(f"<b>Scope of Work:</b> {quote['scope_of_work']}", styles['Normal']))
         story.append(Spacer(1, 0.2*inch))
     
+    # Discrepancies Section (before line items)
+    if discrepancies:
+        discrepancy_title_style = ParagraphStyle(
+            'DiscrepancyTitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#dc2626'),
+            spaceAfter=10
+        )
+        story.append(Paragraph("DISCREPANCIES FOUND", discrepancy_title_style))
+        
+        discrepancy_data = [['Task #', 'Task Name', 'Discrepancy', 'Corrective Action']]
+        for d in discrepancies:
+            discrepancy_data.append([
+                d['task_number'] or '-',
+                d['task_name'] or '-',
+                d['discrepancies'] or '-',
+                d['corrective_actions'] or '-'
+            ])
+        
+        discrepancy_table = Table(discrepancy_data, colWidths=[0.8*inch, 1.5*inch, 2.5*inch, 2.2*inch])
+        discrepancy_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#fef2f2')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#991b1b')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#fca5a5')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        story.append(discrepancy_table)
+        story.append(Spacer(1, 0.3*inch))
+    
     # Line items table
     line_data = [['Type', 'Description', 'Qty', 'Unit Price', 'Total']]
     for line in quote_lines:
@@ -562,43 +598,6 @@ def generate_pdf(id):
         ('LINEABOVE', (3, 2), (-1, 2), 2, colors.black),
     ]))
     story.append(totals_table)
-    
-    # Discrepancies Section
-    if discrepancies:
-        story.append(Spacer(1, 0.3*inch))
-        
-        discrepancy_title_style = ParagraphStyle(
-            'DiscrepancyTitle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#dc2626'),
-            spaceAfter=10
-        )
-        story.append(Paragraph("DISCREPANCIES FOUND", discrepancy_title_style))
-        
-        discrepancy_data = [['Task #', 'Task Name', 'Discrepancy', 'Corrective Action']]
-        for d in discrepancies:
-            discrepancy_data.append([
-                d['task_number'] or '-',
-                d['task_name'] or '-',
-                d['discrepancies'] or '-',
-                d['corrective_actions'] or '-'
-            ])
-        
-        discrepancy_table = Table(discrepancy_data, colWidths=[0.8*inch, 1.5*inch, 2.5*inch, 2.2*inch])
-        discrepancy_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#fef2f2')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#991b1b')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#fca5a5')),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        story.append(discrepancy_table)
     
     # Notes
     if quote['notes']:
