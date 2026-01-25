@@ -1321,7 +1321,8 @@ def download_pdf(id):
         ORDER BY il.line_number
     ''', (id,)).fetchall()
     
-    company = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+    company_row = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
+    company = dict(company_row) if company_row else None
     
     # Get document template for invoice type
     template_data = DocumentTemplateHelper.get_template_for_document(conn, 'invoice', invoice['customer_id'])
