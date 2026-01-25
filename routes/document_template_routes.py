@@ -533,6 +533,49 @@ def archive_template(id):
     conn.close()
     return redirect(url_for('document_template_routes.list_templates'))
 
+@document_template_bp.route('/document-templates/<int:id>/delete', methods=['POST'])
+@role_required('Admin')
+def delete_template(id):
+    """Permanently delete a document template"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Check if template exists and is not a system template
+        template = conn.execute('SELECT * FROM document_templates WHERE id = ?', (id,)).fetchone()
+        
+        if not template:
+            flash('Template not found', 'danger')
+            conn.close()
+            return redirect(url_for('document_template_routes.list_templates'))
+        
+        if template['is_system']:
+            flash('System templates cannot be deleted', 'danger')
+            conn.close()
+            return redirect(url_for('document_template_routes.list_templates'))
+        
+        # Delete related records (headers, footers, terms links, assignments)
+        conn.execute('DELETE FROM template_headers WHERE template_id = ?', (id,))
+        conn.execute('DELETE FROM template_footers WHERE template_id = ?', (id,))
+        conn.execute('DELETE FROM template_terms WHERE template_id = ?', (id,))
+        conn.execute('DELETE FROM template_assignments WHERE template_id = ?', (id,))
+        
+        # Delete the template itself
+        conn.execute('DELETE FROM document_templates WHERE id = ?', (id,))
+        
+        AuditLogger.log_change(conn, 'document_templates', id, 'DELETE', session.get('user_id'), 
+                              {'template_code': template['template_code'], 'name': template['name']})
+        
+        conn.commit()
+        flash('Template deleted successfully!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting template: {str(e)}', 'danger')
+    
+    conn.close()
+    return redirect(url_for('document_template_routes.list_templates'))
+
 @document_template_bp.route('/document-templates/<int:id>/add-term', methods=['POST'])
 @role_required('Admin', 'Editor')
 def add_term_to_template(id):

@@ -43,8 +43,15 @@
         {% endif %}
         {% if session.role == 'Admin' and template.status != 'Archived' %}
         <form method="POST" action="{{ url_for('document_template_routes.archive_template', id=template.id) }}" class="d-inline">
-            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to archive this template?')">
+            <button type="submit" class="btn btn-outline-warning" onclick="return confirm('Are you sure you want to archive this template?')">
                 <i class="bi bi-archive me-1"></i>Archive
+            </button>
+        </form>
+        {% endif %}
+        {% if session.role == 'Admin' and not template.is_system %}
+        <form method="POST" action="{{ url_for('document_template_routes.delete_template', id=template.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to PERMANENTLY DELETE this template? This action cannot be undone.')">
+                <i class="bi bi-trash me-1"></i>Delete
             </button>
         </form>
         {% endif %}
