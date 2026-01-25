@@ -519,7 +519,7 @@ def create_from_work_order(wo_id):
     
     # Get task materials issued (parts cost)
     parts_cost = conn.execute('''
-        SELECT COALESCE(SUM(wtm.quantity_issued * COALESCE(wtm.unit_cost, 0)), 0) as total
+        SELECT COALESCE(SUM(wtm.issued_qty * COALESCE(wtm.unit_cost, 0)), 0) as total
         FROM work_order_task_materials wtm
         JOIN work_order_tasks wot ON wtm.task_id = wot.id
         WHERE wot.work_order_id = ?
