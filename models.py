@@ -4970,6 +4970,119 @@ class AuditLogger:
         return changes if changes else None
 
 
+class DocumentTemplateHelper:
+    """Helper class for retrieving document template settings for PDF generation"""
+    
+    @staticmethod
+    def get_template_for_document(conn, document_type, customer_id=None):
+        """
+        Get the active template for a document type, optionally considering customer-specific assignments.
+        
+        Args:
+            conn: Database connection
+            document_type: Type of document (invoice, quote, purchase_order, etc.)
+            customer_id: Optional customer ID for customer-specific templates
+        
+        Returns:
+            Dict with template, header, footer, and terms data
+        """
+        template = None
+        
+        # First try to find customer-specific template with proper date filtering
+        if customer_id:
+            template = conn.execute('''
+                SELECT dt.* FROM document_templates dt
+                JOIN template_assignments ta ON dt.id = ta.template_id
+                WHERE dt.document_type = ? 
+                AND dt.status = 'Active'
+                AND ta.assignment_type = 'customer'
+                AND ta.assignment_id = ?
+                AND ta.is_active = 1
+                AND (dt.effective_date IS NULL OR dt.effective_date <= date('now'))
+                AND (dt.expiration_date IS NULL OR dt.expiration_date >= date('now'))
+                ORDER BY ta.priority DESC
+                LIMIT 1
+            ''', (document_type, customer_id)).fetchone()
+        
+        # Fall back to default template for document type with date filtering
+        if not template:
+            template = conn.execute('''
+                SELECT * FROM document_templates 
+                WHERE document_type = ? AND status = 'Active' AND is_default = 1
+                AND (effective_date IS NULL OR effective_date <= date('now'))
+                AND (expiration_date IS NULL OR expiration_date >= date('now'))
+                LIMIT 1
+            ''', (document_type,)).fetchone()
+        
+        # Fall back to any active template with date filtering
+        if not template:
+            template = conn.execute('''
+                SELECT * FROM document_templates 
+                WHERE document_type = ? AND status = 'Active'
+                AND (effective_date IS NULL OR effective_date <= date('now'))
+                AND (expiration_date IS NULL OR expiration_date >= date('now'))
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (document_type,)).fetchone()
+        
+        if not template:
+            return None
+        
+        template_id = template['id']
+        
+        # Get header settings
+        header = conn.execute('''
+            SELECT * FROM template_headers WHERE template_id = ?
+        ''', (template_id,)).fetchone()
+        
+        # Get footer settings
+        footer = conn.execute('''
+            SELECT * FROM template_footers WHERE template_id = ?
+        ''', (template_id,)).fetchone()
+        
+        # Get terms - only active ones with valid dates
+        terms = conn.execute('''
+            SELECT tt.*, tl.name as term_name, tl.category, tl.content as original_content
+            FROM template_terms tt
+            JOIN template_terms_library tl ON tt.term_id = tl.id
+            WHERE tt.template_id = ?
+            AND tl.is_active = 1
+            AND (tl.effective_date IS NULL OR tl.effective_date <= date('now'))
+            AND (tl.expiration_date IS NULL OR tl.expiration_date >= date('now'))
+            ORDER BY tt.display_order
+        ''', (template_id,)).fetchall()
+        
+        return {
+            'template': dict(template) if template else None,
+            'header': dict(header) if header else None,
+            'footer': dict(footer) if footer else None,
+            'terms': [dict(t) for t in terms] if terms else []
+        }
+    
+    @staticmethod
+    def replace_tokens(content, token_values):
+        """
+        Replace template tokens with actual values.
+        
+        Args:
+            content: String containing tokens like {{TokenName}}
+            token_values: Dict mapping token names to values
+        
+        Returns:
+            String with tokens replaced
+        """
+        if not content:
+            return content
+        
+        import re
+        
+        def replace_token(match):
+            token_name = match.group(1)
+            return str(token_values.get(token_name, match.group(0)))
+        
+        return re.sub(r'\{\{([^}]+)\}\}', replace_token, content)
+
+
 class GLAutoPost:
     """Helper class for automatic GL posting from inventory transactions"""
     

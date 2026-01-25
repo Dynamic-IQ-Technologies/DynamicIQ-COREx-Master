@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
-from models import Database, AuditLogger, safe_float
+from models import Database, AuditLogger, safe_float, DocumentTemplateHelper
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 
@@ -1323,6 +1323,9 @@ def download_pdf(id):
     
     company = conn.execute('SELECT * FROM company_settings WHERE id = 1').fetchone()
     
+    # Get document template for invoice type
+    template_data = DocumentTemplateHelper.get_template_for_document(conn, 'invoice', invoice['customer_id'])
+    
     conn.close()
     
     buffer = io.BytesIO()
@@ -1331,10 +1334,17 @@ def download_pdf(id):
     story = []
     styles = getSampleStyleSheet()
     
+    # Use template header settings if available
+    template_header = template_data['header'] if template_data else None
+    
+    # Determine font sizes from template or use defaults
+    company_font_size = template_header['company_name_font_size'] if template_header and template_header.get('company_name_font_size') else 12
+    title_font_size = template_header['document_title_font_size'] if template_header and template_header.get('document_title_font_size') else 24
+    
     title_style = ParagraphStyle(
         'InvoiceTitle',
         parent=styles['Heading1'],
-        fontSize=24,
+        fontSize=title_font_size,
         textColor=colors.HexColor('#1e3a5f'),
         spaceAfter=5,
         alignment=TA_CENTER
@@ -1343,7 +1353,7 @@ def download_pdf(id):
     company_style = ParagraphStyle(
         'Company',
         parent=styles['Normal'],
-        fontSize=12,
+        fontSize=company_font_size,
         textColor=colors.HexColor('#1e3a5f'),
         alignment=TA_CENTER,
         spaceAfter=5
@@ -1357,20 +1367,48 @@ def download_pdf(id):
         alignment=TA_CENTER
     )
     
-    if company and company['company_name']:
-        story.append(Paragraph(company['company_name'], company_style))
-        addr_parts = []
-        if company['address_line1']:
-            addr_parts.append(company['address_line1'])
-        if company['city']:
+    # Build header - merge template settings with company settings as fallback
+    header_company_name = None
+    header_address = []
+    header_contacts = []
+    
+    # Determine company name (template first, then company settings)
+    if template_header and template_header.get('company_name'):
+        header_company_name = template_header['company_name']
+    elif company and company.get('company_name'):
+        header_company_name = company['company_name']
+    
+    # Determine address (template first, then company settings)
+    if template_header and (template_header.get('address_line1') or template_header.get('city_state_zip')):
+        if template_header.get('address_line1'):
+            header_address.append(template_header['address_line1'])
+        if template_header.get('city_state_zip'):
+            header_address.append(template_header['city_state_zip'])
+    elif company:
+        if company.get('address_line1'):
+            header_address.append(company['address_line1'])
+        if company.get('city'):
             city_line = company['city']
-            if company['state']:
+            if company.get('state'):
                 city_line += f", {company['state']}"
-            if company['postal_code']:
+            if company.get('postal_code'):
                 city_line += f" {company['postal_code']}"
-            addr_parts.append(city_line)
-        if addr_parts:
-            story.append(Paragraph(' | '.join(addr_parts), header_style))
+            header_address.append(city_line)
+    
+    # Get contact info from template if available
+    if template_header:
+        if template_header.get('phone'):
+            header_contacts.append(f"Phone: {template_header['phone']}")
+        if template_header.get('email'):
+            header_contacts.append(f"Email: {template_header['email']}")
+    
+    # Build the header section
+    if header_company_name:
+        story.append(Paragraph(header_company_name, company_style))
+        if header_address:
+            story.append(Paragraph(' | '.join(header_address), header_style))
+        if header_contacts:
+            story.append(Paragraph(' | '.join(header_contacts), header_style))
         story.append(Spacer(1, 0.2*inch))
     
     doc_type = "QUOTE" if invoice['invoice_number'].startswith('QUO') else "INVOICE"
@@ -1474,6 +1512,69 @@ def download_pdf(id):
         story.append(Spacer(1, 0.3*inch))
         story.append(Paragraph('<b>Notes:</b>', styles['Normal']))
         story.append(Paragraph(invoice['notes'], styles['Normal']))
+    
+    # Add terms from document template if available
+    if template_data and template_data.get('terms'):
+        story.append(Spacer(1, 0.3*inch))
+        
+        terms_title_style = ParagraphStyle(
+            'TermsTitle',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#1e3a5f'),
+            spaceAfter=8
+        )
+        
+        terms_style = ParagraphStyle(
+            'Terms',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#475569'),
+            spaceAfter=4,
+            leftIndent=10
+        )
+        
+        story.append(Paragraph('<b>Terms & Conditions</b>', terms_title_style))
+        
+        # Prepare token values for replacement
+        token_values = {
+            'Invoice.Number': invoice['invoice_number'],
+            'Invoice.Date': str(invoice['invoice_date'] or '')[:10],
+            'Invoice.DueDate': str(invoice['due_date'] or '')[:10],
+            'Invoice.Total': f"${invoice['total_amount']:,.2f}",
+            'Customer.Name': invoice['customer_name'],
+            'Customer.Number': invoice['customer_number'] or '',
+            'Company.Name': company['company_name'] if company else '',
+        }
+        
+        for term in template_data['terms']:
+            # Use override content if available, otherwise use original
+            term_content = term.get('override_content') if term.get('is_overridden') else term.get('original_content', '')
+            if term_content:
+                # Replace tokens in term content
+                term_content = DocumentTemplateHelper.replace_tokens(term_content, token_values)
+                story.append(Paragraph(f"• {term_content}", terms_style))
+    
+    # Add footer from template if available
+    template_footer = template_data['footer'] if template_data else None
+    if template_footer:
+        story.append(Spacer(1, 0.3*inch))
+        
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#94a3b8'),
+            alignment=TA_CENTER
+        )
+        
+        # Add legal text if present
+        if template_footer.get('legal_text'):
+            story.append(Paragraph(template_footer['legal_text'], footer_style))
+        
+        # Add contact info if present
+        if template_footer.get('contact_info'):
+            story.append(Paragraph(template_footer['contact_info'], footer_style))
     
     doc.build(story)
     
