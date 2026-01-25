@@ -59,7 +59,8 @@ def list_inventory():
     query = '''
         SELECT i.*, p.code, p.name, p.unit_of_measure, 
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
-               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
+               COALESCE(i.repair_cost, 0) as repair_cost,
+               (i.quantity * (COALESCE(i.unit_cost, p.cost, 0) + COALESCE(i.repair_cost, 0))) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE 1=1
@@ -125,7 +126,8 @@ def view_inventory(id):
         SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, p.product_type,
                p.product_category as stock_category,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
-               (i.quantity * COALESCE(i.unit_cost, p.cost, 0)) as inventory_value
+               COALESCE(i.repair_cost, 0) as repair_cost,
+               (i.quantity * (COALESCE(i.unit_cost, p.cost, 0) + COALESCE(i.repair_cost, 0))) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.id = ?
@@ -352,6 +354,8 @@ def edit_inventory(id):
                 safety_stock = float(request.form.get('safety_stock', 0))
                 unit_cost_str = request.form.get('unit_cost', '').strip()
                 unit_cost = float(unit_cost_str) if unit_cost_str else None
+                repair_cost_str = request.form.get('repair_cost', '').strip()
+                repair_cost = float(repair_cost_str) if repair_cost_str else None
             except (ValueError, TypeError):
                 flash('Invalid numeric value provided', 'danger')
                 conn.close()
@@ -499,6 +503,7 @@ def edit_inventory(id):
                     reorder_point=?, 
                     safety_stock=?, 
                     unit_cost=?,
+                    repair_cost=?,
                     warehouse_location=?,
                     bin_location=?,
                     condition=?,
@@ -534,7 +539,7 @@ def edit_inventory(id):
                     stock_category=?,
                     last_updated=CURRENT_TIMESTAMP 
                 WHERE id=?
-            ''', (quantity, reorder_point, safety_stock, unit_cost, warehouse_location, bin_location, 
+            ''', (quantity, reorder_point, safety_stock, unit_cost, repair_cost, warehouse_location, bin_location, 
                   condition, status, is_serialized, serial_number if serial_number else None,
                   expiration_date, last_inspection_date, next_inspection_date,
                   inspected_by, inspection_notes, trace_tag, trace, trace_type,

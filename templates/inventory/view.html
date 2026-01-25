@@ -126,6 +126,7 @@
             </div>
             <div class="card-body">
                 <p><strong>Unit Cost:</strong> {{ inventory.display_unit_cost|currency }}</p>
+                <p><strong>Repair Cost:</strong> {{ (inventory.repair_cost or 0)|currency }}</p>
                 <p><strong>Current Quantity:</strong> {{ inventory.quantity }}</p>
                 <hr>
                 <p><strong>Total Inventory Value:</strong> <br>
