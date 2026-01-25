@@ -43,9 +43,9 @@
                             <tr>
                                 <td>
                                     <code class="text-primary" style="cursor: pointer;" 
-                                          onclick="navigator.clipboard.writeText('{{'+'{{'+token.token_name+'}}'+'}}')" 
+                                          onclick="navigator.clipboard.writeText('{% raw %}{{{% endraw %}{{ token.token_name }}{% raw %}}}{% endraw %}')" 
                                           title="Click to copy">
-                                        {{"{{" }}{{ token.token_name }}{{ "}}"}}
+                                        {% raw %}{{{% endraw %}{{ token.token_name }}{% raw %}}}{% endraw %}
                                     </code>
                                 </td>
                                 <td>{{ token.token_label }}</td>

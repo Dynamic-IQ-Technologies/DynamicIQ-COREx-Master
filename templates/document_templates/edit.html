@@ -382,8 +382,8 @@
             <div class="col-md-4 mb-3">
                 <h6>{{ category }}</h6>
                 {% for token in category_tokens %}
-                <code class="d-block mb-1" style="cursor: pointer;" title="{{ token.description }}" onclick="navigator.clipboard.writeText('{{' + '{{ token.token_name }}' + '}}')">
-                    {{"{{" }}{{ token.token_name }}{{ "}}"}}
+                <code class="d-block mb-1" style="cursor: pointer;" title="{{ token.description }}" onclick="navigator.clipboard.writeText('{% raw %}{{{% endraw %}{{ token.token_name }}{% raw %}}}{% endraw %}')">
+                    {% raw %}{{{% endraw %}{{ token.token_name }}{% raw %}}}{% endraw %}
                 </code>
                 {% endfor %}
             </div>
