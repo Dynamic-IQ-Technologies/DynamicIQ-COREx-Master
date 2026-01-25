@@ -374,6 +374,181 @@ def create_from_sales_order(so_id):
                          lines=lines,
                          today=datetime.now().strftime('%Y-%m-%d'))
 
+
+@invoice_bp.route('/invoices/create-from-wo/<int:wo_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('Admin', 'Accountant', 'Planner')
+def create_from_work_order(wo_id):
+    """Create invoice from Work Order at any time"""
+    db = Database()
+    conn = db.get_connection()
+    
+    if request.method == 'POST':
+        try:
+            # Get invoice details from form
+            invoice_date = request.form.get('invoice_date') or datetime.now().strftime('%Y-%m-%d')
+            payment_terms = int(request.form.get('payment_terms', 30))
+            
+            # Calculate due date
+            inv_date = datetime.strptime(invoice_date, '%Y-%m-%d')
+            due_date = (inv_date + timedelta(days=payment_terms)).strftime('%Y-%m-%d')
+            
+            # Get work order with customer info
+            wo = conn.execute('''
+                SELECT wo.*, c.id as cust_id, c.name as customer_name, c.payment_terms as cust_payment_terms
+                FROM work_orders wo
+                LEFT JOIN customers c ON wo.customer_id = c.id
+                WHERE wo.id = ?
+            ''', (wo_id,)).fetchone()
+            
+            if not wo:
+                flash('Work Order not found', 'danger')
+                conn.close()
+                return redirect(url_for('invoice_routes.list_invoices'))
+            
+            if not wo['customer_id']:
+                flash('Work Order must have a customer assigned to create an invoice', 'danger')
+                conn.close()
+                return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+            
+            # Generate invoice number
+            last_inv = conn.execute('''
+                SELECT invoice_number FROM invoices 
+                WHERE invoice_number LIKE 'INV-%'
+                ORDER BY id DESC
+            ''').fetchall()
+            
+            max_num = 0
+            for inv in last_inv:
+                try:
+                    parts = inv['invoice_number'].replace('INV-', '').split('-')
+                    num = int(parts[-1])
+                    if num > max_num:
+                        max_num = num
+                except (ValueError, IndexError):
+                    continue
+            
+            invoice_number = f'INV-{max_num + 1:06d}'
+            
+            # Calculate totals from form
+            labor_amount = safe_float(request.form.get('labor_amount', 0))
+            parts_amount = safe_float(request.form.get('parts_amount', 0))
+            consumables_amount = safe_float(request.form.get('consumables_amount', 0))
+            other_fees = safe_float(request.form.get('other_fees', 0))
+            tax_rate = safe_float(request.form.get('tax_rate', 0))
+            
+            subtotal = labor_amount + parts_amount + consumables_amount + other_fees
+            tax_amount = subtotal * (tax_rate / 100)
+            total_amount = subtotal + tax_amount
+            
+            # Create invoice
+            cursor = conn.execute('''
+                INSERT INTO invoices (
+                    invoice_number, invoice_type, customer_id, wo_id,
+                    invoice_date, due_date, payment_terms, status,
+                    subtotal, tax_rate, tax_amount, discount_amount, total_amount,
+                    balance_due, notes, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                invoice_number, 'Work Order', wo['customer_id'], wo_id,
+                invoice_date, due_date, payment_terms, 'Draft',
+                subtotal, tax_rate, tax_amount, 0, total_amount,
+                total_amount, request.form.get('notes', ''), session['user_id']
+            ))
+            
+            invoice_id = cursor.lastrowid
+            line_num = 1
+            
+            # Add labor line if applicable
+            if labor_amount > 0:
+                conn.execute('''
+                    INSERT INTO invoice_lines (invoice_id, line_number, description, quantity, unit_price, line_total, reference_type, reference_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (invoice_id, line_num, f'Labor - Work Order {wo["wo_number"]}', 1, labor_amount, labor_amount, 'work_order', wo_id))
+                line_num += 1
+            
+            # Add parts line if applicable
+            if parts_amount > 0:
+                conn.execute('''
+                    INSERT INTO invoice_lines (invoice_id, line_number, description, quantity, unit_price, line_total, reference_type, reference_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (invoice_id, line_num, f'Parts/Materials - Work Order {wo["wo_number"]}', 1, parts_amount, parts_amount, 'work_order', wo_id))
+                line_num += 1
+            
+            # Add consumables line if applicable
+            if consumables_amount > 0:
+                conn.execute('''
+                    INSERT INTO invoice_lines (invoice_id, line_number, description, quantity, unit_price, line_total, reference_type, reference_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (invoice_id, line_num, f'Consumables - Work Order {wo["wo_number"]}', 1, consumables_amount, consumables_amount, 'work_order', wo_id))
+                line_num += 1
+            
+            # Add other fees line if applicable
+            if other_fees > 0:
+                conn.execute('''
+                    INSERT INTO invoice_lines (invoice_id, line_number, description, quantity, unit_price, line_total, reference_type, reference_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (invoice_id, line_num, f'Other Fees - Work Order {wo["wo_number"]}', 1, other_fees, other_fees, 'work_order', wo_id))
+            
+            conn.commit()
+            flash(f'Invoice {invoice_number} created successfully from Work Order!', 'success')
+            return redirect(url_for('invoice_routes.view_invoice', id=invoice_id))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error creating invoice: {str(e)}', 'danger')
+        finally:
+            conn.close()
+        
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    
+    # GET - show form
+    wo = conn.execute('''
+        SELECT wo.*, p.code as product_code, p.name as product_name,
+               c.name as customer_name, c.customer_number, c.payment_terms as cust_payment_terms
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        LEFT JOIN customers c ON wo.customer_id = c.id
+        WHERE wo.id = ?
+    ''', (wo_id,)).fetchone()
+    
+    if not wo:
+        flash('Work Order not found', 'danger')
+        conn.close()
+        return redirect(url_for('invoice_routes.list_invoices'))
+    
+    # Get task materials issued (parts cost)
+    parts_cost = conn.execute('''
+        SELECT COALESCE(SUM(wtm.quantity_issued * COALESCE(wtm.unit_cost, 0)), 0) as total
+        FROM work_order_task_materials wtm
+        JOIN work_order_tasks wot ON wtm.task_id = wot.id
+        WHERE wot.work_order_id = ?
+    ''', (wo_id,)).fetchone()
+    
+    # Get labor cost from work order
+    labor_cost = wo['labor_cost'] or 0
+    
+    # Get overhead/consumables
+    overhead_cost = wo['overhead_cost'] or 0
+    
+    # Check if there's an existing quote for markup reference
+    quote = conn.execute('''
+        SELECT * FROM work_order_quotes 
+        WHERE work_order_id = ? AND status != 'Rejected'
+        ORDER BY created_at DESC LIMIT 1
+    ''', (wo_id,)).fetchone()
+    
+    conn.close()
+    
+    return render_template('invoices/create_from_wo.html',
+                         workorder=wo,
+                         parts_cost=parts_cost['total'] if parts_cost else 0,
+                         labor_cost=labor_cost,
+                         overhead_cost=overhead_cost,
+                         quote=quote,
+                         today=datetime.now().strftime('%Y-%m-%d'))
+
+
 @invoice_bp.route('/invoices/<int:id>/approve', methods=['POST'])
 @login_required
 @role_required('Admin', 'Accountant')

@@ -114,6 +114,9 @@
             {% endif %}
             <a href="{{ url_for('workorder_routes.work_order_traveler', id=workorder.id) }}" class="btn btn-outline-success btn-sm" target="_blank"><i class="bi bi-file-earmark-text"></i> Traveler</a>
             <a href="{{ url_for('quote_routes.generate_quote', wo_id=workorder.id) }}" class="btn btn-outline-info btn-sm"><i class="bi bi-receipt"></i> Quote</a>
+            {% if session.role in ['Admin', 'Accountant', 'Planner'] %}
+            <a href="{{ url_for('invoice_routes.create_from_work_order', wo_id=workorder.id) }}" class="btn btn-outline-success btn-sm"><i class="bi bi-receipt-cutoff"></i> Invoice</a>
+            {% endif %}
             {% if session.role in ['Admin', 'Procurement', 'Production Staff', 'Supervisor'] and workorder.status not in ['Completed', 'Cancelled'] %}
                 {% if workorder.component_buyout_flag and workorder.buyout_po_id %}
                 <a href="{{ url_for('po_routes.view_purchaseorder', id=workorder.buyout_po_id) }}" class="btn btn-success btn-sm">

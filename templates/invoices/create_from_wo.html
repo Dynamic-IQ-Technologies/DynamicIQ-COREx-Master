@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Create Invoice from Work Order - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="bi bi-receipt-cutoff me-2"></i>Create Invoice from Work Order</h2>
+                    <p class="text-muted mb-0">Generate customer invoice from {{ workorder.wo_number }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Work Order
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Work Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>WO Number:</strong></div>
+                        <div class="col-8">{{ workorder.wo_number }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Product:</strong></div>
+                        <div class="col-8">{{ workorder.product_code }} - {{ workorder.product_name }}</div>
+                    </div>
+                    {% if workorder.customer_name %}
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Customer:</strong></div>
+                        <div class="col-8">{{ workorder.customer_name }} ({{ workorder.customer_number }})</div>
+                    </div>
+                    {% else %}
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Customer:</strong></div>
+                        <div class="col-8"><span class="text-danger">No customer assigned - required for invoicing</span></div>
+                    </div>
+                    {% endif %}
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Status:</strong></div>
+                        <div class="col-8">
+                            <span class="badge {% if workorder.status == 'Completed' %}bg-success{% elif workorder.status == 'In Progress' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                {{ workorder.status }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Disposition:</strong></div>
+                        <div class="col-8">{{ workorder.disposition }}</div>
+                    </div>
+                    {% if workorder.serial_number %}
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Serial Number:</strong></div>
+                        <div class="col-8">{{ workorder.serial_number }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>Cost Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Cost Category</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><i class="bi bi-person-workspace me-2"></i>Labor Cost</td>
+                                    <td class="text-end">{{ labor_cost|currency }}</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-box-seam me-2"></i>Parts/Materials Cost</td>
+                                    <td class="text-end">{{ parts_cost|currency }}</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-tools me-2"></i>Overhead/Consumables</td>
+                                    <td class="text-end">{{ overhead_cost|currency }}</td>
+                                </tr>
+                                <tr class="table-secondary">
+                                    <th>Total Cost Basis</th>
+                                    <th class="text-end">{{ (labor_cost + parts_cost + overhead_cost)|currency }}</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if quote %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Quote Reference:</strong> Quote {{ quote.quote_number }} exists for this work order with total: {{ quote.total_amount|currency }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Invoice Details</h5>
+                </div>
+                <div class="card-body">
+                    {% if not workorder.customer_name %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Customer Required</strong><br>
+                        Please assign a customer to the work order before creating an invoice.
+                    </div>
+                    {% else %}
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Invoice Date *</label>
+                            <input type="date" name="invoice_date" class="form-control" 
+                                   value="{{ today }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Payment Terms (Days) *</label>
+                            <input type="number" name="payment_terms" class="form-control" 
+                                   value="{{ workorder.cust_payment_terms or 30 }}" min="0" required>
+                        </div>
+
+                        <hr>
+                        <h6 class="mb-3">Invoice Line Items</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">Labor Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="labor_amount" id="laborAmount" class="form-control" 
+                                       value="{{ labor_cost }}" step="0.01" min="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Parts/Materials Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="parts_amount" id="partsAmount" class="form-control" 
+                                       value="{{ parts_cost }}" step="0.01" min="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Consumables Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="consumables_amount" id="consumablesAmount" class="form-control" 
+                                       value="{{ overhead_cost }}" step="0.01" min="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Other Fees</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="other_fees" id="otherFees" class="form-control" 
+                                       value="0" step="0.01" min="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tax Rate (%)</label>
+                            <div class="input-group">
+                                <input type="number" name="tax_rate" id="taxRate" class="form-control" 
+                                       value="0" step="0.01" min="0" max="100" onchange="calculateTotal()">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <div class="row">
+                                <div class="col-6"><strong>Subtotal:</strong></div>
+                                <div class="col-6 text-end" id="subtotalDisplay">$0.00</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6"><strong>Tax:</strong></div>
+                                <div class="col-6 text-end" id="taxDisplay">$0.00</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-6"><h5>Total:</h5></div>
+                                <div class="col-6 text-end"><h5 id="totalDisplay">$0.00</h5></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea name="notes" class="form-control" rows="3" 
+                                      placeholder="Additional invoice notes..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle me-2"></i>Create Invoice
+                            </button>
+                            <a href="{{ url_for('workorder_routes.view_workorder', id=workorder.id) }}" 
+                               class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function calculateTotal() {
+    const labor = parseFloat(document.getElementById('laborAmount').value) || 0;
+    const parts = parseFloat(document.getElementById('partsAmount').value) || 0;
+    const consumables = parseFloat(document.getElementById('consumablesAmount').value) || 0;
+    const other = parseFloat(document.getElementById('otherFees').value) || 0;
+    const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+    
+    const subtotal = labor + parts + consumables + other;
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
+    
+    document.getElementById('subtotalDisplay').textContent = '$' + subtotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    document.getElementById('taxDisplay').textContent = '$' + tax.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    document.getElementById('totalDisplay').textContent = '$' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+document.addEventListener('DOMContentLoaded', calculateTotal);
+</script>
+{% endblock %}
