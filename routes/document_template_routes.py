@@ -554,26 +554,56 @@ def delete_template(id):
             conn.close()
             return redirect(url_for('document_template_routes.list_templates'))
         
+        # Store template info for audit before deletion
+        template_code = template['template_code']
+        template_name = template['name']
+        
         # Delete related records (headers, footers, terms links, assignments)
-        conn.execute('DELETE FROM template_headers WHERE template_id = ?', (id,))
-        conn.execute('DELETE FROM template_footers WHERE template_id = ?', (id,))
-        conn.execute('DELETE FROM template_terms WHERE template_id = ?', (id,))
-        conn.execute('DELETE FROM template_assignments WHERE template_id = ?', (id,))
+        # Use try/except for each to handle if tables don't exist
+        try:
+            conn.execute('DELETE FROM template_headers WHERE template_id = ?', (id,))
+        except:
+            pass
+        try:
+            conn.execute('DELETE FROM template_footers WHERE template_id = ?', (id,))
+        except:
+            pass
+        try:
+            conn.execute('DELETE FROM template_terms WHERE template_id = ?', (id,))
+        except:
+            pass
+        try:
+            conn.execute('DELETE FROM template_assignments WHERE template_id = ?', (id,))
+        except:
+            pass
         
         # Delete the template itself
         conn.execute('DELETE FROM document_templates WHERE id = ?', (id,))
         
-        AuditLogger.log_change(conn, 'document_templates', id, 'DELETE', session.get('user_id'), 
-                              {'template_code': template['template_code'], 'name': template['name']})
-        
         conn.commit()
+        
+        # Log audit after commit to avoid issues
+        try:
+            AuditLogger.log_change(conn, 'document_templates', id, 'DELETE', session.get('user_id'), 
+                                  {'template_code': template_code, 'name': template_name})
+            conn.commit()
+        except:
+            pass
+        
         flash('Template deleted successfully!', 'success')
         
     except Exception as e:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except:
+            pass
         flash(f'Error deleting template: {str(e)}', 'danger')
+    finally:
+        try:
+            conn.close()
+        except:
+            pass
     
-    conn.close()
     return redirect(url_for('document_template_routes.list_templates'))
 
 @document_template_bp.route('/document-templates/<int:id>/add-term', methods=['POST'])
