@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ agreement.agreement_number }} - Exchange Agreement{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi bi-file-earmark-text me-2"></i>{{ agreement.agreement_number }}
+        </h1>
+        <p class="text-muted mb-0">
+            Exchange Agreement - Version {{ agreement.version }}
+            <span class="badge bg-{% if agreement.status == 'Active' %}success{% elif agreement.status == 'Draft' %}warning{% else %}secondary{% endif %} ms-2">{{ agreement.status }}</span>
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('exchange.download_agreement', agreement_id=agreement.id) }}" class="btn btn-primary">
+            <i class="bi bi-download me-1"></i> Download
+        </a>
+        <button class="btn btn-outline-dark" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print
+        </button>
+        <a href="{{ url_for('exchange.view_exchange', exchange_id=agreement.exchange_id) }}" class="btn btn-light border">
+            <i class="bi bi-arrow-left me-1"></i> Back to Exchange
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-primary text-white text-center py-4">
+        <h2 class="mb-1">EXCHANGE AGREEMENT</h2>
+        <p class="mb-0">{{ agreement.agreement_number }} | Version {{ agreement.version }}</p>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="bg-light p-3 rounded h-100">
+                    <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Customer Information</h5>
+                    <p class="mb-1"><strong>{{ agreement.customer_name }}</strong></p>
+                    <p class="mb-1">{{ agreement.customer_address or '-' }}</p>
+                    <p class="mb-0">{{ agreement.customer_city or '' }}{% if agreement.customer_state %}, {{ agreement.customer_state }}{% endif %} {{ agreement.customer_postal or '' }}</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-light p-3 rounded h-100">
+                    <h5 class="text-primary mb-3"><i class="bi bi-arrow-repeat me-2"></i>Exchange Details</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-5">Exchange #:</dt>
+                        <dd class="col-7">{{ agreement.exchange_number }}</dd>
+                        <dt class="col-5">Type:</dt>
+                        <dd class="col-7">{{ agreement.exchange_type or 'Standard' }}</dd>
+                        <dt class="col-5">Part Number:</dt>
+                        <dd class="col-7">{{ agreement.part_number }}</dd>
+                        <dt class="col-5">Description:</dt>
+                        <dd class="col-7">{{ agreement.product_name }}</dd>
+                        <dt class="col-5">Serial #:</dt>
+                        <dd class="col-7">{{ agreement.shipped_serial_number or 'TBD' }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h5 class="text-primary mb-3"><i class="bi bi-currency-dollar me-2"></i>Financial Terms</h5>
+            <div class="bg-light p-3 rounded">
+                <div class="row">
+                    <div class="col-md-4">
+                        <p class="mb-0"><strong>Core Due Date:</strong> {{ agreement.core_due_date or '-' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h5 class="text-primary mb-3"><i class="bi bi-file-text me-2"></i>Exchange Terms</h5>
+            <div class="bg-warning bg-opacity-10 p-3 rounded border border-warning">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ agreement.exchange_terms }}</pre>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h5 class="text-danger mb-3"><i class="bi bi-exclamation-triangle me-2"></i>Penalty Terms</h5>
+            <div class="bg-danger bg-opacity-10 p-3 rounded border border-danger">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ agreement.penalty_terms }}</pre>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h5 class="text-info mb-3"><i class="bi bi-shield-check me-2"></i>Legal Terms & Conditions</h5>
+            <div class="bg-info bg-opacity-10 p-3 rounded border border-info">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ agreement.legal_clauses }}</pre>
+            </div>
+        </div>
+        
+        <hr class="my-4">
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="border-top border-dark pt-3">
+                    <h6>Customer Signature</h6>
+                    <p class="text-muted mb-1">Name: _______________________________</p>
+                    <p class="text-muted mb-1">Title: _______________________________</p>
+                    <p class="text-muted mb-0">Date: _______________________________</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="border-top border-dark pt-3">
+                    <h6>Company Representative</h6>
+                    <p class="text-muted mb-1">Name: _______________________________</p>
+                    <p class="text-muted mb-1">Title: _______________________________</p>
+                    <p class="text-muted mb-0">Date: _______________________________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer text-center text-muted">
+        <small>This agreement is legally binding upon signature by both parties.</small><br>
+        <small>Agreement ID: {{ agreement.agreement_number }} | Generated: {{ agreement.generated_at }}</small>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, nav, .sidebar, header { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    body { padding: 0 !important; margin: 0 !important; }
+}
+</style>
+{% endblock %}

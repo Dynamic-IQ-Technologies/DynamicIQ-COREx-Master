@@ -318,8 +318,8 @@
                                             <td>{{ agr.generated_at|datestr if agr.generated_at else '-' }}</td>
                                             <td>{% if agr.sent_to_customer %}<i class="bi bi-check-circle text-success"></i>{% else %}-{% endif %}</td>
                                             <td>
-                                                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></button>
-                                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-envelope"></i></button>
+                                                <a href="{{ url_for('exchange.view_agreement', agreement_id=agr.id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                                                <a href="{{ url_for('exchange.download_agreement', agreement_id=agr.id) }}" class="btn btn-sm btn-outline-dark" title="Download"><i class="bi bi-download"></i></a>
                                             </td>
                                         </tr>
                                         {% endfor %}

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, make_response
 from functools import wraps
 from models import Database, AuditLogger, safe_float
 from datetime import datetime, date, timedelta
@@ -461,6 +461,166 @@ Standard Terms and Conditions:
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)})
+
+
+@exchange_bp.route('/agreement/<int:agreement_id>')
+@login_required
+def view_agreement(agreement_id):
+    conn = get_db()
+    
+    agreement = conn.execute('''
+        SELECT ea.*, c.name as customer_name, c.billing_address as customer_address,
+               c.city as customer_city, c.state as customer_state, c.postal_code as customer_postal,
+               p.code as product_code, p.name as product_name,
+               em.exchange_id as exchange_number, em.exchange_type, em.shipped_serial_number
+        FROM exchange_agreements ea
+        JOIN customers c ON ea.customer_id = c.id
+        JOIN products p ON ea.product_id = p.id
+        JOIN exchange_master em ON ea.exchange_id = em.id
+        WHERE ea.id = ?
+    ''', (agreement_id,)).fetchone()
+    
+    conn.close()
+    
+    if not agreement:
+        flash('Agreement not found', 'error')
+        return redirect(url_for('exchange.exchange_dashboard'))
+    
+    return render_template('exchanges/view_agreement.html', agreement=agreement)
+
+
+@exchange_bp.route('/agreement/<int:agreement_id>/download')
+@login_required
+def download_agreement(agreement_id):
+    conn = get_db()
+    
+    agreement = conn.execute('''
+        SELECT ea.*, c.name as customer_name, c.billing_address as customer_address,
+               c.city as customer_city, c.state as customer_state, c.postal_code as customer_postal,
+               c.phone as customer_phone, c.email as customer_email,
+               p.code as product_code, p.name as product_name,
+               em.exchange_id as exchange_number, em.exchange_type, em.shipped_serial_number,
+               em.core_value, em.exchange_fee
+        FROM exchange_agreements ea
+        JOIN customers c ON ea.customer_id = c.id
+        JOIN products p ON ea.product_id = p.id
+        JOIN exchange_master em ON ea.exchange_id = em.id
+        WHERE ea.id = ?
+    ''', (agreement_id,)).fetchone()
+    
+    conn.close()
+    
+    if not agreement:
+        flash('Agreement not found', 'error')
+        return redirect(url_for('exchange.exchange_dashboard'))
+    
+    html_content = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Exchange Agreement - {agreement['agreement_number']}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+            .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }}
+            .header h1 {{ margin: 0; color: #333; }}
+            .header p {{ margin: 5px 0; color: #666; }}
+            .section {{ margin-bottom: 25px; }}
+            .section h3 {{ color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }}
+            .info-box {{ background: #f8f9fa; padding: 15px; border-radius: 5px; }}
+            .info-box h4 {{ margin: 0 0 10px 0; color: #333; }}
+            .info-box p {{ margin: 5px 0; }}
+            .terms {{ background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+            .penalty {{ background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+            .legal {{ background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+            .signature-section {{ margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }}
+            .signature-box {{ border-top: 1px solid #333; padding-top: 10px; }}
+            .signature-box p {{ margin: 5px 0; }}
+            .footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: #666; }}
+            @media print {{ body {{ margin: 20px; }} }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>EXCHANGE AGREEMENT</h1>
+            <p><strong>{agreement['agreement_number']}</strong> | Version {agreement['version']}</p>
+            <p>Generated: {agreement['generated_at']}</p>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-box">
+                <h4>Customer Information</h4>
+                <p><strong>{agreement['customer_name']}</strong></p>
+                <p>{agreement['customer_address'] or ''}</p>
+                <p>{agreement['customer_city'] or ''}, {agreement['customer_state'] or ''} {agreement['customer_postal'] or ''}</p>
+            </div>
+            <div class="info-box">
+                <h4>Exchange Details</h4>
+                <p><strong>Exchange #:</strong> {agreement['exchange_number']}</p>
+                <p><strong>Type:</strong> {agreement['exchange_type'] or 'Standard'}</p>
+                <p><strong>Part Number:</strong> {agreement['part_number']}</p>
+                <p><strong>Description:</strong> {agreement['product_name']}</p>
+                <p><strong>Serial #:</strong> {agreement['shipped_serial_number'] or 'TBD'}</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Financial Terms</h3>
+            <div class="info-box">
+                <p><strong>Core Value:</strong> ${agreement['core_value'] or 0:,.2f}</p>
+                <p><strong>Exchange Fee:</strong> ${agreement['exchange_fee'] or 0:,.2f}</p>
+                <p><strong>Core Due Date:</strong> {agreement['core_due_date']}</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Exchange Terms</h3>
+            <div class="terms">
+                <pre style="white-space: pre-wrap; font-family: Arial;">{agreement['exchange_terms']}</pre>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Penalty Terms</h3>
+            <div class="penalty">
+                <pre style="white-space: pre-wrap; font-family: Arial;">{agreement['penalty_terms']}</pre>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Legal Terms & Conditions</h3>
+            <div class="legal">
+                <pre style="white-space: pre-wrap; font-family: Arial;">{agreement['legal_clauses']}</pre>
+            </div>
+        </div>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <p><strong>Customer Signature</strong></p>
+                <p>Name: _______________________</p>
+                <p>Title: _______________________</p>
+                <p>Date: _______________________</p>
+            </div>
+            <div class="signature-box">
+                <p><strong>Company Representative</strong></p>
+                <p>Name: _______________________</p>
+                <p>Title: _______________________</p>
+                <p>Date: _______________________</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This agreement is legally binding upon signature by both parties.</p>
+            <p>Agreement ID: {agreement['agreement_number']} | Status: {agreement['status']}</p>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    response = make_response(html_content)
+    response.headers['Content-Type'] = 'text/html'
+    response.headers['Content-Disposition'] = f'attachment; filename="{agreement["agreement_number"]}.html"'
+    return response
 
 
 @exchange_bp.route('/<int:exchange_id>/create-late-fee-invoice', methods=['POST'])
