@@ -18,6 +18,10 @@ const SystemGuidedMode = {
         const form = document.querySelector('form');
         if (!form) return;
         
+        // Create wrapper to isolate toggle from grid layouts
+        const wrapper = document.createElement('div');
+        wrapper.className = 'guided-mode-toggle-wrapper';
+        
         const toggle = document.createElement('div');
         toggle.id = 'guided-mode-toggle';
         toggle.className = 'guided-mode-toggle';
@@ -31,16 +35,23 @@ const SystemGuidedMode = {
             </div>
         `;
         
+        wrapper.appendChild(toggle);
+        
         const mainContent = document.querySelector('.main-content');
         const card = mainContent?.querySelector('.card') || form.closest('.card');
         const container = document.querySelector('.container-fluid, .container');
         
-        if (card) {
-            card.parentNode.insertBefore(toggle, card);
+        // Insert before the first .row or card that contains dashboard cards
+        const dashboardRow = mainContent?.querySelector('.row');
+        
+        if (dashboardRow && dashboardRow.querySelector('.card, [class*="col-"]')) {
+            dashboardRow.parentNode.insertBefore(wrapper, dashboardRow);
+        } else if (card) {
+            card.parentNode.insertBefore(wrapper, card);
         } else if (container) {
-            container.insertBefore(toggle, container.firstChild);
+            container.insertBefore(wrapper, container.firstChild);
         } else if (form.parentNode) {
-            form.parentNode.insertBefore(toggle, form);
+            form.parentNode.insertBefore(wrapper, form);
         }
     },
     

@@ -605,11 +605,19 @@ h2, h3, h4, h5, h6 {
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
     border: 2px solid #0ea5e9;
     border-radius: var(--radius-lg);
-    padding: 12px 20px;
-    margin-bottom: 20px;
-    display: flex;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
+    width: auto;
+    max-width: fit-content;
+}
+
+/* Wrapper ensures toggle doesn't affect grid layouts */
+.guided-mode-toggle-wrapper {
+    display: block;
+    margin-bottom: 8px;
 }
 
 .gm-toggle-switch {
