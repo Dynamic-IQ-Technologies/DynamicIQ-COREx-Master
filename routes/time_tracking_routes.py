@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from models import Database
+from models import Database, GLAutoPost
 from auth import login_required, role_required
-from datetime import datetime
+from datetime import datetime, date
 
 
 def parse_datetime(value):
@@ -275,6 +275,37 @@ def clock_out(entry_id):
                 WHERE id = ?
             ''', (hours_worked, labor_cost, entry['task_id']))
         
+        # Create GL journal entry for labor cost
+        if labor_cost > 0:
+            wo = conn.execute('SELECT wo_number FROM work_orders WHERE id = ?', (entry['work_order_id'],)).fetchone()
+            wo_number = wo['wo_number'] if wo else f'WO-{entry["work_order_id"]}'
+            
+            gl_lines = [
+                {
+                    'account_code': '5100',
+                    'debit': round(labor_cost, 2),
+                    'credit': 0,
+                    'description': f'WO Labor - {employee["name"]} ({wo_number})'
+                },
+                {
+                    'account_code': '2100',
+                    'debit': 0,
+                    'credit': round(labor_cost, 2),
+                    'description': f'Wages Payable - WO Labor ({wo_number})'
+                }
+            ]
+            
+            GLAutoPost.create_auto_journal_entry(
+                conn=conn,
+                entry_date=date.today().isoformat(),
+                description=f'Work Order Labor - {wo_number}',
+                transaction_source='WO Labor',
+                reference_type='work_order_time_tracking',
+                reference_id=entry_id,
+                lines=gl_lines,
+                created_by=session.get('user_id')
+            )
+        
         conn.commit()
         flash(f'Clocked out successfully! Hours worked: {hours_worked:.2f}, Labor cost: ${labor_cost:.2f}', 'success')
         
@@ -361,6 +392,80 @@ def active_labor_report():
                          total_employees=total_employees,
                          total_hourly_cost=total_hourly_cost,
                          current_labor_cost=current_labor_cost)
+
+@time_tracking_bp.route('/time-tracking/sync-to-accounting', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def sync_labor_to_accounting():
+    """Sync all existing work order labor entries to accounting (GL entries)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    # Get existing GL entries for work order time tracking
+    existing_gl_refs = conn.execute('''
+        SELECT reference_id FROM gl_entries 
+        WHERE reference_type = 'work_order_time_tracking' AND reference_id IS NOT NULL
+    ''').fetchall()
+    existing_gl_ids = set(str(r['reference_id']) for r in existing_gl_refs)
+    
+    # Get all completed time tracking entries with labor cost
+    entries = conn.execute('''
+        SELECT tt.id, tt.labor_cost, tt.work_order_id, tt.employee_id, tt.clock_in_time,
+               wo.wo_number, (lr.first_name || ' ' || lr.last_name) as employee_name
+        FROM work_order_time_tracking tt
+        JOIN work_orders wo ON tt.work_order_id = wo.id
+        JOIN labor_resources lr ON tt.employee_id = lr.id
+        WHERE tt.status = 'Completed' AND tt.labor_cost > 0
+    ''').fetchall()
+    
+    synced_count = 0
+    for entry in entries:
+        if str(entry['id']) in existing_gl_ids:
+            continue
+        
+        labor_cost = float(entry['labor_cost'])
+        wo_number = entry['wo_number']
+        emp_name = entry['employee_name']
+        
+        gl_lines = [
+            {
+                'account_code': '5100',
+                'debit': round(labor_cost, 2),
+                'credit': 0,
+                'description': f'WO Labor - {emp_name} ({wo_number})'
+            },
+            {
+                'account_code': '2100',
+                'debit': 0,
+                'credit': round(labor_cost, 2),
+                'description': f'Wages Payable - WO Labor ({wo_number})'
+            }
+        ]
+        
+        entry_date = entry['clock_in_time'][:10] if entry['clock_in_time'] else date.today().isoformat()
+        
+        GLAutoPost.create_auto_journal_entry(
+            conn=conn,
+            entry_date=entry_date,
+            description=f'Work Order Labor - {wo_number} (Backfill)',
+            transaction_source='WO Labor',
+            reference_type='work_order_time_tracking',
+            reference_id=entry['id'],
+            lines=gl_lines,
+            created_by=session.get('user_id')
+        )
+        synced_count += 1
+    
+    conn.commit()
+    conn.close()
+    
+    if synced_count > 0:
+        flash(f'Successfully synced {synced_count} work order labor entries to accounting', 'success')
+    else:
+        flash('All work order labor entries are already synced to accounting', 'info')
+    
+    return redirect(url_for('time_tracking_routes.supervisor_view'))
+
 
 @time_tracking_bp.route('/time-tracking/supervisor')
 @login_required

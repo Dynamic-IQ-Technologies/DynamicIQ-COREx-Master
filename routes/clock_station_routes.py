@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from models import Database
-from datetime import datetime, timedelta
+from models import Database, GLAutoPost
+from datetime import datetime, timedelta, date
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -338,6 +338,39 @@ def clock_punch():
                     SET labor_cost = COALESCE(labor_cost, 0) + ?
                     WHERE id = ?
                 ''', (round(labor_cost, 2), work_order_id))
+                
+                # Create GL journal entry for work order labor
+                if labor_cost > 0:
+                    wo = conn.execute('SELECT wo_number FROM work_orders WHERE id = ?', (work_order_id,)).fetchone()
+                    wo_number = wo['wo_number'] if wo else f'WO-{work_order_id}'
+                    emp = conn.execute('SELECT first_name, last_name FROM labor_resources WHERE id = ?', (employee_id,)).fetchone()
+                    emp_name = f'{emp["first_name"]} {emp["last_name"]}' if emp else 'Employee'
+                    
+                    gl_lines = [
+                        {
+                            'account_code': '5100',
+                            'debit': round(labor_cost, 2),
+                            'credit': 0,
+                            'description': f'WO Labor - {emp_name} ({wo_number})'
+                        },
+                        {
+                            'account_code': '2100',
+                            'debit': 0,
+                            'credit': round(labor_cost, 2),
+                            'description': f'Wages Payable - WO Labor ({wo_number})'
+                        }
+                    ]
+                    
+                    GLAutoPost.create_auto_journal_entry(
+                        conn=conn,
+                        entry_date=date.today().isoformat(),
+                        description=f'Work Order Labor - {wo_number}',
+                        transaction_source='WO Labor',
+                        reference_type='time_clock_punch',
+                        reference_id=punch_number,
+                        lines=gl_lines,
+                        created_by=employee_id
+                    )
     
     # If clocking in to NDT work order, update its status to "In Inspection" if scheduled
     if punch_type == 'Clock In' and ndt_work_order_id:
