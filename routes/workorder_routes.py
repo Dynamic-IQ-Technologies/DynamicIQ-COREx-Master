@@ -590,7 +590,7 @@ def view_workorder(id):
                 (SELECT i.id FROM inventory i WHERE i.product_id = mr.product_id LIMIT 1) as inventory_id,
                 mr.id as material_id,
                 'wo' as source_type,
-                mr.allocated_quantity as allocated_quantity,
+                mr.available_quantity as allocated_quantity,
                 NULL as task_id
             FROM material_requirements mr
             JOIN products p ON mr.product_id = p.id
