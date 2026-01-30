@@ -255,7 +255,7 @@ def view_exchange(exchange_id):
                sol.serial_number as allocated_serial, sol.quantity as line_qty,
                sol.unit_price as line_unit_price, sol.line_total as line_total,
                COALESCE(i.unit_cost, sol.cost, 0) as inventory_cost,
-               COALESCE(sol.unit_price, 0) as line_exchange_fee
+               COALESCE(sol.core_charge, 0) as line_exchange_fee
         FROM exchange_master em
         JOIN customers c ON em.customer_id = c.id
         JOIN products p ON em.product_id = p.id
