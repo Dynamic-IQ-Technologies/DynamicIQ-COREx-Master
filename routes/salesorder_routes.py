@@ -273,14 +273,15 @@ def view_sales_order(id):
         ORDER BY po.order_date DESC
     ''', (id, id)).fetchall()
     
-    # Get related shipments (linked via reference_type/reference_id)
+    # Get related shipments (linked via reference_type/reference_id or sales_order_id)
     related_shipments = conn.execute('''
         SELECT sh.id, sh.shipment_number, sh.shipment_type, sh.ship_date, sh.status,
                sh.carrier, sh.tracking_number, sh.ship_to_name
         FROM shipments sh
-        WHERE sh.reference_type = 'SalesOrder' AND sh.reference_id = ?
+        WHERE (sh.reference_type IN ('SalesOrder', 'Sales Order') AND sh.reference_id = ?)
+           OR sh.sales_order_id = ?
         ORDER BY sh.ship_date DESC
-    ''', (id,)).fetchall()
+    ''', (id, id)).fetchall()
     
     # Get related exchanges
     related_exchanges = conn.execute('''
