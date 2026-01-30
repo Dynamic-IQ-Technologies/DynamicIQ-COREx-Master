@@ -281,7 +281,7 @@
                 {% endif %}
                 
                 <!-- Fulfill Obligation Button -->
-                {% if po.exchange_status != 'Completed' and session.role in ['Admin', 'Procurement', 'Supervisor'] %}
+                {% if (not po.exchange_status or po.exchange_status != 'Completed') and session.role in ['Admin', 'Procurement', 'Supervisor'] %}
                 <div class="mt-3 pt-3 border-top">
                     <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#fulfillObligationModal">
                         <i class="bi bi-check2-circle me-1"></i> Fulfill Obligation
