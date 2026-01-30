@@ -1517,7 +1517,7 @@ def invoice_email_preview(id):
     
     invoice = conn.execute('''
         SELECT ni.*, c.name as customer_name, c.email as customer_email,
-               c.contact_email, c.billing_address,
+               c.billing_address,
                nw.ndt_wo_number, nw.ndt_methods as wo_methods,
                p.name as product_name, p.code as product_code
         FROM ndt_invoices ni
