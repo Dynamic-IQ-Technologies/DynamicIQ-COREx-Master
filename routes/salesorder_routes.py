@@ -1260,7 +1260,8 @@ def release_to_shipping(id):
                 ) VALUES (?, ?, ?, ?, ?, ?, 'New', ?)
             ''', (
                 shipment_id, line_number, sol['product_id'], sol['quantity'],
-                sol.get('serial_number', '') or '', sol.get('lot_number', '') or '',
+                (sol['serial_number'] if sol['serial_number'] else '') or '',
+                (sol['lot_number'] if 'lot_number' in sol.keys() and sol['lot_number'] else '') or '',
                 f"From SO Line {sol['id']}: {sol['product_code']} - {sol['product_name']}"
             ))
         
