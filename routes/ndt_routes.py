@@ -1835,7 +1835,7 @@ def wo_sync_labor_costs(id):
         hourly_rate = float(punch['hourly_rate']) if punch['hourly_rate'] else 0
         labor_cost = round(hours_worked * hourly_rate, 2)
         
-        conn.execute('''
+        cursor = conn.execute('''
             INSERT INTO ndt_wo_costs 
             (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
              date_incurred, reference_number, employee_id, notes, created_by)
@@ -1850,17 +1850,170 @@ def wo_sync_labor_costs(id):
               punch['employee_id'],
               'Synced from existing time punch',
               session.get('user_id')))
+        cost_id = cursor.lastrowid
+        
+        ndt_wo = conn.execute('SELECT ndt_wo_number FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
+        ndt_wo_number = ndt_wo['ndt_wo_number'] if ndt_wo else f'NDT-WO-{id}'
+        
+        if labor_cost > 0:
+            gl_lines = [
+                {
+                    'account_code': '5100',
+                    'debit': labor_cost,
+                    'credit': 0,
+                    'description': f'NDT Labor - {punch["first_name"]} {punch["last_name"]} ({ndt_wo_number})'
+                },
+                {
+                    'account_code': '2100',
+                    'debit': 0,
+                    'credit': labor_cost,
+                    'description': f'Wages Payable - NDT Labor ({ndt_wo_number})'
+                }
+            ]
+            
+            GLAutoPost.create_auto_journal_entry(
+                conn=conn,
+                entry_date=clock_in.date().isoformat(),
+                description=f'NDT Labor Cost - {ndt_wo_number} (Sync)',
+                transaction_source='NDT Labor',
+                reference_type='ndt_wo_cost',
+                reference_id=cost_id,
+                lines=gl_lines,
+                created_by=session.get('user_id')
+            )
+        
         added_count += 1
     
     conn.commit()
     conn.close()
     
     if added_count > 0:
-        flash(f'Synced {added_count} labor entries as costs', 'success')
+        flash(f'Synced {added_count} labor entries as costs with accounting entries', 'success')
     else:
         flash('No new labor entries to sync', 'info')
     
     return redirect(url_for('ndt_routes.wo_costs', id=id))
+
+
+@ndt_bp.route('/ndt/sync-all-costs-to-accounting', methods=['POST'])
+def sync_all_costs_to_accounting():
+    """Sync all existing NDT costs to accounting (GL entries) - for backfilling"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    if session.get('role') not in ['Admin', 'Accountant']:
+        flash('Only Admin or Accountant can perform this action', 'error')
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    existing_gl_refs = conn.execute('''
+        SELECT reference_id FROM gl_entries 
+        WHERE reference_type = 'ndt_wo_cost' AND reference_id IS NOT NULL
+    ''').fetchall()
+    existing_gl_cost_ids = set(r['reference_id'] for r in existing_gl_refs)
+    
+    costs_without_gl = conn.execute('''
+        SELECT c.*, nwo.ndt_wo_number, lr.first_name, lr.last_name
+        FROM ndt_wo_costs c
+        JOIN ndt_work_orders nwo ON c.ndt_wo_id = nwo.id
+        LEFT JOIN labor_resources lr ON c.employee_id = lr.id
+        WHERE c.total_cost > 0
+    ''').fetchall()
+    
+    synced_count = 0
+    for cost in costs_without_gl:
+        if cost['id'] in existing_gl_cost_ids:
+            continue
+        
+        cost_type = cost['cost_type']
+        total_cost = float(cost['total_cost']) if cost['total_cost'] else 0
+        ndt_wo_number = cost['ndt_wo_number']
+        
+        if cost_type == 'Labor':
+            emp_name = f'{cost["first_name"]} {cost["last_name"]}' if cost['first_name'] else 'Employee'
+            gl_lines = [
+                {
+                    'account_code': '5100',
+                    'debit': total_cost,
+                    'credit': 0,
+                    'description': f'NDT Labor - {emp_name} ({ndt_wo_number})'
+                },
+                {
+                    'account_code': '2100',
+                    'debit': 0,
+                    'credit': total_cost,
+                    'description': f'Wages Payable - NDT Labor ({ndt_wo_number})'
+                }
+            ]
+        elif cost_type == 'Material':
+            gl_lines = [
+                {
+                    'account_code': '5200',
+                    'debit': total_cost,
+                    'credit': 0,
+                    'description': f'NDT Material - {cost["description"]} ({ndt_wo_number})'
+                },
+                {
+                    'account_code': '1300',
+                    'debit': 0,
+                    'credit': total_cost,
+                    'description': f'Inventory - NDT Material ({ndt_wo_number})'
+                }
+            ]
+        elif cost_type == 'Subcontract':
+            gl_lines = [
+                {
+                    'account_code': '5300',
+                    'debit': total_cost,
+                    'credit': 0,
+                    'description': f'NDT Subcontract - {cost["description"]} ({ndt_wo_number})'
+                },
+                {
+                    'account_code': '2000',
+                    'debit': 0,
+                    'credit': total_cost,
+                    'description': f'Accounts Payable - NDT Subcontract ({ndt_wo_number})'
+                }
+            ]
+        else:
+            gl_lines = [
+                {
+                    'account_code': '5400',
+                    'debit': total_cost,
+                    'credit': 0,
+                    'description': f'NDT {cost_type} - {cost["description"]} ({ndt_wo_number})'
+                },
+                {
+                    'account_code': '2000',
+                    'debit': 0,
+                    'credit': total_cost,
+                    'description': f'Accounts Payable - NDT {cost_type} ({ndt_wo_number})'
+                }
+            ]
+        
+        GLAutoPost.create_auto_journal_entry(
+            conn=conn,
+            entry_date=cost['date_incurred'] or date.today().isoformat(),
+            description=f'NDT {cost_type} Cost - {ndt_wo_number} (Backfill)',
+            transaction_source=f'NDT {cost_type}',
+            reference_type='ndt_wo_cost',
+            reference_id=cost['id'],
+            lines=gl_lines,
+            created_by=session.get('user_id')
+        )
+        synced_count += 1
+    
+    conn.commit()
+    conn.close()
+    
+    if synced_count > 0:
+        flash(f'Successfully synced {synced_count} NDT cost entries to accounting', 'success')
+    else:
+        flash('All NDT cost entries are already synced to accounting', 'info')
+    
+    return redirect(url_for('ndt_routes.wo_list'))
 
 
 @ndt_bp.route('/ndt/work-orders/<int:id>/create-service-po', methods=['GET', 'POST'])
