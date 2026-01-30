@@ -1481,6 +1481,91 @@ def invoice_view(id):
     )
 
 
+@ndt_bp.route('/ndt/invoices/<int:id>/edit', methods=['GET', 'POST'])
+def invoice_edit(id):
+    """Edit existing NDT invoice"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    invoice = conn.execute('SELECT * FROM ndt_invoices WHERE id = ?', (id,)).fetchone()
+    if not invoice:
+        conn.close()
+        flash('NDT Invoice not found', 'error')
+        return redirect(url_for('ndt_routes.invoices_list'))
+    
+    if invoice['status'] in ['Paid', 'Cancelled']:
+        conn.close()
+        flash(f'Cannot edit invoice with status: {invoice["status"]}', 'warning')
+        return redirect(url_for('ndt_routes.invoice_view', id=id))
+    
+    if request.method == 'POST':
+        customer_id = request.form.get('customer_id')
+        ndt_wo_id = request.form.get('ndt_wo_id') or None
+        invoice_date = request.form.get('invoice_date')
+        payment_terms = int(request.form.get('payment_terms', 30))
+        due_date = (datetime.strptime(invoice_date, '%Y-%m-%d') + timedelta(days=payment_terms)).strftime('%Y-%m-%d')
+        
+        ndt_methods = request.form.get('ndt_methods', '')
+        part_description = request.form.get('part_description', '')
+        serial_number = request.form.get('serial_number', '')
+        inspection_type = request.form.get('inspection_type', '')
+        
+        subtotal = float(request.form.get('subtotal', 0))
+        tax_rate = float(request.form.get('tax_rate', 0))
+        tax_amount = subtotal * (tax_rate / 100)
+        discount_amount = float(request.form.get('discount_amount', 0))
+        total_amount = subtotal + tax_amount - discount_amount
+        
+        amount_paid = float(invoice['amount_paid'] or 0)
+        balance_due = total_amount - amount_paid
+        
+        notes = request.form.get('notes', '')
+        
+        conn.execute('''
+            UPDATE ndt_invoices SET
+                customer_id = ?, ndt_wo_id = ?, invoice_date = ?, due_date = ?,
+                payment_terms = ?, ndt_methods = ?, part_description = ?,
+                serial_number = ?, inspection_type = ?, subtotal = ?,
+                tax_rate = ?, tax_amount = ?, discount_amount = ?,
+                total_amount = ?, balance_due = ?, notes = ?
+            WHERE id = ?
+        ''', (customer_id, ndt_wo_id, invoice_date, due_date, payment_terms,
+              ndt_methods, part_description, serial_number, inspection_type,
+              subtotal, tax_rate, tax_amount, discount_amount, total_amount,
+              balance_due, notes, id))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Invoice {invoice["invoice_number"]} updated successfully', 'success')
+        return redirect(url_for('ndt_routes.invoice_view', id=id))
+    
+    customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
+    ndt_work_orders = conn.execute('''
+        SELECT nwo.id, nwo.ndt_wo_number, nwo.ndt_methods, nwo.customer_id,
+               c.name as customer_name, nwo.serial_number,
+               p.name as part_description
+        FROM ndt_work_orders nwo
+        LEFT JOIN customers c ON nwo.customer_id = c.id
+        LEFT JOIN products p ON nwo.product_id = p.id
+        ORDER BY nwo.created_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('ndt/invoice_form.html',
+        invoice=invoice,
+        customers=customers,
+        ndt_work_orders=ndt_work_orders,
+        ndt_methods=NDT_METHODS,
+        today=date.today().isoformat(),
+        edit_mode=True
+    )
+
+
 @ndt_bp.route('/ndt/invoices/<int:id>/status', methods=['POST'])
 def invoice_update_status(id):
     """Update NDT invoice status"""

@@ -203,6 +203,11 @@
     <a href="{{ url_for('ndt_routes.invoices_list') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back to List
     </a>
+    {% if invoice.status not in ['Paid', 'Cancelled'] %}
+    <a href="{{ url_for('ndt_routes.invoice_edit', id=invoice.id) }}" class="btn btn-warning">
+        <i class="bi bi-pencil"></i> Edit Invoice
+    </a>
+    {% endif %}
     <a href="{{ url_for('ndt_routes.invoice_email_preview', id=invoice.id) }}" class="btn btn-primary">
         <i class="bi bi-envelope"></i> Email to Customer
     </a>

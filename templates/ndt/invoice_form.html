@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<form method="POST" action="{{ url_for('ndt_routes.invoice_new') }}">
+<form method="POST" action="{% if invoice and edit_mode %}{{ url_for('ndt_routes.invoice_edit', id=invoice.id) }}{% else %}{{ url_for('ndt_routes.invoice_new') }}{% endif %}">
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card mb-4">
