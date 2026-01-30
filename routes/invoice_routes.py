@@ -595,16 +595,21 @@ def approve_invoice(id):
                 ).fetchone()
                 
                 if ar_account and revenue_account:
-                    # Generate GL entry number
-                    last_entry = conn.execute(
-                        'SELECT entry_number FROM gl_entries ORDER BY id DESC LIMIT 1'
-                    ).fetchone()
+                    # Generate GL entry number (only look at JE- entries)
+                    last_entry = conn.execute('''
+                        SELECT entry_number FROM gl_entries 
+                        WHERE entry_number LIKE 'JE-%'
+                        ORDER BY id DESC LIMIT 1
+                    ''').fetchone()
                     
                     if last_entry:
-                        last_num = int(last_entry['entry_number'].split('-')[1])
-                        entry_number = f'JE-{last_num + 1:06d}'
+                        try:
+                            last_num = int(last_entry['entry_number'].split('-')[1])
+                            entry_number = f'JE-{last_num + 1:06d}'
+                        except (ValueError, IndexError):
+                            entry_number = 'JE-000003'
                     else:
-                        entry_number = 'JE-000001'
+                        entry_number = 'JE-000003'
                     
                     # Create GL Entry
                     cursor = conn.execute('''
@@ -708,16 +713,21 @@ def post_invoice(id):
             flash('Required GL accounts not found. Please contact administrator.', 'danger')
             return redirect(url_for('invoice_routes.view_invoice', id=id))
         
-        # Generate GL entry number
-        last_entry = conn.execute(
-            'SELECT entry_number FROM gl_entries ORDER BY id DESC LIMIT 1'
-        ).fetchone()
+        # Generate GL entry number (only look at JE- entries)
+        last_entry = conn.execute('''
+            SELECT entry_number FROM gl_entries 
+            WHERE entry_number LIKE 'JE-%'
+            ORDER BY id DESC LIMIT 1
+        ''').fetchone()
         
         if last_entry:
-            last_num = int(last_entry['entry_number'].split('-')[1])
-            entry_number = f'JE-{last_num + 1:06d}'
+            try:
+                last_num = int(last_entry['entry_number'].split('-')[1])
+                entry_number = f'JE-{last_num + 1:06d}'
+            except (ValueError, IndexError):
+                entry_number = 'JE-000003'
         else:
-            entry_number = 'JE-000001'
+            entry_number = 'JE-000003'
         
         # Create GL Entry
         cursor = conn.execute('''
