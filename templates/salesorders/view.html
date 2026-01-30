@@ -67,6 +67,11 @@
                 </a>
                 {% endif %}
             {% endif %}
+            {% if session.role in ['Admin', 'Planner'] and sales_order.sales_type == 'Exchange' %}
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#generateExchangeAgreementModal">
+                    <i class="bi bi-file-earmark-text"></i> Generate Exchange Agreement
+                </button>
+            {% endif %}
         </div>
     </div>
 
@@ -928,6 +933,34 @@ function submitWoAllocation() {
     }
     document.getElementById('woAllocationForm').submit();
 }
+
+document.getElementById('generateExchangeAgreementForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    fetch('{{ url_for("salesorder_routes.generate_exchange_agreement", id=sales_order.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('generateExchangeAgreementModal')).hide();
+            showAlert('Exchange Agreement ' + data.agreement_number + ' generated successfully!', {type: 'success', title: 'Agreement Created'});
+            if (data.exchange_id) {
+                window.location.href = '/exchanges/' + data.exchange_id;
+            } else {
+                location.reload();
+            }
+        } else {
+            showAlert('Error: ' + data.error, {type: 'danger', title: 'Error'});
+        }
+    })
+    .catch(err => {
+        showAlert('Error generating agreement: ' + err.message, {type: 'danger', title: 'Error'});
+    });
+});
 </script>
 
 <!-- Work Order Allocation Modal -->
@@ -1330,6 +1363,33 @@ function submitWoAllocation() {
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Exchange Agreement Modal -->
+<div class="modal fade" id="generateExchangeAgreementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Generate Exchange Agreement</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="generateExchangeAgreementForm">
+                <div class="modal-body">
+                    <p class="text-muted">Generate an Exchange Agreement document for this sales order. The agreement will include customer details, part information, core terms, and penalties.</p>
+                    <div class="alert alert-info py-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Agreement will be saved as a draft and can be edited before sending.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-check me-1"></i>Generate Agreement
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

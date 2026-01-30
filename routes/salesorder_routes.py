@@ -1351,6 +1351,140 @@ def invoice_order(id):
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
+@salesorder_bp.route('/sales-orders/<int:id>/generate-exchange-agreement', methods=['POST'])
+@role_required('Admin', 'Planner')
+def generate_exchange_agreement(id):
+    """Generate an exchange agreement from a sales order"""
+    conn = get_db()
+    
+    try:
+        so = conn.execute('''
+            SELECT so.*, c.name as customer_name, c.billing_address as customer_address
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            WHERE so.id = ?
+        ''', (id,)).fetchone()
+        
+        if not so:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Sales order not found'})
+        
+        if so['sales_type'] != 'Exchange':
+            conn.close()
+            return jsonify({'success': False, 'error': 'This is not an exchange order'})
+        
+        exchange = conn.execute('SELECT * FROM exchange_master WHERE sales_order_id = ?', (id,)).fetchone()
+        
+        if not exchange:
+            sol = conn.execute('''
+                SELECT sol.*, p.code as product_code, p.name as product_name
+                FROM sales_order_lines sol
+                JOIN products p ON sol.product_id = p.id
+                WHERE sol.so_id = ? AND sol.line_type = 'Exchange'
+                LIMIT 1
+            ''', (id,)).fetchone()
+            
+            if not sol:
+                conn.close()
+                return jsonify({'success': False, 'error': 'No exchange line found on this order'})
+            
+            core_due_days = sol['core_due_days'] or 30
+            core_due_date = (datetime.now() + timedelta(days=core_due_days)).strftime('%Y-%m-%d')
+            
+            cursor = conn.execute('''
+                INSERT INTO exchange_master (sales_order_id, customer_id, product_id, exchange_type, 
+                    core_due_date, core_value, exchange_fee, status, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Open', ?, ?)
+            ''', (id, so['customer_id'], sol['product_id'], so['exchange_type'] or 'Single Exchange',
+                  core_due_date, sol['cost'] or 0, sol['core_charge'] or 0, 
+                  session.get('user_id'), datetime.now()))
+            
+            exchange_id = cursor.lastrowid
+            
+            conn.execute('''
+                INSERT INTO exchange_cores (exchange_id, customer_id, product_id, serial_number,
+                    core_due_date, core_status, created_at)
+                VALUES (?, ?, ?, ?, ?, 'Awaiting Core', ?)
+            ''', (exchange_id, so['customer_id'], sol['product_id'], sol['serial_number'],
+                  core_due_date, datetime.now()))
+            
+            conn.commit()
+            exchange = conn.execute('SELECT * FROM exchange_master WHERE id = ?', (exchange_id,)).fetchone()
+        
+        exchange_id = exchange['id']
+        
+        product = conn.execute('SELECT code, name FROM products WHERE id = ?', (exchange['product_id'],)).fetchone()
+        
+        existing_agreement = conn.execute(
+            'SELECT * FROM exchange_agreements WHERE exchange_id = ? ORDER BY id DESC LIMIT 1', 
+            (exchange_id,)
+        ).fetchone()
+        
+        if existing_agreement:
+            conn.close()
+            return jsonify({
+                'success': True, 
+                'agreement_id': existing_agreement['id'], 
+                'agreement_number': existing_agreement['agreement_number'],
+                'exchange_id': exchange_id,
+                'message': 'Agreement already exists'
+            })
+        
+        agreement_number = f"EA-{datetime.now().strftime('%Y%m%d')}-{exchange_id:04d}"
+        
+        exchange_terms = f'''
+This Exchange Agreement governs the exchange transaction for the following unit:
+- Part Number: {product['code'] if product else 'N/A'}
+- Description: {product['name'] if product else 'N/A'}
+- Sales Order: {so['so_number']}
+
+The Customer agrees to return a serviceable core unit within the specified timeframe.
+'''
+        
+        core_value = exchange['core_value'] or 0
+        penalty_terms = f'''
+Core Return Terms:
+- Core Due Date: {exchange['core_due_date']}
+- Core Value: ${core_value:,.2f}
+
+Failure to return the core by the due date will result in:
+- Full core charge of ${core_value:,.2f}
+- Additional administrative fees may apply
+'''
+        
+        legal_clauses = '''
+Standard Terms and Conditions:
+1. The core must be returned in serviceable condition
+2. All cores are subject to inspection upon receipt
+3. Non-conforming cores may be rejected or subject to additional charges
+4. Title to the shipped unit transfers upon receipt of acceptable core
+'''
+        
+        cursor = conn.execute('''
+            INSERT INTO exchange_agreements (exchange_id, agreement_number, customer_id, product_id,
+                part_number, serial_number, core_due_date, exchange_terms, penalty_terms, 
+                legal_clauses, status, generated_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?)
+        ''', (exchange_id, agreement_number, so['customer_id'], exchange['product_id'],
+              product['code'] if product else '', exchange.get('shipped_serial_number', ''), 
+              exchange['core_due_date'], exchange_terms, penalty_terms, legal_clauses, 
+              session.get('user_id'), datetime.now()))
+        
+        agreement_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'agreement_id': agreement_id, 
+            'agreement_number': agreement_number,
+            'exchange_id': exchange_id
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
 @salesorder_bp.route('/sales-orders/<int:id>/close', methods=['POST'])
 @role_required('Admin', 'Planner', 'Accountant')
 def close_order(id):
