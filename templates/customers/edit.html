@@ -281,8 +281,8 @@
                             {% endif %}
                         </form>
                         <form method="POST" action="{{ url_for('customer_routes.regenerate_portal_link', customer_id=customer.id) }}" 
-                              class="d-inline" onsubmit="return confirm('Regenerate portal link? The current link will stop working.');">
-                            <button type="submit" class="btn btn-outline-secondary">
+                              class="d-inline">
+                            <button type="submit" class="btn btn-outline-secondary" onclick="return confirm('Regenerate portal link? The current link will stop working.');">
                                 <i class="bi bi-arrow-repeat me-1"></i>Regenerate Link
                             </button>
                         </form>
