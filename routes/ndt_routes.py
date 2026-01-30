@@ -1781,6 +1781,86 @@ def wo_delete_cost(wo_id, cost_id):
     return redirect(url_for('ndt_routes.wo_costs', id=wo_id))
 
 
+@ndt_bp.route('/ndt/work-orders/<int:id>/costs/sync-labor', methods=['POST'])
+def wo_sync_labor_costs(id):
+    """Sync existing labor punches to cost entries"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    existing_refs = conn.execute('''
+        SELECT reference_number FROM ndt_wo_costs 
+        WHERE ndt_wo_id = ? AND cost_type = 'Labor' AND reference_number IS NOT NULL
+    ''', (id,)).fetchall()
+    existing_punch_refs = set(r['reference_number'] for r in existing_refs)
+    
+    labor_punches = conn.execute('''
+        SELECT tcp_in.id, tcp_in.punch_number, tcp_in.employee_id, tcp_in.punch_time as clock_in,
+               tcp_out.punch_time as clock_out, tcp_out.punch_number as out_punch_number,
+               lr.first_name, lr.last_name, lr.hourly_rate
+        FROM time_clock_punches tcp_in
+        JOIN labor_resources lr ON tcp_in.employee_id = lr.id
+        LEFT JOIN time_clock_punches tcp_out ON (
+            tcp_out.employee_id = tcp_in.employee_id 
+            AND tcp_out.ndt_work_order_id = tcp_in.ndt_work_order_id
+            AND tcp_out.punch_type = 'Clock Out'
+            AND tcp_out.punch_time > tcp_in.punch_time
+            AND tcp_out.id = (
+                SELECT MIN(t2.id) FROM time_clock_punches t2 
+                WHERE t2.employee_id = tcp_in.employee_id 
+                AND t2.ndt_work_order_id = tcp_in.ndt_work_order_id 
+                AND t2.punch_type = 'Clock Out' 
+                AND t2.punch_time > tcp_in.punch_time
+            )
+        )
+        WHERE tcp_in.punch_type = 'Clock In'
+          AND tcp_in.ndt_work_order_id = ?
+          AND tcp_out.punch_time IS NOT NULL
+        ORDER BY tcp_in.punch_time
+    ''', (id,)).fetchall()
+    
+    added_count = 0
+    for punch in labor_punches:
+        ref_number = punch['out_punch_number'] or punch['punch_number']
+        if ref_number in existing_punch_refs:
+            continue
+        
+        clock_in = datetime.strptime(punch['clock_in'], '%Y-%m-%d %H:%M:%S')
+        clock_out = datetime.strptime(punch['clock_out'], '%Y-%m-%d %H:%M:%S')
+        hours_worked = (clock_out - clock_in).total_seconds() / 3600
+        hourly_rate = float(punch['hourly_rate']) if punch['hourly_rate'] else 0
+        labor_cost = round(hours_worked * hourly_rate, 2)
+        
+        conn.execute('''
+            INSERT INTO ndt_wo_costs 
+            (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
+             date_incurred, reference_number, employee_id, notes, created_by)
+            VALUES (?, 'Labor', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (id, 
+              f'Labor - {punch["first_name"]} {punch["last_name"]}',
+              round(hours_worked, 2),
+              hourly_rate,
+              labor_cost,
+              clock_in.date().isoformat(),
+              ref_number,
+              punch['employee_id'],
+              'Synced from existing time punch',
+              session.get('user_id')))
+        added_count += 1
+    
+    conn.commit()
+    conn.close()
+    
+    if added_count > 0:
+        flash(f'Synced {added_count} labor entries as costs', 'success')
+    else:
+        flash('No new labor entries to sync', 'info')
+    
+    return redirect(url_for('ndt_routes.wo_costs', id=id))
+
+
 @ndt_bp.route('/ndt/work-orders/<int:id>/clock-in', methods=['POST'])
 def wo_clock_in(id):
     """Clock in an NDT resource directly from the work order page"""
