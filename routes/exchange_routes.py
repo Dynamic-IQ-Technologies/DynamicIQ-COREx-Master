@@ -393,6 +393,7 @@ def update_core_status(exchange_id):
 @exchange_bp.route('/<int:exchange_id>/generate-agreement', methods=['POST'])
 @login_required
 def generate_agreement(exchange_id):
+    print(f"[DEBUG] Generate agreement called for exchange_id={exchange_id}")
     conn = get_db()
     
     try:

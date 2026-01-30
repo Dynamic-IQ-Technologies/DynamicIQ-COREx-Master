@@ -725,7 +725,12 @@ document.getElementById('generateAgreementForm').addEventListener('submit', func
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             alert('Agreement ' + data.agreement_number + ' generated successfully');
@@ -733,6 +738,10 @@ document.getElementById('generateAgreementForm').addEventListener('submit', func
         } else {
             alert('Error: ' + data.error);
         }
+    })
+    .catch(error => {
+        console.error('Generate agreement error:', error);
+        alert('Error generating agreement: ' + error.message);
     });
 });
 
