@@ -1943,13 +1943,13 @@ def wo_sync_labor_costs(id):
         if labor_cost > 0:
             gl_lines = [
                 {
-                    'account_code': '5100',
+                    'account_code': '5200',
                     'debit': labor_cost,
                     'credit': 0,
                     'description': f'NDT Labor - {punch["first_name"]} {punch["last_name"]} ({ndt_wo_number})'
                 },
                 {
-                    'account_code': '2100',
+                    'account_code': '2150',
                     'debit': 0,
                     'credit': labor_cost,
                     'description': f'Wages Payable - NDT Labor ({ndt_wo_number})'
@@ -2020,13 +2020,13 @@ def sync_all_costs_to_accounting():
             emp_name = f'{cost["first_name"]} {cost["last_name"]}' if cost['first_name'] else 'Employee'
             gl_lines = [
                 {
-                    'account_code': '5100',
+                    'account_code': '5200',
                     'debit': total_cost,
                     'credit': 0,
                     'description': f'NDT Labor - {emp_name} ({ndt_wo_number})'
                 },
                 {
-                    'account_code': '2100',
+                    'account_code': '2150',
                     'debit': 0,
                     'credit': total_cost,
                     'description': f'Wages Payable - NDT Labor ({ndt_wo_number})'
@@ -2549,13 +2549,13 @@ def wo_clock_out(id):
     if labor_cost > 0:
         gl_lines = [
             {
-                'account_code': '5100',
+                'account_code': '5200',
                 'debit': labor_cost,
                 'credit': 0,
                 'description': f'NDT Labor - {employee["first_name"]} {employee["last_name"]} ({ndt_wo_number})'
             },
             {
-                'account_code': '2100',
+                'account_code': '2150',
                 'debit': 0,
                 'credit': labor_cost,
                 'description': f'Wages Payable - NDT Labor ({ndt_wo_number})'
