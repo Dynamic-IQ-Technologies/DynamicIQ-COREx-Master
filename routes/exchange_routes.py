@@ -392,22 +392,23 @@ def update_core_status(exchange_id):
 def generate_agreement(exchange_id):
     conn = get_db()
     
-    exchange = conn.execute('''
-        SELECT em.*, c.name as customer_name, c.address as customer_address,
-               p.code as product_code, p.name as product_name
-        FROM exchange_master em
-        JOIN customers c ON em.customer_id = c.id
-        JOIN products p ON em.product_id = p.id
-        WHERE em.id = ?
-    ''', (exchange_id,)).fetchone()
-    
-    if not exchange:
-        conn.close()
-        return jsonify({'success': False, 'error': 'Exchange not found'})
-    
-    agreement_number = generate_agreement_number(conn)
-    
-    exchange_terms = request.form.get('exchange_terms', f'''
+    try:
+        exchange = conn.execute('''
+            SELECT em.*, c.name as customer_name, c.address as customer_address,
+                   p.code as product_code, p.name as product_name
+            FROM exchange_master em
+            JOIN customers c ON em.customer_id = c.id
+            JOIN products p ON em.product_id = p.id
+            WHERE em.id = ?
+        ''', (exchange_id,)).fetchone()
+        
+        if not exchange:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Exchange not found'})
+        
+        agreement_number = generate_agreement_number(conn)
+        
+        exchange_terms = request.form.get('exchange_terms', f'''
 This Exchange Agreement governs the exchange transaction for the following unit:
 - Part Number: {exchange['product_code']}
 - Description: {exchange['product_name']}
@@ -415,8 +416,8 @@ This Exchange Agreement governs the exchange transaction for the following unit:
 
 The Customer agrees to return a serviceable core unit within the specified timeframe.
 ''')
-    
-    penalty_terms = request.form.get('penalty_terms', f'''
+        
+        penalty_terms = request.form.get('penalty_terms', f'''
 Core Return Terms:
 - Core Due Date: {exchange['core_due_date']}
 - Core Value: ${safe_float(exchange['core_value']):,.2f}
@@ -425,34 +426,37 @@ Failure to return the core by the due date will result in:
 - Full core charge of ${safe_float(exchange['core_value']):,.2f}
 - Additional administrative fees may apply
 ''')
-    
-    legal_clauses = request.form.get('legal_clauses', '''
+        
+        legal_clauses = request.form.get('legal_clauses', '''
 Standard Terms and Conditions:
 1. The core must be returned in serviceable condition
 2. All cores are subject to inspection upon receipt
 3. Non-conforming cores may be rejected or subject to additional charges
 4. Title to the shipped unit transfers upon receipt of acceptable core
 ''')
-    
-    cursor = conn.execute('''
-        INSERT INTO exchange_agreements (exchange_id, agreement_number, customer_id, product_id,
-            part_number, serial_number, core_due_date, exchange_terms, penalty_terms, 
-            legal_clauses, status, generated_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?)
-    ''', (exchange_id, agreement_number, exchange['customer_id'], exchange['product_id'],
-          exchange['product_code'], exchange['shipped_serial_number'], exchange['core_due_date'],
-          exchange_terms, penalty_terms, legal_clauses, session.get('user_id')))
-    
-    agreement_id = cursor.lastrowid
-    
-    log_exchange_audit(conn, exchange_id, 'Agreement Generated', None, 'Draft',
-                      f'Agreement {agreement_number} generated', 
-                      session.get('user_id'), session.get('username'))
-    
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'success': True, 'agreement_id': agreement_id, 'agreement_number': agreement_number})
+        
+        cursor = conn.execute('''
+            INSERT INTO exchange_agreements (exchange_id, agreement_number, customer_id, product_id,
+                part_number, serial_number, core_due_date, exchange_terms, penalty_terms, 
+                legal_clauses, status, generated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?)
+        ''', (exchange_id, agreement_number, exchange['customer_id'], exchange['product_id'],
+              exchange['product_code'], exchange['shipped_serial_number'], exchange['core_due_date'],
+              exchange_terms, penalty_terms, legal_clauses, session.get('user_id')))
+        
+        agreement_id = cursor.lastrowid
+        
+        log_exchange_audit(conn, exchange_id, 'Agreement Generated', None, 'Draft',
+                          f'Agreement {agreement_number} generated', 
+                          session.get('user_id'), session.get('username'))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'agreement_id': agreement_id, 'agreement_number': agreement_number})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @exchange_bp.route('/<int:exchange_id>/link-po', methods=['POST'])
