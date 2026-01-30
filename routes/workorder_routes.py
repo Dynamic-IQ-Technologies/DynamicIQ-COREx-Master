@@ -920,6 +920,42 @@ def edit_workorder(id):
     
     return render_template('workorders/edit.html', workorder=workorder, products=products, customers=customers, stages=stages)
 
+@workorder_bp.route('/api/workorders/<int:id>/toggle-flag', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def toggle_workorder_flag(id):
+    """Toggle AOG or Warranty flag on a work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        flag_name = request.json.get('flag')
+        flag_value = 1 if request.json.get('value') else 0
+        
+        if flag_name not in ['is_aog', 'is_warranty']:
+            return jsonify({'success': False, 'error': 'Invalid flag name'}), 400
+        
+        # Get old record for audit
+        old_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        if not old_record:
+            return jsonify({'success': False, 'error': 'Work order not found'}), 404
+        
+        # Update the flag
+        conn.execute(f'UPDATE work_orders SET {flag_name} = ? WHERE id = ?', (flag_value, id))
+        
+        # Get new record for audit
+        new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
+        
+        # Log audit trail
+        log_audit(conn, 'work_orders', id, 'UPDATE', dict(old_record), dict(new_record), session.get('user_id'))
+        
+        conn.commit()
+        return jsonify({'success': True, 'flag': flag_name, 'value': flag_value})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
 @workorder_bp.route('/workorders/<int:id>/update-status', methods=['POST'])
 @role_required('Admin', 'Production Staff')
 def update_workorder_status(id):
