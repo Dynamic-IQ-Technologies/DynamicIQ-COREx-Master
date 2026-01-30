@@ -741,6 +741,72 @@ def view_workorder(id):
                          component_buyout_pos=component_buyout_pos,
                          quote_for_comparison=quote_for_comparison)
 
+@workorder_bp.route('/workorders/<int:id>/delete', methods=['POST'])
+@login_required
+@role_required('Admin')
+def delete_workorder(id):
+    """Delete a work order - Admin only"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Get work order details for audit
+        workorder = conn.execute('SELECT * FROM work_orders WHERE id = ?', (id,)).fetchone()
+        if not workorder:
+            flash('Work order not found.', 'danger')
+            return redirect(url_for('workorder_routes.list_workorders'))
+        
+        wo_number = workorder['wo_number']
+        
+        # Check if work order is completed - prevent deletion
+        if workorder['status'] == 'Completed':
+            flash('Cannot delete a completed work order.', 'danger')
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Check for linked records that would prevent deletion
+        # Check for issued materials
+        issued_materials = conn.execute('''
+            SELECT COUNT(*) as count FROM work_order_task_materials 
+            WHERE work_order_id = ? AND issued_qty > 0
+        ''', (id,)).fetchone()
+        
+        if issued_materials and issued_materials['count'] > 0:
+            flash('Cannot delete work order with issued materials. Return all materials first.', 'danger')
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Check for linked invoices
+        linked_invoices = conn.execute('''
+            SELECT COUNT(*) as count FROM invoices WHERE work_order_id = ?
+        ''', (id,)).fetchone()
+        
+        if linked_invoices and linked_invoices['count'] > 0:
+            flash('Cannot delete work order with linked invoices.', 'danger')
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
+        # Delete related records first
+        conn.execute('DELETE FROM work_order_task_materials WHERE work_order_id = ?', (id,))
+        conn.execute('DELETE FROM work_order_tasks WHERE work_order_id = ?', (id,))
+        conn.execute('DELETE FROM work_order_requirements WHERE work_order_id = ?', (id,))
+        conn.execute('DELETE FROM work_order_stage_history WHERE work_order_id = ?', (id,))
+        conn.execute('DELETE FROM work_order_documents WHERE work_order_id = ?', (id,))
+        
+        # Log audit trail before deletion
+        log_audit(conn, 'work_orders', id, 'DELETE', dict(workorder), None, session.get('user_id'))
+        
+        # Delete the work order
+        conn.execute('DELETE FROM work_orders WHERE id = ?', (id,))
+        
+        conn.commit()
+        flash(f'Work order {wo_number} has been deleted successfully.', 'success')
+        return redirect(url_for('workorder_routes.list_workorders'))
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting work order: {str(e)}', 'danger')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    finally:
+        conn.close()
+
 @workorder_bp.route('/workorders/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @role_required('Admin', 'Planner', 'Production Staff')

@@ -157,6 +157,11 @@
                 </button>
                 {% endif %}
             {% endif %}
+            {% if session.role == 'Admin' and workorder.status != 'Completed' %}
+            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteWorkOrderModal">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -2794,5 +2799,36 @@ function toggleWoFlag(flagName, value) {
     });
 }
 </script>
+
+<!-- Delete Work Order Confirmation Modal -->
+<div class="modal fade" id="deleteWorkOrderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Delete Work Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete work order <strong>{{ workorder.wo_number }}</strong>?</p>
+                <p class="text-muted mb-2">This will also delete:</p>
+                <ul class="text-muted small">
+                    <li>All tasks and task materials</li>
+                    <li>Material requirements</li>
+                    <li>Stage history</li>
+                    <li>Attached documents</li>
+                </ul>
+                <p class="text-danger mb-0"><i class="bi bi-exclamation-circle me-1"></i>This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('workorder_routes.delete_workorder', id=workorder.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Delete Work Order
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
