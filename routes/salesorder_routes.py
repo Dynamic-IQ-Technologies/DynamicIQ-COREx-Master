@@ -1617,7 +1617,12 @@ def allocate_line(line_id):
             allocation_status = 'Partially Allocated'
             flash(f'Partially allocated {allocate_qty} of {requested_qty} units for {line["code"]}. {requested_qty - allocate_qty} units still needed.', 'warning')
         
-        # Update line with allocation
+        # Get the inventory unit cost to update line cost
+        inventory_unit_cost = inventory['unit_cost'] if inventory['unit_cost'] else 0.0
+        line_cost = allocate_qty * inventory_unit_cost
+        line_margin = ((line['unit_price'] - inventory_unit_cost) / line['unit_price'] * 100) if line['unit_price'] > 0 else 0.0
+        
+        # Update line with allocation and inventory cost
         conn.execute('''
             UPDATE sales_order_lines
             SET allocated_quantity = ?,
@@ -1625,6 +1630,8 @@ def allocate_line(line_id):
                 allocation_notes = ?,
                 serial_number = ?,
                 inventory_id = ?,
+                cost = ?,
+                margin = ?,
                 modified_by = ?,
                 modified_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -1634,6 +1641,8 @@ def allocate_line(line_id):
             f'Allocated from {inventory["warehouse_location"]}/{inventory["bin_location"] or "N/A"} (Inv ID: {inventory_id})',
             serial_number,
             inventory_id,
+            line_cost,
+            line_margin,
             session.get('user_id'),
             line_id
         ))
