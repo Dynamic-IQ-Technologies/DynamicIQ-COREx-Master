@@ -3283,16 +3283,20 @@ def issue_task_material(task_id, material_id):
         new_issued = (material['issued_qty'] or 0) + issue_qty
         new_status = 'Issued' if new_issued >= (material['required_qty'] or 0) else 'Partially Issued'
         
-        # Update task material
+        # Get unit cost from inventory
+        inv_unit_cost = float(inventory['unit_cost'] or 0)
+        material_cost = issue_qty * inv_unit_cost
+        
+        # Update task material with cost from inventory
         conn.execute('''
             UPDATE work_order_task_materials 
             SET issued_qty = ?, lot_number = COALESCE(?, lot_number), 
                 serial_number = COALESCE(?, serial_number),
                 material_status = ?, issued_by = ?, issued_at = CURRENT_TIMESTAMP,
-                inventory_id = ?
+                inventory_id = ?, unit_cost = ?
             WHERE id = ?
         ''', (new_issued, lot_number or None, serial_number or None, 
-              new_status, session.get('user_id'), inventory_id, material_id))
+              new_status, session.get('user_id'), inventory_id, inv_unit_cost, material_id))
         
         # Deduct from inventory
         new_inv_qty = inventory['quantity'] - issue_qty
@@ -3302,14 +3306,68 @@ def issue_task_material(task_id, material_id):
             WHERE id = ?
         ''', (new_inv_qty, inventory_id))
         
+        # Create GL entry for material issuance (DR: Material Cost, CR: Inventory)
+        if material_cost > 0:
+            work_order = conn.execute('SELECT wo_number FROM work_orders WHERE id = ?', (work_order_id,)).fetchone()
+            wo_number = work_order['wo_number'] if work_order else f'WO-{work_order_id}'
+            
+            # Generate entry number
+            last_entry = conn.execute('''
+                SELECT entry_number FROM gl_entries 
+                WHERE entry_number LIKE 'MAT-ISS-%'
+                ORDER BY id DESC LIMIT 1
+            ''').fetchone()
+            
+            if last_entry:
+                try:
+                    last_num = int(last_entry['entry_number'].split('-')[2])
+                    next_num = last_num + 1
+                except:
+                    next_num = 1
+            else:
+                next_num = 1
+            
+            entry_number = f'MAT-ISS-{next_num:06d}'
+            
+            gl_entry_id = conn.execute('''
+                INSERT INTO gl_entries (
+                    entry_number, entry_date, description,
+                    transaction_source, reference_type, reference_id,
+                    status, created_by, posted_by, posted_at
+                ) VALUES (?, date('now'), ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (
+                entry_number,
+                f'Material Issue - {wo_number} - {material["code"]}',
+                'Material Issue', 'work_order_task_material', material_id,
+                'Posted', session.get('user_id'), session.get('user_id')
+            )).lastrowid
+            
+            # Get account IDs
+            material_expense_acct = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '5100'").fetchone()
+            inventory_acct = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1130'").fetchone()
+            
+            if material_expense_acct and inventory_acct:
+                # DR: Material Cost (5100)
+                conn.execute('''
+                    INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+                    VALUES (?, ?, ?, 0, ?)
+                ''', (gl_entry_id, material_expense_acct['id'], material_cost, f'Material issued - {material["code"]}'))
+                
+                # CR: Inventory (1130)
+                conn.execute('''
+                    INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+                    VALUES (?, ?, 0, ?, ?)
+                ''', (gl_entry_id, inventory_acct['id'], material_cost, f'Material issued - {material["code"]}'))
+        
         AuditLogger.log(conn, 'work_order_task_materials', material_id, 'ISSUE',
                        {'issue_qty': issue_qty, 'new_total': new_issued, 
                         'lot_number': lot_number, 'serial_number': serial_number,
-                        'inventory_id': inventory_id, 'inventory_deducted': issue_qty},
+                        'inventory_id': inventory_id, 'inventory_deducted': issue_qty,
+                        'unit_cost': inv_unit_cost, 'material_cost': material_cost},
                        session.get('user_id'))
         
         conn.commit()
-        flash(f'Issued {issue_qty} of {material["code"]} - {material["name"]} from inventory', 'success')
+        flash(f'Issued {issue_qty} of {material["code"]} - {material["name"]} (${material_cost:.2f}) from inventory', 'success')
     except Exception as e:
         conn.rollback()
         flash(f'Error issuing material: {str(e)}', 'danger')
