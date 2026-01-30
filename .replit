@@ -44,3 +44,6 @@ build = ["python", "scripts/postgres_bootstrap.py"]
 
 [userenv.production]
 REPLIT_DEPLOYMENT = "1"
+
+[userenv.shared]
+BREVO_FROM_EMAIL = "information@aeronexd.com"
