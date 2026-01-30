@@ -777,7 +777,7 @@ def ojt_report():
     if sort_order not in ['asc', 'desc']:
         sort_order = 'desc'
     
-    query = '''
+    base_query = '''
         SELECT 
             wott.id,
             wott.entry_number,
@@ -795,7 +795,8 @@ def ojt_report():
             wott.labor_cost,
             wott.hourly_rate,
             wott.status,
-            wott.notes
+            wott.notes,
+            'WO' as source_type
         FROM work_order_time_tracking wott
         JOIN labor_resources lr ON wott.employee_id = lr.id
         JOIN work_orders wo ON wott.work_order_id = wo.id
@@ -806,32 +807,100 @@ def ojt_report():
     params = []
     
     if employee_filter:
-        query += ' AND wott.employee_id = ?'
+        base_query += ' AND wott.employee_id = ?'
         params.append(employee_filter)
     
     if date_from:
-        query += ' AND DATE(wott.clock_in_time) >= ?'
+        base_query += ' AND DATE(wott.clock_in_time) >= ?'
         params.append(date_from)
     
     if date_to:
-        query += ' AND DATE(wott.clock_in_time) <= ?'
+        base_query += ' AND DATE(wott.clock_in_time) <= ?'
         params.append(date_to)
     
     if wo_filter:
-        query += ' AND wo.id = ?'
+        base_query += ' AND wo.id = ?'
         params.append(wo_filter)
     
+    ndt_query = '''
+        SELECT 
+            tcp_in.id,
+            tcp_in.punch_number as entry_number,
+            lr.first_name || ' ' || lr.last_name as employee_name,
+            lr.employee_code,
+            nwo.ndt_wo_number as wo_number,
+            nwo.part_description as wo_description,
+            COALESCE(p.code, '') as part_number,
+            COALESCE(p.name, nwo.part_description) as part_name,
+            nwo.ndt_methods as task_name,
+            nwo.applicable_code as task_description,
+            tcp_in.punch_time as clock_in_time,
+            tcp_out.punch_time as clock_out_time,
+            CASE 
+                WHEN tcp_out.punch_time IS NOT NULL 
+                THEN ROUND((julianday(tcp_out.punch_time) - julianday(tcp_in.punch_time)) * 24, 2)
+                ELSE 0 
+            END as hours_worked,
+            CASE 
+                WHEN tcp_out.punch_time IS NOT NULL 
+                THEN ROUND((julianday(tcp_out.punch_time) - julianday(tcp_in.punch_time)) * 24 * COALESCE(lr.hourly_rate, 0), 2)
+                ELSE 0 
+            END as labor_cost,
+            lr.hourly_rate,
+            'Approved' as status,
+            tcp_in.notes,
+            'NDT' as source_type
+        FROM time_clock_punches tcp_in
+        JOIN labor_resources lr ON tcp_in.employee_id = lr.id
+        JOIN ndt_work_orders nwo ON tcp_in.ndt_work_order_id = nwo.id
+        LEFT JOIN products p ON nwo.product_id = p.id
+        LEFT JOIN time_clock_punches tcp_out ON (
+            tcp_out.employee_id = tcp_in.employee_id 
+            AND tcp_out.ndt_work_order_id = tcp_in.ndt_work_order_id
+            AND tcp_out.punch_type = 'Clock Out'
+            AND tcp_out.punch_time > tcp_in.punch_time
+            AND tcp_out.id = (
+                SELECT MIN(t2.id) FROM time_clock_punches t2 
+                WHERE t2.employee_id = tcp_in.employee_id 
+                AND t2.ndt_work_order_id = tcp_in.ndt_work_order_id 
+                AND t2.punch_type = 'Clock Out' 
+                AND t2.punch_time > tcp_in.punch_time
+            )
+        )
+        WHERE tcp_in.punch_type = 'Clock In'
+          AND tcp_in.ndt_work_order_id IS NOT NULL
+    '''
+    ndt_params = []
+    
+    if employee_filter:
+        ndt_query += ' AND tcp_in.employee_id = ?'
+        ndt_params.append(employee_filter)
+    
+    if date_from:
+        ndt_query += ' AND DATE(tcp_in.punch_time) >= ?'
+        ndt_params.append(date_from)
+    
+    if date_to:
+        ndt_query += ' AND DATE(tcp_in.punch_time) <= ?'
+        ndt_params.append(date_to)
+    
+    if wo_filter and str(wo_filter).startswith('NDT-'):
+        pass
+    
+    query = f'SELECT * FROM ({base_query} UNION ALL {ndt_query}) combined'
+    all_params = params + ndt_params
+    
     sort_col_map = {
-        'employee_name': 'lr.first_name',
-        'wo_number': 'wo.wo_number',
-        'clock_in_time': 'wott.clock_in_time',
-        'clock_out_time': 'wott.clock_out_time',
-        'hours_worked': 'wott.hours_worked'
+        'employee_name': 'employee_name',
+        'wo_number': 'wo_number',
+        'clock_in_time': 'clock_in_time',
+        'clock_out_time': 'clock_out_time',
+        'hours_worked': 'hours_worked'
     }
     
-    query += f' ORDER BY {sort_col_map.get(sort_by, "wott.clock_in_time")} {sort_order.upper()}'
+    query += f' ORDER BY {sort_col_map.get(sort_by, "clock_in_time")} {sort_order.upper()}'
     
-    time_entries = conn.execute(query, params).fetchall()
+    time_entries = conn.execute(query, all_params).fetchall()
     
     employees = conn.execute('''
         SELECT id, employee_code, first_name || ' ' || last_name as name
@@ -841,10 +910,16 @@ def ojt_report():
     ''').fetchall()
     
     work_orders = conn.execute('''
-        SELECT DISTINCT wo.id, wo.wo_number
-        FROM work_orders wo
-        JOIN work_order_time_tracking wott ON wo.id = wott.work_order_id
-        ORDER BY wo.wo_number DESC
+        SELECT wo_number, wo_number as id FROM (
+            SELECT DISTINCT wo.wo_number
+            FROM work_orders wo
+            JOIN work_order_time_tracking wott ON wo.id = wott.work_order_id
+            UNION
+            SELECT DISTINCT nwo.ndt_wo_number as wo_number
+            FROM ndt_work_orders nwo
+            JOIN time_clock_punches tcp ON nwo.id = tcp.ndt_work_order_id
+        ) combined
+        ORDER BY wo_number DESC
     ''').fetchall()
     
     grouped_data = {}
