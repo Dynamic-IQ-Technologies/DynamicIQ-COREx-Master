@@ -279,6 +279,34 @@
                     </div>
                 </div>
                 {% endif %}
+                
+                <!-- Fulfill Obligation Button -->
+                {% if po.exchange_status != 'Completed' and session.role in ['Admin', 'Procurement', 'Supervisor'] %}
+                <div class="mt-3 pt-3 border-top">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#fulfillObligationModal">
+                        <i class="bi bi-check2-circle me-1"></i> Fulfill Obligation
+                    </button>
+                    <small class="text-muted ms-2">Assign inventory or work order to close this obligation</small>
+                </div>
+                {% elif po.exchange_status == 'Completed' and po.obligation_fulfilled_by_type %}
+                <div class="mt-3 pt-3 border-top">
+                    <div class="alert alert-success mb-0 py-2">
+                        <i class="bi bi-check-circle-fill me-1"></i>
+                        <strong>Obligation Fulfilled:</strong>
+                        {% if po.obligation_fulfilled_by_type == 'inventory' %}
+                        Inventory INV-{{ '%06d'|format(po.obligation_fulfilled_by_id) }}
+                        {% else %}
+                        Work Order linked
+                        {% endif %}
+                        - 
+                        {% if po.obligation_fulfillment_action == 'return_to_supplier' %}
+                        <span class="badge bg-warning text-dark">Return to Supplier</span>
+                        {% else %}
+                        <span class="badge bg-info">Kept In-House</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -1175,5 +1203,188 @@ async function confirmDeletePO() {
     }
 }
 </script>
+
+<!-- Fulfill Obligation Modal -->
+{% if po.is_exchange and po.exchange_status != 'Completed' %}
+<div class="modal fade" id="fulfillObligationModal" tabindex="-1" aria-labelledby="fulfillObligationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('po_routes.fulfill_exchange_obligation', id=po.id) }}">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="fulfillObligationModalLabel">
+                        <i class="bi bi-check2-circle me-2"></i>Fulfill Exchange PO Obligation
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Select an inventory unit or work order to fulfill this Exchange PO obligation. 
+                        Then choose whether to return the unit to the supplier or keep it in-house.
+                    </div>
+                    
+                    <!-- Source Selection -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Source Type <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="source_type" id="sourceInventory" value="inventory" checked>
+                            <label class="btn btn-outline-primary" for="sourceInventory">
+                                <i class="bi bi-box-seam me-1"></i> Inventory Unit
+                            </label>
+                            <input type="radio" class="btn-check" name="source_type" id="sourceWorkOrder" value="work_order">
+                            <label class="btn btn-outline-primary" for="sourceWorkOrder">
+                                <i class="bi bi-gear me-1"></i> Work Order
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Inventory Selection -->
+                    <div id="inventorySelection" class="mb-3">
+                        <label class="form-label fw-bold">Select Inventory Unit <span class="text-danger">*</span></label>
+                        <select class="form-select source-select" id="inventorySelect">
+                            <option value="">Loading available units...</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Work Order Selection -->
+                    <div id="workOrderSelection" class="mb-3" style="display: none;">
+                        <label class="form-label fw-bold">Select Work Order <span class="text-danger">*</span></label>
+                        <select class="form-select source-select" id="workOrderSelect">
+                            <option value="">Loading available work orders...</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Hidden field for actual source_id submission -->
+                    <input type="hidden" name="source_id" id="hiddenSourceId" value="">
+                    
+                    <!-- Fulfillment Action -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fulfillment Action <span class="text-danger">*</span></label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check card p-3 h-100">
+                                    <input class="form-check-input" type="radio" name="fulfillment_action" 
+                                           id="actionReturn" value="return_to_supplier" required>
+                                    <label class="form-check-label" for="actionReturn">
+                                        <strong><i class="bi bi-arrow-return-left text-warning me-1"></i> Return to Supplier</strong>
+                                        <p class="text-muted small mb-0 mt-1">
+                                            Unit will be shipped back to the supplier. Creates a pending shipment task.
+                                        </p>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check card p-3 h-100">
+                                    <input class="form-check-input" type="radio" name="fulfillment_action" 
+                                           id="actionKeep" value="keep_in_house">
+                                    <label class="form-check-label" for="actionKeep">
+                                        <strong><i class="bi bi-house-door text-info me-1"></i> Keep In-House</strong>
+                                        <p class="text-muted small mb-0 mt-1">
+                                            Transfer ownership to company inventory. Unit will be available for internal use.
+                                        </p>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label for="fulfillmentNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="fulfillmentNotes" name="notes" rows="2" 
+                                  placeholder="Optional notes about this fulfillment..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check2-circle me-1"></i> Fulfill Obligation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('fulfillObligationModal');
+    if (!modal) return;
+    
+    const inventorySelect = document.getElementById('inventorySelect');
+    const workOrderSelect = document.getElementById('workOrderSelect');
+    const inventoryDiv = document.getElementById('inventorySelection');
+    const workOrderDiv = document.getElementById('workOrderSelection');
+    const sourceRadios = document.querySelectorAll('input[name="source_type"]');
+    
+    // Load available units when modal opens
+    modal.addEventListener('show.bs.modal', function() {
+        fetch('/api/purchaseorders/{{ po.id }}/available-units')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Populate inventory select
+                    inventorySelect.innerHTML = '<option value="">-- Select Inventory Unit --</option>';
+                    data.inventory.forEach(inv => {
+                        let label = `INV-${String(inv.id).padStart(6, '0')}`;
+                        if (inv.serial_number) label += ` | S/N: ${inv.serial_number}`;
+                        if (inv.lot_number) label += ` | Lot: ${inv.lot_number}`;
+                        if (inv.condition) label += ` | ${inv.condition}`;
+                        label += ` | Qty: ${inv.quantity}`;
+                        inventorySelect.innerHTML += `<option value="${inv.id}">${label}</option>`;
+                    });
+                    if (data.inventory.length === 0) {
+                        inventorySelect.innerHTML = '<option value="">No inventory available for this product</option>';
+                    }
+                    
+                    // Populate work order select
+                    workOrderSelect.innerHTML = '<option value="">-- Select Work Order --</option>';
+                    data.work_orders.forEach(wo => {
+                        let label = `${wo.wo_number} | ${wo.status}`;
+                        if (wo.serial_number) label += ` | S/N: ${wo.serial_number}`;
+                        if (wo.customer_name) label += ` | Customer: ${wo.customer_name}`;
+                        workOrderSelect.innerHTML += `<option value="${wo.id}">${label}</option>`;
+                    });
+                    if (data.work_orders.length === 0) {
+                        workOrderSelect.innerHTML = '<option value="">No work orders available for this product</option>';
+                    }
+                } else {
+                    console.error('Error loading units:', data.error);
+                }
+            })
+            .catch(err => console.error('Error fetching units:', err));
+    });
+    
+    const hiddenSourceId = document.getElementById('hiddenSourceId');
+    
+    // Update hidden field when selection changes
+    function updateHiddenSourceId() {
+        const sourceType = document.querySelector('input[name="source_type"]:checked').value;
+        if (sourceType === 'inventory') {
+            hiddenSourceId.value = inventorySelect.value;
+        } else {
+            hiddenSourceId.value = workOrderSelect.value;
+        }
+    }
+    
+    inventorySelect.addEventListener('change', updateHiddenSourceId);
+    workOrderSelect.addEventListener('change', updateHiddenSourceId);
+    
+    // Toggle source type selection
+    sourceRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'inventory') {
+                inventoryDiv.style.display = 'block';
+                workOrderDiv.style.display = 'none';
+            } else {
+                inventoryDiv.style.display = 'none';
+                workOrderDiv.style.display = 'block';
+            }
+            updateHiddenSourceId();
+        });
+    });
+});
+</script>
+{% endif %}
 
 {% endblock %}
