@@ -599,7 +599,7 @@ Create a phased action plan:
 - Phase 3 (6-12 months): Market expansion
 - Key milestones and success metrics
 
-Format your response with clear markdown headings, bullet points, and specific actionable recommendations. Be extremely detailed and data-driven in your analysis."""
+Format your response with clear section headings using plain text (no special characters like asterisks or hash symbols). Use numbered lists or dashes for bullet points and provide specific actionable recommendations. Be extremely detailed and data-driven in your analysis."""
 
         # Call OpenAI API
         client = get_openai_client()
@@ -609,7 +609,7 @@ Format your response with clear markdown headings, bullet points, and specific a
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert aviation MRO market analyst providing strategic business insights."
+                    "content": "You are an expert aviation MRO market analyst providing strategic business insights. IMPORTANT: Do not use special characters such as asterisks, hash symbols, or other markdown formatting in your response. Use plain text only with clear section headings."
                 },
                 {
                     "role": "user",

@@ -5,6 +5,7 @@ Dynamic.IQ-COREx is a Flask-based Manufacturing Resource Planning (MRP) system d
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+AI Report Generation: Do not use special characters when generating AI market analysis reports.
 
 ## System Architecture
 
