@@ -769,10 +769,11 @@ def delete_workorder(id):
             return redirect(url_for('workorder_routes.view_workorder', id=id))
         
         # Check for linked records that would prevent deletion
-        # Check for issued materials
+        # Check for issued materials (via task_material_requirements linked to work_order_tasks)
         issued_materials = conn.execute('''
-            SELECT COUNT(*) as count FROM work_order_task_materials 
-            WHERE work_order_id = ? AND issued_qty > 0
+            SELECT COUNT(*) as count FROM task_material_requirements tmr
+            JOIN work_order_tasks wot ON tmr.task_id = wot.id
+            WHERE wot.work_order_id = ? AND tmr.quantity_issued > 0
         ''', (id,)).fetchone()
         
         if issued_materials and issued_materials['count'] > 0:
