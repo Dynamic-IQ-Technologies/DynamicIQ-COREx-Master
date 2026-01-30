@@ -83,6 +83,48 @@ def list_products_json():
     conn.close()
     return jsonify([dict(p) for p in products])
 
+@product_bp.route('/api/products/quick-create', methods=['POST'])
+@login_required
+def quick_create_product():
+    try:
+        data = request.get_json()
+        code = data.get('code', '').strip()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        category = data.get('category', 'Component')
+        cost = float(data.get('cost', 0))
+        
+        if not code or not name:
+            return jsonify({'success': False, 'error': 'Part number and name are required'})
+        
+        db = Database()
+        conn = db.get_connection()
+        
+        existing = conn.execute('SELECT id FROM products WHERE code = ?', (code,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'success': False, 'error': f'Product with code {code} already exists'})
+        
+        cursor = conn.execute('''
+            INSERT INTO products (code, name, description, category, cost, product_type, status)
+            VALUES (?, ?, ?, ?, ?, 'Standard', 'Active')
+        ''', (code, name, description, category, cost))
+        
+        product_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'product': {
+                'id': product_id,
+                'code': code,
+                'name': name
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @product_bp.route('/products/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
 def create_product():
