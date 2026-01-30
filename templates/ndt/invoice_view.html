@@ -163,12 +163,6 @@
                         {{ "%.2f"|format(invoice.balance_due or 0) }}
                     </strong>
                 </div>
-                {% if session.role in ['Admin', 'Accountant'] and invoice.status not in ['Cancelled', 'Void', 'Paid'] and (invoice.balance_due or 0) > 0 %}
-                <hr>
-                <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
-                    <i class="bi bi-cash-coin me-2"></i>Record Payment
-                </button>
-                {% endif %}
             </div>
         </div>
 
