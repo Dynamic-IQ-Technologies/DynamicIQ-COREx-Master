@@ -463,6 +463,77 @@ Standard Terms and Conditions:
         return jsonify({'success': False, 'error': str(e)})
 
 
+@exchange_bp.route('/<int:exchange_id>/create-late-fee-invoice', methods=['POST'])
+@login_required
+def create_late_fee_invoice(exchange_id):
+    conn = get_db()
+    
+    try:
+        exchange = conn.execute('''
+            SELECT em.*, c.name as customer_name, p.code as product_code, p.name as product_name,
+                   ec.days_outstanding
+            FROM exchange_master em
+            JOIN customers c ON em.customer_id = c.id
+            JOIN products p ON em.product_id = p.id
+            LEFT JOIN exchange_cores ec ON ec.exchange_id = em.id
+            WHERE em.id = ?
+        ''', (exchange_id,)).fetchone()
+        
+        if not exchange:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Exchange not found'})
+        
+        fee_type = request.form.get('fee_type', 'percentage')
+        core_value = safe_float(exchange['core_value'])
+        notes = request.form.get('notes', '').strip()
+        
+        if fee_type == 'percentage':
+            percentage = safe_float(request.form.get('fee_percentage', 10))
+            late_fee = core_value * (percentage / 100)
+            fee_desc = f"{percentage}% of core value"
+        elif fee_type == 'flat':
+            late_fee = safe_float(request.form.get('flat_fee', 0))
+            fee_desc = "Flat fee"
+        else:
+            late_fee = core_value
+            fee_desc = "Full core charge"
+        
+        count = conn.execute('SELECT COUNT(*) as count FROM invoices').fetchone()['count']
+        invoice_number = f"INV-{count + 1:05d}"
+        
+        today = date.today()
+        due_date = today + timedelta(days=30)
+        
+        cursor = conn.execute('''
+            INSERT INTO invoices (
+                invoice_number, invoice_type, customer_id, exchange_id,
+                invoice_date, due_date, payment_terms, status,
+                subtotal, tax_rate, tax_amount, discount_amount, total_amount,
+                balance_due, notes, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            invoice_number, 'Exchange Late Fee', exchange['customer_id'], exchange_id,
+            today.isoformat(), due_date.isoformat(), 30, 'Draft',
+            late_fee, 0, 0, 0, late_fee,
+            late_fee, f"Late fee for exchange {exchange['exchange_id']}: {fee_desc}. Days overdue: {exchange['days_outstanding'] or 0}. {notes}",
+            session.get('user_id')
+        ))
+        
+        invoice_id = cursor.lastrowid
+        
+        log_exchange_audit(conn, exchange_id, 'Late Fee Invoice Created', None, None,
+                          f'Invoice {invoice_number} created for ${late_fee:,.2f}',
+                          session.get('user_id'), session.get('username'))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'invoice_id': invoice_id, 'invoice_number': invoice_number})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @exchange_bp.route('/<int:exchange_id>/link-po', methods=['POST'])
 @login_required
 def link_purchase_order(exchange_id):
