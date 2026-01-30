@@ -3342,16 +3342,16 @@ def issue_task_material(task_id, material_id):
                 'Posted', session.get('user_id'), session.get('user_id')
             )).lastrowid
             
-            # Get account IDs
-            material_expense_acct = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '5100'").fetchone()
+            # Get account IDs - Use WIP for job costing
+            wip_acct = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1140'").fetchone()
             inventory_acct = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1130'").fetchone()
             
-            if material_expense_acct and inventory_acct:
-                # DR: Material Cost (5100)
+            if wip_acct and inventory_acct:
+                # DR: WIP - Work in Process (1140)
                 conn.execute('''
                     INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
                     VALUES (?, ?, ?, 0, ?)
-                ''', (gl_entry_id, material_expense_acct['id'], material_cost, f'Material issued - {material["code"]}'))
+                ''', (gl_entry_id, wip_acct['id'], material_cost, f'Material issued - {material["code"]}'))
                 
                 # CR: Inventory (1130)
                 conn.execute('''

@@ -348,10 +348,10 @@ def clock_punch():
                     
                     gl_lines = [
                         {
-                            'account_code': '5200',
+                            'account_code': '1140',
                             'debit': round(labor_cost, 2),
                             'credit': 0,
-                            'description': f'WO Labor - {emp_name} ({wo_number})'
+                            'description': f'WIP - WO Labor - {emp_name} ({wo_number})'
                         },
                         {
                             'account_code': '2150',

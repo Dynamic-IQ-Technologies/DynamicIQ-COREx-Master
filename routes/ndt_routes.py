@@ -2063,10 +2063,10 @@ def wo_sync_labor_costs(id):
         if labor_cost > 0:
             gl_lines = [
                 {
-                    'account_code': '5200',
+                    'account_code': '1140',
                     'debit': labor_cost,
                     'credit': 0,
-                    'description': f'NDT Labor - {punch["first_name"]} {punch["last_name"]} ({ndt_wo_number})'
+                    'description': f'WIP - NDT Labor - {punch["first_name"]} {punch["last_name"]} ({ndt_wo_number})'
                 },
                 {
                     'account_code': '2150',
@@ -2140,10 +2140,10 @@ def sync_all_costs_to_accounting():
             emp_name = f'{cost["first_name"]} {cost["last_name"]}' if cost['first_name'] else 'Employee'
             gl_lines = [
                 {
-                    'account_code': '5200',
+                    'account_code': '1140',
                     'debit': total_cost,
                     'credit': 0,
-                    'description': f'NDT Labor - {emp_name} ({ndt_wo_number})'
+                    'description': f'WIP - NDT Labor - {emp_name} ({ndt_wo_number})'
                 },
                 {
                     'account_code': '2150',
@@ -2155,13 +2155,13 @@ def sync_all_costs_to_accounting():
         elif cost_type == 'Material':
             gl_lines = [
                 {
-                    'account_code': '5200',
+                    'account_code': '1140',
                     'debit': total_cost,
                     'credit': 0,
-                    'description': f'NDT Material - {cost["description"]} ({ndt_wo_number})'
+                    'description': f'WIP - NDT Material - {cost["description"]} ({ndt_wo_number})'
                 },
                 {
-                    'account_code': '1300',
+                    'account_code': '1130',
                     'debit': 0,
                     'credit': total_cost,
                     'description': f'Inventory - NDT Material ({ndt_wo_number})'
@@ -2170,7 +2170,7 @@ def sync_all_costs_to_accounting():
         elif cost_type == 'Subcontract':
             gl_lines = [
                 {
-                    'account_code': '5300',
+                    'account_code': '1140',
                     'debit': total_cost,
                     'credit': 0,
                     'description': f'NDT Subcontract - {cost["description"]} ({ndt_wo_number})'
@@ -2438,13 +2438,13 @@ def wo_issue_material(wo_id, mat_id):
     if total_cost > 0:
         gl_lines = [
             {
-                'account_code': '5200',
+                'account_code': '1140',
                 'debit': total_cost,
                 'credit': 0,
-                'description': f'NDT Material - {product_desc} ({ndt_wo["ndt_wo_number"]})'
+                'description': f'WIP - NDT Material - {product_desc} ({ndt_wo["ndt_wo_number"]})'
             },
             {
-                'account_code': '1300',
+                'account_code': '1130',
                 'debit': 0,
                 'credit': total_cost,
                 'description': f'Inventory - NDT Material Issue ({ndt_wo["ndt_wo_number"]})'
@@ -2669,10 +2669,10 @@ def wo_clock_out(id):
     if labor_cost > 0:
         gl_lines = [
             {
-                'account_code': '5200',
+                'account_code': '1140',
                 'debit': labor_cost,
                 'credit': 0,
-                'description': f'NDT Labor - {employee["first_name"]} {employee["last_name"]} ({ndt_wo_number})'
+                'description': f'WIP - NDT Labor - {employee["first_name"]} {employee["last_name"]} ({ndt_wo_number})'
             },
             {
                 'account_code': '2150',
