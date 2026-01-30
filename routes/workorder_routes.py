@@ -3074,8 +3074,8 @@ def add_task_material(task_id):
         try:
             # Create the new part
             cursor = conn.execute('''
-                INSERT INTO products (code, name, description, product_type, unit_of_measure, status, created_at)
-                VALUES (?, ?, ?, 'Part', ?, 'Active', CURRENT_TIMESTAMP)
+                INSERT INTO products (code, name, description, product_type, unit_of_measure, created_at)
+                VALUES (?, ?, ?, 'Part', ?, CURRENT_TIMESTAMP)
             ''', (new_part_code, new_part_name, new_part_description, unit_of_measure))
             product_id = cursor.lastrowid
             conn.commit()
