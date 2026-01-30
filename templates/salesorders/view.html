@@ -305,7 +305,16 @@
                                 {% if line.discount_percent > 0 %}
                                 <p class="mb-1 text-success">Discount: {{ line.discount_percent }}%</p>
                                 {% endif %}
-                                <p class="mb-0 fs-5"><strong>Line Total: {{ line.line_total|currency }}</strong></p>
+                                <p class="mb-1 fs-5"><strong>Line Total: {{ line.line_total|currency }}</strong></p>
+                                {% if line.allocation_status in ['Allocated', 'Partially Allocated'] and line.cost %}
+                                <hr class="my-2">
+                                <p class="mb-1 text-muted small">
+                                    <i class="bi bi-box-seam"></i> Inv Cost: <strong>{{ line.cost|currency }}</strong>
+                                </p>
+                                <p class="mb-0 {% if line.margin and line.margin > 20 %}text-success{% elif line.margin and line.margin > 0 %}text-warning{% else %}text-danger{% endif %} small">
+                                    <i class="bi bi-percent"></i> Margin: <strong>{{ "%.1f"|format(line.margin if line.margin else 0) }}%</strong>
+                                </p>
+                                {% endif %}
                             </div>
                             <div class="col-md-3 text-end">
                                 {% if session.role in ['Admin', 'Planner'] and sales_order.status in ['Draft', 'Confirmed'] %}
