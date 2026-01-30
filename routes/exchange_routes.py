@@ -253,12 +253,15 @@ def view_exchange(exchange_id):
                u.username as created_by_name,
                wo.wo_number as repair_wo_number, wo.status as repair_wo_status,
                sol.serial_number as allocated_serial, sol.quantity as line_qty,
-               sol.unit_price as line_unit_price, sol.line_total as line_total
+               sol.unit_price as line_unit_price, sol.line_total as line_total,
+               COALESCE(i.unit_cost, sol.cost, 0) as inventory_cost,
+               COALESCE(sol.unit_price, 0) as line_exchange_fee
         FROM exchange_master em
         JOIN customers c ON em.customer_id = c.id
         JOIN products p ON em.product_id = p.id
         LEFT JOIN sales_orders so ON em.sales_order_id = so.id
-        LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+        LEFT JOIN sales_order_lines sol ON so.id = sol.so_id AND sol.product_id = em.product_id
+        LEFT JOIN inventory i ON sol.inventory_id = i.id
         LEFT JOIN users u ON em.created_by = u.id
         LEFT JOIN work_orders wo ON em.repair_work_order_id = wo.id
         WHERE em.id = ?

@@ -97,9 +97,9 @@
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-6">Core Value:</dt>
-                        <dd class="col-6 text-end fw-bold">${{ fmt("{:,.2f}", exchange.core_value or exchange.so_core_charge or 0) }}</dd>
+                        <dd class="col-6 text-end fw-bold">${{ fmt("{:,.2f}", exchange.inventory_cost or exchange.core_value or 0) }}</dd>
                         <dt class="col-6">Exchange Fee:</dt>
-                        <dd class="col-6 text-end">${{ fmt("{:,.2f}", exchange.exchange_fee or 0) }}</dd>
+                        <dd class="col-6 text-end">${{ fmt("{:,.2f}", exchange.line_exchange_fee or exchange.exchange_fee or 0) }}</dd>
                         <dt class="col-6">Deposit:</dt>
                         <dd class="col-6 text-end">${{ fmt("{:,.2f}", exchange.deposit_amount or 0) }}</dd>
                         <dt class="col-6">Penalties:</dt>
