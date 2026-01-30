@@ -1022,12 +1022,33 @@
                                     <div class="modal-body">
                                         <div class="mb-3">
                                             <label class="form-label">Part Number <span class="text-danger">*</span></label>
-                                            <select name="product_id" class="form-select" required>
+                                            <select name="product_id" class="form-select product-select-{{ task.id }}" id="productSelect{{ task.id }}">
                                                 <option value="">Select Part...</option>
+                                                <option value="__NEW__">+ Create New Part...</option>
                                                 {% for p in all_products %}
                                                 <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
                                                 {% endfor %}
                                             </select>
+                                        </div>
+                                        <div class="new-part-fields-{{ task.id }}" id="newPartFields{{ task.id }}" style="display: none;">
+                                            <div class="alert alert-info py-2 mb-3">
+                                                <i class="bi bi-info-circle me-1"></i> Enter details for the new part
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Part Code <span class="text-danger">*</span></label>
+                                                    <input type="text" name="new_part_code" class="form-control" placeholder="e.g., 745-3000-515">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Part Name <span class="text-danger">*</span></label>
+                                                    <input type="text" name="new_part_name" class="form-control" placeholder="e.g., RADOME">
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Description</label>
+                                                <input type="text" name="new_part_description" class="form-control" placeholder="Optional description">
+                                            </div>
+                                            <hr>
                                         </div>
                                         <div class="row">
                                             <div class="col-md-6">
@@ -2798,6 +2819,29 @@ function toggleWoFlag(flagName, value) {
         }
     });
 }
+
+// Handle "Create New Part" option in task material modals
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('select[name="product_id"]').forEach(function(select) {
+        select.addEventListener('change', function() {
+            const taskId = this.id.replace('productSelect', '');
+            const newPartFields = document.getElementById('newPartFields' + taskId);
+            if (newPartFields) {
+                if (this.value === '__NEW__') {
+                    newPartFields.style.display = 'block';
+                    // Make new part fields required
+                    newPartFields.querySelector('input[name="new_part_code"]').required = true;
+                    newPartFields.querySelector('input[name="new_part_name"]').required = true;
+                } else {
+                    newPartFields.style.display = 'none';
+                    // Remove required from new part fields
+                    newPartFields.querySelector('input[name="new_part_code"]').required = false;
+                    newPartFields.querySelector('input[name="new_part_name"]').required = false;
+                }
+            }
+        });
+    });
+});
 </script>
 
 <!-- Delete Work Order Confirmation Modal -->

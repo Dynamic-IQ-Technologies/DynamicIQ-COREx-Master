@@ -3053,6 +3053,39 @@ def add_task_material(task_id):
     required_by_date = request.form.get('required_by_date') or None
     notes = request.form.get('notes', '')
     
+    # Handle creating a new part if selected
+    if product_id == '__NEW__':
+        new_part_code = request.form.get('new_part_code', '').strip()
+        new_part_name = request.form.get('new_part_name', '').strip()
+        new_part_description = request.form.get('new_part_description', '').strip()
+        
+        if not new_part_code or not new_part_name:
+            flash('Part Code and Part Name are required when creating a new part.', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']))
+        
+        # Check if part code already exists
+        existing_part = conn.execute('SELECT id FROM products WHERE code = ?', (new_part_code,)).fetchone()
+        if existing_part:
+            flash(f'Part code {new_part_code} already exists. Please select it from the list.', 'warning')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']))
+        
+        try:
+            # Create the new part
+            cursor = conn.execute('''
+                INSERT INTO products (code, name, description, product_type, unit_of_measure, status, created_at)
+                VALUES (?, ?, ?, 'Part', ?, 'Active', CURRENT_TIMESTAMP)
+            ''', (new_part_code, new_part_name, new_part_description, unit_of_measure))
+            product_id = cursor.lastrowid
+            conn.commit()
+            flash(f'New part {new_part_code} - {new_part_name} created successfully.', 'success')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error creating new part: {str(e)}', 'danger')
+            conn.close()
+            return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']))
+    
     product = conn.execute('''
         SELECT p.cost, COALESCE(i.unit_cost, 0) as inv_cost 
         FROM products p 
