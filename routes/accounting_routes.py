@@ -281,9 +281,9 @@ def revenue_tracker():
     
     ndt_costs = conn.execute(f'''
         SELECT 
-            COALESCE(COUNT(DISTINCT nr.id) * 75.0, 0) as labor_cost
-        FROM ndt_inspection_results nr
-        JOIN ndt_work_orders nwo ON nr.ndt_wo_id = nwo.id
+            COALESCE(SUM(c.total_cost), 0) as tracked_cost
+        FROM ndt_wo_costs c
+        JOIN ndt_work_orders nwo ON c.ndt_wo_id = nwo.id
         WHERE 1=1 {date_filter_ndt.replace('created_at', 'nwo.created_at')}
     ''', params_ndt).fetchone()
     
@@ -420,7 +420,7 @@ def revenue_tracker():
     ops_margin = (ops_profit / ops_rev * 100) if ops_rev > 0 else 0
     
     ndt_rev = ndt_revenue['invoiced_revenue'] if ndt_revenue else 0
-    ndt_cost = ndt_costs['labor_cost'] if ndt_costs else 0
+    ndt_cost = ndt_costs['tracked_cost'] if ndt_costs else 0
     ndt_profit = ndt_rev - ndt_cost
     ndt_margin = (ndt_profit / ndt_rev * 100) if ndt_rev > 0 else 0
     
