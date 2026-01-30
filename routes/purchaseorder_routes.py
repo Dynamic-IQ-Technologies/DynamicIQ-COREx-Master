@@ -2369,3 +2369,201 @@ def supplier_view_po(token):
                          company=company,
                          lines=lines,
                          total_amount=total_amount)
+
+
+@po_bp.route('/api/purchaseorders/<int:id>/available-units')
+@login_required
+def get_available_units_for_obligation(id):
+    """Get available inventory units and work orders that can fulfill an Exchange PO obligation"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('''
+            SELECT po.*, pol.product_id
+            FROM purchase_orders po
+            LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
+            WHERE po.id = ?
+        ''', (id,)).fetchone()
+        
+        if not po or not po['is_exchange']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Not an Exchange PO'}), 400
+        
+        product_id = po['product_id']
+        
+        # Get available inventory units for this product
+        inventory_units = conn.execute('''
+            SELECT i.id, i.quantity, i.lot_number, i.serial_number, i.trace_tag,
+                   i.unit_cost, i.condition, i.warehouse_location,
+                   p.code as product_code, p.name as product_name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.product_id = ? AND i.quantity > 0
+            ORDER BY i.serial_number, i.lot_number
+        ''', (product_id,)).fetchall()
+        
+        # Get work orders for this product that are completed or in progress
+        work_orders = conn.execute('''
+            SELECT wo.id, wo.wo_number, wo.status, wo.serial_number, wo.priority,
+                   p.code as product_code, p.name as product_name,
+                   c.name as customer_name
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers c ON wo.customer_id = c.id
+            WHERE wo.product_id = ? AND wo.status IN ('Completed', 'In Progress', 'Released')
+            ORDER BY wo.wo_number DESC
+        ''', (product_id,)).fetchall()
+        
+        result = {
+            'success': True,
+            'inventory': [dict(inv) for inv in inventory_units],
+            'work_orders': [dict(wo) for wo in work_orders]
+        }
+        
+        conn.close()
+        return jsonify(result)
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@po_bp.route('/purchaseorders/<int:id>/fulfill-obligation', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Supervisor')
+def fulfill_exchange_obligation(id):
+    """Fulfill an Exchange PO obligation by assigning inventory or work order"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not po:
+            flash('Purchase order not found', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.list_purchaseorders'))
+        
+        if not po['is_exchange']:
+            flash('This is not an Exchange Purchase Order', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        if po['exchange_status'] == 'Completed':
+            flash('This Exchange PO obligation has already been fulfilled', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        # Get form data
+        source_type = request.form.get('source_type')  # 'inventory' or 'work_order'
+        source_id = request.form.get('source_id')
+        fulfillment_action = request.form.get('fulfillment_action')  # 'return_to_supplier' or 'keep_in_house'
+        notes = request.form.get('notes', '')
+        
+        if not source_type or not source_id or not fulfillment_action:
+            flash('Please select a unit and action', 'warning')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        source_id = int(source_id)
+        user_id = session.get('user_id')
+        now = datetime.now()
+        
+        # Get supplier info for potential ownership transfer
+        supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (po['supplier_id'],)).fetchone()
+        
+        if source_type == 'inventory':
+            inv = conn.execute('SELECT * FROM inventory WHERE id = ?', (source_id,)).fetchone()
+            if not inv:
+                flash('Selected inventory unit not found', 'danger')
+                conn.close()
+                return redirect(url_for('po_routes.view_purchaseorder', id=id))
+            
+            if fulfillment_action == 'return_to_supplier':
+                # Mark inventory as allocated for return, will need to ship
+                conn.execute('''
+                    UPDATE inventory 
+                    SET notes = COALESCE(notes, '') || ? 
+                    WHERE id = ?
+                ''', (f'\n[{now.strftime("%Y-%m-%d")}] Allocated for return to supplier per Exchange PO {po["po_number"]}', source_id))
+                
+                action_desc = f'Inventory INV-{source_id:06d} allocated for return to {supplier["name"] if supplier else "supplier"}'
+            else:
+                # Keep in house - transfer ownership to company
+                conn.execute('''
+                    UPDATE inventory 
+                    SET source = 'Exchange Fulfillment',
+                        notes = COALESCE(notes, '') || ?
+                    WHERE id = ?
+                ''', (f'\n[{now.strftime("%Y-%m-%d")}] Ownership transferred from Exchange PO {po["po_number"]} - kept in-house', source_id))
+                
+                action_desc = f'Inventory INV-{source_id:06d} kept in-house, ownership transferred'
+        
+        elif source_type == 'work_order':
+            wo = conn.execute('SELECT * FROM work_orders WHERE id = ?', (source_id,)).fetchone()
+            if not wo:
+                flash('Selected work order not found', 'danger')
+                conn.close()
+                return redirect(url_for('po_routes.view_purchaseorder', id=id))
+            
+            if fulfillment_action == 'return_to_supplier':
+                # Mark work order for return
+                conn.execute('''
+                    UPDATE work_orders 
+                    SET notes = COALESCE(notes, '') || ?
+                    WHERE id = ?
+                ''', (f'\n[{now.strftime("%Y-%m-%d")}] Output allocated for return to supplier per Exchange PO {po["po_number"]}', source_id))
+                
+                action_desc = f'Work Order {wo["wo_number"]} output allocated for return to {supplier["name"] if supplier else "supplier"}'
+            else:
+                # Keep in house - clear customer assignment if any, transfer to stock
+                conn.execute('''
+                    UPDATE work_orders 
+                    SET customer_id = NULL,
+                        notes = COALESCE(notes, '') || ?
+                    WHERE id = ?
+                ''', (f'\n[{now.strftime("%Y-%m-%d")}] Ownership transferred from Exchange PO {po["po_number"]} - kept in-house for stock', source_id))
+                
+                action_desc = f'Work Order {wo["wo_number"]} kept in-house, ownership transferred to stock'
+        else:
+            flash('Invalid source type', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+        # Update the PO with fulfillment info and close the obligation
+        conn.execute('''
+            UPDATE purchase_orders
+            SET exchange_status = 'Completed',
+                obligation_fulfilled_by_type = ?,
+                obligation_fulfilled_by_id = ?,
+                obligation_fulfillment_action = ?,
+                obligation_fulfilled_at = ?,
+                obligation_fulfilled_by_user = ?
+            WHERE id = ?
+        ''', (source_type, source_id, fulfillment_action, now, user_id, id))
+        
+        # Log audit trail
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
+            conn=conn,
+            record_type='purchase_order',
+            record_id=id,
+            action_type='Obligation Fulfilled',
+            old_value=f'Status: {po["exchange_status"] or "Pending"}',
+            new_value=f'Status: Completed - {action_desc}',
+            modified_by=user_id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Exchange PO obligation fulfilled successfully. {action_desc}', 'success')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error fulfilling obligation: {str(e)}', 'danger')
+        return redirect(url_for('po_routes.view_purchaseorder', id=id))

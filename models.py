@@ -4324,6 +4324,22 @@ class Database:
         
         if 'exchange_status' not in existing_columns:
             cursor.execute("ALTER TABLE purchase_orders ADD COLUMN exchange_status TEXT")
+        
+        # Obligation fulfillment columns
+        if 'obligation_fulfilled_by_type' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN obligation_fulfilled_by_type TEXT")
+        
+        if 'obligation_fulfilled_by_id' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN obligation_fulfilled_by_id INTEGER")
+        
+        if 'obligation_fulfillment_action' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN obligation_fulfillment_action TEXT")
+        
+        if 'obligation_fulfilled_at' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN obligation_fulfilled_at TIMESTAMP")
+        
+        if 'obligation_fulfilled_by_user' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN obligation_fulfilled_by_user INTEGER")
     
     def _migrate_work_orders_stages(self, cursor):
         """Add stage_id column to work_orders table for tracking work order stages"""
