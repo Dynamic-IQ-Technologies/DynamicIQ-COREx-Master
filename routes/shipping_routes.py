@@ -946,6 +946,58 @@ def confirm_shipment(id):
                     shipping_method = ?
                 WHERE id = ?
             ''', (tracking_number, shipping_method, shipment['so_id']))
+            
+            # Create exchange tracking records for Exchange orders
+            sales_order = conn.execute('''
+                SELECT so.*, c.name as customer_name
+                FROM sales_orders so
+                JOIN customers c ON so.customer_id = c.id
+                WHERE so.id = ?
+            ''', (shipment['so_id'],)).fetchone()
+            
+            if sales_order and sales_order['sales_type'] == 'Exchange':
+                # Check if exchange_master record already exists
+                existing_exchange = conn.execute(
+                    'SELECT id FROM exchange_master WHERE sales_order_id = ?',
+                    (shipment['so_id'],)
+                ).fetchone()
+                
+                if not existing_exchange:
+                    # Get product from first line
+                    first_line = conn.execute('''
+                        SELECT product_id, serial_number FROM sales_order_lines 
+                        WHERE so_id = ? LIMIT 1
+                    ''', (shipment['so_id'],)).fetchone()
+                    
+                    if first_line:
+                        # Create exchange_master record
+                        exchange_id = f"EX-{shipment['so_id']:06d}"
+                        core_due_days = sales_order['core_due_days'] or 30
+                        
+                        conn.execute('''
+                            INSERT INTO exchange_master (
+                                exchange_id, sales_order_id, customer_id, product_id,
+                                shipped_serial_number, exchange_type, core_due_date,
+                                core_value, status, created_by, created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, date('now', '+' || ? || ' days'), ?, 'Open', ?, CURRENT_TIMESTAMP)
+                        ''', (
+                            exchange_id, shipment['so_id'], sales_order['customer_id'],
+                            first_line['product_id'], first_line['serial_number'],
+                            sales_order['exchange_type'] or 'Single Exchange',
+                            core_due_days, sales_order['core_charge'] or 0,
+                            session.get('user_id')
+                        ))
+                        
+                        # Get the exchange_master id
+                        em_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                        
+                        # Create exchange_cores record
+                        conn.execute('''
+                            INSERT INTO exchange_cores (
+                                exchange_id, core_status, days_outstanding,
+                                ownership_responsibility, financial_exposure, last_updated
+                            ) VALUES (?, 'Awaiting Core', 0, 'Customer', ?, CURRENT_TIMESTAMP)
+                        ''', (em_id, sales_order['core_charge'] or 0))
         
         # Update shipment record
         conn.execute('''
