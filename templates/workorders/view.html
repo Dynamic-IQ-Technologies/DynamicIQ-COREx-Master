@@ -209,13 +209,13 @@
             <i class="bi bi-list-check"></i> Tasks <span class="badge bg-primary">{{ tasks|length }}</span>
         </button>
     </li>
-    {% set ns = namespace(total_materials=requirements|length) %}
+    {% set ns = namespace(total_materials=0) %}
     {% for task_id, materials in task_materials.items() %}
         {% set ns.total_materials = ns.total_materials + materials|length %}
     {% endfor %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materialsPane" type="button" role="tab">
-            <i class="bi bi-boxes"></i> Materials <span class="badge bg-secondary">{{ ns.total_materials }}</span>
+            <i class="bi bi-boxes"></i> Materials {% if ns.total_materials > 0 %}<span class="badge bg-secondary">{{ ns.total_materials }}</span>{% endif %}
         </button>
     </li>
     <li class="nav-item" role="presentation">
