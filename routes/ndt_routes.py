@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from models import Database
+from models import Database, GLAutoPost
 from datetime import datetime, timedelta, date
 import json
 import os
@@ -2067,7 +2067,7 @@ def wo_issue_material(wo_id, mat_id):
     product = conn.execute('SELECT * FROM products WHERE id = ?', (material['product_id'],)).fetchone()
     product_desc = f'{product["code"]} - {product["name"]}' if product else 'Material'
     
-    conn.execute('''
+    cursor = conn.execute('''
         INSERT INTO ndt_wo_costs 
         (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
          date_incurred, reference_number, notes, created_by)
@@ -2075,6 +2075,34 @@ def wo_issue_material(wo_id, mat_id):
     ''', (wo_id, product_desc, issue_quantity, unit_cost, total_cost,
           date.today().isoformat(), f'INV-{inventory_id}', 
           f'Issued from inventory to {ndt_wo["ndt_wo_number"]}', session.get('user_id')))
+    cost_id = cursor.lastrowid
+    
+    if total_cost > 0:
+        gl_lines = [
+            {
+                'account_code': '5200',
+                'debit': total_cost,
+                'credit': 0,
+                'description': f'NDT Material - {product_desc} ({ndt_wo["ndt_wo_number"]})'
+            },
+            {
+                'account_code': '1300',
+                'debit': 0,
+                'credit': total_cost,
+                'description': f'Inventory - NDT Material Issue ({ndt_wo["ndt_wo_number"]})'
+            }
+        ]
+        
+        GLAutoPost.create_auto_journal_entry(
+            conn=conn,
+            entry_date=date.today().isoformat(),
+            description=f'NDT Material Issue - {ndt_wo["ndt_wo_number"]}',
+            transaction_source='NDT Material',
+            reference_type='ndt_wo_cost',
+            reference_id=cost_id,
+            lines=gl_lines,
+            created_by=session.get('user_id')
+        )
     
     conn.commit()
     conn.close()
@@ -2260,7 +2288,7 @@ def wo_clock_out(id):
     hourly_rate = float(employee['hourly_rate']) if employee['hourly_rate'] else 0
     labor_cost = round(hours_worked * hourly_rate, 2)
     
-    conn.execute('''
+    cursor = conn.execute('''
         INSERT INTO ndt_wo_costs 
         (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
          date_incurred, reference_number, employee_id, notes, created_by)
@@ -2275,6 +2303,37 @@ def wo_clock_out(id):
           employee_id,
           f'Auto-generated from clock out',
           session.get('user_id')))
+    cost_id = cursor.lastrowid
+    
+    ndt_wo = conn.execute('SELECT ndt_wo_number FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
+    ndt_wo_number = ndt_wo['ndt_wo_number'] if ndt_wo else f'NDT-WO-{id}'
+    
+    if labor_cost > 0:
+        gl_lines = [
+            {
+                'account_code': '5100',
+                'debit': labor_cost,
+                'credit': 0,
+                'description': f'NDT Labor - {employee["first_name"]} {employee["last_name"]} ({ndt_wo_number})'
+            },
+            {
+                'account_code': '2100',
+                'debit': 0,
+                'credit': labor_cost,
+                'description': f'Wages Payable - NDT Labor ({ndt_wo_number})'
+            }
+        ]
+        
+        GLAutoPost.create_auto_journal_entry(
+            conn=conn,
+            entry_date=date.today().isoformat(),
+            description=f'NDT Labor Cost - {ndt_wo_number}',
+            transaction_source='NDT Labor',
+            reference_type='ndt_wo_cost',
+            reference_id=cost_id,
+            lines=gl_lines,
+            created_by=session.get('user_id')
+        )
     
     conn.commit()
     conn.close()
