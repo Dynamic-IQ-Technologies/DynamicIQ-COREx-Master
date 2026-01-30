@@ -115,6 +115,7 @@ def create_receiving():
             bin_location = request.form.get('bin_location', '').strip()
             receiver = request.form.get('receiver_name', '')
             condition = request.form.get('condition', 'New')
+            serial_number = request.form.get('serial_number', '').strip() or None
             remarks = request.form.get('remarks', '')
             
             # Validate required location fields
@@ -220,11 +221,11 @@ def create_receiving():
                 (receipt_number, po_id, product_id, quantity_received, receipt_date, 
                  packing_slip_number, shipment_tracking, warehouse_location, bin_location, 
                  receiver_name, condition, remarks, received_by,
-                 po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt, serial_number)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (receipt_number, po_id, product_id, quantity_received, receipt_date,
                   packing_slip, tracking, warehouse, bin_location, receiver, condition, remarks, session['user_id'],
-                  po_line_id, receiving_uom_id, conversion_factor, base_quantity_for_receipt, unit_cost_at_receipt))
+                  po_line_id, receiving_uom_id, conversion_factor, base_quantity_for_receipt, unit_cost_at_receipt, serial_number))
             
             receipt_id = cursor.lastrowid
             
