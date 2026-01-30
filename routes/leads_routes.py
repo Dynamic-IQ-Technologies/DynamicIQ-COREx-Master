@@ -499,7 +499,7 @@ def convert_lead(lead_id):
             conn.close()
             
             return jsonify({'success': True, 'message': f'Lead converted to Customer {customer_number}',
-                          'redirect': url_for('sales.view_customer', customer_id=customer_id)})
+                          'redirect': url_for('customer_routes.view_customer', customer_id=customer_id)})
         
         else:
             existing = conn.execute('SELECT id FROM suppliers WHERE name = ? OR email = ?', 
