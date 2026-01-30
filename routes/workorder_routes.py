@@ -789,9 +789,13 @@ def delete_workorder(id):
             return redirect(url_for('workorder_routes.view_workorder', id=id))
         
         # Delete related records first
-        conn.execute('DELETE FROM work_order_task_materials WHERE work_order_id = ?', (id,))
+        # Delete task material requirements via task IDs
+        conn.execute('''
+            DELETE FROM task_material_requirements 
+            WHERE task_id IN (SELECT id FROM work_order_tasks WHERE work_order_id = ?)
+        ''', (id,))
         conn.execute('DELETE FROM work_order_tasks WHERE work_order_id = ?', (id,))
-        conn.execute('DELETE FROM work_order_requirements WHERE work_order_id = ?', (id,))
+        conn.execute('DELETE FROM material_requirements WHERE work_order_id = ?', (id,))
         conn.execute('DELETE FROM work_order_stage_history WHERE work_order_id = ?', (id,))
         conn.execute('DELETE FROM work_order_documents WHERE work_order_id = ?', (id,))
         
