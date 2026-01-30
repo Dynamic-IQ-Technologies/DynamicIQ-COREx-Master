@@ -1910,9 +1910,28 @@ def wo_clock_out(id):
         VALUES (?, ?, ?, 'Clock Out', ?, 'NDT Work Order')
     ''', (punch_number, employee_id, punch_time, id))
     
+    hourly_rate = float(employee['hourly_rate']) if employee['hourly_rate'] else 0
+    labor_cost = round(hours_worked * hourly_rate, 2)
+    
+    conn.execute('''
+        INSERT INTO ndt_wo_costs 
+        (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
+         date_incurred, reference_number, employee_id, notes, created_by)
+        VALUES (?, 'Labor', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (id, 
+          f'Labor - {employee["first_name"]} {employee["last_name"]}',
+          round(hours_worked, 2),
+          hourly_rate,
+          labor_cost,
+          date.today().isoformat(),
+          punch_number,
+          employee_id,
+          f'Auto-generated from clock out',
+          session.get('user_id')))
+    
     conn.commit()
     conn.close()
     
     hours_display = f'{int(hours_worked)}h {int((hours_worked % 1) * 60)}m'
-    flash(f'{employee["first_name"]} {employee["last_name"]} clocked out ({hours_display})', 'success')
+    flash(f'{employee["first_name"]} {employee["last_name"]} clocked out ({hours_display}) - ${labor_cost:.2f} labor cost recorded', 'success')
     return redirect(url_for('ndt_routes.wo_view', id=id))
