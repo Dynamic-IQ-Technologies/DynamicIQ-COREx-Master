@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Costs - {{ ndt_wo.ndt_wo_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('ndt_routes.wo_list') }}">NDT Work Orders</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}">{{ ndt_wo.ndt_wo_number }}</a></li>
+                <li class="breadcrumb-item active">Cost Tracking</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 mt-2"><i class="bi bi-currency-dollar me-2"></i>Cost Tracking</h1>
+    </div>
+    <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Work Order
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add Cost</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ndt_routes.wo_add_cost', id=ndt_wo.id) }}">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Cost Type <span class="text-danger">*</span></label>
+                            <select name="cost_type" class="form-select" required>
+                                <option value="">-- Select Type --</option>
+                                {% for ct in cost_types %}
+                                <option value="{{ ct }}">{{ ct }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <input type="text" name="description" class="form-control" required placeholder="Cost description">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" name="quantity" class="form-control" step="0.01" value="1" min="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Unit Cost ($)</label>
+                            <input type="number" name="unit_cost" class="form-control" step="0.01" value="0" min="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date Incurred</label>
+                            <input type="date" name="date_incurred" class="form-control" value="{{ today }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Reference #</label>
+                            <input type="text" name="reference_number" class="form-control" placeholder="PO#, Invoice#, etc.">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Employee (for Labor)</label>
+                            <select name="employee_id" class="form-select">
+                                <option value="">-- Select Employee --</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.first_name }} {{ emp.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Notes</label>
+                            <input type="text" name="notes" class="form-control" placeholder="Additional notes">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-plus-lg"></i> Add Cost
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Cost Items</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if costs %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Unit Cost</th>
+                                <th>Total</th>
+                                <th>Date</th>
+                                <th>Reference</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cost in costs %}
+                            <tr>
+                                <td>
+                                    {% set type_colors = {
+                                        'Labor': 'primary',
+                                        'Material': 'success',
+                                        'Equipment': 'info',
+                                        'Consumables': 'warning',
+                                        'Subcontract': 'secondary',
+                                        'Overhead': 'dark',
+                                        'Miscellaneous': 'light'
+                                    } %}
+                                    <span class="badge bg-{{ type_colors.get(cost.cost_type, 'secondary') }}">{{ cost.cost_type }}</span>
+                                </td>
+                                <td>
+                                    {{ cost.description }}
+                                    {% if cost.employee_name %}<br><small class="text-muted">{{ cost.employee_name }}</small>{% endif %}
+                                </td>
+                                <td>{{ cost.quantity }}</td>
+                                <td>${{ "%.2f"|format(cost.unit_cost) }}</td>
+                                <td class="fw-bold">${{ "%.2f"|format(cost.total_cost) }}</td>
+                                <td>{{ cost.date_incurred or '-' }}</td>
+                                <td>{{ cost.reference_number or '-' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('ndt_routes.wo_delete_cost', wo_id=ndt_wo.id, cost_id=cost.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this cost entry?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-currency-dollar" style="font-size: 3rem;"></i>
+                    <p class="mt-2">No costs recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> Cost Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    {% for summary in cost_summary %}
+                    <tr>
+                        <td>{{ summary.cost_type }}</td>
+                        <td class="text-end fw-bold">${{ "%.2f"|format(summary.type_total) }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if cost_summary %}
+                    <tr class="table-success">
+                        <td class="fw-bold">Total Cost</td>
+                        <td class="text-end fw-bold" style="font-size: 1.2rem;">${{ "%.2f"|format(total_cost) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2" class="text-center text-muted">No costs recorded</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Work Order Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>WO Number:</strong> {{ ndt_wo.ndt_wo_number }}</p>
+                <p><strong>Status:</strong> 
+                    {% set status_colors = {
+                        'Draft': 'secondary',
+                        'Scheduled': 'info',
+                        'In Inspection': 'primary',
+                        'Results Recorded': 'warning',
+                        'Under Review': 'info',
+                        'Approved': 'success',
+                        'Rejected': 'danger',
+                        'Closed': 'dark'
+                    } %}
+                    <span class="badge bg-{{ status_colors.get(ndt_wo.status, 'secondary') }}">{{ ndt_wo.status }}</span>
+                </p>
+                <p><strong>NDT Methods:</strong> {{ ndt_wo.ndt_methods }}</p>
+                <p><strong>Part:</strong> {{ ndt_wo.part_description or '-' }}</p>
+                <p><strong>Serial #:</strong> {{ ndt_wo.serial_number or '-' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

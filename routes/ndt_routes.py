@@ -1675,6 +1675,112 @@ def invoice_send_email(id):
     return redirect(url_for('ndt_routes.invoice_view', id=id))
 
 
+NDT_COST_TYPES = ['Labor', 'Material', 'Equipment', 'Consumables', 'Subcontract', 'Overhead', 'Miscellaneous']
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/costs')
+def wo_costs(id):
+    """View costs for NDT work order"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
+    if not ndt_wo:
+        flash('NDT Work Order not found', 'error')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    costs = conn.execute('''
+        SELECT c.*, lr.first_name || ' ' || lr.last_name as employee_name, u.username as created_by_name
+        FROM ndt_wo_costs c
+        LEFT JOIN labor_resources lr ON c.employee_id = lr.id
+        LEFT JOIN users u ON c.created_by = u.id
+        WHERE c.ndt_wo_id = ?
+        ORDER BY c.date_incurred DESC, c.created_at DESC
+    ''', (id,)).fetchall()
+    
+    cost_summary = conn.execute('''
+        SELECT cost_type, SUM(total_cost) as type_total
+        FROM ndt_wo_costs
+        WHERE ndt_wo_id = ?
+        GROUP BY cost_type
+    ''', (id,)).fetchall()
+    
+    total_cost = sum(c['type_total'] for c in cost_summary)
+    
+    employees = conn.execute('SELECT id, first_name, last_name FROM labor_resources WHERE status = "Active" ORDER BY first_name').fetchall()
+    
+    conn.close()
+    
+    return render_template('ndt/wo_costs.html',
+                         ndt_wo=ndt_wo,
+                         costs=costs,
+                         cost_summary=cost_summary,
+                         total_cost=total_cost,
+                         employees=employees,
+                         cost_types=NDT_COST_TYPES)
+
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/costs/add', methods=['POST'])
+def wo_add_cost(id):
+    """Add cost to NDT work order"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    cost_type = request.form.get('cost_type')
+    description = request.form.get('description', '').strip()
+    quantity_str = request.form.get('quantity', '').strip()
+    quantity = float(quantity_str) if quantity_str else 1
+    unit_cost_str = request.form.get('unit_cost', '').strip()
+    unit_cost = float(unit_cost_str) if unit_cost_str else 0
+    total_cost = quantity * unit_cost
+    date_incurred = request.form.get('date_incurred') or date.today().isoformat()
+    reference_number = request.form.get('reference_number', '').strip() or None
+    employee_id = request.form.get('employee_id') or None
+    notes = request.form.get('notes', '').strip() or None
+    
+    if not cost_type or not description:
+        flash('Cost type and description are required', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_costs', id=id))
+    
+    conn.execute('''
+        INSERT INTO ndt_wo_costs 
+        (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
+         date_incurred, reference_number, employee_id, notes, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (id, cost_type, description, quantity, unit_cost, total_cost,
+          date_incurred, reference_number, employee_id, notes, session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Cost added successfully', 'success')
+    return redirect(url_for('ndt_routes.wo_costs', id=id))
+
+
+@ndt_bp.route('/ndt/work-orders/<int:wo_id>/costs/<int:cost_id>/delete', methods=['POST'])
+def wo_delete_cost(wo_id, cost_id):
+    """Delete cost from NDT work order"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    conn.execute('DELETE FROM ndt_wo_costs WHERE id = ? AND ndt_wo_id = ?', (cost_id, wo_id))
+    conn.commit()
+    conn.close()
+    
+    flash('Cost deleted successfully', 'success')
+    return redirect(url_for('ndt_routes.wo_costs', id=wo_id))
+
+
 @ndt_bp.route('/ndt/work-orders/<int:id>/clock-in', methods=['POST'])
 def wo_clock_in(id):
     """Clock in an NDT resource directly from the work order page"""

@@ -3345,6 +3345,29 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_invoices_ndt_wo ON ndt_invoices(ndt_wo_id)')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_wo_costs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ndt_wo_id INTEGER NOT NULL,
+                cost_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                quantity REAL DEFAULT 1,
+                unit_cost REAL DEFAULT 0,
+                total_cost REAL DEFAULT 0,
+                date_incurred DATE,
+                reference_number TEXT,
+                employee_id INTEGER,
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ndt_wo_id) REFERENCES ndt_work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (employee_id) REFERENCES labor_resources(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_costs_ndt_wo ON ndt_wo_costs(ndt_wo_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_costs_type ON ndt_wo_costs(cost_type)')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS ndt_8130_certificates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 certificate_number TEXT UNIQUE NOT NULL,
