@@ -651,19 +651,19 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_customers', 1) == 1 %}
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{{ url_for('customer_routes.list_customers') }}">
-                    <i class="bi bi-people"></i>
-                    <span>Customers</span>
-                </a>
-            </li>
-            {% endif %}
             {% if session.role in ['Admin', 'Finance', 'Supervisor', 'Sales'] %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('leads.leads_list') }}">
                     <i class="bi bi-person-lines-fill"></i>
                     <span>Leads</span>
+                </a>
+            </li>
+            {% endif %}
+            {% if session.role == 'Admin' or user_permissions.get('menu_customers', 1) == 1 %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('customer_routes.list_customers') }}">
+                    <i class="bi bi-people"></i>
+                    <span>Customers</span>
                 </a>
             </li>
             {% endif %}
