@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database, GLAutoPost
+from auth import login_required, role_required
 from datetime import datetime, timedelta, date
 import json
 import os
@@ -1477,7 +1478,8 @@ def invoice_view(id):
     
     return render_template('ndt/invoice_view.html',
         invoice=invoice,
-        statuses=NDT_INVOICE_STATUSES
+        statuses=NDT_INVOICE_STATUSES,
+        today=date.today().isoformat()
     )
 
 
@@ -1588,6 +1590,124 @@ def invoice_update_status(id):
     conn.close()
     
     flash(f'Invoice status updated to {new_status}', 'success')
+    return redirect(url_for('ndt_routes.invoice_view', id=id))
+
+
+@ndt_bp.route('/ndt/invoices/<int:id>/record-payment', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def ndt_invoice_record_payment(id):
+    """Record customer payment for NDT invoice with GL entry (Debit Cash, Credit AR)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('SELECT * FROM ndt_invoices WHERE id = ?', (id,)).fetchone()
+        
+        if not invoice:
+            flash('NDT Invoice not found', 'danger')
+            conn.close()
+            return redirect(url_for('ndt_routes.invoices_list'))
+        
+        if invoice['status'] in ['Cancelled', 'Void']:
+            flash('Cannot record payment for a cancelled/voided invoice', 'warning')
+            conn.close()
+            return redirect(url_for('ndt_routes.invoice_view', id=id))
+        
+        payment_amount = float(request.form.get('payment_amount', 0))
+        payment_date = request.form.get('payment_date', date.today().isoformat())
+        payment_method = request.form.get('payment_method', 'Check')
+        payment_reference = request.form.get('payment_reference', '')
+        
+        current_paid = float(invoice['amount_paid'] or 0)
+        total_amount = float(invoice['total_amount'] or 0)
+        balance_due = total_amount - current_paid
+        
+        if payment_amount <= 0:
+            flash('Payment amount must be greater than zero', 'danger')
+            conn.close()
+            return redirect(url_for('ndt_routes.invoice_view', id=id))
+        
+        if payment_amount > balance_due:
+            flash(f'Payment amount (${payment_amount:.2f}) exceeds balance due (${balance_due:.2f})', 'danger')
+            conn.close()
+            return redirect(url_for('ndt_routes.invoice_view', id=id))
+        
+        new_amount_paid = current_paid + payment_amount
+        new_balance = total_amount - new_amount_paid
+        new_status = 'Paid' if new_balance <= 0 else invoice['status']
+        if invoice['status'] == 'Sent' and new_amount_paid > 0 and new_balance > 0:
+            new_status = 'Partially Paid'
+        
+        # Generate GL entry for payment (DR: Cash, CR: AR)
+        last_entry = conn.execute('''
+            SELECT entry_number FROM gl_entries 
+            WHERE entry_number LIKE 'NDT-PAY-%'
+            ORDER BY id DESC LIMIT 1
+        ''').fetchone()
+        
+        if last_entry:
+            try:
+                last_num = int(last_entry['entry_number'].split('-')[2])
+                next_num = last_num + 1
+            except:
+                next_num = 1
+        else:
+            next_num = 1
+        
+        payment_entry_number = f'NDT-PAY-{next_num:06d}'
+        
+        gl_description = f'NDT Invoice Payment - {invoice["invoice_number"]} - {payment_method}'
+        if payment_reference:
+            gl_description += f' ({payment_reference})'
+        
+        gl_entry_id = conn.execute('''
+            INSERT INTO gl_entries (
+                entry_number, entry_date, description, 
+                transaction_source, reference_type, reference_id,
+                status, created_by, posted_by, posted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (
+            payment_entry_number, payment_date, gl_description,
+            'NDT Payment', 'ndt_invoice', id,
+            'Posted', session['user_id'], session['user_id']
+        )).lastrowid
+        
+        # Get account IDs
+        cash_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1110'").fetchone()
+        ar_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1120'").fetchone()
+        
+        if not cash_account or not ar_account:
+            raise ValueError('Required GL accounts not found (Cash: 1110, AR: 1120)')
+        
+        # DR: Cash (increases asset)
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (gl_entry_id, cash_account['id'], payment_amount, 0, f'NDT Payment - {invoice["invoice_number"]}'))
+        
+        # CR: Accounts Receivable (reduces asset)
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (gl_entry_id, ar_account['id'], 0, payment_amount, f'NDT Payment - {invoice["invoice_number"]}'))
+        
+        # Update NDT invoice
+        conn.execute('''
+            UPDATE ndt_invoices 
+            SET amount_paid = ?, balance_due = ?, status = ?
+            WHERE id = ?
+        ''', (new_amount_paid, new_balance, new_status, id))
+        
+        conn.commit()
+        flash(f'Payment of ${payment_amount:.2f} recorded! GL Entry: {payment_entry_number}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error recording payment: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
     return redirect(url_for('ndt_routes.invoice_view', id=id))
 
 

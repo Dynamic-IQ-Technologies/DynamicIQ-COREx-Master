@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from models import Database, AuditLogger, safe_float, DocumentTemplateHelper
 from auth import login_required, role_required
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 
 def parse_datetime(value):
@@ -250,7 +250,8 @@ def view_invoice(id):
     return render_template('invoices/view.html',
                          invoice=invoice,
                          lines=lines,
-                         payments=payments)
+                         payments=payments,
+                         today=date.today().isoformat())
 
 @invoice_bp.route('/invoices/create-from-so/<int:so_id>', methods=['GET', 'POST'])
 @login_required
@@ -772,6 +773,124 @@ def post_invoice(id):
         conn.close()
     
     return redirect(url_for('invoice_routes.view_invoice', id=id))
+
+@invoice_bp.route('/invoices/<int:id>/record-payment', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def record_payment(id):
+    """Record customer payment for invoice with GL entry (Debit Cash, Credit AR)"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (id,)).fetchone()
+        
+        if not invoice:
+            flash('Invoice not found', 'danger')
+            conn.close()
+            return redirect(url_for('invoice_routes.list_invoices'))
+        
+        if invoice['status'] == 'Void':
+            flash('Cannot record payment for a voided invoice', 'warning')
+            conn.close()
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        payment_amount = float(request.form.get('payment_amount', 0))
+        payment_date = request.form.get('payment_date', date.today().isoformat())
+        payment_method = request.form.get('payment_method', 'Check')
+        payment_reference = request.form.get('payment_reference', '')
+        
+        current_paid = float(invoice['amount_paid'] or 0)
+        total_amount = float(invoice['total_amount'] or 0)
+        balance_due = total_amount - current_paid
+        
+        if payment_amount <= 0:
+            flash('Payment amount must be greater than zero', 'danger')
+            conn.close()
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        if payment_amount > balance_due:
+            flash(f'Payment amount (${payment_amount:.2f}) exceeds balance due (${balance_due:.2f})', 'danger')
+            conn.close()
+            return redirect(url_for('invoice_routes.view_invoice', id=id))
+        
+        new_amount_paid = current_paid + payment_amount
+        new_balance = total_amount - new_amount_paid
+        new_status = 'Paid' if new_balance <= 0 else invoice['status']
+        if new_status == 'Posted' and new_amount_paid > 0:
+            new_status = 'Partially Paid'
+        
+        # Generate GL entry for payment (DR: Cash, CR: AR)
+        last_entry = conn.execute('''
+            SELECT entry_number FROM gl_entries 
+            WHERE entry_number LIKE 'AR-PAY-%'
+            ORDER BY id DESC LIMIT 1
+        ''').fetchone()
+        
+        if last_entry:
+            try:
+                last_num = int(last_entry['entry_number'].split('-')[2])
+                next_num = last_num + 1
+            except:
+                next_num = 1
+        else:
+            next_num = 1
+        
+        payment_entry_number = f'AR-PAY-{next_num:06d}'
+        
+        gl_description = f'Customer Payment - Invoice {invoice["invoice_number"]} - {payment_method}'
+        if payment_reference:
+            gl_description += f' ({payment_reference})'
+        
+        gl_entry_id = conn.execute('''
+            INSERT INTO gl_entries (
+                entry_number, entry_date, description, 
+                transaction_source, reference_type, reference_id,
+                status, created_by, posted_by, posted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (
+            payment_entry_number, payment_date, gl_description,
+            'Customer Payment', 'invoice', id,
+            'Posted', session['user_id'], session['user_id']
+        )).lastrowid
+        
+        # Get account IDs
+        cash_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1110'").fetchone()
+        ar_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1120'").fetchone()
+        
+        if not cash_account or not ar_account:
+            raise ValueError('Required GL accounts not found (Cash: 1110, AR: 1120)')
+        
+        # DR: Cash (increases asset)
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (gl_entry_id, cash_account['id'], payment_amount, 0, f'Payment received - {invoice["invoice_number"]}'))
+        
+        # CR: Accounts Receivable (reduces asset)
+        conn.execute('''
+            INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (gl_entry_id, ar_account['id'], 0, payment_amount, f'Payment received - {invoice["invoice_number"]}'))
+        
+        # Update invoice
+        conn.execute('''
+            UPDATE invoices 
+            SET amount_paid = ?, balance_due = ?, status = ?
+            WHERE id = ?
+        ''', (new_amount_paid, new_balance, new_status, id))
+        
+        conn.commit()
+        flash(f'Payment of ${payment_amount:.2f} recorded successfully! GL Entry: {payment_entry_number}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error recording payment: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('invoice_routes.view_invoice', id=id))
+
 
 @invoice_bp.route('/invoices/<int:id>/void', methods=['POST'])
 @login_required
