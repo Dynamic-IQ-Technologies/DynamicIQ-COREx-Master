@@ -1198,6 +1198,22 @@ def release_to_shipping(id):
             SELECT COUNT(*) as count FROM sales_order_lines WHERE so_id = ?
         ''', (id,)).fetchone()['count']
         
+        # Check if all lines are allocated
+        unallocated_lines = conn.execute('''
+            SELECT sol.line_number, p.code as product_code, p.name as product_name, sol.quantity
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            WHERE sol.so_id = ? 
+            AND (sol.allocation_status IS NULL 
+                 OR sol.allocation_status NOT IN ('Allocated', 'Partially Allocated'))
+        ''', (id,)).fetchall()
+        
+        if unallocated_lines:
+            unallocated_items = ', '.join([f"Line {l['line_number']}: {l['product_code']}" for l in unallocated_lines])
+            flash(f'Cannot release to shipping. The following lines are not allocated: {unallocated_items}. Please allocate inventory or work orders before releasing.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
         # Generate shipment number
         last_shipment = conn.execute(
             'SELECT shipment_number FROM shipments ORDER BY id DESC LIMIT 1'
