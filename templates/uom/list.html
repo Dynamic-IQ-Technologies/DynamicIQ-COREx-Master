@@ -55,7 +55,7 @@
                             </td>
                             <td>{{ uom.rounding_precision }}</td>
                             <td>
-                                {% if uom.status == 'Active' %}
+                                {% if uom.is_active %}
                                 <span class="badge bg-success">Active</span>
                                 {% else %}
                                 <span class="badge bg-secondary">Inactive</span>
@@ -68,7 +68,7 @@
                                 <a href="{{ url_for('uom_routes.edit_uom', id=uom.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                {% if uom.status == 'Inactive' %}
+                                {% if not uom.is_active %}
                                 <form method="POST" action="{{ url_for('uom_routes.activate_uom', id=uom.id) }}" style="display:inline;">
                                     <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
                                         <i class="bi bi-check-circle"></i>

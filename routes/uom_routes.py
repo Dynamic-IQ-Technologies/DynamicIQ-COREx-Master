@@ -11,30 +11,29 @@ def list_uoms():
     db = Database()
     conn = db.get_connection()
     
-    # Get filter parameter
     status_filter = request.args.get('status', 'all')
     
     if status_filter == 'active':
         uoms = conn.execute('''
             SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
-            FROM unit_of_measure u
-            LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
-            WHERE u.status = 'Active'
+            FROM uom_master u
+            LEFT JOIN uom_master b ON u.base_uom_id = b.id
+            WHERE u.is_active = 1
             ORDER BY u.uom_type, u.uom_code
         ''').fetchall()
     elif status_filter == 'inactive':
         uoms = conn.execute('''
             SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
-            FROM unit_of_measure u
-            LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
-            WHERE u.status = 'Inactive'
+            FROM uom_master u
+            LEFT JOIN uom_master b ON u.base_uom_id = b.id
+            WHERE u.is_active = 0
             ORDER BY u.uom_type, u.uom_code
         ''').fetchall()
     else:
         uoms = conn.execute('''
             SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name
-            FROM unit_of_measure u
-            LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
+            FROM uom_master u
+            LEFT JOIN uom_master b ON u.base_uom_id = b.id
             ORDER BY u.uom_type, u.uom_code
         ''').fetchall()
     
@@ -58,44 +57,22 @@ def create_uom():
             rounding_precision = int(request.form.get('rounding_precision', 2))
             description = request.form.get('description', '').strip()
             
-            # Validate conversion factor
             if conversion_factor <= 0:
                 flash('Conversion factor must be greater than zero.', 'danger')
                 conn.close()
                 return redirect(url_for('uom_routes.create_uom'))
             
-            # Check if UOM code already exists
-            existing = conn.execute('SELECT id FROM unit_of_measure WHERE uom_code = ?', (uom_code,)).fetchone()
+            existing = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (uom_code,)).fetchone()
             if existing:
                 flash(f'UOM code "{uom_code}" already exists.', 'danger')
                 conn.close()
                 return redirect(url_for('uom_routes.create_uom'))
             
-            # Insert new UOM into unit_of_measure table
-            cursor = conn.execute('''
-                INSERT INTO unit_of_measure 
-                (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, status, description, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, 'Active', ?, ?)
+            conn.execute('''
+                INSERT INTO uom_master 
+                (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, is_active, description, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
             ''', (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, description, session.get('user_id')))
-            
-            # Also insert into uom_master for PO compatibility
-            # Get the base_uom_id in uom_master if exists
-            uom_master_base_id = None
-            if base_uom_id:
-                base_uom = conn.execute('SELECT uom_code FROM unit_of_measure WHERE id = ?', (base_uom_id,)).fetchone()
-                if base_uom:
-                    master_base = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (base_uom['uom_code'],)).fetchone()
-                    if master_base:
-                        uom_master_base_id = master_base['id']
-            
-            # Check if already exists in uom_master
-            existing_master = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (uom_code,)).fetchone()
-            if not existing_master:
-                conn.execute('''
-                    INSERT INTO uom_master 
-                    (uom_code, uom_name, uom_type, conversion_factor, base_uom_id, rounding_precision, is_active, description, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-                ''', (uom_code, uom_name, uom_type, conversion_factor, uom_master_base_id, rounding_precision, description, session.get('user_id')))
             
             conn.commit()
             conn.close()
@@ -107,12 +84,10 @@ def create_uom():
             flash(f'Error creating UOM: {str(e)}', 'danger')
             return redirect(url_for('uom_routes.create_uom'))
     
-    # GET request - show form
-    # Get all active base UOMs for dropdown
     base_uoms = conn.execute('''
         SELECT id, uom_code, uom_name, uom_type 
-        FROM unit_of_measure 
-        WHERE status = 'Active'
+        FROM uom_master 
+        WHERE is_active = 1
         ORDER BY uom_type, uom_code
     ''').fetchall()
     
@@ -131,8 +106,8 @@ def view_uom(id):
     uom = conn.execute('''
         SELECT u.*, b.uom_code as base_uom_code, b.uom_name as base_uom_name,
                creator.username as created_by_name, modifier.username as modified_by_name
-        FROM unit_of_measure u
-        LEFT JOIN unit_of_measure b ON u.base_uom_id = b.id
+        FROM uom_master u
+        LEFT JOIN uom_master b ON u.base_uom_id = b.id
         LEFT JOIN users creator ON u.created_by = creator.id
         LEFT JOIN users modifier ON u.modified_by = modifier.id
         WHERE u.id = ?
@@ -143,7 +118,6 @@ def view_uom(id):
         conn.close()
         return redirect(url_for('uom_routes.list_uoms'))
     
-    # Get products using this UOM
     products = conn.execute('''
         SELECT p.code, p.name, puc.conversion_factor, puc.is_base_uom, puc.is_purchase_uom, puc.is_issue_uom
         FROM product_uom_conversions puc
@@ -162,7 +136,7 @@ def edit_uom(id):
     db = Database()
     conn = db.get_connection()
     
-    uom = conn.execute('SELECT * FROM unit_of_measure WHERE id = ?', (id,)).fetchone()
+    uom = conn.execute('SELECT * FROM uom_master WHERE id = ?', (id,)).fetchone()
     if not uom:
         flash('UOM not found.', 'danger')
         conn.close()
@@ -177,35 +151,17 @@ def edit_uom(id):
             base_uom_id = request.form.get('base_uom_id') or None
             description = request.form.get('description', '').strip()
             
-            # Validate conversion factor
             if conversion_factor <= 0:
                 flash('Conversion factor must be greater than zero.', 'danger')
                 conn.close()
                 return redirect(url_for('uom_routes.edit_uom', id=id))
             
-            # Update unit_of_measure table
-            conn.execute('''
-                UPDATE unit_of_measure 
-                SET uom_name = ?, uom_type = ?, rounding_precision = ?, conversion_factor = ?, 
-                    base_uom_id = ?, description = ?, modified_by = ?, modified_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (uom_name, uom_type, rounding_precision, conversion_factor, base_uom_id, description, session.get('user_id'), id))
-            
-            # Also update uom_master for sync
-            uom_master_base_id = None
-            if base_uom_id:
-                base_uom = conn.execute('SELECT uom_code FROM unit_of_measure WHERE id = ?', (base_uom_id,)).fetchone()
-                if base_uom:
-                    master_base = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (base_uom['uom_code'],)).fetchone()
-                    if master_base:
-                        uom_master_base_id = master_base['id']
-            
             conn.execute('''
                 UPDATE uom_master 
                 SET uom_name = ?, uom_type = ?, rounding_precision = ?, conversion_factor = ?, 
                     base_uom_id = ?, description = ?, modified_by = ?, modified_at = CURRENT_TIMESTAMP
-                WHERE uom_code = ?
-            ''', (uom_name, uom_type, rounding_precision, conversion_factor, uom_master_base_id, description, session.get('user_id'), uom['uom_code']))
+                WHERE id = ?
+            ''', (uom_name, uom_type, rounding_precision, conversion_factor, base_uom_id, description, session.get('user_id'), id))
             
             conn.commit()
             conn.close()
@@ -217,11 +173,10 @@ def edit_uom(id):
             flash(f'Error updating UOM: {str(e)}', 'danger')
             return redirect(url_for('uom_routes.edit_uom', id=id))
     
-    # GET request
     base_uoms = conn.execute('''
         SELECT id, uom_code, uom_name, uom_type 
-        FROM unit_of_measure 
-        WHERE status = 'Active' AND id != ?
+        FROM uom_master 
+        WHERE is_active = 1 AND id != ?
         ORDER BY uom_type, uom_code
     ''', (id,)).fetchall()
     
@@ -237,30 +192,17 @@ def deactivate_uom(id):
     db = Database()
     conn = db.get_connection()
     
-    # Check if UOM is used in product conversions
     usage = conn.execute('SELECT COUNT(*) as count FROM product_uom_conversions WHERE uom_id = ?', (id,)).fetchone()
     if usage['count'] > 0:
         flash('Cannot deactivate UOM. It is used in product conversions.', 'danger')
         conn.close()
         return redirect(url_for('uom_routes.view_uom', id=id))
     
-    # Get UOM code for syncing to uom_master
-    uom = conn.execute('SELECT uom_code FROM unit_of_measure WHERE id = ?', (id,)).fetchone()
-    
-    # Deactivate the UOM in unit_of_measure
     conn.execute('''
-        UPDATE unit_of_measure 
-        SET status = 'Inactive', modified_by = ?, modified_at = CURRENT_TIMESTAMP
+        UPDATE uom_master 
+        SET is_active = 0, modified_by = ?, modified_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (session.get('user_id'), id))
-    
-    # Also deactivate in uom_master if exists
-    if uom:
-        conn.execute('''
-            UPDATE uom_master 
-            SET is_active = 0, modified_by = ?, modified_at = CURRENT_TIMESTAMP
-            WHERE uom_code = ?
-        ''', (session.get('user_id'), uom['uom_code']))
     
     conn.commit()
     conn.close()
@@ -274,33 +216,11 @@ def activate_uom(id):
     db = Database()
     conn = db.get_connection()
     
-    # Get UOM details for syncing
-    uom = conn.execute('SELECT * FROM unit_of_measure WHERE id = ?', (id,)).fetchone()
-    
-    # Activate in unit_of_measure
     conn.execute('''
-        UPDATE unit_of_measure 
-        SET status = 'Active', modified_by = ?, modified_at = CURRENT_TIMESTAMP
+        UPDATE uom_master 
+        SET is_active = 1, modified_by = ?, modified_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (session.get('user_id'), id))
-    
-    # Sync to uom_master - update if exists, insert if not
-    if uom:
-        existing_master = conn.execute('SELECT id FROM uom_master WHERE uom_code = ?', (uom['uom_code'],)).fetchone()
-        if existing_master:
-            conn.execute('''
-                UPDATE uom_master 
-                SET is_active = 1, modified_by = ?, modified_at = CURRENT_TIMESTAMP
-                WHERE uom_code = ?
-            ''', (session.get('user_id'), uom['uom_code']))
-        else:
-            # Insert into uom_master
-            conn.execute('''
-                INSERT INTO uom_master 
-                (uom_code, uom_name, uom_type, conversion_factor, rounding_precision, is_active, description, created_by)
-                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-            ''', (uom['uom_code'], uom['uom_name'], uom['uom_type'], uom['conversion_factor'], 
-                  uom['rounding_precision'], uom['description'], session.get('user_id')))
     
     conn.commit()
     conn.close()
