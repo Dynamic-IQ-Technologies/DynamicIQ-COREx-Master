@@ -27,29 +27,29 @@
                 - {{ exchange.product_code }}
             </p>
         </div>
-        <div>
+        <div class="d-flex flex-wrap gap-2">
             {% if core and core.core_status != 'Core Received' %}
-            <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#receiveCoreModal">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#receiveCoreModal">
                 <i class="bi bi-box-arrow-in-down me-1"></i> Receive Core
             </button>
             {% endif %}
             {% if core and core.core_status == 'Core Received' and not exchange.repair_work_order_id %}
-            <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#createRepairWOModal">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRepairWOModal">
                 <i class="bi bi-tools me-1"></i> Create Repair WO
             </button>
             {% endif %}
-            <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#generateAgreementModal">
+            <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#generateAgreementModal">
                 <i class="bi bi-file-earmark-text me-1"></i> Generate Agreement
             </button>
             {% if core and core.days_outstanding > 0 %}
-            <button type="button" class="btn btn-outline-warning me-2" data-bs-toggle="modal" data-bs-target="#lateFeeInvoiceModal">
+            <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#lateFeeInvoiceModal">
                 <i class="bi bi-receipt me-1"></i> Create Late Fee Invoice
             </button>
             {% endif %}
-            <button type="button" class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#linkPOModal">
+            <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#linkPOModal">
                 <i class="bi bi-link-45deg me-1"></i> Link PO
             </button>
-            <a href="{{ url_for('exchange.exchange_dashboard') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('exchange.exchange_dashboard') }}" class="btn btn-light border">
                 <i class="bi bi-arrow-left me-1"></i> Back
             </a>
         </div>
