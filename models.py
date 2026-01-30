@@ -4340,6 +4340,10 @@ class Database:
         if 'is_aog' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN is_aog INTEGER DEFAULT 0")
         
+        # Add is_warranty column for Warranty work orders
+        if 'is_warranty' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN is_warranty INTEGER DEFAULT 0")
+        
         # Add master_routing_id for linking work orders to master routings
         if 'master_routing_id' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN master_routing_id INTEGER REFERENCES master_routings(id)")

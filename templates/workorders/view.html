@@ -89,6 +89,9 @@
                 {% if workorder.is_aog %}
                 <span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle-fill"></i> AOG</span>
                 {% endif %}
+                {% if workorder.is_warranty %}
+                <span class="badge bg-success ms-2"><i class="bi bi-shield-check"></i> Warranty</span>
+                {% endif %}
                 <span class="badge bg-info ms-2">{{ workorder.status }}</span>
                 {% if workorder.stage_name %}
                 <span class="badge ms-1" style="background-color: {{ workorder.stage_color or '#6c757d' }};">{{ workorder.stage_name }}</span>

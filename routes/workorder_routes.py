@@ -249,14 +249,15 @@ def create_workorder():
                 stage_id = int(stage_id) if stage_id else None
                 
                 is_aog = 1 if request.form.get('is_aog') else 0
+                is_warranty = 1 if request.form.get('is_warranty') else 0
                 
                 serial_number = request.form.get('serial_number', '').strip() or None
                 notes = request.form.get('notes', '').strip() or None
                 
                 conn.execute('''
                     INSERT INTO work_orders 
-                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name, operational_status, stage_id, repair_category, workorder_type, is_aog, serial_number, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (wo_number, product_id, quantity, disposition, status, priority, planned_start_date, planned_end_date, labor_cost, overhead_cost, customer_id, customer_name, operational_status, stage_id, repair_category, workorder_type, is_aog, is_warranty, serial_number, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     wo_number,
                     int(request.form['product_id']),
@@ -275,6 +276,7 @@ def create_workorder():
                     request.form.get('repair_category') or None,
                     request.form.get('workorder_type') or None,
                     is_aog,
+                    is_warranty,
                     serial_number,
                     notes
                 ))
@@ -780,6 +782,7 @@ def edit_workorder(id):
                     notes = product['description'] or ''
             
             is_aog = 1 if request.form.get('is_aog') else 0
+            is_warranty = 1 if request.form.get('is_warranty') else 0
             
             # Update work order
             conn.execute('''
@@ -799,7 +802,8 @@ def edit_workorder(id):
                     stage_id = ?,
                     repair_category = ?,
                     workorder_type = ?,
-                    is_aog = ?
+                    is_aog = ?,
+                    is_warranty = ?
                 WHERE id = ?
             ''', (
                 product_id,
@@ -818,6 +822,7 @@ def edit_workorder(id):
                 request.form.get('repair_category') or None,
                 request.form.get('workorder_type') or None,
                 is_aog,
+                is_warranty,
                 id
             ))
             
