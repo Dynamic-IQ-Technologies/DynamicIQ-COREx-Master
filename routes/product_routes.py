@@ -106,8 +106,8 @@ def quick_create_product():
             return jsonify({'success': False, 'error': f'Product with code {code} already exists'})
         
         cursor = conn.execute('''
-            INSERT INTO products (code, name, description, category, cost, product_type, status)
-            VALUES (?, ?, ?, ?, ?, 'Standard', 'Active')
+            INSERT INTO products (code, name, description, part_category, cost, product_type, unit_of_measure)
+            VALUES (?, ?, ?, ?, ?, 'Standard', 'EA')
         ''', (code, name, description, category, cost))
         
         product_id = cursor.lastrowid
