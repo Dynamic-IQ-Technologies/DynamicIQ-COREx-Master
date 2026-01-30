@@ -249,12 +249,16 @@ def view_exchange(exchange_id):
     exchange = conn.execute('''
         SELECT em.*, c.name as customer_name, c.email as customer_email,
                p.code as product_code, p.name as product_name,
-               so.so_number, u.username as created_by_name,
-               wo.wo_number as repair_wo_number, wo.status as repair_wo_status
+               so.so_number, so.core_charge as so_core_charge, so.exchange_type as so_exchange_type,
+               u.username as created_by_name,
+               wo.wo_number as repair_wo_number, wo.status as repair_wo_status,
+               sol.serial_number as allocated_serial, sol.quantity as line_qty,
+               sol.unit_price as line_unit_price, sol.line_total as line_total
         FROM exchange_master em
         JOIN customers c ON em.customer_id = c.id
         JOIN products p ON em.product_id = p.id
         LEFT JOIN sales_orders so ON em.sales_order_id = so.id
+        LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
         LEFT JOIN users u ON em.created_by = u.id
         LEFT JOIN work_orders wo ON em.repair_work_order_id = wo.id
         WHERE em.id = ?

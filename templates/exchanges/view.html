@@ -77,11 +77,11 @@
                         <dt class="col-5">Product:</dt>
                         <dd class="col-7">{{ exchange.product_code }} - {{ exchange.product_name }}</dd>
                         <dt class="col-5">Shipped Serial:</dt>
-                        <dd class="col-7">{{ exchange.shipped_serial_number or '-' }}</dd>
+                        <dd class="col-7">{{ exchange.shipped_serial_number or exchange.allocated_serial or '-' }}</dd>
                         <dt class="col-5">Expected Core:</dt>
                         <dd class="col-7">{{ exchange.expected_core_serial or 'Any' }}</dd>
                         <dt class="col-5">Exchange Type:</dt>
-                        <dd class="col-7">{{ exchange.exchange_type }}</dd>
+                        <dd class="col-7">{{ exchange.exchange_type or exchange.so_exchange_type or '-' }}</dd>
                         <dt class="col-5">Created:</dt>
                         <dd class="col-7">{{ exchange.created_at|datestr if exchange.created_at else '-' }}</dd>
                         <dt class="col-5">Created By:</dt>
@@ -97,7 +97,7 @@
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-6">Core Value:</dt>
-                        <dd class="col-6 text-end fw-bold">${{ fmt("{:,.2f}", exchange.core_value or 0) }}</dd>
+                        <dd class="col-6 text-end fw-bold">${{ fmt("{:,.2f}", exchange.core_value or exchange.so_core_charge or 0) }}</dd>
                         <dt class="col-6">Exchange Fee:</dt>
                         <dd class="col-6 text-end">${{ fmt("{:,.2f}", exchange.exchange_fee or 0) }}</dd>
                         <dt class="col-6">Deposit:</dt>
