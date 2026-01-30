@@ -133,8 +133,24 @@
                                 <td>${{ "%.2f"|format(cost.unit_cost) }}</td>
                                 <td class="fw-bold">${{ "%.2f"|format(cost.total_cost) }}</td>
                                 <td>{{ cost.date_incurred or '-' }}</td>
-                                <td>{{ cost.reference_number or '-' }}</td>
                                 <td>
+                                    {% if cost.reference_number and cost.reference_number.startswith('PO-') and cost.po_id %}
+                                    <a href="{{ url_for('po_routes.view_purchaseorder', id=cost.po_id) }}" class="text-primary fw-bold">
+                                        {{ cost.reference_number }}
+                                    </a>
+                                    {% else %}
+                                    {{ cost.reference_number or '-' }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cost.reference_number and cost.reference_number.startswith('PO-') and cost.po_id %}
+                                    <a href="{{ url_for('po_routes.view_purchaseorder', id=cost.po_id) }}" class="btn btn-sm btn-outline-primary me-1" title="View PO">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('po_routes.send_to_supplier', po_id=cost.po_id) }}" class="btn btn-sm btn-outline-success me-1" title="Email PO to Supplier">
+                                        <i class="bi bi-envelope"></i>
+                                    </a>
+                                    {% endif %}
                                     <form method="POST" action="{{ url_for('ndt_routes.wo_delete_cost', wo_id=ndt_wo.id, cost_id=cost.id) }}" style="display: inline;">
                                         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this cost entry?')">
                                             <i class="bi bi-trash"></i>

@@ -1693,10 +1693,12 @@ def wo_costs(id):
         return redirect(url_for('ndt_routes.wo_list'))
     
     costs = conn.execute('''
-        SELECT c.*, lr.first_name || ' ' || lr.last_name as employee_name, u.username as created_by_name
+        SELECT c.*, lr.first_name || ' ' || lr.last_name as employee_name, u.username as created_by_name,
+               po.id as po_id
         FROM ndt_wo_costs c
         LEFT JOIN labor_resources lr ON c.employee_id = lr.id
         LEFT JOIN users u ON c.created_by = u.id
+        LEFT JOIN purchase_orders po ON c.reference_number = po.po_number
         WHERE c.ndt_wo_id = ?
         ORDER BY c.date_incurred DESC, c.created_at DESC
     ''', (id,)).fetchall()
