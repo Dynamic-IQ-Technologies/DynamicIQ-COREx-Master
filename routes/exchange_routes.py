@@ -470,9 +470,10 @@ def view_agreement(agreement_id):
     
     agreement = conn.execute('''
         SELECT ea.*, c.name as customer_name, c.billing_address as customer_address,
-               c.city as customer_city, c.state as customer_state, c.postal_code as customer_postal,
+               c.phone as customer_phone, c.email as customer_email,
                p.code as product_code, p.name as product_name,
-               em.exchange_id as exchange_number, em.exchange_type, em.shipped_serial_number
+               em.exchange_id as exchange_number, em.exchange_type, em.shipped_serial_number,
+               em.core_value, em.exchange_fee
         FROM exchange_agreements ea
         JOIN customers c ON ea.customer_id = c.id
         JOIN products p ON ea.product_id = p.id
@@ -496,7 +497,6 @@ def download_agreement(agreement_id):
     
     agreement = conn.execute('''
         SELECT ea.*, c.name as customer_name, c.billing_address as customer_address,
-               c.city as customer_city, c.state as customer_state, c.postal_code as customer_postal,
                c.phone as customer_phone, c.email as customer_email,
                p.code as product_code, p.name as product_name,
                em.exchange_id as exchange_number, em.exchange_type, em.shipped_serial_number,
@@ -552,7 +552,7 @@ def download_agreement(agreement_id):
                 <h4>Customer Information</h4>
                 <p><strong>{agreement['customer_name']}</strong></p>
                 <p>{agreement['customer_address'] or ''}</p>
-                <p>{agreement['customer_city'] or ''}, {agreement['customer_state'] or ''} {agreement['customer_postal'] or ''}</p>
+                <p>Phone: {agreement['customer_phone'] or '-'} | Email: {agreement['customer_email'] or '-'}</p>
             </div>
             <div class="info-box">
                 <h4>Exchange Details</h4>

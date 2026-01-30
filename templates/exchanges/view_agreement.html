@@ -38,7 +38,8 @@
                     <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Customer Information</h5>
                     <p class="mb-1"><strong>{{ agreement.customer_name }}</strong></p>
                     <p class="mb-1">{{ agreement.customer_address or '-' }}</p>
-                    <p class="mb-0">{{ agreement.customer_city or '' }}{% if agreement.customer_state %}, {{ agreement.customer_state }}{% endif %} {{ agreement.customer_postal or '' }}</p>
+                    {% if agreement.customer_phone %}<p class="mb-1"><i class="bi bi-telephone me-1"></i> {{ agreement.customer_phone }}</p>{% endif %}
+                    {% if agreement.customer_email %}<p class="mb-0"><i class="bi bi-envelope me-1"></i> {{ agreement.customer_email }}</p>{% endif %}
                 </div>
             </div>
             <div class="col-md-6">
