@@ -3082,7 +3082,11 @@ def add_task_material(task_id):
             flash(f'New part {new_part_code} - {new_part_name} created successfully.', 'success')
         except Exception as e:
             conn.rollback()
-            flash(f'Error creating new part: {str(e)}', 'danger')
+            error_msg = str(e)
+            if 'UNIQUE constraint failed' in error_msg or 'unique constraint' in error_msg.lower():
+                flash(f'Part code "{new_part_code}" already exists. Please select it from the dropdown instead.', 'warning')
+            else:
+                flash(f'Error creating new part: {error_msg}', 'danger')
             conn.close()
             return redirect(url_for('workorder_routes.view_workorder', id=task['work_order_id']))
     
