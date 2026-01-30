@@ -90,50 +90,69 @@ def create_product():
         db = Database()
         conn = db.get_connection()
         
-        conn.execute('''
-            INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, lead_time, product_category, manufacturer, cost,
-                                  applicability, shelf_life_cycle, eccn, part_notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            request.form['code'],
-            request.form['name'],
-            request.form['description'],
-            request.form['unit_of_measure'],
-            request.form['product_type'],
-            request.form.get('part_category', 'Other'),
-            int(request.form.get('lead_time', 0) or 0),
-            request.form.get('product_category', ''),
-            request.form.get('manufacturer', ''),
-            0.0,
-            request.form.get('applicability', ''),
-            request.form.get('shelf_life_cycle', ''),
-            request.form.get('eccn', ''),
-            request.form.get('part_notes', '')
-        ))
+        part_code = request.form['code']
         
-        product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        # Check if part code already exists
+        existing = conn.execute('SELECT id FROM products WHERE code = ?', (part_code,)).fetchone()
+        if existing:
+            conn.close()
+            flash(f'Part code "{part_code}" already exists. Please use a different code.', 'warning')
+            return redirect(url_for('product_routes.create_product'))
         
-        conn.execute('''
-            INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
-            VALUES (?, 0, ?, ?)
-        ''', (product_id, float(request.form.get('reorder_point', 0)), float(request.form.get('safety_stock', 0))))
-        
-        # Log audit trail
-        AuditLogger.log_change(
-            conn=conn,
-            record_type='product',
-            record_id=product_id,
-            action_type='Created',
-            modified_by=session.get('user_id'),
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent')
-        )
-        
-        conn.commit()
-        conn.close()
-        
-        flash('Product created successfully!', 'success')
-        return redirect(url_for('product_routes.list_products'))
+        try:
+            conn.execute('''
+                INSERT INTO products (code, name, description, unit_of_measure, product_type, part_category, lead_time, product_category, manufacturer, cost,
+                                      applicability, shelf_life_cycle, eccn, part_notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                part_code,
+                request.form['name'],
+                request.form['description'],
+                request.form['unit_of_measure'],
+                request.form['product_type'],
+                request.form.get('part_category', 'Other'),
+                int(request.form.get('lead_time', 0) or 0),
+                request.form.get('product_category', ''),
+                request.form.get('manufacturer', ''),
+                0.0,
+                request.form.get('applicability', ''),
+                request.form.get('shelf_life_cycle', ''),
+                request.form.get('eccn', ''),
+                request.form.get('part_notes', '')
+            ))
+            
+            product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            
+            conn.execute('''
+                INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
+                VALUES (?, 0, ?, ?)
+            ''', (product_id, float(request.form.get('reorder_point', 0)), float(request.form.get('safety_stock', 0))))
+            
+            # Log audit trail
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='product',
+                record_id=product_id,
+                action_type='Created',
+                modified_by=session.get('user_id'),
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+            
+            conn.commit()
+            conn.close()
+            
+            flash('Product created successfully!', 'success')
+            return redirect(url_for('product_routes.list_products'))
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            error_msg = str(e)
+            if 'UNIQUE constraint failed' in error_msg or 'unique constraint' in error_msg.lower():
+                flash(f'Part code "{part_code}" already exists. Please use a different code.', 'warning')
+            else:
+                flash(f'Error creating product: {error_msg}', 'danger')
+            return redirect(url_for('product_routes.create_product'))
     
     return render_template('products/create.html')
 
