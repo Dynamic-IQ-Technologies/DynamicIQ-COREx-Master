@@ -542,6 +542,11 @@ def add_line(id):
         ).fetchone()
         line_number = (last_line['max_line'] or 0) + 1
         
+        # Get product cost for margin tracking
+        product_cost_row = conn.execute('SELECT cost FROM products WHERE id = ?', (product_id,)).fetchone()
+        product_cost = product_cost_row['cost'] if product_cost_row and product_cost_row['cost'] else 0.0
+        line_margin = ((unit_price - product_cost) / unit_price * 100) if unit_price > 0 else 0.0
+        
         # Insert line with all new fields
         cursor = conn.cursor()
         cursor.execute('''
@@ -551,8 +556,8 @@ def add_line(id):
                 line_type, line_status,
                 core_charge, core_due_days, expected_core_condition, core_disposition, stock_disposition,
                 quoted_tat, repair_nte, vendor_repair_source, repair_status, return_to_address,
-                created_by, modified_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_by, modified_by, cost, margin
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             id, line_number, product_id, request.form.get('description', ''),
             quantity, unit_price, discount_percent, line_total,
@@ -568,7 +573,8 @@ def add_line(id):
             vendor_repair_source if line_type == 'Managed Repair' else None,
             repair_status if line_type == 'Managed Repair' else None,
             return_to_address if line_type == 'Managed Repair' else None,
-            session['user_id'], session['user_id']
+            session['user_id'], session['user_id'],
+            product_cost, line_margin
         ))
         
         line_id = cursor.lastrowid

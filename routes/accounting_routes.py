@@ -203,7 +203,7 @@ def revenue_tracker():
     ''', params_sales).fetchone()
     
     sales_cogs = conn.execute(f'''
-        SELECT COALESCE(SUM(sol.quantity * COALESCE(p.cost, 0)), 0) as cogs
+        SELECT COALESCE(SUM(sol.quantity * COALESCE(NULLIF(sol.cost, 0), p.cost, 0)), 0) as cogs
         FROM sales_order_lines sol
         JOIN sales_orders so ON sol.so_id = so.id
         LEFT JOIN products p ON sol.product_id = p.id
