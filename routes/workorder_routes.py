@@ -776,7 +776,7 @@ def delete_workorder(id):
         
         # Check for linked invoices
         linked_invoices = conn.execute('''
-            SELECT COUNT(*) as count FROM invoices WHERE work_order_id = ?
+            SELECT COUNT(*) as count FROM invoices WHERE wo_id = ?
         ''', (id,)).fetchone()
         
         if linked_invoices and linked_invoices['count'] > 0:
