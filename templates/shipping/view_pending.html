@@ -263,7 +263,7 @@
                     <span>
                         <span class="badge bg-{% if doc.status == 'Final' %}success{% elif doc.status == 'Draft' %}secondary{% else %}info{% endif %} me-1">{{ doc.status }}</span>
                         {% if doc.file_path %}
-                        <a href="{{ url_for('shipping_routes.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Download">
+                        <a href="{{ url_for('shipping_routes.download_document', id=shipment.id, doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Download">
                             <i class="bi bi-download"></i>
                         </a>
                         {% endif %}
