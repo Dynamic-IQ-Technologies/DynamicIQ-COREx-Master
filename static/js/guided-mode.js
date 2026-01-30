@@ -93,6 +93,7 @@ const SystemGuidedMode = {
     deactivateGuidedMode: function() {
         document.querySelectorAll('.gm-highlight, .gm-field-guidance, .gm-progress-bar, .gm-guidance-panel, .gm-field-highlight, .gm-validation-feedback').forEach(el => el.remove());
         document.querySelectorAll('.gm-current-field').forEach(el => el.classList.remove('gm-current-field'));
+        document.querySelectorAll('.gm-input-highlight').forEach(el => el.classList.remove('gm-input-highlight'));
         document.querySelectorAll('.gm-locked-field').forEach(el => {
             el.classList.remove('gm-locked-field');
         });
@@ -325,6 +326,7 @@ const SystemGuidedMode = {
         
         document.querySelectorAll('.gm-current-field').forEach(el => el.classList.remove('gm-current-field'));
         document.querySelectorAll('.gm-field-highlight').forEach(el => el.remove());
+        document.querySelectorAll('.gm-input-highlight').forEach(el => el.classList.remove('gm-input-highlight'));
         
         this.currentStep = stepIndex;
         const step = this.steps[stepIndex];
@@ -334,15 +336,8 @@ const SystemGuidedMode = {
         step.element.classList.add('gm-current-field');
         step.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        const highlight = document.createElement('div');
-        highlight.className = 'gm-field-highlight';
-        step.element.style.position = 'relative';
-        
-        // Ensure input is above the highlight overlay
-        step.input.style.position = 'relative';
-        step.input.style.zIndex = '20';
-        
-        step.element.appendChild(highlight);
+        // Apply highlight directly to input instead of overlay
+        step.input.classList.add('gm-input-highlight');
         
         setTimeout(() => step.input.focus(), 300);
         

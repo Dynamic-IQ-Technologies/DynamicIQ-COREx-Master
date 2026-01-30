@@ -885,6 +885,19 @@ h2, h3, h4, h5, h6 {
     animation: pulse-highlight 2s infinite;
 }
 
+/* Direct input highlight - no overlay blocking */
+.gm-input-highlight {
+    border: 3px solid #8b5cf6 !important;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.2) !important;
+    background-color: rgba(139, 92, 246, 0.05) !important;
+    animation: input-pulse 2s infinite !important;
+}
+
+@keyframes input-pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.15), 0 0 30px rgba(139, 92, 246, 0.3); }
+}
+
 @keyframes pulse-highlight {
     0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
     50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0); }
