@@ -229,74 +229,84 @@
 </div>
 
 <script>
-const productDescriptions = {
-    {% for product in products %}
-    "{{ product.id }}": {{ product.description|tojson if product.description else '""' }},
-    {% endfor %}
-};
-
-document.getElementById('product_id').addEventListener('change', function() {
-    const productId = this.value;
-    const notesField = document.getElementById('notes');
+document.addEventListener('DOMContentLoaded', function() {
+    const productDescriptions = {
+        {% for product in products %}
+        "{{ product.id }}": {{ product.description|tojson if product.description else '""' }},
+        {% endfor %}
+    };
     
-    if (productId && productDescriptions[productId]) {
-        if (!notesField.value.trim()) {
-            notesField.value = productDescriptions[productId];
+    let duplicateCheckTimeout;
+    let duplicateModal = null;
+    
+    // Initialize modal only when needed
+    function getDuplicateModal() {
+        if (!duplicateModal) {
+            duplicateModal = new bootstrap.Modal(document.getElementById('duplicateWarningModal'));
         }
+        return duplicateModal;
     }
-    checkForDuplicates();
-});
 
-let duplicateCheckTimeout;
-const duplicateModal = new bootstrap.Modal(document.getElementById('duplicateWarningModal'));
-
-function checkForDuplicates() {
-    const productId = document.getElementById('product_id').value;
-    const customerId = document.getElementById('customer_id').value;
-    const serialNumber = document.getElementById('serial_number').value.trim();
-    
-    if (!productId || !serialNumber) {
-        return;
-    }
-    
-    clearTimeout(duplicateCheckTimeout);
-    duplicateCheckTimeout = setTimeout(function() {
-        fetch('/api/workorders/check-duplicate?product_id=' + productId + '&customer_id=' + customerId + '&serial_number=' + encodeURIComponent(serialNumber))
-            .then(response => response.json())
-            .then(data => {
-                if (data.duplicate && data.matches.length > 0) {
-                    showDuplicateWarning(data.matches);
-                }
-            })
-            .catch(err => console.error('Error checking duplicates:', err));
-    }, 500);
-}
-
-function showDuplicateWarning(matches) {
-    const listDiv = document.getElementById('duplicateList');
-    let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
-    html += '<thead class="table-light"><tr><th>WO Number</th><th>Product</th><th>Serial Number</th><th>Customer</th><th>Status</th></tr></thead><tbody>';
-    
-    matches.forEach(function(m) {
-        html += '<tr>';
-        html += '<td><a href="/workorders/' + m.id + '" target="_blank">' + m.wo_number + '</a></td>';
-        html += '<td>' + m.product_code + '</td>';
-        html += '<td>' + (m.serial_number || '-') + '</td>';
-        html += '<td>' + m.customer_name + '</td>';
-        html += '<td><span class="badge bg-secondary">' + m.status + '</span></td>';
-        html += '</tr>';
+    document.getElementById('product_id').addEventListener('change', function() {
+        const productId = this.value;
+        const notesField = document.getElementById('notes');
+        
+        if (productId && productDescriptions[productId]) {
+            if (!notesField.value.trim()) {
+                notesField.value = productDescriptions[productId];
+            }
+        }
+        checkForDuplicates();
     });
-    
-    html += '</tbody></table></div>';
-    listDiv.innerHTML = html;
-    duplicateModal.show();
-}
 
-document.getElementById('customer_id').addEventListener('change', checkForDuplicates);
-document.getElementById('serial_number').addEventListener('blur', checkForDuplicates);
-document.getElementById('serial_number').addEventListener('input', function() {
-    clearTimeout(duplicateCheckTimeout);
-    duplicateCheckTimeout = setTimeout(checkForDuplicates, 800);
+    function checkForDuplicates() {
+        const productId = document.getElementById('product_id').value;
+        const customerId = document.getElementById('customer_id').value;
+        const serialNumber = document.getElementById('serial_number').value.trim();
+        
+        if (!productId || !serialNumber) {
+            return;
+        }
+        
+        clearTimeout(duplicateCheckTimeout);
+        duplicateCheckTimeout = setTimeout(function() {
+            fetch('/api/workorders/check-duplicate?product_id=' + productId + '&customer_id=' + customerId + '&serial_number=' + encodeURIComponent(serialNumber))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.duplicate && data.matches.length > 0) {
+                        showDuplicateWarning(data.matches);
+                    }
+                })
+                .catch(err => console.error('Error checking duplicates:', err));
+        }, 500);
+    }
+
+    function showDuplicateWarning(matches) {
+        const listDiv = document.getElementById('duplicateList');
+        let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+        html += '<thead class="table-light"><tr><th>WO Number</th><th>Product</th><th>Serial Number</th><th>Customer</th><th>Status</th></tr></thead><tbody>';
+        
+        matches.forEach(function(m) {
+            html += '<tr>';
+            html += '<td><a href="/workorders/' + m.id + '" target="_blank">' + m.wo_number + '</a></td>';
+            html += '<td>' + m.product_code + '</td>';
+            html += '<td>' + (m.serial_number || '-') + '</td>';
+            html += '<td>' + m.customer_name + '</td>';
+            html += '<td><span class="badge bg-secondary">' + m.status + '</span></td>';
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        listDiv.innerHTML = html;
+        getDuplicateModal().show();
+    }
+
+    document.getElementById('customer_id').addEventListener('change', checkForDuplicates);
+    document.getElementById('serial_number').addEventListener('blur', checkForDuplicates);
+    document.getElementById('serial_number').addEventListener('input', function() {
+        clearTimeout(duplicateCheckTimeout);
+        duplicateCheckTimeout = setTimeout(checkForDuplicates, 800);
+    });
 });
 </script>
 {% endblock %}
