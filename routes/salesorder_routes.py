@@ -282,12 +282,25 @@ def view_sales_order(id):
         ORDER BY sh.ship_date DESC
     ''', (id,)).fetchall()
     
+    # Get related exchanges
+    related_exchanges = conn.execute('''
+        SELECT em.id, em.exchange_type, em.status, em.core_due_date,
+               p.code as product_code, p.name as product_name,
+               ec.core_status
+        FROM exchange_master em
+        JOIN products p ON em.product_id = p.id
+        LEFT JOIN exchange_cores ec ON em.id = ec.exchange_id
+        WHERE em.sales_order_id = ?
+        ORDER BY em.created_at DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     return render_template('salesorders/view.html', 
                          sales_order=sales_order, lines=lines, payments=payments, exchange_pos=exchange_pos,
                          related_work_orders=related_work_orders, related_invoices=related_invoices,
-                         related_pos=related_pos, related_shipments=related_shipments)
+                         related_pos=related_pos, related_shipments=related_shipments, 
+                         related_exchanges=related_exchanges)
 
 @salesorder_bp.route('/sales-orders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')

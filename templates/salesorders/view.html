@@ -1023,6 +1023,12 @@ function submitWoAllocation() {
                             {% if related_shipments %}<span class="badge bg-info ms-1">{{ related_shipments|length }}</span>{% endif %}
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="exchanges-tab" data-bs-toggle="tab" data-bs-target="#exchanges-pane" type="button" role="tab">
+                            <i class="bi bi-arrow-left-right me-1"></i>Exchanges
+                            {% if related_exchanges %}<span class="badge bg-purple ms-1" style="background-color: #6f42c1;">{{ related_exchanges|length }}</span>{% endif %}
+                        </button>
+                    </li>
                 </ul>
                 <div class="tab-content mt-3" id="relatedRecordsContent">
                     <!-- Work Orders Tab -->
@@ -1258,6 +1264,67 @@ function submitWoAllocation() {
                         <div class="text-center text-muted py-4">
                             <i class="bi bi-truck fs-1 mb-2 d-block"></i>
                             <p>No shipments linked to this sales order.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Exchanges Tab -->
+                    <div class="tab-pane fade" id="exchanges-pane" role="tabpanel">
+                        {% if related_exchanges %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Exchange ID</th>
+                                        <th>Type</th>
+                                        <th>Product</th>
+                                        <th>Core Due Date</th>
+                                        <th>Core Status</th>
+                                        <th>Exchange Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ex in related_exchanges %}
+                                    <tr>
+                                        <td><a href="{{ url_for('exchange.view_exchange', exchange_id=ex.id) }}" class="text-decoration-none fw-bold">EX-{{ ex.id }}</a></td>
+                                        <td><span class="badge" style="background-color: #6f42c1;">{{ ex.exchange_type or 'Single' }}</span></td>
+                                        <td>{{ ex.product_code or '' }} {{ ex.product_name or '' }}</td>
+                                        <td>{{ (ex.core_due_date|string)[:10] if ex.core_due_date else '-' }}</td>
+                                        <td>
+                                            {% if ex.core_status == 'Core Received' %}
+                                            <span class="badge bg-success">{{ ex.core_status }}</span>
+                                            {% elif ex.core_status == 'Awaiting Core' %}
+                                            <span class="badge bg-warning text-dark">{{ ex.core_status }}</span>
+                                            {% elif ex.core_status == 'Overdue' %}
+                                            <span class="badge bg-danger">{{ ex.core_status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ ex.core_status or '-' }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if ex.status == 'Closed' %}
+                                            <span class="badge bg-success">{{ ex.status }}</span>
+                                            {% elif ex.status == 'Open' %}
+                                            <span class="badge bg-primary">{{ ex.status }}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ ex.status or '-' }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('exchange.view_exchange', exchange_id=ex.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-arrow-left-right fs-1 mb-2 d-block"></i>
+                            <p>No exchanges linked to this sales order.</p>
                         </div>
                         {% endif %}
                     </div>
