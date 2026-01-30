@@ -758,6 +758,11 @@ def delete_workorder(id):
         
         wo_number = workorder['wo_number']
         
+        # Check if work order has a stage - only allow deletion of unstaged work orders
+        if workorder['stage'] and str(workorder['stage']).strip():
+            flash('Cannot delete a work order that has been staged. Only work orders with no stage can be deleted.', 'danger')
+            return redirect(url_for('workorder_routes.view_workorder', id=id))
+        
         # Check if work order is completed - prevent deletion
         if workorder['status'] == 'Completed':
             flash('Cannot delete a completed work order.', 'danger')
