@@ -150,6 +150,59 @@ def list_workorders_json():
     conn.close()
     return jsonify([dict(wo) for wo in workorders])
 
+@workorder_bp.route('/api/workorders/check-duplicate')
+@login_required
+def check_duplicate_workorder():
+    """Check if a work order with the same customer, product, and serial number already exists"""
+    product_id = request.args.get('product_id', '')
+    customer_id = request.args.get('customer_id', '')
+    serial_number = request.args.get('serial_number', '').strip()
+    
+    if not product_id or not serial_number:
+        return jsonify({'duplicate': False, 'matches': []})
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        query = '''
+            SELECT wo.id, wo.wo_number, wo.status, wo.serial_number, wo.created_at,
+                   p.code as product_code, p.name as product_name,
+                   c.name as customer_name
+            FROM work_orders wo
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN customers c ON wo.customer_id = c.id
+            WHERE wo.product_id = ?
+              AND LOWER(COALESCE(wo.serial_number, '')) = LOWER(?)
+        '''
+        params = [product_id, serial_number]
+        
+        if customer_id:
+            query += ' AND wo.customer_id = ?'
+            params.append(customer_id)
+        
+        query += ' ORDER BY wo.created_at DESC LIMIT 5'
+        
+        matches = conn.execute(query, params).fetchall()
+        
+        if matches:
+            match_list = []
+            for m in matches:
+                match_list.append({
+                    'id': m['id'],
+                    'wo_number': m['wo_number'],
+                    'status': m['status'],
+                    'product_code': m['product_code'],
+                    'product_name': m['product_name'],
+                    'customer_name': m['customer_name'] or 'No Customer',
+                    'serial_number': m['serial_number']
+                })
+            return jsonify({'duplicate': True, 'matches': match_list})
+        
+        return jsonify({'duplicate': False, 'matches': []})
+    finally:
+        conn.close()
+
 @workorder_bp.route('/workorders/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def create_workorder():

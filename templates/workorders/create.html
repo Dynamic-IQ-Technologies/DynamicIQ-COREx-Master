@@ -202,6 +202,26 @@
     </div>
 </div>
 
+<!-- Duplicate Warning Modal -->
+<div class="modal fade" id="duplicateWarningModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Potential Duplicate Work Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>A work order with the same part number and serial number already exists:</p>
+                <div id="duplicateList" class="mt-3"></div>
+                <p class="mt-3 mb-0 text-muted"><i class="bi bi-info-circle me-1"></i>You can still create this work order if needed, but please verify this is not a duplicate.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const productDescriptions = {
     {% for product in products %}
@@ -218,6 +238,59 @@ document.getElementById('product_id').addEventListener('change', function() {
             notesField.value = productDescriptions[productId];
         }
     }
+    checkForDuplicates();
+});
+
+let duplicateCheckTimeout;
+const duplicateModal = new bootstrap.Modal(document.getElementById('duplicateWarningModal'));
+
+function checkForDuplicates() {
+    const productId = document.getElementById('product_id').value;
+    const customerId = document.getElementById('customer_id').value;
+    const serialNumber = document.getElementById('serial_number').value.trim();
+    
+    if (!productId || !serialNumber) {
+        return;
+    }
+    
+    clearTimeout(duplicateCheckTimeout);
+    duplicateCheckTimeout = setTimeout(function() {
+        fetch('/api/workorders/check-duplicate?product_id=' + productId + '&customer_id=' + customerId + '&serial_number=' + encodeURIComponent(serialNumber))
+            .then(response => response.json())
+            .then(data => {
+                if (data.duplicate && data.matches.length > 0) {
+                    showDuplicateWarning(data.matches);
+                }
+            })
+            .catch(err => console.error('Error checking duplicates:', err));
+    }, 500);
+}
+
+function showDuplicateWarning(matches) {
+    const listDiv = document.getElementById('duplicateList');
+    let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+    html += '<thead class="table-light"><tr><th>WO Number</th><th>Product</th><th>Serial Number</th><th>Customer</th><th>Status</th></tr></thead><tbody>';
+    
+    matches.forEach(function(m) {
+        html += '<tr>';
+        html += '<td><a href="/workorders/' + m.id + '" target="_blank">' + m.wo_number + '</a></td>';
+        html += '<td>' + m.product_code + '</td>';
+        html += '<td>' + (m.serial_number || '-') + '</td>';
+        html += '<td>' + m.customer_name + '</td>';
+        html += '<td><span class="badge bg-secondary">' + m.status + '</span></td>';
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    listDiv.innerHTML = html;
+    duplicateModal.show();
+}
+
+document.getElementById('customer_id').addEventListener('change', checkForDuplicates);
+document.getElementById('serial_number').addEventListener('blur', checkForDuplicates);
+document.getElementById('serial_number').addEventListener('input', function() {
+    clearTimeout(duplicateCheckTimeout);
+    duplicateCheckTimeout = setTimeout(checkForDuplicates, 800);
 });
 </script>
 {% endblock %}
