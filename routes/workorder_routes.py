@@ -4391,3 +4391,71 @@ def get_inventory_by_product(product_id):
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@workorder_bp.route('/api/products/check-similar')
+@login_required
+def check_similar_products():
+    """Check for similar part numbers or names to warn about potential duplicates"""
+    part_code = request.args.get('code', '').strip().upper()
+    part_name = request.args.get('name', '').strip().upper()
+    
+    if not part_code and not part_name:
+        return jsonify({'similar': []})
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        similar_products = []
+        
+        # Check for exact code match
+        if part_code:
+            exact_code = conn.execute('''
+                SELECT id, code, name FROM products WHERE UPPER(code) = ?
+            ''', (part_code,)).fetchone()
+            if exact_code:
+                similar_products.append({
+                    'id': exact_code['id'],
+                    'code': exact_code['code'],
+                    'name': exact_code['name'],
+                    'match_type': 'exact_code'
+                })
+        
+        # Check for similar codes (contains)
+        if part_code and len(part_code) >= 3:
+            similar_codes = conn.execute('''
+                SELECT id, code, name FROM products 
+                WHERE UPPER(code) LIKE ? AND UPPER(code) != ?
+                LIMIT 5
+            ''', (f'%{part_code}%', part_code)).fetchall()
+            for p in similar_codes:
+                similar_products.append({
+                    'id': p['id'],
+                    'code': p['code'],
+                    'name': p['name'],
+                    'match_type': 'similar_code'
+                })
+        
+        # Check for similar names
+        if part_name and len(part_name) >= 3:
+            similar_names = conn.execute('''
+                SELECT id, code, name FROM products 
+                WHERE UPPER(name) LIKE ?
+                LIMIT 5
+            ''', (f'%{part_name}%',)).fetchall()
+            for p in similar_names:
+                if not any(sp['id'] == p['id'] for sp in similar_products):
+                    similar_products.append({
+                        'id': p['id'],
+                        'code': p['code'],
+                        'name': p['name'],
+                        'match_type': 'similar_name'
+                    })
+        
+        conn.close()
+        return jsonify({'similar': similar_products[:10]})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'similar': [], 'error': str(e)})

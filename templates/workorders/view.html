@@ -2833,8 +2833,58 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Remove required from new part fields
                     newPartFields.querySelector('input[name="new_part_code"]').required = false;
                     newPartFields.querySelector('input[name="new_part_name"]').required = false;
+                    // Clear any warnings
+                    const warningDiv = document.getElementById('duplicateWarning' + taskId);
+                    if (warningDiv) warningDiv.innerHTML = '';
                 }
             }
+        });
+    });
+    
+    // Check for duplicate parts when entering part code or name
+    let debounceTimer;
+    document.querySelectorAll('input[name="new_part_code"], input[name="new_part_name"]').forEach(function(input) {
+        input.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const form = this.closest('form');
+            const codeInput = form.querySelector('input[name="new_part_code"]');
+            const nameInput = form.querySelector('input[name="new_part_name"]');
+            const taskId = form.querySelector('select[name="product_id"]').id.replace('productSelect', '');
+            
+            debounceTimer = setTimeout(function() {
+                const code = codeInput ? codeInput.value.trim() : '';
+                const name = nameInput ? nameInput.value.trim() : '';
+                
+                if (code.length >= 3 || name.length >= 3) {
+                    fetch(`/workorders/api/products/check-similar?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            let warningDiv = document.getElementById('duplicateWarning' + taskId);
+                            if (!warningDiv) {
+                                warningDiv = document.createElement('div');
+                                warningDiv.id = 'duplicateWarning' + taskId;
+                                const newPartFieldsDiv = document.getElementById('newPartFields' + taskId);
+                                if (newPartFieldsDiv) {
+                                    newPartFieldsDiv.insertBefore(warningDiv, newPartFieldsDiv.querySelector('hr'));
+                                }
+                            }
+                            
+                            if (data.similar && data.similar.length > 0) {
+                                let html = '<div class="alert alert-warning py-2 mb-3"><i class="bi bi-exclamation-triangle me-1"></i> <strong>Potential duplicates found:</strong><ul class="mb-0 mt-1 small">';
+                                data.similar.forEach(function(p) {
+                                    let matchText = p.match_type === 'exact_code' ? '(exact match)' : 
+                                                   p.match_type === 'similar_code' ? '(similar code)' : '(similar name)';
+                                    html += `<li><strong>${p.code}</strong> - ${p.name} <span class="text-muted">${matchText}</span></li>`;
+                                });
+                                html += '</ul></div>';
+                                warningDiv.innerHTML = html;
+                            } else {
+                                warningDiv.innerHTML = '';
+                            }
+                        })
+                        .catch(err => console.error('Error checking duplicates:', err));
+                }
+            }, 500);
         });
     });
 });
