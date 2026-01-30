@@ -286,48 +286,19 @@ def create_receiving():
             # Use the already calculated conversion values from earlier
             # base_quantity_for_receipt and unit_cost_at_receipt already computed above
             
-            # Update inventory with base quantity
-            inventory = conn.execute('''
-                SELECT * FROM inventory WHERE product_id = ?
-            ''', (product_id,)).fetchone()
-            
-            inventory_id = None
-            if inventory:
-                inventory_id = inventory['id']
-                new_qty = inventory['quantity'] + base_quantity_for_receipt
-                # Build update fields dynamically based on what's provided
-                update_fields = ['quantity = ?', 'unit_cost = ?', 'last_received_date = ?', 'last_updated = CURRENT_TIMESTAMP']
-                update_params = [new_qty, unit_cost_at_receipt, receipt_date]
-                
-                if expiration_date:
-                    update_fields.append('expiration_date = ?')
-                    update_params.append(expiration_date)
-                
-                if last_calibration_date:
-                    update_fields.append('last_calibration_date = ?')
-                    update_params.append(last_calibration_date)
-                if calibration_frequency:
-                    update_fields.append('calibration_frequency = ?')
-                    update_params.append(calibration_frequency)
-                if next_calibration_date:
-                    update_fields.append('next_calibration_date = ?')
-                    update_params.append(next_calibration_date)
-                
-                update_params.append(product_id)
-                conn.execute(f'''
-                    UPDATE inventory 
-                    SET {', '.join(update_fields)}
-                    WHERE product_id = ?
-                ''', tuple(update_params))
-            else:
-                # Create inventory record with location info using base quantity
-                inv_cursor = conn.cursor()
-                inv_cursor.execute('''
-                    INSERT INTO inventory 
-                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, last_received_date, expiration_date, last_calibration_date, calibration_frequency, next_calibration_date, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')
-                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, next_calibration_date))
-                inventory_id = inv_cursor.lastrowid
+            # Always create a new inventory record for each receipt
+            # This allows multiple inventory lines with the same part number (serialized items, different lots, etc.)
+            inv_cursor = conn.cursor()
+            inv_cursor.execute('''
+                INSERT INTO inventory 
+                (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, 
+                 last_received_date, expiration_date, last_calibration_date, calibration_frequency, 
+                 next_calibration_date, status, serial_number, is_serialized)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?)
+            ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, 
+                  bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, 
+                  next_calibration_date, serial_number, 1 if serial_number else 0))
+            inventory_id = inv_cursor.lastrowid
             
             # Link receiving transaction to the inventory record
             if inventory_id:
