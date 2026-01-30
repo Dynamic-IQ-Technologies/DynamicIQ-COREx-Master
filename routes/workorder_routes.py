@@ -800,9 +800,6 @@ def delete_workorder(id):
         conn.execute('DELETE FROM work_order_stage_history WHERE work_order_id = ?', (id,))
         conn.execute('DELETE FROM work_order_documents WHERE work_order_id = ?', (id,))
         
-        # Log audit trail before deletion
-        log_audit(conn, 'work_orders', id, 'DELETE', dict(workorder), None, session.get('user_id'))
-        
         # Delete the work order
         conn.execute('DELETE FROM work_orders WHERE id = ?', (id,))
         
