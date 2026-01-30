@@ -243,7 +243,8 @@ def revenue_tracker():
     wo_revenue = conn.execute(f'''
         SELECT COALESCE(SUM(i.total_amount), 0) as invoiced_revenue
         FROM invoices i
-        WHERE i.source_type = 'work_order' AND i.status != 'Cancelled' {date_filter_wo.replace('created_at', 'i.created_at')}
+        WHERE (i.source_type IN ('work_order', 'Work Order', 'Service Work Order') OR i.wo_id IS NOT NULL)
+        AND i.status NOT IN ('Cancelled', 'Draft') {date_filter_wo.replace('created_at', 'i.created_at')}
     ''', params_wo).fetchone()
     
     wo_by_status = conn.execute(f'''

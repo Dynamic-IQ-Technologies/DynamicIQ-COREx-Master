@@ -3359,6 +3359,13 @@ def issue_task_material(task_id, material_id):
                     VALUES (?, ?, 0, ?, ?)
                 ''', (gl_entry_id, inventory_acct['id'], material_cost, f'Material issued - {material["code"]}'))
         
+        # Update work order material_cost total
+        conn.execute('''
+            UPDATE work_orders 
+            SET material_cost = COALESCE(material_cost, 0) + ?
+            WHERE id = ?
+        ''', (material_cost, work_order_id))
+        
         AuditLogger.log(conn, 'work_order_task_materials', material_id, 'ISSUE',
                        {'issue_qty': issue_qty, 'new_total': new_issued, 
                         'lot_number': lot_number, 'serial_number': serial_number,
