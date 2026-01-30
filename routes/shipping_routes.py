@@ -532,9 +532,7 @@ def cancel_shipment(id):
             record_id=id,
             action_type='Deleted',
             modified_by=session.get('user_id'),
-            changed_fields={'shipment_number': shipment['shipment_number'], 'status': 'Cancelled/Deleted'},
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent')
+            changes={'shipment_number': shipment['shipment_number'], 'status': 'Cancelled/Deleted'}
         )
         
         conn.commit()
@@ -747,12 +745,10 @@ def create_shipment_from_line(line_id):
             record_id=shipment_id,
             action_type='Created',
             modified_by=session.get('user_id'),
-            changed_fields={
+            changes={
                 'shipment_number': shipment_number,
                 'source': f"Created from SO line {line['so_number']} #{line['line_number']}"
-            },
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent')
+            }
         )
         
         conn.commit()
@@ -968,14 +964,14 @@ def confirm_shipment(id):
               session.get('user_id'), session.get('user_id'), id))
         
         # Log activity
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='shipments',
             record_id=id,
             action_type='UPDATE',
             modified_by=session.get('user_id'),
-            changed_fields={'shipment_stage': 'Confirmed', 'status': 'Shipped'}
+            changes={'shipment_stage': 'Confirmed', 'status': 'Shipped'}
         )
         
         conn.commit()
@@ -1088,14 +1084,14 @@ def generate_packing_slip(id):
         ''', (id, 'Packing Slip', doc_number, new_version, 'Draft', file_path, session.get('user_id')))
         doc_id = cursor.lastrowid
         
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='shipment_documents',
             record_id=doc_id,
             action_type='CREATE',
             modified_by=session.get('user_id'),
-            changed_fields={'document_type': 'Packing Slip', 'version': new_version}
+            changes={'document_type': 'Packing Slip', 'version': new_version}
         )
         
         conn.commit()
@@ -1203,14 +1199,14 @@ def generate_certificate_of_conformance(id):
               file_path, signatory, session.get('user_id')))
         doc_id = cursor.lastrowid
         
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='shipment_documents',
             record_id=doc_id,
             action_type='CREATE',
             modified_by=session.get('user_id'),
-            changed_fields={'document_type': 'Certificate of Conformance', 'version': new_version}
+            changes={'document_type': 'Certificate of Conformance', 'version': new_version}
         )
         
         conn.commit()
@@ -1316,14 +1312,14 @@ def generate_commercial_invoice(id):
         ''', (id, 'Commercial Invoice', doc_number, new_version, 'Draft', file_path, session.get('user_id')))
         doc_id = cursor.lastrowid
         
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='shipment_documents',
             record_id=doc_id,
             action_type='CREATE',
             modified_by=session.get('user_id'),
-            changed_fields={'document_type': 'Commercial Invoice', 'version': new_version}
+            changes={'document_type': 'Commercial Invoice', 'version': new_version}
         )
         
         conn.commit()
@@ -1370,14 +1366,14 @@ def finalize_document(id, doc_id):
             WHERE id = ?
         ''', (session.get('user_id'), doc_id))
         
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='shipment_documents',
             record_id=doc_id,
             action_type='UPDATE',
             modified_by=session.get('user_id'),
-            changed_fields={'status': 'Final'}
+            changes={'status': 'Final'}
         )
         
         conn.commit()
@@ -1417,14 +1413,14 @@ def sign_certificate(id, doc_id):
             WHERE id = ?
         ''', (signature, doc_id))
         
-        from models import AuditTrail
-        AuditTrail.log_change(
+        from utils.audit_logger import AuditLogger
+        AuditLogger.log_change(
             conn=conn,
             record_type='shipment_documents',
             record_id=doc_id,
             action_type='UPDATE',
             modified_by=session.get('user_id'),
-            changed_fields={'status': 'Signed', 'signed_by': signature}
+            changes={'status': 'Signed', 'signed_by': signature}
         )
         
         conn.commit()
