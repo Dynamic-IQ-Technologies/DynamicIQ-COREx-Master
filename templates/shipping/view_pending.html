@@ -10,6 +10,9 @@
             <a href="{{ url_for('shipping_routes.list_pending_shipments') }}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Back to Pending
             </a>
+            <a href="{{ url_for('shipping_routes.edit_shipment', id=shipment.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
             {% if session.role in ['Admin', 'Production Staff', 'Planner'] and shipment.shipment_stage == 'Pending' %}
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmShipmentModal">
                 <i class="bi bi-check-circle"></i> Confirm Shipment
