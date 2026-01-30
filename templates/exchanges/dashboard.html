@@ -191,6 +191,7 @@
                             <th>Days Overdue</th>
                             <th>Amount</th>
                             <th>Status</th>
+                            <th>Obligation</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -258,9 +259,24 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('po_routes.view_purchaseorder', id=epo.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye"></i>
-                                </a>
+                                {% if epo.exchange_status == 'Completed' %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Fulfilled</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('po_routes.view_purchaseorder', id=epo.id) }}" class="btn btn-outline-primary" title="View PO">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if epo.exchange_status != 'Completed' and session.role in ['Admin', 'Procurement', 'Supervisor'] %}
+                                    <button type="button" class="btn btn-success" title="Fulfill Obligation"
+                                            onclick="openFulfillModal({{ epo.id }}, '{{ epo.po_number }}')">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -387,4 +403,177 @@
         </div>
     </div>
 </div>
+
+<!-- Fulfill Obligation Modal -->
+<div class="modal fade" id="fulfillObligationModal" tabindex="-1" aria-labelledby="fulfillObligationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" id="fulfillObligationForm" action="">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="fulfillObligationModalLabel">
+                        <i class="bi bi-check2-circle me-2"></i>Fulfill Exchange PO Obligation
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>PO: <span id="modalPoNumber"></span></strong> - 
+                        Select an inventory unit or work order to fulfill this obligation.
+                    </div>
+                    
+                    <!-- Source Selection -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Source Type <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="source_type" id="srcInventory" value="inventory" checked>
+                            <label class="btn btn-outline-primary" for="srcInventory">
+                                <i class="bi bi-box-seam me-1"></i> Inventory Unit
+                            </label>
+                            <input type="radio" class="btn-check" name="source_type" id="srcWorkOrder" value="work_order">
+                            <label class="btn btn-outline-primary" for="srcWorkOrder">
+                                <i class="bi bi-gear me-1"></i> Work Order
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Inventory Selection -->
+                    <div id="invSelection" class="mb-3">
+                        <label class="form-label fw-bold">Select Inventory Unit <span class="text-danger">*</span></label>
+                        <select class="form-select" id="invSelect">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Work Order Selection -->
+                    <div id="woSelection" class="mb-3" style="display: none;">
+                        <label class="form-label fw-bold">Select Work Order <span class="text-danger">*</span></label>
+                        <select class="form-select" id="woSelect">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    
+                    <input type="hidden" name="source_id" id="hiddenSrcId" value="">
+                    
+                    <!-- Fulfillment Action -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fulfillment Action <span class="text-danger">*</span></label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check card p-3 h-100">
+                                    <input class="form-check-input" type="radio" name="fulfillment_action" 
+                                           id="actReturn" value="return_to_supplier" required>
+                                    <label class="form-check-label" for="actReturn">
+                                        <strong><i class="bi bi-arrow-return-left text-warning me-1"></i> Return to Supplier</strong>
+                                        <p class="text-muted small mb-0 mt-1">Ship unit back to supplier</p>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check card p-3 h-100">
+                                    <input class="form-check-input" type="radio" name="fulfillment_action" 
+                                           id="actKeep" value="keep_in_house">
+                                    <label class="form-check-label" for="actKeep">
+                                        <strong><i class="bi bi-house-door text-info me-1"></i> Keep In-House</strong>
+                                        <p class="text-muted small mb-0 mt-1">Transfer ownership to company</p>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="fulfillNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="fulfillNotes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check2-circle me-1"></i> Fulfill Obligation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPoId = null;
+
+function openFulfillModal(poId, poNumber) {
+    currentPoId = poId;
+    document.getElementById('modalPoNumber').textContent = poNumber;
+    document.getElementById('fulfillObligationForm').action = '/purchaseorders/' + poId + '/fulfill-obligation';
+    
+    // Reset selections
+    document.getElementById('invSelect').innerHTML = '<option value="">Loading...</option>';
+    document.getElementById('woSelect').innerHTML = '<option value="">Loading...</option>';
+    document.getElementById('hiddenSrcId').value = '';
+    
+    // Fetch available units
+    fetch('/api/purchaseorders/' + poId + '/available-units')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const invSelect = document.getElementById('invSelect');
+                invSelect.innerHTML = '<option value="">-- Select Inventory Unit --</option>';
+                data.inventory.forEach(inv => {
+                    let label = 'INV-' + String(inv.id).padStart(6, '0');
+                    if (inv.serial_number) label += ' | S/N: ' + inv.serial_number;
+                    if (inv.lot_number) label += ' | Lot: ' + inv.lot_number;
+                    label += ' | Qty: ' + inv.quantity;
+                    invSelect.innerHTML += '<option value="' + inv.id + '">' + label + '</option>';
+                });
+                if (data.inventory.length === 0) {
+                    invSelect.innerHTML = '<option value="">No inventory available</option>';
+                }
+                
+                const woSelect = document.getElementById('woSelect');
+                woSelect.innerHTML = '<option value="">-- Select Work Order --</option>';
+                data.work_orders.forEach(wo => {
+                    let label = wo.wo_number + ' | ' + wo.status;
+                    if (wo.serial_number) label += ' | S/N: ' + wo.serial_number;
+                    woSelect.innerHTML += '<option value="' + wo.id + '">' + label + '</option>';
+                });
+                if (data.work_orders.length === 0) {
+                    woSelect.innerHTML = '<option value="">No work orders available</option>';
+                }
+            }
+        })
+        .catch(err => console.error('Error:', err));
+    
+    new bootstrap.Modal(document.getElementById('fulfillObligationModal')).show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const invSelect = document.getElementById('invSelect');
+    const woSelect = document.getElementById('woSelect');
+    const hiddenSrcId = document.getElementById('hiddenSrcId');
+    const invDiv = document.getElementById('invSelection');
+    const woDiv = document.getElementById('woSelection');
+    const srcRadios = document.querySelectorAll('input[name="source_type"]');
+    
+    function updateHiddenId() {
+        const srcType = document.querySelector('input[name="source_type"]:checked').value;
+        hiddenSrcId.value = srcType === 'inventory' ? invSelect.value : woSelect.value;
+    }
+    
+    invSelect.addEventListener('change', updateHiddenId);
+    woSelect.addEventListener('change', updateHiddenId);
+    
+    srcRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'inventory') {
+                invDiv.style.display = 'block';
+                woDiv.style.display = 'none';
+            } else {
+                invDiv.style.display = 'none';
+                woDiv.style.display = 'block';
+            }
+            updateHiddenId();
+        });
+    });
+});
+</script>
 {% endblock %}
