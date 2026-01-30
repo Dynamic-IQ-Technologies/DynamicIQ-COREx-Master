@@ -199,9 +199,12 @@
     </div>
 </div>
 
-<div class="mt-4">
+<div class="mt-4 d-flex gap-2">
     <a href="{{ url_for('ndt_routes.invoices_list') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+    <a href="{{ url_for('ndt_routes.invoice_email_preview', id=invoice.id) }}" class="btn btn-primary">
+        <i class="bi bi-envelope"></i> Email to Customer
     </a>
 </div>
 {% endblock %}

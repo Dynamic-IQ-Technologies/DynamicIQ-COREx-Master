@@ -2,6 +2,43 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database
 from datetime import datetime, timedelta, date
 import json
+import os
+
+def get_brevo_credentials():
+    """Get Brevo API key and from email from environment"""
+    api_key = os.environ.get('BREVO_API_KEY')
+    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    return api_key, from_email
+
+def send_email_via_brevo(to_email, to_name, subject, html_content, from_email, from_name, api_key, cc_email=None):
+    """Send email using Brevo (Sendinblue) API"""
+    import sib_api_v3_sdk
+    from sib_api_v3_sdk.rest import ApiException
+    
+    try:
+        configuration = sib_api_v3_sdk.Configuration()
+        configuration.api_key['api-key'] = api_key
+        
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+        
+        email_params = {
+            "to": [{"email": to_email, "name": to_name or to_email}],
+            "sender": {"email": from_email, "name": from_name or "Dynamic.IQ-COREx"},
+            "subject": subject,
+            "html_content": html_content
+        }
+        
+        if cc_email:
+            email_params["cc"] = [{"email": cc_email}]
+        
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(**email_params)
+        
+        api_instance.send_transac_email(send_smtp_email)
+        return True, None
+    except ApiException as e:
+        return False, f"Brevo API error: {e.reason}"
+    except Exception as e:
+        return False, str(e)
 
 ndt_bp = Blueprint('ndt_routes', __name__)
 
@@ -1466,6 +1503,175 @@ def invoice_update_status(id):
     conn.close()
     
     flash(f'Invoice status updated to {new_status}', 'success')
+    return redirect(url_for('ndt_routes.invoice_view', id=id))
+
+
+@ndt_bp.route('/ndt/invoices/<int:id>/email')
+def invoice_email_preview(id):
+    """Preview email for NDT invoice before sending"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    invoice = conn.execute('''
+        SELECT ni.*, c.name as customer_name, c.email as customer_email,
+               c.contact_email, c.billing_address,
+               nw.ndt_wo_number, nw.ndt_methods as wo_methods,
+               p.name as product_name, p.code as product_code
+        FROM ndt_invoices ni
+        LEFT JOIN customers c ON ni.customer_id = c.id
+        LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
+        LEFT JOIN products p ON nw.product_id = p.id
+        WHERE ni.id = ?
+    ''', (id,)).fetchone()
+    
+    if not invoice:
+        flash('NDT Invoice not found', 'error')
+        conn.close()
+        return redirect(url_for('ndt_routes.invoices_list'))
+    
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    
+    api_key, from_email = get_brevo_credentials()
+    email_configured = bool(api_key and from_email)
+    
+    conn.close()
+    
+    return render_template('ndt/invoice_email_preview.html',
+                         invoice=dict(invoice),
+                         company=dict(company) if company else {},
+                         email_configured=email_configured)
+
+
+@ndt_bp.route('/ndt/invoices/<int:id>/send-email', methods=['POST'])
+def invoice_send_email(id):
+    """Send NDT invoice email to customer"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    recipient_email = request.form.get('recipient_email')
+    recipient_name = request.form.get('recipient_name', '')
+    cc_email = request.form.get('cc_email', '').strip() or None
+    email_subject = request.form.get('email_subject', '')
+    email_message = request.form.get('email_message', '')
+    update_status = request.form.get('update_status') == 'on'
+    
+    api_key, from_email = get_brevo_credentials()
+    
+    if not api_key or not from_email:
+        flash('Email is not configured. Please set up Brevo API credentials.', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.invoice_view', id=id))
+    
+    if not recipient_email:
+        flash('Recipient email is required.', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.invoice_email_preview', id=id))
+    
+    invoice = conn.execute('''
+        SELECT ni.*, c.name as customer_name, c.billing_address,
+               nw.ndt_wo_number, nw.ndt_methods as wo_methods,
+               p.name as product_name, p.code as product_code
+        FROM ndt_invoices ni
+        LEFT JOIN customers c ON ni.customer_id = c.id
+        LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
+        LEFT JOIN products p ON nw.product_id = p.id
+        WHERE ni.id = ?
+    ''', (id,)).fetchone()
+    
+    if not invoice:
+        flash('NDT Invoice not found', 'error')
+        conn.close()
+        return redirect(url_for('ndt_routes.invoices_list'))
+    
+    company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
+    company_name = company['name'] if company else 'Dynamic.IQ-COREx'
+    
+    html_content = f'''
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .header {{ background: #f8f9fa; padding: 20px; border-bottom: 3px solid #ffc107; }}
+            .content {{ padding: 20px; }}
+            .invoice-details {{ background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+            .amount {{ font-size: 24px; font-weight: bold; color: #28a745; }}
+            .footer {{ background: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #eee; }}
+            th {{ background: #f8f9fa; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h2 style="margin: 0; color: #333;">{company_name}</h2>
+            <p style="margin: 5px 0 0 0; color: #666;">NDT Invoice</p>
+        </div>
+        <div class="content">
+            <p>{email_message.replace(chr(10), '<br>')}</p>
+            
+            <div class="invoice-details">
+                <h3 style="margin-top: 0; color: #ffc107;">Invoice #{invoice['invoice_number']}</h3>
+                <table>
+                    <tr><th>Customer</th><td>{invoice['customer_name'] or 'N/A'}</td></tr>
+                    <tr><th>Invoice Date</th><td>{invoice['invoice_date']}</td></tr>
+                    <tr><th>Due Date</th><td>{invoice['due_date']}</td></tr>
+                    <tr><th>Payment Terms</th><td>Net {invoice['payment_terms']} days</td></tr>
+                    <tr><th>NDT Work Order</th><td>{invoice['ndt_wo_number'] or 'N/A'}</td></tr>
+                    <tr><th>NDT Methods</th><td>{invoice['ndt_methods'] or invoice['wo_methods'] or 'N/A'}</td></tr>
+                    <tr><th>Part Description</th><td>{invoice['part_description'] or 'N/A'}</td></tr>
+                    <tr><th>Serial Number</th><td>{invoice['serial_number'] or 'N/A'}</td></tr>
+                </table>
+                
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+                
+                <table>
+                    <tr><th>Subtotal</th><td style="text-align: right;">${invoice['subtotal']:.2f}</td></tr>
+                    {'<tr><th>Tax (' + str(invoice["tax_rate"] or 0) + '%)</th><td style="text-align: right;">$' + f"{invoice['tax_amount'] or 0:.2f}" + '</td></tr>' if invoice['tax_amount'] else ''}
+                    {'<tr><th>Discount</th><td style="text-align: right;">-$' + f"{invoice['discount_amount']:.2f}" + '</td></tr>' if invoice['discount_amount'] else ''}
+                    <tr><th style="font-size: 18px;">Total Amount</th><td style="text-align: right;" class="amount">${invoice['total_amount']:.2f}</td></tr>
+                    <tr><th>Amount Paid</th><td style="text-align: right;">${invoice['amount_paid'] or 0:.2f}</td></tr>
+                    <tr><th style="font-size: 18px; color: #dc3545;">Balance Due</th><td style="text-align: right; font-size: 18px; font-weight: bold; color: #dc3545;">${invoice['balance_due']:.2f}</td></tr>
+                </table>
+            </div>
+            
+            {f'<p><strong>Notes:</strong><br>{invoice["notes"]}</p>' if invoice['notes'] else ''}
+        </div>
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p>{company_name}</p>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    success, error = send_email_via_brevo(
+        to_email=recipient_email,
+        to_name=recipient_name,
+        subject=email_subject,
+        html_content=html_content,
+        from_email=from_email,
+        from_name=company_name,
+        api_key=api_key,
+        cc_email=cc_email
+    )
+    
+    if success:
+        if update_status and invoice['status'] == 'Draft':
+            conn.execute('UPDATE ndt_invoices SET status = ? WHERE id = ?', ('Sent', id))
+            conn.commit()
+            flash(f'Invoice emailed successfully and status updated to Sent!', 'success')
+        else:
+            flash(f'Invoice emailed successfully to {recipient_email}!', 'success')
+    else:
+        flash(f'Failed to send email: {error}', 'danger')
+    
+    conn.close()
     return redirect(url_for('ndt_routes.invoice_view', id=id))
 
 
