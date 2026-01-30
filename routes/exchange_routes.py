@@ -394,7 +394,7 @@ def generate_agreement(exchange_id):
     
     try:
         exchange = conn.execute('''
-            SELECT em.*, c.name as customer_name, c.address as customer_address,
+            SELECT em.*, c.name as customer_name, c.billing_address as customer_address,
                    p.code as product_code, p.name as product_name
             FROM exchange_master em
             JOIN customers c ON em.customer_id = c.id
