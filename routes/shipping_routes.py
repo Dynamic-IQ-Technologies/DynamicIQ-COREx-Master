@@ -116,7 +116,7 @@ def create_shipment():
                 INSERT INTO shipments (
                     shipment_number, shipment_type, reference_type, reference_id,
                     status, carrier, tracking_number, shipping_method,
-                    ship_date, expected_delivery_date,
+                    ship_date, estimated_delivery,
                     ship_from_location, ship_to_name, ship_to_address,
                     ship_to_city, ship_to_state, ship_to_postal_code, ship_to_country,
                     weight, weight_unit, dimensions, freight_cost, insurance_value,
@@ -270,7 +270,7 @@ def edit_shipment(id):
             conn.execute('''
                 UPDATE shipments SET
                     carrier = ?, tracking_number = ?, shipping_method = ?,
-                    ship_date = ?, expected_delivery_date = ?,
+                    ship_date = ?, estimated_delivery = ?,
                     ship_from_location = ?, ship_to_name = ?, ship_to_address = ?,
                     ship_to_city = ?, ship_to_state = ?, ship_to_postal_code = ?,
                     ship_to_country = ?, weight = ?, weight_unit = ?,
