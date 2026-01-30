@@ -493,9 +493,8 @@ def add_line(id):
                 product = conn.execute(
                     'SELECT code, name FROM products WHERE id = ?', (product_id,)
                 ).fetchone()
-                flash(f'Insufficient stock for {product["code"]} - {product["name"]}. Available: {available_qty}, Already on order: {existing_qty}, Requested: {quantity}, Total needed: {total_qty_needed}', 'warning')
-                conn.close()
-                return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
+                # Show warning but allow line creation even without inventory
+                flash(f'Note: Insufficient stock for {product["code"]} - {product["name"]}. Available: {available_qty}, Requested: {quantity}. Line will be created but inventory allocation will be needed.', 'warning')
         
         # Calculate line total
         line_total = (quantity * unit_price) * (1 - discount_percent / 100)
@@ -1030,9 +1029,8 @@ def send_order_acknowledgement(id):
                     stock_issues.append(f"{product['code']}: Need {product['total_qty']}, Available {available_qty}")
             
             if stock_issues:
-                flash('Cannot confirm - Insufficient stock: ' + '; '.join(stock_issues), 'danger')
-                conn.close()
-                return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+                # Show warning but allow confirmation - inventory can be allocated later
+                flash('Warning: Insufficient stock for some items: ' + '; '.join(stock_issues) + '. Inventory allocation will be needed.', 'warning')
             
             so = conn.execute('SELECT customer_id, total_amount FROM sales_orders WHERE id = ?', (id,)).fetchone()
             customer = conn.execute('SELECT credit_limit, customer_number, name FROM customers WHERE id = ?', 
@@ -1116,9 +1114,8 @@ def confirm_order(id):
                 stock_issues.append(f"{product['code']}: Need {product['total_qty']}, Available {available_qty}")
         
         if stock_issues:
-            flash('Cannot confirm order - Insufficient stock: ' + '; '.join(stock_issues), 'danger')
-            conn.close()
-            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+            # Show warning but allow confirmation - inventory can be allocated later
+            flash('Warning: Insufficient stock for some items: ' + '; '.join(stock_issues) + '. Inventory allocation will be needed.', 'warning')
         
         # VALIDATION: Check credit limit
         so = conn.execute('SELECT customer_id, total_amount FROM sales_orders WHERE id = ?', (id,)).fetchone()
