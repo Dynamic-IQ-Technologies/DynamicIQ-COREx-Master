@@ -337,6 +337,11 @@ const SystemGuidedMode = {
         const highlight = document.createElement('div');
         highlight.className = 'gm-field-highlight';
         step.element.style.position = 'relative';
+        
+        // Ensure input is above the highlight overlay
+        step.input.style.position = 'relative';
+        step.input.style.zIndex = '20';
+        
         step.element.appendChild(highlight);
         
         setTimeout(() => step.input.focus(), 300);
