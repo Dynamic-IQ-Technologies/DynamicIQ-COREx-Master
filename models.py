@@ -3462,6 +3462,14 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_service_lines_po ON purchase_order_service_lines(po_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_service_lines_wo ON purchase_order_service_lines(work_order_id)')
         
+        posl_columns = [row[1] for row in cursor.execute('PRAGMA table_info(purchase_order_service_lines)').fetchall()]
+        if 'ndt_work_order_id' not in posl_columns:
+            try:
+                cursor.execute('ALTER TABLE purchase_order_service_lines ADD COLUMN ndt_work_order_id INTEGER')
+            except sqlite3.OperationalError:
+                pass
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_po_service_lines_ndt_wo ON purchase_order_service_lines(ndt_work_order_id)')
+        
         # AI Super Master Scheduler tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS master_schedules (

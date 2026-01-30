@@ -1861,6 +1861,75 @@ def wo_sync_labor_costs(id):
     return redirect(url_for('ndt_routes.wo_costs', id=id))
 
 
+@ndt_bp.route('/ndt/work-orders/<int:id>/create-service-po', methods=['GET', 'POST'])
+def wo_create_service_po(id):
+    """Create a service PO for outside services from NDT work order"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
+    if not ndt_wo:
+        conn.close()
+        flash('NDT Work Order not found', 'error')
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    if request.method == 'POST':
+        supplier_id = request.form.get('supplier_id')
+        service_category = request.form.get('service_category', 'Outside Service')
+        description = request.form.get('description', '').strip()
+        quantity_str = request.form.get('quantity', '').strip()
+        quantity = float(quantity_str) if quantity_str else 1
+        unit_cost_str = request.form.get('unit_cost', '').strip()
+        unit_cost = float(unit_cost_str) if unit_cost_str else 0
+        total_cost = quantity * unit_cost
+        expected_date = request.form.get('expected_delivery_date') or None
+        notes = request.form.get('notes', '').strip() or None
+        
+        if not supplier_id or not description:
+            flash('Supplier and description are required', 'danger')
+            suppliers = conn.execute('SELECT id, name FROM suppliers WHERE status = "Active" ORDER BY name').fetchall()
+            conn.close()
+            return render_template('ndt/create_service_po.html', ndt_wo=ndt_wo, suppliers=suppliers)
+        
+        po_count = conn.execute('SELECT COUNT(*) FROM purchase_orders').fetchone()[0]
+        po_number = f"PO-{po_count + 1:06d}"
+        
+        cursor = conn.execute('''
+            INSERT INTO purchase_orders (po_number, supplier_id, status, order_date, expected_delivery_date, notes)
+            VALUES (?, ?, 'Open', ?, ?, ?)
+        ''', (po_number, supplier_id, date.today().isoformat(), expected_date, 
+              f'NDT Outside Service for {ndt_wo["ndt_wo_number"]}' + (f'\n{notes}' if notes else '')))
+        po_id = cursor.lastrowid
+        
+        conn.execute('''
+            INSERT INTO purchase_order_service_lines 
+            (po_id, ndt_work_order_id, line_number, service_category, description, quantity, unit_cost, total_cost, notes)
+            VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)
+        ''', (po_id, id, service_category, description, quantity, unit_cost, total_cost, notes))
+        
+        conn.execute('''
+            INSERT INTO ndt_wo_costs 
+            (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
+             date_incurred, reference_number, notes, created_by)
+            VALUES (?, 'Subcontract', ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (id, description, quantity, unit_cost, total_cost, 
+              date.today().isoformat(), po_number, f'From PO {po_number}', session.get('user_id')))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Purchase Order {po_number} created and cost registered', 'success')
+        return redirect(url_for('ndt_routes.wo_costs', id=id))
+    
+    suppliers = conn.execute('SELECT id, name FROM suppliers WHERE status = "Active" ORDER BY name').fetchall()
+    conn.close()
+    
+    return render_template('ndt/create_service_po.html', ndt_wo=ndt_wo, suppliers=suppliers)
+
+
 @ndt_bp.route('/ndt/work-orders/<int:id>/clock-in', methods=['POST'])
 def wo_clock_in(id):
     """Clock in an NDT resource directly from the work order page"""
