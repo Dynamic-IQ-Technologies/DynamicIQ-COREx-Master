@@ -1620,7 +1620,17 @@ def allocate_line(line_id):
         # Get the inventory unit cost to update line cost
         inventory_unit_cost = inventory['unit_cost'] if inventory['unit_cost'] else 0.0
         line_cost = allocate_qty * inventory_unit_cost
-        line_margin = ((line['unit_price'] - inventory_unit_cost) / line['unit_price'] * 100) if line['unit_price'] > 0 else 0.0
+        
+        # For exchange orders, include core_charge in the margin calculation
+        # Revenue = unit_price + core_charge (for exchanges)
+        unit_price = line['unit_price'] if line['unit_price'] else 0.0
+        core_charge = line['core_charge'] if line['core_charge'] else 0.0
+        total_revenue_per_unit = unit_price + core_charge
+        
+        if total_revenue_per_unit > 0:
+            line_margin = ((total_revenue_per_unit - inventory_unit_cost) / total_revenue_per_unit * 100)
+        else:
+            line_margin = 0.0
         
         # Update line with allocation and inventory cost
         conn.execute('''
