@@ -3368,6 +3368,31 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_costs_type ON ndt_wo_costs(cost_type)')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ndt_wo_materials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ndt_wo_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                required_quantity REAL DEFAULT 1,
+                issued_quantity REAL DEFAULT 0,
+                unit_cost REAL DEFAULT 0,
+                inventory_id INTEGER,
+                status TEXT DEFAULT 'Required',
+                issued_date TIMESTAMP,
+                issued_by INTEGER,
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ndt_wo_id) REFERENCES ndt_work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (inventory_id) REFERENCES inventory(id),
+                FOREIGN KEY (issued_by) REFERENCES users(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_materials_ndt_wo ON ndt_wo_materials(ndt_wo_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ndt_wo_materials_product ON ndt_wo_materials(product_id)')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS ndt_8130_certificates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 certificate_number TEXT UNIQUE NOT NULL,

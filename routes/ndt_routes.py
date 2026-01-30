@@ -1932,6 +1932,202 @@ def wo_create_service_po(id):
     return render_template('ndt/create_service_po.html', ndt_wo=ndt_wo, suppliers=suppliers)
 
 
+@ndt_bp.route('/ndt/work-orders/<int:id>/materials')
+def wo_materials(id):
+    """View and manage materials for NDT work order"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth_routes.login'))
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
+    if not ndt_wo:
+        flash('NDT Work Order not found', 'error')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_list'))
+    
+    materials = conn.execute('''
+        SELECT m.*, p.code as part_number, p.name as product_name, p.unit_of_measure,
+               u.username as issued_by_name
+        FROM ndt_wo_materials m
+        JOIN products p ON m.product_id = p.id
+        LEFT JOIN users u ON m.issued_by = u.id
+        WHERE m.ndt_wo_id = ?
+        ORDER BY m.created_at DESC
+    ''', (id,)).fetchall()
+    
+    products = conn.execute('''
+        SELECT p.id, p.code, p.name, p.unit_of_measure, p.cost,
+               COALESCE(SUM(i.quantity), 0) as qty_on_hand
+        FROM products p
+        LEFT JOIN inventory i ON p.id = i.product_id
+        GROUP BY p.id
+        ORDER BY p.code
+    ''').fetchall()
+    
+    total_material_cost = sum(m['issued_quantity'] * m['unit_cost'] for m in materials if m['issued_quantity'])
+    
+    conn.close()
+    
+    return render_template('ndt/wo_materials.html',
+                         ndt_wo=ndt_wo,
+                         materials=materials,
+                         products=products,
+                         total_material_cost=total_material_cost)
+
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/materials/add', methods=['POST'])
+def wo_add_material(id):
+    """Add material requirement to NDT work order"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    product_id = request.form.get('product_id')
+    required_qty_str = request.form.get('required_quantity', '').strip()
+    required_quantity = float(required_qty_str) if required_qty_str else 1
+    notes = request.form.get('notes', '').strip() or None
+    
+    if not product_id:
+        flash('Please select a product', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_materials', id=id))
+    
+    product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+    unit_cost = float(product['cost']) if product and product['cost'] else 0
+    
+    conn.execute('''
+        INSERT INTO ndt_wo_materials 
+        (ndt_wo_id, product_id, required_quantity, unit_cost, notes, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (id, product_id, required_quantity, unit_cost, notes, session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Material requirement added successfully', 'success')
+    return redirect(url_for('ndt_routes.wo_materials', id=id))
+
+
+@ndt_bp.route('/ndt/work-orders/<int:wo_id>/materials/<int:mat_id>/issue', methods=['POST'])
+def wo_issue_material(wo_id, mat_id):
+    """Issue material from inventory to NDT work order"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('SELECT * FROM ndt_wo_materials WHERE id = ? AND ndt_wo_id = ?', (mat_id, wo_id)).fetchone()
+    if not material:
+        flash('Material requirement not found', 'error')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_materials', id=wo_id))
+    
+    ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (wo_id,)).fetchone()
+    
+    issue_qty_str = request.form.get('issue_quantity', '').strip()
+    issue_quantity = float(issue_qty_str) if issue_qty_str else material['required_quantity'] - material['issued_quantity']
+    inventory_id = request.form.get('inventory_id')
+    
+    if not inventory_id:
+        flash('Please select an inventory record to issue from', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_materials', id=wo_id))
+    
+    inv_record = conn.execute('SELECT * FROM inventory WHERE id = ?', (inventory_id,)).fetchone()
+    if not inv_record or inv_record['quantity'] < issue_quantity:
+        flash('Insufficient inventory quantity', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_materials', id=wo_id))
+    
+    unit_cost = float(inv_record['unit_cost']) if inv_record['unit_cost'] else material['unit_cost']
+    total_cost = round(issue_quantity * unit_cost, 2)
+    
+    new_inv_qty = inv_record['quantity'] - issue_quantity
+    if new_inv_qty <= 0:
+        conn.execute('DELETE FROM inventory WHERE id = ?', (inventory_id,))
+    else:
+        conn.execute('UPDATE inventory SET quantity = ? WHERE id = ?', (new_inv_qty, inventory_id))
+    
+    new_issued = material['issued_quantity'] + issue_quantity
+    new_status = 'Issued' if new_issued >= material['required_quantity'] else 'Partial'
+    
+    conn.execute('''
+        UPDATE ndt_wo_materials 
+        SET issued_quantity = ?, unit_cost = ?, inventory_id = ?, status = ?,
+            issued_date = ?, issued_by = ?
+        WHERE id = ?
+    ''', (new_issued, unit_cost, inventory_id, new_status, 
+          datetime.now().strftime('%Y-%m-%d %H:%M:%S'), session.get('user_id'), mat_id))
+    
+    product = conn.execute('SELECT * FROM products WHERE id = ?', (material['product_id'],)).fetchone()
+    product_desc = f'{product["code"]} - {product["name"]}' if product else 'Material'
+    
+    conn.execute('''
+        INSERT INTO ndt_wo_costs 
+        (ndt_wo_id, cost_type, description, quantity, unit_cost, total_cost, 
+         date_incurred, reference_number, notes, created_by)
+        VALUES (?, 'Material', ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (wo_id, product_desc, issue_quantity, unit_cost, total_cost,
+          date.today().isoformat(), f'INV-{inventory_id}', 
+          f'Issued from inventory to {ndt_wo["ndt_wo_number"]}', session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Issued {issue_quantity} units - ${total_cost:.2f} material cost recorded', 'success')
+    return redirect(url_for('ndt_routes.wo_materials', id=wo_id))
+
+
+@ndt_bp.route('/ndt/work-orders/<int:wo_id>/materials/<int:mat_id>/delete', methods=['POST'])
+def wo_delete_material(wo_id, mat_id):
+    """Delete material requirement from NDT work order"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    material = conn.execute('SELECT * FROM ndt_wo_materials WHERE id = ? AND ndt_wo_id = ?', (mat_id, wo_id)).fetchone()
+    if material and material['issued_quantity'] > 0:
+        flash('Cannot delete material that has been issued', 'danger')
+        conn.close()
+        return redirect(url_for('ndt_routes.wo_materials', id=wo_id))
+    
+    conn.execute('DELETE FROM ndt_wo_materials WHERE id = ? AND ndt_wo_id = ?', (mat_id, wo_id))
+    conn.commit()
+    conn.close()
+    
+    flash('Material requirement deleted', 'success')
+    return redirect(url_for('ndt_routes.wo_materials', id=wo_id))
+
+
+@ndt_bp.route('/api/ndt/inventory/<int:product_id>')
+def api_get_inventory(product_id):
+    """Get available inventory for a product"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    inventory = conn.execute('''
+        SELECT i.id, i.quantity, i.unit_cost, i.location, i.lot_number, i.serial_number,
+               i.condition_code
+        FROM inventory i
+        WHERE i.product_id = ? AND i.quantity > 0
+        ORDER BY i.created_at
+    ''', (product_id,)).fetchall()
+    
+    conn.close()
+    
+    return jsonify([dict(row) for row in inventory])
+
+
 @ndt_bp.route('/ndt/work-orders/<int:id>/clock-in', methods=['POST'])
 def wo_clock_in(id):
     """Clock in an NDT resource directly from the work order page"""

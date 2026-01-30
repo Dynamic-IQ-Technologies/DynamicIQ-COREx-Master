@@ -23,6 +23,9 @@
             <a href="{{ url_for('ndt_routes.wo_list') }}" class="btn btn-outline-secondary me-2">
                 <i class="bi bi-arrow-left me-1"></i> Back
             </a>
+            <a href="{{ url_for('ndt_routes.wo_materials', id=ndt_wo.id) }}" class="btn btn-info me-2">
+                <i class="bi bi-box-seam me-1"></i> Materials
+            </a>
             <a href="{{ url_for('ndt_routes.wo_costs', id=ndt_wo.id) }}" class="btn btn-warning me-2">
                 <i class="bi bi-currency-dollar me-1"></i> Cost Tracking
             </a>

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Materials - {{ ndt_wo.ndt_wo_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('ndt_routes.wo_list') }}">NDT Work Orders</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}">{{ ndt_wo.ndt_wo_number }}</a></li>
+                <li class="breadcrumb-item active">Materials</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 mt-2"><i class="bi bi-box-seam me-2"></i>Material Requirements</h1>
+    </div>
+    <a href="{{ url_for('ndt_routes.wo_view', id=ndt_wo.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Work Order
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add Material Requirement</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ndt_routes.wo_add_material', id=ndt_wo.id) }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Product <span class="text-danger">*</span></label>
+                            <select name="product_id" class="form-select" required id="productSelect">
+                                <option value="">-- Select Product --</option>
+                                {% for p in products %}
+                                <option value="{{ p.id }}" data-qty="{{ p.qty_on_hand }}" data-cost="{{ p.cost or 0 }}">
+                                    {{ p.code }} - {{ p.name }} ({{ p.qty_on_hand }} on hand)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Required Qty</label>
+                            <input type="number" name="required_quantity" class="form-control" step="0.01" value="1" min="0.01">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">On Hand</label>
+                            <input type="text" class="form-control" id="qtyOnHand" readonly value="-">
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label">Notes</label>
+                            <input type="text" name="notes" class="form-control" placeholder="Optional notes">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-plus-lg"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Material List</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if materials %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Part #</th>
+                                <th>Description</th>
+                                <th>Required</th>
+                                <th>Issued</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mat in materials %}
+                            <tr>
+                                <td><strong>{{ mat.part_number }}</strong></td>
+                                <td>{{ mat.product_name }}</td>
+                                <td>{{ mat.required_quantity }} {{ mat.unit_of_measure or '' }}</td>
+                                <td>{{ mat.issued_quantity or 0 }} {{ mat.unit_of_measure or '' }}</td>
+                                <td>
+                                    {% set status_colors = {'Required': 'warning', 'Partial': 'info', 'Issued': 'success'} %}
+                                    <span class="badge bg-{{ status_colors.get(mat.status, 'secondary') }}">{{ mat.status }}</span>
+                                </td>
+                                <td>
+                                    {% if mat.status != 'Issued' %}
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" 
+                                            data-bs-target="#issueModal{{ mat.id }}" title="Issue from Inventory">
+                                        <i class="bi bi-box-arrow-right"></i> Issue
+                                    </button>
+                                    {% endif %}
+                                    {% if mat.issued_quantity == 0 %}
+                                    <form method="POST" action="{{ url_for('ndt_routes.wo_delete_material', wo_id=ndt_wo.id, mat_id=mat.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this material requirement?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            
+                            <div class="modal fade" id="issueModal{{ mat.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-primary text-white">
+                                            <h5 class="modal-title">Issue Material: {{ mat.part_number }}</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('ndt_routes.wo_issue_material', wo_id=ndt_wo.id, mat_id=mat.id) }}">
+                                            <div class="modal-body">
+                                                <p><strong>Product:</strong> {{ mat.part_number }} - {{ mat.product_name }}</p>
+                                                <p><strong>Required:</strong> {{ mat.required_quantity }} | <strong>Already Issued:</strong> {{ mat.issued_quantity or 0 }}</p>
+                                                <hr>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Select Inventory Record <span class="text-danger">*</span></label>
+                                                    <select name="inventory_id" class="form-select inventory-select" required data-product-id="{{ mat.product_id }}">
+                                                        <option value="">Loading inventory...</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Quantity to Issue</label>
+                                                    <input type="number" name="issue_quantity" class="form-control" 
+                                                           step="0.01" value="{{ mat.required_quantity - (mat.issued_quantity or 0) }}" min="0.01">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="bi bi-box-arrow-right"></i> Issue Material
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-box-seam" style="font-size: 3rem;"></i>
+                    <p class="mt-2">No materials required yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> Material Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td>Total Items</td>
+                        <td class="text-end fw-bold">{{ materials|length }}</td>
+                    </tr>
+                    <tr>
+                        <td>Fully Issued</td>
+                        <td class="text-end fw-bold">{{ materials|selectattr('status', 'equalto', 'Issued')|list|length }}</td>
+                    </tr>
+                    <tr>
+                        <td>Pending</td>
+                        <td class="text-end fw-bold">{{ materials|rejectattr('status', 'equalto', 'Issued')|list|length }}</td>
+                    </tr>
+                    <tr class="table-success">
+                        <td class="fw-bold">Total Material Cost</td>
+                        <td class="text-end fw-bold" style="font-size: 1.2rem;">${{ "%.2f"|format(total_material_cost) }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Work Order Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>WO Number:</strong> {{ ndt_wo.ndt_wo_number }}</p>
+                <p><strong>Status:</strong> 
+                    {% set status_colors = {
+                        'Draft': 'secondary', 'Scheduled': 'info', 'In Inspection': 'primary',
+                        'Results Recorded': 'warning', 'Under Review': 'info', 'Approved': 'success',
+                        'Rejected': 'danger', 'Closed': 'dark'
+                    } %}
+                    <span class="badge bg-{{ status_colors.get(ndt_wo.status, 'secondary') }}">{{ ndt_wo.status }}</span>
+                </p>
+                <p><strong>NDT Methods:</strong> {{ ndt_wo.ndt_methods }}</p>
+                <hr>
+                <a href="{{ url_for('ndt_routes.wo_costs', id=ndt_wo.id) }}" class="btn btn-warning btn-sm w-100">
+                    <i class="bi bi-currency-dollar"></i> View All Costs
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('productSelect').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    document.getElementById('qtyOnHand').value = selected.dataset.qty || '-';
+});
+
+document.querySelectorAll('.inventory-select').forEach(function(select) {
+    const productId = select.dataset.productId;
+    fetch('/ndt/api/ndt/inventory/' + productId)
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">-- Select Inventory --</option>';
+            data.forEach(function(inv) {
+                const loc = inv.location ? ' @ ' + inv.location : '';
+                const lot = inv.lot_number ? ' Lot: ' + inv.lot_number : '';
+                const sn = inv.serial_number ? ' S/N: ' + inv.serial_number : '';
+                select.innerHTML += '<option value="' + inv.id + '">Qty: ' + inv.quantity + loc + lot + sn + ' ($' + (inv.unit_cost || 0).toFixed(2) + '/ea)</option>';
+            });
+            if (data.length === 0) {
+                select.innerHTML = '<option value="">No inventory available</option>';
+            }
+        });
+});
+</script>
+{% endblock %}
