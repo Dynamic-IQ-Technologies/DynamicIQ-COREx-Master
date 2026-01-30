@@ -1056,6 +1056,11 @@
                 </div>
                 
                 <div class="mb-3">
+                    <label for="qr_serial_number" class="form-label">Serial Number</label>
+                    <input type="text" class="form-control" id="qr_serial_number" placeholder="Enter serial number if applicable">
+                </div>
+                
+                <div class="mb-3">
                     <label for="qr_remarks" class="form-label">Remarks (Optional)</label>
                     <textarea class="form-control" id="qr_remarks" rows="2" placeholder="Optional notes..."></textarea>
                 </div>
@@ -1093,6 +1098,7 @@ window.openQuickReceive = function(data) {
     document.getElementById('qr_bin').value = '';
     document.getElementById('qr_condition').value = 'New';
     document.getElementById('qr_expiration_date').value = '';
+    document.getElementById('qr_serial_number').value = '';
     document.getElementById('qr_remarks').value = '';
     
     const conversionInfo = document.getElementById('qr_conversion_info');
@@ -1135,6 +1141,7 @@ window.submitQuickReceive = async function() {
     const bin = document.getElementById('qr_bin').value.trim();
     const condition = document.getElementById('qr_condition').value;
     const expirationDate = document.getElementById('qr_expiration_date').value;
+    const serialNumber = document.getElementById('qr_serial_number').value.trim();
     const remarks = document.getElementById('qr_remarks').value.trim();
     
     if (!quantity || quantity <= 0) {
@@ -1160,6 +1167,7 @@ window.submitQuickReceive = async function() {
                 bin_location: bin,
                 condition: condition,
                 expiration_date: expirationDate,
+                serial_number: serialNumber,
                 remarks: remarks
             })
         });

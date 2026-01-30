@@ -1049,6 +1049,7 @@ def api_quick_receive_po_line(po_id, line_id):
         bin_location = data.get('bin_location', '').strip()
         condition = data.get('condition', 'New')
         expiration_date = data.get('expiration_date', '').strip() or None
+        serial_number = data.get('serial_number', '').strip() or None
         remarks = data.get('remarks', '')
         
         if quantity_received <= 0:
@@ -1095,11 +1096,11 @@ def api_quick_receive_po_line(po_id, line_id):
             INSERT INTO receiving_transactions 
             (receipt_number, po_id, product_id, quantity_received, receipt_date, condition, 
              warehouse_location, bin_location, remarks, received_by,
-             po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt, expiration_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             po_line_id, receiving_uom_id, conversion_factor_used, base_quantity_received, unit_cost_at_receipt, expiration_date, serial_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (receipt_number, po_id, product_id, quantity_received, receipt_date, condition,
               warehouse_location, bin_location, remarks, session['user_id'],
-              line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost, expiration_date))
+              line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost, expiration_date, serial_number))
         
         inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
         
