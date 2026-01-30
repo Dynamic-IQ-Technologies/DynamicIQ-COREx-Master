@@ -52,9 +52,11 @@ def create_uom():
             uom_code = request.form['uom_code'].strip().upper()
             uom_name = request.form['uom_name'].strip()
             uom_type = request.form.get('uom_type', '').strip()
-            conversion_factor = float(request.form.get('conversion_factor', 1.0))
+            conversion_factor_str = request.form.get('conversion_factor', '').strip()
+            conversion_factor = float(conversion_factor_str) if conversion_factor_str else 1.0
             base_uom_id = request.form.get('base_uom_id') or None
-            rounding_precision = int(request.form.get('rounding_precision', 2))
+            rounding_precision_str = request.form.get('rounding_precision', '').strip()
+            rounding_precision = int(rounding_precision_str) if rounding_precision_str else 2
             description = request.form.get('description', '').strip()
             
             if conversion_factor <= 0:
@@ -146,8 +148,10 @@ def edit_uom(id):
         try:
             uom_name = request.form['uom_name'].strip()
             uom_type = request.form.get('uom_type', '').strip()
-            rounding_precision = int(request.form.get('rounding_precision', 2))
-            conversion_factor = float(request.form.get('conversion_factor', 1.0))
+            rounding_precision_str = request.form.get('rounding_precision', '').strip()
+            rounding_precision = int(rounding_precision_str) if rounding_precision_str else 2
+            conversion_factor_str = request.form.get('conversion_factor', '').strip()
+            conversion_factor = float(conversion_factor_str) if conversion_factor_str else 1.0
             base_uom_id = request.form.get('base_uom_id') or None
             description = request.form.get('description', '').strip()
             
