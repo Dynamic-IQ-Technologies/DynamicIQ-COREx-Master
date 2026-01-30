@@ -157,7 +157,7 @@
                 </button>
                 {% endif %}
             {% endif %}
-            {% if session.role == 'Admin' and not workorder.stage %}
+            {% if session.role == 'Admin' and not workorder.stage_id %}
             <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteWorkOrderModal">
                 <i class="bi bi-trash"></i> Delete
             </button>
