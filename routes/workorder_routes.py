@@ -3219,7 +3219,7 @@ def issue_task_material(task_id, material_id):
     conn = db.get_connection()
     
     material = conn.execute('''
-        SELECT tm.*, wot.work_order_id, p.code, p.name
+        SELECT tm.*, wot.work_order_id as wo_id, p.code, p.name
         FROM work_order_task_materials tm
         JOIN work_order_tasks wot ON tm.task_id = wot.id
         JOIN products p ON tm.product_id = p.id
@@ -3231,6 +3231,8 @@ def issue_task_material(task_id, material_id):
         conn.close()
         return redirect(url_for('workorder_routes.list_workorders'))
     
+    work_order_id = material['wo_id']
+    
     try:
         issue_qty = float(request.form.get('issue_qty', 0))
     except (ValueError, TypeError):
@@ -3239,7 +3241,7 @@ def issue_task_material(task_id, material_id):
     if issue_qty <= 0:
         flash('Issue quantity must be greater than zero', 'danger')
         conn.close()
-        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+        return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
     
     inventory_id = request.form.get('inventory_id', '')
     lot_number = request.form.get('lot_number', '')
@@ -3249,7 +3251,7 @@ def issue_task_material(task_id, material_id):
     if issue_qty > max_issue:
         flash(f'Cannot issue more than required. Maximum: {max_issue}', 'danger')
         conn.close()
-        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+        return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
     
     # Validate inventory selection and check available quantity
     if inventory_id:
@@ -3262,20 +3264,20 @@ def issue_task_material(task_id, material_id):
             if not inventory:
                 flash('Selected inventory not found or does not match product', 'danger')
                 conn.close()
-                return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+                return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
             
             if inventory['quantity'] < issue_qty:
                 flash(f'Insufficient inventory. Available: {inventory["quantity"]}', 'danger')
                 conn.close()
-                return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+                return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
         except (ValueError, TypeError):
             flash('Invalid inventory selection', 'danger')
             conn.close()
-            return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+            return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
     else:
         flash('Please select an inventory source', 'danger')
         conn.close()
-        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+        return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
     
     try:
         new_issued = (material['issued_qty'] or 0) + issue_qty
@@ -3313,7 +3315,7 @@ def issue_task_material(task_id, material_id):
         flash(f'Error issuing material: {str(e)}', 'danger')
     
     conn.close()
-    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#task-' + str(task_id))
+    return redirect(url_for('workorder_routes.view_workorder', id=work_order_id) + '#task-' + str(task_id))
 
 
 @workorder_bp.route('/workorders/tasks/<int:task_id>/materials/<int:material_id>/consume', methods=['POST'])
