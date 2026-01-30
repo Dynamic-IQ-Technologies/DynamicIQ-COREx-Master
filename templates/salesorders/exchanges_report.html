@@ -133,21 +133,32 @@
             <table class="table table-hover" id="customerOwedTable">
                 <thead class="table-warning">
                     <tr>
-                        <th>Exchange PO</th>
+                        <th>Type</th>
                         <th>Reference</th>
                         <th>Customer</th>
                         <th>Part</th>
                         <th>Source SO</th>
                         <th>Due Date</th>
                         <th>Status</th>
-                        <th class="text-end">Value</th>
+                        <th class="text-end">Core Value</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ex in customer_owed %}
                     <tr class="{% if ex.days_overdue and ex.days_overdue > 0 %}table-danger{% endif %}">
-                        <td><strong>{{ ex.po_number }}</strong></td>
-                        <td><code>{{ ex.exchange_reference_id or '-' }}</code></td>
+                        <td>
+                            {% if ex.exchange_type == 'Single Exchange' %}
+                            <span class="badge bg-info">Single</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Dual</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ex.po_number %}
+                            <strong>{{ ex.po_number }}</strong><br>
+                            {% endif %}
+                            <code>{{ ex.exchange_reference_id or ex.source_so }}</code>
+                        </td>
                         <td>
                             <span class="fw-bold">{{ ex.owner_name }}</span>
                             <br><small class="text-muted">{{ ex.owner_code }}</small>

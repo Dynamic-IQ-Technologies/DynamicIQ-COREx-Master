@@ -2568,7 +2568,8 @@ def exchanges_report():
             ORDER BY exchange_count DESC, p.code
         ''').fetchall()
         
-        customer_owed = conn.execute('''
+        # Get Dual Exchange POs where customer owes core
+        dual_exchange_owed = conn.execute('''
             SELECT 
                 po.po_number,
                 po.exchange_reference_id,
@@ -2582,6 +2583,7 @@ def exchanges_report():
                 p.code as part_number,
                 p.name as part_name,
                 sol.quantity,
+                'Dual Exchange' as exchange_type,
                 CASE 
                     WHEN po.expected_date < date('now') AND po.exchange_status != 'Received' 
                     THEN julianday('now') - julianday(po.expected_date)
@@ -2596,6 +2598,45 @@ def exchanges_report():
               AND po.exchange_owner_type = 'Customer'
             ORDER BY days_overdue DESC, po.order_date DESC
         ''').fetchall()
+        
+        # Get Single Exchange orders where customer owes core (shipped but core not received)
+        single_exchange_owed = conn.execute('''
+            SELECT 
+                NULL as po_number,
+                so.so_number as exchange_reference_id,
+                CASE 
+                    WHEN so.status = 'Shipped' THEN 'Awaiting Core Return'
+                    WHEN so.status = 'Completed' THEN 'Received'
+                    ELSE 'Pending'
+                END as exchange_status,
+                so.order_date,
+                date(so.actual_ship_date, '+' || COALESCE(so.core_due_days, 30) || ' days') as expected_date,
+                so.core_charge as total_amount,
+                so.so_number as source_so,
+                c.name as owner_name,
+                c.customer_number as owner_code,
+                p.code as part_number,
+                p.name as part_name,
+                sol.quantity,
+                'Single Exchange' as exchange_type,
+                CASE 
+                    WHEN so.status = 'Shipped' AND so.actual_ship_date IS NOT NULL
+                         AND date(so.actual_ship_date, '+' || COALESCE(so.core_due_days, 30) || ' days') < date('now')
+                    THEN julianday('now') - julianday(date(so.actual_ship_date, '+' || COALESCE(so.core_due_days, 30) || ' days'))
+                    ELSE 0 
+                END as days_overdue
+            FROM sales_orders so
+            JOIN customers c ON so.customer_id = c.id
+            LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
+            LEFT JOIN products p ON sol.product_id = p.id
+            WHERE so.sales_type = 'Exchange'
+              AND so.exchange_type = 'Single Exchange'
+              AND so.status IN ('Shipped', 'Released to Shipping')
+            ORDER BY days_overdue DESC, so.order_date DESC
+        ''').fetchall()
+        
+        # Combine both lists for customer owed
+        customer_owed = list(dual_exchange_owed) + list(single_exchange_owed)
         
         supplier_owed = conn.execute('''
             SELECT 
