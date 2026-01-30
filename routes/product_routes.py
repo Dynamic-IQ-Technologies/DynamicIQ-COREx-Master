@@ -319,7 +319,7 @@ def edit_product(id):
         conn.execute('''
             UPDATE products 
             SET code=?, name=?, description=?, unit_of_measure=?, product_type=?, part_category=?, lead_time=?, product_category=?, manufacturer=?,
-                applicability=?, shelf_life_cycle=?, eccn=?, part_notes=?, is_serialized=?, calibration_required=?, master_plan_part=?
+                applicability=?, shelf_life_cycle=?, eccn=?, part_notes=?, is_serialized=?, calibration_required=?, master_plan_part=?, non_inventory=?
             WHERE id=?
         ''', (
             request.form['code'],
@@ -338,6 +338,7 @@ def edit_product(id):
             1 if request.form.get('is_serialized') else 0,
             1 if request.form.get('calibration_required') else 0,
             1 if request.form.get('master_plan_part') else 0,
+            1 if request.form.get('non_inventory') else 0,
             id
         ))
         

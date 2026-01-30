@@ -286,21 +286,26 @@ def create_receiving():
             # Use the already calculated conversion values from earlier
             # base_quantity_for_receipt and unit_cost_at_receipt already computed above
             
-            # Always create a new inventory record for each receipt
-            # This allows multiple inventory lines with the same part number (serialized items, different lots, etc.)
-            inv_cursor = conn.cursor()
-            inv_cursor.execute('''
-                INSERT INTO inventory 
-                (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, 
-                 last_received_date, expiration_date, last_calibration_date, calibration_frequency, 
-                 next_calibration_date, status, serial_number, is_serialized)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?)
-            ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, 
-                  bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, 
-                  next_calibration_date, serial_number, 1 if serial_number else 0))
-            inventory_id = inv_cursor.lastrowid
+            # Check if product is marked as non-inventory (skip inventory creation)
+            is_non_inventory = conn.execute('SELECT non_inventory FROM products WHERE id = ?', (product_id,)).fetchone()
             
-            # Link receiving transaction to the inventory record
+            inventory_id = None
+            if not is_non_inventory or not is_non_inventory['non_inventory']:
+                # Always create a new inventory record for each receipt
+                # This allows multiple inventory lines with the same part number (serialized items, different lots, etc.)
+                inv_cursor = conn.cursor()
+                inv_cursor.execute('''
+                    INSERT INTO inventory 
+                    (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, 
+                     last_received_date, expiration_date, last_calibration_date, calibration_frequency, 
+                     next_calibration_date, status, serial_number, is_serialized)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?)
+                ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, 
+                      bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, 
+                      next_calibration_date, serial_number, 1 if serial_number else 0))
+                inventory_id = inv_cursor.lastrowid
+            
+            # Link receiving transaction to the inventory record (if created)
             if inventory_id:
                 conn.execute('''
                     UPDATE receiving_transactions SET inventory_id = ? WHERE id = ?
