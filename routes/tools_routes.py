@@ -196,6 +196,7 @@ def list_tools():
     
     categories = conn.execute('SELECT DISTINCT category FROM tools WHERE category IS NOT NULL AND category != "" ORDER BY category').fetchall()
     locations = conn.execute('SELECT DISTINCT location FROM tools WHERE location IS NOT NULL AND location != "" ORDER BY location').fetchall()
+    suppliers = conn.execute('SELECT id, name FROM suppliers WHERE status = "Active" ORDER BY name').fetchall()
     
     conn.close()
     return render_template('tools/list.html', 
@@ -204,6 +205,7 @@ def list_tools():
                          now=datetime.now().date(),
                          categories=[c['category'] for c in categories],
                          locations=[l['location'] for l in locations],
+                         suppliers=suppliers,
                          filters={
                              'status': status_filter,
                              'category': category_filter,
@@ -823,5 +825,118 @@ def mass_print_labels():
             }
         )
         
+    finally:
+        conn.close()
+
+@tools_bp.route('/tools/create-po', methods=['POST'])
+@login_required
+@role_required('Admin', 'Procurement')
+def create_tool_po():
+    """Create a purchase order for tools"""
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        supplier_id = request.form.get('supplier_id')
+        expected_date = request.form.get('expected_date') or None
+        notes = request.form.get('notes', '')
+        
+        tool_names = request.form.getlist('tool_names[]')
+        quantities = request.form.getlist('quantities[]')
+        unit_costs = request.form.getlist('unit_costs[]')
+        categories = request.form.getlist('categories[]')
+        
+        if not supplier_id:
+            flash('Please select a supplier', 'danger')
+            return redirect(url_for('tools_routes.list_tools'))
+        
+        if not tool_names or not any(tool_names):
+            flash('Please add at least one tool line item', 'danger')
+            return redirect(url_for('tools_routes.list_tools'))
+        
+        last_po = conn.execute('''
+            SELECT po_number FROM purchase_orders 
+            WHERE po_number LIKE 'PO-%' 
+            ORDER BY id DESC LIMIT 1
+        ''').fetchone()
+        
+        if last_po:
+            try:
+                last_num = int(last_po['po_number'].split('-')[1])
+                po_number = f"PO-{last_num + 1:06d}"
+            except:
+                po_number = "PO-000001"
+        else:
+            po_number = "PO-000001"
+        
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO purchase_orders (
+                po_number, supplier_id, order_date, expected_delivery_date, 
+                status, po_type, notes, created_by, created_at
+            ) VALUES (?, ?, date('now'), ?, 'Draft', 'Tool', ?, ?, datetime('now'))
+        ''', (
+            po_number, supplier_id, expected_date, 
+            f"Tool Purchase Order. {notes}".strip(),
+            session.get('user_id')
+        ))
+        
+        po_id = cursor.lastrowid
+        
+        total_amount = 0
+        line_number = 0
+        
+        for i, tool_name in enumerate(tool_names):
+            if not tool_name.strip():
+                continue
+                
+            line_number += 1
+            qty = float(quantities[i]) if i < len(quantities) and quantities[i] else 1
+            cost = float(unit_costs[i]) if i < len(unit_costs) and unit_costs[i] else 0
+            category = categories[i] if i < len(categories) else ''
+            
+            product = conn.execute(
+                "SELECT id FROM products WHERE code = ? OR name = ?",
+                (tool_name.strip(), tool_name.strip())
+            ).fetchone()
+            
+            if not product:
+                cursor.execute('''
+                    INSERT INTO products (code, name, unit_of_measure, product_type, cost)
+                    VALUES (?, ?, 'EA', 'Tool', ?)
+                ''', (f"TOOL-{tool_name[:20].upper().replace(' ', '-')}", tool_name.strip(), cost))
+                product_id = cursor.lastrowid
+            else:
+                product_id = product['id']
+            
+            cursor.execute('''
+                INSERT INTO purchase_order_lines (
+                    po_id, line_number, product_id, quantity, unit_price, 
+                    received_quantity, notes
+                ) VALUES (?, ?, ?, ?, ?, 0, ?)
+            ''', (po_id, line_number, product_id, qty, cost, f"Category: {category}" if category else None))
+            
+            total_amount += qty * cost
+        
+        cursor.execute(
+            'UPDATE purchase_orders SET total_amount = ? WHERE id = ?',
+            (total_amount, po_id)
+        )
+        
+        conn.commit()
+        
+        AuditLogger.log(
+            conn, 'purchase_order', po_id, 'CREATE',
+            session.get('user_id'),
+            None, {'po_number': po_number, 'type': 'Tool PO', 'line_count': line_number}
+        )
+        
+        flash(f'Tool Purchase Order {po_number} created successfully!', 'success')
+        return redirect(url_for('po_routes.view_purchaseorder', id=po_id))
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error creating tool PO: {str(e)}', 'danger')
+        return redirect(url_for('tools_routes.list_tools'))
     finally:
         conn.close()
