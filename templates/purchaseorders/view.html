@@ -36,9 +36,13 @@
             <h4 class="mb-1" style="color: #7c3aed;"><i class="bi bi-bag-plus me-2"></i>Component Buyout</h4>
             <p class="mb-0">
                 This purchase order is a Component Buyout linked to Work Order 
+                {% if po.work_order_id %}
                 <a href="{{ url_for('workorder_routes.view_workorder', id=po.work_order_id) }}" class="fw-bold" style="color: #7c3aed;">
                     {{ source_work_order.wo_number if source_work_order else 'N/A' }}
                 </a>
+                {% else %}
+                <span class="text-muted">N/A</span>
+                {% endif %}
                 {% if source_work_order %}
                 ({{ source_work_order.product_code }} - {{ source_work_order.product_name }})
                 {% endif %}
@@ -320,7 +324,7 @@
             <h4 class="mb-1"><i class="bi bi-tools me-2"></i>Service/Misc Purchase Order</h4>
             <p class="mb-0">
                 This is a Service PO linked to Work Order 
-                {% if service_lines and service_lines|length > 0 and service_lines[0].wo_number %}
+                {% if service_lines and service_lines|length > 0 and service_lines[0].work_order_id %}
                 <a href="{{ url_for('workorder_routes.view_workorder', id=service_lines[0].work_order_id) }}" class="fw-bold">
                     {{ service_lines[0].wo_number }}
                 </a>
