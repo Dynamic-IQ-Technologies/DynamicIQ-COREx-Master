@@ -127,7 +127,11 @@
                             {% set wo_parts = wo_pair.strip().split(':') %}
                             {% set wo_number = wo_parts[0] %}
                             {% set wo_id = wo_parts[1] if wo_parts|length > 1 else '' %}
+                            {% if wo_id %}
                             <a href="{{ url_for('workorder_routes.view_workorder', id=wo_id) }}" class="badge bg-primary text-decoration-none me-1" title="View Work Order">{{ wo_number }}</a>
+                            {% else %}
+                            <span class="badge bg-secondary me-1">{{ wo_number }}</span>
+                            {% endif %}
                             {% endfor %}
                             {% else %}
                             <span class="text-muted">-</span>
@@ -257,9 +261,11 @@
                                         <td colspan="6" class="text-end"><strong>Work Order Total:</strong></td>
                                         <td><strong>{{ wo_data.total_cost|currency }}</strong></td>
                                         <td colspan="2">
+                                            {% if wo_data.wo_id %}
                                             <a href="{{ url_for('workorder_routes.view_workorder', id=wo_data.wo_id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-box-arrow-up-right"></i> View WO
                                             </a>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 </tfoot>
