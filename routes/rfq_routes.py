@@ -164,7 +164,9 @@ def view_rfq(rfq_id):
     ''', (rfq_id,)).fetchall()
     
     suppliers = conn.execute('''
-        SELECT rs.*, s.name as supplier_name, s.code as supplier_code
+        SELECT rs.*, s.name as supplier_name, s.code as supplier_code,
+               (SELECT SUM(rq.quoted_price) FROM rfq_quotes rq 
+                WHERE rq.rfq_id = rs.rfq_id AND rq.supplier_id = rs.supplier_id) as total_quoted_price
         FROM rfq_suppliers rs
         JOIN suppliers s ON rs.supplier_id = s.id
         WHERE rs.rfq_id = ?

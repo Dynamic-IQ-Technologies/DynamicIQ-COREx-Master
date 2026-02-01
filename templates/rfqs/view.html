@@ -98,6 +98,7 @@
                                 <th class="text-uppercase small">Supplier</th>
                                 <th class="text-uppercase small">Sent Date</th>
                                 <th class="text-uppercase small">Response</th>
+                                <th class="text-uppercase small">Quoted Price</th>
                                 <th class="text-uppercase small">Notes</th>
                             </tr>
                         </thead>
@@ -120,6 +121,13 @@
                                     <span class="badge bg-warning text-dark">Pending</span>
                                     {% else %}
                                     <span class="badge bg-secondary">{{ supplier.response_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold">
+                                    {% if supplier.total_quoted_price %}
+                                    $ {{ supplier.total_quoted_price|money }}
+                                    {% else %}
+                                    -
                                     {% endif %}
                                 </td>
                                 <td>{{ supplier.notes or '-' }}</td>
