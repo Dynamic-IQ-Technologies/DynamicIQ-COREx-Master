@@ -1245,11 +1245,8 @@ def release_to_shipping(id):
             WHERE sol.so_id = ? 
             AND sol.work_order_id IS NOT NULL
             AND (wo.status != 'Completed' 
-                 OR NOT EXISTS (
-                     SELECT 1 FROM inventory inv 
-                     WHERE inv.work_order_id = wo.id 
-                     AND inv.quantity > 0
-                 ))
+                 OR wo.inventory_id IS NULL
+                 OR wo.disposition != 'Turned into Stock')
         ''', (id,)).fetchall()
         
         if incomplete_wo_lines:
