@@ -684,7 +684,7 @@ def create_shipment_from_line(line_id):
             return redirect(url_for('shipping_routes.dashboard'))
         
         # Check if already shipped
-        shipped_qty = line.get('shipped_quantity') or 0
+        shipped_qty = line['shipped_quantity'] if line['shipped_quantity'] else 0
         if shipped_qty > 0:
             flash('This line has already been shipped.', 'warning')
             conn.close()
@@ -707,9 +707,9 @@ def create_shipment_from_line(line_id):
         ''', (
             shipment_number, 'Outbound', 'Sales Order', line['so_id'],
             'Pending', today,
-            line.get('customer_name') or '',
-            line.get('customer_address') or '',
-            line.get('shipping_method') or '',
+            line['customer_name'] if line['customer_name'] else '',
+            line['customer_address'] if line['customer_address'] else '',
+            line['shipping_method'] if line['shipping_method'] else '',
             session.get('user_id')
         ))
         conn.execute('SELECT last_insert_rowid()')
@@ -725,8 +725,8 @@ def create_shipment_from_line(line_id):
             shipment_id,
             line['product_id'],
             line['quantity'],
-            line.get('unit_of_measure') or 'EA',
-            line.get('serial_number') or '',
+            line['unit_of_measure'] if line['unit_of_measure'] else 'EA',
+            line['serial_number'] if line['serial_number'] else '',
             f"From SO Line #{line['line_number']}"
         ))
         
