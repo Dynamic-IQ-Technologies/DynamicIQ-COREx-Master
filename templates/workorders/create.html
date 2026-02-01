@@ -32,12 +32,17 @@
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="customer_id" class="form-label">Customer</label>
-                        <select class="form-select" id="customer_id" name="customer_id">
-                            <option value="">Select Customer (Optional)</option>
-                            {% for customer in customers %}
-                            <option value="{{ customer.id }}" {% if prefill and prefill.customer_id|string == customer.id|string %}selected{% endif %}>{{ customer.customer_number }} - {{ customer.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="input-group">
+                            <select class="form-select" id="customer_id" name="customer_id">
+                                <option value="">Select Customer (Optional)</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}" {% if prefill and prefill.customer_id|string == customer.id|string %}selected{% endif %}>{{ customer.customer_number }} - {{ customer.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createCustomerModal" title="Create New Customer">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
                         <small class="text-muted">Select from customer database or leave blank</small>
                     </div>
                 </div>
@@ -365,8 +370,107 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Create Product';
         });
     });
+    
+    // Create Customer handler
+    document.getElementById('saveNewCustomer').addEventListener('click', function() {
+        const name = document.getElementById('new_customer_name').value.trim();
+        const contactPerson = document.getElementById('new_customer_contact').value.trim();
+        const email = document.getElementById('new_customer_email').value.trim();
+        const phone = document.getElementById('new_customer_phone').value.trim();
+        
+        if (!name) {
+            alert('Customer name is required');
+            return;
+        }
+        
+        const form = document.getElementById('createCustomerForm');
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating...';
+        
+        fetch('/api/customers/quick-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, contact_person: contactPerson, email, phone })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Add new customer to dropdown and select it
+                const select = document.getElementById('customer_id');
+                const option = document.createElement('option');
+                option.value = data.customer.id;
+                option.textContent = data.customer.customer_number + ' - ' + data.customer.name;
+                option.selected = true;
+                select.appendChild(option);
+                
+                // Close modal and reset form
+                bootstrap.Modal.getInstance(document.getElementById('createCustomerModal')).hide();
+                form.reset();
+                
+                // Trigger change event for duplicate check
+                select.dispatchEvent(new Event('change'));
+            } else {
+                alert('Error: ' + (data.error || 'Failed to create customer'));
+            }
+        })
+        .catch(err => {
+            alert('Error creating customer: ' + err.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Create Customer';
+        });
+    });
 });
 </script>
+
+<!-- Create Customer Modal -->
+<div class="modal fade" id="createCustomerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Create New Customer</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createCustomerForm">
+                    <div class="mb-3">
+                        <label class="form-label">Customer Name *</label>
+                        <input type="text" class="form-control" id="new_customer_name" required placeholder="e.g., AeroTech Industries">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" id="new_customer_contact" placeholder="e.g., John Smith">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="new_customer_email" placeholder="contact@company.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="new_customer_phone" placeholder="(555) 123-4567">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <small><i class="bi bi-info-circle me-1"></i>Additional customer details can be added later from the Customer Management page.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveNewCustomer">
+                    <i class="bi bi-check-lg me-1"></i>Create Customer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Create Product Modal -->
 <div class="modal fade" id="createProductModal" tabindex="-1">

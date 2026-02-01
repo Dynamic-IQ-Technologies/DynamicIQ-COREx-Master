@@ -475,3 +475,75 @@ def regenerate_portal_link(customer_id):
     
     flash('Portal link regenerated. Previous link is now invalid.', 'warning')
     return redirect(url_for('customer_routes.edit_customer', id=customer_id))
+
+
+@customer_bp.route('/api/customers/quick-create', methods=['POST'])
+@role_required('Admin', 'Planner')
+def quick_create_customer():
+    """API endpoint for quick customer creation from work order form"""
+    data = request.get_json()
+    
+    if not data or not data.get('name'):
+        return jsonify({'success': False, 'error': 'Customer name is required'}), 400
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        # Generate customer number
+        last_customer = conn.execute(
+            'SELECT customer_number FROM customers ORDER BY id DESC LIMIT 1'
+        ).fetchone()
+        
+        if last_customer:
+            # Handle different formats (CUS-00001 or CUST-000001)
+            last_num_str = last_customer['customer_number']
+            if '-' in last_num_str:
+                last_num = int(last_num_str.split('-')[1])
+            else:
+                last_num = 0
+            customer_number = f'CUS-{last_num + 1:05d}'
+        else:
+            customer_number = 'CUS-00001'
+        
+        # Insert customer with minimal required fields
+        conn.execute('''
+            INSERT INTO customers (
+                customer_number, name, contact_person, email, phone,
+                billing_address, shipping_address, payment_terms, credit_limit,
+                tax_exempt, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            customer_number,
+            data['name'],
+            data.get('contact_person', ''),
+            data.get('email', ''),
+            data.get('phone', ''),
+            '',  # billing_address
+            '',  # shipping_address
+            30,  # default payment_terms
+            0.0,  # default credit_limit
+            0,  # not tax_exempt
+            '',  # notes
+            'Active'
+        ))
+        
+        customer_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        AuditLogger.log_change(conn, 'customers', customer_id, 'CREATE', session.get('user_id'),
+                              {'customer_number': customer_number, 'name': data['name'], 'source': 'quick-create'})
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'customer': {
+                'id': customer_id,
+                'customer_number': customer_number,
+                'name': data['name']
+            }
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
