@@ -965,36 +965,80 @@ def receive_purchaseorder(id):
         ''', (receipt_number, id, product_id, quantity_received, receipt_date, condition,
               warehouse_location, bin_location, remarks, session['user_id']))
         
-        # Update inventory with combined warehouse + bin location
+        # Check if this is a Tool PO - create tools instead of inventory
         combined_location = f"{warehouse_location}/{bin_location}"
-        inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
-        
         inventory_id = None
-        if inventory:
-            new_qty = inventory['quantity'] + quantity_received
-            conn.execute('''
-                UPDATE inventory 
-                SET quantity=?, 
-                    warehouse_location=?,
-                    bin_location=?,
-                    condition=?,
-                    status = CASE 
-                        WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                        ELSE status 
-                    END,
-                    last_updated=CURRENT_TIMESTAMP 
-                WHERE product_id=?
-            ''', (new_qty, warehouse_location, bin_location, condition, new_qty, product_id))
-            inventory_id = inventory['id']
+        tools_created = []
+        
+        if po['po_type'] == 'Tool':
+            product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+            product_name = product['name'] if product else 'Unknown Tool'
+            
+            last_tool = conn.execute('''
+                SELECT tool_number FROM tools 
+                WHERE tool_number LIKE 'TOOL-%' 
+                ORDER BY id DESC LIMIT 1
+            ''').fetchone()
+            
+            if last_tool:
+                try:
+                    last_num = int(last_tool['tool_number'].split('-')[1])
+                except:
+                    last_num = 0
+            else:
+                last_num = 0
+            
+            unit_cost = (po['total_amount'] or 0) / (po['quantity'] or 1) if po['quantity'] else 0
+            
+            for i in range(int(quantity_received)):
+                last_num += 1
+                tool_number = f"TOOL-{last_num:05d}"
+                
+                conn.execute('''
+                    INSERT INTO tools (tool_number, name, description, category, location, 
+                                       status, condition, purchase_date, purchase_cost, 
+                                       supplier_id, notes)
+                    VALUES (?, ?, ?, ?, ?, 'Available', ?, ?, ?, ?, ?)
+                ''', (
+                    tool_number,
+                    product_name,
+                    f"Received from PO {po['po_number']}",
+                    'General',
+                    combined_location,
+                    condition or 'Good',
+                    receipt_date,
+                    unit_cost,
+                    po['supplier_id'],
+                    remarks
+                ))
+                tools_created.append(tool_number)
         else:
-            # Create new inventory record
-            conn.execute('''
-                INSERT INTO inventory 
-                (product_id, quantity, warehouse_location, bin_location, condition, 
-                 status, reorder_point, safety_stock)
-                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0)
-            ''', (product_id, quantity_received, warehouse_location, bin_location, condition))
-            inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
+            
+            if inventory:
+                new_qty = inventory['quantity'] + quantity_received
+                conn.execute('''
+                    UPDATE inventory 
+                    SET quantity=?, 
+                        warehouse_location=?,
+                        bin_location=?,
+                        condition=?,
+                        status = CASE 
+                            WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                            ELSE status 
+                        END,
+                        last_updated=CURRENT_TIMESTAMP 
+                    WHERE product_id=?
+                ''', (new_qty, warehouse_location, bin_location, condition, new_qty, product_id))
+                inventory_id = inventory['id']
+            else:
+                conn.execute('''
+                    INSERT INTO inventory 
+                    (product_id, quantity, warehouse_location, bin_location, condition, 
+                     status, reorder_point, safety_stock)
+                    VALUES (?, ?, ?, ?, ?, 'Available', 0, 0)
+                ''', (product_id, quantity_received, warehouse_location, bin_location, condition))
+                inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         
         # Update purchase order
         new_received = (po['received_quantity'] or 0) + quantity_received
@@ -1010,7 +1054,10 @@ def receive_purchaseorder(id):
         
         conn.commit()
         
-        flash(f'Material received successfully! Receipt: {receipt_number}, Inventory: INV-{inventory_id:06d}', 'success')
+        if tools_created:
+            flash(f'Tools received successfully! Receipt: {receipt_number}. Created {len(tools_created)} tool(s): {", ".join(tools_created)}', 'success')
+        else:
+            flash(f'Material received successfully! Receipt: {receipt_number}, Inventory: INV-{inventory_id:06d}', 'success')
         
     except Exception as e:
         conn.rollback()
@@ -1101,50 +1148,95 @@ def api_quick_receive_po_line(po_id, line_id):
               warehouse_location, bin_location, remarks, session['user_id'],
               line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost, expiration_date, serial_number))
         
-        inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
-        
         base_unit_cost = po_line['base_unit_price'] if po_line['base_unit_price'] else (unit_cost / conversion_factor if conversion_factor else unit_cost)
         
-        if inventory:
-            new_qty = inventory['quantity'] + base_quantity_received
-            if expiration_date:
+        if po['po_type'] == 'Tool':
+            product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+            product_name = product['name'] if product else 'Unknown Tool'
+            
+            last_tool = conn.execute('''
+                SELECT tool_number FROM tools 
+                WHERE tool_number LIKE 'TOOL-%' 
+                ORDER BY id DESC LIMIT 1
+            ''').fetchone()
+            
+            if last_tool:
+                try:
+                    last_num = int(last_tool['tool_number'].split('-')[1])
+                except:
+                    last_num = 0
+            else:
+                last_num = 0
+            
+            tools_created = []
+            for i in range(int(quantity_received)):
+                last_num += 1
+                tool_number = f"TOOL-{last_num:05d}"
+                
+                tool_serial = f"{serial_number}-{i+1}" if serial_number and int(quantity_received) > 1 else serial_number
+                
                 conn.execute('''
-                    UPDATE inventory 
-                    SET quantity=?, 
-                        warehouse_location=?,
-                        bin_location=?,
-                        condition=?,
-                        unit_cost=?,
-                        expiration_date=?,
-                        status = CASE 
-                            WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                            ELSE status 
-                        END,
-                        last_updated=CURRENT_TIMESTAMP 
-                    WHERE product_id=?
-                ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, new_qty, product_id))
+                    INSERT INTO tools (tool_number, name, description, category, location, 
+                                       status, condition, purchase_date, purchase_cost, 
+                                       supplier_id, serial_number, notes)
+                    VALUES (?, ?, ?, ?, ?, 'Available', ?, ?, ?, ?, ?, ?)
+                ''', (
+                    tool_number,
+                    product_name,
+                    f"Received from PO {po['po_number']}",
+                    'General',
+                    f"{warehouse_location}/{bin_location}",
+                    condition or 'Good',
+                    receipt_date,
+                    base_unit_cost,
+                    po['supplier_id'],
+                    tool_serial,
+                    remarks
+                ))
+                tools_created.append(tool_number)
+        else:
+            inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
+            
+            if inventory:
+                new_qty = inventory['quantity'] + base_quantity_received
+                if expiration_date:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity=?, 
+                            warehouse_location=?,
+                            bin_location=?,
+                            condition=?,
+                            unit_cost=?,
+                            expiration_date=?,
+                            status = CASE 
+                                WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                                ELSE status 
+                            END,
+                            last_updated=CURRENT_TIMESTAMP 
+                        WHERE product_id=?
+                    ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, new_qty, product_id))
+                else:
+                    conn.execute('''
+                        UPDATE inventory 
+                        SET quantity=?, 
+                            warehouse_location=?,
+                            bin_location=?,
+                            condition=?,
+                            unit_cost=?,
+                            status = CASE 
+                                WHEN ? > (reorder_point + safety_stock) THEN 'Available'
+                                ELSE status 
+                            END,
+                            last_updated=CURRENT_TIMESTAMP 
+                        WHERE product_id=?
+                    ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, new_qty, product_id))
             else:
                 conn.execute('''
-                    UPDATE inventory 
-                    SET quantity=?, 
-                        warehouse_location=?,
-                        bin_location=?,
-                        condition=?,
-                        unit_cost=?,
-                        status = CASE 
-                            WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                            ELSE status 
-                        END,
-                        last_updated=CURRENT_TIMESTAMP 
-                    WHERE product_id=?
-                ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, new_qty, product_id))
-        else:
-            conn.execute('''
-                INSERT INTO inventory 
-                (product_id, quantity, warehouse_location, bin_location, condition, 
-                 reorder_point, safety_stock, status, unit_cost, expiration_date, last_updated)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, CURRENT_TIMESTAMP)
-            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date))
+                    INSERT INTO inventory 
+                    (product_id, quantity, warehouse_location, bin_location, condition, 
+                     reorder_point, safety_stock, status, unit_cost, expiration_date, last_updated)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, CURRENT_TIMESTAMP)
+                ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date))
         
         new_received = already_received + quantity_received
         conn.execute('''
@@ -1184,6 +1276,11 @@ def api_quick_receive_po_line(po_id, line_id):
         
         conn.commit()
         
+        if po['po_type'] == 'Tool':
+            msg = f'Successfully received {int(quantity_received)} tool(s) and added to Tools inventory. Receipt: {receipt_number}'
+        else:
+            msg = f'Successfully received {quantity_received} units. Receipt: {receipt_number}'
+        
         return jsonify({
             'success': True,
             'receipt_number': receipt_number,
@@ -1191,7 +1288,7 @@ def api_quick_receive_po_line(po_id, line_id):
             'base_quantity_received': base_quantity_received,
             'new_total_received': new_received,
             'po_status': new_status,
-            'message': f'Successfully received {quantity_received} units. Receipt: {receipt_number}'
+            'message': msg
         })
         
     except Exception as e:
