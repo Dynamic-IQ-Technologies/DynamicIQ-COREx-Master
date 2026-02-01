@@ -115,7 +115,7 @@ def view_ar(id):
         return redirect(url_for('ar_routes.list_ar'))
     
     lines = conn.execute('''
-        SELECT il.*, p.name as product_name, p.part_number
+        SELECT il.*, p.name as product_name, p.code as part_number
         FROM invoice_lines il
         LEFT JOIN products p ON il.product_id = p.id
         WHERE il.invoice_id = ?
