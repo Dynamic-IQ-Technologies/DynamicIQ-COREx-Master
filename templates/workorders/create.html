@@ -237,7 +237,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const productDescriptions = {
         {% for product in products %}
-        "{{ product.id }}": {{ product.description|tojson if product.description else '""' }},
+        "{{ product.id }}": {{ (product.description|tojson if product.description else '""')|safe }},
         {% endfor %}
     };
     
@@ -275,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         clearTimeout(duplicateCheckTimeout);
         duplicateCheckTimeout = setTimeout(function() {
-            fetch('/api/workorders/check-duplicate?product_id=' + productId + '\x26customer_id=' + customerId + '\x26serial_number=' + encodeURIComponent(serialNumber))
+            fetch('/api/workorders/check-duplicate?product_id=' + productId + '&customer_id=' + customerId + '&serial_number=' + encodeURIComponent(serialNumber))
                 .then(response => response.json())
                 .then(data => {
                     if (data.duplicate && data.matches.length > 0) {
