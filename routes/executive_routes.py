@@ -71,13 +71,17 @@ def dashboard():
     '''
     revenue = conn.execute(revenue_query, (start_date, end_date)).fetchone()['total_revenue']
     
-    # KPI 2: Total Expenses (from GL expense accounts)
+    # KPI 2: Total Expenses (from GL expense accounts + WIP costs incurred)
+    # This includes:
+    # 1. COGS/Expense accounts (when work orders complete)
+    # 2. WIP costs incurred (material issues, labor, subcontract - for real-time visibility)
     expense_query = '''
         SELECT COALESCE(SUM(gll.debit - gll.credit), 0) as total_expenses
         FROM gl_entry_lines gll
         JOIN gl_entries ge ON gll.gl_entry_id = ge.id
         JOIN chart_of_accounts coa ON gll.account_id = coa.id
-        WHERE coa.account_type = 'Expense'
+        WHERE (coa.account_type = 'Expense' 
+               OR coa.account_code IN ('1140', '5100', '5200', '5300'))
         AND ge.entry_date BETWEEN ? AND ?
         AND ge.status = 'Posted'
     '''
