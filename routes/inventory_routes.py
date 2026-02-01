@@ -195,7 +195,7 @@ def view_inventory(id):
         WHERE sol.inventory_id = ? AND sol.allocated_quantity > 0
         ORDER BY so.order_date DESC
         LIMIT 10
-    ''', (inventory_id,)).fetchall()
+    ''', (id,)).fetchall()
     
     # Get inventory adjustments
     adjustments = conn.execute('''
