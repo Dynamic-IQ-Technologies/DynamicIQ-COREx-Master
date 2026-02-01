@@ -182,7 +182,7 @@ def department_transactions(dept):
         rows = conn.execute(f'''
             SELECT 
                 so.id,
-                so.order_number as reference,
+                so.so_number as reference,
                 so.order_date as trans_date,
                 c.name as customer_name,
                 so.total_amount as revenue,
