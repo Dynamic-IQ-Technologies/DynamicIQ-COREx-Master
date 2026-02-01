@@ -186,16 +186,16 @@ def view_inventory(id):
         LIMIT 10
     ''', (product_id,)).fetchall()
     
-    # Get related Sales Order allocations
+    # Get related Sales Order allocations for this specific inventory record
     sales_allocations = conn.execute('''
         SELECT sol.*, so.so_number, c.name as customer_name
         FROM sales_order_lines sol
         JOIN sales_orders so ON sol.so_id = so.id
         LEFT JOIN customers c ON so.customer_id = c.id
-        WHERE sol.product_id = ? AND sol.allocated_quantity > 0
+        WHERE sol.inventory_id = ? AND sol.allocated_quantity > 0
         ORDER BY so.order_date DESC
         LIMIT 10
-    ''', (product_id,)).fetchall()
+    ''', (inventory_id,)).fetchall()
     
     # Get inventory adjustments
     adjustments = conn.execute('''
