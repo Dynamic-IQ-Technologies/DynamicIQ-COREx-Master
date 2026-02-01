@@ -209,13 +209,12 @@ def record_payment(id):
             conn.commit()
             
             AuditLogger.log(
-                conn=conn,
-                user_id=session.get('user_id'),
-                action='CREATE',
-                table_name='payments',
-                record_id=id,
-                new_values={'amount': payment_amount, 'invoice': invoice['invoice_number']},
-                description=f"Recorded payment of ${payment_amount:.2f} for invoice {invoice['invoice_number']}"
+                conn,
+                'ar_invoice',
+                id,
+                'UPDATE',
+                session.get('user_id'),
+                {'payment_amount': payment_amount, 'invoice': invoice['invoice_number'], 'action': 'payment_recorded'}
             )
             
             flash(f'Payment of ${payment_amount:,.2f} recorded successfully.', 'success')
