@@ -4165,7 +4165,7 @@ def submit_reconciliation(id):
     
     # Check unconsumed work order level materials
     unconsumed_wo_materials = conn.execute('''
-        SELECT mr.id, p.code, p.name, mr.required_qty,
+        SELECT mr.id, p.code, p.name, mr.required_quantity as required_qty,
                COALESCE((SELECT SUM(mi.quantity_issued) 
                          FROM material_issues mi 
                          WHERE mi.work_order_id = mr.work_order_id 
@@ -4173,7 +4173,7 @@ def submit_reconciliation(id):
         FROM material_requirements mr
         JOIN products p ON mr.product_id = p.id
         WHERE mr.work_order_id = ?
-          AND mr.required_qty > COALESCE((SELECT SUM(mi.quantity_issued) 
+          AND mr.required_quantity > COALESCE((SELECT SUM(mi.quantity_issued) 
                                           FROM material_issues mi 
                                           WHERE mi.work_order_id = mr.work_order_id 
                                             AND mi.product_id = mr.product_id), 0)
