@@ -335,9 +335,18 @@
                                     <tr><td class="text-muted">Planned End</td><td>{{ workorder.planned_end_date or 'Not set' }}</td></tr>
                                     <tr><td class="text-muted">Actual Start</td><td>{{ workorder.actual_start_date or 'Not started' }}</td></tr>
                                     <tr><td class="text-muted">Actual End</td><td>{{ workorder.actual_end_date or 'Not completed' }}</td></tr>
-                                    {% if workorder.inventory_id %}
-                                    <tr><td class="text-muted">Inventory</td><td><a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-box-seam"></i> View Record</a></td></tr>
-                                    {% endif %}
+                                    <tr>
+                                        <td class="text-muted">Inventory</td>
+                                        <td>
+                                            {% if workorder.inventory_id %}
+                                            <a href="{{ url_for('inventory_routes.view_inventory', id=workorder.inventory_id) }}" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-box-seam me-1"></i> INV-{{ '%06d'|format(workorder.inventory_id) }}
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted">Not linked</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
                                 </table>
                             </div>
                         </div>
