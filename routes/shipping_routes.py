@@ -117,18 +117,16 @@ def create_shipment():
                     shipment_number, shipment_type, reference_type, reference_id,
                     status, carrier, tracking_number, shipping_method,
                     ship_date, estimated_delivery,
-                    ship_from_location, ship_to_name, ship_to_address,
-                    ship_to_city, ship_to_state, ship_to_postal_code, ship_to_country,
-                    weight, weight_unit, dimensions, freight_cost, insurance_value,
-                    special_instructions, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ship_from_name, ship_to_name, ship_to_address,
+                    weight, dimensions, shipping_cost, insurance_amount,
+                    notes, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 shipment_number, shipment_type, reference_type, reference_id,
                 'Pending', carrier, tracking_number, shipping_method,
                 ship_date, expected_delivery,
                 ship_from, ship_to_name, ship_to_address,
-                ship_to_city, ship_to_state, ship_to_postal, ship_to_country,
-                weight, weight_unit, dimensions, freight_cost, insurance_value,
+                weight, dimensions, freight_cost, insurance_value,
                 special_instructions, session['user_id']
             ))
             
@@ -271,11 +269,9 @@ def edit_shipment(id):
                 UPDATE shipments SET
                     carrier = ?, tracking_number = ?, shipping_method = ?,
                     ship_date = ?, estimated_delivery = ?,
-                    ship_from_location = ?, ship_to_name = ?, ship_to_address = ?,
-                    ship_to_city = ?, ship_to_state = ?, ship_to_postal_code = ?,
-                    ship_to_country = ?, weight = ?, weight_unit = ?,
-                    dimensions = ?, freight_cost = ?, insurance_value = ?,
-                    special_instructions = ?
+                    ship_from_name = ?, ship_to_name = ?, ship_to_address = ?,
+                    weight = ?, dimensions = ?, shipping_cost = ?, insurance_amount = ?,
+                    notes = ?
                 WHERE id = ?
             ''', (
                 request.form.get('carrier', '').strip(),
@@ -286,12 +282,7 @@ def edit_shipment(id):
                 request.form.get('ship_from_location', '').strip(),
                 request.form.get('ship_to_name', '').strip(),
                 request.form.get('ship_to_address', '').strip(),
-                request.form.get('ship_to_city', '').strip(),
-                request.form.get('ship_to_state', '').strip(),
-                request.form.get('ship_to_postal_code', '').strip(),
-                request.form.get('ship_to_country', 'USA').strip(),
                 float(request.form.get('weight', 0) or 0),
-                request.form.get('weight_unit', 'lbs'),
                 request.form.get('dimensions', '').strip(),
                 float(request.form.get('freight_cost', 0) or 0),
                 float(request.form.get('insurance_value', 0) or 0),
