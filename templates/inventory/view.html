@@ -493,6 +493,11 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="work-orders-tab" data-bs-toggle="tab" data-bs-target="#work-orders" type="button">
+                    <i class="bi bi-tools me-1"></i> Work Orders ({{ related_work_orders|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="wo-turnins-tab" data-bs-toggle="tab" data-bs-target="#wo-turnins" type="button">
                     <i class="bi bi-gear-fill me-1"></i> WO Turn-ins ({{ wo_turnins|length }})
                 </button>
@@ -670,6 +675,52 @@
                 </div>
                 {% else %}
                 <p class="text-muted text-center py-3">No adjustments found for this product.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="work-orders" role="tabpanel">
+                {% if related_work_orders %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Relationship</th>
+                                <th>Product</th>
+                                <th>Serial #</th>
+                                <th>Customer</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Start Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wo in related_work_orders %}
+                            <tr>
+                                <td><a href="{{ url_for('workorder_routes.view_work_order', id=wo.id) }}" class="fw-semibold">{{ wo.wo_number }}</a></td>
+                                <td><span class="badge bg-info">{{ wo.relationship }}</span></td>
+                                <td>{{ wo.product_code }}</td>
+                                <td>{{ wo.serial_number or '-' }}</td>
+                                <td>{{ wo.customer_name or '-' }}</td>
+                                <td>{{ wo.workorder_type or 'Standard' }}</td>
+                                <td>
+                                    {% if wo.status == 'Completed' %}
+                                    <span class="badge bg-success">{{ wo.status }}</span>
+                                    {% elif wo.status == 'In Progress' %}
+                                    <span class="badge bg-primary">{{ wo.status }}</span>
+                                    {% elif wo.status == 'Pending' %}
+                                    <span class="badge bg-warning">{{ wo.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ wo.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ wo.actual_start_date or wo.planned_start_date or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No work orders found for this inventory.</p>
                 {% endif %}
             </div>
             <div class="tab-pane fade" id="wo-turnins" role="tabpanel">
