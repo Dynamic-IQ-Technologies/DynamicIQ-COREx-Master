@@ -3466,6 +3466,9 @@ def unissue_task_material(task_id, material_id):
         conn.close()
         return redirect(url_for('workorder_routes.list_workorders'))
     
+    # Store work_order_id before any operations to ensure it's available after conn.close()
+    work_order_id = material['work_order_id']
+    
     try:
         unissue_qty = float(request.form.get('unissue_qty', 0))
     except (ValueError, TypeError):
@@ -3474,14 +3477,14 @@ def unissue_task_material(task_id, material_id):
     if unissue_qty <= 0:
         flash('Return quantity must be greater than zero', 'danger')
         conn.close()
-        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+        return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
     
     max_unissue = (material['issued_qty'] or 0) - (material['consumed_qty'] or 0)
     
     if unissue_qty > max_unissue:
         flash(f'Cannot return more than available. Maximum: {max_unissue}', 'danger')
         conn.close()
-        return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']))
+        return redirect(url_for('workorder_routes.view_workorder', id=work_order_id))
     
     try:
         new_issued = (material['issued_qty'] or 0) - unissue_qty
@@ -3510,7 +3513,7 @@ def unissue_task_material(task_id, material_id):
         flash(f'Error returning material: {str(e)}', 'danger')
     
     conn.close()
-    return redirect(url_for('workorder_routes.view_workorder', id=material['work_order_id']) + '#materialsPane')
+    return redirect(url_for('workorder_routes.view_workorder', id=work_order_id) + '#materialsPane')
 
 
 @workorder_bp.route('/workorders/<int:wo_id>/bulk-update-tasks', methods=['POST'])
