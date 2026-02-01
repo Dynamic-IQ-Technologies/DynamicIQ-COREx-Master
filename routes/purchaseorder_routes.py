@@ -1086,6 +1086,39 @@ def receive_purchaseorder(id):
                     VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?)
                 ''', (product_id, quantity_received, warehouse_location, bin_location, condition, serial_number))
                 inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            
+            # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
+            unit_cost = po.get('unit_price') or 0
+            total_value = quantity_received * unit_cost
+            if total_value > 0:
+                product_info = conn.execute('SELECT code, name FROM products WHERE id = ?', (product_id,)).fetchone()
+                product_desc = f"{product_info['code']} - {product_info['name']}" if product_info else f"Product #{product_id}"
+                
+                gl_lines = [
+                    {
+                        'account_code': '1130',
+                        'debit': total_value,
+                        'credit': 0,
+                        'description': f'Inventory received - {product_desc}'
+                    },
+                    {
+                        'account_code': '2110',
+                        'debit': 0,
+                        'credit': total_value,
+                        'description': f'A/P for inventory - PO {po["po_number"]}'
+                    }
+                ]
+                
+                GLAutoPost.create_auto_journal_entry(
+                    conn=conn,
+                    entry_date=receipt_date,
+                    description=f'Inventory Receiving - {receipt_number} - {product_desc}',
+                    transaction_source='Inventory Receiving',
+                    reference_type='receiving_transaction',
+                    reference_id=receipt_number,
+                    lines=gl_lines,
+                    created_by=session.get('user_id')
+                )
         
         # Update purchase order
         new_received = (po['received_quantity'] or 0) + quantity_received
@@ -1318,6 +1351,38 @@ def api_quick_receive_po_line(po_id, line_id):
                      reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_updated)
                     VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, CURRENT_TIMESTAMP)
                 ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number))
+            
+            # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
+            total_value = base_quantity_received * base_unit_cost
+            if total_value > 0:
+                product_info = conn.execute('SELECT code, name FROM products WHERE id = ?', (product_id,)).fetchone()
+                product_desc = f"{product_info['code']} - {product_info['name']}" if product_info else f"Product #{product_id}"
+                
+                gl_lines = [
+                    {
+                        'account_code': '1130',
+                        'debit': total_value,
+                        'credit': 0,
+                        'description': f'Inventory received - {product_desc}'
+                    },
+                    {
+                        'account_code': '2110',
+                        'debit': 0,
+                        'credit': total_value,
+                        'description': f'A/P for inventory - PO {po["po_number"]}'
+                    }
+                ]
+                
+                GLAutoPost.create_auto_journal_entry(
+                    conn=conn,
+                    entry_date=receipt_date,
+                    description=f'Inventory Receiving - {receipt_number} - {product_desc}',
+                    transaction_source='Inventory Receiving',
+                    reference_type='receiving_transaction',
+                    reference_id=receipt_number,
+                    lines=gl_lines,
+                    created_by=session.get('user_id')
+                )
         
         new_received = already_received + quantity_received
         conn.execute('''
