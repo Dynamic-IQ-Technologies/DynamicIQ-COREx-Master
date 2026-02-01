@@ -1086,8 +1086,15 @@ def part_analyzer_analyze():
         
         from openai import OpenAI
         
+        api_key = os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured. Please set up the AI integration.'
+            })
+        
         client = OpenAI(
-            api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            api_key=api_key,
             base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
         )
         
