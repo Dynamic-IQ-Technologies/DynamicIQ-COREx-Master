@@ -103,7 +103,7 @@ def view_ar(id):
             c.customer_number as customer_code,
             c.email as customer_email,
             c.phone as customer_phone,
-            c.address as customer_address,
+            c.billing_address as customer_address,
             (i.total_amount - COALESCE(i.amount_paid, 0)) as balance_due
         FROM invoices i
         JOIN customers c ON i.customer_id = c.id
