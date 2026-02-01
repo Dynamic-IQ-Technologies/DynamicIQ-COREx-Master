@@ -162,12 +162,13 @@ def view_inventory(id):
     ''', (id,)).fetchone()
     inventory['qty_on_wo'] = float(qty_on_wo['qty']) if qty_on_wo else 0
     
-    # Get quantity allocated to sales orders
+    # Get quantity allocated to sales orders (exclude shipped/invoiced/cancelled orders)
     qty_allocated = conn.execute('''
         SELECT COALESCE(SUM(sol.allocated_quantity), 0) as qty
         FROM sales_order_lines sol
         JOIN sales_orders so ON sol.so_id = so.id
-        WHERE sol.inventory_id = ? AND so.status NOT IN ('Shipped', 'Cancelled', 'Closed')
+        WHERE sol.inventory_id = ? 
+          AND so.status NOT IN ('Shipped', 'Invoiced', 'Released to Shipping', 'Cancelled', 'Closed', 'Completed')
     ''', (id,)).fetchone()
     inventory['qty_allocated'] = float(qty_allocated['qty']) if qty_allocated else 0
     
