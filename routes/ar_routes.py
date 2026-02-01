@@ -22,7 +22,7 @@ def list_ar():
         SELECT 
             i.*,
             c.name as customer_name,
-            c.code as customer_code,
+            c.customer_number as customer_code,
             (i.total_amount - COALESCE(i.amount_paid, 0)) as balance_due
         FROM invoices i
         JOIN customers c ON i.customer_id = c.id
@@ -100,7 +100,7 @@ def view_ar(id):
         SELECT 
             i.*,
             c.name as customer_name,
-            c.code as customer_code,
+            c.customer_number as customer_code,
             c.email as customer_email,
             c.phone as customer_phone,
             c.address as customer_address,
