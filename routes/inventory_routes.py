@@ -208,13 +208,17 @@ def view_inventory(id):
     ''', (product_id,)).fetchall()
     
     # Get work orders that were turned into stock for this inventory record
+    # Excludes repair work orders (linked via exchange) - those are shown in Work Orders tab
     wo_turnins = conn.execute('''
         SELECT wo.id, wo.wo_number, wo.quantity, wo.status, wo.disposition,
                wo.actual_end_date, wo.material_cost, wo.labor_cost, wo.overhead_cost,
                p.code as product_code, p.name as product_name
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
-        WHERE wo.inventory_id = ?
+        LEFT JOIN exchange_master em ON em.repair_work_order_id = wo.id
+        WHERE wo.inventory_id = ? 
+          AND wo.status = 'Completed'
+          AND em.id IS NULL
         ORDER BY wo.actual_end_date DESC
     ''', (id,)).fetchall()
     
