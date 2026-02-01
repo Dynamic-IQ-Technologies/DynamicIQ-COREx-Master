@@ -312,8 +312,24 @@ def view_tool(tool_id):
         LIMIT 20
     ''', (tool_id,)).fetchall()
     
+    employees = conn.execute('''
+        SELECT id, first_name, last_name 
+        FROM labor_resources 
+        WHERE status = 'Active' 
+        ORDER BY first_name, last_name
+    ''').fetchall()
+    
+    work_orders = conn.execute('''
+        SELECT id, wo_number, description 
+        FROM work_orders 
+        WHERE status IN ('Open', 'In Progress', 'Released') 
+        ORDER BY wo_number DESC
+    ''').fetchall()
+    
     conn.close()
-    return render_template('tools/view.html', tool=tool, checkouts=checkouts, now=datetime.now().strftime('%Y-%m-%d'))
+    return render_template('tools/view.html', tool=tool, checkouts=checkouts, 
+                          employees=employees, work_orders=work_orders,
+                          now=datetime.now().strftime('%Y-%m-%d'))
 
 @tools_bp.route('/tools/<int:tool_id>/edit', methods=['GET', 'POST'])
 @login_required
