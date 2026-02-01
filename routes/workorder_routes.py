@@ -4157,7 +4157,7 @@ def submit_reconciliation(id):
                COALESCE((SELECT SUM(mi.quantity_issued) 
                          FROM material_issues mi 
                          WHERE mi.task_material_id = tm.id), 0) as issued_qty
-        FROM task_materials tm
+        FROM work_order_task_materials tm
         JOIN products p ON tm.product_id = p.id
         JOIN work_order_tasks wot ON tm.task_id = wot.id
         WHERE wot.work_order_id = ?
