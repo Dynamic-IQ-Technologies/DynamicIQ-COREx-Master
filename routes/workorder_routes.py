@@ -2735,16 +2735,19 @@ def turn_into_stock(id):
         # Unit cost = total work order cost (not divided by quantity)
         unit_cost = total_wo_cost
         
-        # Create inventory record with work order quantity and total cost as unit cost
-        serial_number = wo.get('serial_number') or None
+        # Create inventory record with work order quantity and repair cost
+        serial_number = wo['serial_number'] if wo['serial_number'] else None
         is_serialized = 1 if serial_number else 0
+        
+        # Set repair_cost as the total work order cost (this represents the cost to repair/manufacture)
+        repair_cost = total_wo_cost
         
         cursor = conn.execute('''
             INSERT INTO inventory (
-                product_id, quantity, unit_cost, condition, status, 
-                warehouse_location, is_serialized, serial_number, last_received_date
-            ) VALUES (?, ?, ?, 'New', 'Available', 'Main', ?, ?, date('now'))
-        ''', (wo['product_id'], wo_quantity, unit_cost, is_serialized, serial_number))
+                product_id, quantity, unit_cost, repair_cost, condition, status, 
+                warehouse_location, is_serialized, serial_number, last_received_date, source
+            ) VALUES (?, ?, ?, ?, 'Serviceable', 'Available', 'Main', ?, ?, date('now'), 'Work Order')
+        ''', (wo['product_id'], wo_quantity, unit_cost, repair_cost, is_serialized, serial_number))
         
         inventory_id = cursor.lastrowid
         
@@ -2778,7 +2781,7 @@ def turn_into_stock(id):
                        session.get('user_id'))
         
         conn.commit()
-        flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory with Qty: {wo_quantity}, Unit Cost: ${unit_cost:.2f}', 'success')
+        flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory with Qty: {wo_quantity}, Repair Cost: ${repair_cost:.2f}', 'success')
         
     except Exception as e:
         conn.rollback()
