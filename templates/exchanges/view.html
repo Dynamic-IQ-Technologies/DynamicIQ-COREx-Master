@@ -158,6 +158,14 @@
                         <dt class="col-6">Location:</dt>
                         <dd class="col-6">{{ core.receiving_location }}</dd>
                         {% endif %}
+                        {% if core.inventory_id %}
+                        <dt class="col-6">Inventory:</dt>
+                        <dd class="col-6">
+                            <a href="{{ url_for('inventory_routes.view_inventory', id=core.inventory_id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-box-seam me-1"></i>INV-{{ "%06d"|format(core.inventory_id) }}
+                            </a>
+                        </dd>
+                        {% endif %}
                     </dl>
                 </div>
             </div>
