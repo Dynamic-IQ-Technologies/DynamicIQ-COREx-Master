@@ -3,7 +3,11 @@ from models import Database
 from auth import login_required, role_required
 from datetime import datetime
 from utils.shipping_documents import ShippingDocumentGenerator
+from utils.gl_journal import create_journal_entry, GL_ACCOUNTS
 import os
+import logging
+
+logger = logging.getLogger('shipping_routes')
 
 shipping_bp = Blueprint('shipping_routes', __name__)
 
@@ -421,13 +425,66 @@ def ship_shipment(id):
             conn.close()
             return redirect(url_for('shipping_routes.edit_shipment', id=id))
         
-        # Deduct inventory for each line
+        # Deduct inventory for each line and calculate COGS
+        total_cogs = 0
         for line in lines:
+            # Get inventory cost for COGS calculation
+            inv_data = conn.execute('''
+                SELECT i.unit_cost, p.code, p.name 
+                FROM inventory i
+                JOIN products p ON i.product_id = p.id
+                WHERE i.product_id = ?
+            ''', (line['product_id'],)).fetchone()
+            
+            unit_cost = float(inv_data['unit_cost']) if inv_data and inv_data['unit_cost'] else 0
+            qty = line['quantity_shipped'] if line['quantity_shipped'] else line['quantity']
+            line_cogs = unit_cost * qty
+            total_cogs += line_cogs
+            
             conn.execute('''
                 UPDATE inventory
                 SET quantity = quantity - ?
                 WHERE product_id = ?
-            ''', (line['quantity_shipped'], line['product_id']))
+            ''', (qty, line['product_id']))
+        
+        # Create GL Journal Entry for COGS recognition (with idempotency check)
+        if total_cogs > 0:
+            # Check if GL entry already exists for this shipment to prevent duplicates
+            existing_gl = conn.execute('''
+                SELECT id FROM gl_entries 
+                WHERE reference_type = 'Shipment' AND reference_id = ? 
+                AND transaction_source = 'Shipment COGS'
+            ''', (id,)).fetchone()
+            
+            if not existing_gl:
+                from datetime import date
+                entry_id = create_journal_entry(
+                    conn=conn,
+                    entry_date=date.today().isoformat(),
+                    description=f'COGS - Shipment {shipment["shipment_number"]}',
+                    transaction_source='Shipment COGS',
+                    reference_type='Shipment',
+                    reference_id=id,
+                    lines=[
+                        {
+                            'account_code': GL_ACCOUNTS['MATERIAL_COST'],  # 5100 - COGS
+                            'debit': round(total_cogs, 2),
+                            'credit': 0,
+                            'description': f'Cost of goods shipped - {shipment["shipment_number"]}'
+                        },
+                        {
+                            'account_code': GL_ACCOUNTS['INVENTORY'],  # 1130 - Inventory
+                            'debit': 0,
+                            'credit': round(total_cogs, 2),
+                            'description': f'Inventory shipped - {shipment["shipment_number"]}'
+                        }
+                    ],
+                    user_id=session.get('user_id'),
+                    auto_post=True
+                )
+                if not entry_id:
+                    raise Exception('Failed to create GL journal entry for shipment COGS - transaction rolled back')
+                logger.info(f'GL Journal Entry {entry_id} created for shipment COGS')
         
         # Update shipment status
         conn.execute('''
@@ -919,14 +976,68 @@ def confirm_shipment(id):
                         conn.close()
                         return redirect(url_for('shipping_routes.view_pending_shipment', id=id))
             
-            # Deduct inventory
+            # Deduct inventory and calculate total COGS
+            total_cogs = 0
             for line in lines:
                 if not line['is_core']:
+                    # Get inventory cost for COGS calculation
+                    inv_data = conn.execute('''
+                        SELECT i.unit_cost, p.code, p.name 
+                        FROM inventory i
+                        JOIN products p ON i.product_id = p.id
+                        WHERE i.product_id = ?
+                    ''', (line['product_id'],)).fetchone()
+                    
+                    unit_cost = float(inv_data['unit_cost']) if inv_data and inv_data['unit_cost'] else 0
+                    line_cogs = unit_cost * line['quantity']
+                    total_cogs += line_cogs
+                    
                     conn.execute('''
                         UPDATE inventory 
                         SET quantity = quantity - ?
                         WHERE product_id = ?
                     ''', (line['quantity'], line['product_id']))
+            
+            # Create GL Journal Entry for COGS recognition (with idempotency check)
+            # DR Cost of Goods Sold (5100) - Expense for cost of items shipped
+            # CR Inventory (1130) - Reduce inventory asset
+            if total_cogs > 0:
+                # Check if GL entry already exists for this shipment to prevent duplicates
+                existing_gl = conn.execute('''
+                    SELECT id FROM gl_entries 
+                    WHERE reference_type = 'Shipment' AND reference_id = ? 
+                    AND transaction_source = 'Shipment COGS'
+                ''', (id,)).fetchone()
+                
+                if not existing_gl:
+                    from datetime import date
+                    entry_id = create_journal_entry(
+                        conn=conn,
+                        entry_date=date.today().isoformat(),
+                        description=f'COGS - Shipment {shipment["shipment_number"]} (SO #{shipment["so_id"]})',
+                        transaction_source='Shipment COGS',
+                        reference_type='Shipment',
+                        reference_id=id,
+                        lines=[
+                            {
+                                'account_code': GL_ACCOUNTS['MATERIAL_COST'],  # 5100 - COGS
+                                'debit': round(total_cogs, 2),
+                                'credit': 0,
+                                'description': f'Cost of goods shipped - {shipment["shipment_number"]}'
+                            },
+                            {
+                                'account_code': GL_ACCOUNTS['INVENTORY'],  # 1130 - Inventory
+                                'debit': 0,
+                                'credit': round(total_cogs, 2),
+                                'description': f'Inventory shipped - {shipment["shipment_number"]}'
+                            }
+                        ],
+                        user_id=session.get('user_id'),
+                        auto_post=True
+                    )
+                    if not entry_id:
+                        raise Exception('Failed to create GL journal entry for shipment COGS - transaction rolled back')
+                    logger.info(f'GL Journal Entry {entry_id} created for shipment COGS - {shipment["shipment_number"]}')
             
             # Update Sales Order status to Shipped
             conn.execute('''

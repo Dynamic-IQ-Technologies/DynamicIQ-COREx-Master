@@ -1001,9 +1001,15 @@ def receive_core(exchange_id):
             }
         ]
         
-        # Only create journal entry if there's financial value OR always for traceability
-        # We'll record even $0 entries for complete audit trail
-        try:
+        # Create GL entry for core receipt with idempotency check
+        # Check if GL entry already exists for this exchange core receipt
+        existing_gl = conn.execute('''
+            SELECT id FROM gl_entries 
+            WHERE reference_type = 'Exchange' AND reference_id = ? 
+            AND transaction_source = 'Exchange Core Receipt'
+        ''', (exchange_id,)).fetchone()
+        
+        if not existing_gl:
             entry_id = create_journal_entry(
                 conn=conn,
                 entry_date=date.today().isoformat(),
@@ -1028,10 +1034,9 @@ def receive_core(exchange_id):
                 user_id=session.get('user_id'),
                 auto_post=True
             )
-            if entry_id:
-                logger.info(f'GL Journal Entry {entry_id} created for Core Receipt EX-{exchange_id:06d}')
-        except Exception as je:
-            logger.warning(f'Failed to create GL entry for core receipt: {str(je)}')
+            if not entry_id:
+                raise Exception('Failed to create GL journal entry for core receipt - transaction rolled back')
+            logger.info(f'GL Journal Entry {entry_id} created for Core Receipt EX-{exchange_id:06d}')
         
         log_exchange_audit(conn, exchange_id, 'Core Received', old_status, 'Core Received',
                           f'Core received: S/N {core_serial}, Condition: {condition}, Qty: {quantity_received}{pn_note}, INV-{inventory_id:06d}',
