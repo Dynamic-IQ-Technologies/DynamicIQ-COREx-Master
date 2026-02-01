@@ -1056,6 +1056,67 @@ def update_workorder_status(id):
         if new_status == 'Completed':
             conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
             
+            # Auto clock-out all active labor on this work order
+            active_clock_ins = conn.execute('''
+                SELECT tcp.id, tcp.employee_id, tcp.punch_time, tcp.task_id,
+                       lr.first_name || ' ' || lr.last_name as employee_name,
+                       lr.hourly_rate
+                FROM time_clock_punches tcp
+                JOIN labor_resources lr ON tcp.employee_id = lr.id
+                WHERE tcp.work_order_id = ? 
+                  AND tcp.punch_type = 'Clock In'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM time_clock_punches tcp2 
+                      WHERE tcp2.employee_id = tcp.employee_id 
+                        AND tcp2.work_order_id = tcp.work_order_id
+                        AND tcp2.punch_type = 'Clock Out'
+                        AND tcp2.punch_time > tcp.punch_time
+                  )
+            ''', (id,)).fetchall()
+            
+            if active_clock_ins:
+                punch_time = datetime.now()
+                auto_clocked_out = []
+                
+                for clock_in in active_clock_ins:
+                    # Generate punch number
+                    count = conn.execute('SELECT COUNT(*) as count FROM time_clock_punches').fetchone()['count']
+                    punch_number = f"PUNCH-{count + 1:07d}"
+                    
+                    # Insert clock-out punch
+                    conn.execute('''
+                        INSERT INTO time_clock_punches (
+                            punch_number, employee_id, punch_type, punch_time,
+                            work_order_id, task_id, notes
+                        ) VALUES (?, ?, 'Clock Out', ?, ?, ?, ?)
+                    ''', (
+                        punch_number, clock_in['employee_id'], 
+                        punch_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        id, clock_in['task_id'],
+                        'Auto clock-out: Work order completed'
+                    ))
+                    
+                    # Calculate and record hours worked
+                    clock_in_time = datetime.strptime(clock_in['punch_time'], '%Y-%m-%d %H:%M:%S')
+                    hours_worked = (punch_time - clock_in_time).total_seconds() / 3600
+                    
+                    # Update task actual hours if there's a task
+                    if clock_in['task_id']:
+                        hourly_rate = clock_in['hourly_rate'] or 0
+                        labor_cost = hours_worked * hourly_rate
+                        
+                        conn.execute('''
+                            UPDATE work_order_tasks 
+                            SET actual_hours = COALESCE(actual_hours, 0) + ?,
+                                actual_labor_cost = COALESCE(actual_labor_cost, 0) + ?
+                            WHERE id = ?
+                        ''', (hours_worked, labor_cost, clock_in['task_id']))
+                    
+                    auto_clocked_out.append(clock_in['employee_name'])
+                
+                if auto_clocked_out:
+                    flash(f"Auto clocked out {len(auto_clocked_out)} employee(s): {', '.join(auto_clocked_out)}", 'info')
+            
             # Get work order details for GL posting
             wo = conn.execute('''
                 SELECT wo.*, p.name as product_name, p.code as product_code
@@ -1377,6 +1438,63 @@ def update_workorder_management(id):
         
         if new_status == 'Completed' and old_record['status'] != 'Completed':
             conn.execute('UPDATE work_orders SET actual_end_date=CURRENT_DATE WHERE id=?', (id,))
+            
+            # Auto clock-out all active labor on this work order
+            active_clock_ins = conn.execute('''
+                SELECT tcp.id, tcp.employee_id, tcp.punch_time, tcp.task_id,
+                       lr.first_name || ' ' || lr.last_name as employee_name,
+                       lr.hourly_rate
+                FROM time_clock_punches tcp
+                JOIN labor_resources lr ON tcp.employee_id = lr.id
+                WHERE tcp.work_order_id = ? 
+                  AND tcp.punch_type = 'Clock In'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM time_clock_punches tcp2 
+                      WHERE tcp2.employee_id = tcp.employee_id 
+                        AND tcp2.work_order_id = tcp.work_order_id
+                        AND tcp2.punch_type = 'Clock Out'
+                        AND tcp2.punch_time > tcp.punch_time
+                  )
+            ''', (id,)).fetchall()
+            
+            if active_clock_ins:
+                punch_time = datetime.now()
+                auto_clocked_out = []
+                
+                for clock_in in active_clock_ins:
+                    count = conn.execute('SELECT COUNT(*) as count FROM time_clock_punches').fetchone()['count']
+                    punch_number = f"PUNCH-{count + 1:07d}"
+                    
+                    conn.execute('''
+                        INSERT INTO time_clock_punches (
+                            punch_number, employee_id, punch_type, punch_time,
+                            work_order_id, task_id, notes
+                        ) VALUES (?, ?, 'Clock Out', ?, ?, ?, ?)
+                    ''', (
+                        punch_number, clock_in['employee_id'], 
+                        punch_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        id, clock_in['task_id'],
+                        'Auto clock-out: Work order completed'
+                    ))
+                    
+                    clock_in_time = datetime.strptime(clock_in['punch_time'], '%Y-%m-%d %H:%M:%S')
+                    hours_worked = (punch_time - clock_in_time).total_seconds() / 3600
+                    
+                    if clock_in['task_id']:
+                        hourly_rate = clock_in['hourly_rate'] or 0
+                        labor_cost_amt = hours_worked * hourly_rate
+                        
+                        conn.execute('''
+                            UPDATE work_order_tasks 
+                            SET actual_hours = COALESCE(actual_hours, 0) + ?,
+                                actual_labor_cost = COALESCE(actual_labor_cost, 0) + ?
+                            WHERE id = ?
+                        ''', (hours_worked, labor_cost_amt, clock_in['task_id']))
+                    
+                    auto_clocked_out.append(clock_in['employee_name'])
+                
+                if auto_clocked_out:
+                    flash(f"Auto clocked out {len(auto_clocked_out)} employee(s): {', '.join(auto_clocked_out)}", 'info')
             
             wo = conn.execute('''
                 SELECT wo.*, p.name as product_name, p.code as product_code
