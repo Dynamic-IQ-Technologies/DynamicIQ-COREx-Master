@@ -403,13 +403,28 @@ def create_workorder():
     next_wo_number = f'WO-{next_number:06d}'
     
     # Pre-populate from URL parameters (e.g., from inventory page)
+    from_inventory_id = request.args.get('from_inventory', '')
     prefill = {
         'product_id': request.args.get('product_id', ''),
         'serial_number': request.args.get('serial_number', ''),
         'customer_id': request.args.get('customer_id', ''),
         'workorder_type': request.args.get('workorder_type', ''),
-        'from_inventory': request.args.get('from_inventory', '')
+        'from_inventory': from_inventory_id
     }
+    
+    # If coming from inventory, fetch serial number from inventory record
+    if from_inventory_id:
+        inv_record = conn.execute(
+            'SELECT serial_number, product_id FROM inventory WHERE id = ?',
+            (from_inventory_id,)
+        ).fetchone()
+        if inv_record:
+            # Auto-populate serial number from inventory if not already provided
+            if inv_record['serial_number'] and not prefill['serial_number']:
+                prefill['serial_number'] = inv_record['serial_number']
+            # Also ensure product_id is set
+            if inv_record['product_id'] and not prefill['product_id']:
+                prefill['product_id'] = str(inv_record['product_id'])
     
     # If coming from inventory, find the Receiving stage
     stage_name = request.args.get('stage_name', '')

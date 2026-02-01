@@ -1102,16 +1102,19 @@ def create_repair_work_order(exchange_id):
         planned_start = request.form.get('planned_start_date') or date.today().isoformat()
         planned_end = request.form.get('planned_end_date')
         
+        # Use core serial number for work order serial number
+        core_serial = exchange['core_serial_number'] or None
+        
         cursor = conn.execute('''
             INSERT INTO work_orders (
                 wo_number, product_id, quantity, disposition, status, priority,
-                planned_start_date, planned_end_date, customer_id, notes, created_by, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                planned_start_date, planned_end_date, customer_id, notes, created_by, created_at, serial_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             wo_number, exchange['product_id'], 1, 'Repair', 'Draft', priority,
             planned_start, planned_end, exchange['customer_id'],
             f"Exchange Core Repair - {exchange['exchange_id']}\nCore S/N: {exchange['core_serial_number'] or 'N/A'}\nCondition: {exchange['condition_on_receipt'] or 'N/A'}\n{notes}",
-            session.get('user_id'), datetime.now().isoformat()
+            session.get('user_id'), datetime.now().isoformat(), core_serial
         ))
         
         wo_id = cursor.lastrowid
