@@ -718,16 +718,16 @@ def create_shipment_from_line(line_id):
         # Create shipment line
         conn.execute('''
             INSERT INTO shipment_lines (
-                shipment_id, product_id, quantity, unit_of_measure,
-                serial_number, notes
+                shipment_id, product_id, quantity,
+                serial_number, notes, sales_order_line_id
             ) VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             shipment_id,
             line['product_id'],
             line['quantity'],
-            line['unit_of_measure'] if line['unit_of_measure'] else 'EA',
             line['serial_number'] if line['serial_number'] else '',
-            f"From SO Line #{line['line_number']}"
+            f"From SO Line #{line['line_number']}",
+            line_id
         ))
         
         # Update the sales order line shipped_quantity
