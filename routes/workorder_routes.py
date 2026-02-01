@@ -2733,21 +2733,36 @@ def turn_into_stock(id):
         wo_quantity = float(wo['quantity'] or 1)
         
         # Repair cost = total work order cost (materials + labor + overhead + services)
-        # Unit cost is reserved for purchase cost only, so set to 0 for work order inventory
+        # Unit cost is reserved for purchase cost only
         repair_cost = total_wo_cost
         
-        # Create inventory record with work order quantity and repair cost
+        # Check if work order was created from an existing inventory item
+        source_inventory_id = wo['source_inventory_id'] if wo['source_inventory_id'] else None
         serial_number = wo['serial_number'] if wo['serial_number'] else None
         is_serialized = 1 if serial_number else 0
         
-        cursor = conn.execute('''
-            INSERT INTO inventory (
-                product_id, quantity, unit_cost, repair_cost, condition, status, 
-                warehouse_location, is_serialized, serial_number, last_received_date, source
-            ) VALUES (?, ?, 0, ?, 'Serviceable', 'Available', 'Main', ?, ?, date('now'), 'Work Order')
-        ''', (wo['product_id'], wo_quantity, repair_cost, is_serialized, serial_number))
-        
-        inventory_id = cursor.lastrowid
+        if source_inventory_id:
+            # Update the original inventory instead of creating a new one
+            conn.execute('''
+                UPDATE inventory 
+                SET repair_cost = ?, condition = 'Serviceable', status = 'Available',
+                    last_updated = CURRENT_TIMESTAMP, source = 'Work Order'
+                WHERE id = ?
+            ''', (repair_cost, source_inventory_id))
+            
+            inventory_id = source_inventory_id
+            is_restored = True
+        else:
+            # Create new inventory record
+            cursor = conn.execute('''
+                INSERT INTO inventory (
+                    product_id, quantity, unit_cost, repair_cost, condition, status, 
+                    warehouse_location, is_serialized, serial_number, last_received_date, source
+                ) VALUES (?, ?, 0, ?, 'Serviceable', 'Available', 'Main', ?, ?, date('now'), 'Work Order')
+            ''', (wo['product_id'], wo_quantity, repair_cost, is_serialized, serial_number))
+            
+            inventory_id = cursor.lastrowid
+            is_restored = False
         
         # Link work order to inventory
         conn.execute('''
@@ -2802,14 +2817,24 @@ def turn_into_stock(id):
             user_agent=request.headers.get('User-Agent')
         )
         
-        # Also log inventory creation
-        AuditLogger.log(conn, 'inventory', inventory_id, 'CREATE',
-                       {'product_id': wo['product_id'], 'quantity': wo_quantity, 
-                        'repair_cost': repair_cost, 'from_work_order': wo['wo_number']},
-                       session.get('user_id'))
+        # Log inventory update or creation
+        if is_restored:
+            AuditLogger.log(conn, 'inventory', inventory_id, 'UPDATE',
+                           {'repair_cost': repair_cost, 'condition': 'Serviceable', 
+                            'status': 'Available', 'restored_from_work_order': wo['wo_number']},
+                           session.get('user_id'))
+        else:
+            AuditLogger.log(conn, 'inventory', inventory_id, 'CREATE',
+                           {'product_id': wo['product_id'], 'quantity': wo_quantity, 
+                            'repair_cost': repair_cost, 'from_work_order': wo['wo_number']},
+                           session.get('user_id'))
         
         conn.commit()
-        flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory with Qty: {wo_quantity}, Repair Cost: ${repair_cost:.2f}', 'success')
+        
+        if is_restored:
+            flash(f'Work Order {wo["wo_number"]} turned into stock. Restored inventory INV-{inventory_id:06d} with Repair Cost: ${repair_cost:.2f}', 'success')
+        else:
+            flash(f'Work Order {wo["wo_number"]} turned into stock. Created inventory INV-{inventory_id:06d} with Qty: {wo_quantity}, Repair Cost: ${repair_cost:.2f}', 'success')
         
     except Exception as e:
         conn.rollback()
