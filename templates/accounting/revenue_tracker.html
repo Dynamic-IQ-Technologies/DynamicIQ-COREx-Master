@@ -85,13 +85,14 @@
                             </thead>
                             <tbody>
                                 {% for key, dept in departments.items() %}
-                                <tr>
+                                <tr class="cursor-pointer dept-row" data-dept="{{ key }}" onclick="window.location.href='{{ url_for('accounting_routes.department_transactions', dept=key, start_date=start_date, end_date=end_date) }}'">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="rounded-circle p-2 me-2" style="background-color: {{ dept.color }}20;">
                                                 <i class="bi {{ dept.icon }}" style="color: {{ dept.color }};"></i>
                                             </div>
                                             <strong>{{ dept.name }}</strong>
+                                            <i class="bi bi-chevron-right ms-2 text-muted"></i>
                                         </div>
                                     </td>
                                     <td class="text-end">{{ "${:,.2f}".format(dept.revenue) }}</td>
@@ -484,4 +485,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<style>
+.cursor-pointer { cursor: pointer; }
+.dept-row:hover { background-color: #f8f9fa; }
+.dept-row:hover td { background-color: #f8f9fa; }
+</style>
 {% endblock %}

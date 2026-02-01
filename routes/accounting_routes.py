@@ -149,6 +149,212 @@ def general_ledger():
                          end_date=end_date,
                          account_id=account_id)
 
+@accounting_bp.route('/revenue-tracker/department/<dept>')
+@login_required
+@role_required('Admin', 'Accountant')
+def department_transactions(dept):
+    """View detailed transactions for a specific department"""
+    db = Database()
+    conn = db.get_connection()
+    
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    
+    transactions = []
+    dept_name = ''
+    dept_color = ''
+    total_revenue = 0
+    total_cost = 0
+    
+    date_filter = ""
+    params = []
+    if start_date:
+        date_filter += " AND {date_col} >= ?"
+        params.append(start_date)
+    if end_date:
+        date_filter += " AND {date_col} <= ?"
+        params.append(end_date)
+    
+    if dept == 'sales':
+        dept_name = 'Sales'
+        dept_color = '#28a745'
+        
+        rows = conn.execute(f'''
+            SELECT 
+                so.id,
+                so.order_number as reference,
+                so.order_date as trans_date,
+                c.name as customer_name,
+                so.total_amount as revenue,
+                COALESCE((
+                    SELECT SUM(CASE WHEN sol.cost > 0 THEN sol.cost ELSE sol.quantity * COALESCE(p.cost, 0) END)
+                    FROM sales_order_lines sol
+                    LEFT JOIN products p ON sol.product_id = p.id
+                    WHERE sol.so_id = so.id
+                ), 0) as cost,
+                so.status
+            FROM sales_orders so
+            LEFT JOIN customers c ON so.customer_id = c.id
+            WHERE so.status NOT IN ('Cancelled', 'Draft') {date_filter.format(date_col='so.order_date')}
+            ORDER BY so.order_date DESC
+        ''', params).fetchall()
+        
+        for r in rows:
+            rev = float(r['revenue'] or 0)
+            cost = float(r['cost'] or 0)
+            transactions.append({
+                'id': r['id'],
+                'type': 'Sales Order',
+                'reference': r['reference'],
+                'date': r['trans_date'],
+                'description': r['customer_name'] or 'N/A',
+                'revenue': rev,
+                'cost': cost,
+                'profit': rev - cost,
+                'status': r['status'],
+                'link': f"/sales-orders/{r['id']}"
+            })
+            total_revenue += rev
+            total_cost += cost
+            
+    elif dept == 'operations':
+        dept_name = 'Operations'
+        dept_color = '#007bff'
+        
+        rows = conn.execute(f'''
+            SELECT 
+                wo.id,
+                wo.wo_number as reference,
+                wo.created_at as trans_date,
+                p.name as product_name,
+                COALESCE(i.total_amount, 0) as revenue,
+                COALESCE(wo.material_cost, 0) + COALESCE(wo.labor_cost, 0) + COALESCE(wo.overhead_cost, 0) as cost,
+                wo.status
+            FROM work_orders wo
+            LEFT JOIN products p ON wo.product_id = p.id
+            LEFT JOIN invoices i ON i.wo_id = wo.id AND i.status NOT IN ('Cancelled', 'Draft')
+            WHERE wo.status NOT IN ('Cancelled') {date_filter.format(date_col='wo.created_at')}
+            ORDER BY wo.created_at DESC
+        ''', params).fetchall()
+        
+        for r in rows:
+            rev = float(r['revenue'] or 0)
+            cost = float(r['cost'] or 0)
+            transactions.append({
+                'id': r['id'],
+                'type': 'Work Order',
+                'reference': r['reference'],
+                'date': str(r['trans_date'])[:10] if r['trans_date'] else '',
+                'description': r['product_name'] or 'N/A',
+                'revenue': rev,
+                'cost': cost,
+                'profit': rev - cost,
+                'status': r['status'],
+                'link': f"/work-orders/{r['id']}"
+            })
+            total_revenue += rev
+            total_cost += cost
+            
+    elif dept == 'ndt':
+        dept_name = 'NDT'
+        dept_color = '#6f42c1'
+        
+        rows = conn.execute(f'''
+            SELECT 
+                nwo.id,
+                nwo.wo_number as reference,
+                nwo.created_at as trans_date,
+                nwo.part_number,
+                COALESCE(i.total_amount, 0) + COALESCE(ni.total_amount, 0) as revenue,
+                COALESCE(c.total_cost, 0) as cost,
+                nwo.status
+            FROM ndt_work_orders nwo
+            LEFT JOIN invoices i ON i.source_type = 'ndt_work_order' AND i.source_id = nwo.id AND i.status NOT IN ('Cancelled', 'Draft')
+            LEFT JOIN ndt_invoices ni ON ni.ndt_wo_id = nwo.id AND ni.status NOT IN ('Cancelled', 'Void')
+            LEFT JOIN (
+                SELECT ndt_wo_id, SUM(total_cost) as total_cost FROM ndt_wo_costs GROUP BY ndt_wo_id
+            ) c ON c.ndt_wo_id = nwo.id
+            WHERE 1=1 {date_filter.format(date_col='nwo.created_at')}
+            ORDER BY nwo.created_at DESC
+        ''', params).fetchall()
+        
+        for r in rows:
+            rev = float(r['revenue'] or 0)
+            cost = float(r['cost'] or 0)
+            transactions.append({
+                'id': r['id'],
+                'type': 'NDT Work Order',
+                'reference': r['reference'],
+                'date': str(r['trans_date'])[:10] if r['trans_date'] else '',
+                'description': r['part_number'] or 'N/A',
+                'revenue': rev,
+                'cost': cost,
+                'profit': rev - cost,
+                'status': r['status'],
+                'link': f"/ndt/work-orders/{r['id']}"
+            })
+            total_revenue += rev
+            total_cost += cost
+            
+    elif dept == 'consulting':
+        dept_name = 'Consulting'
+        dept_color = '#fd7e14'
+        
+        rows = conn.execute(f'''
+            SELECT 
+                swo.id,
+                swo.wo_number as reference,
+                swo.created_at as trans_date,
+                c.name as customer_name,
+                swo.service_type,
+                COALESCE(swo.total_cost, 0) as revenue,
+                COALESCE(swo.labor_subtotal, 0) * 0.4 as cost,
+                swo.status
+            FROM service_work_orders swo
+            LEFT JOIN customers c ON swo.customer_id = c.id
+            WHERE swo.status NOT IN ('Cancelled') {date_filter.format(date_col='swo.created_at')}
+            ORDER BY swo.created_at DESC
+        ''', params).fetchall()
+        
+        for r in rows:
+            rev = float(r['revenue'] or 0)
+            cost = float(r['cost'] or 0)
+            transactions.append({
+                'id': r['id'],
+                'type': 'Service Work Order',
+                'reference': r['reference'],
+                'date': str(r['trans_date'])[:10] if r['trans_date'] else '',
+                'description': f"{r['customer_name'] or 'N/A'} - {r['service_type'] or ''}",
+                'revenue': rev,
+                'cost': cost,
+                'profit': rev - cost,
+                'status': r['status'],
+                'link': f"/service-work-orders/{r['id']}"
+            })
+            total_revenue += rev
+            total_cost += cost
+    else:
+        conn.close()
+        flash('Unknown department.', 'danger')
+        return redirect(url_for('accounting_routes.revenue_tracker'))
+    
+    conn.close()
+    
+    total_profit = total_revenue - total_cost
+    margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+    
+    return render_template('accounting/department_transactions.html',
+                         dept=dept,
+                         dept_name=dept_name,
+                         dept_color=dept_color,
+                         transactions=transactions,
+                         total_revenue=total_revenue,
+                         total_cost=total_cost,
+                         total_profit=total_profit,
+                         margin=margin,
+                         start_date=start_date,
+                         end_date=end_date)
+
 @accounting_bp.route('/revenue-tracker')
 @login_required
 @role_required('Admin', 'Accountant')

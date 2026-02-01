@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dept_name }} Transactions - Revenue Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{{ url_for('accounting_routes.revenue_tracker', start_date=start_date, end_date=end_date) }}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="bi bi-arrow-left"></i> Back to Revenue Tracker
+            </a>
+            <h2>
+                <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px; background-color: {{ dept_color }}20;">
+                    <i class="bi {% if dept == 'sales' %}bi-cart-check{% elif dept == 'operations' %}bi-gear-wide-connected{% elif dept == 'ndt' %}bi-search{% else %}bi-people{% endif %}" style="color: {{ dept_color }};"></i>
+                </span>
+                {{ dept_name }} Department Transactions
+            </h2>
+        </div>
+        {% if start_date or end_date %}
+        <div class="text-muted">
+            <i class="bi bi-calendar-range"></i>
+            {% if start_date %}From {{ start_date }}{% endif %}
+            {% if end_date %}To {{ end_date }}{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid {{ dept_color }} !important;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Total Revenue</h6>
+                    <h3 class="mb-0" style="color: {{ dept_color }};">${{ "{:,.2f}".format(total_revenue) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm border-start border-danger border-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Total Costs</h6>
+                    <h3 class="mb-0 text-danger">${{ "{:,.2f}".format(total_cost) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm border-start border-success border-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Gross Profit</h6>
+                    <h3 class="mb-0 {% if total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ "{:,.2f}".format(total_profit) }}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Profit Margin</h6>
+                    <h3 class="mb-0">
+                        <span class="badge {% if margin >= 30 %}bg-success{% elif margin >= 15 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-4">
+                            {{ "{:.1f}".format(margin) }}%
+                        </span>
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Transaction Details ({{ transactions|length }} records)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Type</th>
+                            <th>Reference</th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th class="text-end">Revenue</th>
+                            <th class="text-end">Cost</th>
+                            <th class="text-end">Profit</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transactions %}
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ t.type }}</span></td>
+                            <td class="fw-bold">{{ t.reference }}</td>
+                            <td>{{ t.date }}</td>
+                            <td>{{ t.description }}</td>
+                            <td class="text-end">${{ "{:,.2f}".format(t.revenue) }}</td>
+                            <td class="text-end text-danger">${{ "{:,.2f}".format(t.cost) }}</td>
+                            <td class="text-end {% if t.profit >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                ${{ "{:,.2f}".format(t.profit) }}
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if t.status in ['Completed', 'Shipped', 'Invoiced', 'Paid', 'Approved', 'Closed'] %}bg-success
+                                    {% elif t.status in ['In Progress', 'Processing', 'Open', 'Pending'] %}bg-primary
+                                    {% elif t.status == 'Draft' %}bg-secondary
+                                    {% else %}bg-warning text-dark{% endif %}">
+                                    {{ t.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ t.link }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                No transactions found for this department{% if start_date or end_date %} in the selected date range{% endif %}.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if transactions %}
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4">Total</td>
+                            <td class="text-end">${{ "{:,.2f}".format(total_revenue) }}</td>
+                            <td class="text-end text-danger">${{ "{:,.2f}".format(total_cost) }}</td>
+                            <td class="text-end {% if total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ "{:,.2f}".format(total_profit) }}
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

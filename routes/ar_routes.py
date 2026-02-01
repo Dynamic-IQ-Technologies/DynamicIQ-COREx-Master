@@ -173,10 +173,12 @@ def record_payment(id):
             return render_template('ar/record_payment.html', invoice=invoice)
         
         try:
+            payment_number = f"PMT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
             conn.execute('''
-                INSERT INTO payments (reference_type, reference_id, amount, payment_date, payment_method, reference_number, notes, created_by, created_at)
-                VALUES ('invoice', ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (id, payment_amount, payment_date, payment_method, reference_number, notes, session.get('user_id'), datetime.now()))
+                INSERT INTO payments (payment_number, payment_date, payment_type, reference_type, reference_id, amount, payment_method, check_number, remarks, created_by, created_at)
+                VALUES (?, ?, 'Receipt', 'invoice', ?, ?, ?, ?, ?, ?, ?)
+            ''', (payment_number, payment_date, id, payment_amount, payment_method, reference_number, notes, session.get('user_id'), datetime.now()))
             
             new_amount_paid = float(invoice['amount_paid'] or 0) + payment_amount
             new_balance = float(invoice['total_amount']) - new_amount_paid
