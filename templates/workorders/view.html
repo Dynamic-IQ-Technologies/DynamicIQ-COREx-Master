@@ -75,6 +75,28 @@
 .accordion-button.collapsed::after {
     filter: none;
 }
+/* Cost Details Accordion Chevron Styling */
+.accordion-chevron {
+    transition: transform 0.3s ease;
+}
+.accordion-button:not(.collapsed) .accordion-chevron {
+    transform: rotate(180deg);
+}
+.accordion-button::after {
+    display: none; /* Hide default Bootstrap chevron since we have custom one */
+}
+#costDetailsAccordion .accordion-button {
+    cursor: pointer;
+}
+#costDetailsAccordion .accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0,0,0,0.125);
+}
+#costDetailsAccordion .accordion-item {
+    margin-bottom: 0.5rem;
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
 </style>
 
 <div class="sticky-action-bar">
@@ -1381,13 +1403,14 @@
         {% endif %}
         
         <!-- Cost Detail Accordions -->
-        <div class="accordion" id="costDetailsAccordion">
+        <div class="accordion accordion-flush" id="costDetailsAccordion">
             <!-- Material Cost Details -->
-            <div class="accordion-item">
+            <div class="accordion-item border">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#materialCostDetails">
+                    <button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#materialCostDetails" aria-expanded="false" aria-controls="materialCostDetails">
                         <i class="bi bi-box-seam me-2"></i>Material Cost Details
-                        <span class="badge bg-primary ms-auto me-2">{{ cost_info.material_cost|currency }}</span>
+                        <span class="badge bg-primary ms-auto me-3">{{ cost_info.material_cost|currency }}</span>
+                        <i class="bi bi-chevron-down accordion-chevron"></i>
                     </button>
                 </h2>
                 <div id="materialCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
@@ -1471,11 +1494,12 @@
             </div>
             
             <!-- Labor Cost Details -->
-            <div class="accordion-item">
+            <div class="accordion-item border">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#laborCostDetails">
+                    <button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#laborCostDetails" aria-expanded="false" aria-controls="laborCostDetails">
                         <i class="bi bi-person-workspace me-2"></i>Labor Cost Details
-                        <span class="badge bg-success ms-auto me-2">{{ cost_info.labor_cost|currency }}</span>
+                        <span class="badge bg-success ms-auto me-3">{{ cost_info.labor_cost|currency }}</span>
+                        <i class="bi bi-chevron-down accordion-chevron"></i>
                     </button>
                 </h2>
                 <div id="laborCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
@@ -1529,11 +1553,12 @@
             </div>
             
             <!-- Overhead Cost Details -->
-            <div class="accordion-item">
+            <div class="accordion-item border">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#overheadCostDetails">
+                    <button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#overheadCostDetails" aria-expanded="false" aria-controls="overheadCostDetails">
                         <i class="bi bi-gear me-2"></i>Overhead Cost Details
-                        <span class="badge bg-info ms-auto me-2">{{ cost_info.overhead_cost|currency }}</span>
+                        <span class="badge bg-info ms-auto me-3">{{ cost_info.overhead_cost|currency }}</span>
+                        <i class="bi bi-chevron-down accordion-chevron"></i>
                     </button>
                 </h2>
                 <div id="overheadCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
@@ -1579,14 +1604,15 @@
             </div>
             
             <!-- Service/Misc Cost Details -->
-            <div class="accordion-item">
+            <div class="accordion-item border">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#serviceCostDetails">
+                    <button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#serviceCostDetails" aria-expanded="false" aria-controls="serviceCostDetails">
                         <i class="bi bi-tools me-2"></i>Service/Misc Cost Details
-                        <span class="badge bg-warning text-dark ms-auto me-2">{{ (misc_cost_info.total_misc_cost if misc_cost_info else 0)|currency }}</span>
+                        <span class="badge bg-warning text-dark ms-auto me-3">{{ (misc_cost_info.total_misc_cost if misc_cost_info else 0)|currency }}</span>
                         {% if misc_cost_info and misc_cost_info.pending_count > 0 %}
-                        <span class="badge bg-secondary me-2">{{ misc_cost_info.pending_count }} Pending</span>
+                        <span class="badge bg-secondary me-3">{{ misc_cost_info.pending_count }} Pending</span>
                         {% endif %}
+                        <i class="bi bi-chevron-down accordion-chevron"></i>
                     </button>
                 </h2>
                 <div id="serviceCostDetails" class="accordion-collapse collapse" data-bs-parent="#costDetailsAccordion">
