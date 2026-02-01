@@ -1786,8 +1786,11 @@ def allocate_line(line_id):
             allocation_status = 'Partially Allocated'
             flash(f'Partially allocated {allocate_qty} of {requested_qty} units for {line["code"]}. {requested_qty - allocate_qty} units still needed.', 'warning')
         
-        # Get the inventory unit cost to update line cost
-        inventory_unit_cost = inventory['unit_cost'] if inventory['unit_cost'] else 0.0
+        # Get the inventory cost to update line cost
+        # Use repair_cost if available (for work order items), otherwise use unit_cost (for purchased items)
+        repair_cost = float(inventory['repair_cost'] or 0)
+        unit_cost = float(inventory['unit_cost'] or 0)
+        inventory_unit_cost = repair_cost if repair_cost > 0 else unit_cost
         line_cost = allocate_qty * inventory_unit_cost
         
         # For exchange orders, include core_charge in the margin calculation
