@@ -112,6 +112,7 @@
                         <th data-sort-type="number">Quantity</th>
                         <th data-sort-type="string">UOM</th>
                         <th data-sort-type="currency">Unit Cost</th>
+                        <th data-sort-type="currency">Repair Cost</th>
                         <th data-sort-type="currency">Total Value</th>
                         <th data-sort-type="string">Status</th>
                         <th data-sortable="false">Actions</th>
@@ -148,6 +149,7 @@
                         <td>{{ item.quantity }}</td>
                         <td>{{ item.unit_of_measure }}</td>
                         <td>{{ item.display_unit_cost|currency }}</td>
+                        <td>{{ (item.repair_cost or 0)|currency }}</td>
                         <td><strong>{{ item.inventory_value|currency }}</strong></td>
                         <td>
                             {% if item.status == 'Allocated' %}
@@ -176,7 +178,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="table-primary">
-                        <td colspan="9" class="text-end"><strong>Total Inventory Value:</strong></td>
+                        <td colspan="10" class="text-end"><strong>Total Inventory Value:</strong></td>
                         <td colspan="3"><strong class="text-success fs-5">{{ total_value|currency }}</strong></td>
                     </tr>
                 </tfoot>
