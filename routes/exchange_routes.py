@@ -320,6 +320,10 @@ def view_exchange(exchange_id):
         SELECT * FROM exchange_alerts WHERE exchange_id = ? ORDER BY created_at DESC
     ''', (exchange_id,)).fetchall()
     
+    products = conn.execute('''
+        SELECT id, code, name FROM products WHERE active = 1 ORDER BY code
+    ''').fetchall()
+    
     conn.close()
     
     return render_template('exchanges/view.html',
@@ -330,6 +334,7 @@ def view_exchange(exchange_id):
                           agreements=[dict(a) for a in agreements],
                           audit_log=[dict(a) for a in audit_log],
                           alerts=[dict(a) for a in alerts],
+                          products=[dict(p) for p in products],
                           core_statuses=CORE_STATUSES,
                           exchange_statuses=EXCHANGE_STATUSES)
 
@@ -915,6 +920,38 @@ def receive_core(exchange_id):
         receiving_location = request.form.get('receiving_location', '')
         quantity_received = int(request.form.get('quantity_received', 1))
         
+        pn_action = request.form.get('pn_action', 'same')
+        core_product_id = exchange['product_id']
+        pn_note = ''
+        
+        if pn_action == 'select':
+            selected_product_id = request.form.get('core_product_id', '')
+            if selected_product_id:
+                core_product_id = int(selected_product_id)
+                product = conn.execute('SELECT code FROM products WHERE id = ?', (core_product_id,)).fetchone()
+                pn_note = f' (Different P/N: {product["code"]})'
+        elif pn_action == 'new':
+            new_pn_code = request.form.get('new_pn_code', '').strip()
+            new_pn_name = request.form.get('new_pn_name', '').strip()
+            if new_pn_code and new_pn_name:
+                existing = conn.execute('SELECT id FROM products WHERE code = ?', (new_pn_code,)).fetchone()
+                if existing:
+                    core_product_id = existing['id']
+                    pn_note = f' (Existing P/N: {new_pn_code})'
+                else:
+                    cursor = conn.execute('''
+                        INSERT INTO products (code, name, category, active, is_serialized, created_at)
+                        VALUES (?, ?, 'Core Return', 1, 1, ?)
+                    ''', (new_pn_code, new_pn_name, datetime.now().isoformat()))
+                    core_product_id = cursor.lastrowid
+                    pn_note = f' (New P/N created: {new_pn_code})'
+        
+        cursor = conn.execute('''
+            INSERT INTO inventory (product_id, quantity, warehouse_location, bin_location, condition, status, serial_number, reorder_point, safety_stock, unit_cost, last_updated)
+            VALUES (?, ?, ?, 'CORE-RCV', ?, 'Available', ?, 0, 0, 0, ?)
+        ''', (core_product_id, quantity_received, receiving_location or 'Receiving Inspection', condition, core_serial, datetime.now().isoformat()))
+        inventory_id = cursor.lastrowid
+        
         conn.execute('''
             UPDATE exchange_cores SET
                 core_status = 'Core Received',
@@ -927,22 +964,23 @@ def receive_core(exchange_id):
                 quantity_received = ?,
                 days_outstanding = 0,
                 ownership_responsibility = 'Company',
+                inventory_id = ?,
                 last_updated = ?
             WHERE exchange_id = ?
         ''', (core_serial, date.today().isoformat(), session.get('user_id'),
               condition, inspection_notes, receiving_location, quantity_received,
-              datetime.now().isoformat(), exchange_id))
+              inventory_id, datetime.now().isoformat(), exchange_id))
         
         conn.execute('''
             UPDATE exchange_master SET status = 'Core Received' WHERE id = ?
         ''', (exchange_id,))
         
         log_exchange_audit(conn, exchange_id, 'Core Received', old_status, 'Core Received',
-                          f'Core received: S/N {core_serial}, Condition: {condition}, Qty: {quantity_received}',
+                          f'Core received: S/N {core_serial}, Condition: {condition}, Qty: {quantity_received}{pn_note}, INV-{inventory_id:06d}',
                           session.get('user_id'), session.get('username'))
         
         conn.commit()
-        flash(f'Core received successfully! Serial: {core_serial}', 'success')
+        flash(f'Core received successfully! Serial: {core_serial}, Inventory: INV-{inventory_id:06d}{pn_note}', 'success')
         
     except Exception as e:
         conn.rollback()

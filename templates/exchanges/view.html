@@ -652,6 +652,51 @@
                         <i class="bi bi-info-circle me-2"></i>
                         Record receipt of the core unit from customer. This will update inventory and audit trail.
                     </div>
+                    
+                    <div class="card border-warning mb-3">
+                        <div class="card-header bg-warning bg-opacity-25 py-2">
+                            <strong><i class="bi bi-box-seam me-2"></i>Part Number</strong>
+                            <small class="text-muted ms-2">(If core received is a different P/N than shipped)</small>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="mb-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="pn_action" id="pnSame" value="same" checked onchange="togglePartNumberFields()">
+                                    <label class="form-check-label" for="pnSame">Same as shipped ({{ exchange.product_code }})</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="pn_action" id="pnSelect" value="select" onchange="togglePartNumberFields()">
+                                    <label class="form-check-label" for="pnSelect">Select Existing P/N</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="pn_action" id="pnNew" value="new" onchange="togglePartNumberFields()">
+                                    <label class="form-check-label" for="pnNew">Create New P/N</label>
+                                </div>
+                            </div>
+                            <div id="selectPNSection" class="row" style="display: none;">
+                                <div class="col-12">
+                                    <label class="form-label">Select Part Number</label>
+                                    <select name="core_product_id" class="form-select">
+                                        <option value="">-- Select Part Number --</option>
+                                        {% for p in products %}
+                                        <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="newPNSection" class="row" style="display: none;">
+                                <div class="col-md-4">
+                                    <label class="form-label">New Part Number</label>
+                                    <input type="text" name="new_pn_code" class="form-control" placeholder="e.g., 123-456-789">
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Part Description</label>
+                                    <input type="text" name="new_pn_name" class="form-control" placeholder="Enter part description">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Core Serial Number</label>
@@ -696,6 +741,14 @@
         </div>
     </div>
 </div>
+
+<script>
+function togglePartNumberFields() {
+    const pnAction = document.querySelector('input[name="pn_action"]:checked').value;
+    document.getElementById('selectPNSection').style.display = pnAction === 'select' ? 'block' : 'none';
+    document.getElementById('newPNSection').style.display = pnAction === 'new' ? 'block' : 'none';
+}
+</script>
 
 <div class="modal fade" id="createRepairWOModal" tabindex="-1">
     <div class="modal-dialog">
