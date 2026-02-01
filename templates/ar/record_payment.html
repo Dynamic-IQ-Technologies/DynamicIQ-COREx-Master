@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Record Payment - {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <a href="{{ url_for('ar_routes.view_ar', id=invoice.id) }}" class="btn btn-outline-secondary btn-sm mb-3">
+                <i class="bi bi-arrow-left"></i> Back to Invoice
+            </a>
+
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-cash"></i> Record Payment</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Invoice:</strong> {{ invoice.invoice_number }}<br>
+                                <strong>Customer:</strong> {{ invoice.customer_name }}
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <strong>Total Amount:</strong> ${{ "{:,.2f}".format(invoice.total_amount) }}<br>
+                                <strong>Balance Due:</strong> <span class="text-danger fw-bold">${{ "{:,.2f}".format(invoice.balance_due) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Payment Amount <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control form-control-lg" id="amount" name="amount" 
+                                       step="0.01" min="0.01" max="{{ invoice.balance_due }}"
+                                       value="{{ invoice.balance_due }}" required>
+                            </div>
+                            <div class="form-text">Maximum: ${{ "{:,.2f}".format(invoice.balance_due) }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="payment_date" class="form-label">Payment Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="payment_date" name="payment_date" 
+                                   value="{{ today_date or '' }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="payment_method" class="form-label">Payment Method <span class="text-danger">*</span></label>
+                            <select class="form-select" id="payment_method" name="payment_method" required>
+                                <option value="Check">Check</option>
+                                <option value="ACH">ACH/Bank Transfer</option>
+                                <option value="Wire">Wire Transfer</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reference_number" class="form-label">Reference/Check Number</label>
+                            <input type="text" class="form-control" id="reference_number" name="reference_number" 
+                                   placeholder="e.g., Check #12345">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2" 
+                                      placeholder="Optional payment notes"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-lg"></i> Record Payment
+                            </button>
+                            <a href="{{ url_for('ar_routes.view_ar', id=invoice.id) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('payment_date').value = today;
+});
+</script>
+{% endblock %}

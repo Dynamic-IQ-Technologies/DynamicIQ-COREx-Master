@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{{ url_for('ar_routes.list_ar') }}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="bi bi-arrow-left"></i> Back to A/R
+            </a>
+            <h2><i class="bi bi-file-earmark-text"></i> Invoice {{ invoice.invoice_number }}</h2>
+        </div>
+        <div class="d-flex gap-2">
+            {% if invoice.status not in ['Paid', 'Cancelled'] and invoice.balance_due > 0 %}
+            <a href="{{ url_for('ar_routes.record_payment', id=invoice.id) }}" class="btn btn-success">
+                <i class="bi bi-cash"></i> Record Payment
+            </a>
+            {% endif %}
+            <a href="{{ url_for('invoice_routes.view_invoice', id=invoice.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark"></i> View Full Invoice
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Invoice Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted w-50">Invoice Number:</th>
+                                    <td>{{ invoice.invoice_number }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Invoice Date:</th>
+                                    <td>{{ invoice.invoice_date }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Due Date:</th>
+                                    <td>{{ invoice.due_date }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Status:</th>
+                                    <td>
+                                        <span class="badge 
+                                            {% if invoice.status == 'Paid' %}bg-success
+                                            {% elif invoice.status == 'Posted' %}bg-primary
+                                            {% elif invoice.status == 'Draft' %}bg-secondary
+                                            {% else %}bg-warning text-dark{% endif %}">
+                                            {{ invoice.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted w-50">Customer:</th>
+                                    <td>{{ invoice.customer_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Customer Code:</th>
+                                    <td>{{ invoice.customer_code or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Email:</th>
+                                    <td>{{ invoice.customer_email or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Phone:</th>
+                                    <td>{{ invoice.customer_phone or '-' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Line Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in lines %}
+                                <tr>
+                                    <td>{{ line.product_name or 'N/A' }}</td>
+                                    <td>{{ line.description or '-' }}</td>
+                                    <td class="text-end">{{ line.quantity }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(line.unit_price or 0) }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(line.line_total or 0) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No line items</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Payment History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date }}</td>
+                                    <td>{{ payment.payment_method }}</td>
+                                    <td>{{ payment.reference_number or '-' }}</td>
+                                    <td class="text-end text-success fw-bold">${{ "{:,.2f}".format(payment.amount) }}</td>
+                                    <td>{{ payment.notes or '-' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3">No payments recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">Payment Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tr>
+                            <th>Subtotal:</th>
+                            <td class="text-end">${{ "{:,.2f}".format(invoice.subtotal or 0) }}</td>
+                        </tr>
+                        {% if invoice.tax_amount %}
+                        <tr>
+                            <th>Tax:</th>
+                            <td class="text-end">${{ "{:,.2f}".format(invoice.tax_amount) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if invoice.discount_amount %}
+                        <tr>
+                            <th>Discount:</th>
+                            <td class="text-end text-danger">-${{ "{:,.2f}".format(invoice.discount_amount) }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="border-top">
+                            <th class="fs-5">Total:</th>
+                            <td class="text-end fs-5 fw-bold">${{ "{:,.2f}".format(invoice.total_amount) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Amount Paid:</th>
+                            <td class="text-end text-success">${{ "{:,.2f}".format(invoice.amount_paid or 0) }}</td>
+                        </tr>
+                        <tr class="border-top">
+                            <th class="fs-4">Balance Due:</th>
+                            <td class="text-end fs-4 fw-bold {% if invoice.balance_due > 0 %}text-danger{% else %}text-success{% endif %}">
+                                ${{ "{:,.2f}".format(invoice.balance_due) }}
+                            </td>
+                        </tr>
+                    </table>
+
+                    {% if invoice.status not in ['Paid', 'Cancelled'] and invoice.balance_due > 0 %}
+                    <div class="d-grid mt-3">
+                        <a href="{{ url_for('ar_routes.record_payment', id=invoice.id) }}" class="btn btn-success btn-lg">
+                            <i class="bi bi-cash"></i> Record Payment
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}A/R Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-cash-coin"></i> A/R Management</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('ar_routes.export_ar') }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download"></i> Export Aging Report
+            </a>
+            <a href="{{ url_for('invoice_routes.create_invoice') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg"></i> New Invoice
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 border-primary">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Open A/R</h6>
+                    <h3 class="card-title text-primary mb-0">${{ "{:,.2f}".format(total_open) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-danger">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Overdue</h6>
+                    <h3 class="card-title text-danger mb-0">${{ "{:,.2f}".format(total_overdue) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Aging Summary</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for bucket in aging_data %}
+                        <span class="badge {% if bucket.aging_bucket == 'Current' %}bg-success{% elif bucket.aging_bucket == '1-30 Days' %}bg-warning text-dark{% elif bucket.aging_bucket == '31-60 Days' %}bg-orange{% else %}bg-danger{% endif %} fs-6">
+                            {{ bucket.aging_bucket }}: ${{ "{:,.2f}".format(bucket.amount) }} ({{ bucket.invoice_count }})
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status" onchange="this.form.submit()">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="Draft" {% if status_filter == 'Draft' %}selected{% endif %}>Draft</option>
+                        <option value="Posted" {% if status_filter == 'Posted' %}selected{% endif %}>Posted</option>
+                        <option value="Sent" {% if status_filter == 'Sent' %}selected{% endif %}>Sent</option>
+                        <option value="Paid" {% if status_filter == 'Paid' %}selected{% endif %}>Paid</option>
+                        <option value="Overdue" {% if status_filter == 'Overdue' %}selected{% endif %}>Overdue</option>
+                        <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Customer</label>
+                    <select class="form-select" name="customer_id" onchange="this.form.submit()">
+                        <option value="">All Customers</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if customer_filter == customer.id|string %}selected{% endif %}>{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('ar_routes.list_ar') }}" class="btn btn-outline-secondary">Clear Filters</a>
+                </div>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Invoice Date</th>
+                            <th>Due Date</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Balance Due</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in receivables %}
+                        <tr class="{% if inv.status not in ['Paid', 'Cancelled'] and inv.due_date < today_date %}table-danger{% endif %}">
+                            <td>
+                                <a href="{{ url_for('ar_routes.view_ar', id=inv.id) }}" class="fw-bold text-decoration-none">
+                                    {{ inv.invoice_number }}
+                                </a>
+                            </td>
+                            <td>{{ inv.customer_name }}</td>
+                            <td>{{ inv.invoice_date }}</td>
+                            <td>
+                                {{ inv.due_date }}
+                                {% if inv.status not in ['Paid', 'Cancelled'] and inv.due_date < today_date %}
+                                <span class="badge bg-danger ms-1">Overdue</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">${{ "{:,.2f}".format(inv.total_amount) }}</td>
+                            <td class="text-end">${{ "{:,.2f}".format(inv.amount_paid or 0) }}</td>
+                            <td class="text-end fw-bold">${{ "{:,.2f}".format(inv.balance_due) }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if inv.status == 'Paid' %}bg-success
+                                    {% elif inv.status == 'Posted' %}bg-primary
+                                    {% elif inv.status == 'Draft' %}bg-secondary
+                                    {% elif inv.status == 'Sent' %}bg-info
+                                    {% elif inv.status == 'Cancelled' %}bg-dark
+                                    {% else %}bg-warning text-dark{% endif %}">
+                                    {{ inv.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('ar_routes.view_ar', id=inv.id) }}" class="btn btn-outline-primary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if inv.status not in ['Paid', 'Cancelled'] and inv.balance_due > 0 %}
+                                    <a href="{{ url_for('ar_routes.record_payment', id=inv.id) }}" class="btn btn-outline-success" title="Record Payment">
+                                        <i class="bi bi-cash"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No receivables found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
