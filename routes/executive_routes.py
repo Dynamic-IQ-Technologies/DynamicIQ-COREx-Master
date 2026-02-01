@@ -204,12 +204,21 @@ def dashboard():
     
     # Period-based KPIs
     # KPI 8: A/P Payments Made During Period (from vendor_invoices paid during period)
-    ap_payments_params = [start_date, end_date]
+    # Check both amount_paid field and total_amount for paid invoices
+    ap_payments_params = [start_date, end_date, start_date, end_date]
     ap_payments_query = '''
-        SELECT COALESCE(SUM(vi.amount_paid), 0) as payments_made
-        FROM vendor_invoices vi
-        WHERE vi.payment_date BETWEEN ? AND ?
-        AND vi.status = 'Paid'
+        SELECT COALESCE(SUM(payments_made), 0) as payments_made FROM (
+            SELECT CASE 
+                WHEN vi.amount_paid > 0 THEN vi.amount_paid 
+                ELSE vi.total_amount 
+            END as payments_made
+            FROM vendor_invoices vi
+            WHERE vi.status = 'Paid'
+            AND (
+                (vi.payment_date IS NOT NULL AND vi.payment_date BETWEEN ? AND ?)
+                OR (vi.payment_date IS NULL AND vi.created_at BETWEEN ? AND ?)
+            )
+        )
     '''
     ap_payments = conn.execute(ap_payments_query, ap_payments_params).fetchone()['payments_made']
     
