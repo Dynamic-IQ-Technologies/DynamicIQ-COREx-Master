@@ -58,34 +58,96 @@ def dashboard():
         end_date = today.strftime('%Y-%m-%d')
         period_label = "Year to Date"
     
-    # KPI 1: Total Revenue (from sales revenue in GL)
-    # Revenue = Credits to Sales Revenue accounts (4100, 4200, 4300)
-    revenue_query = '''
-        SELECT COALESCE(SUM(gll.credit - gll.debit), 0) as total_revenue
-        FROM gl_entry_lines gll
-        JOIN gl_entries ge ON gll.gl_entry_id = ge.id
-        JOIN chart_of_accounts coa ON gll.account_id = coa.id
-        WHERE coa.account_type = 'Revenue'
-        AND ge.entry_date BETWEEN ? AND ?
-        AND ge.status = 'Posted'
-    '''
-    revenue = conn.execute(revenue_query, (start_date, end_date)).fetchone()['total_revenue']
+    # KPI 1: Total Revenue (matching Revenue Tracker calculation)
+    # Revenue = Sales Orders + Work Order Invoices + NDT Invoices + Service WO Invoices
     
-    # KPI 2: Total Expenses (from GL expense accounts + WIP costs incurred)
-    # This includes:
-    # 1. COGS/Expense accounts (when work orders complete)
-    # 2. WIP costs incurred (material issues, labor, subcontract - for real-time visibility)
-    expense_query = '''
-        SELECT COALESCE(SUM(gll.debit - gll.credit), 0) as total_expenses
-        FROM gl_entry_lines gll
-        JOIN gl_entries ge ON gll.gl_entry_id = ge.id
-        JOIN chart_of_accounts coa ON gll.account_id = coa.id
-        WHERE (coa.account_type = 'Expense' 
-               OR coa.account_code IN ('1140', '5100', '5200', '5300'))
-        AND ge.entry_date BETWEEN ? AND ?
-        AND ge.status = 'Posted'
-    '''
-    expenses = conn.execute(expense_query, (start_date, end_date)).fetchone()['total_expenses']
+    # Sales Orders Revenue
+    sales_rev = conn.execute('''
+        SELECT COALESCE(SUM(total_amount), 0) as revenue
+        FROM sales_orders
+        WHERE status NOT IN ('Cancelled', 'Draft')
+        AND order_date BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['revenue']
+    
+    # Work Order Invoiced Revenue (Operations)
+    wo_rev = conn.execute('''
+        SELECT COALESCE(SUM(i.total_amount), 0) as revenue
+        FROM invoices i
+        WHERE (i.source_type IN ('work_order', 'Work Order', 'Service Work Order') OR i.wo_id IS NOT NULL)
+        AND i.status NOT IN ('Cancelled', 'Draft')
+        AND i.created_at BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['revenue']
+    
+    # NDT Revenue
+    ndt_rev_result = conn.execute('''
+        SELECT COALESCE(SUM(invoiced_revenue), 0) as revenue FROM (
+            SELECT SUM(i.total_amount) as invoiced_revenue
+            FROM invoices i
+            WHERE i.source_type = 'ndt_work_order' AND i.status != 'Cancelled'
+            AND i.created_at BETWEEN ? AND ?
+            UNION ALL
+            SELECT SUM(ni.total_amount) as invoiced_revenue
+            FROM ndt_invoices ni
+            WHERE ni.status NOT IN ('Cancelled', 'Void')
+            AND ni.invoice_date BETWEEN ? AND ?
+        )
+    ''', (start_date, end_date, start_date, end_date)).fetchone()
+    ndt_rev = ndt_rev_result['revenue'] if ndt_rev_result else 0
+    
+    # Service Work Order Revenue (Consulting) - uses total_cost as revenue
+    swo_rev = conn.execute('''
+        SELECT COALESCE(SUM(total_cost), 0) as revenue
+        FROM service_work_orders
+        WHERE status NOT IN ('Cancelled')
+        AND created_at BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['revenue']
+    
+    revenue = float(sales_rev or 0) + float(wo_rev or 0) + float(ndt_rev or 0) + float(swo_rev or 0)
+    
+    # KPI 2: Total Costs (matching Revenue Tracker calculation)
+    # Costs = Sales COGS + Work Order Costs + NDT Costs + Consulting Costs
+    
+    # Sales COGS
+    sales_cogs = conn.execute('''
+        SELECT COALESCE(SUM(
+            CASE 
+                WHEN sol.cost > 0 THEN sol.cost
+                ELSE sol.quantity * COALESCE(p.cost, 0)
+            END
+        ), 0) as cogs
+        FROM sales_order_lines sol
+        JOIN sales_orders so ON sol.so_id = so.id
+        LEFT JOIN products p ON sol.product_id = p.id
+        WHERE so.status NOT IN ('Cancelled', 'Draft')
+        AND so.order_date BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['cogs']
+    
+    # Work Order Costs (Operations)
+    wo_costs = conn.execute('''
+        SELECT COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as cost
+        FROM work_orders
+        WHERE status NOT IN ('Cancelled')
+        AND created_at BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['cost']
+    
+    # NDT Costs
+    ndt_costs = conn.execute('''
+        SELECT COALESCE(SUM(c.total_cost), 0) as cost
+        FROM ndt_wo_costs c
+        JOIN ndt_work_orders nwo ON c.ndt_wo_id = nwo.id
+        WHERE nwo.created_at BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['cost']
+    
+    # Consulting Costs (estimated at 40% of labor revenue)
+    consulting_labor = conn.execute('''
+        SELECT COALESCE(SUM(labor_subtotal), 0) as labor
+        FROM service_work_orders
+        WHERE status NOT IN ('Cancelled')
+        AND created_at BETWEEN ? AND ?
+    ''', (start_date, end_date)).fetchone()['labor']
+    consulting_cost = float(consulting_labor or 0) * 0.4
+    
+    expenses = float(sales_cogs or 0) + float(wo_costs or 0) + float(ndt_costs or 0) + consulting_cost
     
     # KPI 3: Gross Profit Margin
     gross_profit = revenue - expenses
