@@ -145,22 +145,24 @@
 
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-2">
                     <h6 class="mb-0">Revenue Trends (Last 12 Months)</h6>
                 </div>
-                <div class="card-body py-2">
-                    <canvas id="trendChart" height="80"></canvas>
+                <div class="card-body py-2 d-flex align-items-center">
+                    <canvas id="trendChart" height="100"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-2">
                     <h6 class="mb-0">Revenue Distribution</h6>
                 </div>
-                <div class="card-body py-2">
-                    <canvas id="distributionChart" height="120"></canvas>
+                <div class="card-body py-2 d-flex align-items-center justify-content-center">
+                    <div style="max-width: 220px; max-height: 220px;">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
