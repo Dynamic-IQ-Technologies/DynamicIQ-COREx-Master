@@ -4210,13 +4210,13 @@ def submit_reconciliation(id):
     ''', (session.get('user_id'), notes, variance_data, id))
     conn.commit()
     
-    AuditLogger.log(
+    AuditLogger.log_change(
         conn=conn,
-        user_id=session.get('user_id'),
-        action='RECONCILE',
-        entity_type='work_order',
-        entity_id=id,
-        details=f"Work order {workorder['wo_number']} reconciled. Notes: {notes[:100]}..."
+        record_type='work_order',
+        record_id=id,
+        action_type='Reconciled',
+        modified_by=session.get('user_id'),
+        description=f"Work order {workorder['wo_number']} reconciled. Notes: {notes[:100] if notes else 'None'}..."
     )
     
     conn.close()
@@ -4254,13 +4254,13 @@ def invalidate_reconciliation(id):
     ''', (id,))
     conn.commit()
     
-    AuditLogger.log(
+    AuditLogger.log_change(
         conn=conn,
-        user_id=session.get('user_id'),
-        action='INVALIDATE_RECONCILIATION',
-        entity_type='work_order',
-        entity_id=id,
-        details=f"Reconciliation invalidated for work order {workorder['wo_number']} by Admin"
+        record_type='work_order',
+        record_id=id,
+        action_type='Reconciliation Invalidated',
+        modified_by=session.get('user_id'),
+        description=f"Reconciliation invalidated for work order {workorder['wo_number']} by Admin"
     )
     
     conn.close()
@@ -4565,13 +4565,13 @@ def create_component_buyout(wo_id):
             WHERE id = ?
         ''', (po_id, wo_id))
         
-        AuditLogger.log(
+        AuditLogger.log_change(
             conn=conn,
             record_type='work_order',
-            record_id=str(wo_id),
+            record_id=wo_id,
             action_type='Component Buyout Created',
             modified_by=session.get('user_id'),
-            changed_fields={
+            changes={
                 'buyout_po_id': po_id,
                 'po_number': po_number,
                 'component_buyout_flag': True
