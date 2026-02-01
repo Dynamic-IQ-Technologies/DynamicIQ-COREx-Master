@@ -171,8 +171,8 @@ def view_inventory(id):
     ''', (id,)).fetchone()
     inventory['qty_allocated'] = float(qty_allocated['qty']) if qty_allocated else 0
     
-    # Calculate available quantity
-    inventory['qty_available'] = inventory['quantity'] - inventory['qty_on_wo'] - inventory['qty_allocated']
+    # Calculate available quantity (Current Qty - Qty Allocated only)
+    inventory['qty_available'] = inventory['quantity'] - inventory['qty_allocated']
     
     # Get related Purchase Orders (receiving transactions)
     # Filter by inventory_id if available, otherwise fall back to product_id
