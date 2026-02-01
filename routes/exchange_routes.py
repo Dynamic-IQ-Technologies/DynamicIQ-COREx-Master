@@ -4,6 +4,9 @@ from models import Database, AuditLogger, safe_float
 from datetime import datetime, date, timedelta
 import json
 import os
+import logging
+
+logger = logging.getLogger('exchange_routes')
 
 exchange_bp = Blueprint('exchange', __name__, url_prefix='/exchanges')
 
@@ -974,6 +977,61 @@ def receive_core(exchange_id):
         conn.execute('''
             UPDATE exchange_master SET status = 'Core Received' WHERE id = ?
         ''', (exchange_id,))
+        
+        # Get exchange number and product info for journal entry description
+        product_info = conn.execute('SELECT code, name FROM products WHERE id = ?', (core_product_id,)).fetchone()
+        product_desc = f"{product_info['code']} - {product_info['name']}" if product_info else f"Product ID {core_product_id}"
+        
+        # Create GL Journal Entry for Core Receipt (even at $0 for complete traceability)
+        # DR Inventory (1130) - Core received into stock at $0 value
+        # CR Core Returns/Suspense - To track the receipt event
+        from utils.gl_journal import create_journal_entry, GL_ACCOUNTS
+        
+        # Get the financial exposure from exchange for tracking purposes
+        financial_exposure = float(exchange['financial_exposure']) if exchange['financial_exposure'] else 0
+        
+        # Journal entry for core receipt - records the event even if $0 value
+        # Using Inventory account for the core asset coming in
+        journal_lines = [
+            {
+                'account_code': GL_ACCOUNTS['INVENTORY'],  # 1130 - Inventory
+                'debit': 0.00,  # Cores received at $0 cost
+                'credit': 0,
+                'description': f'Core received: {product_desc}, S/N: {core_serial}'
+            }
+        ]
+        
+        # Only create journal entry if there's financial value OR always for traceability
+        # We'll record even $0 entries for complete audit trail
+        try:
+            entry_id = create_journal_entry(
+                conn=conn,
+                entry_date=date.today().isoformat(),
+                description=f'Core Receipt - EX-{exchange_id:06d}: {product_desc}, S/N: {core_serial}, Condition: {condition}',
+                transaction_source='Exchange Core Receipt',
+                reference_type='Exchange',
+                reference_id=exchange_id,
+                lines=[
+                    {
+                        'account_code': GL_ACCOUNTS['INVENTORY'],
+                        'debit': 0.01,  # Nominal value for balanced entry
+                        'credit': 0,
+                        'description': f'Core received into inventory: {product_desc}'
+                    },
+                    {
+                        'account_code': GL_ACCOUNTS['INVENTORY'],
+                        'debit': 0,
+                        'credit': 0.01,  # Offsetting entry
+                        'description': f'Core return credit: EX-{exchange_id:06d}'
+                    }
+                ],
+                user_id=session.get('user_id'),
+                auto_post=True
+            )
+            if entry_id:
+                logger.info(f'GL Journal Entry {entry_id} created for Core Receipt EX-{exchange_id:06d}')
+        except Exception as je:
+            logger.warning(f'Failed to create GL entry for core receipt: {str(je)}')
         
         log_exchange_audit(conn, exchange_id, 'Core Received', old_status, 'Core Received',
                           f'Core received: S/N {core_serial}, Condition: {condition}, Qty: {quantity_received}{pn_note}, INV-{inventory_id:06d}',
