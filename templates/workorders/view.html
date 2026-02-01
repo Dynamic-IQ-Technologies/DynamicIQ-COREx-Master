@@ -368,7 +368,7 @@
                         {% if workorder.customer_email %}<p class="mb-2"><i class="bi bi-envelope me-1 text-muted"></i> {{ workorder.customer_email }}</p>{% endif %}
                         {% if workorder.customer_phone %}<p class="mb-2"><i class="bi bi-telephone me-1 text-muted"></i> {{ workorder.customer_phone }}</p>{% endif %}
                         {% if workorder.so_id %}
-                        <p class="mb-0"><strong>Sales Order:</strong> <a href="{{ url_for('salesorder_routes.view_salesorder', id=workorder.so_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-text"></i> View SO</a></p>
+                        <p class="mb-0"><strong>Sales Order:</strong> <a href="{{ url_for('salesorder_routes.view_sales_order', id=workorder.so_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-text"></i> View SO</a></p>
                         {% endif %}
                         {% elif workorder.customer_name %}
                         <p class="mb-0"><strong>Customer:</strong> {{ workorder.customer_name }}</p>
