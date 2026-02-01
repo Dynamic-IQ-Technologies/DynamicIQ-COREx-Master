@@ -437,7 +437,9 @@ def ship_shipment(id):
             ''', (line['product_id'],)).fetchone()
             
             unit_cost = float(inv_data['unit_cost']) if inv_data and inv_data['unit_cost'] else 0
-            qty = line['quantity_shipped'] if line['quantity_shipped'] else line['quantity']
+            qty = float(line['quantity_shipped'] or line['quantity'] or 0)
+            if qty <= 0:
+                continue  # Skip lines with no quantity
             line_cogs = unit_cost * qty
             total_cogs += line_cogs
             
@@ -989,14 +991,17 @@ def confirm_shipment(id):
                     ''', (line['product_id'],)).fetchone()
                     
                     unit_cost = float(inv_data['unit_cost']) if inv_data and inv_data['unit_cost'] else 0
-                    line_cogs = unit_cost * line['quantity']
+                    qty = float(line['quantity'] or 0)
+                    if qty <= 0:
+                        continue  # Skip lines with no quantity
+                    line_cogs = unit_cost * qty
                     total_cogs += line_cogs
                     
                     conn.execute('''
                         UPDATE inventory 
                         SET quantity = quantity - ?
                         WHERE product_id = ?
-                    ''', (line['quantity'], line['product_id']))
+                    ''', (qty, line['product_id']))
             
             # Create GL Journal Entry for COGS recognition (with idempotency check)
             # DR Cost of Goods Sold (5100) - Expense for cost of items shipped
