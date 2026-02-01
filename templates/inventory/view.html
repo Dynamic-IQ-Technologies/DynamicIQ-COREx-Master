@@ -144,11 +144,57 @@
                 <h5 class="mb-0">Stock Levels</h5>
             </div>
             <div class="card-body">
-                <p><strong>Current Quantity:</strong> {{ inventory.quantity }} {{ inventory.unit_of_measure }}</p>
-                <p><strong>Reorder Point:</strong> {{ inventory.reorder_point }} {{ inventory.unit_of_measure }}</p>
-                <p><strong>Safety Stock:</strong> {{ inventory.safety_stock }} {{ inventory.unit_of_measure }}</p>
-                <p><strong>Stock Status:</strong> 
-                    {% if inventory.quantity <= 0 %}
+                <table class="table table-sm table-borderless mb-2">
+                    <tr>
+                        <td class="text-muted" style="width:50%">Current Quantity:</td>
+                        <td><strong>{{ inventory.quantity }} {{ inventory.unit_of_measure }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Qty on Work Order:</td>
+                        <td>
+                            {% if inventory.qty_on_wo > 0 %}
+                            <span class="badge bg-primary">{{ inventory.qty_on_wo }} {{ inventory.unit_of_measure }}</span>
+                            {% else %}
+                            <span class="text-muted">0 {{ inventory.unit_of_measure }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Qty Allocated (SO):</td>
+                        <td>
+                            {% if inventory.qty_allocated > 0 %}
+                            <span class="badge bg-info">{{ inventory.qty_allocated }} {{ inventory.unit_of_measure }}</span>
+                            {% else %}
+                            <span class="text-muted">0 {{ inventory.unit_of_measure }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Available Qty:</td>
+                        <td>
+                            {% if inventory.qty_available > 0 %}
+                            <span class="text-success fw-bold">{{ inventory.qty_available }} {{ inventory.unit_of_measure }}</span>
+                            {% elif inventory.qty_available == 0 %}
+                            <span class="text-warning fw-bold">0 {{ inventory.unit_of_measure }}</span>
+                            {% else %}
+                            <span class="text-danger fw-bold">{{ inventory.qty_available }} {{ inventory.unit_of_measure }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><td colspan="2"><hr class="my-1"></td></tr>
+                    <tr>
+                        <td class="text-muted">Reorder Point:</td>
+                        <td>{{ inventory.reorder_point }} {{ inventory.unit_of_measure }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Safety Stock:</td>
+                        <td>{{ inventory.safety_stock }} {{ inventory.unit_of_measure }}</td>
+                    </tr>
+                </table>
+                <p class="mb-0"><strong>Stock Status:</strong> 
+                    {% if inventory.qty_available <= 0 %}
+                    <span class="badge bg-danger">FULLY COMMITTED</span>
+                    {% elif inventory.quantity <= 0 %}
                     <span class="badge bg-danger">OUT OF STOCK</span>
                     {% elif inventory.quantity <= inventory.reorder_point %}
                     <span class="badge bg-warning text-dark">LOW STOCK - REORDER NEEDED</span>

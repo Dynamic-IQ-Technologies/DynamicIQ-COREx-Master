@@ -154,6 +154,26 @@ def view_inventory(id):
     
     product_id = inventory['product_id']
     
+    # Get quantity on open work orders (inventory being worked on)
+    qty_on_wo = conn.execute('''
+        SELECT COALESCE(SUM(wo.quantity), 0) as qty
+        FROM work_orders wo
+        WHERE wo.inventory_id = ? AND wo.status NOT IN ('Completed', 'Cancelled', 'Closed')
+    ''', (id,)).fetchone()
+    inventory['qty_on_wo'] = float(qty_on_wo['qty']) if qty_on_wo else 0
+    
+    # Get quantity allocated to sales orders
+    qty_allocated = conn.execute('''
+        SELECT COALESCE(SUM(sol.allocated_quantity), 0) as qty
+        FROM sales_order_lines sol
+        JOIN sales_orders so ON sol.so_id = so.id
+        WHERE sol.inventory_id = ? AND so.status NOT IN ('Shipped', 'Cancelled', 'Closed')
+    ''', (id,)).fetchone()
+    inventory['qty_allocated'] = float(qty_allocated['qty']) if qty_allocated else 0
+    
+    # Calculate available quantity
+    inventory['qty_available'] = inventory['quantity'] - inventory['qty_on_wo'] - inventory['qty_allocated']
+    
     # Get related Purchase Orders (receiving transactions)
     # Filter by inventory_id if available, otherwise fall back to product_id
     receiving_history = conn.execute('''
