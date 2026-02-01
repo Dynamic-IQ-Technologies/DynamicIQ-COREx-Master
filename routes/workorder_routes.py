@@ -1045,7 +1045,7 @@ def update_workorder_status(id):
         
         # Business rule: Work order must be reconciled before closing/completing
         if new_status == 'Completed' and old_record['status'] != 'Completed':
-            reconciliation_status = old_record.get('reconciliation_status') or 'Not Reconciled'
+            reconciliation_status = old_record['reconciliation_status'] if old_record['reconciliation_status'] else 'Not Reconciled'
             if reconciliation_status != 'Reconciled':
                 flash('Work order must be reconciled before it can be completed. Please reconcile first.', 'warning')
                 conn.close()
@@ -1404,7 +1404,7 @@ def update_workorder_management(id):
         
         # Business rule: Work order must be reconciled before closing/completing
         if new_status == 'Completed' and old_record['status'] != 'Completed':
-            reconciliation_status = old_record.get('reconciliation_status') or 'Not Reconciled'
+            reconciliation_status = old_record['reconciliation_status'] if old_record['reconciliation_status'] else 'Not Reconciled'
             if reconciliation_status != 'Reconciled':
                 flash('Work order must be reconciled before it can be completed. Please reconcile first.', 'warning')
                 conn.close()
