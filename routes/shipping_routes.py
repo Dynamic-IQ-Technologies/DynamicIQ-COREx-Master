@@ -443,11 +443,12 @@ def ship_shipment(id):
             line_cogs = unit_cost * qty
             total_cogs += line_cogs
             
+            # Prevent negative inventory - set to 0 minimum
             conn.execute('''
                 UPDATE inventory
-                SET quantity = quantity - ?
+                SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END
                 WHERE product_id = ?
-            ''', (qty, line['product_id']))
+            ''', (qty, qty, line['product_id']))
         
         # Create GL Journal Entry for COGS recognition (with idempotency check)
         if total_cogs > 0:
@@ -997,11 +998,12 @@ def confirm_shipment(id):
                     line_cogs = unit_cost * qty
                     total_cogs += line_cogs
                     
+                    # Prevent negative inventory - set to 0 minimum
                     conn.execute('''
                         UPDATE inventory 
-                        SET quantity = quantity - ?
+                        SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END
                         WHERE product_id = ?
-                    ''', (qty, line['product_id']))
+                    ''', (qty, qty, line['product_id']))
             
             # Create GL Journal Entry for COGS recognition (with idempotency check)
             # DR Cost of Goods Sold (5100) - Expense for cost of items shipped
