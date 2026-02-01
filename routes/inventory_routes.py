@@ -155,15 +155,16 @@ def view_inventory(id):
     product_id = inventory['product_id']
     
     # Get related Purchase Orders (receiving transactions)
+    # Filter by inventory_id if available, otherwise fall back to product_id
     receiving_history = conn.execute('''
         SELECT rt.*, po.po_number, s.name as supplier_name
         FROM receiving_transactions rt
         JOIN purchase_orders po ON rt.po_id = po.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id
-        WHERE rt.product_id = ?
+        WHERE rt.inventory_id = ? OR (rt.inventory_id IS NULL AND rt.product_id = ?)
         ORDER BY rt.receipt_date DESC
         LIMIT 10
-    ''', (product_id,)).fetchall()
+    ''', (id, product_id)).fetchall()
     
     # Get related Work Orders (material issues)
     material_issues = conn.execute('''
