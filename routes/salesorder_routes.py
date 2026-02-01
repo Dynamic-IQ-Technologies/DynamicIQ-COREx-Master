@@ -1236,6 +1236,28 @@ def release_to_shipping(id):
             conn.close()
             return redirect(url_for('salesorder_routes.view_sales_order', id=id))
         
+        # Check if any lines are allocated to work orders that are not completed or don't have inventory
+        incomplete_wo_lines = conn.execute('''
+            SELECT sol.line_number, p.code as product_code, wo.wo_number, wo.status
+            FROM sales_order_lines sol
+            JOIN products p ON sol.product_id = p.id
+            JOIN work_orders wo ON sol.work_order_id = wo.id
+            WHERE sol.so_id = ? 
+            AND sol.work_order_id IS NOT NULL
+            AND (wo.status != 'Completed' 
+                 OR NOT EXISTS (
+                     SELECT 1 FROM inventory inv 
+                     WHERE inv.work_order_id = wo.id 
+                     AND inv.quantity > 0
+                 ))
+        ''', (id,)).fetchall()
+        
+        if incomplete_wo_lines:
+            problem_items = ', '.join([f"Line {l['line_number']}: {l['product_code']} (WO: {l['wo_number']} - {l['status']})" for l in incomplete_wo_lines])
+            flash(f'Cannot release to shipping. The following lines are allocated to work orders that are not completed or have no inventory turned in: {problem_items}. Work orders must be completed and inventory must be turned in before releasing.', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
         # Generate shipment number
         last_shipment = conn.execute(
             'SELECT shipment_number FROM shipments ORDER BY id DESC LIMIT 1'
