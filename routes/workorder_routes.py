@@ -436,12 +436,14 @@ def view_workorder(id):
         SELECT wo.*, p.code, p.name, p.unit_of_measure, p.description as product_description,
                c.customer_number, c.name as customer_full_name, c.email as customer_email, c.phone as customer_phone,
                wos.name as stage_name, wos.color as stage_color,
-               u.username as ri_inspector_name
+               u.username as ri_inspector_name,
+               so.so_number, so.expected_ship_date as so_expected_ship_date
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
         LEFT JOIN work_order_stages wos ON wo.stage_id = wos.id
         LEFT JOIN users u ON wo.ri_inspector_id = u.id
+        LEFT JOIN sales_orders so ON wo.so_id = so.id
         WHERE wo.id=?
     ''', (id,)).fetchone()
     
