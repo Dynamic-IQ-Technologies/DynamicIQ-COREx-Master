@@ -1072,6 +1072,36 @@ def part_analyzer_analyze():
                 'stats': dict(so_stats) if so_stats else {}
             }
         
+        if not analysis_scope or 'exchanges' in analysis_scope:
+            # Get exchange sales orders (sales_type = 'Exchange')
+            exchange_orders = conn.execute('''
+                SELECT so.*, c.name as customer_name,
+                       sol.product_id, sol.quantity, sol.unit_price, sol.core_charge,
+                       sol.core_status, sol.expected_core_condition
+                FROM sales_orders so
+                JOIN sales_order_lines sol ON so.id = sol.so_id
+                LEFT JOIN customers c ON so.customer_id = c.id
+                WHERE sol.product_id = ? AND so.sales_type = 'Exchange'
+                ORDER BY so.order_date DESC LIMIT 20
+            ''', (product_id,)).fetchall()
+            
+            exchange_stats = conn.execute('''
+                SELECT 
+                    COUNT(DISTINCT so.id) as total_exchanges,
+                    SUM(CASE WHEN sol.core_status = 'Received' THEN 1 ELSE 0 END) as cores_received,
+                    SUM(CASE WHEN sol.core_status = 'Pending' THEN 1 ELSE 0 END) as cores_pending,
+                    SUM(CASE WHEN sol.core_status = 'Overdue' THEN 1 ELSE 0 END) as cores_overdue,
+                    AVG(sol.core_charge) as avg_core_charge
+                FROM sales_orders so
+                JOIN sales_order_lines sol ON so.id = sol.so_id
+                WHERE sol.product_id = ? AND so.sales_type = 'Exchange'
+            ''', (product_id,)).fetchone()
+            
+            cross_module_data['exchanges'] = {
+                'recent': [dict(e) for e in exchange_orders],
+                'stats': dict(exchange_stats) if exchange_stats else {}
+            }
+        
         if not analysis_scope or 'quality' in analysis_scope:
             deviations = conn.execute('''
                 SELECT * FROM qms_deviations 
@@ -1116,10 +1146,11 @@ Provide a comprehensive analysis including:
 3. Demand Analysis - Sales patterns, customer concentration, growth trends
 4. Production Insights - Work order patterns, quality issues, production efficiency
 5. BOM Impact - Where this part is used, criticality assessment
-6. Quality Assessment - Deviation patterns, root causes, improvement opportunities
-7. Strategic Recommendations - Top 3-5 actionable recommendations for this part
-8. Risk Indicators - Any concerns or risks identified across modules
-9. Cost Optimization - Opportunities to reduce costs or improve margins
+6. Exchange Analysis - Core return patterns, exchange volume, core charge trends, overdue cores
+7. Quality Assessment - Deviation patterns, root causes, improvement opportunities
+8. Strategic Recommendations - Top 3-5 actionable recommendations for this part
+9. Risk Indicators - Any concerns or risks identified across modules
+10. Cost Optimization - Opportunities to reduce costs or improve margins
 
 Format the response with clear sections using plain text only. Use dashes for lists. Do not use any special characters, asterisks, markdown formatting, or symbols."""
 
