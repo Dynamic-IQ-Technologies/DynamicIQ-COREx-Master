@@ -2925,8 +2925,10 @@ def create_service_po(id):
         'NDT Services',
         'Calibration',
         'Engineering Services',
-        'Expedite Fee',
+        'Crates/Containers',
+        'Packaging Materials',
         'Freight/Shipping',
+        'Expedite Fee',
         'Tooling',
         'Consulting',
         'Other'

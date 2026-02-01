@@ -162,6 +162,9 @@
                     <i class="bi bi-bag-plus"></i> Component Buyout
                 </button>
                 {% endif %}
+                <a href="{{ url_for('workorder_routes.create_service_po', id=workorder.id) }}" class="btn btn-outline-info btn-sm" title="Create Service/Misc PO for outside services, crates, etc.">
+                    <i class="bi bi-receipt"></i> Service/Misc PO
+                </a>
             {% endif %}
             {% if session.role in ['Admin', 'Finance', 'Supervisor'] %}
                 {% if workorder.reconciliation_status == 'Reconciled' %}
