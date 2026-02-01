@@ -2758,6 +2758,36 @@ def turn_into_stock(id):
         
         # Log activity
         from models import AuditLogger
+        
+        # If work order is allocated to a sales order, transfer allocation to the new inventory
+        if wo['so_id']:
+            # Find sales order lines allocated to this work order
+            allocated_lines = conn.execute('''
+                SELECT id, so_id FROM sales_order_lines 
+                WHERE work_order_id = ?
+            ''', (id,)).fetchall()
+            
+            for line in allocated_lines:
+                # Update the sales order line to reference the new inventory
+                conn.execute('''
+                    UPDATE sales_order_lines 
+                    SET inventory_id = ?, allocation_status = 'Allocated'
+                    WHERE id = ?
+                ''', (inventory_id, line['id']))
+                
+                # Mark inventory as reserved for this sales order
+                conn.execute('''
+                    UPDATE inventory 
+                    SET status = 'Reserved', reserved_quantity = quantity
+                    WHERE id = ?
+                ''', (inventory_id,))
+                
+                # Log the allocation transfer
+                AuditLogger.log(conn, 'sales_order_lines', line['id'], 'UPDATE',
+                               {'inventory_id': inventory_id, 'from_work_order': wo['wo_number'],
+                                'note': 'Allocation transferred from work order to inventory'},
+                               session.get('user_id'))
+        
         AuditLogger.log_change(
             conn=conn,
             record_type='work_orders',
@@ -2775,7 +2805,7 @@ def turn_into_stock(id):
         # Also log inventory creation
         AuditLogger.log(conn, 'inventory', inventory_id, 'CREATE',
                        {'product_id': wo['product_id'], 'quantity': wo_quantity, 
-                        'unit_cost': unit_cost, 'from_work_order': wo['wo_number']},
+                        'repair_cost': repair_cost, 'from_work_order': wo['wo_number']},
                        session.get('user_id'))
         
         conn.commit()
