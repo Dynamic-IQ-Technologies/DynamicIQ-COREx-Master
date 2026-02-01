@@ -57,7 +57,7 @@ def list_inventory():
     # Build query with filters
     # Use inventory.unit_cost if set, otherwise fall back to product cost
     query = '''
-        SELECT i.*, p.code, p.name, p.unit_of_measure, 
+        SELECT i.*, p.code, p.name, p.unit_of_measure, p.is_serialized,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
                COALESCE(i.repair_cost, 0) as repair_cost,
                (i.quantity * (COALESCE(i.unit_cost, p.cost, 0) + COALESCE(i.repair_cost, 0))) as inventory_value

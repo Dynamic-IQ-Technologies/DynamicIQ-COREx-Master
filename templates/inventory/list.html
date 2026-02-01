@@ -127,7 +127,7 @@
                         <td>{{ item.code }}</td>
                         <td>{{ item.name }}</td>
                         <td>
-                            {% if item.is_serialized and item.serial_number %}
+                            {% if item.serial_number %}
                             <span class="badge bg-info">{{ item.serial_number }}</span>
                             {% elif item.is_serialized %}
                             <span class="badge bg-warning text-dark">SERIALIZED</span>
