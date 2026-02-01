@@ -262,9 +262,9 @@ def department_transactions(dept):
         rows = conn.execute(f'''
             SELECT 
                 nwo.id,
-                nwo.wo_number as reference,
+                nwo.ndt_wo_number as reference,
                 nwo.created_at as trans_date,
-                nwo.part_number,
+                nwo.part_description as part_number,
                 COALESCE(i.total_amount, 0) + COALESCE(ni.total_amount, 0) as revenue,
                 COALESCE(c.total_cost, 0) as cost,
                 nwo.status
