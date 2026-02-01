@@ -32,7 +32,6 @@ def dashboard():
     
     # Get filter parameters
     date_filter = request.args.get('date_range', 'ytd')
-    vendor_filter = request.args.get('vendor_id', '')
     
     # Calculate date ranges
     today = datetime.now()
@@ -160,10 +159,6 @@ def dashboard():
         FROM vendor_invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
     '''
-    if vendor_filter:
-        ap_open_query += ' AND vendor_id = ?'
-        ap_open_params.append(vendor_filter)
-    
     ap_open = conn.execute(ap_open_query, ap_open_params).fetchone()['ap_open']
     
     ap_due_params = [today.strftime('%Y-%m-%d')]
@@ -173,10 +168,6 @@ def dashboard():
         WHERE status NOT IN ('Paid', 'Cancelled')
         AND due_date <= ?
     '''
-    if vendor_filter:
-        ap_due_query += ' AND vendor_id = ?'
-        ap_due_params.append(vendor_filter)
-    
     ap_due = conn.execute(ap_due_query, ap_due_params).fetchone()['ap_due']
     
     # KPI 5: Cash on Hand (from GL cash accounts)
@@ -220,9 +211,6 @@ def dashboard():
         WHERE vi.payment_date BETWEEN ? AND ?
         AND vi.status = 'Paid'
     '''
-    if vendor_filter:
-        ap_payments_query += ' AND vi.vendor_id = ?'
-        ap_payments_params.append(vendor_filter)
     ap_payments = conn.execute(ap_payments_query, ap_payments_params).fetchone()['payments_made']
     
     # KPI 9: Invoices Billed During Period (Customer Revenue)
@@ -256,9 +244,6 @@ def dashboard():
         WHERE po.order_date BETWEEN ? AND ?
         AND po.status != 'Cancelled'
     '''
-    if vendor_filter:
-        po_created_query += ' AND po.supplier_id = ?'
-        po_created_params.append(vendor_filter)
     po_result = conn.execute(po_created_query, po_created_params).fetchone()
     po_ordered = po_result['total_ordered'] or 0
     po_count = po_result['po_count'] or 0
@@ -373,10 +358,6 @@ def dashboard():
             FROM vendor_invoices
             WHERE status NOT IN ('Paid', 'Cancelled')
         '''
-    if vendor_filter:
-        ap_aging_query += ' AND vendor_id = ?'
-        ap_aging_params.append(vendor_filter)
-    
     ap_aging_query += '''
         GROUP BY 1
         ORDER BY 
@@ -406,10 +387,6 @@ def dashboard():
         LEFT JOIN vendor_invoices vi ON s.id = vi.vendor_id
         WHERE vi.invoice_date BETWEEN ? AND ?
     '''
-    if vendor_filter:
-        top_vendors_query += ' AND s.id = ?'
-        top_vendors_params.append(vendor_filter)
-    
     top_vendors_query += '''
         GROUP BY s.id, s.name
         ORDER BY total_spend DESC
@@ -431,9 +408,6 @@ def dashboard():
         LIMIT 10
     '''
     top_workorders = conn.execute(top_workorders_query, (start_date, end_date)).fetchall()
-    
-    # Get vendor list for filter dropdown
-    vendors = conn.execute('SELECT id, name FROM suppliers ORDER BY name').fetchall()
     
     conn.close()
     
@@ -472,7 +446,6 @@ def dashboard():
                          wo_completed_cost=wo_completed_cost,
                          period_label=period_label,
                          date_filter=date_filter,
-                         vendor_filter=vendor_filter,
                          trend_labels=trend_labels,
                          trend_revenue=trend_revenue,
                          trend_expenses=trend_expenses,
@@ -482,7 +455,6 @@ def dashboard():
                          vendor_amounts=vendor_amounts,
                          wo_labels=wo_labels,
                          wo_amounts=wo_amounts,
-                         vendors=vendors,
                          last_updated=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 @executive_routes.route('/executive-dashboard/export')
@@ -492,7 +464,6 @@ def export_dashboard():
     conn = db.get_connection()
     
     date_filter = request.args.get('date_range', 'ytd')
-    vendor_filter = request.args.get('vendor_id', '')
     today = datetime.now()
     current_year = today.year
     current_month = today.month
@@ -533,24 +504,12 @@ def export_dashboard():
         AND ge.status = 'Posted'
     ''', (start_date, end_date)).fetchone()['total_expenses']
     
-    ap_params = []
     ap_query = '''
         SELECT COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as ap_open
         FROM vendor_invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
     '''
-    if vendor_filter:
-        ap_query += ' AND vendor_id = ?'
-        ap_params.append(vendor_filter)
-    
-    ap_open = conn.execute(ap_query, ap_params).fetchone()['ap_open']
-    
-    # Get vendor name if filtered
-    vendor_name = 'All Vendors'
-    if vendor_filter:
-        vendor_row = conn.execute('SELECT name FROM suppliers WHERE id = ?', (vendor_filter,)).fetchone()
-        if vendor_row:
-            vendor_name = vendor_row['name']
+    ap_open = conn.execute(ap_query).fetchone()['ap_open']
     
     conn.close()
     
@@ -561,7 +520,6 @@ def export_dashboard():
     writer.writerow(['Executive Dashboard Summary'])
     writer.writerow(['Generated:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
     writer.writerow(['Period:', date_filter.upper()])
-    writer.writerow(['Vendor Filter:', vendor_name])
     writer.writerow([])
     writer.writerow(['Metric', 'Value'])
     writer.writerow(['Total Revenue', f'${revenue:,.2f}'])
@@ -571,8 +529,7 @@ def export_dashboard():
     writer.writerow(['Accounts Payable (Open)', f'${ap_open:,.2f}'])
     
     response = make_response(output.getvalue())
-    filename_suffix = f'_{vendor_name.replace(" ", "_")}' if vendor_filter else ''
-    response.headers['Content-Disposition'] = f'attachment; filename=executive_dashboard_{date_filter}{filename_suffix}_{today.strftime("%Y%m%d")}.csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=executive_dashboard_{date_filter}_{today.strftime("%Y%m%d")}.csv'
     response.headers['Content-Type'] = 'text/csv'
     
     return response
