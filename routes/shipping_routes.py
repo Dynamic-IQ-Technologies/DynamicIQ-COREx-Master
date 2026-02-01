@@ -966,9 +966,15 @@ def confirm_shipment(id):
             # Check inventory availability
             for line in lines:
                 if not line['is_core']:
-                    inventory = conn.execute('''
-                        SELECT quantity FROM inventory WHERE product_id = ?
-                    ''', (line['product_id'],)).fetchone()
+                    # Use allocated inventory_id if available
+                    if line['inventory_id']:
+                        inventory = conn.execute('''
+                            SELECT quantity FROM inventory WHERE id = ?
+                        ''', (line['inventory_id'],)).fetchone()
+                    else:
+                        inventory = conn.execute('''
+                            SELECT quantity FROM inventory WHERE product_id = ?
+                        ''', (line['product_id'],)).fetchone()
                     
                     available = inventory['quantity'] if inventory else 0
                     if available < line['quantity']:
@@ -983,27 +989,77 @@ def confirm_shipment(id):
             total_cogs = 0
             for line in lines:
                 if not line['is_core']:
-                    # Get inventory cost for COGS calculation
-                    inv_data = conn.execute('''
-                        SELECT i.unit_cost, p.code, p.name 
-                        FROM inventory i
-                        JOIN products p ON i.product_id = p.id
-                        WHERE i.product_id = ?
-                    ''', (line['product_id'],)).fetchone()
-                    
-                    unit_cost = float(inv_data['unit_cost']) if inv_data and inv_data['unit_cost'] else 0
                     qty = float(line['quantity'] or 0)
                     if qty <= 0:
                         continue  # Skip lines with no quantity
-                    line_cogs = unit_cost * qty
-                    total_cogs += line_cogs
                     
-                    # Prevent negative inventory - set to 0 minimum
+                    # Use the allocated inventory_id if available
+                    inventory_id = line['inventory_id']
+                    
+                    if inventory_id:
+                        # Get cost from the specific allocated inventory
+                        inv_data = conn.execute('''
+                            SELECT i.unit_cost, i.repair_cost, i.is_serialized, p.code, p.name 
+                            FROM inventory i
+                            JOIN products p ON i.product_id = p.id
+                            WHERE i.id = ?
+                        ''', (inventory_id,)).fetchone()
+                        
+                        # Use repair_cost if available, otherwise unit_cost
+                        repair_cost = float(inv_data['repair_cost'] or 0) if inv_data else 0
+                        unit_cost = float(inv_data['unit_cost'] or 0) if inv_data else 0
+                        item_cost = repair_cost if repair_cost > 0 else unit_cost
+                        is_serialized = inv_data['is_serialized'] if inv_data else 0
+                        
+                        line_cogs = item_cost * qty
+                        total_cogs += line_cogs
+                        
+                        # Update the specific inventory record
+                        if is_serialized:
+                            # For serialized items, set quantity to 0 and status to Shipped
+                            conn.execute('''
+                                UPDATE inventory 
+                                SET quantity = 0, status = 'Shipped', last_updated = CURRENT_TIMESTAMP
+                                WHERE id = ?
+                            ''', (inventory_id,))
+                        else:
+                            # For non-serialized, deduct quantity
+                            conn.execute('''
+                                UPDATE inventory 
+                                SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END,
+                                    last_updated = CURRENT_TIMESTAMP
+                                WHERE id = ?
+                            ''', (qty, qty, inventory_id))
+                    else:
+                        # Fallback: use product_id lookup (legacy behavior)
+                        inv_data = conn.execute('''
+                            SELECT i.unit_cost, i.repair_cost, p.code, p.name 
+                            FROM inventory i
+                            JOIN products p ON i.product_id = p.id
+                            WHERE i.product_id = ?
+                        ''', (line['product_id'],)).fetchone()
+                        
+                        repair_cost = float(inv_data['repair_cost'] or 0) if inv_data else 0
+                        unit_cost = float(inv_data['unit_cost'] or 0) if inv_data else 0
+                        item_cost = repair_cost if repair_cost > 0 else unit_cost
+                        
+                        line_cogs = item_cost * qty
+                        total_cogs += line_cogs
+                        
+                        # Deduct from any matching inventory
+                        conn.execute('''
+                            UPDATE inventory 
+                            SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END,
+                                last_updated = CURRENT_TIMESTAMP
+                            WHERE product_id = ?
+                        ''', (qty, qty, line['product_id']))
+                    
+                    # Update the sales order line shipped quantity
                     conn.execute('''
-                        UPDATE inventory 
-                        SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END
-                        WHERE product_id = ?
-                    ''', (qty, qty, line['product_id']))
+                        UPDATE sales_order_lines 
+                        SET shipped_quantity = ?, line_status = 'Shipped'
+                        WHERE id = ?
+                    ''', (qty, line['id']))
             
             # Create GL Journal Entry for COGS recognition (with idempotency check)
             # DR Cost of Goods Sold (5100) - Expense for cost of items shipped
