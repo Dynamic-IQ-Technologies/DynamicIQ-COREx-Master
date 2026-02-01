@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, AuditLogger
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+from utils.gl_journal import create_payment_received_entry
 import csv
 import io
 
@@ -175,10 +176,25 @@ def record_payment(id):
         try:
             payment_number = f"PMT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             
-            conn.execute('''
+            cursor = conn.execute('''
                 INSERT INTO payments (payment_number, payment_date, payment_type, reference_type, reference_id, amount, payment_method, check_number, remarks, created_by, created_at)
                 VALUES (?, ?, 'Receipt', 'invoice', ?, ?, ?, ?, ?, ?, ?)
             ''', (payment_number, payment_date, id, payment_amount, payment_method, reference_number, notes, session.get('user_id'), datetime.now()))
+            
+            payment_id = cursor.lastrowid
+            
+            gl_entry_id = create_payment_received_entry(
+                conn=conn,
+                payment_id=payment_id,
+                payment_number=payment_number,
+                payment_date=payment_date,
+                amount=payment_amount,
+                invoice_number=invoice['invoice_number'],
+                user_id=session.get('user_id')
+            )
+            
+            if gl_entry_id:
+                conn.execute('UPDATE payments SET gl_entry_id = ? WHERE id = ?', (gl_entry_id, payment_id))
             
             new_amount_paid = float(invoice['amount_paid'] or 0) + payment_amount
             new_balance = float(invoice['total_amount']) - new_amount_paid
