@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session, jsonify
-from models import Database, CompanySettings, AuditLogger, safe_float
+from models import Database, CompanySettings, AuditLogger, safe_float, GLAutoPost
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime, timedelta
@@ -1012,6 +1012,33 @@ def receive_purchaseorder(id):
                     remarks
                 ))
                 tools_created.append(tool_number)
+                
+                if unit_cost > 0:
+                    gl_lines = [
+                        {
+                            'account_code': '1210',
+                            'debit': unit_cost,
+                            'credit': 0,
+                            'description': f'Tool purchase - {tool_number} - {product_name}'
+                        },
+                        {
+                            'account_code': '2110',
+                            'debit': 0,
+                            'credit': unit_cost,
+                            'description': f'A/P for tool purchase - {tool_number}'
+                        }
+                    ]
+                    
+                    GLAutoPost.create_auto_journal_entry(
+                        conn=conn,
+                        entry_date=receipt_date,
+                        description=f'Tool Purchase - {tool_number}',
+                        transaction_source='Tool Capitalization',
+                        reference_type='tool_purchase',
+                        reference_id=last_num,
+                        lines=gl_lines,
+                        created_by=session.get('user_id')
+                    )
         else:
             inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
             
@@ -1194,6 +1221,33 @@ def api_quick_receive_po_line(po_id, line_id):
                     remarks
                 ))
                 tools_created.append(tool_number)
+                
+                if base_unit_cost > 0:
+                    gl_lines = [
+                        {
+                            'account_code': '1210',
+                            'debit': base_unit_cost,
+                            'credit': 0,
+                            'description': f'Tool purchase - {tool_number} - {product_name}'
+                        },
+                        {
+                            'account_code': '2110',
+                            'debit': 0,
+                            'credit': base_unit_cost,
+                            'description': f'A/P for tool purchase - {tool_number}'
+                        }
+                    ]
+                    
+                    GLAutoPost.create_auto_journal_entry(
+                        conn=conn,
+                        entry_date=receipt_date,
+                        description=f'Tool Purchase - {tool_number}',
+                        transaction_source='Tool Capitalization',
+                        reference_type='tool_purchase',
+                        reference_id=last_num,
+                        lines=gl_lines,
+                        created_by=session.get('user_id')
+                    )
         else:
             inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
             

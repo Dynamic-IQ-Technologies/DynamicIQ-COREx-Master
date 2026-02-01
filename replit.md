@@ -66,6 +66,7 @@ Key features include:
   - Sales Invoice Posting: DR A/R (1120), CR Sales Revenue (4100)
   - A/R Payment Received: DR Cash (1110), CR A/R (1120)
   - A/P Payment Made: DR A/P (2110), CR Cash (1110)
+  - Tool Purchase: DR Equipment (1210), CR A/P (2110) or CR Cash (1110)
   - NDT Labor/Materials/Subcontract: All tracked through proper WIP accounting
 - **Labor Management**: Time clock station with skill-based task filtering, labor resources, and skillset management.
 - **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI), COREx Guide Transaction Assistant (proactive field assistance), Part Intake System (web part capture), Marketing Presentation Generator, Executive Sales/Procurement Dashboards with AI Copilot, and Leads Management with AI-powered sales engagement.
