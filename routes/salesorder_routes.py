@@ -2041,7 +2041,7 @@ def get_available_work_orders_for_line(line_id):
             FROM work_orders wo
             JOIN products p ON wo.product_id = p.id
             WHERE wo.product_id = ?
-            AND wo.status IN ('Open', 'In Progress', 'Completed')
+            AND wo.status IN ('Draft', 'Open', 'In Progress', 'Completed')
             AND wo.so_id IS NULL
             AND NOT EXISTS (
                 SELECT 1 FROM sales_order_lines sol2 
