@@ -1077,7 +1077,7 @@ def part_analyzer_analyze():
             exchange_orders = conn.execute('''
                 SELECT so.*, c.name as customer_name,
                        sol.product_id, sol.quantity, sol.unit_price, sol.core_charge,
-                       sol.core_status, sol.expected_core_condition
+                       sol.core_disposition, sol.expected_core_condition
                 FROM sales_orders so
                 JOIN sales_order_lines sol ON so.id = sol.so_id
                 LEFT JOIN customers c ON so.customer_id = c.id
@@ -1088,9 +1088,9 @@ def part_analyzer_analyze():
             exchange_stats = conn.execute('''
                 SELECT 
                     COUNT(DISTINCT so.id) as total_exchanges,
-                    SUM(CASE WHEN sol.core_status = 'Received' THEN 1 ELSE 0 END) as cores_received,
-                    SUM(CASE WHEN sol.core_status = 'Pending' THEN 1 ELSE 0 END) as cores_pending,
-                    SUM(CASE WHEN sol.core_status = 'Overdue' THEN 1 ELSE 0 END) as cores_overdue,
+                    SUM(CASE WHEN sol.core_disposition = 'Received' THEN 1 ELSE 0 END) as cores_received,
+                    SUM(CASE WHEN sol.core_disposition IS NULL OR sol.core_disposition = 'Pending' THEN 1 ELSE 0 END) as cores_pending,
+                    SUM(CASE WHEN sol.core_disposition = 'Overdue' THEN 1 ELSE 0 END) as cores_overdue,
                     AVG(sol.core_charge) as avg_core_charge
                 FROM sales_orders so
                 JOIN sales_order_lines sol ON so.id = sol.so_id
