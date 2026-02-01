@@ -3930,7 +3930,7 @@ def get_reconciliation_data(id):
         SELECT 
             COALESCE(SUM(CASE WHEN status = 'Pending' THEN total_cost ELSE 0 END), 0) as planned_services_cost,
             COALESCE(SUM(CASE WHEN status = 'Received' THEN total_cost ELSE 0 END), 0) as actual_services_cost
-        FROM work_order_service_pos
+        FROM purchase_order_service_lines
         WHERE work_order_id = ?
     ''', (id,)).fetchone()
     
