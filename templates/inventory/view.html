@@ -696,7 +696,7 @@
                         <tbody>
                             {% for wo in related_work_orders %}
                             <tr>
-                                <td><a href="{{ url_for('workorder_routes.view_work_order', id=wo.id) }}" class="fw-semibold">{{ wo.wo_number }}</a></td>
+                                <td><a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold">{{ wo.wo_number }}</a></td>
                                 <td><span class="badge bg-info">{{ wo.relationship }}</span></td>
                                 <td>{{ wo.product_code }}</td>
                                 <td>{{ wo.serial_number or '-' }}</td>
