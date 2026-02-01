@@ -248,31 +248,25 @@ def view_inventory(id):
         LIMIT 20
     ''', (id, id, id)).fetchall()
     
-    # Get work orders related to this inventory (direct link, exchange repair, or material issued)
+    # Get work orders related to this inventory (direct link or exchange repair - avoid duplicates)
     related_work_orders = conn.execute('''
         SELECT wo.id, wo.wo_number, wo.status, wo.workorder_type, wo.serial_number,
                wo.planned_start_date, wo.actual_start_date, wo.actual_end_date,
                p.code as product_code, p.name as product_name,
                c.name as customer_name,
-               'Subject Unit' as relationship
+               CASE 
+                   WHEN ec.id IS NOT NULL THEN 'Exchange Repair'
+                   ELSE 'Subject Unit'
+               END as relationship
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
-        WHERE wo.inventory_id = ?
-        UNION
-        SELECT wo.id, wo.wo_number, wo.status, wo.workorder_type, wo.serial_number,
-               wo.planned_start_date, wo.actual_start_date, wo.actual_end_date,
-               p.code as product_code, p.name as product_name,
-               c.name as customer_name,
-               'Exchange Repair' as relationship
-        FROM exchange_cores ec
-        JOIN exchange_master em ON ec.exchange_id = em.id
-        JOIN work_orders wo ON em.repair_work_order_id = wo.id
-        JOIN products p ON wo.product_id = p.id
-        LEFT JOIN customers c ON wo.customer_id = c.id
-        WHERE ec.inventory_id = ?
-        ORDER BY actual_start_date DESC
-    ''', (id, id)).fetchall()
+        LEFT JOIN exchange_master em ON em.repair_work_order_id = wo.id
+        LEFT JOIN exchange_cores ec ON ec.exchange_id = em.id AND ec.inventory_id = ?
+        WHERE wo.inventory_id = ? OR ec.inventory_id = ?
+        GROUP BY wo.id
+        ORDER BY wo.actual_start_date DESC
+    ''', (id, id, id)).fetchall()
     
     conn.close()
     
