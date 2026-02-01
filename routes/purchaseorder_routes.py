@@ -535,6 +535,16 @@ def view_purchaseorder(id):
                 'error_message': None
             }
     
+    # Get purchase receipts for this PO
+    receipts = conn.execute('''
+        SELECT rt.*, p.code as product_code, p.name as product_name, u.username as received_by_name
+        FROM receiving_transactions rt
+        LEFT JOIN products p ON rt.product_id = p.id
+        LEFT JOIN users u ON rt.received_by = u.id
+        WHERE rt.po_id = ?
+        ORDER BY rt.receipt_date DESC, rt.id DESC
+    ''', (id,)).fetchall()
+    
     conn.close()
     
     # Get current date for overdue badge and modal
@@ -546,7 +556,8 @@ def view_purchaseorder(id):
                           today=today, now=now, total=total, source_sales_order=source_sales_order, 
                           exchange_owner=exchange_owner, service_lines=service_lines,
                           line_validations=line_validations, overall_variance_ok=overall_variance_ok,
-                          variance_warnings=variance_warnings, source_work_order=source_work_order)
+                          variance_warnings=variance_warnings, source_work_order=source_work_order,
+                          receipts=receipts)
 
 @po_bp.route('/purchaseorders/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Procurement')
