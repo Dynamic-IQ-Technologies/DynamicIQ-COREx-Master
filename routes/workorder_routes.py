@@ -2732,22 +2732,20 @@ def turn_into_stock(id):
         total_wo_cost = material_cost + labor_cost + overhead_cost + misc_cost
         wo_quantity = float(wo['quantity'] or 1)
         
-        # Unit cost = total work order cost (not divided by quantity)
-        unit_cost = total_wo_cost
+        # Repair cost = total work order cost (materials + labor + overhead + services)
+        # Unit cost is reserved for purchase cost only, so set to 0 for work order inventory
+        repair_cost = total_wo_cost
         
         # Create inventory record with work order quantity and repair cost
         serial_number = wo['serial_number'] if wo['serial_number'] else None
         is_serialized = 1 if serial_number else 0
         
-        # Set repair_cost as the total work order cost (this represents the cost to repair/manufacture)
-        repair_cost = total_wo_cost
-        
         cursor = conn.execute('''
             INSERT INTO inventory (
                 product_id, quantity, unit_cost, repair_cost, condition, status, 
                 warehouse_location, is_serialized, serial_number, last_received_date, source
-            ) VALUES (?, ?, ?, ?, 'Serviceable', 'Available', 'Main', ?, ?, date('now'), 'Work Order')
-        ''', (wo['product_id'], wo_quantity, unit_cost, repair_cost, is_serialized, serial_number))
+            ) VALUES (?, ?, 0, ?, 'Serviceable', 'Available', 'Main', ?, ?, date('now'), 'Work Order')
+        ''', (wo['product_id'], wo_quantity, repair_cost, is_serialized, serial_number))
         
         inventory_id = cursor.lastrowid
         
