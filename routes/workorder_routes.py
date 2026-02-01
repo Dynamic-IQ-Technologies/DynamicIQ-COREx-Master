@@ -1541,13 +1541,13 @@ def update_workorder_management(id):
                 
                 from models import GLAutoPost
                 
-                GLAutoPost.create_gl_entry(
+                GLAutoPost.create_auto_journal_entry(
                     conn=conn,
-                    source_module='Manufacturing',
-                    source_document=wo['wo_number'],
-                    source_id=id,
-                    transaction_date=datetime.now().strftime('%Y-%m-%d'),
+                    entry_date=datetime.now().strftime('%Y-%m-%d'),
                     description=f'Work Order Completion - {wo["wo_number"]}',
+                    transaction_source='Manufacturing',
+                    reference_type='work_order',
+                    reference_id=id,
                     lines=gl_lines,
                     created_by=session.get('user_id')
                 )
