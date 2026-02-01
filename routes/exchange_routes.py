@@ -321,7 +321,7 @@ def view_exchange(exchange_id):
     ''', (exchange_id,)).fetchall()
     
     products = conn.execute('''
-        SELECT id, code, name FROM products WHERE active = 1 ORDER BY code
+        SELECT id, code, name FROM products ORDER BY code
     ''').fetchall()
     
     conn.close()
