@@ -93,15 +93,16 @@
                 <div class="col-12"><hr class="my-2"><h6 class="text-muted">Calibration Information</h6></div>
                 <div class="col-md-4">
                     <label class="form-label">Last Calibration Date</label>
-                    <input type="date" name="last_calibration_date" class="form-control" value="{{ tool.last_calibration_date or '' }}">
+                    <input type="date" name="last_calibration_date" id="lastCalibrationDate" class="form-control" value="{{ tool.last_calibration_date or '' }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Next Calibration Date</label>
-                    <input type="date" name="next_calibration_date" class="form-control" value="{{ tool.next_calibration_date or '' }}">
+                    <input type="date" name="next_calibration_date" id="nextCalibrationDate" class="form-control" value="{{ tool.next_calibration_date or '' }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Calibration Interval (days)</label>
-                    <input type="number" name="calibration_interval_days" class="form-control" min="0" value="{{ tool.calibration_interval_days or '' }}">
+                    <input type="number" name="calibration_interval_days" id="calibrationInterval" class="form-control" min="0" value="{{ tool.calibration_interval_days or '' }}">
+                    <small class="text-muted">Auto-calculated from dates</small>
                 </div>
                 
                 <div class="col-12">
@@ -127,4 +128,27 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const lastCalDate = document.getElementById('lastCalibrationDate');
+    const nextCalDate = document.getElementById('nextCalibrationDate');
+    const intervalDays = document.getElementById('calibrationInterval');
+    
+    function calculateInterval() {
+        if (lastCalDate.value && nextCalDate.value) {
+            const last = new Date(lastCalDate.value);
+            const next = new Date(nextCalDate.value);
+            const diffTime = next - last;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 0) {
+                intervalDays.value = diffDays;
+            }
+        }
+    }
+    
+    lastCalDate.addEventListener('change', calculateInterval);
+    nextCalDate.addEventListener('change', calculateInterval);
+});
+</script>
 {% endblock %}
