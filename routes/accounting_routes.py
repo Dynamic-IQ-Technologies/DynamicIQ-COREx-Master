@@ -303,7 +303,7 @@ def department_transactions(dept):
         rows = conn.execute(f'''
             SELECT 
                 swo.id,
-                swo.wo_number as reference,
+                swo.swo_number as reference,
                 swo.created_at as trans_date,
                 c.name as customer_name,
                 swo.service_type,
