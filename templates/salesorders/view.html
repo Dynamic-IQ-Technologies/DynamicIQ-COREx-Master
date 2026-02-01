@@ -274,6 +274,14 @@
                                     <span class="badge bg-danger">
                                         <i class="bi bi-x-circle"></i> Backordered
                                     </span>
+                                    {% elif line.allocation_status == 'Shipped' %}
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-truck"></i> Shipped
+                                    </span>
+                                    {% elif line.allocation_status == 'Invoiced' %}
+                                    <span class="badge bg-dark">
+                                        <i class="bi bi-receipt"></i> Invoiced
+                                    </span>
                                     {% else %}
                                     <span class="badge bg-secondary">
                                         <i class="bi bi-clock-history"></i> Pending Allocation
