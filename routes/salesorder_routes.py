@@ -416,11 +416,14 @@ def edit_sales_order(id):
         ORDER BY sol.line_number
     ''', (id,)).fetchall()
     
-    # Get products for adding lines (show actual available = quantity - reserved)
+    # Get products for adding lines (show actual available = sum of quantity - reserved across all inventory records)
+    # Filter out products with zero or negative available quantity
     products = conn.execute('''
-        SELECT p.*, COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0) as available_qty
+        SELECT p.*, COALESCE(SUM(COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0)), 0) as available_qty
         FROM products p
         LEFT JOIN inventory i ON p.id = i.product_id
+        GROUP BY p.id
+        HAVING COALESCE(SUM(COALESCE(i.quantity, 0) - COALESCE(i.reserved_quantity, 0)), 0) > 0
         ORDER BY p.code
     ''').fetchall()
     
