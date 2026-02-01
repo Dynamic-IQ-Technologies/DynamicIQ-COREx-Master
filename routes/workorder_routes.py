@@ -4018,6 +4018,50 @@ def submit_reconciliation(id):
         flash('Work order is already reconciled.', 'warning')
         return redirect(url_for('workorder_routes.view_workorder', id=id))
     
+    # Check if all materials have been consumed before allowing reconciliation
+    unconsumed_task_materials = conn.execute('''
+        SELECT tm.id, p.code, p.name, tm.required_qty,
+               COALESCE((SELECT SUM(mi.quantity_issued) 
+                         FROM material_issues mi 
+                         WHERE mi.task_material_id = tm.id), 0) as issued_qty
+        FROM task_materials tm
+        JOIN products p ON tm.product_id = p.id
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        WHERE wot.work_order_id = ?
+          AND tm.required_qty > COALESCE((SELECT SUM(mi.quantity_issued) 
+                                          FROM material_issues mi 
+                                          WHERE mi.task_material_id = tm.id), 0)
+    ''', (id,)).fetchall()
+    
+    unconsumed_wo_materials = conn.execute('''
+        SELECT mr.id, p.code, p.name, mr.required_qty,
+               COALESCE((SELECT SUM(mi.quantity_issued) 
+                         FROM material_issues mi 
+                         WHERE mi.work_order_id = mr.work_order_id 
+                           AND mi.product_id = mr.product_id
+                           AND mi.task_material_id IS NULL), 0) as issued_qty
+        FROM material_requirements mr
+        JOIN products p ON mr.product_id = p.id
+        WHERE mr.work_order_id = ?
+          AND mr.required_qty > COALESCE((SELECT SUM(mi.quantity_issued) 
+                                          FROM material_issues mi 
+                                          WHERE mi.work_order_id = mr.work_order_id 
+                                            AND mi.product_id = mr.product_id
+                                            AND mi.task_material_id IS NULL), 0)
+    ''', (id,)).fetchall()
+    
+    if unconsumed_task_materials or unconsumed_wo_materials:
+        unconsumed_count = len(unconsumed_task_materials) + len(unconsumed_wo_materials)
+        unconsumed_items = []
+        for mat in unconsumed_task_materials:
+            unconsumed_items.append(f"{mat['code']} (Required: {mat['required_qty']}, Issued: {mat['issued_qty']})")
+        for mat in unconsumed_wo_materials:
+            unconsumed_items.append(f"{mat['code']} (Required: {mat['required_qty']}, Issued: {mat['issued_qty']})")
+        
+        conn.close()
+        flash(f'Cannot reconcile: {unconsumed_count} material(s) have not been fully consumed. Please issue all required materials before reconciliation. Unconsumed: {", ".join(unconsumed_items[:5])}{"..." if len(unconsumed_items) > 5 else ""}', 'danger')
+        return redirect(url_for('workorder_routes.view_workorder', id=id))
+    
     notes = request.form.get('reconciliation_notes', '').strip()
     if not notes:
         conn.close()
