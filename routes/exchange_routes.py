@@ -252,10 +252,13 @@ def view_exchange(exchange_id):
                so.so_number, so.core_charge as so_core_charge, so.exchange_type as so_exchange_type,
                u.username as created_by_name,
                wo.wo_number as repair_wo_number, wo.status as repair_wo_status,
-               sol.serial_number as allocated_serial, sol.quantity as line_qty,
+               COALESCE(sol.serial_number, i.serial_number, i.msn_esn) as allocated_serial, 
+               sol.quantity as line_qty,
                sol.unit_price as line_unit_price, sol.line_total as line_total,
                COALESCE(i.unit_cost, sol.cost, 0) as inventory_cost,
-               COALESCE(sol.core_charge, 0) as line_exchange_fee
+               COALESCE(sol.core_charge, 0) as line_exchange_fee,
+               i.serial_number as inventory_serial,
+               i.msn_esn as inventory_msn_esn
         FROM exchange_master em
         JOIN customers c ON em.customer_id = c.id
         JOIN products p ON em.product_id = p.id
