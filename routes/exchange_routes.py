@@ -250,7 +250,7 @@ def view_exchange(exchange_id):
         SELECT em.*, c.name as customer_name, c.email as customer_email,
                p.code as product_code, p.name as product_name,
                so.so_number, so.core_charge as so_core_charge, so.exchange_type as so_exchange_type,
-               u.username as created_by_name,
+               so_creator.username as created_by_name,
                wo.wo_number as repair_wo_number, wo.status as repair_wo_status,
                COALESCE(sol.serial_number, i.serial_number, i.msn_esn) as allocated_serial, 
                sol.quantity as line_qty,
@@ -258,14 +258,15 @@ def view_exchange(exchange_id):
                COALESCE(i.unit_cost, sol.cost, 0) as inventory_cost,
                COALESCE(sol.core_charge, 0) as line_exchange_fee,
                i.serial_number as inventory_serial,
-               i.msn_esn as inventory_msn_esn
+               i.msn_esn as inventory_msn_esn,
+               sol.serial_number as so_line_serial
         FROM exchange_master em
         JOIN customers c ON em.customer_id = c.id
         JOIN products p ON em.product_id = p.id
         LEFT JOIN sales_orders so ON em.sales_order_id = so.id
+        LEFT JOIN users so_creator ON so.created_by = so_creator.id
         LEFT JOIN sales_order_lines sol ON so.id = sol.so_id AND sol.product_id = em.product_id
         LEFT JOIN inventory i ON sol.inventory_id = i.id
-        LEFT JOIN users u ON em.created_by = u.id
         LEFT JOIN work_orders wo ON em.repair_work_order_id = wo.id
         WHERE em.id = ?
     ''', (exchange_id,)).fetchone()

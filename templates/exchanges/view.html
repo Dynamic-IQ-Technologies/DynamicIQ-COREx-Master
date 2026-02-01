@@ -82,7 +82,7 @@
                         <dt class="col-5">Product:</dt>
                         <dd class="col-7">{{ exchange.product_code }} - {{ exchange.product_name }}</dd>
                         <dt class="col-5">Shipped Serial:</dt>
-                        <dd class="col-7">{{ exchange.shipped_serial_number or exchange.allocated_serial or exchange.inventory_serial or exchange.inventory_msn_esn or '-' }}</dd>
+                        <dd class="col-7">{{ exchange.so_line_serial or exchange.shipped_serial_number or exchange.allocated_serial or exchange.inventory_serial or exchange.inventory_msn_esn or '-' }}</dd>
                         <dt class="col-5">Expected Core:</dt>
                         <dd class="col-7">{{ exchange.expected_core_serial or 'Any' }}</dd>
                         <dt class="col-5">Exchange Type:</dt>
