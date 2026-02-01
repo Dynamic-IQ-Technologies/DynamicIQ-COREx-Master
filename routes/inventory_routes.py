@@ -55,12 +55,15 @@ def list_inventory():
     ''').fetchall()
     
     # Build query with filters
-    # Use inventory.unit_cost if set, otherwise fall back to product cost
+    # Use repair_cost if available (for work order items), otherwise use unit_cost or product cost
     query = '''
         SELECT i.*, p.code, p.name, p.unit_of_measure, p.is_serialized,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
                COALESCE(i.repair_cost, 0) as repair_cost,
-               (i.quantity * (COALESCE(i.unit_cost, p.cost, 0) + COALESCE(i.repair_cost, 0))) as inventory_value
+               (i.quantity * CASE 
+                   WHEN COALESCE(i.repair_cost, 0) > 0 THEN COALESCE(i.repair_cost, 0)
+                   ELSE COALESCE(i.unit_cost, p.cost, 0)
+               END) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE 1=1
@@ -121,13 +124,16 @@ def view_inventory(id):
     conn = db.get_connection()
     
     # Get inventory details with product information and cost
-    # Use inventory.unit_cost if set, otherwise fall back to product cost
+    # Use repair_cost if available (for work order items), otherwise use unit_cost or product cost
     inventory = conn.execute('''
         SELECT i.*, p.code, p.name, p.description, p.unit_of_measure, p.product_type,
                p.product_category as stock_category,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
                COALESCE(i.repair_cost, 0) as repair_cost,
-               (i.quantity * (COALESCE(i.unit_cost, p.cost, 0) + COALESCE(i.repair_cost, 0))) as inventory_value
+               (i.quantity * CASE 
+                   WHEN COALESCE(i.repair_cost, 0) > 0 THEN COALESCE(i.repair_cost, 0)
+                   ELSE COALESCE(i.unit_cost, p.cost, 0)
+               END) as inventory_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         WHERE i.id = ?
