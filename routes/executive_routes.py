@@ -137,6 +137,14 @@ def dashboard():
     '''
     inventory_value = conn.execute(inventory_value_query).fetchone()['inventory_value']
     
+    # KPI 7b: Tools Value
+    tools_value_query = '''
+        SELECT COALESCE(SUM(COALESCE(purchase_cost, 0)), 0) as tools_value
+        FROM tools
+        WHERE status != 'Retired'
+    '''
+    tools_value = conn.execute(tools_value_query).fetchone()['tools_value']
+    
     # Period-based KPIs
     # KPI 8: A/P Payments Made During Period (from vendor_invoices paid during period)
     ap_payments_params = [start_date, end_date]
@@ -387,6 +395,7 @@ def dashboard():
                          cash_balance=cash_balance,
                          net_income=net_income,
                          inventory_value=inventory_value,
+                         tools_value=tools_value,
                          ap_payments=ap_payments,
                          ar_billed=ar_billed,
                          ar_invoice_count=ar_invoice_count,

@@ -88,7 +88,7 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card h-100 border-warning">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Accounts Payable (Open)</h6>
@@ -102,7 +102,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card h-100 border-info">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Cash on Hand</h6>
@@ -116,7 +116,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card h-100 border-secondary">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Inventory Value</h6>
@@ -125,6 +125,20 @@
                     <div class="mt-2">
                         <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-arrow-right"></i> View Inventory
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-dark">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Tools Value</h6>
+                    <h3 class="card-title text-dark mb-0">{{ tools_value|currency }}</h3>
+                    <small class="text-muted">Active tools & equipment</small>
+                    <div class="mt-2">
+                        <a href="{{ url_for('tools_routes.list_tools') }}" class="btn btn-sm btn-outline-dark">
+                            <i class="bi bi-arrow-right"></i> View Tools
                         </a>
                     </div>
                 </div>
