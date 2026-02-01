@@ -937,6 +937,13 @@ def receive_purchaseorder(id):
             conn.close()
             return redirect(url_for('po_routes.list_purchaseorders'))
         
+        # Check if product is serialized and requires serial number
+        product_check = conn.execute('SELECT is_serialized FROM products WHERE id = ?', (product_id,)).fetchone()
+        if product_check and product_check['is_serialized'] and not serial_number:
+            flash('Serial number is required for serialized products', 'danger')
+            conn.close()
+            return redirect(url_for('po_routes.view_purchaseorder', id=id))
+        
         if quantity_received <= 0:
             flash('Quantity received must be greater than 0', 'danger')
             conn.close()
@@ -1146,6 +1153,11 @@ def api_quick_receive_po_line(po_id, line_id):
         
         if not bin_location:
             return jsonify({'success': False, 'error': 'Bin location is required'}), 400
+        
+        # Check if product is serialized and requires serial number
+        product = conn.execute('SELECT is_serialized FROM products WHERE id = ?', (po_line['product_id'],)).fetchone()
+        if product and product['is_serialized'] and not serial_number:
+            return jsonify({'success': False, 'error': 'Serial number is required for serialized products'}), 400
         
         ordered_qty = po_line['quantity'] or 0
         already_received = po_line['received_quantity'] or 0
