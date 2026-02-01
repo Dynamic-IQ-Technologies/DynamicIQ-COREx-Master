@@ -1070,6 +1070,20 @@
                 </a>
             </li>
             {% endif %}
+            {% if session.role == 'Admin' or user_permissions.get('menu_accounting', 1) == 1 %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ap_routes.list_ap') }}">
+                    <i class="bi bi-receipt"></i>
+                    <span>A/P Management</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('ar_routes.list_ar') }}">
+                    <i class="bi bi-cash-coin"></i>
+                    <span>A/R Management</span>
+                </a>
+            </li>
+            {% endif %}
             {% if session.role == 'Admin' or user_permissions.get('menu_financial_reports', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('financial_reports_routes.trial_balance') }}">
