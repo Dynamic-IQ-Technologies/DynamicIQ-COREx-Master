@@ -1109,7 +1109,7 @@ def receive_purchaseorder(id):
                     }
                 ]
                 
-                GLAutoPost.create_auto_journal_entry(
+                gl_entry_id = GLAutoPost.create_auto_journal_entry(
                     conn=conn,
                     entry_date=receipt_date,
                     description=f'Inventory Receiving - {receipt_number} - {product_desc}',
@@ -1119,6 +1119,51 @@ def receive_purchaseorder(id):
                     lines=gl_lines,
                     created_by=session.get('user_id')
                 )
+                
+                # Auto-create Accounts Payable (Vendor Invoice) record
+                if gl_entry_id:
+                    # Generate unique AP number
+                    last_ap = conn.execute('''
+                        SELECT invoice_number FROM vendor_invoices 
+                        WHERE invoice_number LIKE 'AP-%'
+                        ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
+                        LIMIT 1
+                    ''').fetchone()
+                    
+                    if last_ap:
+                        try:
+                            last_number = int(last_ap['invoice_number'].split('-')[1])
+                            next_number = last_number + 1
+                        except (ValueError, IndexError):
+                            next_number = 1
+                    else:
+                        next_number = 1
+                    
+                    ap_number = f'AP-{next_number:07d}'
+                    
+                    # Calculate due date (30 days from receipt)
+                    from datetime import timedelta
+                    receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
+                    due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+                    
+                    conn.execute('''
+                        INSERT INTO vendor_invoices 
+                        (invoice_number, vendor_id, po_id, invoice_date, due_date, 
+                         amount, tax_amount, total_amount, amount_paid, status, gl_entry_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        ap_number,
+                        po['supplier_id'],
+                        id,
+                        receipt_date,
+                        due_date,
+                        total_value,
+                        0,
+                        total_value,
+                        0,
+                        'Pending Invoice',
+                        gl_entry_id
+                    ))
         
         # Update purchase order
         new_received = (po['received_quantity'] or 0) + quantity_received
