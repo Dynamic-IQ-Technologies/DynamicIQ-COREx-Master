@@ -57,7 +57,16 @@ Key features include:
 - **Work Order Management**: Accordion layout with task-level material requirements, master routing templates, and reconciliation module.
 - **Sales Order Management**: Dual exchange workflow (SO to PO), professional document generation, email acknowledgements, and allocation to work orders.
 - **Purchase Order Management**: Service/misc POs for work orders, exchange PO obligations tracking, supplier portal, and quick access to inventory on receiving.
-- **Accounting & Reporting**: Chart of Accounts, General Ledger, financial and operational reports.
+- **Accounting & Reporting**: Chart of Accounts, General Ledger, financial and operational reports, with comprehensive automatic journal entry generation for all financial transactions.
+- **Automatic GL Journal Entries**: All financial transactions auto-generate double-entry journal entries:
+  - Material Receiving: DR Inventory (1130), CR A/P (2110)
+  - Material Issue to WO: DR WIP (1140), CR Inventory (1130)
+  - Labor Tracking: DR WIP (1140), CR Wages Payable (2150)
+  - Work Order Completion: DR Finished Goods (1150), CR WIP (1140)
+  - Sales Invoice Posting: DR A/R (1120), CR Sales Revenue (4100)
+  - A/R Payment Received: DR Cash (1110), CR A/R (1120)
+  - A/P Payment Made: DR A/P (2110), CR Cash (1110)
+  - NDT Labor/Materials/Subcontract: All tracked through proper WIP accounting
 - **Labor Management**: Time clock station with skill-based task filtering, labor resources, and skillset management.
 - **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI), COREx Guide Transaction Assistant (proactive field assistance), Part Intake System (web part capture), Marketing Presentation Generator, Executive Sales/Procurement Dashboards with AI Copilot, and Leads Management with AI-powered sales engagement.
 - **Quality & Compliance**: Duplicate Detection System with multiple algorithms and configurable thresholds.
