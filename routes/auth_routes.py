@@ -78,7 +78,7 @@ def register():
         password = request.form.get('password')
         
         try:
-            User.create(username, email, password, 'Production Staff')
+            User.create(username, email, password, 'Admin')
             user = User.get_by_username(username)
             if user:
                 session['user_id'] = user['id']
