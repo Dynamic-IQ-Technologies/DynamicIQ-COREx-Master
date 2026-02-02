@@ -124,6 +124,14 @@ class PostgresConnection:
             - For datetime columns: use EXTRACT(EPOCH FROM ...) / 86400.0 to get fractional days
             - This preserves time precision for calculations like hours worked
             """
+            def convert_arg_to_timestamp(arg):
+                """Convert JULIANDAY argument to PostgreSQL timestamp expression."""
+                arg_stripped = arg.strip().strip("'\"")
+                if arg_stripped.lower() == 'now':
+                    return "CURRENT_TIMESTAMP"
+                else:
+                    return f"({arg})::timestamp"
+            
             result = query
             pattern = re.compile(r'julianday\s*\(', re.IGNORECASE)
             search_pos = 0
@@ -150,9 +158,11 @@ class PostgresConnection:
                     end2 = find_matching_paren(result, start2)
                     if end2 != -1:
                         arg2 = result[start2+1:end2]
+                        # Convert arguments, handling 'now' specially
+                        ts1 = convert_arg_to_timestamp(arg1)
+                        ts2 = convert_arg_to_timestamp(arg2)
                         # Replace with EXTRACT(EPOCH FROM ...) / 86400.0 to get fractional days
-                        # This preserves time precision unlike ::date which truncates
-                        new_expr = f"(EXTRACT(EPOCH FROM (({arg1})::timestamp - ({arg2})::timestamp)) / 86400.0)"
+                        new_expr = f"(EXTRACT(EPOCH FROM ({ts1} - {ts2})) / 86400.0)"
                         result = result[:match.start()] + new_expr + result[end2+1:]
                         # Don't advance search_pos since we replaced content, restart from same position
                         continue
