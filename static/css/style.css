@@ -865,6 +865,8 @@ h2, h3, h4, h5, h6 {
 .gm-current-field {
     position: relative;
     z-index: 10;
+    pointer-events: auto !important;
+    opacity: 1 !important;
 }
 
 .gm-current-field input,
@@ -872,6 +874,12 @@ h2, h3, h4, h5, h6 {
 .gm-current-field textarea {
     position: relative;
     z-index: 15;
+    pointer-events: auto !important;
+}
+
+/* Ensure highlighted inputs are always interactive */
+.gm-input-highlight {
+    pointer-events: auto !important;
 }
 
 .gm-field-highlight {
