@@ -14,6 +14,40 @@ def health_check():
     """Lightweight health check endpoint for deployment"""
     return jsonify({"status": "healthy"}), 200
 
+@main_bp.route('/dashboard-diagnostic')
+@login_required
+def dashboard_diagnostic():
+    """Diagnostic endpoint to identify failing dashboard queries"""
+    db = Database()
+    conn = db.get_connection()
+    results = {}
+    
+    queries = {
+        'products_count': 'SELECT COUNT(*) as count FROM products',
+        'suppliers_count': 'SELECT COUNT(*) as count FROM suppliers', 
+        'customers_count': 'SELECT COUNT(*) as count FROM customers',
+        'wo_stats': "SELECT COUNT(*) as total FROM work_orders",
+        'so_stats': "SELECT COUNT(*) as total FROM sales_orders",
+        'po_stats': "SELECT COUNT(*) as total FROM purchase_orders",
+        'inventory_stats': "SELECT COUNT(*) as total FROM inventory",
+        'invoice_stats': "SELECT COUNT(*) as total FROM invoices",
+        'vi_stats': "SELECT COUNT(*) as total FROM vendor_invoices",
+        'swo_stats': "SELECT COUNT(*) as total FROM service_work_orders",
+        'shipment_stats': "SELECT COUNT(*) as total FROM shipments",
+        'labor_resources': "SELECT COUNT(*) as count FROM labor_resources WHERE status = 'Active'",
+        'time_clock': "SELECT COUNT(*) as count FROM time_clock_punches",
+    }
+    
+    for name, query in queries.items():
+        try:
+            result = conn.execute(query).fetchone()
+            results[name] = {'status': 'OK', 'result': dict(result) if result else None}
+        except Exception as e:
+            results[name] = {'status': 'ERROR', 'error': str(e)}
+    
+    conn.close()
+    return jsonify(results)
+
 @main_bp.route('/')
 def root():
     """Root endpoint - handles health checks and redirects to dashboard"""
@@ -24,6 +58,9 @@ def root():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
+    import logging
+    logger = logging.getLogger('dashboard')
+    
     db = Database()
     conn = db.get_connection()
     mrp = MRPEngine()
@@ -31,10 +68,14 @@ def dashboard():
     today = datetime.now().strftime('%Y-%m-%d')
     thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     
-    # === CORE COUNTS ===
-    products_count = conn.execute('SELECT COUNT(*) as count FROM products').fetchone()['count']
-    suppliers_count = conn.execute('SELECT COUNT(*) as count FROM suppliers').fetchone()['count']
-    customers_count = conn.execute('SELECT COUNT(*) as count FROM customers').fetchone()['count']
+    try:
+        # === CORE COUNTS ===
+        products_count = conn.execute('SELECT COUNT(*) as count FROM products').fetchone()['count']
+        suppliers_count = conn.execute('SELECT COUNT(*) as count FROM suppliers').fetchone()['count']
+        customers_count = conn.execute('SELECT COUNT(*) as count FROM customers').fetchone()['count']
+    except Exception as e:
+        logger.error(f"Dashboard core counts query failed: {e}")
+        raise
     
     # === WORK ORDERS (PRODUCTION) ===
     wo_stats = conn.execute('''
