@@ -424,12 +424,13 @@ const SystemGuidedMode = {
         step.input.removeEventListener('blur', step._validateHandler);
         step.input.removeEventListener('change', step._validateHandler);
         
-        step._validateHandler = () => this.validateField(step);
+        // Use skipFeedback=true for blur/change to prevent duplicate messages when Next is clicked
+        step._validateHandler = () => this.validateField(step, true);
         step.input.addEventListener('blur', step._validateHandler);
         step.input.addEventListener('change', step._validateHandler);
     },
     
-    validateField: function(step) {
+    validateField: function(step, skipFeedback = false) {
         const value = step.input.value;
         let error = null;
         
@@ -439,23 +440,29 @@ const SystemGuidedMode = {
             error = step.validation(value);
         }
         
-        // Remove ALL existing feedback elements for this step (not just the first one)
+        // Remove ALL existing feedback elements for this step
         step.element.querySelectorAll('.gm-validation-feedback').forEach(el => el.remove());
         
         if (error) {
-            const feedback = document.createElement('div');
-            feedback.className = 'gm-validation-feedback error';
-            feedback.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${error}`;
-            step.element.appendChild(feedback);
+            if (!skipFeedback) {
+                const feedback = document.createElement('div');
+                feedback.className = 'gm-validation-feedback error';
+                feedback.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${error}`;
+                step.element.appendChild(feedback);
+            }
             step.input.classList.add('is-invalid');
+            step.input.classList.remove('is-valid');
             return false;
         } else if (value.trim()) {
             step.input.classList.remove('is-invalid');
             step.input.classList.add('is-valid');
-            const feedback = document.createElement('div');
-            feedback.className = 'gm-validation-feedback success';
-            feedback.innerHTML = `<i class="bi bi-check-circle"></i> Valid`;
-            step.element.appendChild(feedback);
+            // Only show success feedback if not already showing (check for is-valid class set by previous validation)
+            if (!skipFeedback) {
+                const feedback = document.createElement('div');
+                feedback.className = 'gm-validation-feedback success';
+                feedback.innerHTML = `<i class="bi bi-check-circle"></i> Valid`;
+                step.element.appendChild(feedback);
+            }
             return true;
         }
         
