@@ -334,6 +334,129 @@ def main():
             pg_conn.rollback()
             print(f"    Warning: {e}")
     
+    # Create engine tables (AI executor, performance profiler, event engine)
+    print("\n  Creating engine tables...")
+    engine_tables_sql = [
+        '''CREATE TABLE IF NOT EXISTS execution_modifications (
+            id TEXT PRIMARY KEY,
+            chain_id TEXT NOT NULL,
+            hint_type TEXT NOT NULL,
+            target_entity TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            parameters TEXT,
+            risk_score DECIMAL(10,4) NOT NULL,
+            confidence DECIMAL(10,4) NOT NULL,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP,
+            effectiveness_score DECIMAL(10,4),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS risk_vectors (
+            id SERIAL PRIMARY KEY,
+            chain_id TEXT NOT NULL UNIQUE,
+            event_frequency DECIMAL(10,4),
+            failure_rate DECIMAL(10,4),
+            average_processing_time DECIMAL(10,4),
+            dependency_depth INTEGER,
+            overdue_probability DECIMAL(10,4),
+            resource_contention DECIMAL(10,4),
+            computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS ai_learning_data (
+            id SERIAL PRIMARY KEY,
+            modification_id TEXT NOT NULL,
+            predicted_outcome TEXT,
+            actual_outcome TEXT,
+            feedback_score DECIMAL(10,4),
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS performance_metrics (
+            id SERIAL PRIMARY KEY,
+            metric_type TEXT NOT NULL,
+            metric_name TEXT NOT NULL,
+            value DECIMAL(18,4) NOT NULL,
+            unit TEXT,
+            context TEXT,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS latency_comparisons (
+            id SERIAL PRIMARY KEY,
+            operation TEXT NOT NULL,
+            baseline_ms DECIMAL(10,4) NOT NULL,
+            optimized_ms DECIMAL(10,4) NOT NULL,
+            improvement_percent DECIMAL(10,4) NOT NULL,
+            sample_count INTEGER NOT NULL,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS performance_snapshots (
+            id SERIAL PRIMARY KEY,
+            snapshot_type TEXT NOT NULL,
+            snapshot_data TEXT NOT NULL,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS processed_events (
+            id SERIAL PRIMARY KEY,
+            event_id TEXT UNIQUE NOT NULL,
+            idempotency_key TEXT UNIQUE NOT NULL,
+            chain_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            prev_hash TEXT,
+            event_hash TEXT NOT NULL,
+            sequence_number INTEGER NOT NULL,
+            processing_status TEXT NOT NULL,
+            processing_time_ms DECIMAL(10,4),
+            result TEXT,
+            error TEXT,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS event_replay_cursors (
+            id SERIAL PRIMARY KEY,
+            chain_id TEXT UNIQUE NOT NULL,
+            last_sequence INTEGER NOT NULL DEFAULT 0,
+            last_event_hash TEXT,
+            last_replay_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS idempotency_registry (
+            id SERIAL PRIMARY KEY,
+            idempotency_key TEXT UNIQUE NOT NULL,
+            event_id TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP
+        )'''
+    ]
+    
+    for sql in engine_tables_sql:
+        try:
+            pg_cur.execute(sql)
+            pg_conn.commit()
+        except Exception as e:
+            pg_conn.rollback()
+            print(f"    Warning: {e}")
+    
+    # Create indexes
+    print("\n  Creating indexes...")
+    indexes = [
+        'CREATE INDEX IF NOT EXISTS idx_mods_chain ON execution_modifications(chain_id)',
+        'CREATE INDEX IF NOT EXISTS idx_mods_expires ON execution_modifications(expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_risk_chain ON risk_vectors(chain_id)',
+        'CREATE INDEX IF NOT EXISTS idx_perf_type ON performance_metrics(metric_type)',
+        'CREATE INDEX IF NOT EXISTS idx_perf_recorded ON performance_metrics(recorded_at)',
+        'CREATE INDEX IF NOT EXISTS idx_latency_op ON latency_comparisons(operation)',
+        'CREATE INDEX IF NOT EXISTS idx_events_chain ON processed_events(chain_id)',
+        'CREATE INDEX IF NOT EXISTS idx_events_sequence ON processed_events(sequence_number)',
+        'CREATE INDEX IF NOT EXISTS idx_events_type ON processed_events(event_type)',
+        'CREATE INDEX IF NOT EXISTS idx_idempotency ON idempotency_registry(idempotency_key)'
+    ]
+    
+    for idx_sql in indexes:
+        try:
+            pg_cur.execute(idx_sql)
+            pg_conn.commit()
+        except Exception as e:
+            pg_conn.rollback()
+    
     print(f"\n[3/4] Migrating data...")
     total_migrated = 0
     for table in tables:
