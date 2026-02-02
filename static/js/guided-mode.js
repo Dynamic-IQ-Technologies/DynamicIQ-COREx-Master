@@ -439,8 +439,8 @@ const SystemGuidedMode = {
             error = step.validation(value);
         }
         
-        const existingFeedback = step.element.querySelector('.gm-validation-feedback');
-        if (existingFeedback) existingFeedback.remove();
+        // Remove ALL existing feedback elements for this step (not just the first one)
+        step.element.querySelectorAll('.gm-validation-feedback').forEach(el => el.remove());
         
         if (error) {
             const feedback = document.createElement('div');
