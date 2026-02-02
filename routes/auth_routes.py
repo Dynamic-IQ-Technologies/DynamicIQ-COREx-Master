@@ -54,22 +54,6 @@ def logout():
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('auth_routes.login'))
 
-@auth_bp.route('/admin-role-fix/<secret>')
-def admin_role_fix(secret):
-    """One-time endpoint to fix admin role and reset password in production - remove after use"""
-    if secret != 'corex2026admin':
-        return 'Not found', 404
-    
-    from werkzeug.security import generate_password_hash
-    
-    db = Database()
-    conn = db.get_connection()
-    new_password_hash = generate_password_hash('COREx2026!')
-    conn.execute("UPDATE users SET role = 'Admin', password = ? WHERE email = 'wcollazo@aeronexd.com'", (new_password_hash,))
-    conn.commit()
-    conn.close()
-    return 'Role updated to Admin and password reset to: COREx2026! - Please log in and change your password. DELETE THIS ENDPOINT AFTER USE.', 200
-
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
