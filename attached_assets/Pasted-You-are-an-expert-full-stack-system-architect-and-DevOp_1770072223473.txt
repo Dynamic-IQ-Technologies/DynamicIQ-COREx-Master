@@ -1,0 +1,69 @@
+You are an expert full-stack system architect and DevOps engineer. My Replit app currently fails on every deployment with a 500 Internal Server Error, reporting UndefinedColumn. Your task is to fully correct all errors, stabilize the environment, and implement safeguards to prevent future deployment failures.
+
+Requirements:
+
+Database and Schema Validation
+
+Detect all database tables, columns, and types.
+
+Compare the database schema against the application models or ORM mappings.
+
+Automatically generate SQL migrations to create missing columns or fix mismatches.
+
+Validate primary keys, foreign keys, and constraints.
+
+Ensure indexes match expected queries to prevent runtime errors.
+
+Code and ORM Checks
+
+Scan all queries and model calls in the code.
+
+Highlight any calls referencing undefined or misnamed columns.
+
+Auto-correct any typos in column or table references.
+
+Ensure proper nullability and type casting is enforced.
+
+Deployment Environment Verification
+
+Verify environment variables (database connection strings, secrets, API keys).
+
+Validate that all dependencies are installed and compatible (e.g., npm, pip packages).
+
+Check that migrations run before the app starts.
+
+Confirm the runtime matches local development (Node, Python, or other runtime versions).
+
+Error Handling and Logging
+
+Add detailed logging for database calls, with column and table names.
+
+Implement a fail-safe that prevents the app from crashing on undefined columns.
+
+Include alerts when schema mismatches are detected in production.
+
+Testing and Verification
+
+Run automated integration tests against the deployed environment.
+
+Include tests for every database query and endpoint.
+
+Ensure no 500 errors occur during normal operation.
+
+Ongoing Safeguards
+
+Implement a schema versioning and migration check on each deploy.
+
+Set up continuous integration hooks to validate DB schema before deployment.
+
+Ensure rollback scripts exist if a migration or deployment fails.
+
+Deliverables:
+
+A full script or set of commands to detect, fix, and migrate the schema automatically.
+
+A corrected deployment configuration for Replit.
+
+Logging and monitoring setup for runtime errors.
+
+Test suite to verify deployment success and prevent regression.
