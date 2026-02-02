@@ -191,19 +191,34 @@ def dashboard():
         SELECT COUNT(*) as count FROM labor_resources WHERE status = 'Active'
     ''').fetchone()['count']
     
-    clocked_in_today = conn.execute('''
-        SELECT COUNT(DISTINCT t1.employee_id) as count 
-        FROM time_clock_punches t1
-        WHERE DATE(t1.punch_time) = DATE('now') 
-        AND t1.punch_type = 'Clock In'
-        AND NOT EXISTS (
-            SELECT 1 FROM time_clock_punches t2 
-            WHERE t2.employee_id = t1.employee_id 
-            AND t2.punch_type = 'Clock Out' 
-            AND t2.punch_time > t1.punch_time
-            AND DATE(t2.punch_time) = DATE('now')
-        )
-    ''').fetchone()['count']
+    if USE_POSTGRES:
+        clocked_in_today = conn.execute('''
+            SELECT COUNT(DISTINCT t1.employee_id) as count 
+            FROM time_clock_punches t1
+            WHERE DATE(t1.punch_time) = CURRENT_DATE 
+            AND t1.punch_type = 'Clock In'
+            AND NOT EXISTS (
+                SELECT 1 FROM time_clock_punches t2 
+                WHERE t2.employee_id = t1.employee_id 
+                AND t2.punch_type = 'Clock Out' 
+                AND t2.punch_time > t1.punch_time
+                AND DATE(t2.punch_time) = CURRENT_DATE
+            )
+        ''').fetchone()['count']
+    else:
+        clocked_in_today = conn.execute('''
+            SELECT COUNT(DISTINCT t1.employee_id) as count 
+            FROM time_clock_punches t1
+            WHERE DATE(t1.punch_time) = DATE('now') 
+            AND t1.punch_type = 'Clock In'
+            AND NOT EXISTS (
+                SELECT 1 FROM time_clock_punches t2 
+                WHERE t2.employee_id = t1.employee_id 
+                AND t2.punch_type = 'Clock Out' 
+                AND t2.punch_time > t1.punch_time
+                AND DATE(t2.punch_time) = DATE('now')
+            )
+        ''').fetchone()['count']
     
     # === SHORTAGE ITEMS ===
     shortage_items = mrp.get_shortage_items()
