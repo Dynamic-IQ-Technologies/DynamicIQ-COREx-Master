@@ -16,25 +16,35 @@ def health_check():
 
 @main_bp.route('/dashboard-diagnostic')
 def dashboard_diagnostic():
-    """Diagnostic endpoint to identify failing dashboard queries - NO AUTH REQUIRED for debugging"""
-    db = Database()
-    conn = db.get_connection()
-    results = {'db_type': 'postgres' if os.environ.get('DATABASE_URL') else 'sqlite'}
+    """Diagnostic endpoint - NO AUTH REQUIRED for debugging"""
+    import traceback
+    results = {
+        'database_url_exists': bool(os.environ.get('DATABASE_URL')),
+        'is_production': os.environ.get('REPLIT_DEPLOYMENT') == '1'
+    }
+    
+    try:
+        db = Database()
+        results['db_init'] = 'OK'
+    except Exception as e:
+        results['db_init'] = f'ERROR: {str(e)}'
+        return jsonify(results)
+    
+    try:
+        conn = db.get_connection()
+        results['db_connection'] = 'OK'
+        results['use_postgres'] = db.use_postgres
+    except Exception as e:
+        results['db_connection'] = f'ERROR: {str(e)}'
+        results['traceback'] = traceback.format_exc()
+        return jsonify(results)
     
     queries = {
+        'simple_test': 'SELECT 1 as test',
         'products_count': 'SELECT COUNT(*) as count FROM products',
         'suppliers_count': 'SELECT COUNT(*) as count FROM suppliers', 
         'customers_count': 'SELECT COUNT(*) as count FROM customers',
         'wo_stats': "SELECT COUNT(*) as total FROM work_orders",
-        'so_stats': "SELECT COUNT(*) as total FROM sales_orders",
-        'po_stats': "SELECT COUNT(*) as total FROM purchase_orders",
-        'inventory_stats': "SELECT COUNT(*) as total FROM inventory",
-        'invoice_stats': "SELECT COUNT(*) as total FROM invoices",
-        'vi_stats': "SELECT COUNT(*) as total FROM vendor_invoices",
-        'swo_stats': "SELECT COUNT(*) as total FROM service_work_orders",
-        'shipment_stats': "SELECT COUNT(*) as total FROM shipments",
-        'labor_resources': "SELECT COUNT(*) as count FROM labor_resources WHERE status = 'Active'",
-        'time_clock': "SELECT COUNT(*) as count FROM time_clock_punches",
     }
     
     for name, query in queries.items():
@@ -42,9 +52,12 @@ def dashboard_diagnostic():
             result = conn.execute(query).fetchone()
             results[name] = {'status': 'OK', 'result': dict(result) if result else None}
         except Exception as e:
-            results[name] = {'status': 'ERROR', 'error': str(e)}
+            results[name] = {'status': 'ERROR', 'error': str(e), 'traceback': traceback.format_exc()}
     
-    conn.close()
+    try:
+        conn.close()
+    except:
+        pass
     return jsonify(results)
 
 @main_bp.route('/')
