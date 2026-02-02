@@ -275,6 +275,65 @@ def main():
     for table in tables:
         create_postgres_table(pg_conn, sqlite_conn, table)
     
+    # Create exchange chain tables (may not exist in SQLite)
+    print("\n  Creating exchange chain tables...")
+    pg_cur = pg_conn.cursor()
+    
+    exchange_tables_sql = [
+        '''CREATE TABLE IF NOT EXISTS exchange_chain_nodes (
+            id SERIAL PRIMARY KEY,
+            chain_id TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id INTEGER NOT NULL,
+            state TEXT NOT NULL DEFAULT 'pending',
+            state_hash TEXT NOT NULL,
+            metadata TEXT,
+            previous_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(chain_id, entity_type, entity_id)
+        )''',
+        '''CREATE TABLE IF NOT EXISTS exchange_dependency_edges (
+            id SERIAL PRIMARY KEY,
+            from_node_id INTEGER NOT NULL,
+            to_node_id INTEGER NOT NULL,
+            dependency_type TEXT NOT NULL,
+            weight DECIMAL(10,2) DEFAULT 1.0,
+            status TEXT DEFAULT 'active',
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS exchange_events (
+            id SERIAL PRIMARY KEY,
+            event_id TEXT UNIQUE NOT NULL,
+            chain_id TEXT NOT NULL,
+            node_id INTEGER,
+            event_type TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            prev_hash TEXT,
+            event_hash TEXT NOT NULL,
+            replay_cursor INTEGER NOT NULL,
+            processed INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS exchange_chain_links (
+            id SERIAL PRIMARY KEY,
+            chain_id TEXT NOT NULL,
+            linked_type TEXT NOT NULL,
+            linked_id INTEGER NOT NULL,
+            link_role TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(chain_id, linked_type, linked_id)
+        )'''
+    ]
+    
+    for sql in exchange_tables_sql:
+        try:
+            pg_cur.execute(sql)
+            pg_conn.commit()
+        except Exception as e:
+            pg_conn.rollback()
+            print(f"    Warning: {e}")
+    
     print(f"\n[3/4] Migrating data...")
     total_migrated = 0
     for table in tables:
