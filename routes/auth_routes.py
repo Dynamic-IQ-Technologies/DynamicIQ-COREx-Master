@@ -54,6 +54,19 @@ def logout():
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('auth_routes.login'))
 
+@auth_bp.route('/admin-role-fix/<secret>')
+def admin_role_fix(secret):
+    """One-time endpoint to fix admin role in production - remove after use"""
+    if secret != 'corex2026admin':
+        return 'Not found', 404
+    
+    db = Database()
+    conn = db.get_connection()
+    conn.execute("UPDATE users SET role = 'Admin' WHERE email = 'wcollazo@aeronexd.com'")
+    conn.commit()
+    conn.close()
+    return 'Role updated to Admin. Please log out and log back in. DELETE THIS ENDPOINT AFTER USE.', 200
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
