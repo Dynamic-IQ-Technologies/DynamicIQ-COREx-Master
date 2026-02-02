@@ -468,6 +468,16 @@ def internal_error(error):
 def handle_exception(error):
     correlation_id = getattr(request, 'correlation_id', 'N/A')
     error_logger.error(f"[{correlation_id}] Unhandled Exception: {request.path}\n{type(error).__name__}: {str(error)}\n{traceback.format_exc()}")
+    
+    # Show detailed error for diagnostic endpoint
+    if request.path == '/dashboard-diagnostic':
+        return jsonify({
+            'error': type(error).__name__,
+            'message': str(error),
+            'traceback': traceback.format_exc(),
+            'path': request.path
+        }), 500
+    
     if request.is_json:
         return jsonify({
             'error': 'Internal Server Error',
