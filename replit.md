@@ -73,6 +73,25 @@ Production monitoring endpoints:
 - **Error Logging**: Full stack traces with correlation IDs logged to `error_handler` logger
 - **Utilities Module**: `utils/error_handler.py` provides reusable validation and error handling functions
 
+### Production Query Validator (utils/production_query_validator.py)
+
+Pre-deployment validation tool to catch PostgreSQL compatibility issues:
+- Run `python utils/production_query_validator.py` before deploying to production
+- Detects issues NOT handled by PostgresTranslatingCursor:
+  - NULL comparisons with boolean columns (`is_core = 0` when column may be NULL)
+  - Column name mismatches (`sales_order_id` vs `so_id` in sales_order_lines)
+  - IFNULL function (use COALESCE instead)
+- Note: SQLite functions like `datetime('now')`, `julianday()`, `strftime()`, `GROUP_CONCAT()` are auto-translated
+
+**Critical PostgreSQL NULL Handling Rules:**
+- In PostgreSQL, `NULL = 0` returns NULL (not TRUE), causing WHERE clauses to fail
+- For nullable boolean columns, use: `COALESCE(column, 0) = 0` or `(column IS NULL OR column = 0)`
+- Affected columns in this codebase: `is_core`, `is_replacement` in sales_order_lines
+
+**Schema Reference - sales_order_lines:**
+- Foreign key to sales_orders: `so_id` (NOT `sales_order_id`)
+- Nullable boolean fields: `is_core`, `is_replacement`
+
 Key features include:
 - **Inventory Management**: Real-time tracking, alerts, FAA-compliant labels, and cost transfer system.
 - **Work Order Management**: Accordion layout with task-level material requirements, master routing templates, and reconciliation module.
