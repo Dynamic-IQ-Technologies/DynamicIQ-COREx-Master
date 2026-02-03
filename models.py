@@ -399,7 +399,7 @@ class PostgresCursor:
     def __init__(self, cursor, conn):
         self._cursor = cursor
         self._conn = conn
-        self.lastrowid = None
+        self._lastrowid = None
     
     def _convert_row(self, row):
         """Convert Decimal values to float in a row dictionary"""
