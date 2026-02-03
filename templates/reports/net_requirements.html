@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Net Material Requirements - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-calculator me-2"></i>Net Material Requirements</h2>
+            <p class="text-muted mb-0">Consolidated demand from Sales Orders and Work Orders</p>
+        </div>
+        <div>
+            <a href="{{ url_for('report_routes.material_requirements_report') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Traditional MRP View
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ total_items }}</h3>
+                    <small>Total Items</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ total_shortages }}</h3>
+                    <small>Shortages</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "%.0f"|format(total_so_demand) }}</h3>
+                    <small>Sales Demand</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "%.0f"|format(total_wo_demand) }}</h3>
+                    <small>WO Demand</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "%.0f"|format(total_demand) }}</h3>
+                    <small>Total Demand</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Material Requirements by Product</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterShortages()">
+                        <i class="bi bi-funnel me-1"></i>Show Shortages Only
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0" id="requirementsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th class="text-center">UOM</th>
+                            <th class="text-end text-info">SO Demand</th>
+                            <th class="text-end text-warning">WO Demand</th>
+                            <th class="text-end">Total Demand</th>
+                            <th class="text-end text-success">On Hand</th>
+                            <th class="text-end text-primary">Pending PO</th>
+                            <th class="text-end">Total Supply</th>
+                            <th class="text-end text-danger">Net Requirement</th>
+                            <th class="text-center">Status</th>
+                            <th>Earliest Need</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requirements %}
+                        <tr class="{{ 'table-danger' if req.status == 'Shortage' else '' }}" data-status="{{ req.status }}">
+                            <td><strong>{{ req.code }}</strong></td>
+                            <td>{{ req.name }}</td>
+                            <td class="text-center">{{ req.unit_of_measure or 'EA' }}</td>
+                            <td class="text-end text-info">
+                                {{ "%.2f"|format(req.sales_order_demand) }}
+                                {% if req.sales_order_count > 0 %}
+                                <small class="text-muted">({{ req.sales_order_count }} SO)</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end text-warning">
+                                {{ "%.2f"|format(req.work_order_demand) }}
+                                {% if req.work_order_count > 0 %}
+                                <small class="text-muted">({{ req.work_order_count }} WO)</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end"><strong>{{ "%.2f"|format(req.total_demand) }}</strong></td>
+                            <td class="text-end text-success">{{ "%.2f"|format(req.on_hand) }}</td>
+                            <td class="text-end text-primary">
+                                {{ "%.2f"|format(req.pending_po_qty) }}
+                                {% if req.pending_po_count > 0 %}
+                                <small class="text-muted">({{ req.pending_po_count }} PO)</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ "%.2f"|format(req.total_supply) }}</td>
+                            <td class="text-end">
+                                {% if req.net_requirement > 0 %}
+                                <span class="text-danger fw-bold">{{ "%.2f"|format(req.net_requirement) }}</span>
+                                {% else %}
+                                <span class="text-success">0.00</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if req.status == 'Shortage' %}
+                                <span class="badge bg-danger">Shortage</span>
+                                {% else %}
+                                <span class="badge bg-success">Adequate</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if req.earliest_need_date %}
+                                {{ req.earliest_need_date[:10] if req.earliest_need_date else '-' }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="12" class="text-center text-muted py-4">
+                                <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+                                No material requirements found. All orders are fulfilled or no active orders exist.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Understanding Net Requirements</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary">Demand Sources</h6>
+                    <ul class="small">
+                        <li><strong class="text-info">Sales Order Demand:</strong> Unfulfilled quantities from Confirmed, In Progress, or Pending sales orders</li>
+                        <li><strong class="text-warning">Work Order Demand:</strong> Materials required for Open, In Progress, or Released work orders (minus already issued)</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success">Supply Sources</h6>
+                    <ul class="small">
+                        <li><strong class="text-success">On Hand:</strong> Current inventory quantity</li>
+                        <li><strong class="text-primary">Pending PO:</strong> Quantities on order from Sent, Confirmed, or Approved purchase orders</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="alert alert-light border mt-3 mb-0">
+                <strong>Net Requirement</strong> = (Sales Demand + WO Demand) - (On Hand + Pending PO)
+                <br>
+                <small class="text-muted">A positive net requirement indicates a shortage that needs to be addressed through purchasing or production.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let showingShortagesOnly = false;
+
+function filterShortages() {
+    showingShortagesOnly = !showingShortagesOnly;
+    const rows = document.querySelectorAll('#requirementsTable tbody tr[data-status]');
+    
+    rows.forEach(row => {
+        if (showingShortagesOnly && row.dataset.status !== 'Shortage') {
+            row.style.display = 'none';
+        } else {
+            row.style.display = '';
+        }
+    });
+    
+    const btn = event.target.closest('button');
+    if (showingShortagesOnly) {
+        btn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Show All';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-secondary');
+    } else {
+        btn.innerHTML = '<i class="bi bi-funnel me-1"></i>Show Shortages Only';
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-outline-secondary');
+    }
+}
+</script>
+{% endblock %}

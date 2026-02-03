@@ -509,6 +509,31 @@ def material_requirements_report():
                          total_shortage_cost=total_shortage_cost,
                          shortages_by_product=shortages_by_product)
 
+@report_bp.route('/reports/net-requirements')
+@login_required
+def net_requirements_report():
+    """Consolidated net requirements including sales order demand"""
+    from mrp_logic import MRPEngine
+    
+    mrp = MRPEngine()
+    
+    requirements = mrp.calculate_net_requirements()
+    
+    total_items = len(requirements)
+    shortage_items = [r for r in requirements if r['status'] == 'Shortage']
+    total_shortages = len(shortage_items)
+    total_demand = sum(r['total_demand'] for r in requirements)
+    total_so_demand = sum(r['sales_order_demand'] for r in requirements)
+    total_wo_demand = sum(r['work_order_demand'] for r in requirements)
+    
+    return render_template('reports/net_requirements.html',
+                         requirements=requirements,
+                         total_items=total_items,
+                         total_shortages=total_shortages,
+                         total_demand=total_demand,
+                         total_so_demand=total_so_demand,
+                         total_wo_demand=total_wo_demand)
+
 @report_bp.route('/reports/material-requirements/export')
 @login_required
 def export_material_requirements():
