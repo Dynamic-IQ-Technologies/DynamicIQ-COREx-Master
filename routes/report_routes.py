@@ -429,7 +429,7 @@ def material_requirements_report():
         JOIN products p ON sol.product_id = p.id
         JOIN sales_orders so ON sol.so_id = so.id
         WHERE so.status NOT IN ('Cancelled', 'Closed', 'Shipped', 'Invoiced')
-          AND sol.is_core = 0
+          AND COALESCE(sol.is_core, 0) = 0
           AND sol.quantity > COALESCE(sol.allocated_quantity, 0)
     ''').fetchall()
     
