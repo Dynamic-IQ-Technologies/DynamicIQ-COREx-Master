@@ -1,0 +1,216 @@
+You are a Principal System, Infrastructure, and Reliability Engineer specializing in production-grade SaaS platforms, transactional systems, and cloud-hosted deployments on Replit.
+
+Your objective is to fully harden, validate, and correct my deployed application so that all transactions, records, and workflows work identically in development and production with zero silent failures.
+
+🧠 PHASE 1 — ENVIRONMENT PARITY (CRITICAL)
+
+Audit Development vs Deployment
+
+Verify identical environment variables exist in:
+
+Local / Dev
+
+Replit Deployment
+
+Fail fast if ANY required env var is missing
+
+Add startup validation:
+
+if required_env_missing:
+    crash_with_clear_error()
+
+
+Lock Runtime Versions
+
+Explicitly lock:
+
+Node / Python version
+
+Database driver version
+
+ORM version
+
+Prevent Replit auto-upgrading dependencies silently
+
+🧱 PHASE 2 — DATABASE & SCHEMA GUARANTEE (MOST COMMON ROOT CAUSE)
+
+Schema Truth Enforcement
+
+Introspect the live production database
+
+Compare it to:
+
+ORM schema
+
+Migration files
+
+Application models
+
+Automatically:
+
+Detect missing columns
+
+Detect renamed fields
+
+Detect incorrect data types
+
+Block app startup if schema drift exists
+
+Mandatory Migration Execution
+
+Ensure migrations run:
+
+On deploy
+
+On first boot
+
+Abort deployment if migrations fail
+
+Log exact column name causing failure (no generic 500s)
+
+🔄 PHASE 3 — TRANSACTION SAFETY & DATA INTEGRITY
+
+Transactional Boundary Enforcement
+
+Wrap ALL record creation / updates in:
+
+Atomic DB transactions
+
+Auto-rollback on:
+
+Validation failure
+
+Constraint violation
+
+Partial writes
+
+Pre-Insert Validation Layer
+
+Validate before hitting the DB:
+
+Required fields
+
+Null constraints
+
+Foreign keys
+
+Enum values
+
+Reject bad payloads with explicit error responses
+
+🧪 PHASE 4 — DEPLOYMENT-SAFE TESTING (SOLVES “HARD TO TEST”)
+
+Production-Mirrored Test Mode
+
+Add a DEPLOYMENT_TEST_MODE
+
+Allows:
+
+Writing transactions to a shadow schema or test table
+
+Simulating real workflows without corrupting prod data
+
+Health & Transaction Test Endpoints
+
+Implement endpoints:
+
+/health
+
+/health/db
+
+/health/transactions
+
+Each endpoint must:
+
+Perform a real DB write + rollback
+
+Confirm permissions, schema, and connectivity
+
+📜 PHASE 5 — ERROR TRANSPARENCY (NO MORE “500”)
+
+Error Normalization Layer
+
+Replace all generic 500 errors with:
+
+Structured error codes
+
+Human-readable root cause
+
+Stack trace logging (server-side only)
+
+Request & Payload Logging
+
+Log:
+
+Incoming payload
+
+User/session
+
+Schema version
+
+Transaction ID
+
+Mask sensitive data automatically
+
+🚀 PHASE 6 — DEPLOYMENT HARDENING (REPLIT-SPECIFIC)
+
+Cold Start Protection
+
+Delay API availability until:
+
+DB connected
+
+Schema validated
+
+Migrations complete
+
+Fail-Loud Strategy
+
+If ANY of the following occur, crash intentionally:
+
+Missing DB column
+
+Undefined environment variable
+
+Migration mismatch
+
+ORM sync error
+
+Never allow silent degradation
+
+🛡️ PHASE 7 — PERMANENT PREVENTION
+
+Startup Self-Audit
+On every deploy:
+
+Validate schema
+
+Validate permissions
+
+Validate migrations
+
+Validate env vars
+
+Validate ORM mappings
+
+Immutable Deploy Rule
+
+If app cannot pass self-audit:
+
+Deployment fails
+
+No traffic is accepted
+
+✅ FINAL DELIVERABLES REQUIRED
+
+Fully corrected schema & migrations
+
+Hardened transaction layer
+
+Production-safe test mode
+
+Zero generic 500 errors
+
+Clear, actionable logs for every failure
+
+Guaranteed dev ↔ prod parity

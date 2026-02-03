@@ -72,6 +72,7 @@ from routes.neuroiq_routes import neuroiq_bp
 from routes.corex_guide_routes import corex_guide_bp
 from routes.duplicate_detection_routes import duplicate_detection_bp
 from routes.unplanned_receipt_routes import unplanned_receipt_bp
+from routes.health_routes import health_bp
 import os
 
 app = Flask(__name__)
@@ -356,6 +357,7 @@ app.register_blueprint(neuroiq_bp)
 app.register_blueprint(corex_guide_bp)
 app.register_blueprint(duplicate_detection_bp)
 app.register_blueprint(unplanned_receipt_bp)
+app.register_blueprint(health_bp)
 
 @app.context_processor
 def inject_user():
@@ -549,6 +551,12 @@ def initialize_application():
         exchange_service.load_graph_from_database()
     except Exception as e:
         print(f"Warning: Could not load exchange graph: {e}")
+    
+    try:
+        from utils.production_hardening import run_production_startup
+        run_production_startup(app)
+    except Exception as e:
+        print(f"[Startup] Production hardening check: {e}")
 
 initialize_application()
 
