@@ -48,6 +48,27 @@ The system implements enterprise-grade error handling:
 - **Error Handler Decorators**: `@route_error_handler` and `@api_error_handler` for consistent error handling
 - **Safe Template Utilities**: Global Jinja functions (`safe_get`, `safe_int`, `safe_float`, `safe_str`, `coalesce`) for null-safe data access
 - **Startup Validation**: Environment variable checks at application startup
+
+### Production Hardening (utils/production_hardening.py)
+
+The system implements comprehensive production reliability measures:
+- **Environment Parity**: Validates required env vars (DATABASE_URL, SESSION_SECRET) on startup
+- **Schema Validation**: Checks critical tables exist with required columns
+- **Schema Drift Detection**: Compares dev SQLite schema to prod PostgreSQL
+- **Transaction Safety**: TransactionManager class with auto-rollback on failures
+- **Pre-Insert Validation**: Validates required fields before database writes
+- **Structured Errors**: StructuredError class with error codes, categories, and correlation IDs
+- **Cold Start Protection**: App marks ready only after all validations pass
+- **Startup Self-Audit**: Complete validation run on every deployment
+
+### Health Check Endpoints (routes/health_routes.py)
+
+Production monitoring endpoints:
+- `/health` - Basic app readiness check
+- `/health/db` - Database connection and critical table validation
+- `/health/transactions` - Write + rollback test to verify transaction capability
+- `/health/schema` - Schema drift detection between dev and prod
+- `/health/full` - Complete system health status
 - **Error Categories**: Validation, Authorization, Data, System - for clear error classification
 - **Error Logging**: Full stack traces with correlation IDs logged to `error_handler` logger
 - **Utilities Module**: `utils/error_handler.py` provides reusable validation and error handling functions
