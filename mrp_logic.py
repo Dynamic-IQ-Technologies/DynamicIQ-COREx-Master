@@ -179,7 +179,7 @@ class MRPEngine:
                 COUNT(DISTINCT so.id) as order_count,
                 MIN(so.expected_ship_date) as earliest_need_date
             FROM sales_order_lines sol
-            JOIN sales_orders so ON sol.sales_order_id = so.id
+            JOIN sales_orders so ON sol.so_id = so.id
             JOIN products p ON sol.product_id = p.id
             WHERE so.status IN ('Confirmed', 'In Progress', 'Pending')
               AND (sol.quantity - COALESCE(sol.shipped_qty, 0)) > 0
