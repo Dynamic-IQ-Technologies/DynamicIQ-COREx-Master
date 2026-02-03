@@ -41,6 +41,7 @@ class PostgresTranslatingCursor:
     def __init__(self, cursor, translate_func):
         self._cursor = cursor
         self._translate = translate_func
+        self._lastrowid = None
     
     def _convert_row(self, row):
         """Convert Decimal values to float in a row dictionary"""
@@ -58,10 +59,27 @@ class PostgresTranslatingCursor:
     def execute(self, query, params=None):
         query = self._translate(query)
         query = query.replace('?', '%s')
+        
+        # Auto-add RETURNING id for INSERT statements to capture lastrowid
+        needs_returning = False
+        if query.strip().upper().startswith('INSERT') and 'RETURNING' not in query.upper():
+            query = query.rstrip(';') + ' RETURNING id'
+            needs_returning = True
+        
         if params:
             self._cursor.execute(query, params)
         else:
             self._cursor.execute(query)
+        
+        # Capture the returned id
+        if needs_returning:
+            try:
+                result = self._cursor.fetchone()
+                if result and 'id' in result:
+                    self._lastrowid = result['id']
+            except Exception:
+                pass
+        
         return self
     
     def fetchone(self):
@@ -86,6 +104,14 @@ class PostgresTranslatingCursor:
     @property
     def rowcount(self):
         return self._cursor.rowcount
+    
+    @property
+    def lastrowid(self):
+        return self._lastrowid
+    
+    @lastrowid.setter
+    def lastrowid(self, value):
+        self._lastrowid = value
 
 
 class PostgresConnection:
