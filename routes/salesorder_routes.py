@@ -1552,6 +1552,59 @@ def close_order(id):
     
     return redirect(url_for('salesorder_routes.view_sales_order', id=id))
 
+@salesorder_bp.route('/sales-orders/<int:id>/update-status', methods=['POST'])
+@role_required('Admin', 'Planner')
+def update_sales_order_status(id):
+    """Update sales order status"""
+    db = Database()
+    conn = db.get_connection()
+    
+    valid_statuses = ['Draft', 'Confirmed', 'In Progress', 'Shipped', 'Delivered', 'Completed', 'Cancelled', 'On Hold']
+    
+    try:
+        new_status = request.form.get('status')
+        
+        if new_status not in valid_statuses:
+            flash(f'Invalid status: {new_status}', 'danger')
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (id,)).fetchone()
+        
+        if not so:
+            flash('Sales Order not found', 'danger')
+            conn.close()
+            return redirect(url_for('salesorder_routes.list_sales_orders'))
+        
+        old_status = so['status']
+        
+        if old_status == new_status:
+            flash('Status unchanged', 'info')
+            conn.close()
+            return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+        
+        conn.execute('UPDATE sales_orders SET status = ? WHERE id = ?', (new_status, id))
+        
+        from models import AuditLogger
+        AuditLogger.log(
+            conn=conn,
+            record_type='sales_order',
+            record_id=str(id),
+            action_type='STATUS_UPDATE',
+            modified_by=session.get('user_id'),
+            changed_fields={'status': {'old': old_status, 'new': new_status}}
+        )
+        
+        conn.commit()
+        flash(f'Sales Order status updated from {old_status} to {new_status}', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating status: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('salesorder_routes.view_sales_order', id=id))
+
 @salesorder_bp.route('/sales-orders/<int:id>/delete', methods=['POST'])
 @role_required('Admin', 'Planner')
 def delete_sales_order(id):

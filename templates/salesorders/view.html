@@ -112,21 +112,26 @@
                         <tr>
                             <th>Status:</th>
                             <td>
-                                {% if sales_order.status == 'Closed' %}
-                                    <span class="badge bg-dark">{{ sales_order.status }}</span>
-                                {% elif sales_order.status in ['Invoiced', 'Completed'] %}
-                                    <span class="badge bg-success">{{ sales_order.status }}</span>
-                                {% elif sales_order.status == 'Shipped' %}
-                                    <span class="badge bg-primary">{{ sales_order.status }}</span>
-                                {% elif sales_order.status == 'Released to Shipping' %}
-                                    <span class="badge bg-warning text-dark">{{ sales_order.status }}</span>
-                                {% elif sales_order.status in ['Confirmed', 'Pending'] %}
-                                    <span class="badge bg-info">{{ sales_order.status }}</span>
-                                {% elif sales_order.status == 'Draft' %}
-                                    <span class="badge bg-secondary">{{ sales_order.status }}</span>
-                                {% else %}
-                                    <span class="badge bg-warning">{{ sales_order.status }}</span>
-                                {% endif %}
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if sales_order.status == 'Closed' %}
+                                        <span class="badge bg-dark">{{ sales_order.status }}</span>
+                                    {% elif sales_order.status in ['Invoiced', 'Completed'] %}
+                                        <span class="badge bg-success">{{ sales_order.status }}</span>
+                                    {% elif sales_order.status == 'Shipped' %}
+                                        <span class="badge bg-primary">{{ sales_order.status }}</span>
+                                    {% elif sales_order.status == 'Released to Shipping' %}
+                                        <span class="badge bg-warning text-dark">{{ sales_order.status }}</span>
+                                    {% elif sales_order.status in ['Confirmed', 'Pending'] %}
+                                        <span class="badge bg-info">{{ sales_order.status }}</span>
+                                    {% elif sales_order.status == 'Draft' %}
+                                        <span class="badge bg-secondary">{{ sales_order.status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ sales_order.status }}</span>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#statusModal">
+                                        <i class="bi bi-pencil"></i> Change
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr>
@@ -1426,6 +1431,54 @@ document.getElementById('generateExchangeAgreementForm')?.addEventListener('subm
                     </button>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statusModalLabel"><i class="bi bi-pencil-square me-2"></i>Update Sales Order Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('salesorder_routes.update_sales_order_status', id=sales_order.id) }}">
+                <div class="modal-body">
+                    <p>Current Status: 
+                        {% if sales_order.status == 'Closed' %}
+                            <span class="badge bg-dark">{{ sales_order.status }}</span>
+                        {% elif sales_order.status in ['Invoiced', 'Completed'] %}
+                            <span class="badge bg-success">{{ sales_order.status }}</span>
+                        {% elif sales_order.status == 'Shipped' %}
+                            <span class="badge bg-primary">{{ sales_order.status }}</span>
+                        {% elif sales_order.status in ['Confirmed', 'Pending'] %}
+                            <span class="badge bg-info">{{ sales_order.status }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ sales_order.status }}</span>
+                        {% endif %}
+                    </p>
+                    <div class="mb-3">
+                        <label for="status" class="form-label">New Status</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="">-- Select Status --</option>
+                            <option value="Draft" {{ 'selected' if sales_order.status == 'Draft' else '' }}>Draft</option>
+                            <option value="Confirmed" {{ 'selected' if sales_order.status == 'Confirmed' else '' }}>Confirmed</option>
+                            <option value="In Progress" {{ 'selected' if sales_order.status == 'In Progress' else '' }}>In Progress</option>
+                            <option value="Shipped" {{ 'selected' if sales_order.status == 'Shipped' else '' }}>Shipped</option>
+                            <option value="Delivered" {{ 'selected' if sales_order.status == 'Delivered' else '' }}>Delivered</option>
+                            <option value="Completed" {{ 'selected' if sales_order.status == 'Completed' else '' }}>Completed</option>
+                            <option value="On Hold" {{ 'selected' if sales_order.status == 'On Hold' else '' }}>On Hold</option>
+                            <option value="Cancelled" {{ 'selected' if sales_order.status == 'Cancelled' else '' }}>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Update Status
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
