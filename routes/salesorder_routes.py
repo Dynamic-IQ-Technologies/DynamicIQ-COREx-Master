@@ -148,7 +148,7 @@ def create_sales_order():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 so_number, customer_id, sales_type, order_date, expected_ship_date,
-                'Draft', 0, 0, expected_return_date,
+                'Confirmed', 0, 0, expected_return_date,
                 request.form.get('service_notes', ''),
                 request.form.get('notes', ''),
                 session.get('user_id'),
