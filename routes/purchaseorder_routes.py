@@ -287,6 +287,11 @@ def create_purchaseorder():
                 
                 po_number = f'PO-{next_number:06d}'
                 
+                # Convert empty strings to None for date fields (PostgreSQL requires NULL, not '')
+                order_date = request.form.get('order_date', '').strip() or None
+                expected_delivery_date = request.form.get('expected_delivery_date', '').strip() or None
+                notes = request.form.get('notes', '').strip() or None
+                
                 # Insert PO header
                 conn.execute('''
                     INSERT INTO purchase_orders 
@@ -296,9 +301,9 @@ def create_purchaseorder():
                     po_number,
                     int(request.form['supplier_id']),
                     request.form['status'],
-                    request.form.get('order_date'),
-                    request.form.get('expected_delivery_date'),
-                    request.form.get('notes')
+                    order_date,
+                    expected_delivery_date,
+                    notes
                 ))
                 
                 po_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
