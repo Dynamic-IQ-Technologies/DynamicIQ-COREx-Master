@@ -52,12 +52,24 @@ def create_supplier():
         
         supplier_code = f'SUP-{next_number:06d}'
         
+        supplier_name = request.form['name'].strip()
+        
+        existing = conn.execute('''
+            SELECT id, code, name FROM suppliers 
+            WHERE LOWER(name) = LOWER(?)
+        ''', (supplier_name,)).fetchone()
+        
+        if existing:
+            conn.close()
+            flash(f'A supplier with this name already exists: {existing["name"]} ({existing["code"]})', 'danger')
+            return redirect(url_for('supplier_routes.create_supplier'))
+        
         conn.execute('''
             INSERT INTO suppliers (code, name, contact_person, email, phone, address)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             supplier_code,
-            request.form['name'],
+            supplier_name,
             request.form.get('contact_person', ''),
             request.form.get('email', ''),
             request.form.get('phone', ''),

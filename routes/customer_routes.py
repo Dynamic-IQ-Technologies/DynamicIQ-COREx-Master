@@ -46,6 +46,18 @@ def create_customer():
             else:
                 customer_number = 'CUST-000001'
             
+            customer_name = request.form['name'].strip()
+            
+            existing = conn.execute('''
+                SELECT id, customer_number, name FROM customers 
+                WHERE LOWER(name) = LOWER(?)
+            ''', (customer_name,)).fetchone()
+            
+            if existing:
+                conn.close()
+                flash(f'A customer with this name already exists: {existing["name"]} ({existing["customer_number"]})', 'danger')
+                return redirect(url_for('customer_routes.create_customer'))
+            
             # Insert customer
             conn.execute('''
                 INSERT INTO customers (
@@ -55,7 +67,7 @@ def create_customer():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 customer_number,
-                request.form['name'],
+                customer_name,
                 request.form.get('contact_person', ''),
                 request.form.get('email', ''),
                 request.form.get('phone', ''),
@@ -506,6 +518,20 @@ def quick_create_customer():
         else:
             customer_number = 'CUS-00001'
         
+        customer_name = data['name'].strip()
+        
+        existing = conn.execute('''
+            SELECT id, customer_number, name FROM customers 
+            WHERE LOWER(name) = LOWER(?)
+        ''', (customer_name,)).fetchone()
+        
+        if existing:
+            conn.close()
+            return jsonify({
+                'success': False, 
+                'error': f'A customer with this name already exists: {existing["name"]} ({existing["customer_number"]})'
+            }), 400
+        
         # Insert customer with minimal required fields
         conn.execute('''
             INSERT INTO customers (
@@ -515,7 +541,7 @@ def quick_create_customer():
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             customer_number,
-            data['name'],
+            customer_name,
             data.get('contact_person', ''),
             data.get('email', ''),
             data.get('phone', ''),
