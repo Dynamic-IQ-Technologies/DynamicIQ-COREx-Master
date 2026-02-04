@@ -76,7 +76,7 @@ def operations_dashboard():
         ORDER BY wos.sequence
     ''').fetchall()
     
-    total_resources = conn.execute('SELECT COUNT(*) as count FROM labor_resources WHERE status = "Active"').fetchone()
+    total_resources = conn.execute("SELECT COUNT(*) as count FROM labor_resources WHERE status = 'Active'").fetchone()
     total_resource_count = total_resources['count'] or 1
     
     stage_load = [{
