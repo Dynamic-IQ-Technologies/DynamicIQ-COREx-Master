@@ -1073,27 +1073,21 @@ def receive_purchaseorder(id):
                         created_by=session.get('user_id')
                     )
         else:
-            # Use upsert pattern for PostgreSQL compatibility
-            conn.execute('''
+            # Create separate inventory line for each receipt (enables serialized tracking)
+            # Each receipt creates a new inventory record - no aggregation
+            unit_cost = (po['total_amount'] or 0) / (po['quantity'] or 1) if po['quantity'] else 0
+            inv_cursor = conn.cursor()
+            inv_cursor.execute('''
                 INSERT INTO inventory 
                 (product_id, quantity, warehouse_location, bin_location, condition, 
-                 status, reorder_point, safety_stock, serial_number, last_updated)
-                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT (product_id) DO UPDATE SET
-                    quantity = inventory.quantity + EXCLUDED.quantity,
-                    warehouse_location = EXCLUDED.warehouse_location,
-                    bin_location = EXCLUDED.bin_location,
-                    condition = EXCLUDED.condition,
-                    serial_number = COALESCE(EXCLUDED.serial_number, inventory.serial_number),
-                    status = CASE 
-                        WHEN (inventory.quantity + EXCLUDED.quantity) > (inventory.reorder_point + inventory.safety_stock) THEN 'Available'
-                        ELSE inventory.status 
-                    END,
-                    last_updated = CURRENT_TIMESTAMP
-            ''', (product_id, quantity_received, warehouse_location, bin_location, condition, serial_number))
+                 status, reorder_point, safety_stock, serial_number, unit_cost, 
+                 last_received_date, last_updated)
+                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (product_id, quantity_received, warehouse_location, bin_location, condition, 
+                  serial_number, unit_cost, receipt_date))
             
-            inv_result = conn.execute('SELECT id FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
-            inventory_id = inv_result['id'] if inv_result else 0
+            inventory_id = inv_cursor.lastrowid
+            logger.info(f"[Receive PO] Created inventory #{inventory_id} for product_id={product_id}, qty={quantity_received}")
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
             unit_cost = po.get('unit_price') or 0
