@@ -1272,7 +1272,9 @@ def api_quick_receive_po_line(po_id, line_id):
         
         logger.info(f"[Quick Receive] Starting receive: product_id={product_id}, qty={quantity_received}, base_qty={base_quantity_received}")
         
-        conn.execute('''
+        # Insert receiving transaction with explicit result checking
+        logger.info(f"[Quick Receive] Inserting receiving_transaction: receipt={receipt_number}")
+        rcv_result = conn.execute('''
             INSERT INTO receiving_transactions 
             (receipt_number, po_id, product_id, quantity_received, receipt_date, condition, 
              warehouse_location, bin_location, remarks, received_by,
@@ -1281,6 +1283,7 @@ def api_quick_receive_po_line(po_id, line_id):
         ''', (receipt_number, po_id, product_id, quantity_received, receipt_date, condition,
               warehouse_location, bin_location, remarks, session['user_id'],
               line_id, po_line['uom_id'], conversion_factor, base_quantity_received, unit_cost, expiration_date, serial_number))
+        logger.info(f"[Quick Receive] Receiving transaction insert completed, result={rcv_result}")
         
         base_unit_cost = po_line['base_unit_price'] if po_line['base_unit_price'] else (unit_cost / conversion_factor if conversion_factor else unit_cost)
         
@@ -1357,7 +1360,8 @@ def api_quick_receive_po_line(po_id, line_id):
                     )
         else:
             # Use upsert pattern for PostgreSQL compatibility - avoids race conditions
-            conn.execute('''
+            logger.info(f"[Quick Receive] Starting inventory upsert for product_id={product_id}, qty={base_quantity_received}, location={warehouse_location}/{bin_location}")
+            inv_result = conn.execute('''
                 INSERT INTO inventory 
                 (product_id, quantity, warehouse_location, bin_location, condition, 
                  reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_updated)
@@ -1377,7 +1381,7 @@ def api_quick_receive_po_line(po_id, line_id):
                     last_updated = CURRENT_TIMESTAMP
             ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number))
             
-            logger.info(f"[Quick Receive] Inventory upsert completed for product_id={product_id}")
+            logger.info(f"[Quick Receive] Inventory upsert completed for product_id={product_id}, result={inv_result}")
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
             total_value = base_quantity_received * base_unit_cost
@@ -1503,7 +1507,9 @@ def api_quick_receive_po_line(po_id, line_id):
             }
         )
         
+        logger.info(f"[Quick Receive] About to commit transaction for receipt={receipt_number}")
         conn.commit()
+        logger.info(f"[Quick Receive] Transaction committed successfully for receipt={receipt_number}")
         
         if po['po_type'] == 'Tool':
             msg = f'Successfully received {int(quantity_received)} tool(s) and added to Tools inventory. Receipt: {receipt_number}'
