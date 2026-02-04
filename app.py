@@ -73,6 +73,8 @@ from routes.corex_guide_routes import corex_guide_bp
 from routes.duplicate_detection_routes import duplicate_detection_bp
 from routes.unplanned_receipt_routes import unplanned_receipt_bp
 from routes.health_routes import health_bp
+from routes.asc_admin_routes import asc_admin_bp
+from engines.asc_ai import asc_engine
 import os
 
 app = Flask(__name__)
@@ -358,6 +360,13 @@ app.register_blueprint(corex_guide_bp)
 app.register_blueprint(duplicate_detection_bp)
 app.register_blueprint(unplanned_receipt_bp)
 app.register_blueprint(health_bp)
+app.register_blueprint(asc_admin_bp)
+
+def get_database():
+    from models import Database
+    return Database()
+
+asc_engine.initialize(get_database)
 
 @app.context_processor
 def inject_user():
@@ -470,6 +479,23 @@ def internal_error(error):
 def handle_exception(error):
     correlation_id = getattr(request, 'correlation_id', 'N/A')
     error_logger.error(f"[{correlation_id}] Unhandled Exception: {request.path}\n{type(error).__name__}: {str(error)}\n{traceback.format_exc()}")
+    
+    try:
+        asc_engine.emit_event(
+            event_type='http_error',
+            entity_type='request',
+            entity_id=request.path,
+            operation=request.method,
+            request_id=correlation_id,
+            user_context={'user_id': session.get('user_id')},
+            payload={'path': request.path, 'method': request.method},
+            success=False,
+            error_code='500',
+            error_message=str(error),
+            stack_trace=traceback.format_exc()
+        )
+    except Exception as asc_err:
+        error_logger.warning(f"ASC-AI event emission failed: {asc_err}")
     
     # Show detailed error for diagnostic endpoint
     if request.path == '/dashboard-diagnostic':

@@ -116,6 +116,14 @@ Key features include:
 - **Unplanned Receipt Module**: Registration and controlled management of items arriving without documentation, supporting full lifecycle tracking from intake through inventory conversion or work order processing, with role-based approvals and complete audit trail.
 - **Inventory Split Function**: Ability to split inventory records into multiple records for the same product, enabling flexible location/condition management.
 - **Document Template & Form Management Module**: Enterprise-grade document template system with version control, dynamic tokens, and terms library. Supports 10 document types (Work Order, Quote, Sales Order, Invoice, Purchase Order, Packing Slip, RMA, Certificate, RFQ, Receiving) with customizable headers/footers, template activation workflow, cloning, and role-based access control.
+- **ASC-AI (Autonomous System Correction) Engine**: Self-healing production system that detects, diagnoses, and automatically corrects errors with quarantine oversight for high-risk corrections:
+  - **Anomaly Detection**: HTTP errors, database failures, FK violations, partial commits, ledger imbalances, duplicate transactions
+  - **Root Cause Analysis**: Dependency graph construction to trace error origins
+  - **Auto-Correction**: Safe corrections applied when confidence >= 0.90 and entity is non-financial/compliance
+  - **Quarantine System**: Financial and compliance entities always quarantined for human review
+  - **Immutable Audit Log**: SHA-256 checksums, chain validation, complete before/after state capture
+  - **Transaction Guard**: Decorator for wrapping critical operations with auto-rollback
+  - **Admin Console**: Dashboard at `/asc-ai/dashboard` for viewing anomalies, corrections, quarantine items, and system health
 
 ## External Dependencies
 

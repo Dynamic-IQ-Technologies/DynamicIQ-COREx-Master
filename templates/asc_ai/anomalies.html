@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}ASC-AI Anomalies - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-exclamation-triangle"></i> Detected Anomalies</h2>
+        <p class="text-muted mb-0">System anomalies detected by ASC-AI</p>
+    </div>
+    <a href="{{ url_for('asc_admin_routes.asc_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Console
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Severity</th>
+                        <th>Confidence</th>
+                        <th>Entity</th>
+                        <th>Error</th>
+                        <th>Status</th>
+                        <th>Detected</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for anomaly in anomalies %}
+                    <tr>
+                        <td><code>{{ anomaly.id }}</code></td>
+                        <td><span class="badge bg-secondary">{{ anomaly.anomaly_type }}</span></td>
+                        <td>
+                            <span class="badge {% if anomaly.severity == 'critical' %}bg-danger{% elif anomaly.severity == 'high' %}bg-warning{% elif anomaly.severity == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                {{ anomaly.severity }}
+                            </span>
+                        </td>
+                        <td>{{ "%.0f"|format((anomaly.confidence or 0) * 100) }}%</td>
+                        <td>{{ anomaly.entity_type }}{% if anomaly.entity_id %}:{{ anomaly.entity_id }}{% endif %}</td>
+                        <td class="text-truncate" style="max-width: 200px;">{{ anomaly.error_message or '-' }}</td>
+                        <td><span class="badge bg-secondary">{{ anomaly.status }}</span></td>
+                        <td>{{ anomaly.detected_at }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No anomalies detected</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

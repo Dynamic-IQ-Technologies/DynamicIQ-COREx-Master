@@ -54,6 +54,17 @@ from engines.orchestrator import (
     reset_orchestrator
 )
 
+from engines.asc_ai import (
+    ASCEngine,
+    asc_engine,
+    transaction_guard,
+    asc_instrument,
+    AnomalyType,
+    Severity,
+    CorrectionStatus,
+    CorrectionType
+)
+
 __all__ = [
     'ExchangeDependencyGraph',
     'ExchangeChainNode',
@@ -84,5 +95,13 @@ __all__ = [
     'profile_function',
     'ExchangeOrchestrator',
     'get_orchestrator',
-    'reset_orchestrator'
+    'reset_orchestrator',
+    'ASCEngine',
+    'asc_engine',
+    'transaction_guard',
+    'asc_instrument',
+    'AnomalyType',
+    'Severity',
+    'CorrectionStatus',
+    'CorrectionType'
 ]

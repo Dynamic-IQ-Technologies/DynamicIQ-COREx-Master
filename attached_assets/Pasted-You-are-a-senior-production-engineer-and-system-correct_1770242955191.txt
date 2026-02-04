@@ -1,0 +1,159 @@
+You are a senior production engineer and system-corrector AI embedded directly into the existing Dynamic.IQ-COREx Replit application.
+
+Your task is to ADD (not rewrite) an in-app autonomous correction engine called ASC-AI that automatically detects, diagnoses, and corrects system errors in production.
+
+CRITICAL RULES:
+- Do NOT break existing functionality
+- Do NOT remove business logic
+- Do NOT silence errors
+- Do NOT auto-fix anything without logging immutable evidence
+- All fixes must be reversible and auditable
+- All corrections must preserve financial and compliance integrity
+
+=====================================
+1. SYSTEM INSTRUMENTATION (MANDATORY)
+=====================================
+
+Instrument ALL of the following:
+- API endpoints
+- Database transactions (create, update, delete)
+- Async/background jobs
+- Event emissions
+- AI-generated actions
+- External integrations
+
+For every action, emit a system event object containing:
+- event_type
+- entity_type
+- entity_id (if available)
+- operation
+- request_id
+- user_context
+- payload_snapshot
+- system_state
+- timestamp
+- success/failure
+- error_code and stack trace (if failure)
+
+=====================================
+2. ERROR DETECTION ENGINE
+=====================================
+
+Implement centralized detection for:
+- HTTP 500 / 502 / 504 errors
+- Partial database commits
+- Orphaned records
+- Foreign key linkage failures
+- Duplicate transactions caused by retries
+- Async job timeouts
+- Ledger imbalance (debits ≠ credits)
+- Missing required fields post-save
+- Workflow state deadlocks
+- AI hallucinated actions
+
+Errors must be detected BOTH:
+- Synchronously (at execution time)
+- Asynchronously (via background verification)
+
+=====================================
+3. ROOT CAUSE ANALYSIS MODULE
+=====================================
+
+For every detected issue:
+- Reconstruct intended system state
+- Compare against actual persisted state
+- Identify upstream causality
+- Classify the error (retryable, structural, compliance-risk, financial-risk)
+
+Store a causality graph linked to the event chain.
+
+=====================================
+4. AUTO-CORRECTION ENGINE
+=====================================
+
+Implement safe, deterministic correction actions including:
+- Idempotent retries with safeguards
+- Transaction rollback and replay
+- Record re-linking and foreign key repair
+- Duplicate detection and merge
+- Ledger reconciliation and recalculation
+- Workflow resume from last valid state
+- Materialized view rebuild
+
+Auto-correct ONLY when:
+- Confidence score ≥ 0.90
+- No compliance or financial risk detected
+
+=====================================
+5. QUARANTINE & CONTAINMENT
+=====================================
+
+If confidence < threshold OR risk detected:
+- Freeze affected records
+- Prevent downstream usage
+- Flag clearly in UI and logs
+- Require explicit human review
+
+=====================================
+6. TRANSACTION GUARD (REQUIRED)
+=====================================
+
+Wrap every critical transaction with:
+- Pre-condition validation
+- Post-condition verification
+- Automatic invocation of ASC-AI on failure
+- Mandatory re-verification after correction
+
+No transaction is considered complete unless invariants pass.
+
+=====================================
+7. IMMUTABLE AUDIT LOGGING
+=====================================
+
+Create append-only logs for:
+- Original action
+- Detected issue
+- Correction attempt
+- Before/after state
+- Confidence score
+- Compliance impact
+- Timestamp and actor (user or system)
+
+Logs must be tamper-proof and queryable.
+
+=====================================
+8. IN-APP ASC-AI CONSOLE
+=====================================
+
+Add a minimal admin UI panel showing:
+- Live system errors
+- Auto-corrections performed
+- Quarantined records
+- Confidence metrics
+- Financial risk indicators
+
+Each corrected record must display:
+"This record was automatically corrected by ASC-AI."
+
+=====================================
+9. DEPLOYMENT HARDENING
+=====================================
+
+Ensure:
+- Environment variable validation
+- Idempotency keys on all writes
+- Safe retry policies
+- Graceful degradation
+- Deterministic behavior in production
+
+=====================================
+10. FINAL VALIDATION
+=====================================
+
+Before completion:
+- Simulate failures (500s, timeouts, partial writes)
+- Prove ASC-AI detects and corrects them
+- Ensure no silent failures remain
+- Ensure financial and compliance invariants always hold
+
+The resulting system must be self-healing, production-safe, and audit-ready.
