@@ -20,14 +20,17 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 IS_PRODUCTION = os.environ.get('REPLIT_DEPLOYMENT') == '1'
 USE_POSTGRES = False
 
-if DATABASE_URL is not None and IS_PRODUCTION:
+# Use PostgreSQL for BOTH development and production when DATABASE_URL is available
+# This ensures consistent behavior and prevents SQLite vs PostgreSQL compatibility issues
+if DATABASE_URL is not None:
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
         test_conn = psycopg2.connect(DATABASE_URL, connect_timeout=5)
         test_conn.close()
         USE_POSTGRES = True
-        print("[Database] PostgreSQL connection verified")
+        env_type = "PRODUCTION" if IS_PRODUCTION else "DEVELOPMENT"
+        print(f"[Database] PostgreSQL connection verified ({env_type})")
     except Exception as e:
         print(f"[Database] PostgreSQL unavailable ({e}), using SQLite")
         USE_POSTGRES = False

@@ -21,7 +21,7 @@ The system incorporates a novel architecture for ERP exchange management, compri
 
 ### System Design Choices
 
-The system supports dual database environments (SQLite for development, PostgreSQL for production) with a comprehensive PostgreSQL compatibility layer that:
+The system uses **PostgreSQL for both development and production** to ensure consistent behavior. This eliminates SQLite vs PostgreSQL compatibility issues (NULL handling, empty strings, date formats). The PostgreSQL compatibility layer provides:
 - Translates SQLite functions to PostgreSQL equivalents (JULIANDAY → EXTRACT(EPOCH FROM ...), strftime → TO_CHAR, GROUP_CONCAT → STRING_AGG)
 - Converts double-quoted strings to single quotes for PostgreSQL
 - Automatically converts Decimal values to float when fetching data (prevents TypeError in templates)
