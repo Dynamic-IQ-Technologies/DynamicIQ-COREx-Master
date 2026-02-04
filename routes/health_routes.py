@@ -203,3 +203,42 @@ def health_full():
     result['status'] = 'healthy' if all_healthy else 'unhealthy'
     
     return jsonify(result), 200 if all_healthy else 503
+
+
+@health_bp.route('/health/chart-of-accounts')
+def health_chart_of_accounts():
+    """Debug endpoint for chart of accounts visibility issue"""
+    from models import Database
+    
+    result = {
+        'status': 'unknown',
+        'timestamp': datetime.utcnow().isoformat(),
+        'accounts_count': 0,
+        'sample_accounts': [],
+        'error': None
+    }
+    
+    try:
+        db = Database()
+        conn = db.get_connection()
+        
+        count_result = conn.execute('SELECT COUNT(*) as cnt FROM chart_of_accounts').fetchone()
+        result['accounts_count'] = count_result['cnt'] if count_result else 0
+        
+        sample = conn.execute('''
+            SELECT id, account_code, account_name, account_type, is_active 
+            FROM chart_of_accounts 
+            ORDER BY account_code 
+            LIMIT 5
+        ''').fetchall()
+        
+        result['sample_accounts'] = [dict(row) for row in sample] if sample else []
+        result['status'] = 'healthy' if result['accounts_count'] > 0 else 'empty'
+        
+        conn.close()
+    except Exception as e:
+        result['status'] = 'error'
+        result['error'] = str(e)
+        logger.error(f"[Chart of Accounts Health] Error: {str(e)}")
+    
+    return jsonify(result), 200 if result['status'] == 'healthy' else 500

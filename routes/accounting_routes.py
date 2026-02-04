@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models import Database
 from auth import login_required, role_required
+import logging
 
 accounting_bp = Blueprint('accounting_routes', __name__)
+logger = logging.getLogger(__name__)
 
 @accounting_bp.route('/chart-of-accounts')
 @login_required
@@ -11,12 +13,22 @@ def list_accounts():
     db = Database()
     conn = db.get_connection()
     
-    accounts = conn.execute('''
-        SELECT * FROM chart_of_accounts 
-        ORDER BY account_code
-    ''').fetchall()
-    
-    conn.close()
+    try:
+        accounts = conn.execute('''
+            SELECT * FROM chart_of_accounts 
+            ORDER BY account_code
+        ''').fetchall()
+        
+        logger.info(f"[Chart of Accounts] Fetched {len(accounts)} accounts")
+        if len(accounts) == 0:
+            logger.warning("[Chart of Accounts] No accounts found - checking database directly")
+            count_result = conn.execute('SELECT COUNT(*) as cnt FROM chart_of_accounts').fetchone()
+            logger.warning(f"[Chart of Accounts] Direct count: {count_result}")
+    except Exception as e:
+        logger.error(f"[Chart of Accounts] Error fetching accounts: {str(e)}")
+        accounts = []
+    finally:
+        conn.close()
     
     return render_template('accounting/chart_of_accounts.html', accounts=accounts)
 
