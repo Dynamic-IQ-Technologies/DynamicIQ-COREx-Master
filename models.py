@@ -366,6 +366,16 @@ class PostgresConnection:
         import re
         from psycopg2.extras import RealDictCursor as RDC
         
+        # Auto-recover from aborted transaction state
+        try:
+            if self._conn.info.transaction_status == 4:  # TRANSACTION_STATUS_INERROR
+                self._conn.rollback()
+        except:
+            try:
+                self._conn.rollback()
+            except:
+                pass
+        
         # Translate SQLite date functions to PostgreSQL
         query = self._translate_sqlite_to_postgres(query)
         
