@@ -282,7 +282,7 @@ def view_inventory(id):
     
     # Get work orders related to this inventory (direct link or exchange repair - avoid duplicates)
     related_work_orders = conn.execute('''
-        SELECT wo.id, wo.wo_number, wo.status, wo.workorder_type, wo.serial_number,
+        SELECT DISTINCT wo.id, wo.wo_number, wo.status, wo.workorder_type, wo.serial_number,
                wo.planned_start_date, wo.actual_start_date, wo.actual_end_date,
                p.code as product_code, p.name as product_name,
                c.name as customer_name,
@@ -296,7 +296,6 @@ def view_inventory(id):
         LEFT JOIN exchange_master em ON em.repair_work_order_id = wo.id
         LEFT JOIN exchange_cores ec ON ec.exchange_id = em.id AND ec.inventory_id = ?
         WHERE wo.inventory_id = ? OR ec.inventory_id = ?
-        GROUP BY wo.id
         ORDER BY wo.actual_start_date DESC
     ''', (id, id, id)).fetchall()
     
