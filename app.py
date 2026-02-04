@@ -569,18 +569,69 @@ def initialize_application():
             # Constraint may not exist, that's OK
             print(f"[Startup] Constraint check: {constraint_err}")
         
-        # Fix unit cost for existing inventory that was created without cost data
-        inv_check = conn.execute('SELECT id, unit_cost FROM inventory WHERE product_id = 1 AND (unit_cost IS NULL OR unit_cost = 0)').fetchone()
-        if inv_check:
-            # Calculate average cost from PO lines that were received
-            avg_cost = conn.execute('''
-                SELECT COALESCE(SUM(received_quantity * COALESCE(base_unit_price, unit_price)) / NULLIF(SUM(received_quantity), 0), 0) as avg
-                FROM purchase_order_lines WHERE product_id = 1 AND received_quantity > 0
-            ''').fetchone()
-            if avg_cost and float(avg_cost['avg'] or 0) > 0:
-                conn.execute('UPDATE inventory SET unit_cost = ? WHERE id = ?', (float(avg_cost['avg']), inv_check['id']))
-                conn.commit()
-                print(f"[Startup] Fixed inventory unit cost to ${avg_cost['avg']}")
+        # Fix receiving transactions that don't have proper inventory records
+        # Each receiving transaction should have its own inventory line
+        orphan_receipts = conn.execute('''
+            SELECT rt.id, rt.receipt_number, rt.product_id, 
+                   COALESCE(rt.base_quantity_received, rt.quantity_received) as quantity,
+                   rt.receipt_date, rt.warehouse_location, rt.bin_location, rt.condition,
+                   rt.unit_cost_at_receipt, rt.expiration_date, rt.serial_number, rt.inventory_id
+            FROM receiving_transactions rt
+            LEFT JOIN inventory i ON rt.inventory_id = i.id
+            WHERE rt.inventory_id IS NULL OR i.id IS NULL
+        ''').fetchall()
+        
+        if orphan_receipts:
+            print(f"[Startup] Found {len(orphan_receipts)} receiving transactions without proper inventory records")
+            for rcv in orphan_receipts:
+                try:
+                    # Create individual inventory record for this receipt
+                    inv_cursor = conn.cursor()
+                    inv_cursor.execute('''
+                        INSERT INTO inventory 
+                        (product_id, quantity, warehouse_location, bin_location, condition,
+                         reorder_point, safety_stock, status, unit_cost, expiration_date, 
+                         serial_number, last_received_date, last_updated)
+                        VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ''', (
+                        rcv['product_id'], 
+                        float(rcv['quantity'] or 1),
+                        rcv['warehouse_location'] or 'MAIN',
+                        rcv['bin_location'] or '',
+                        rcv['condition'] or 'New',
+                        float(rcv['unit_cost_at_receipt'] or 0),
+                        rcv['expiration_date'] if rcv['expiration_date'] else None,
+                        rcv['serial_number'] if rcv['serial_number'] else None,
+                        rcv['receipt_date']
+                    ))
+                    new_inv_id = inv_cursor.lastrowid
+                    
+                    # Link receiving transaction to new inventory record
+                    conn.execute('UPDATE receiving_transactions SET inventory_id = ? WHERE id = ?', 
+                                (new_inv_id, rcv['id']))
+                    print(f"[Startup] Created inventory #{new_inv_id} for receipt {rcv['receipt_number']}")
+                except Exception as rcv_err:
+                    print(f"[Startup] Error creating inventory for {rcv['receipt_number']}: {rcv_err}")
+            
+            # Delete the old consolidated inventory record if it exists and has duplicated quantity
+            # Only do this if we successfully created individual records
+            old_inv = conn.execute('SELECT id, product_id, quantity FROM inventory WHERE id = 1').fetchone()
+            if old_inv:
+                # Check if this old record's quantity matches sum of receipts (indicating consolidation)
+                receipt_sum = conn.execute('''
+                    SELECT product_id, SUM(COALESCE(base_quantity_received, quantity_received)) as total
+                    FROM receiving_transactions 
+                    WHERE product_id = ? AND inventory_id != 1
+                    GROUP BY product_id
+                ''', (old_inv['product_id'],)).fetchone()
+                
+                if receipt_sum and float(old_inv['quantity'] or 0) > 0:
+                    # The old consolidated record can be removed since we created individual records
+                    conn.execute('DELETE FROM inventory WHERE id = 1')
+                    print(f"[Startup] Removed old consolidated inventory record (id=1)")
+            
+            conn.commit()
+            print(f"[Startup] Migration complete: {len(orphan_receipts)} inventory records created")
         
         conn.close()
     except Exception as e:
