@@ -910,6 +910,12 @@ def receive_purchaseorder(id):
     db = Database()
     conn = db.get_connection()
     
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
+    
     try:
         po = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (id,)).fetchone()
         
@@ -1200,6 +1206,12 @@ def api_quick_receive_po_line(po_id, line_id):
     """Quick receive a single PO line item directly from the PO view page"""
     db = Database()
     conn = db.get_connection()
+    
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
     
     try:
         po = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (po_id,)).fetchone()
@@ -1900,6 +1912,12 @@ def receive_exchange_po(id):
     db = Database()
     conn = db.get_connection()
     
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
+    
     try:
         po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
         
@@ -2066,6 +2084,12 @@ def receive_service_po(id):
     db = Database()
     conn = db.get_connection()
     
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
+    
     try:
         po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
         
@@ -2193,6 +2217,12 @@ def quick_receive_buyout(id):
     """Quick Receive a Component Buyout Purchase Order"""
     db = Database()
     conn = db.get_connection()
+    
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
     
     try:
         po = conn.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,)).fetchone()
