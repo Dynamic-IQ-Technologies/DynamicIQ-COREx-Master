@@ -569,6 +569,60 @@ def initialize_application():
             # Constraint may not exist, that's OK
             print(f"[Startup] Constraint check: {constraint_err}")
         
+        # Split consolidated inventory into separate lines for serialized parts
+        # Each unit should have its own inventory record for proper tracking
+        consolidated_inv = conn.execute('''
+            SELECT i.id, i.product_id, i.quantity, i.warehouse_location, i.bin_location, 
+                   i.condition, i.unit_cost, i.expiration_date, i.serial_number, i.status,
+                   p.code as product_code, p.name as product_name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.quantity > 1 AND i.serial_number IS NULL
+        ''').fetchall()
+        
+        if consolidated_inv:
+            print(f"[Startup] Found {len(consolidated_inv)} consolidated inventory records to split")
+            for inv in consolidated_inv:
+                try:
+                    qty = int(float(inv['quantity'] or 1))
+                    if qty <= 1:
+                        continue
+                    
+                    unit_cost = float(inv['unit_cost'] or 0)
+                    
+                    # Create individual inventory records for each unit
+                    for i in range(qty):
+                        serial_suffix = f"-{i+1:03d}"
+                        inv_cursor = conn.cursor()
+                        inv_cursor.execute('''
+                            INSERT INTO inventory 
+                            (product_id, quantity, warehouse_location, bin_location, condition,
+                             reorder_point, safety_stock, status, unit_cost, expiration_date, 
+                             serial_number, last_updated)
+                            VALUES (?, 1, ?, ?, ?, 0, 0, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        ''', (
+                            inv['product_id'],
+                            inv['warehouse_location'] or 'MAIN',
+                            inv['bin_location'] or '',
+                            inv['condition'] or 'New',
+                            inv['status'] or 'Available',
+                            unit_cost,
+                            inv['expiration_date'] if inv['expiration_date'] else None,
+                            f"{inv['product_code']}{serial_suffix}"
+                        ))
+                        new_inv_id = inv_cursor.lastrowid
+                        print(f"[Startup] Created inventory #{new_inv_id} for {inv['product_code']} unit {i+1}/{qty}")
+                    
+                    # Delete the original consolidated record
+                    conn.execute('DELETE FROM inventory WHERE id = ?', (inv['id'],))
+                    print(f"[Startup] Removed consolidated inventory #{inv['id']} ({inv['product_code']} qty={qty})")
+                    
+                except Exception as split_err:
+                    print(f"[Startup] Error splitting inventory #{inv['id']}: {split_err}")
+            
+            conn.commit()
+            print(f"[Startup] Inventory split migration complete")
+        
         # Fix receiving transactions that don't have proper inventory records
         # Each receiving transaction should have its own inventory line
         orphan_receipts = conn.execute('''
