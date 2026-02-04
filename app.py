@@ -556,6 +556,34 @@ def initialize_application():
     except Exception as e:
         print(f"Warning: Could not load exchange graph: {e}")
     
+    # One-time fix for production inventory data (Feb 2026)
+    # This corrects inventory quantities that weren't saved due to transaction handling bug
+    try:
+        if os.environ.get('REPLIT_DEPLOYMENT') == '1':
+            conn = db.get_connection()
+            # Check if fix is needed (receiving_transactions empty but PO lines show received)
+            rcv_count = conn.execute('SELECT COUNT(*) as cnt FROM receiving_transactions').fetchone()
+            inv_record = conn.execute('SELECT id, quantity FROM inventory WHERE product_id = 1').fetchone()
+            
+            if rcv_count and rcv_count['cnt'] == 0 and inv_record and float(inv_record['quantity'] or 0) == 0:
+                # Get total received from PO lines
+                total_received = conn.execute('''
+                    SELECT COALESCE(SUM(received_quantity), 0) as total 
+                    FROM purchase_order_lines WHERE product_id = 1
+                ''').fetchone()
+                
+                if total_received and float(total_received['total'] or 0) > 0:
+                    qty = float(total_received['total'])
+                    conn.execute('''
+                        UPDATE inventory SET quantity = ?, last_updated = CURRENT_TIMESTAMP 
+                        WHERE product_id = 1
+                    ''', (qty,))
+                    conn.commit()
+                    print(f"[Startup] Fixed inventory quantity for product 1: {qty}")
+            conn.close()
+    except Exception as e:
+        print(f"[Startup] Inventory fix check: {e}")
+    
     try:
         from utils.production_hardening import run_production_startup
         run_production_startup(app)
