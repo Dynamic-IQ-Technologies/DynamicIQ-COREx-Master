@@ -1373,17 +1373,27 @@ def api_quick_receive_po_line(po_id, line_id):
             # Create new inventory line for each receive (allows multiple lines per product)
             logger.info(f"[Quick Receive] Creating new inventory line for product_id={product_id}, qty={base_quantity_received}, location={warehouse_location}/{bin_location}")
             try:
-                inv_result = conn.execute('''
+                inv_cursor = conn.cursor()
+                inv_cursor.execute('''
                     INSERT INTO inventory 
                     (product_id, quantity, warehouse_location, bin_location, condition, 
                      reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_received_date, last_updated)
                     VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number, receipt_date))
                 
-                logger.info(f"[Quick Receive] Inventory insert completed for product_id={product_id}, result={inv_result}")
+                new_inventory_id = inv_cursor.lastrowid
+                logger.info(f"[Quick Receive] Inventory insert completed for product_id={product_id}, new_inventory_id={new_inventory_id}")
+                
+                # Link receiving transaction to the new inventory record
+                if new_inventory_id:
+                    conn.execute('''
+                        UPDATE receiving_transactions SET inventory_id = ? 
+                        WHERE receipt_number = ?
+                    ''', (new_inventory_id, receipt_number))
+                    logger.info(f"[Quick Receive] Linked receiving_transaction {receipt_number} to inventory_id={new_inventory_id}")
                 
                 # Verify the insert
-                verify_inv = conn.execute('SELECT id, product_id, quantity, warehouse_location FROM inventory WHERE product_id = ? ORDER BY id DESC LIMIT 1', (product_id,)).fetchone()
+                verify_inv = conn.execute('SELECT id, product_id, quantity, warehouse_location FROM inventory WHERE id = ?', (new_inventory_id,)).fetchone()
                 logger.info(f"[Quick Receive] Inventory verification: {verify_inv}")
             except Exception as inv_error:
                 logger.error(f"[Quick Receive] ERROR in inventory insert: {str(inv_error)}")
