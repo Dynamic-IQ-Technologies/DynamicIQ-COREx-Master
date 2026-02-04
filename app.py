@@ -556,33 +556,21 @@ def initialize_application():
     except Exception as e:
         print(f"Warning: Could not load exchange graph: {e}")
     
-    # One-time fix for production inventory data (Feb 2026)
-    # This corrects inventory quantities that weren't saved due to transaction handling bug
+    # Database migrations - run on every startup
     try:
-        if os.environ.get('REPLIT_DEPLOYMENT') == '1':
-            conn = db.get_connection()
-            # Check if fix is needed (receiving_transactions empty but PO lines show received)
-            rcv_count = conn.execute('SELECT COUNT(*) as cnt FROM receiving_transactions').fetchone()
-            inv_record = conn.execute('SELECT id, quantity FROM inventory WHERE product_id = 1').fetchone()
-            
-            if rcv_count and rcv_count['cnt'] == 0 and inv_record and float(inv_record['quantity'] or 0) == 0:
-                # Get total received from PO lines
-                total_received = conn.execute('''
-                    SELECT COALESCE(SUM(received_quantity), 0) as total 
-                    FROM purchase_order_lines WHERE product_id = 1
-                ''').fetchone()
-                
-                if total_received and float(total_received['total'] or 0) > 0:
-                    qty = float(total_received['total'])
-                    conn.execute('''
-                        UPDATE inventory SET quantity = ?, last_updated = CURRENT_TIMESTAMP 
-                        WHERE product_id = 1
-                    ''', (qty,))
-                    conn.commit()
-                    print(f"[Startup] Fixed inventory quantity for product 1: {qty}")
-            conn.close()
+        conn = db.get_connection()
+        # Drop unique constraint on inventory.product_id to allow multiple inventory lines per product
+        # This enables receiving to create separate lines for different locations/lots
+        try:
+            conn.execute('ALTER TABLE inventory DROP CONSTRAINT IF EXISTS inventory_product_id_key')
+            conn.commit()
+            print("[Startup] Dropped inventory_product_id_key constraint (allows multiple lines per product)")
+        except Exception as constraint_err:
+            # Constraint may not exist, that's OK
+            print(f"[Startup] Constraint check: {constraint_err}")
+        conn.close()
     except Exception as e:
-        print(f"[Startup] Inventory fix check: {e}")
+        print(f"[Startup] Migration check: {e}")
     
     try:
         from utils.production_hardening import run_production_startup

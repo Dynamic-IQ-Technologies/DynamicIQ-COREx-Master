@@ -1369,36 +1369,23 @@ def api_quick_receive_po_line(po_id, line_id):
                         created_by=session.get('user_id')
                     )
         else:
-            # Use upsert pattern for PostgreSQL compatibility - avoids race conditions
-            logger.info(f"[Quick Receive] Starting inventory upsert for product_id={product_id}, qty={base_quantity_received}, location={warehouse_location}/{bin_location}")
+            # Create new inventory line for each receive (allows multiple lines per product)
+            logger.info(f"[Quick Receive] Creating new inventory line for product_id={product_id}, qty={base_quantity_received}, location={warehouse_location}/{bin_location}")
             try:
                 inv_result = conn.execute('''
                     INSERT INTO inventory 
                     (product_id, quantity, warehouse_location, bin_location, condition, 
-                     reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_updated)
-                    VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT (product_id) DO UPDATE SET
-                        quantity = inventory.quantity + EXCLUDED.quantity,
-                        warehouse_location = EXCLUDED.warehouse_location,
-                        bin_location = EXCLUDED.bin_location,
-                        condition = EXCLUDED.condition,
-                        unit_cost = EXCLUDED.unit_cost,
-                        expiration_date = COALESCE(EXCLUDED.expiration_date, inventory.expiration_date),
-                        serial_number = COALESCE(EXCLUDED.serial_number, inventory.serial_number),
-                        status = CASE 
-                            WHEN (inventory.quantity + EXCLUDED.quantity) > (inventory.reorder_point + inventory.safety_stock) THEN 'Available'
-                            ELSE inventory.status 
-                        END,
-                        last_updated = CURRENT_TIMESTAMP
-                ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number))
+                     reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_received_date, last_updated)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number, receipt_date))
                 
-                logger.info(f"[Quick Receive] Inventory upsert completed for product_id={product_id}, result={inv_result}")
+                logger.info(f"[Quick Receive] Inventory insert completed for product_id={product_id}, result={inv_result}")
                 
-                # Verify the upsert by querying
-                verify_inv = conn.execute('SELECT id, product_id, quantity, warehouse_location FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
+                # Verify the insert
+                verify_inv = conn.execute('SELECT id, product_id, quantity, warehouse_location FROM inventory WHERE product_id = ? ORDER BY id DESC LIMIT 1', (product_id,)).fetchone()
                 logger.info(f"[Quick Receive] Inventory verification: {verify_inv}")
             except Exception as inv_error:
-                logger.error(f"[Quick Receive] ERROR in inventory upsert: {str(inv_error)}")
+                logger.error(f"[Quick Receive] ERROR in inventory insert: {str(inv_error)}")
                 raise
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
