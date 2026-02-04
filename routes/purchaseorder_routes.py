@@ -1524,13 +1524,32 @@ def api_quick_receive_po_line(po_id, line_id):
         )
         
         logger.info(f"[Quick Receive] About to commit transaction for receipt={receipt_number}")
+        
+        # Pre-commit verification - check data before commit
+        pre_rcv = conn.execute('SELECT COUNT(*) as cnt FROM receiving_transactions').fetchone()
+        pre_inv = conn.execute('SELECT id, quantity FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
+        logger.info(f"[Quick Receive] PRE-COMMIT: receiving_transactions count={pre_rcv['cnt']}, inventory={pre_inv}")
+        
         conn.commit()
         logger.info(f"[Quick Receive] Transaction committed successfully for receipt={receipt_number}")
+        
+        # Post-commit verification
+        post_rcv = conn.execute('SELECT COUNT(*) as cnt FROM receiving_transactions').fetchone()
+        post_inv = conn.execute('SELECT id, quantity FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
+        logger.info(f"[Quick Receive] POST-COMMIT: receiving_transactions count={post_rcv['cnt']}, inventory={post_inv}")
         
         if po['po_type'] == 'Tool':
             msg = f'Successfully received {int(quantity_received)} tool(s) and added to Tools inventory. Receipt: {receipt_number}'
         else:
             msg = f'Successfully received {quantity_received} units. Receipt: {receipt_number}'
+        
+        # Include debug info in response
+        debug_info = {
+            'pre_commit_rcv_count': pre_rcv['cnt'] if pre_rcv else None,
+            'pre_commit_inv_qty': float(pre_inv['quantity']) if pre_inv and pre_inv['quantity'] else None,
+            'post_commit_rcv_count': post_rcv['cnt'] if post_rcv else None,
+            'post_commit_inv_qty': float(post_inv['quantity']) if post_inv and post_inv['quantity'] else None
+        }
         
         return jsonify({
             'success': True,
@@ -1539,7 +1558,8 @@ def api_quick_receive_po_line(po_id, line_id):
             'base_quantity_received': base_quantity_received,
             'new_total_received': new_received,
             'po_status': new_status,
-            'message': msg
+            'message': msg,
+            'debug': debug_info
         })
         
     except Exception as e:
