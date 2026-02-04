@@ -410,12 +410,14 @@ class PostgresConnection:
                     if result and 'id' in result:
                         pg_cursor._lastrowid = result['id']
                         self._last_insert_id = result['id']
-                except Exception:
-                    pass
+                except Exception as fetch_err:
+                    import logging
+                    logging.getLogger('postgresql').warning(f"RETURNING id fetch failed: {fetch_err}")
             
             return pg_cursor
         except Exception as e:
-            self._conn.rollback()
+            import logging
+            logging.getLogger('postgresql').error(f"Execute failed: {e}, query: {query[:100]}")
             raise e
     
     def commit(self):
