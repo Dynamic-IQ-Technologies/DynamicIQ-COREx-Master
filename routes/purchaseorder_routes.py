@@ -1064,33 +1064,27 @@ def receive_purchaseorder(id):
                         created_by=session.get('user_id')
                     )
         else:
-            inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
+            # Use upsert pattern for PostgreSQL compatibility
+            conn.execute('''
+                INSERT INTO inventory 
+                (product_id, quantity, warehouse_location, bin_location, condition, 
+                 status, reorder_point, safety_stock, serial_number, last_updated)
+                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT (product_id) DO UPDATE SET
+                    quantity = inventory.quantity + EXCLUDED.quantity,
+                    warehouse_location = EXCLUDED.warehouse_location,
+                    bin_location = EXCLUDED.bin_location,
+                    condition = EXCLUDED.condition,
+                    serial_number = COALESCE(EXCLUDED.serial_number, inventory.serial_number),
+                    status = CASE 
+                        WHEN (inventory.quantity + EXCLUDED.quantity) > (inventory.reorder_point + inventory.safety_stock) THEN 'Available'
+                        ELSE inventory.status 
+                    END,
+                    last_updated = CURRENT_TIMESTAMP
+            ''', (product_id, quantity_received, warehouse_location, bin_location, condition, serial_number))
             
-            if inventory:
-                new_qty = inventory['quantity'] + quantity_received
-                conn.execute('''
-                    UPDATE inventory 
-                    SET quantity=?, 
-                        warehouse_location=?,
-                        bin_location=?,
-                        condition=?,
-                        serial_number = COALESCE(?, serial_number),
-                        status = CASE 
-                            WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                            ELSE status 
-                        END,
-                        last_updated=CURRENT_TIMESTAMP 
-                    WHERE product_id=?
-                ''', (new_qty, warehouse_location, bin_location, condition, serial_number, new_qty, product_id))
-                inventory_id = inventory['id']
-            else:
-                conn.execute('''
-                    INSERT INTO inventory 
-                    (product_id, quantity, warehouse_location, bin_location, condition, 
-                     status, reorder_point, safety_stock, serial_number)
-                    VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?)
-                ''', (product_id, quantity_received, warehouse_location, bin_location, condition, serial_number))
-                inventory_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            inv_result = conn.execute('SELECT id FROM inventory WHERE product_id = ?', (product_id,)).fetchone()
+            inventory_id = inv_result['id'] if inv_result else 0
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
             unit_cost = po.get('unit_price') or 0
@@ -1357,50 +1351,26 @@ def api_quick_receive_po_line(po_id, line_id):
                         created_by=session.get('user_id')
                     )
         else:
-            inventory = conn.execute('SELECT * FROM inventory WHERE product_id=?', (product_id,)).fetchone()
-            
-            if inventory:
-                new_qty = inventory['quantity'] + base_quantity_received
-                if expiration_date:
-                    conn.execute('''
-                        UPDATE inventory 
-                        SET quantity=?, 
-                            warehouse_location=?,
-                            bin_location=?,
-                            condition=?,
-                            unit_cost=?,
-                            expiration_date=?,
-                            serial_number = COALESCE(?, serial_number),
-                            status = CASE 
-                                WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                                ELSE status 
-                            END,
-                            last_updated=CURRENT_TIMESTAMP 
-                        WHERE product_id=?
-                    ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number, new_qty, product_id))
-                else:
-                    conn.execute('''
-                        UPDATE inventory 
-                        SET quantity=?, 
-                            warehouse_location=?,
-                            bin_location=?,
-                            condition=?,
-                            unit_cost=?,
-                            serial_number = COALESCE(?, serial_number),
-                            status = CASE 
-                                WHEN ? > (reorder_point + safety_stock) THEN 'Available'
-                                ELSE status 
-                            END,
-                            last_updated=CURRENT_TIMESTAMP 
-                        WHERE product_id=?
-                    ''', (new_qty, warehouse_location, bin_location, condition, base_unit_cost, serial_number, new_qty, product_id))
-            else:
-                conn.execute('''
-                    INSERT INTO inventory 
-                    (product_id, quantity, warehouse_location, bin_location, condition, 
-                     reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_updated)
-                    VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, CURRENT_TIMESTAMP)
-                ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number))
+            # Use upsert pattern for PostgreSQL compatibility - avoids race conditions
+            conn.execute('''
+                INSERT INTO inventory 
+                (product_id, quantity, warehouse_location, bin_location, condition, 
+                 reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_updated)
+                VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT (product_id) DO UPDATE SET
+                    quantity = inventory.quantity + EXCLUDED.quantity,
+                    warehouse_location = EXCLUDED.warehouse_location,
+                    bin_location = EXCLUDED.bin_location,
+                    condition = EXCLUDED.condition,
+                    unit_cost = EXCLUDED.unit_cost,
+                    expiration_date = COALESCE(EXCLUDED.expiration_date, inventory.expiration_date),
+                    serial_number = COALESCE(EXCLUDED.serial_number, inventory.serial_number),
+                    status = CASE 
+                        WHEN (inventory.quantity + EXCLUDED.quantity) > (inventory.reorder_point + inventory.safety_stock) THEN 'Available'
+                        ELSE inventory.status 
+                    END,
+                    last_updated = CURRENT_TIMESTAMP
+            ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number))
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
             total_value = base_quantity_received * base_unit_cost
