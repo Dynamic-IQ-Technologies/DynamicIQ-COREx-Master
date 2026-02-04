@@ -568,6 +568,20 @@ def initialize_application():
         except Exception as constraint_err:
             # Constraint may not exist, that's OK
             print(f"[Startup] Constraint check: {constraint_err}")
+        
+        # Fix unit cost for existing inventory that was created without cost data
+        inv_check = conn.execute('SELECT id, unit_cost FROM inventory WHERE product_id = 1 AND (unit_cost IS NULL OR unit_cost = 0)').fetchone()
+        if inv_check:
+            # Calculate average cost from PO lines that were received
+            avg_cost = conn.execute('''
+                SELECT COALESCE(SUM(received_quantity * COALESCE(base_unit_price, unit_price)) / NULLIF(SUM(received_quantity), 0), 0) as avg
+                FROM purchase_order_lines WHERE product_id = 1 AND received_quantity > 0
+            ''').fetchone()
+            if avg_cost and float(avg_cost['avg'] or 0) > 0:
+                conn.execute('UPDATE inventory SET unit_cost = ? WHERE id = ?', (float(avg_cost['avg']), inv_check['id']))
+                conn.commit()
+                print(f"[Startup] Fixed inventory unit cost to ${avg_cost['avg']}")
+        
         conn.close()
     except Exception as e:
         print(f"[Startup] Migration check: {e}")

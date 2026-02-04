@@ -1296,6 +1296,7 @@ def api_quick_receive_po_line(po_id, line_id):
             raise
         
         base_unit_cost = po_line['base_unit_price'] if po_line['base_unit_price'] else (unit_cost / conversion_factor if conversion_factor else unit_cost)
+        logger.info(f"[Quick Receive] Cost calculation: unit_cost={unit_cost}, base_unit_cost={base_unit_cost}, conversion_factor={conversion_factor}")
         
         if po['po_type'] == 'Tool':
             product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
