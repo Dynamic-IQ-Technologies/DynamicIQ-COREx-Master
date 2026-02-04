@@ -395,24 +395,28 @@ class PostgresConnection:
         if needs_returning:
             query = query.rstrip().rstrip(';') + ' RETURNING id'
         
-        cursor = self._conn.cursor(cursor_factory=RDC)
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        
-        pg_cursor = PostgresCursor(cursor, self._conn)
-        
-        if needs_returning:
-            try:
-                result = cursor.fetchone()
-                if result and 'id' in result:
-                    pg_cursor._lastrowid = result['id']
-                    self._last_insert_id = result['id']
-            except Exception:
-                pass
-        
-        return pg_cursor
+        try:
+            cursor = self._conn.cursor(cursor_factory=RDC)
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            
+            pg_cursor = PostgresCursor(cursor, self._conn)
+            
+            if needs_returning:
+                try:
+                    result = cursor.fetchone()
+                    if result and 'id' in result:
+                        pg_cursor._lastrowid = result['id']
+                        self._last_insert_id = result['id']
+                except Exception:
+                    pass
+            
+            return pg_cursor
+        except Exception as e:
+            self._conn.rollback()
+            raise e
     
     def commit(self):
         self._conn.commit()
