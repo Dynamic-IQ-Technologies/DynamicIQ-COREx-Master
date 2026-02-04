@@ -1218,12 +1218,14 @@ def api_quick_receive_po_line(po_id, line_id):
         
         data = request.get_json()
         quantity_received = float(data.get('quantity_received', 0))
-        warehouse_location = data.get('warehouse_location', '').strip()
-        bin_location = data.get('bin_location', '').strip()
+        warehouse_location = (data.get('warehouse_location') or '').strip()
+        bin_location = (data.get('bin_location') or '').strip()
         condition = data.get('condition', 'New')
-        expiration_date = data.get('expiration_date', '').strip() or None
-        serial_number = data.get('serial_number', '').strip() or None
-        remarks = data.get('remarks', '')
+        expiration_date_raw = data.get('expiration_date')
+        expiration_date = expiration_date_raw.strip() if expiration_date_raw else None
+        serial_number_raw = data.get('serial_number')
+        serial_number = serial_number_raw.strip() if serial_number_raw else None
+        remarks = data.get('remarks') or ''
         
         if quantity_received <= 0:
             return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
