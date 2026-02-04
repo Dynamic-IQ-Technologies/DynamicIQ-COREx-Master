@@ -4600,9 +4600,7 @@ class Database:
         conn.close()
     
     def seed_unit_of_measure(self):
-        if self.use_postgres:
-            return
-        
+        """Seed unit of measure data - works for both SQLite and PostgreSQL"""
         conn = self.get_connection()
         
         existing = conn.execute('SELECT COUNT(*) as count FROM uom_master').fetchone()
@@ -4682,9 +4680,7 @@ class Database:
         conn.close()
     
     def seed_qms_sop_categories(self):
-        if self.use_postgres:
-            return
-        
+        """Seed QMS SOP categories - works for both SQLite and PostgreSQL"""
         conn = self.get_connection()
         
         existing = conn.execute('SELECT COUNT(*) as count FROM qms_sop_categories').fetchone()

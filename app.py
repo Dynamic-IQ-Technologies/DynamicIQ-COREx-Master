@@ -532,6 +532,10 @@ def initialize_application():
             result = conn.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
             conn.close()
             print("[App] Using PostgreSQL database")
+            # Seed data for PostgreSQL (if tables are empty)
+            db.seed_chart_of_accounts()
+            db.seed_unit_of_measure()
+            db.seed_qms_sop_categories()
         except Exception as e:
             print("=" * 60)
             print("PostgreSQL database not initialized!")
