@@ -542,8 +542,8 @@ def get_trend_data(conn):
             COUNT(*) as orders
         FROM sales_orders
         WHERE status NOT IN ('Cancelled', 'Draft')
-        GROUP BY strftime('%Y-%m', order_date)
-        ORDER BY month DESC
+        GROUP BY 1
+        ORDER BY 1 DESC
         LIMIT 12
     ''').fetchall()
     

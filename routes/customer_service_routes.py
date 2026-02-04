@@ -925,8 +925,8 @@ def analytics():
             SELECT strftime('%Y-%m', communication_date) as month, COUNT(*) as count
             FROM customer_communications
             WHERE communication_date >= DATE('now', '-6 months')
-            GROUP BY month
-            ORDER BY month
+            GROUP BY 1
+            ORDER BY 1
         ''').fetchall()
     comms_by_month = [{'month': r['month'], 'count': r['count']} for r in comms_by_month_rows]
     

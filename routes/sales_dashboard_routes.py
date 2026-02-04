@@ -195,8 +195,8 @@ def executive_sales_dashboard():
         FROM invoices
         WHERE invoice_date >= date('now', '-12 months')
         AND status IN ('Posted', 'Paid', 'Partial')
-        GROUP BY strftime('%Y-%m', invoice_date)
-        ORDER BY month
+        GROUP BY 1
+        ORDER BY 1
     ''').fetchall()
     
     pipeline_by_stage = conn.execute('''

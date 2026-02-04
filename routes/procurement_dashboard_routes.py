@@ -171,8 +171,8 @@ def executive_procurement_dashboard():
         JOIN purchase_order_lines pol ON pol.po_id = po.id
         WHERE po.order_date >= date('now', '-12 months')
         AND po.status NOT IN ('Draft', 'Cancelled')
-        GROUP BY strftime('%Y-%m', po.order_date)
-        ORDER BY month
+        GROUP BY 1
+        ORDER BY 1
     ''').fetchall()
     
     supplier_performance = conn.execute('''

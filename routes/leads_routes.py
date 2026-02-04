@@ -720,8 +720,8 @@ def leads_analytics():
                SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END) as converted
         FROM leads
         WHERE created_at >= date('now', '-12 months')
-        GROUP BY month
-        ORDER BY month
+        GROUP BY 1
+        ORDER BY 1
     ''').fetchall()
     
     top_performers = conn.execute('''

@@ -294,8 +294,8 @@ def dashboard():
                 COUNT(*) as count
             FROM work_orders 
             WHERE created_at >= ?
-            GROUP BY week
-            ORDER BY week
+            GROUP BY 1
+            ORDER BY 1
         ''', (thirty_days_ago,)).fetchall()
     
     # === SALES TREND (Last 30 days) ===
@@ -318,8 +318,8 @@ def dashboard():
                 COALESCE(SUM(total_amount), 0) as value
             FROM sales_orders 
             WHERE order_date >= ?
-            GROUP BY day
-            ORDER BY day
+            GROUP BY 1
+            ORDER BY 1
         ''', (thirty_days_ago,)).fetchall()
     
     conn.close()
