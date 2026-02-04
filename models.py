@@ -5202,8 +5202,6 @@ class GLAutoPost:
             entry_id: ID of created journal entry, or None if failed
         """
         try:
-            cursor = conn.cursor()
-            
             # Generate entry number
             last_entry = conn.execute('''
                 SELECT entry_number FROM gl_entries 
@@ -5230,18 +5228,18 @@ class GLAutoPost:
             if abs(total_debit - total_credit) > 0.01:
                 raise ValueError(f'Debits ({total_debit}) must equal credits ({total_credit})')
             
-            # Insert journal entry header - automatically posted
-            cursor.execute('''
+            # Insert journal entry header - automatically posted (use conn.execute for PostgreSQL compatibility)
+            conn.execute('''
                 INSERT INTO gl_entries (
                     entry_number, entry_date, description, transaction_source,
                     reference_type, reference_id, status, created_by, created_at,
                     posted_by, posted_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 'Posted', ?, datetime('now'), ?, datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, 'Posted', ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
             ''', (entry_number, entry_date, description, transaction_source,
                   reference_type, reference_id, created_by, created_by))
             
-            entry_id = cursor.lastrowid
+            entry_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             
             # Insert journal entry lines
             for line in lines:
@@ -5253,7 +5251,7 @@ class GLAutoPost:
                 if not account:
                     raise ValueError(f"Account code {line['account_code']} not found")
                 
-                cursor.execute('''
+                conn.execute('''
                     INSERT INTO gl_entry_lines (
                         gl_entry_id, account_id, debit, credit, description
                     )
