@@ -5,6 +5,13 @@ from datetime import datetime, timedelta, date
 import json
 import os
 
+def get_form_date(field_name, default=None):
+    """Get date from form, returning None for empty strings (PostgreSQL compatibility)"""
+    value = request.form.get(field_name)
+    if value and value.strip():
+        return value.strip()
+    return default
+
 def get_brevo_credentials():
     """Get Brevo API key and from email from environment"""
     api_key = os.environ.get('BREVO_API_KEY')
@@ -390,8 +397,8 @@ def certification_add(id):
         request.form['method'],
         request.form['level'],
         request.form.get('certification_number'),
-        request.form.get('issued_date'),
-        request.form['expiration_date'],
+        get_form_date('issued_date'),
+        get_form_date('expiration_date'),
         request.form.get('issuing_body'),
         request.form.get('notes')
     ))
@@ -491,8 +498,8 @@ def wo_new():
             request.form.get('acceptance_criteria'),
             request.form.get('inspection_location'),
             request.form.get('priority', 'Normal'),
-            request.form.get('planned_start_date'),
-            request.form.get('planned_end_date'),
+            get_form_date('planned_start_date'),
+            get_form_date('planned_end_date'),
             request.form.get('assigned_technician_id') or None,
             request.form.get('notes'),
             session['user_id']
@@ -579,8 +586,8 @@ def wo_edit(id):
             request.form.get('acceptance_criteria'),
             request.form.get('inspection_location'),
             request.form.get('priority', 'Normal'),
-            request.form.get('planned_start_date'),
-            request.form.get('planned_end_date'),
+            get_form_date('planned_start_date'),
+            get_form_date('planned_end_date'),
             request.form.get('assigned_technician_id') or None,
             request.form.get('notes'),
             id
