@@ -761,6 +761,12 @@ def wo_update_status(id):
     db = Database()
     conn = db.get_connection()
     
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
+    
     ndt_wo = conn.execute('SELECT * FROM ndt_work_orders WHERE id = ?', (id,)).fetchone()
     if not ndt_wo:
         conn.close()
@@ -840,6 +846,12 @@ def add_result(id):
     
     db = Database()
     conn = db.get_connection()
+    
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
     
     technician_id = request.form['technician_id']
     method = request.form['method']
