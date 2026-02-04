@@ -3,6 +3,9 @@ from models import Database, CompanySettings, AuditLogger, safe_float, GLAutoPos
 from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_datetime(value):
@@ -1267,6 +1270,8 @@ def api_quick_receive_po_line(po_id, line_id):
         base_quantity_received = quantity_received * conversion_factor
         unit_cost = po_line['unit_price'] or 0
         
+        logger.info(f"[Quick Receive] Starting receive: product_id={product_id}, qty={quantity_received}, base_qty={base_quantity_received}")
+        
         conn.execute('''
             INSERT INTO receiving_transactions 
             (receipt_number, po_id, product_id, quantity_received, receipt_date, condition, 
@@ -1371,6 +1376,8 @@ def api_quick_receive_po_line(po_id, line_id):
                     END,
                     last_updated = CURRENT_TIMESTAMP
             ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number))
+            
+            logger.info(f"[Quick Receive] Inventory upsert completed for product_id={product_id}")
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
             total_value = base_quantity_received * base_unit_cost
