@@ -67,11 +67,11 @@ def list_ar():
         WHERE status NOT IN ('Paid', 'Cancelled')
         GROUP BY 1
         ORDER BY 
-            CASE aging_bucket 
-                WHEN 'Current' THEN 1
-                WHEN '1-30 Days' THEN 2
-                WHEN '31-60 Days' THEN 3
-                WHEN '61-90 Days' THEN 4
+            CASE 
+                WHEN due_date >= date('now') THEN 1
+                WHEN julianday('now') - julianday(due_date) BETWEEN 1 AND 30 THEN 2
+                WHEN julianday('now') - julianday(due_date) BETWEEN 31 AND 60 THEN 3
+                WHEN julianday('now') - julianday(due_date) BETWEEN 61 AND 90 THEN 4
                 ELSE 5
             END
     '''
