@@ -94,34 +94,47 @@
         }
         
         .sidebar-section-title {
-            padding: 1.5rem 1.25rem 0.5rem;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.75rem;
+            padding: 1rem 1.25rem;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.8rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            background: rgba(0, 0, 0, 0.25);
-            margin-top: 0.5rem;
-            border-left: 3px solid rgba(255, 165, 0, 0.5);
+            background: linear-gradient(90deg, rgba(74, 144, 226, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%);
+            margin-top: 0.25rem;
+            border-left: 3px solid #4a90e2;
         }
         
         .sidebar-section-title.collapsible {
             cursor: pointer;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 1rem 1.25rem 0.5rem;
+            gap: 0.5rem;
+            padding: 0.875rem 1.25rem;
             transition: all 0.2s ease;
         }
         
         .sidebar-section-title.collapsible:hover {
-            color: rgba(255, 255, 255, 0.9);
-            background: rgba(0, 0, 0, 0.35);
+            color: white;
+            background: linear-gradient(90deg, rgba(74, 144, 226, 0.25) 0%, rgba(0, 0, 0, 0.35) 100%);
+            border-left-color: #ff8c00;
+        }
+        
+        .sidebar-section-title .section-icon {
+            font-size: 1rem;
+            color: #ff8c00;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-section-title span {
+            flex: 1;
         }
         
         .sidebar-section-title .toggle-icon {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             transition: transform 0.2s ease;
+            opacity: 0.7;
         }
         
         .sidebar-section-title .toggle-icon.rotated {
@@ -600,6 +613,7 @@
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('mro')">
+            <i class="bi bi-airplane-engines section-icon"></i>
             <span>MRO Management</span>
             <i class="bi bi-chevron-down toggle-icon" id="mro-icon"></i>
         </div>
@@ -639,6 +653,7 @@
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('sales')">
+            <i class="bi bi-cash-coin section-icon"></i>
             <span>Sales</span>
             <i class="bi bi-chevron-down toggle-icon" id="sales-icon"></i>
         </div>
@@ -694,6 +709,7 @@
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('procurement')">
+            <i class="bi bi-cart4 section-icon"></i>
             <span>Procurement</span>
             <i class="bi bi-chevron-down toggle-icon" id="procurement-icon"></i>
         </div>
@@ -781,6 +797,7 @@
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">
+            <i class="bi bi-gear-wide-connected section-icon"></i>
             <span>Operations</span>
             <i class="bi bi-chevron-down toggle-icon" id="operations-icon"></i>
         </div>
@@ -856,6 +873,7 @@
         </ul>
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('labortracker')">
+            <i class="bi bi-person-badge section-icon"></i>
             <span>Labor Tracker</span>
             <i class="bi bi-chevron-down toggle-icon" id="labortracker-icon"></i>
         </div>
@@ -880,6 +898,7 @@
         
         {% if session.role == 'Admin' or user_permissions.get('menu_ndt', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('ndt')">
+            <i class="bi bi-radioactive section-icon"></i>
             <span>NDT</span>
             <i class="bi bi-chevron-down toggle-icon" id="ndt-icon"></i>
         </div>
@@ -912,6 +931,7 @@
         {% endif %}
         
         <div class="sidebar-section-title collapsible" onclick="toggleSection('service')">
+            <i class="bi bi-wrench-adjustable-circle section-icon"></i>
             <span>Service Management</span>
             <i class="bi bi-chevron-down toggle-icon" id="service-icon"></i>
         </div>
@@ -936,6 +956,7 @@
         
         {% if session.role == 'Admin' or user_permissions.get('menu_qms', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('quality')">
+            <i class="bi bi-shield-check section-icon"></i>
             <span>Quality</span>
             <i class="bi bi-chevron-down toggle-icon" id="quality-icon"></i>
         </div>
@@ -993,6 +1014,7 @@
         
         {% if session.role == 'Admin' or user_permissions.get('menu_shipping', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('shipping')">
+            <i class="bi bi-box-seam section-icon"></i>
             <span>Shipping & Receiving</span>
             <i class="bi bi-chevron-down toggle-icon" id="shipping-icon"></i>
         </div>
@@ -1026,6 +1048,7 @@
         
         {% if session.role == 'Admin' or user_permissions.get('menu_accounting', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('accounting')">
+            <i class="bi bi-calculator section-icon"></i>
             <span>Accounting</span>
             <i class="bi bi-chevron-down toggle-icon" id="accounting-icon"></i>
         </div>
@@ -1131,6 +1154,7 @@
         
         {% if session.role == 'Admin' or user_permissions.get('menu_reports', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('reports')">
+            <i class="bi bi-file-earmark-bar-graph section-icon"></i>
             <span>Reports</span>
             <i class="bi bi-chevron-down toggle-icon" id="reports-icon"></i>
         </div>
@@ -1182,6 +1206,7 @@
         
         {% if session.role == 'Admin' %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('administration')">
+            <i class="bi bi-sliders section-icon"></i>
             <span>Administration</span>
             <i class="bi bi-chevron-down toggle-icon" id="administration-icon"></i>
         </div>
@@ -1344,14 +1369,26 @@
         
         // Restore collapsed state and scroll position from localStorage on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const sections = ['mro', 'operations', 'shipping', 'sales', 'service', 'accounting', 'reports', 'administration', 'procurement', 'quality'];
+            const sections = ['mro', 'operations', 'shipping', 'sales', 'service', 'accounting', 'reports', 'administration', 'procurement', 'quality', 'ndt', 'labortracker'];
+            // Key sections that should be expanded by default for new users
+            const defaultOpenSections = ['sales', 'procurement', 'operations'];
+            
             sections.forEach(function(section) {
                 const content = document.getElementById(section + '-content');
                 const icon = document.getElementById(section + '-icon');
                 
                 if (content && icon) {
                     const state = localStorage.getItem('section-' + section);
-                    if (state === 'closed') {
+                    
+                    // If no saved state (new user), check if it's a default open section
+                    if (state === null) {
+                        if (!defaultOpenSections.includes(section)) {
+                            // Close non-default sections for new users
+                            content.style.display = 'none';
+                            icon.classList.remove('bi-chevron-down');
+                            icon.classList.add('bi-chevron-right');
+                        }
+                    } else if (state === 'closed') {
                         content.style.display = 'none';
                         icon.classList.remove('bi-chevron-down');
                         icon.classList.add('bi-chevron-right');
