@@ -144,6 +144,12 @@ def record_payment(id):
     db = Database()
     conn = db.get_connection()
     
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
+    
     invoice = conn.execute('''
         SELECT 
             i.*,

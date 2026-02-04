@@ -685,6 +685,12 @@ def post_invoice(id):
     db = Database()
     conn = db.get_connection()
     
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
+    
     try:
         invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (id,)).fetchone()
         
@@ -791,6 +797,12 @@ def record_payment(id):
     """Record customer payment for invoice with GL entry (Debit Cash, Credit AR)"""
     db = Database()
     conn = db.get_connection()
+    
+    # Ensure clean transaction state (PostgreSQL requires this after any prior error)
+    try:
+        conn.rollback()
+    except:
+        pass
     
     try:
         invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (id,)).fetchone()
