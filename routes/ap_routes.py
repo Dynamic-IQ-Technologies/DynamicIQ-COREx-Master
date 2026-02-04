@@ -42,10 +42,10 @@ def list_ap():
     
     # Calculate summary statistics
     today_date = datetime.now().strftime('%Y-%m-%d')
-    total_open = sum(p['balance_due'] for p in payables if p['status'] in ['Open', 'Pending Invoice'])
+    total_open = sum((p['balance_due'] or 0) for p in payables if p['status'] in ['Open', 'Pending Invoice'])
     total_overdue = sum(
-        p['balance_due'] for p in payables 
-        if p['status'] in ['Open', 'Pending Invoice'] and p['due_date'] < today_date
+        (p['balance_due'] or 0) for p in payables 
+        if p['status'] in ['Open', 'Pending Invoice'] and p.get('due_date') and p['due_date'] < today_date
     )
     
     conn.close()
