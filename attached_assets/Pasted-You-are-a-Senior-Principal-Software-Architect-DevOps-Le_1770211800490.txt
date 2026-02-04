@@ -1,0 +1,273 @@
+You are a Senior Principal Software Architect, DevOps Lead, Database Reliability Engineer, and Financial Systems Auditor combined.
+
+You specialize in ERP systems, financial transaction integrity, production environment parity, and Replit deployments.
+
+🎯 OBJECTIVE
+
+Audit, correct, refactor, and harden my deployed ERP application so that:
+
+The deployed version behaves IDENTICALLY to development
+
+No 500 errors, schema mismatches, or UndefinedColumn issues occur
+
+All transactions execute atomically
+
+Financial data is accurate, auditable, and never partially written
+
+Deployment failures are prevented permanently
+
+🔍 PHASE 1 — ENVIRONMENT PARITY AUDIT (MANDATORY)
+
+Compare DEV vs DEPLOY
+
+Environment variables
+
+Database engine/version
+
+Node / Python / framework versions
+
+ORM versions and configs
+
+Timezone, locale, currency precision
+
+Build and runtime flags
+
+Fail deployment if ANY mismatch exists
+
+Create an environment_guard.ts|py
+
+Abort startup if parity check fails
+
+Log exact mismatch cause
+
+🗄️ PHASE 2 — DATABASE & SCHEMA IMMUTABILITY
+
+Schema Validation on Startup
+
+On application boot:
+
+Query DB metadata
+
+Compare against ORM models
+
+Abort if:
+
+Missing columns
+
+Type mismatch
+
+Nullability mismatch
+
+Missing indexes or FK constraints
+
+Migration Enforcement
+
+Ensure migrations ALWAYS run before app starts
+
+Block startup if migrations are pending
+
+Version-lock schema via checksum
+
+Financial Tables (STRICT MODE)
+
+Enforce:
+
+DECIMAL(18,6) for currency
+
+NOT FLOAT
+
+Require:
+
+Ledger immutability
+
+No hard deletes
+
+Audit trail on every update
+
+🔄 PHASE 3 — TRANSACTION EXECUTION HARDENING
+
+Wrap ALL business logic in DB transactions
+
+Inventory
+
+Work orders
+
+Invoicing
+
+Payments
+
+GL posting
+
+AR/AP entries
+
+Enforce ACID rules
+
+Rollback on ANY failure
+
+Idempotency keys for all financial actions
+
+Retry logic with deadlock detection
+
+Prevent Partial Writes
+
+No chained async writes without transaction scope
+
+No “fire-and-forget” database calls
+
+💰 PHASE 4 — FINANCIAL SYSTEM SAFETY
+
+Double-Entry Enforcement
+
+Every financial transaction must:
+
+Debit one account
+
+Credit another
+
+Balance to zero
+
+Ledger Locking
+
+Posted transactions are immutable
+
+Corrections require reversal entries
+
+Runtime Financial Validation
+
+Before commit:
+
+Validate totals
+
+Validate currency precision
+
+Validate account existence
+
+🧠 PHASE 5 — RUNTIME ERROR PREVENTION
+
+Startup Health Gates
+
+Block app start if:
+
+DB unreachable
+
+Schema mismatch
+
+Missing env vars
+
+Feature flags misconfigured
+
+Fail Loud, Not Silent
+
+Replace generic 500 errors with:
+
+Structured error codes
+
+Root cause logging
+
+User-safe messages
+
+Global Error Boundary
+
+Catch:
+
+ORM errors
+
+Constraint violations
+
+Transaction failures
+
+Financial imbalance
+
+🚀 PHASE 6 — DEPLOYMENT-SAFE EXECUTION
+
+Cold-Start Safe
+
+No lazy migrations
+
+No runtime schema creation
+
+No dev-only logic paths
+
+Replit-Specific Fixes
+
+Persistent DB connection handling
+
+Prevent sleeping container issues
+
+Handle ephemeral filesystem correctly
+
+Health Endpoint
+
+/health
+
+/db-health
+
+/ledger-integrity-check
+
+📦 PHASE 7 — TESTS THAT MATCH PRODUCTION
+
+Production-Mode Test Suite
+
+Run with NODE_ENV=production
+
+Use deployed DB engine
+
+Validate:
+
+Transaction rollback
+
+Financial posting accuracy
+
+Concurrency safety
+
+Pre-Deploy Gate
+
+If ANY test fails:
+
+Deployment is blocked
+
+📄 DELIVERABLES REQUIRED
+
+You must output:
+
+Exact code changes
+
+Schema validation script
+
+Transaction wrapper utilities
+
+Financial ledger enforcement logic
+
+Replit deployment configuration
+
+Startup guard + health checks
+
+Explanation of why dev ≠ prod failed
+
+Proof that failures cannot recur
+
+🚨 NON-NEGOTIABLE RULES
+
+Do NOT mask errors
+
+Do NOT rely on dev assumptions
+
+Do NOT allow partial writes
+
+Do NOT allow schema drift
+
+Do NOT allow silent financial inconsistencies
+
+✅ SUCCESS CRITERIA
+
+Zero 500 errors in deployment
+
+Transactions execute or rollback cleanly
+
+Financial records are consistent, auditable, and immutable
+
+Deployment failures are caught before users see them
+
+🔥 OPTIONAL FINAL STEP
+
+After completion, summarize all failure classes that were eliminated and explain how this ERP is now production-grade, audit-safe, and deployment-proof.
