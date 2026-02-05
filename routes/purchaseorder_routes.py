@@ -1456,61 +1456,53 @@ def api_quick_receive_po_line(po_id, line_id):
         
         conn.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', (new_status, po_id))
         
-        # Auto-create Accounts Payable (Vendor Invoice) when PO is fully received
-        if new_status == 'Received' and po['status'] != 'Received':
-            # Check if vendor invoice already exists for this PO
-            existing_ap = conn.execute('''
-                SELECT id FROM vendor_invoices WHERE po_id = ?
-            ''', (po_id,)).fetchone()
+        # Auto-create Accounts Payable (Vendor Invoice) for each receipt
+        # Calculate value of THIS receipt (not total PO value)
+        receipt_value = base_quantity_received * base_unit_cost
+        
+        if receipt_value > 0:
+            # Generate unique AP number
+            last_ap = conn.execute('''
+                SELECT invoice_number FROM vendor_invoices 
+                WHERE invoice_number LIKE 'AP-%'
+                ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
+                LIMIT 1
+            ''').fetchone()
             
-            if not existing_ap:
-                # Calculate total PO value
-                po_total = conn.execute('''
-                    SELECT COALESCE(SUM(quantity * unit_price), 0) as total
-                    FROM purchase_order_lines WHERE po_id = ?
-                ''', (po_id,)).fetchone()['total']
-                
-                if po_total > 0:
-                    # Generate unique AP number
-                    last_ap = conn.execute('''
-                        SELECT invoice_number FROM vendor_invoices 
-                        WHERE invoice_number LIKE 'AP-%'
-                        ORDER BY CAST(SUBSTR(invoice_number, 4) AS INTEGER) DESC 
-                        LIMIT 1
-                    ''').fetchone()
-                    
-                    if last_ap:
-                        try:
-                            last_number = int(last_ap['invoice_number'].split('-')[1])
-                            next_number = last_number + 1
-                        except (ValueError, IndexError):
-                            next_number = 1
-                    else:
-                        next_number = 1
-                    
-                    ap_number = f"AP-{next_number:07d}"
-                    
-                    from datetime import timedelta
-                    receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
-                    due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
-                    
-                    conn.execute('''
-                        INSERT INTO vendor_invoices 
-                        (invoice_number, vendor_id, po_id, invoice_date, due_date, 
-                         amount, tax_amount, total_amount, amount_paid, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        ap_number,
-                        po['supplier_id'],
-                        po_id,
-                        receipt_date,
-                        due_date,
-                        po_total,
-                        0,
-                        po_total,
-                        0,
-                        'Pending Invoice'
-                    ))
+            if last_ap:
+                try:
+                    last_number = int(last_ap['invoice_number'].split('-')[1])
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            
+            ap_number = f"AP-{next_number:07d}"
+            
+            from datetime import timedelta
+            receipt_dt = datetime.strptime(receipt_date, '%Y-%m-%d')
+            due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+            
+            conn.execute('''
+                INSERT INTO vendor_invoices 
+                (invoice_number, vendor_id, po_id, invoice_date, due_date, 
+                 amount, tax_amount, total_amount, amount_paid, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                ap_number,
+                po['supplier_id'],
+                po_id,
+                receipt_date,
+                due_date,
+                receipt_value,
+                0,
+                receipt_value,
+                0,
+                'Pending Invoice'
+            ))
+            
+            logger.info(f"[Quick Receive] Created A/P {ap_number} for receipt {receipt_number} with value {receipt_value}")
         
         AuditLogger.log_change(
             conn=conn,
