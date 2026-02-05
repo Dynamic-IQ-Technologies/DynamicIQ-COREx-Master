@@ -293,16 +293,19 @@ def create_receiving():
             if not is_non_inventory or not is_non_inventory['non_inventory']:
                 # Always create a new inventory record for each receipt
                 # This allows multiple inventory lines with the same part number (serialized items, different lots, etc.)
+                # Include supplier and PO reference for full traceability
                 inv_cursor = conn.cursor()
                 inv_cursor.execute('''
                     INSERT INTO inventory 
                     (product_id, quantity, unit_cost, condition, warehouse_location, bin_location, 
                      last_received_date, expiration_date, last_calibration_date, calibration_frequency, 
-                     next_calibration_date, status, serial_number, is_serialized)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?)
+                     next_calibration_date, status, serial_number, is_serialized,
+                     supplier_id, po_id, po_line_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available', ?, ?, ?, ?, ?)
                 ''', (product_id, base_quantity_for_receipt, unit_cost_at_receipt, condition, warehouse, 
                       bin_location, receipt_date, expiration_date, last_calibration_date, calibration_frequency, 
-                      next_calibration_date, serial_number, 1 if serial_number else 0))
+                      next_calibration_date, serial_number, 1 if serial_number else 0,
+                      po_line['supplier_id'], po_id, po_line_id))
                 inventory_id = inv_cursor.lastrowid
             
             # Link receiving transaction to the inventory record (if created)

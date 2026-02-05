@@ -940,6 +940,15 @@ def receive_purchaseorder(id):
         
         product_id = int(product_id_str)
         
+        # Get the PO line ID for this product
+        po_line = conn.execute('''
+            SELECT id FROM purchase_order_lines 
+            WHERE po_id = ? AND product_id = ?
+            ORDER BY id
+            LIMIT 1
+        ''', (id, product_id)).fetchone()
+        po_line_id = po_line['id'] if po_line else None
+        
         # Validate required fields
         if not warehouse_location:
             flash('Warehouse location is required', 'danger')
@@ -1075,16 +1084,17 @@ def receive_purchaseorder(id):
         else:
             # Create separate inventory line for each receipt (enables serialized tracking)
             # Each receipt creates a new inventory record - no aggregation
+            # Include supplier and PO reference for full traceability
             unit_cost = (po['total_amount'] or 0) / (po['quantity'] or 1) if po['quantity'] else 0
             inv_cursor = conn.cursor()
             inv_cursor.execute('''
                 INSERT INTO inventory 
                 (product_id, quantity, warehouse_location, bin_location, condition, 
                  status, reorder_point, safety_stock, serial_number, unit_cost, 
-                 last_received_date, last_updated)
-                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?, ?, ?, CURRENT_TIMESTAMP)
+                 last_received_date, last_updated, supplier_id, po_id, po_line_id)
+                VALUES (?, ?, ?, ?, ?, 'Available', 0, 0, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
             ''', (product_id, quantity_received, warehouse_location, bin_location, condition, 
-                  serial_number, unit_cost, receipt_date))
+                  serial_number, unit_cost, receipt_date, po['supplier_id'], id, po_line_id))
             
             inventory_id = inv_cursor.lastrowid
             logger.info(f"[Receive PO] Created inventory #{inventory_id} for product_id={product_id}, qty={quantity_received}")
@@ -1377,15 +1387,18 @@ def api_quick_receive_po_line(po_id, line_id):
                     )
         else:
             # Create new inventory line for each receive (allows multiple lines per product)
+            # Include supplier and PO reference for full traceability
             logger.info(f"[Quick Receive] Creating new inventory line for product_id={product_id}, qty={base_quantity_received}, location={warehouse_location}/{bin_location}")
             try:
                 inv_cursor = conn.cursor()
                 inv_cursor.execute('''
                     INSERT INTO inventory 
                     (product_id, quantity, warehouse_location, bin_location, condition, 
-                     reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_received_date, last_updated)
-                    VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number, receipt_date))
+                     reorder_point, safety_stock, status, unit_cost, expiration_date, serial_number, last_received_date, last_updated,
+                     supplier_id, po_id, po_line_id)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+                ''', (product_id, base_quantity_received, warehouse_location, bin_location, condition, base_unit_cost, expiration_date, serial_number, receipt_date,
+                      po['supplier_id'], po_id, line_id))
                 
                 new_inventory_id = inv_cursor.lastrowid
                 logger.info(f"[Quick Receive] Inventory insert completed for product_id={product_id}, new_inventory_id={new_inventory_id}")

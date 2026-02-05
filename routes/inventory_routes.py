@@ -56,6 +56,7 @@ def list_inventory():
     
     # Build query with filters
     # Use repair_cost if available (for work order items), otherwise use unit_cost or product cost
+    # Include supplier and PO reference for traceability
     query = '''
         SELECT i.*, p.code, p.name, p.unit_of_measure, p.is_serialized,
                COALESCE(i.unit_cost, p.cost, 0) as display_unit_cost,
@@ -63,9 +64,14 @@ def list_inventory():
                (i.quantity * CASE 
                    WHEN COALESCE(i.repair_cost, 0) > 0 THEN COALESCE(i.repair_cost, 0)
                    ELSE COALESCE(i.unit_cost, p.cost, 0)
-               END) as inventory_value
+               END) as inventory_value,
+               s.name as supplier_name,
+               s.code as supplier_code,
+               po.po_number
         FROM inventory i
         JOIN products p ON i.product_id = p.id
+        LEFT JOIN suppliers s ON i.supplier_id = s.id
+        LEFT JOIN purchase_orders po ON i.po_id = po.id
         WHERE 1=1
     '''
     params = []
