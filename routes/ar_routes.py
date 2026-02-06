@@ -66,16 +66,10 @@ def list_ar():
         FROM invoices
         WHERE status NOT IN ('Paid', 'Cancelled')
         GROUP BY 1
-        ORDER BY 
-            MIN(CASE 
-                WHEN due_date >= CURRENT_DATE THEN 1
-                WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN 2
-                WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN 3
-                WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN 4
-                ELSE 5
-            END)
     '''
-    aging_data = conn.execute(aging_query).fetchall()
+    aging_raw = conn.execute(aging_query).fetchall()
+    bucket_order = {'Current': 1, '1-30 Days': 2, '31-60 Days': 3, '61-90 Days': 4, '90+ Days': 5}
+    aging_data = sorted(aging_raw, key=lambda r: bucket_order.get(r['aging_bucket'], 99))
     
     conn.close()
     
