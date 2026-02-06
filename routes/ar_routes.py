@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from models import Database, AuditLogger
 from auth import login_required, role_required
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from utils.gl_journal import create_payment_received_entry
 import csv
 import io
@@ -43,11 +43,11 @@ def list_ar():
     
     receivables = conn.execute(query, params).fetchall()
     
-    today_date = datetime.now().strftime('%Y-%m-%d')
+    today_date = datetime.now().date()
     total_open = sum(float(r['balance_due'] or 0) for r in receivables if r['status'] not in ['Paid', 'Cancelled'])
     total_overdue = sum(
         float(r['balance_due'] or 0) for r in receivables 
-        if r['status'] not in ['Paid', 'Cancelled'] and r['due_date'] and r['due_date'] < today_date
+        if r['status'] not in ['Paid', 'Cancelled'] and r.get('due_date') and (r['due_date'] if isinstance(r['due_date'], date) else datetime.strptime(str(r['due_date']), '%Y-%m-%d').date()) < today_date
     )
     
     customers = conn.execute('SELECT id, name FROM customers ORDER BY name').fetchall()
@@ -55,10 +55,10 @@ def list_ar():
     aging_query = '''
         SELECT 
             CASE 
-                WHEN due_date >= date('now') THEN 'Current'
-                WHEN julianday('now') - julianday(due_date) BETWEEN 1 AND 30 THEN '1-30 Days'
-                WHEN julianday('now') - julianday(due_date) BETWEEN 31 AND 60 THEN '31-60 Days'
-                WHEN julianday('now') - julianday(due_date) BETWEEN 61 AND 90 THEN '61-90 Days'
+                WHEN due_date >= CURRENT_DATE THEN 'Current'
+                WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN '1-30 Days'
+                WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN '31-60 Days'
+                WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN '61-90 Days'
                 ELSE '90+ Days'
             END as aging_bucket,
             COUNT(*) as invoice_count,
@@ -67,13 +67,13 @@ def list_ar():
         WHERE status NOT IN ('Paid', 'Cancelled')
         GROUP BY 1
         ORDER BY 
-            CASE 
-                WHEN due_date >= date('now') THEN 1
-                WHEN julianday('now') - julianday(due_date) BETWEEN 1 AND 30 THEN 2
-                WHEN julianday('now') - julianday(due_date) BETWEEN 31 AND 60 THEN 3
-                WHEN julianday('now') - julianday(due_date) BETWEEN 61 AND 90 THEN 4
+            MIN(CASE 
+                WHEN due_date >= CURRENT_DATE THEN 1
+                WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN 2
+                WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN 3
+                WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN 4
                 ELSE 5
-            END
+            END)
     '''
     aging_data = conn.execute(aging_query).fetchall()
     

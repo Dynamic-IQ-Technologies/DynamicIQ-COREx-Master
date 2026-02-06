@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from models import Database, AuditLogger
 from auth import login_required, role_required
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 import csv
 import io
 
@@ -41,11 +41,11 @@ def list_ap():
     payables = conn.execute(query, params).fetchall()
     
     # Calculate summary statistics
-    today_date = datetime.now().strftime('%Y-%m-%d')
+    today_date = datetime.now().date()
     total_open = sum((p['balance_due'] or 0) for p in payables if p['status'] in ['Open', 'Pending Invoice'])
     total_overdue = sum(
         (p['balance_due'] or 0) for p in payables 
-        if p['status'] in ['Open', 'Pending Invoice'] and p.get('due_date') and p['due_date'] < today_date
+        if p['status'] in ['Open', 'Pending Invoice'] and p.get('due_date') and (p['due_date'] if isinstance(p['due_date'], date) else datetime.strptime(str(p['due_date']), '%Y-%m-%d').date()) < today_date
     )
     
     conn.close()
