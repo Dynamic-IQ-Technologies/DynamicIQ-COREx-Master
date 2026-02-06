@@ -2,196 +2,600 @@
 
 {% block title %}User Permissions Management{% endblock %}
 
+{% block extra_css %}
+<style>
+    .perm-page-header {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2d3748 100%);
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    .perm-page-header h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+    .user-selector-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        border: 1px solid #e2e8f0;
+    }
+    .user-selector-card select {
+        font-size: 1rem;
+        padding: 0.625rem 1rem;
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        transition: border-color 0.2s;
+    }
+    .user-selector-card select:focus {
+        border-color: #4a90e2;
+        box-shadow: 0 0 0 3px rgba(74,144,226,0.15);
+    }
+    .perm-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 1.5rem;
+    }
+    .perm-tab {
+        padding: 0.75rem 1.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #64748b;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+        background: none;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+    }
+    .perm-tab:hover {
+        color: #1e3a8a;
+        background: rgba(74,144,226,0.05);
+    }
+    .perm-tab.active {
+        color: #1e3a8a;
+        border-bottom-color: #4a90e2;
+    }
+    .perm-tab-content {
+        display: none;
+    }
+    .perm-tab-content.active {
+        display: block;
+    }
+    .section-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        transition: box-shadow 0.2s;
+    }
+    .section-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .section-header {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        gap: 0.75rem;
+        user-select: none;
+    }
+    .section-header:hover {
+        background: #f1f5f9;
+    }
+    .section-header .section-icon-wrap {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    .section-header .section-label {
+        font-weight: 600;
+        font-size: 1rem;
+        flex: 1;
+    }
+    .section-header .section-count {
+        font-size: 0.8rem;
+        color: #64748b;
+        background: #e2e8f0;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    .section-toggle-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .section-toggle-label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #64748b;
+    }
+    .section-chevron {
+        transition: transform 0.2s;
+        color: #94a3b8;
+        font-size: 0.9rem;
+    }
+    .section-chevron.collapsed {
+        transform: rotate(-90deg);
+    }
+    .section-body {
+        padding: 0.75rem 1.25rem;
+    }
+    .section-body.collapsed {
+        display: none;
+    }
+    .page-perm-row {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        transition: background 0.15s;
+        gap: 0.75rem;
+    }
+    .page-perm-row:hover {
+        background: #f8fafc;
+    }
+    .page-perm-row i {
+        width: 20px;
+        color: #64748b;
+        font-size: 1rem;
+    }
+    .page-perm-row label {
+        flex: 1;
+        cursor: pointer;
+        margin: 0;
+        font-size: 0.925rem;
+        color: #334155;
+    }
+    .form-switch-lg .form-check-input {
+        width: 3em;
+        height: 1.5em;
+        cursor: pointer;
+    }
+    .form-switch-section .form-check-input {
+        width: 3.25em;
+        height: 1.625em;
+        cursor: pointer;
+    }
+    .form-check-input:checked {
+        background-color: #4a90e2;
+        border-color: #4a90e2;
+    }
+    .func-perm-card {
+        background: white;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    .func-perm-header {
+        display: flex;
+        align-items: center;
+        padding: 0.875rem 1rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+    .func-perm-header:hover {
+        background: #f1f5f9;
+    }
+    .func-perm-header .func-label {
+        font-weight: 600;
+        font-size: 0.95rem;
+        flex: 1;
+    }
+    .func-perm-body {
+        padding: 0.5rem 1rem;
+    }
+    .func-perm-body.collapsed {
+        display: none;
+    }
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .quick-actions .btn {
+        font-size: 0.8rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+    }
+    .save-bar {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 1rem 1.5rem;
+        border-top: 2px solid #e2e8f0;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+        border-radius: 12px 12px 0 0;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 0 -2rem -2rem -2rem;
+    }
+    .save-bar .change-count {
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+    .perm-empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #94a3b8;
+    }
+    .perm-empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    .icon-executive { background: rgba(30,58,138,0.1); color: #1e3a8a; }
+    .icon-mro { background: rgba(74,144,226,0.1); color: #4a90e2; }
+    .icon-sales { background: rgba(16,185,129,0.1); color: #10b981; }
+    .icon-procurement { background: rgba(245,158,11,0.1); color: #f59e0b; }
+    .icon-operations { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+    .icon-labor { background: rgba(236,72,153,0.1); color: #ec4899; }
+    .icon-ndt { background: rgba(239,68,68,0.1); color: #ef4444; }
+    .icon-service { background: rgba(20,184,166,0.1); color: #14b8a6; }
+    .icon-quality { background: rgba(34,197,94,0.1); color: #22c55e; }
+    .icon-shipping { background: rgba(249,115,22,0.1); color: #f97316; }
+    .icon-accounting { background: rgba(99,102,241,0.1); color: #6366f1; }
+    .icon-reports { background: rgba(168,85,247,0.1); color: #a855f7; }
+    .disabled-overlay {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    @media (max-width: 768px) {
+        .perm-tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+        .perm-tab {
+            white-space: nowrap;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        .save-bar {
+            margin: 0 -1rem -1rem -1rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-shield-lock me-2"></i>User Permissions Management</h2>
+<div class="perm-page-header">
+    <div class="d-flex justify-content-between align-items-center">
         <div>
-            <button class="btn btn-outline-secondary btn-sm me-2" onclick="expandAllUsers()">
-                <i class="bi bi-arrows-expand me-1"></i> Expand All Users
-            </button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="collapseAllUsers()">
-                <i class="bi bi-arrows-collapse me-1"></i> Collapse All Users
-            </button>
+            <h2><i class="bi bi-shield-lock me-2"></i>Permissions Manager</h2>
+            <p class="mb-0 mt-1" style="opacity:0.8; font-size: 0.95rem;">Control menu visibility, page access, and feature permissions for each user</p>
         </div>
     </div>
+</div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <div class="accordion" id="usersAccordion">
-        {% for user in users %}
-        <div class="accordion-item mb-3">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed user-accordion-btn" type="button" 
-                        data-bs-toggle="collapse" data-bs-target="#user{{ user.id }}">
-                    <div class="d-flex align-items-center w-100">
-                        <i class="bi bi-person-circle me-2"></i>
-                        <strong>{{ user.username }}</strong>
-                        <span class="badge bg-secondary ms-2">{{ user.role }}</span>
-                        <small class="text-muted ms-3">{{ user.email }}</small>
-                    </div>
-                </button>
-            </h2>
-            <div id="user{{ user.id }}" class="accordion-collapse collapse" data-bs-parent="#usersAccordion">
-                <div class="accordion-body">
-                    <form method="POST" action="{{ url_for('permission_routes.update_permissions', user_id=user.id) }}">
-                        <div class="d-flex justify-content-end mb-3">
-                            <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="expandAllCategories({{ user.id }})">
-                                <i class="bi bi-arrows-expand me-1"></i> Expand All Categories
-                            </button>
-                            <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="collapseAllCategories({{ user.id }})">
-                                <i class="bi bi-arrows-collapse me-1"></i> Collapse All Categories
-                            </button>
-                            <button type="button" class="btn btn-outline-success btn-sm me-2" onclick="checkAllPermissions({{ user.id }})">
-                                <i class="bi bi-check-all me-1"></i> Check All
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="uncheckAllPermissions({{ user.id }})">
-                                <i class="bi bi-x-circle me-1"></i> Uncheck All
-                            </button>
-                        </div>
-                        
-                        <div class="accordion" id="categoriesAccordion{{ user.id }}">
-                            {% for category, permissions in available_permissions.items() %}
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed category-accordion-btn" type="button" 
-                                            data-bs-toggle="collapse" data-bs-target="#cat{{ user.id }}_{{ loop.index }}">
-                                        <i class="bi bi-folder2-open me-2"></i>
-                                        <span class="text-capitalize">{{ category.replace('_', ' ') }}</span>
-                                        <span class="badge bg-info ms-2">{{ permissions|length }}</span>
-                                    </button>
-                                </h2>
-                                <div id="cat{{ user.id }}_{{ loop.index }}" class="accordion-collapse collapse">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            {% for perm_key, perm_label in permissions.items() %}
-                                            <div class="col-md-6 col-lg-4">
-                                                <div class="form-check mb-2">
-                                                    <input class="form-check-input perm-check-{{ user.id }}" 
-                                                           type="checkbox" 
-                                                           name="{{ perm_key }}" 
-                                                           id="{{ user.id }}_{{ perm_key }}"
-                                                           {% if user.permissions.get(perm_key, 0) == 1 %}checked{% endif %}>
-                                                    <label class="form-check-label" for="{{ user.id }}_{{ perm_key }}">
-                                                        {{ perm_label }}
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save me-2"></i>Update Permissions for {{ user.username }}
-                            </button>
-                        </div>
-                    </form>
+<div class="user-selector-card">
+    <div class="row align-items-center g-3">
+        <div class="col-md-5">
+            <label class="form-label fw-bold mb-1"><i class="bi bi-person-circle me-1"></i> Select User</label>
+            <select class="form-select" id="userSelector" onchange="loadUserPermissions()">
+                <option value="">-- Choose a user --</option>
+                {% for user in users %}
+                <option value="{{ user.id }}" data-username="{{ user.username }}" data-role="{{ user.role }}" data-email="{{ user.email }}">
+                    {{ user.username }} ({{ user.role }}) - {{ user.email }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4" id="userInfoPanel" style="display:none;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-person-circle" style="font-size:2rem; color:#4a90e2;"></i>
+                <div>
+                    <div class="fw-bold" id="selectedUserName"></div>
+                    <div class="text-muted" style="font-size:0.85rem;"><span class="badge bg-secondary" id="selectedUserRole"></span> <span id="selectedUserEmail" class="ms-1"></span></div>
                 </div>
             </div>
         </div>
-        {% endfor %}
+        <div class="col-md-3 text-end" id="quickActionsPanel" style="display:none;">
+            <div class="quick-actions justify-content-end">
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="grantAll()">
+                    <i class="bi bi-check-all me-1"></i>Grant All
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="revokeAll()">
+                    <i class="bi bi-x-circle me-1"></i>Revoke All
+                </button>
+            </div>
+        </div>
     </div>
-
-    {% if not users %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>No users found in the system.
-    </div>
-    {% endif %}
 </div>
 
-<style>
-    .accordion-item {
-        border: 1px solid rgba(0,0,0,.125);
-        border-radius: 0.5rem !important;
-        overflow: hidden;
-    }
-    
-    .accordion-button:not(.collapsed) {
-        background: linear-gradient(135deg, #4a90e2 0%, #1e3a8a 100%);
-        color: white;
-    }
-    
-    .accordion-button:not(.collapsed)::after {
-        filter: brightness(0) invert(1);
-    }
-    
-    .user-accordion-btn {
-        padding: 1rem 1.25rem;
-    }
-    
-    .category-accordion-btn {
-        padding: 0.75rem 1rem;
-        background-color: #f8f9fa;
-    }
-    
-    .category-accordion-btn:not(.collapsed) {
-        background: #e3f2fd;
-        color: #1e3a8a;
-    }
-    
-    .form-check-input:checked {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-    }
-    
-    .accordion-body {
-        background-color: #fff;
-    }
-    
-    #categoriesAccordion .accordion-item {
-        margin-bottom: 0.5rem;
-    }
-</style>
+<div id="permissionsArea" style="display:none;">
+    <form method="POST" id="permForm" action="">
+        <div class="perm-tabs">
+            <button type="button" class="perm-tab active" onclick="switchTab('menu', this)">
+                <i class="bi bi-layout-sidebar me-1"></i> Menu & Sections
+            </button>
+            <button type="button" class="perm-tab" onclick="switchTab('functional', this)">
+                <i class="bi bi-key me-1"></i> Feature Permissions
+            </button>
+        </div>
+
+        <div class="perm-tab-content active" id="tab-menu">
+            {% set icon_classes = {
+                'section_executive': 'icon-executive',
+                'section_mro': 'icon-mro',
+                'section_sales': 'icon-sales',
+                'section_procurement': 'icon-procurement',
+                'section_operations': 'icon-operations',
+                'section_labor': 'icon-labor',
+                'section_ndt': 'icon-ndt',
+                'section_service': 'icon-service',
+                'section_quality': 'icon-quality',
+                'section_shipping': 'icon-shipping',
+                'section_accounting': 'icon-accounting',
+                'section_reports': 'icon-reports'
+            } %}
+            {% for section in sidebar_sections %}
+            <div class="section-card" data-section-key="{{ section.key }}">
+                <div class="section-header" onclick="toggleSectionBody('{{ section.key }}')">
+                    <div class="section-icon-wrap {{ icon_classes.get(section.key, 'icon-executive') }}">
+                        <i class="bi {{ section.icon }}"></i>
+                    </div>
+                    <div class="section-label">{{ section.label }}</div>
+                    <div class="section-count">{{ section.pages|length }} page{{ 's' if section.pages|length != 1 else '' }}</div>
+                    <div class="section-toggle-wrap" onclick="event.stopPropagation();">
+                        <span class="section-toggle-label">Show Section</span>
+                        <div class="form-check form-switch form-switch-section mb-0">
+                            <input class="form-check-input perm-input" type="checkbox" name="{{ section.key }}" id="perm_{{ section.key }}" onchange="onSectionToggle('{{ section.key }}')">
+                        </div>
+                    </div>
+                    <i class="bi bi-chevron-down section-chevron" id="chevron_{{ section.key }}"></i>
+                </div>
+                <div class="section-body" id="body_{{ section.key }}">
+                    <div id="pages_{{ section.key }}">
+                        {% for page in section.pages %}
+                        <div class="page-perm-row">
+                            <i class="bi {{ page.icon }}"></i>
+                            <label for="perm_{{ page.key }}">{{ page.label }}</label>
+                            <div class="form-check form-switch form-switch-lg mb-0">
+                                <input class="form-check-input perm-input page-toggle-{{ section.key }}" type="checkbox" name="{{ page.key }}" id="perm_{{ page.key }}">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex gap-2 mt-2 pt-2 border-top">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleAllPages('{{ section.key }}', true)">
+                            <i class="bi bi-check2-all me-1"></i>Enable All
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllPages('{{ section.key }}', false)">
+                            <i class="bi bi-dash-circle me-1"></i>Disable All
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="perm-tab-content" id="tab-functional">
+            <div class="row">
+                {% for cat_key, cat_data in functional_permissions.items() %}
+                <div class="col-md-6">
+                    <div class="func-perm-card">
+                        <div class="func-perm-header" onclick="toggleFuncBody('func_{{ cat_key }}')">
+                            <i class="bi {{ cat_data.icon }}" style="color: #4a90e2;"></i>
+                            <div class="func-label">{{ cat_data.label }}</div>
+                            <span class="section-count">{{ cat_data.perms|length }}</span>
+                            <i class="bi bi-chevron-down section-chevron" id="chevron_func_{{ cat_key }}"></i>
+                        </div>
+                        <div class="func-perm-body" id="func_{{ cat_key }}">
+                            {% for perm_key, perm_label in cat_data.perms.items() %}
+                            <div class="page-perm-row">
+                                <i class="bi bi-check2-circle"></i>
+                                <label for="perm_{{ perm_key }}">{{ perm_label }}</label>
+                                <div class="form-check form-switch form-switch-lg mb-0">
+                                    <input class="form-check-input perm-input" type="checkbox" name="{{ perm_key }}" id="perm_{{ perm_key }}">
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div class="d-flex gap-2 mt-2 pt-2 border-top">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleFuncPerms('func_{{ cat_key }}', true)">
+                                    <i class="bi bi-check2-all me-1"></i>Enable All
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleFuncPerms('func_{{ cat_key }}', false)">
+                                    <i class="bi bi-dash-circle me-1"></i>Disable All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="save-bar" id="saveBar">
+            <div class="change-count"><i class="bi bi-info-circle me-1"></i><span id="changeCountText">Select a user to manage permissions</span></div>
+            <button type="submit" class="btn btn-primary btn-lg" id="saveBtn" disabled>
+                <i class="bi bi-save me-2"></i>Save Permissions
+            </button>
+        </div>
+    </form>
+</div>
+
+<div id="emptyState">
+    <div class="perm-empty-state">
+        <i class="bi bi-person-gear d-block"></i>
+        <h5>Select a User</h5>
+        <p>Choose a user from the dropdown above to manage their permissions.</p>
+    </div>
+</div>
+
+{% if not users %}
+<div class="alert alert-info mt-3">
+    <i class="bi bi-info-circle me-2"></i>No users found in the system.
+</div>
+{% endif %}
 
 <script>
-function expandAllUsers() {
-    document.querySelectorAll('#usersAccordion .accordion-collapse').forEach(el => {
-        new bootstrap.Collapse(el, { toggle: false }).show();
+let currentUserId = null;
+let initialState = {};
+
+const usersData = {
+    {% for user in users %}
+    {{ user.id }}: {
+        username: "{{ user.username }}",
+        role: "{{ user.role }}",
+        email: "{{ user.email }}",
+        permissions: {{ user.permissions | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+function loadUserPermissions() {
+    const sel = document.getElementById('userSelector');
+    const userId = sel.value;
+    
+    if (!userId) {
+        document.getElementById('permissionsArea').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('userInfoPanel').style.display = 'none';
+        document.getElementById('quickActionsPanel').style.display = 'none';
+        document.getElementById('saveBtn').disabled = true;
+        currentUserId = null;
+        return;
+    }
+    
+    currentUserId = userId;
+    const userData = usersData[userId];
+    
+    document.getElementById('selectedUserName').textContent = userData.username;
+    document.getElementById('selectedUserRole').textContent = userData.role;
+    document.getElementById('selectedUserEmail').textContent = userData.email;
+    document.getElementById('userInfoPanel').style.display = 'block';
+    document.getElementById('quickActionsPanel').style.display = 'block';
+    
+    document.getElementById('permForm').action = '/permissions/update/' + userId;
+    
+    document.querySelectorAll('.perm-input').forEach(input => {
+        const key = input.name;
+        input.checked = (userData.permissions[key] === 1);
     });
+    
+    document.querySelectorAll('[data-section-key]').forEach(card => {
+        const sectionKey = card.dataset.sectionKey;
+        onSectionToggle(sectionKey);
+    });
+    
+    initialState = {};
+    document.querySelectorAll('.perm-input').forEach(input => {
+        initialState[input.name] = input.checked;
+    });
+    
+    document.getElementById('permissionsArea').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('saveBtn').disabled = false;
+    updateChangeCount();
 }
 
-function collapseAllUsers() {
-    document.querySelectorAll('#usersAccordion .accordion-collapse').forEach(el => {
-        new bootstrap.Collapse(el, { toggle: false }).hide();
-    });
+function switchTab(tabName, btn) {
+    document.querySelectorAll('.perm-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.perm-tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tabName).classList.add('active');
 }
 
-function expandAllCategories(userId) {
-    document.querySelectorAll('#categoriesAccordion' + userId + ' .accordion-collapse').forEach(el => {
-        new bootstrap.Collapse(el, { toggle: false }).show();
-    });
+function toggleSectionBody(sectionKey) {
+    const body = document.getElementById('body_' + sectionKey);
+    const chevron = document.getElementById('chevron_' + sectionKey);
+    body.classList.toggle('collapsed');
+    chevron.classList.toggle('collapsed');
 }
 
-function collapseAllCategories(userId) {
-    document.querySelectorAll('#categoriesAccordion' + userId + ' .accordion-collapse').forEach(el => {
-        new bootstrap.Collapse(el, { toggle: false }).hide();
-    });
+function toggleFuncBody(funcId) {
+    const body = document.getElementById(funcId);
+    const chevron = document.getElementById('chevron_' + funcId);
+    body.classList.toggle('collapsed');
+    chevron.classList.toggle('collapsed');
 }
 
-function checkAllPermissions(userId) {
-    document.querySelectorAll('.perm-check-' + userId).forEach(checkbox => {
-        checkbox.checked = true;
-    });
+function onSectionToggle(sectionKey) {
+    const sectionCheck = document.getElementById('perm_' + sectionKey);
+    const pagesWrap = document.getElementById('pages_' + sectionKey);
+    if (sectionCheck && pagesWrap) {
+        if (!sectionCheck.checked) {
+            pagesWrap.classList.add('disabled-overlay');
+        } else {
+            pagesWrap.classList.remove('disabled-overlay');
+        }
+    }
+    updateChangeCount();
 }
 
-function uncheckAllPermissions(userId) {
-    document.querySelectorAll('.perm-check-' + userId).forEach(checkbox => {
-        checkbox.checked = false;
+function toggleAllPages(sectionKey, checked) {
+    document.querySelectorAll('.page-toggle-' + sectionKey).forEach(input => {
+        input.checked = checked;
     });
+    updateChangeCount();
 }
+
+function toggleFuncPerms(funcId, checked) {
+    document.querySelectorAll('#' + funcId + ' .perm-input').forEach(input => {
+        input.checked = checked;
+    });
+    updateChangeCount();
+}
+
+function grantAll() {
+    document.querySelectorAll('.perm-input').forEach(input => {
+        input.checked = true;
+    });
+    document.querySelectorAll('[data-section-key]').forEach(card => {
+        onSectionToggle(card.dataset.sectionKey);
+    });
+    updateChangeCount();
+}
+
+function revokeAll() {
+    document.querySelectorAll('.perm-input').forEach(input => {
+        input.checked = false;
+    });
+    document.querySelectorAll('[data-section-key]').forEach(card => {
+        onSectionToggle(card.dataset.sectionKey);
+    });
+    updateChangeCount();
+}
+
+function updateChangeCount() {
+    let changes = 0;
+    document.querySelectorAll('.perm-input').forEach(input => {
+        if (initialState[input.name] !== undefined && initialState[input.name] !== input.checked) {
+            changes++;
+        }
+    });
+    const text = document.getElementById('changeCountText');
+    if (changes === 0) {
+        text.textContent = 'No unsaved changes';
+    } else {
+        text.textContent = changes + ' unsaved change' + (changes > 1 ? 's' : '');
+        text.style.color = '#f59e0b';
+        text.style.fontWeight = '600';
+    }
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('perm-input')) {
+        updateChangeCount();
+    }
+});
 </script>
 {% endblock %}
