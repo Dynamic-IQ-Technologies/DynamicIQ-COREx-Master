@@ -586,7 +586,7 @@
         </div>
         
         <ul class="sidebar-nav">
-            {% if session.role == 'Admin' or user_permissions.get('menu_neuroiq', 1) == 1 %}
+            {% if user_permissions.get('menu_neuroiq', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('neuroiq.neuroiq_dashboard') }}" style="background: linear-gradient(90deg, rgba(0,212,255,0.1), transparent); border-left: 2px solid #00d4ff;">
                     <i class="bi bi-stars" style="color: #00d4ff;"></i>
@@ -596,14 +596,14 @@
             {% endif %}
         </ul>
         
-        {% if session.role == 'Admin' or user_permissions.get('section_executive', 1) == 1 %}
+        {% if user_permissions.get('section_executive', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('executive')">
             <i class="bi bi-briefcase section-icon"></i>
             <span>Executive</span>
             <i class="bi bi-chevron-down toggle-icon" id="executive-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="executive-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_dashboard', 1) == 1 %}
+            {% if user_permissions.get('menu_dashboard', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('main_routes.dashboard') }}">
                     <i class="bi bi-speedometer2"></i>
@@ -611,7 +611,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_org_analyzer', 1) == 1 %}
+            {% if user_permissions.get('menu_org_analyzer', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('org_analyzer_routes.dashboard') }}">
                     <i class="bi bi-bar-chart-line"></i>
@@ -622,14 +622,14 @@
         </ul>
         {% endif %}
         
-        {% if session.role == 'Admin' or user_permissions.get('section_mro', 1) == 1 %}
+        {% if user_permissions.get('section_mro', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('mro')">
             <i class="bi bi-airplane-engines section-icon"></i>
             <span>MRO Management</span>
             <i class="bi bi-chevron-down toggle-icon" id="mro-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="mro-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_capabilities', 1) == 1 %}
+            {% if user_permissions.get('menu_capabilities', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('capability_routes.capability_list') }}">
                     <i class="bi bi-gear-wide-connected"></i>
@@ -637,7 +637,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_market_analysis', 1) == 1 %}
+            {% if user_permissions.get('menu_market_analysis', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('market_analysis_routes.dashboard') }}">
                     <i class="bi bi-graph-up-arrow"></i>
@@ -645,7 +645,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_products', 1) == 1 %}
+            {% if user_permissions.get('menu_products', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('product_routes.list_products') }}">
                     <i class="bi bi-box"></i>
@@ -653,7 +653,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_part_analyzer', 1) == 1 %}
+            {% if user_permissions.get('menu_part_analyzer', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('product_routes.part_analyzer') }}">
                     <i class="bi bi-search-heart"></i>
@@ -664,14 +664,14 @@
         </ul>
         {% endif %}
         
-        {% if session.role == 'Admin' or user_permissions.get('section_sales', 1) == 1 %}
+        {% if user_permissions.get('section_sales', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('sales')">
             <i class="bi bi-cash-coin section-icon"></i>
             <span>Sales</span>
             <i class="bi bi-chevron-down toggle-icon" id="sales-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="sales-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_sales_orders', 1) == 1 %}
+            {% if user_permissions.get('menu_sales_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('sales_dashboard.executive_sales_dashboard') }}">
                     <i class="bi bi-graph-up-arrow"></i>
@@ -687,7 +687,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_customers', 1) == 1 %}
+            {% if user_permissions.get('menu_customers', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('customer_routes.list_customers') }}">
                     <i class="bi bi-people"></i>
@@ -695,7 +695,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_customer_service', 1) == 1 %}
+            {% if user_permissions.get('menu_customer_service', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('customer_service.dashboard') }}">
                     <i class="bi bi-headset"></i>
@@ -703,7 +703,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_sales_orders', 1) == 1 %}
+            {% if user_permissions.get('menu_sales_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('salesorder_routes.list_sales_orders') }}">
                     <i class="bi bi-receipt"></i>
@@ -711,7 +711,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_exchange', 1) == 1 %}
+            {% if user_permissions.get('menu_exchange', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('exchange.exchange_dashboard') }}">
                     <i class="bi bi-arrow-left-right"></i>
@@ -722,7 +722,7 @@
         </ul>
         {% endif %}
         
-        {% if session.role == 'Admin' or user_permissions.get('section_procurement', 1) == 1 %}
+        {% if user_permissions.get('section_procurement', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('procurement')">
             <i class="bi bi-cart4 section-icon"></i>
             <span>Procurement</span>
@@ -737,7 +737,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_suppliers', 1) == 1 %}
+            {% if user_permissions.get('menu_suppliers', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('supplier_routes.list_suppliers') }}">
                     <i class="bi bi-truck"></i>
@@ -745,7 +745,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_purchase_orders', 1) == 1 %}
+            {% if user_permissions.get('menu_purchase_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('po_routes.list_purchaseorders') }}">
                     <i class="bi bi-cart"></i>
@@ -753,7 +753,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_receiving', 1) == 1 %}
+            {% if user_permissions.get('menu_receiving', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('receiving_routes.list_receiving') }}">
                     <i class="bi bi-inbox-fill"></i>
@@ -761,7 +761,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_inventory', 1) == 1 %}
+            {% if user_permissions.get('menu_inventory', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('inventory_routes.list_inventory') }}">
                     <i class="bi bi-boxes"></i>
@@ -769,7 +769,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_supplier_discovery', 1) == 1 %}
+            {% if user_permissions.get('menu_supplier_discovery', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('supplier_discovery_routes.list_requests') }}">
                     <i class="bi bi-robot"></i>
@@ -777,7 +777,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_products', 1) == 1 %}
+            {% if user_permissions.get('menu_products', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('part_intake_routes.list_intakes') }}">
                     <i class="bi bi-cloud-download"></i>
@@ -785,7 +785,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_reports', 1) == 1 %}
+            {% if user_permissions.get('menu_reports', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('report_routes.material_requirements_report') }}">
                     <i class="bi bi-clipboard-data"></i>
@@ -793,7 +793,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_rfq', 1) == 1 %}
+            {% if user_permissions.get('menu_rfq', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('rfq_routes.list_rfqs') }}">
                     <i class="bi bi-file-earmark-text"></i>
@@ -801,7 +801,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_tools', 1) == 1 %}
+            {% if user_permissions.get('menu_tools', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('tools_routes.list_tools') }}">
                     <i class="bi bi-wrench"></i>
@@ -812,14 +812,14 @@
         </ul>
         {% endif %}
         
-        {% if session.role == 'Admin' or user_permissions.get('section_operations', 1) == 1 %}
+        {% if user_permissions.get('section_operations', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('operations')">
             <i class="bi bi-gear-wide-connected section-icon"></i>
             <span>Operations</span>
             <i class="bi bi-chevron-down toggle-icon" id="operations-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="operations-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_operations_dashboard', 1) == 1 %}
+            {% if user_permissions.get('menu_operations_dashboard', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('operations_routes.operations_dashboard') }}">
                     <i class="bi bi-speedometer2"></i>
@@ -833,7 +833,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_work_orders', 1) == 1 %}
+            {% if user_permissions.get('menu_work_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('workorder_routes.list_workorders') }}">
                     <i class="bi bi-clipboard-check"></i>
@@ -841,7 +841,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_task_templates', 1) == 1 %}
+            {% if user_permissions.get('menu_task_templates', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('task_template_routes.list_templates') }}">
                     <i class="bi bi-file-earmark-text"></i>
@@ -849,7 +849,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_master_routings', 1) == 1 %}
+            {% if user_permissions.get('menu_master_routings', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('master_routing_routes.list_routings') }}">
                     <i class="bi bi-diagram-3"></i>
@@ -857,7 +857,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_inventory', 1) == 1 %}
+            {% if user_permissions.get('menu_inventory', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('issuance_routes.list_issues') }}">
                     <i class="bi bi-box-arrow-right"></i>
@@ -871,7 +871,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_capacity_planning', 1) == 1 %}
+            {% if user_permissions.get('menu_capacity_planning', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('capacity_routes.dashboard') }}">
                     <i class="bi bi-calendar3-range"></i>
@@ -879,7 +879,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_master_scheduler', 1) == 1 %}
+            {% if user_permissions.get('menu_master_scheduler', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('master_scheduler_routes.dashboard') }}">
                     <i class="bi bi-calendar-week"></i>
@@ -890,14 +890,14 @@
         </ul>
         {% endif %}
         
-        {% if session.role == 'Admin' or user_permissions.get('section_labor', 1) == 1 %}
+        {% if user_permissions.get('section_labor', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('labortracker')">
             <i class="bi bi-person-badge section-icon"></i>
             <span>Labor Tracker</span>
             <i class="bi bi-chevron-down toggle-icon" id="labortracker-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="labortracker-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_clock_station', 1) == 1 %}
+            {% if user_permissions.get('menu_clock_station', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('clock_station_routes.clock_login') }}">
                     <i class="bi bi-clock-fill"></i>
@@ -905,7 +905,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_time_tracking', 1) == 1 %}
+            {% if user_permissions.get('menu_time_tracking', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('clock_station_routes.manager_dashboard') }}">
                     <i class="bi bi-clipboard-data"></i>
@@ -950,14 +950,14 @@
         </ul>
         {% endif %}
         
-        {% if session.role == 'Admin' or user_permissions.get('section_service', 1) == 1 %}
+        {% if user_permissions.get('section_service', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('service')">
             <i class="bi bi-wrench-adjustable-circle section-icon"></i>
             <span>Service Management</span>
             <i class="bi bi-chevron-down toggle-icon" id="service-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="service-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_work_orders', 1) == 1 %}
+            {% if user_permissions.get('menu_work_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('service_wo_routes.list_service_work_orders') }}">
                     <i class="bi bi-wrench-adjustable"></i>
@@ -965,7 +965,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_repair_orders', 1) == 1 %}
+            {% if user_permissions.get('menu_repair_orders', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('repair_order_routes.list_repair_orders') }}">
                     <i class="bi bi-tools"></i>
@@ -1075,7 +1075,7 @@
             <i class="bi bi-chevron-down toggle-icon" id="accounting-icon"></i>
         </div>
         <ul class="sidebar-nav collapsible-content" id="accounting-content">
-            {% if session.role == 'Admin' or user_permissions.get('menu_executive_dashboard', 1) == 1 %}
+            {% if user_permissions.get('menu_executive_dashboard', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('executive_routes.dashboard') }}">
                     <i class="bi bi-graph-up-arrow"></i>
@@ -1083,7 +1083,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_financial_analyzer', 1) == 1 %}
+            {% if user_permissions.get('menu_financial_analyzer', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('financial_analyzer_routes.dashboard') }}">
                     <i class="bi bi-currency-dollar"></i>
@@ -1091,7 +1091,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_accounting', 1) == 1 %}
+            {% if user_permissions.get('menu_accounting', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.list_accounts') }}">
                     <i class="bi bi-list-ul"></i>
@@ -1099,7 +1099,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_journal_entries', 1) == 1 %}
+            {% if user_permissions.get('menu_journal_entries', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('journal_routes.list_journals') }}">
                     <i class="bi bi-journal-text"></i>
@@ -1107,7 +1107,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_accounting', 1) == 1 %}
+            {% if user_permissions.get('menu_accounting', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.general_ledger') }}">
                     <i class="bi bi-book"></i>
@@ -1115,7 +1115,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_accounting', 1) == 1 %}
+            {% if user_permissions.get('menu_accounting', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('ap_routes.list_ap') }}">
                     <i class="bi bi-receipt"></i>
@@ -1129,7 +1129,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_financial_reports', 1) == 1 %}
+            {% if user_permissions.get('menu_financial_reports', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('financial_reports_routes.trial_balance') }}">
                     <i class="bi bi-file-earmark-text"></i>
@@ -1155,7 +1155,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_business_analytics', 1) == 1 %}
+            {% if user_permissions.get('menu_business_analytics', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('business_analytics_routes.dashboard') }}">
                     <i class="bi bi-robot"></i>
@@ -1163,7 +1163,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if session.role == 'Admin' or user_permissions.get('menu_invoices', 1) == 1 %}
+            {% if user_permissions.get('menu_invoices', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('invoice_routes.list_invoices') }}">
                     <i class="bi bi-receipt-cutoff"></i>
@@ -1195,7 +1195,7 @@
                         <i class="bi bi-file-earmark-spreadsheet"></i>
                         Material Usage
                     </a>
-                    {% if session.role == 'Admin' or user_permissions.get('menu_time_tracking', 1) == 1 %}
+                    {% if user_permissions.get('menu_time_tracking', 1) == 1 %}
                     <a href="{{ url_for('time_tracking_routes.active_labor_report') }}">
                         <i class="bi bi-person-check"></i>
                         Active Labor Report

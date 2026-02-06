@@ -488,7 +488,8 @@ function loadUserPermissions() {
     
     document.querySelectorAll('.perm-input').forEach(input => {
         const key = input.name;
-        input.checked = (userData.permissions[key] === 1);
+        const val = userData.permissions[key];
+        input.checked = (val === undefined || val === null) ? true : (val === 1);
     });
     
     document.querySelectorAll('[data-section-key]').forEach(card => {
