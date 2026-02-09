@@ -24,6 +24,7 @@ SIDEBAR_SECTIONS = [
             {'key': 'menu_market_analysis', 'label': 'Market Analysis', 'icon': 'bi-graph-up-arrow'},
             {'key': 'menu_products', 'label': 'Products', 'icon': 'bi-box'},
             {'key': 'menu_part_analyzer', 'label': 'Part Analyzer', 'icon': 'bi-search-heart'},
+            {'key': 'menu_bom', 'label': 'Bill of Materials', 'icon': 'bi-diagram-3'},
         ]
     },
     {

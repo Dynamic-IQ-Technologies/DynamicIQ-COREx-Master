@@ -659,6 +659,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if user_permissions.get('menu_bom', 1) == 1 %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('bom_routes.list_boms') }}">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Bill of Materials</span>
+                </a>
+            </li>
+            {% endif %}
         </ul>
         {% endif %}
         
