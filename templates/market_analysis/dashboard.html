@@ -116,20 +116,37 @@
                 <div class="col-lg-5">
                     <form method="POST" action="{{ url_for('market_analysis_routes.auto_generate_fleet_data') }}" 
                           class="d-flex flex-wrap gap-2 align-items-end" id="aiGenerateForm">
-                        <div class="flex-grow-1" style="min-width: 120px;">
-                            <label class="form-label text-white small mb-1">Airlines</label>
-                            <select class="form-select form-select-sm" name="num_airlines">
-                                <option value="5" selected>5 Airlines</option>
-                                <option value="10">10 Airlines</option>
-                                <option value="15">15 Airlines</option>
+                        <div class="flex-grow-1" style="min-width: 160px;">
+                            <label class="form-label text-white small mb-1">Industry</label>
+                            <select class="form-select form-select-sm" name="industry">
+                                <option value="Aviation MRO" selected>Aviation MRO</option>
+                                <option value="Aerospace & Defense">Aerospace & Defense</option>
+                                <option value="Automotive">Automotive</option>
+                                <option value="Oil & Gas">Oil & Gas</option>
+                                <option value="Marine & Shipbuilding">Marine & Shipbuilding</option>
+                                <option value="Power Generation & Energy">Power Generation & Energy</option>
+                                <option value="Rail & Transportation">Rail & Transportation</option>
+                                <option value="Industrial Manufacturing">Industrial Manufacturing</option>
+                                <option value="Medical Devices">Medical Devices</option>
+                                <option value="Electronics & Semiconductor">Electronics & Semiconductor</option>
+                                <option value="Mining & Heavy Equipment">Mining & Heavy Equipment</option>
+                                <option value="Telecommunications">Telecommunications</option>
                             </select>
                         </div>
                         <div class="flex-grow-1" style="min-width: 120px;">
-                            <label class="form-label text-white small mb-1">Aircraft Each</label>
+                            <label class="form-label text-white small mb-1">Companies</label>
+                            <select class="form-select form-select-sm" name="num_airlines">
+                                <option value="5" selected>5 Companies</option>
+                                <option value="10">10 Companies</option>
+                                <option value="15">15 Companies</option>
+                            </select>
+                        </div>
+                        <div class="flex-grow-1" style="min-width: 120px;">
+                            <label class="form-label text-white small mb-1">Assets Each</label>
                             <select class="form-select form-select-sm" name="num_aircraft">
-                                <option value="10" selected>10 Aircraft</option>
-                                <option value="20">20 Aircraft</option>
-                                <option value="30">30 Aircraft</option>
+                                <option value="10" selected>10 Assets</option>
+                                <option value="20">20 Assets</option>
+                                <option value="30">30 Assets</option>
                             </select>
                         </div>
                         <div>

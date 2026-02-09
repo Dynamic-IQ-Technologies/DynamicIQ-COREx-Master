@@ -164,41 +164,204 @@ def auto_generate_fleet_data():
         regions = request.form.getlist('regions') or ['North America', 'Europe', 'Asia Pacific']
         num_airlines = int(request.form.get('num_airlines', 5))
         num_aircraft_per_airline = int(request.form.get('num_aircraft', 10))
-        source_name = request.form.get('source_name', f"AI Generated - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        industry = request.form.get('industry', 'Aviation MRO')
+        source_name = request.form.get('source_name', f"AI Generated ({industry}) - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+        # Industry-specific prompt configurations
+        industry_configs = {
+            'Aviation MRO': {
+                'company_type': 'airlines',
+                'asset_type': 'aircraft',
+                'asset_examples': 'Boeing, Airbus models like 737, A320, 777, A350, etc.',
+                'part_examples': 'realistic aviation part numbers like 65-12345-01, NAS1234, MS21234',
+                'category_field': 'ATAChapter',
+                'category_desc': 'ATA chapter codes (realistic codes like 32, 71, 78)',
+                'sample_company': 'United Airlines',
+                'sample_asset': 'Boeing 737-800',
+                'sample_part': '65-12345-01',
+                'sample_category': '32',
+                'sample_desc': 'Landing Gear Assembly',
+            },
+            'Aerospace & Defense': {
+                'company_type': 'aerospace/defense contractors and military operators',
+                'asset_type': 'platforms (aircraft, spacecraft, defense systems)',
+                'asset_examples': 'F-35, C-130, satellite systems, missile defense, UAVs',
+                'part_examples': 'defense part numbers like NSN 5340-01-234-5678, CAGE codes',
+                'category_field': 'ATAChapter',
+                'category_desc': 'system category codes',
+                'sample_company': 'Lockheed Martin',
+                'sample_asset': 'F-35 Lightning II',
+                'sample_part': 'NSN-5340-01-234',
+                'sample_category': 'Avionics',
+                'sample_desc': 'Flight Control Computer',
+            },
+            'Automotive': {
+                'company_type': 'automotive manufacturers and fleet operators',
+                'asset_type': 'vehicle models',
+                'asset_examples': 'sedans, SUVs, trucks, EVs from major manufacturers',
+                'part_examples': 'automotive OEM part numbers like 11-42-7-953-129, AC-DELCO 41-110',
+                'category_field': 'ATAChapter',
+                'category_desc': 'vehicle system category (Engine, Transmission, Braking, Electrical)',
+                'sample_company': 'Toyota Motor Corp',
+                'sample_asset': 'Camry 2024',
+                'sample_part': '11-42-7-953-129',
+                'sample_category': 'Engine',
+                'sample_desc': 'Oil Filter Assembly',
+            },
+            'Oil & Gas': {
+                'company_type': 'oil & gas operators and service companies',
+                'asset_type': 'equipment and platforms (rigs, pipelines, refineries)',
+                'asset_examples': 'drilling rigs, FPSO vessels, compressor stations, pipeline segments',
+                'part_examples': 'industrial part numbers like API-6A-1234, ASME B16.5-WN',
+                'category_field': 'ATAChapter',
+                'category_desc': 'equipment category (Drilling, Production, Refining, Pipeline)',
+                'sample_company': 'Schlumberger',
+                'sample_asset': 'Deepwater Drilling Rig',
+                'sample_part': 'API-6A-1234',
+                'sample_category': 'Drilling',
+                'sample_desc': 'BOP Stack Assembly',
+            },
+            'Marine & Shipbuilding': {
+                'company_type': 'shipping lines and maritime operators',
+                'asset_type': 'vessels',
+                'asset_examples': 'container ships, tankers, bulk carriers, cruise ships',
+                'part_examples': 'marine part numbers like IMO-12345, DNV-GL certified parts',
+                'category_field': 'ATAChapter',
+                'category_desc': 'ship system category (Hull, Propulsion, Navigation, Safety)',
+                'sample_company': 'Maersk Line',
+                'sample_asset': 'Triple-E Class Container Ship',
+                'sample_part': 'IMO-MAN-B&W-6S',
+                'sample_category': 'Propulsion',
+                'sample_desc': 'Main Engine Turbocharger',
+            },
+            'Power Generation & Energy': {
+                'company_type': 'power utilities and energy companies',
+                'asset_type': 'generation assets (turbines, solar arrays, wind farms)',
+                'asset_examples': 'gas turbines, wind turbines, solar inverters, transformers',
+                'part_examples': 'energy equipment parts like GE-7FA-BLADE-001, ABB-XFMR-500KV',
+                'category_field': 'ATAChapter',
+                'category_desc': 'system category (Generation, Transmission, Distribution, Control)',
+                'sample_company': 'Duke Energy',
+                'sample_asset': 'GE 7FA Gas Turbine',
+                'sample_part': 'GE-7FA-BLADE-001',
+                'sample_category': 'Generation',
+                'sample_desc': 'First Stage Turbine Blade',
+            },
+            'Rail & Transportation': {
+                'company_type': 'railroad operators and transit authorities',
+                'asset_type': 'rolling stock (locomotives, railcars, transit vehicles)',
+                'asset_examples': 'diesel locomotives, electric trains, freight cars, light rail',
+                'part_examples': 'rail part numbers like AAR-M-1003, EMD-645-PISTON',
+                'category_field': 'ATAChapter',
+                'category_desc': 'system category (Traction, Braking, Signaling, HVAC)',
+                'sample_company': 'Union Pacific Railroad',
+                'sample_asset': 'EMD SD70ACe Locomotive',
+                'sample_part': 'AAR-M-1003-BRK',
+                'sample_category': 'Traction',
+                'sample_desc': 'Traction Motor Armature',
+            },
+            'Industrial Manufacturing': {
+                'company_type': 'manufacturing companies and industrial operators',
+                'asset_type': 'production equipment (CNC machines, robots, conveyors)',
+                'asset_examples': 'CNC machining centers, industrial robots, injection molding machines',
+                'part_examples': 'industrial part numbers like FANUC-A06B-6114, SKF-6205-2Z',
+                'category_field': 'ATAChapter',
+                'category_desc': 'system category (Machining, Automation, Material Handling, Quality)',
+                'sample_company': 'Siemens AG',
+                'sample_asset': 'FANUC Robodrill CNC',
+                'sample_part': 'FANUC-A06B-6114',
+                'sample_category': 'Machining',
+                'sample_desc': 'Spindle Motor Assembly',
+            },
+            'Medical Devices': {
+                'company_type': 'hospitals, clinics, and medical device companies',
+                'asset_type': 'medical equipment (imaging, surgical, diagnostic)',
+                'asset_examples': 'MRI scanners, CT machines, surgical robots, ventilators',
+                'part_examples': 'medical device parts like GE-SIGNA-COIL-8CH, PHIL-IU22-PROBE',
+                'category_field': 'ATAChapter',
+                'category_desc': 'device category (Imaging, Surgical, Diagnostic, Life Support)',
+                'sample_company': 'Mayo Clinic',
+                'sample_asset': 'GE SIGNA 3T MRI',
+                'sample_part': 'GE-SIGNA-COIL-8CH',
+                'sample_category': 'Imaging',
+                'sample_desc': 'RF Receive Coil Assembly',
+            },
+            'Electronics & Semiconductor': {
+                'company_type': 'semiconductor fabs and electronics manufacturers',
+                'asset_type': 'fabrication and test equipment',
+                'asset_examples': 'lithography machines, etchers, testers, pick-and-place',
+                'part_examples': 'semiconductor equipment parts like ASML-NXT1980-LENS, LAM-2300',
+                'category_field': 'ATAChapter',
+                'category_desc': 'process category (Lithography, Etch, Deposition, Test)',
+                'sample_company': 'TSMC',
+                'sample_asset': 'ASML NXT:1980Di Stepper',
+                'sample_part': 'ASML-NXT1980-LENS',
+                'sample_category': 'Lithography',
+                'sample_desc': 'EUV Pellicle Assembly',
+            },
+            'Mining & Heavy Equipment': {
+                'company_type': 'mining operators and heavy equipment companies',
+                'asset_type': 'heavy equipment (excavators, haul trucks, crushers)',
+                'asset_examples': 'haul trucks, excavators, draglines, crushers, conveyor systems',
+                'part_examples': 'mining equipment parts like CAT-793F-TIRE, KOMATSU-PC8000-BKT',
+                'category_field': 'ATAChapter',
+                'category_desc': 'system category (Drivetrain, Hydraulics, Structural, Electrical)',
+                'sample_company': 'Rio Tinto',
+                'sample_asset': 'CAT 793F Haul Truck',
+                'sample_part': 'CAT-793F-TIRE-4000R57',
+                'sample_category': 'Drivetrain',
+                'sample_desc': 'Final Drive Assembly',
+            },
+            'Telecommunications': {
+                'company_type': 'telecom operators and network equipment providers',
+                'asset_type': 'network infrastructure (towers, switches, fiber)',
+                'asset_examples': 'cell towers, 5G base stations, fiber optic equipment, routers',
+                'part_examples': 'telecom parts like ERIC-RBS6000-RRU, NOKIA-AQFN-WDM40',
+                'category_field': 'ATAChapter',
+                'category_desc': 'network category (Radio Access, Core, Transport, Data Center)',
+                'sample_company': 'AT&T',
+                'sample_asset': 'Ericsson RBS 6000 Base Station',
+                'sample_part': 'ERIC-RBS6000-RRU',
+                'sample_category': 'Radio Access',
+                'sample_desc': 'Remote Radio Unit',
+            },
+        }
+        
+        config = industry_configs.get(industry, industry_configs['Aviation MRO'])
         
         # Use OpenAI to generate realistic fleet data
         client = get_openai_client()
         
-        prompt = f"""Generate realistic airline fleet data for market analysis. Create data for {num_airlines} airlines across these regions: {', '.join(regions)}.
+        prompt = f"""Generate realistic {industry} industry data for market analysis. Create data for {num_airlines} {config['company_type']} across these regions: {', '.join(regions)}.
 
-For each airline, generate {num_aircraft_per_airline} aircraft with the following details:
-- Airline name (realistic major airlines)
+For each company, generate {num_aircraft_per_airline} {config['asset_type']} with the following details:
+- Company name (realistic major {config['company_type']})
 - Region (from: {', '.join(regions)})
-- Aircraft model (Boeing, Airbus models like 737, A320, 777, A350, etc.)
-- Part numbers (realistic aviation part numbers like 65-12345-01, NAS1234, MS21234, etc.)
-- ATA chapter codes (realistic codes like 32, 71, 78, etc.)
-- Descriptions (realistic part descriptions)
+- Asset/equipment model ({config['asset_examples']})
+- Part numbers ({config['part_examples']})
+- System category ({config['category_desc']})
+- Descriptions (realistic part/component descriptions)
 
 Return a JSON array with this exact structure:
 [
   {{
-    "Airline": "United Airlines",
+    "Airline": "{config['sample_company']}",
     "Region": "North America",
-    "AircraftModel": "Boeing 737-800",
-    "PartNumber": "65-12345-01",
-    "ATAChapter": "32",
-    "Description": "Landing Gear Assembly",
+    "AircraftModel": "{config['sample_asset']}",
+    "PartNumber": "{config['sample_part']}",
+    "ATAChapter": "{config['sample_category']}",
+    "Description": "{config['sample_desc']}",
     "Criticality": "Critical"
   }},
   ...
 ]
 
-Make it realistic with actual airline names, common aircraft types, and real aviation part numbering conventions. Generate exactly {num_airlines * num_aircraft_per_airline} records."""
+Make it realistic with actual company names, common {config['asset_type']}, and real part numbering conventions for the {industry} industry. Generate exactly {num_airlines * num_aircraft_per_airline} records."""
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an aviation industry expert who generates realistic airline fleet data."},
+                {"role": "system", "content": f"You are a {industry} industry expert who generates realistic market and fleet/asset data for analysis."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7
@@ -381,6 +544,18 @@ def generate_ai_insights(source_id, run_id):
         db = Database()
         conn = db.get_connection()
         
+        # Detect industry from source name
+        source_info = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+        industry = 'Aviation MRO'
+        if source_info and source_info['source_name']:
+            sname = source_info['source_name']
+            for ind in ['Aerospace & Defense', 'Automotive', 'Oil & Gas', 'Marine & Shipbuilding',
+                        'Power Generation & Energy', 'Rail & Transportation', 'Industrial Manufacturing',
+                        'Medical Devices', 'Electronics & Semiconductor', 'Mining & Heavy Equipment', 'Telecommunications']:
+                if ind in sname:
+                    industry = ind
+                    break
+        
         # Get match data for AI analysis
         matches_data = conn.execute('''
             SELECT afa.airline_name, afa.region, afa.aircraft_model,
@@ -445,7 +620,7 @@ def generate_ai_insights(source_id, run_id):
                     fleet_by_airline += f"  - {row['aircraft_model']}: {row['fleet_size']} aircraft\n"
         
         # Build comprehensive prompt for AI
-        prompt = f"""You are an expert aviation MRO (Maintenance, Repair, and Overhaul) market analyst. Analyze the following fleet data and capability matches to provide a COMPREHENSIVE strategic market analysis report.
+        prompt = f"""You are an expert {industry} market analyst. Analyze the following data and capability matches to provide a COMPREHENSIVE strategic market analysis report for the {industry} industry.
 
 **MARKET DATA SUMMARY:**
 - Total Airlines Analyzed: {stats['airline_count']}
@@ -609,7 +784,7 @@ Format your response with clear section headings using plain text (no special ch
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert aviation MRO market analyst providing strategic business insights. IMPORTANT: Do not use special characters such as asterisks, hash symbols, or other markdown formatting in your response. Use plain text only with clear section headings."
+                    "content": f"You are an expert {industry} market analyst providing strategic business insights. IMPORTANT: Do not use special characters such as asterisks, hash symbols, or other markdown formatting in your response. Use plain text only with clear section headings."
                 },
                 {
                     "role": "user",

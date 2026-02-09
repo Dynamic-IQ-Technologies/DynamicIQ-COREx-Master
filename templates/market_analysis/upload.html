@@ -39,23 +39,42 @@
                             <div class="form-text">Optional: Give this generated data a name</div>
                         </div>
 
+                        <div class="mb-3">
+                            <label for="industry" class="form-label">Industry</label>
+                            <select class="form-select" id="industry" name="industry">
+                                <option value="Aviation MRO" selected>Aviation MRO</option>
+                                <option value="Aerospace & Defense">Aerospace & Defense</option>
+                                <option value="Automotive">Automotive</option>
+                                <option value="Oil & Gas">Oil & Gas</option>
+                                <option value="Marine & Shipbuilding">Marine & Shipbuilding</option>
+                                <option value="Power Generation & Energy">Power Generation & Energy</option>
+                                <option value="Rail & Transportation">Rail & Transportation</option>
+                                <option value="Industrial Manufacturing">Industrial Manufacturing</option>
+                                <option value="Medical Devices">Medical Devices</option>
+                                <option value="Electronics & Semiconductor">Electronics & Semiconductor</option>
+                                <option value="Mining & Heavy Equipment">Mining & Heavy Equipment</option>
+                                <option value="Telecommunications">Telecommunications</option>
+                            </select>
+                            <div class="form-text">Select the industry to tailor the AI-generated data and analysis</div>
+                        </div>
+
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="num_airlines" class="form-label">Number of Airlines</label>
+                                <label for="num_airlines" class="form-label">Number of Companies</label>
                                 <select class="form-select" id="num_airlines" name="num_airlines">
-                                    <option value="3">3 Airlines</option>
-                                    <option value="5" selected>5 Airlines</option>
-                                    <option value="10">10 Airlines</option>
-                                    <option value="15">15 Airlines</option>
+                                    <option value="3">3 Companies</option>
+                                    <option value="5" selected>5 Companies</option>
+                                    <option value="10">10 Companies</option>
+                                    <option value="15">15 Companies</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="num_aircraft" class="form-label">Aircraft per Airline</label>
+                                <label for="num_aircraft" class="form-label">Assets per Company</label>
                                 <select class="form-select" id="num_aircraft" name="num_aircraft">
-                                    <option value="5">5 Aircraft</option>
-                                    <option value="10" selected>10 Aircraft</option>
-                                    <option value="20">20 Aircraft</option>
-                                    <option value="30">30 Aircraft</option>
+                                    <option value="5">5 Assets</option>
+                                    <option value="10" selected>10 Assets</option>
+                                    <option value="20">20 Assets</option>
+                                    <option value="30">30 Assets</option>
                                 </select>
                             </div>
                         </div>
