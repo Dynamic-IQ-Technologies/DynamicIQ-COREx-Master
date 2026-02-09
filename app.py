@@ -74,6 +74,7 @@ from routes.duplicate_detection_routes import duplicate_detection_bp
 from routes.unplanned_receipt_routes import unplanned_receipt_bp
 from routes.health_routes import health_bp
 from routes.asc_admin_routes import asc_admin_bp
+from routes.external_app_routes import external_app_bp
 from engines.asc_ai import asc_engine
 import os
 
@@ -361,6 +362,7 @@ app.register_blueprint(duplicate_detection_bp)
 app.register_blueprint(unplanned_receipt_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(asc_admin_bp)
+app.register_blueprint(external_app_bp)
 
 def get_database():
     from models import Database
@@ -372,10 +374,18 @@ asc_engine.initialize(get_database)
 def inject_user():
     user = None
     user_permissions = {}
+    connected_apps = []
     if 'user_id' in session:
         user = User.get_by_id(session['user_id'])
         user_permissions = User.get_permissions(session['user_id'])
-    return dict(user=user, user_permissions=user_permissions)
+        try:
+            db = Database()
+            conn = db.get_connection()
+            connected_apps = conn.execute('SELECT id, name, url, icon, color, open_in_new_tab FROM external_apps WHERE is_active = 1 ORDER BY sort_order, name').fetchall()
+            conn.close()
+        except:
+            pass
+    return dict(user=user, user_permissions=user_permissions, connected_apps=connected_apps)
 
 logging.basicConfig(level=logging.INFO)
 error_logger = logging.getLogger('error_handler')

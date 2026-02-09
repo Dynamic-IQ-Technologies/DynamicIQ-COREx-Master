@@ -1224,6 +1224,25 @@
         </ul>
         {% endif %}
         
+        {% if connected_apps %}
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('connected_apps')">
+            <i class="bi bi-link-45deg section-icon"></i>
+            <span>Connected Apps</span>
+            <i class="bi bi-chevron-down toggle-icon" id="connected_apps-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="connected_apps-content">
+            {% for ext_app in connected_apps %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ ext_app.url }}" {% if ext_app.open_in_new_tab %}target="_blank" rel="noopener"{% endif %}>
+                    <i class="bi {{ ext_app.icon or 'bi-box-arrow-up-right' }}" style="color: {{ ext_app.color or '#6366f1' }}"></i>
+                    <span>{{ ext_app.name }}</span>
+                    {% if ext_app.open_in_new_tab %}<i class="bi bi-box-arrow-up-right" style="font-size: 0.6rem; opacity: 0.4; margin-left: auto;"></i>{% endif %}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
         {% if session.role == 'Admin' %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('administration')">
             <i class="bi bi-sliders section-icon"></i>
@@ -1301,6 +1320,12 @@
                 <a class="sidebar-nav-link" href="{{ url_for('it_manager_routes.dashboard') }}">
                     <i class="bi bi-shield-lock"></i>
                     <span>IT Security Manager</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('external_app_routes.list_apps') }}">
+                    <i class="bi bi-link-45deg"></i>
+                    <span>Connected Apps</span>
                 </a>
             </li>
         </ul>

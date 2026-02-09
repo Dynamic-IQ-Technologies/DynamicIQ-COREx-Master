@@ -6668,6 +6668,25 @@ def init_qms_tables(cursor):
         )
     ''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS external_apps (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            description TEXT,
+            icon TEXT DEFAULT 'bi-box-arrow-up-right',
+            color TEXT DEFAULT '#6366f1',
+            category TEXT DEFAULT 'General',
+            is_active INTEGER DEFAULT 1,
+            open_in_new_tab INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+
     # Create indexes for document template queries
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_templates_type ON document_templates(document_type)')
