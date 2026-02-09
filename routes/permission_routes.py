@@ -17,7 +17,7 @@ SIDEBAR_SECTIONS = [
     },
     {
         'key': 'section_mro',
-        'label': 'MRO Management',
+        'label': 'Product Management',
         'icon': 'bi-airplane-engines',
         'pages': [
             {'key': 'menu_capabilities', 'label': 'Capabilities', 'icon': 'bi-gear-wide-connected'},
