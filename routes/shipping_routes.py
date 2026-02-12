@@ -921,6 +921,7 @@ def view_pending_shipment(id):
             ORDER BY created_at DESC
         ''', (id,)).fetchall()
     except Exception:
+        conn.rollback()
         documents = []
     
     conn.close()

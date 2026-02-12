@@ -555,6 +555,7 @@ def view_workorder(id):
             ORDER BY wod.uploaded_at DESC
         ''', (id,)).fetchall()
     except Exception:
+        conn.rollback()
         documents = []
     
     try:
@@ -566,6 +567,7 @@ def view_workorder(id):
             ORDER BY n.created_at DESC
         ''', (id,)).fetchall()
     except Exception:
+        conn.rollback()
         notes = []
     
     cost_info = mrp.calculate_work_order_cost(id)
