@@ -914,11 +914,14 @@ def view_pending_shipment(id):
     else:
         lines = []
     
-    documents = conn.execute('''
-        SELECT * FROM shipment_documents 
-        WHERE shipment_id = ? 
-        ORDER BY created_at DESC
-    ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='shipment_documents'").fetchone() else []
+    try:
+        documents = conn.execute('''
+            SELECT * FROM shipment_documents 
+            WHERE shipment_id = ? 
+            ORDER BY created_at DESC
+        ''', (id,)).fetchall()
+    except Exception:
+        documents = []
     
     conn.close()
     return render_template('shipping/view_pending.html', 

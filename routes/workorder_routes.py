@@ -547,20 +547,26 @@ def view_workorder(id):
         ORDER BY first_name, last_name
     ''').fetchall()
     
-    documents = conn.execute('''
-        SELECT wod.*, u.username as uploader_name FROM work_order_documents wod
-        LEFT JOIN users u ON wod.uploaded_by = u.id
-        WHERE wod.work_order_id = ? AND wod.is_active = 1
-        ORDER BY wod.uploaded_at DESC
-    ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='work_order_documents'").fetchone() else []
+    try:
+        documents = conn.execute('''
+            SELECT wod.*, u.username as uploader_name FROM work_order_documents wod
+            LEFT JOIN users u ON wod.uploaded_by = u.id
+            WHERE wod.work_order_id = ? AND wod.is_active = 1
+            ORDER BY wod.uploaded_at DESC
+        ''', (id,)).fetchall()
+    except Exception:
+        documents = []
     
-    notes = conn.execute('''
-        SELECT n.*, u.username
-        FROM work_order_notes n
-        LEFT JOIN users u ON n.created_by = u.id
-        WHERE n.work_order_id = ?
-        ORDER BY n.created_at DESC
-    ''', (id,)).fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='work_order_notes'").fetchone() else []
+    try:
+        notes = conn.execute('''
+            SELECT n.*, u.username
+            FROM work_order_notes n
+            LEFT JOIN users u ON n.created_by = u.id
+            WHERE n.work_order_id = ?
+            ORDER BY n.created_at DESC
+        ''', (id,)).fetchall()
+    except Exception:
+        notes = []
     
     cost_info = mrp.calculate_work_order_cost(id)
     
