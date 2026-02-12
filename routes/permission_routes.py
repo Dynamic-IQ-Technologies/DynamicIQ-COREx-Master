@@ -282,10 +282,10 @@ FUNCTIONAL_PERMISSIONS = {
         }
     },
     'mro_capabilities': {
-        'label': 'MRO Capabilities',
+        'label': 'Capabilities',
         'icon': 'bi-gear-wide-connected',
         'perms': {
-            'view_capabilities': 'View MRO Capabilities',
+            'view_capabilities': 'View Capabilities',
             'create_capabilities': 'Create Capabilities',
             'edit_capabilities': 'Edit Capabilities',
             'market_analysis': 'Access Market Analysis',
