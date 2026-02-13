@@ -1496,14 +1496,78 @@ function drawSphere() {
     ctx.fillStyle = bodyGrad;
     ctx.fill();
 
-    const rimGrad = ctx.createRadialGradient(centerX, centerY, r * 0.9, centerX, centerY, r * 1.02);
-    rimGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    rimGrad.addColorStop(0.5, `rgba(0, 200, 255, ${0.06 + amp * 0.08})`);
-    rimGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    const coronaLayers = 5;
+    for (let cl = coronaLayers; cl >= 0; cl--) {
+        const spread = r * (1.0 + cl * 0.06);
+        const innerR = r * (0.92 - cl * 0.01);
+        const pulse = Math.sin(time * 2.5 + cl * 0.8) * 0.5 + 0.5;
+        const pulse2 = Math.sin(time * 1.8 + cl * 1.2) * 0.5 + 0.5;
+        const coronaGrad = ctx.createRadialGradient(centerX, centerY, innerR, centerX, centerY, spread);
+        coronaGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        const purpleA = (0.08 + cl * 0.03 + pulse * 0.06 + amp * 0.1) * (1 - cl * 0.12);
+        const yellowA = (0.06 + cl * 0.025 + pulse2 * 0.05 + amp * 0.08) * (1 - cl * 0.12);
+        coronaGrad.addColorStop(0.4, `rgba(160, 50, 255, ${purpleA})`);
+        coronaGrad.addColorStop(0.6, `rgba(255, 200, 50, ${yellowA})`);
+        coronaGrad.addColorStop(0.8, `rgba(200, 80, 255, ${purpleA * 0.5})`);
+        coronaGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, spread, 0, Math.PI * 2);
+        ctx.fillStyle = coronaGrad;
+        ctx.fill();
+    }
+
+    const rayCount = 36;
+    for (let i = 0; i < rayCount; i++) {
+        const angle = (i / rayCount) * Math.PI * 2 + time * 0.15;
+        const flicker = Math.sin(time * 4 + i * 2.3) * 0.5 + 0.5;
+        const flicker2 = Math.sin(time * 3.2 + i * 1.7) * 0.5 + 0.5;
+        const rayLen = r * (0.12 + flicker * 0.15 + amp * 0.2);
+        const rayStart = r * 0.97;
+        const x1 = centerX + Math.cos(angle) * rayStart;
+        const y1 = centerY + Math.sin(angle) * rayStart;
+        const x2 = centerX + Math.cos(angle) * (rayStart + rayLen);
+        const y2 = centerY + Math.sin(angle) * (rayStart + rayLen);
+        const rayGrad = ctx.createLinearGradient(x1, y1, x2, y2);
+        const isPurple = i % 2 === 0;
+        if (isPurple) {
+            rayGrad.addColorStop(0, `rgba(180, 60, 255, ${0.3 + flicker * 0.2 + amp * 0.15})`);
+            rayGrad.addColorStop(0.5, `rgba(220, 120, 255, ${0.15 + flicker * 0.1})`);
+            rayGrad.addColorStop(1, 'rgba(180, 60, 255, 0)');
+        } else {
+            rayGrad.addColorStop(0, `rgba(255, 210, 60, ${0.25 + flicker2 * 0.2 + amp * 0.15})`);
+            rayGrad.addColorStop(0.5, `rgba(255, 240, 130, ${0.12 + flicker2 * 0.08})`);
+            rayGrad.addColorStop(1, 'rgba(255, 210, 60, 0)');
+        }
+        ctx.beginPath();
+        const perpX = Math.sin(angle) * r * 0.015;
+        const perpY = -Math.cos(angle) * r * 0.015;
+        ctx.moveTo(x1 + perpX, y1 + perpY);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x1 - perpX, y1 - perpY);
+        ctx.closePath();
+        ctx.fillStyle = rayGrad;
+        ctx.fill();
+    }
+
     ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fillStyle = rimGrad;
-    ctx.fill();
+    ctx.arc(centerX, centerY, r * 1.01, 0, Math.PI * 2);
+    const edgePulse = Math.sin(time * 2) * 0.3 + 0.7;
+    ctx.strokeStyle = `rgba(200, 100, 255, ${0.3 * edgePulse + amp * 0.2})`;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(180, 60, 255, 0.6)';
+    ctx.shadowBlur = 15 + amp * 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r * 1.015, 0, Math.PI * 2);
+    const edgePulse2 = Math.sin(time * 2.5 + 1) * 0.3 + 0.7;
+    ctx.strokeStyle = `rgba(255, 220, 60, ${0.2 * edgePulse2 + amp * 0.15})`;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = 'rgba(255, 200, 50, 0.5)';
+    ctx.shadowBlur = 12 + amp * 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
 
     const wfColors = [
         [0, 200, 255],
