@@ -1840,17 +1840,36 @@ function drawSphere() {
     }
     ctx.shadowBlur = 0;
 
-    ctx.font = 'bold 16px Inter, sans-serif';
+    const txtChars = ['N','i','Q'];
+    const charSpacing = 10;
+    const totalW = (txtChars.length - 1) * charSpacing;
+    ctx.font = 'bold 15px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const txtGrad = ctx.createLinearGradient(-28, 38, 28, 52);
-    txtGrad.addColorStop(0, `rgba(200, 150, 255, ${symAlpha})`);
-    txtGrad.addColorStop(0.5, `rgba(255, 225, 120, ${symAlpha})`);
-    txtGrad.addColorStop(1, `rgba(180, 120, 255, ${symAlpha})`);
-    ctx.fillStyle = txtGrad;
-    ctx.shadowColor = 'rgba(180, 120, 255, 0.6)';
-    ctx.shadowBlur = 12;
-    ctx.fillText('NiQ', 0, 38);
+    ctx.textBaseline = 'middle';
+    for (let ci = 0; ci < txtChars.length; ci++) {
+        const cx3 = -totalW / 2 + ci * charSpacing;
+        const cy3 = 0;
+        const cz3 = 0;
+        const trx = cx3 * cCosY + cz3 * cSinY;
+        const trz1 = -cx3 * cSinY + cz3 * cCosY;
+        const try1 = cy3 * cCosX - trz1 * cSinX;
+        const trz2 = cy3 * cSinX + trz1 * cCosX;
+        const cPersp = 200 / (200 + trz2);
+        const cScreenX = trx * cPersp;
+        const cScreenY = try1 * cPersp;
+        const cDepth = trz2 < 0 ? 1.0 : 0.25;
+        const cAlpha = symAlpha * cDepth * cPersp;
+        const cSize = 15 * cPersp;
+        ctx.font = `bold ${Math.max(6, cSize)}px Inter, sans-serif`;
+        const cGrad = ctx.createLinearGradient(cScreenX - 6, cScreenY, cScreenX + 6, cScreenY);
+        cGrad.addColorStop(0, `rgba(200, 150, 255, ${cAlpha})`);
+        cGrad.addColorStop(0.5, `rgba(255, 225, 120, ${cAlpha})`);
+        cGrad.addColorStop(1, `rgba(180, 120, 255, ${cAlpha})`);
+        ctx.fillStyle = cGrad;
+        ctx.shadowColor = `rgba(180, 120, 255, ${0.5 * cDepth})`;
+        ctx.shadowBlur = 10 * cDepth;
+        ctx.fillText(txtChars[ci], cScreenX, cScreenY);
+    }
     ctx.shadowBlur = 0;
 
     ctx.restore();
