@@ -187,8 +187,8 @@
         top: 45%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 700px;
-        height: 700px;
+        width: 80vmin;
+        height: 80vmin;
         z-index: 10;
     }
 
@@ -203,8 +203,8 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 820px;
-        height: 820px;
+        width: 95vmin;
+        height: 95vmin;
         background: radial-gradient(circle, rgba(0, 245, 255, 0.06) 0%, rgba(123, 47, 190, 0.04) 40%, rgba(255, 50, 80, 0.02) 60%, transparent 75%);
         border-radius: 50%;
         pointer-events: none;
@@ -221,8 +221,8 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 750px;
-        height: 750px;
+        width: 88vmin;
+        height: 88vmin;
         pointer-events: none;
     }
 
@@ -265,8 +265,8 @@
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 780px;
-        height: 780px;
+        width: 90vmin;
+        height: 90vmin;
         transform: translate(-50%, -50%);
         pointer-events: none;
     }
@@ -1119,7 +1119,7 @@ function initCanvas() {
     ctx.scale(dpr, dpr);
     centerX = canvasW / 2;
     centerY = canvasH / 2;
-    baseRadius = Math.min(canvasW, canvasH) * 0.32;
+    baseRadius = Math.min(canvasW, canvasH) * 0.38;
 }
 initCanvas();
 window.addEventListener('resize', initCanvas);
@@ -1155,26 +1155,36 @@ function drawSphere() {
     const breathe = Math.sin(time * 0.8) * 0.02;
     const r = baseRadius * (1 + breathe);
 
-    const glowAlpha = sphereState === 'idle' ? 0.03 : (sphereState === 'listening' ? 0.06 : 0.08);
-    const grad = ctx.createRadialGradient(centerX, centerY, r * 0.2, centerX, centerY, r * 1.3);
-    grad.addColorStop(0, `rgba(0, 245, 255, ${glowAlpha + amp * 0.15})`);
-    grad.addColorStop(0.5, `rgba(123, 47, 190, ${glowAlpha * 0.5 + amp * 0.05})`);
+    const glowAlpha = sphereState === 'idle' ? 0.04 : (sphereState === 'listening' ? 0.07 : 0.09);
+    const grad = ctx.createRadialGradient(centerX, centerY, r * 0.1, centerX, centerY, r * 1.4);
+    grad.addColorStop(0, `rgba(0, 150, 255, ${glowAlpha + amp * 0.2})`);
+    grad.addColorStop(0.3, `rgba(123, 47, 190, ${glowAlpha * 0.8 + amp * 0.1})`);
+    grad.addColorStop(0.6, `rgba(255, 50, 80, ${glowAlpha * 0.4 + amp * 0.05})`);
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const waveCount = 3;
+    const waveColors = [
+        { r: 0, g: 180, b: 255 },
+        { r: 150, g: 50, b: 220 },
+        { r: 255, g: 50, b: 90 },
+        { r: 0, g: 245, b: 200 },
+        { r: 200, g: 80, b: 255 },
+    ];
+
+    const waveCount = 5;
     for (let w = 0; w < waveCount; w++) {
         ctx.beginPath();
-        const waveR = r * (0.85 + w * 0.08);
-        const segments = 120;
+        const waveR = r * (0.75 + w * 0.06);
+        const segments = 150;
         for (let i = 0; i <= segments; i++) {
             const angle = (i / segments) * Math.PI * 2;
             const noiseAmp = sphereState === 'idle'
-                ? 3 + Math.sin(time * 2 + w) * 2
-                : 5 + amp * 60 + Math.sin(time * 3 + w * 2) * 4;
+                ? 4 + Math.sin(time * 2 + w) * 3
+                : 8 + amp * 80 + Math.sin(time * 3 + w * 2) * 5;
             const noise = Math.sin(angle * 6 + time * 3 + w * 1.5) * noiseAmp
-                        + Math.sin(angle * 10 + time * 5 + w) * noiseAmp * 0.4;
+                        + Math.sin(angle * 10 + time * 5 + w) * noiseAmp * 0.4
+                        + Math.sin(angle * 3 + time * 1.5 + w * 3) * noiseAmp * 0.3;
             const finalR = waveR + noise;
             const x = centerX + Math.cos(angle) * finalR;
             const y = centerY + Math.sin(angle) * finalR;
@@ -1182,20 +1192,21 @@ function drawSphere() {
             else ctx.lineTo(x, y);
         }
         ctx.closePath();
-        const alpha = (0.3 - w * 0.08) + amp * 0.3;
+        const c = waveColors[w % waveColors.length];
+        const alpha = (0.35 - w * 0.05) + amp * 0.3;
         if (sphereState === 'listening') {
-            ctx.strokeStyle = `rgba(255, 68, 102, ${alpha})`;
-        } else if (sphereState === 'responding') {
-            ctx.strokeStyle = `rgba(0, 245, 255, ${alpha})`;
+            const blend = 0.5 + Math.sin(time + w) * 0.5;
+            ctx.strokeStyle = `rgba(${Math.round(255 * blend + c.r * (1-blend))}, ${Math.round(50 * blend + c.g * (1-blend))}, ${Math.round(90 * blend + c.b * (1-blend))}, ${alpha})`;
         } else {
-            ctx.strokeStyle = `rgba(0, 245, 255, ${alpha * 0.6})`;
+            ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
         }
-        ctx.lineWidth = 1.5 - w * 0.3;
+        ctx.lineWidth = 2 - w * 0.25;
         ctx.stroke();
     }
 
-    if (amp > 0.05 || sphereState !== 'idle') {
-        const rippleCount = 2;
+    const rippleCount = 3;
+    const showRipples = amp > 0.03 || sphereState !== 'idle';
+    if (showRipples) {
         for (let i = 0; i < rippleCount; i++) {
             const ripplePhase = (time * 0.5 + i * 0.5) % 1;
             const rippleR = r + ripplePhase * r * 0.5;
@@ -1208,17 +1219,19 @@ function drawSphere() {
         }
     }
 
-    const particleCount = sphereState === 'idle' ? 30 : 60;
+    const particleCount = sphereState === 'idle' ? 40 : 80;
+    const pColors = [[0,180,255],[150,50,220],[255,50,90],[0,245,200],[200,80,255]];
     for (let i = 0; i < particleCount; i++) {
         const angle = (i / particleCount) * Math.PI * 2 + time * 0.3;
         const dist = r * (1.1 + Math.sin(time + i * 0.5) * 0.15 + amp * 0.3);
         const px = centerX + Math.cos(angle) * dist;
         const py = centerY + Math.sin(angle) * dist;
-        const pSize = 1 + Math.sin(time * 2 + i) * 0.5;
-        const pAlpha = 0.3 + Math.sin(time + i) * 0.2;
+        const pSize = 1.2 + Math.sin(time * 2 + i) * 0.6;
+        const pAlpha = 0.35 + Math.sin(time + i) * 0.2;
+        const pc = pColors[i % pColors.length];
         ctx.beginPath();
         ctx.arc(px, py, pSize, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 245, 255, ${pAlpha})`;
+        ctx.fillStyle = `rgba(${pc[0]}, ${pc[1]}, ${pc[2]}, ${pAlpha})`;
         ctx.fill();
     }
 
