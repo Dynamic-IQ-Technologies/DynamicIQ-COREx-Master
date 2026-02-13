@@ -755,6 +755,39 @@
         height: 12px;
     }
 
+    .strategic-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+    .strategic-btn {
+        background: rgba(255,255,255,0.04);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        color: rgba(255,255,255,0.55);
+        font-size: 11px;
+        padding: 5px 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: var(--neuro-font);
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+    .strategic-btn:hover {
+        background: rgba(0,180,255,0.12);
+        border-color: rgba(0,180,255,0.3);
+        color: rgba(0,200,255,0.9);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 12px rgba(0,180,255,0.15);
+    }
+    .strategic-btn i {
+        margin-right: 4px;
+        font-size: 10px;
+    }
+
     .input-row {
         display: flex;
         gap: 8px;
@@ -1029,6 +1062,13 @@
                 <label><input type="checkbox" id="continuous-mode" checked> Continuous</label>
                 <label><input type="checkbox" id="tts-enabled" checked> Voice</label>
             </div>
+        </div>
+
+        <div class="strategic-actions">
+            <button class="strategic-btn" onclick="window.triggerStrategic('revenue')"><i class="bi bi-graph-down-arrow"></i>Revenue Simulation</button>
+            <button class="strategic-btn" onclick="window.triggerStrategic('market')"><i class="bi bi-bar-chart-line"></i>Market Trends</button>
+            <button class="strategic-btn" onclick="window.triggerStrategic('regulatory')"><i class="bi bi-shield-check"></i>Regulatory Scan</button>
+            <button class="strategic-btn" onclick="window.triggerStrategic('scenario')"><i class="bi bi-diagram-3"></i>Scenario Analysis</button>
         </div>
 
         <div class="input-row">
@@ -1596,6 +1636,21 @@ async function neuroSendMessage() {
 }
 
 window.sendMessage = neuroSendMessage;
+
+function triggerStrategic(type) {
+    const prompts = {
+        'revenue': 'Run a 20% revenue contraction simulation and show me the impact analysis',
+        'market': 'Compare our performance against current market trends and industry benchmarks',
+        'regulatory': 'Scan for new regulatory requirements and compliance updates that affect us',
+        'scenario': 'Run a scenario analysis for potential customer loss impact'
+    };
+    const input = document.getElementById('neuroiq-input');
+    if (input && prompts[type]) {
+        input.value = prompts[type];
+        neuroSendMessage();
+    }
+}
+window.triggerStrategic = triggerStrategic;
 
 document.getElementById('neuroiq-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {

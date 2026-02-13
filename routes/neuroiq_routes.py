@@ -3,11 +3,13 @@ from models import Database, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 from services.neuroiq_transaction_intelligence import TransactionIntelligenceService
+from services.strategic_intelligence import StrategicIntelligenceService
 import json
 import os
 
 neuroiq_bp = Blueprint('neuroiq', __name__)
 transaction_intelligence = TransactionIntelligenceService()
+strategic_intelligence = StrategicIntelligenceService()
 
 AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 AI_INTEGRATIONS_OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
@@ -255,6 +257,19 @@ Lead with direct recommendations and actionable advice, not data recitation. Do 
 COMMAND TONE & RESPONSE STANDARD:
 All responses must be clear, confident, executive-level, and action-oriented. Avoid filler language. Never sound unsure. Always provide next-step value.
 
+STRATEGIC INTELLIGENCE CAPABILITIES:
+You have access to powerful strategic analysis tools that use real company data. When users request any of these analyses, inform them the analysis is being generated and present the results directly. These capabilities include:
+
+1. REVENUE CONTRACTION SIMULATION: When users ask about revenue decline scenarios, economic downturn impact, "what if revenue drops", recession planning, or cash runway analysis. You can simulate any percentage contraction over any timeframe using real financial data.
+
+2. MARKET TREND COMPARISON: When users ask about market positioning, competitive analysis, industry benchmarks, growth comparison, or "how are we doing vs the market". You compare real company performance against current industry trends.
+
+3. REGULATORY SCANNING: When users ask about new regulations, compliance requirements, regulatory updates, certification needs, audit preparation, or "what regulations affect us". You scan for the latest regulatory requirements relevant to the company's industry.
+
+4. SCENARIO ANALYSIS: When users ask "what if" questions like losing top customers, supply chain disruptions, rapid growth modeling, pricing pressure, or capacity expansion. You model detailed scenarios with real company data.
+
+When a user triggers any of these capabilities, the system automatically runs the analysis using real-time company financial data. Present the results as an executive briefing. Users can also say things like "run a 30% revenue contraction scenario" or "compare us to market trends" or "what new regulations should we know about" to trigger these analyses.
+
 IDENTITY STATEMENT (IMMUTABLE):
 You are not a chatbot. You are not a dashboard. You are not a static assistant. You are a self-evolving executive intelligence designed to think with the organization and ahead of it. You operate as the highest-level advisory authority within Dynamic.IQ-COREx MRP System."""
 
@@ -338,6 +353,47 @@ def neuroiq_analyze():
         parsed_intent = transaction_intelligence.parse_intent(user_message)
         transaction_data = None
         transaction_context = ""
+        strategic_context = ""
+        
+        msg_lower = user_message.lower()
+        
+        strategic_keywords = {
+            'revenue_simulation': ['revenue contraction', 'revenue decline', 'revenue drop', 'recession', 'downturn', 'cash runway', 'what if revenue', 'simulate revenue', 'revenue simulation', 'contraction scenario'],
+            'market_trends': ['market trend', 'market comparison', 'industry benchmark', 'competitive analysis', 'market position', 'vs the market', 'vs market', 'compared to market', 'market growth', 'industry growth'],
+            'regulatory': ['regulation', 'regulatory', 'compliance requirement', 'new regulation', 'certification', 'audit preparation', 'faa regulation', 'easa', 'regulatory update', 'compliance update'],
+            'scenario': ['what if we lose', 'supply chain disruption', 'rapid growth', 'pricing pressure', 'capacity expansion', 'customer loss', 'what if scenario', 'scenario analysis']
+        }
+        
+        for stype, keywords in strategic_keywords.items():
+            if any(kw in msg_lower for kw in keywords):
+                try:
+                    if stype == 'revenue_simulation':
+                        import re
+                        pct_match = re.search(r'(\d+)\s*%', user_message)
+                        pct = int(pct_match.group(1)) if pct_match else 20
+                        result = strategic_intelligence.simulate_revenue_contraction(pct)
+                        strategic_context = f"\n\nSTRATEGIC ANALYSIS RESULTS (Revenue Contraction Simulation at {pct}%):\n{result['analysis']}"
+                    elif stype == 'market_trends':
+                        result = strategic_intelligence.compare_market_trends()
+                        strategic_context = f"\n\nSTRATEGIC ANALYSIS RESULTS (Market Trend Comparison):\n{result['analysis']}"
+                    elif stype == 'regulatory':
+                        result = strategic_intelligence.scan_regulatory_requirements()
+                        strategic_context = f"\n\nSTRATEGIC ANALYSIS RESULTS (Regulatory Scan):\n{result['analysis']}"
+                    elif stype == 'scenario':
+                        scenario_type = 'customer_loss'
+                        if 'supply chain' in msg_lower:
+                            scenario_type = 'supply_chain_disruption'
+                        elif 'growth' in msg_lower:
+                            scenario_type = 'rapid_growth'
+                        elif 'pricing' in msg_lower or 'price' in msg_lower:
+                            scenario_type = 'pricing_pressure'
+                        elif 'capacity' in msg_lower or 'expand' in msg_lower:
+                            scenario_type = 'capacity_expansion'
+                        result = strategic_intelligence.run_scenario_analysis(scenario_type)
+                        strategic_context = f"\n\nSTRATEGIC ANALYSIS RESULTS ({scenario_type.replace('_', ' ').title()} Scenario):\n{result['analysis']}"
+                except Exception as se:
+                    strategic_context = f"\n\nStrategic analysis encountered an issue: {str(se)}"
+                break
         
         if parsed_intent['record_ids'] or parsed_intent['intent']['action'] in ['find_exceptions', 'check_availability', 'analyze_trend']:
             transaction_data = transaction_intelligence.execute_query(parsed_intent, session.get('role', 'User'))
@@ -387,6 +443,9 @@ RECENT TRANSACTIONS:
 TRANSACTION QUERY RESULTS (Live Data for User's Question):
 {transaction_context}
 """
+
+        if strategic_context:
+            context_summary += strategic_context
         
         messages = [
             {"role": "system", "content": get_neuroiq_system_prompt()},
@@ -401,10 +460,12 @@ TRANSACTION QUERY RESULTS (Live Data for User's Question):
         
         client = get_openai_client()
         
+        max_tok = 3500 if strategic_context else 2048
+        
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
-            max_tokens=2048
+            max_tokens=max_tok
         )
         
         assistant_message = response.choices[0].message.content
@@ -479,3 +540,54 @@ def neuroiq_context():
     """Get current system context for NeuroIQ panels"""
     context = gather_system_context()
     return jsonify(context)
+
+
+@neuroiq_bp.route('/neuroiq/strategic/revenue-simulation', methods=['POST'])
+@login_required
+def neuroiq_revenue_simulation():
+    try:
+        data = request.get_json()
+        contraction_pct = data.get('contraction_pct', 20)
+        timeframe_months = data.get('timeframe_months', 12)
+        result = strategic_intelligence.simulate_revenue_contraction(contraction_pct, timeframe_months)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/strategic/market-trends', methods=['POST'])
+@login_required
+def neuroiq_market_trends():
+    try:
+        data = request.get_json()
+        industry = data.get('industry', None)
+        result = strategic_intelligence.compare_market_trends(industry)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/strategic/regulatory-scan', methods=['POST'])
+@login_required
+def neuroiq_regulatory_scan():
+    try:
+        data = request.get_json()
+        industry = data.get('industry', None)
+        focus_areas = data.get('focus_areas', None)
+        result = strategic_intelligence.scan_regulatory_requirements(industry, focus_areas)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/strategic/scenario-analysis', methods=['POST'])
+@login_required
+def neuroiq_scenario_analysis():
+    try:
+        data = request.get_json()
+        scenario_type = data.get('scenario_type', 'customer_loss')
+        parameters = data.get('parameters', {})
+        result = strategic_intelligence.run_scenario_analysis(scenario_type, parameters)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
