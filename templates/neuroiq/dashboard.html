@@ -242,6 +242,7 @@
         width: 100%;
         height: 100%;
         animation: ring-rotate 20s linear infinite;
+        transition: border-color 0.3s, border-width 0.3s, box-shadow 0.3s;
     }
 
     .sphere-ring:nth-child(2) {
@@ -249,6 +250,7 @@
         height: 115%;
         border-color: rgba(123, 47, 190, 0.06);
         animation: ring-rotate 30s linear infinite reverse;
+        transition: border-color 0.3s, border-width 0.3s, box-shadow 0.3s;
     }
 
     .sphere-ring:nth-child(3) {
@@ -257,11 +259,40 @@
         border-color: rgba(0, 245, 255, 0.04);
         animation: ring-rotate 40s linear infinite;
         border-style: dashed;
+        transition: border-color 0.3s, border-width 0.3s, box-shadow 0.3s;
+    }
+
+    .sphere-rings.responding .sphere-ring:nth-child(1) {
+        border-color: rgba(255, 160, 0, 0.9);
+        border-width: 3px;
+        box-shadow: 0 0 18px 4px rgba(255, 140, 0, 0.6), inset 0 0 18px 4px rgba(255, 140, 0, 0.3);
+        animation: ring-rotate 6s linear infinite, ring-orange-pulse 1s ease-in-out infinite;
+    }
+
+    .sphere-rings.responding .sphere-ring:nth-child(2) {
+        border-color: rgba(255, 180, 30, 0.75);
+        border-width: 2.5px;
+        border-style: solid;
+        box-shadow: 0 0 14px 3px rgba(255, 160, 0, 0.5), inset 0 0 14px 3px rgba(255, 160, 0, 0.2);
+        animation: ring-rotate 8s linear infinite reverse, ring-orange-pulse 1.3s ease-in-out infinite 0.2s;
+    }
+
+    .sphere-rings.responding .sphere-ring:nth-child(3) {
+        border-color: rgba(255, 200, 60, 0.55);
+        border-width: 2px;
+        border-style: solid;
+        box-shadow: 0 0 10px 2px rgba(255, 180, 0, 0.4), inset 0 0 10px 2px rgba(255, 180, 0, 0.15);
+        animation: ring-rotate 10s linear infinite, ring-orange-pulse 1.6s ease-in-out infinite 0.4s;
     }
 
     @keyframes ring-rotate {
         from { transform: translate(-50%, -50%) rotate(0deg); }
         to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes ring-orange-pulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
     }
 
     .sphere-holo-arc {
@@ -1875,6 +1906,15 @@ function setSphereState(state) {
     const glow = document.getElementById('sphere-glow');
     const panelL = document.getElementById('panel-left');
     const panelR = document.getElementById('panel-right');
+    const ringsContainer = document.querySelector('.sphere-rings');
+
+    if (ringsContainer) {
+        if (state === 'responding') {
+            ringsContainer.classList.add('responding');
+        } else {
+            ringsContainer.classList.remove('responding');
+        }
+    }
 
     if (label) {
         label.className = 'sphere-state-text';
