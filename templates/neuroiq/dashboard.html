@@ -1742,133 +1742,80 @@ function drawSphere() {
     ctx.translate(centerX, centerY);
     ctx.scale(symScale * symPulse, symScale * symPulse);
 
-    const cubeSize = 28;
-    const cubeRotY = time * 0.6;
-    const cubeRotX = time * 0.4;
-    const cCosY = Math.cos(cubeRotY), cSinY = Math.sin(cubeRotY);
-    const cCosX = Math.cos(cubeRotX), cSinX = Math.sin(cubeRotX);
-
-    const cubeVerts = [
-        [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
-        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]
-    ];
-    const cubeFaces = [
-        [0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[0,3,7,4],[1,2,6,5]
-    ];
-    const cubeEdges = [
-        [0,1],[1,2],[2,3],[3,0],
-        [4,5],[5,6],[6,7],[7,4],
-        [0,4],[1,5],[2,6],[3,7]
+    const zRadius = 30;
+    const waveRings = 8;
+    const waveSegs = 100;
+    const waveColors = [
+        [200, 140, 255], [0, 200, 255], [255, 220, 100],
+        [180, 100, 255], [0, 230, 180], [255, 160, 60],
+        [140, 80, 220], [100, 220, 255]
     ];
 
-    function projCube(v) {
-        let x = v[0] * cubeSize, y = v[1] * cubeSize, z = v[2] * cubeSize;
-        const x1 = x * cCosY + z * cSinY;
-        const z1 = -x * cSinY + z * cCosY;
-        const y1 = y * cCosX - z1 * cSinX;
-        const z2 = y * cSinX + z1 * cCosX;
-        const perspective = 200 / (200 + z2);
-        return { x: x1 * perspective, y: y1 * perspective, z: z2, s: perspective };
-    }
-
-    const projected = cubeVerts.map(v => projCube(v));
-
-    const faceData = cubeFaces.map((face, fi) => {
-        const avgZ = face.reduce((s, vi) => s + projected[vi].z, 0) / 4;
-        return { face, fi, avgZ };
-    });
-    faceData.sort((a, b) => b.avgZ - a.avgZ);
-
-    const faceColors = [
-        [140, 60, 220], [180, 80, 255], [100, 40, 180],
-        [255, 200, 50], [220, 170, 40], [200, 150, 30]
-    ];
-
-    for (const fd of faceData) {
-        const f = fd.face;
-        const fi = fd.fi;
-        const p0 = projected[f[0]], p1 = projected[f[1]], p2 = projected[f[2]], p3 = projected[f[3]];
-
-        const nx = (p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y);
-        const facing = nx > 0 ? 1.0 : 0.4;
-
-        const c = faceColors[fi];
-        const fAlpha = symAlpha * facing * 0.5;
+    for (let wr = 0; wr < waveRings; wr++) {
+        const ringR = zRadius * (0.35 + wr * 0.09);
+        const waveSpeed = 3 + wr * 0.5;
+        const waveFreq = 4 + wr * 1.5;
+        const waveAmpBase = 2 + wr * 0.8 + amp * 12;
+        const ringAlpha = symAlpha * (0.7 - wr * 0.06);
+        const c = waveColors[wr % waveColors.length];
+        const phaseOff = wr * 0.8;
 
         ctx.beginPath();
-        ctx.moveTo(p0.x, p0.y);
-        ctx.lineTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineTo(p3.x, p3.y);
+        for (let i = 0; i <= waveSegs; i++) {
+            const angle = (i / waveSegs) * Math.PI * 2;
+            const wave1 = Math.sin(angle * waveFreq + time * waveSpeed + phaseOff) * waveAmpBase;
+            const wave2 = Math.sin(angle * (waveFreq + 2) - time * (waveSpeed * 0.7) + phaseOff * 1.5) * waveAmpBase * 0.4;
+            const wave3 = Math.cos(angle * (waveFreq * 0.5) + time * (waveSpeed * 1.3) + phaseOff * 2) * waveAmpBase * 0.25;
+            const wr_final = ringR + wave1 + wave2 + wave3;
+            const wx = Math.cos(angle) * wr_final;
+            const wy = Math.sin(angle) * wr_final;
+            if (i === 0) ctx.moveTo(wx, wy);
+            else ctx.lineTo(wx, wy);
+        }
         ctx.closePath();
-        ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${fAlpha})`;
-        ctx.fill();
-    }
 
-    ctx.shadowColor = 'rgba(180, 120, 255, 0.8)';
-    ctx.shadowBlur = 18 + amp * 12;
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = 'round';
-
-    for (const edge of cubeEdges) {
-        const p0 = projected[edge[0]], p1 = projected[edge[1]];
-        const edgeZ = (p0.z + p1.z) / 2;
-        const depthFactor = edgeZ < 0 ? 1.0 : 0.35;
-        const edgeGrad = ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
-        edgeGrad.addColorStop(0, `rgba(200, 140, 255, ${symAlpha * depthFactor})`);
-        edgeGrad.addColorStop(0.5, `rgba(255, 220, 100, ${symAlpha * depthFactor})`);
-        edgeGrad.addColorStop(1, `rgba(180, 100, 255, ${symAlpha * depthFactor})`);
-        ctx.strokeStyle = edgeGrad;
-        ctx.beginPath();
-        ctx.moveTo(p0.x, p0.y);
-        ctx.lineTo(p1.x, p1.y);
+        const rGrad = ctx.createLinearGradient(-ringR, -ringR, ringR, ringR);
+        rGrad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha})`);
+        rGrad.addColorStop(0.5, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha * 0.5})`);
+        rGrad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha})`);
+        ctx.strokeStyle = rGrad;
+        ctx.lineWidth = 1.8 - wr * 0.1;
+        ctx.shadowColor = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.5)`;
+        ctx.shadowBlur = 6 + amp * 8;
         ctx.stroke();
     }
-
-    ctx.shadowBlur = 0;
-    for (let vi = 0; vi < projected.length; vi++) {
-        const p = projected[vi];
-        const vPulse = Math.sin(time * 3 + vi * 0.9) * 0.4 + 0.6;
-        const vDepth = p.z < 0 ? 1.0 : 0.4;
-        const vSize = (2.5 * vPulse + 1.2) * p.s;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, vSize, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 240, 150, ${symAlpha * vDepth})`;
-        ctx.shadowColor = 'rgba(255, 220, 100, 0.7)';
-        ctx.shadowBlur = 8;
-        ctx.fill();
-    }
     ctx.shadowBlur = 0;
 
-    const txtChars = ['N','i','Q'];
-    const charSpacing = 10;
-    const totalW = (txtChars.length - 1) * charSpacing;
-    ctx.font = 'bold 15px Inter, sans-serif';
+    const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, zRadius * 0.4);
+    innerGlow.addColorStop(0, `rgba(180, 140, 255, ${0.12 + amp * 0.1})`);
+    innerGlow.addColorStop(0.5, `rgba(100, 180, 255, ${0.06 + amp * 0.05})`);
+    innerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.arc(0, 0, zRadius * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = innerGlow;
+    ctx.fill();
+
+    const niqRotAngle = time * 0.5;
+    ctx.font = 'bold 14px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    const txtChars = ['N','i','Q'];
+    const charSpread = 9;
     for (let ci = 0; ci < txtChars.length; ci++) {
-        const cx3 = -totalW / 2 + ci * charSpacing;
-        const cy3 = 0;
-        const cz3 = 0;
-        const trx = cx3 * cCosY + cz3 * cSinY;
-        const trz1 = -cx3 * cSinY + cz3 * cCosY;
-        const try1 = cy3 * cCosX - trz1 * cSinX;
-        const trz2 = cy3 * cSinX + trz1 * cCosX;
-        const cPersp = 200 / (200 + trz2);
-        const cScreenX = trx * cPersp;
-        const cScreenY = try1 * cPersp;
-        const cDepth = trz2 < 0 ? 1.0 : 0.25;
-        const cAlpha = symAlpha * cDepth * cPersp;
-        const cSize = 15 * cPersp;
-        ctx.font = `bold ${Math.max(6, cSize)}px Inter, sans-serif`;
-        const cGrad = ctx.createLinearGradient(cScreenX - 6, cScreenY, cScreenX + 6, cScreenY);
+        const cOff = (ci - 1) * charSpread;
+        const cBob = Math.sin(time * 2.5 + ci * 1.2) * 3;
+        const cWave = Math.sin(time * 1.8 + ci * 0.9) * 2;
+        const cx = Math.cos(niqRotAngle) * cOff + cWave;
+        const cy = cBob;
+        const cAlpha = symAlpha * (0.85 + Math.sin(time * 3 + ci) * 0.15);
+        const cGrad = ctx.createLinearGradient(cx - 8, cy, cx + 8, cy);
         cGrad.addColorStop(0, `rgba(200, 150, 255, ${cAlpha})`);
         cGrad.addColorStop(0.5, `rgba(255, 225, 120, ${cAlpha})`);
         cGrad.addColorStop(1, `rgba(180, 120, 255, ${cAlpha})`);
         ctx.fillStyle = cGrad;
-        ctx.shadowColor = `rgba(180, 120, 255, ${0.5 * cDepth})`;
-        ctx.shadowBlur = 10 * cDepth;
-        ctx.fillText(txtChars[ci], cScreenX, cScreenY);
+        ctx.shadowColor = `rgba(180, 120, 255, ${0.6})`;
+        ctx.shadowBlur = 10;
+        ctx.fillText(txtChars[ci], cx, cy);
     }
     ctx.shadowBlur = 0;
 
