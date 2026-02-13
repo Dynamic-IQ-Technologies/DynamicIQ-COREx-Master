@@ -1742,21 +1742,88 @@ function drawSphere() {
     ctx.translate(centerX, centerY);
     ctx.scale(symScale * symPulse, symScale * symPulse);
 
-    const zRadius = 30;
-    const waveRings = 8;
-    const waveSegs = 100;
+    const zRadius = 50;
+    const waveRings = 10;
+    const waveSegs = 120;
     const waveColors = [
         [200, 140, 255], [0, 200, 255], [255, 220, 100],
         [180, 100, 255], [0, 230, 180], [255, 160, 60],
-        [140, 80, 220], [100, 220, 255]
+        [140, 80, 220], [100, 220, 255], [255, 100, 180], [120, 255, 200]
     ];
 
+    const plasmaLayers = 6;
+    for (let pl = plasmaLayers; pl >= 0; pl--) {
+        const plasmaR = zRadius * (0.6 + pl * 0.12);
+        const plasmaSegs = 90;
+        const plasmaSpeed1 = 2.5 + pl * 0.3;
+        const plasmaSpeed2 = 1.8 - pl * 0.2;
+
+        ctx.beginPath();
+        for (let i = 0; i <= plasmaSegs; i++) {
+            const angle = (i / plasmaSegs) * Math.PI * 2;
+            const p1 = Math.sin(angle * 3 + time * plasmaSpeed1 + pl * 1.2) * zRadius * 0.15;
+            const p2 = Math.cos(angle * 5 - time * plasmaSpeed2 + pl * 0.7) * zRadius * 0.1;
+            const p3 = Math.sin(angle * 7 + time * 1.5 + pl * 2.1) * zRadius * 0.08;
+            const p4 = Math.cos(angle * 2 - time * 2.2 + pl * 0.4) * zRadius * (0.06 + amp * 0.15);
+            const pr = plasmaR + p1 + p2 + p3 + p4;
+            const px = Math.cos(angle) * pr;
+            const py = Math.sin(angle) * pr;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+
+        const plasmaHue = (time * 30 + pl * 40) % 360;
+        const pAlpha = (0.06 + amp * 0.04) * (1 - pl * 0.1);
+        const pr1 = Math.round(128 + 127 * Math.sin((plasmaHue) * Math.PI / 180));
+        const pg1 = Math.round(128 + 127 * Math.sin((plasmaHue + 120) * Math.PI / 180));
+        const pb1 = Math.round(128 + 127 * Math.sin((plasmaHue + 240) * Math.PI / 180));
+        ctx.fillStyle = `rgba(${pr1}, ${pg1}, ${pb1}, ${pAlpha})`;
+        ctx.fill();
+
+        const edgeAlpha = (0.15 + amp * 0.08) * (1 - pl * 0.08);
+        ctx.strokeStyle = `rgba(${pr1}, ${pg1}, ${pb1}, ${edgeAlpha})`;
+        ctx.lineWidth = 1.2;
+        ctx.shadowColor = `rgba(${pr1}, ${pg1}, ${pb1}, ${0.4 + amp * 0.2})`;
+        ctx.shadowBlur = 8 + amp * 6;
+        ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+
+    const tendrilCount = 16;
+    for (let t = 0; t < tendrilCount; t++) {
+        const tAngle = (t / tendrilCount) * Math.PI * 2 + time * 0.2;
+        const tLen = zRadius * (0.3 + Math.sin(time * 2 + t * 1.3) * 0.15 + amp * 0.2);
+        const tStart = zRadius * 0.5;
+        ctx.beginPath();
+        const sx = Math.cos(tAngle) * tStart;
+        const sy = Math.sin(tAngle) * tStart;
+        const ex = Math.cos(tAngle) * (tStart + tLen);
+        const ey = Math.sin(tAngle) * (tStart + tLen);
+        const cpOff = Math.sin(time * 3 + t * 2) * zRadius * 0.2;
+        const cpx = (sx + ex) / 2 + Math.cos(tAngle + Math.PI / 2) * cpOff;
+        const cpy = (sy + ey) / 2 + Math.sin(tAngle + Math.PI / 2) * cpOff;
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo(cpx, cpy, ex, ey);
+        const tHue = (time * 50 + t * 25) % 360;
+        const tr = Math.round(128 + 127 * Math.sin(tHue * Math.PI / 180));
+        const tg = Math.round(128 + 127 * Math.sin((tHue + 120) * Math.PI / 180));
+        const tb = Math.round(128 + 127 * Math.sin((tHue + 240) * Math.PI / 180));
+        const tAlpha = 0.25 + Math.sin(time * 4 + t) * 0.1 + amp * 0.15;
+        ctx.strokeStyle = `rgba(${tr}, ${tg}, ${tb}, ${tAlpha})`;
+        ctx.lineWidth = 1.5 + Math.sin(time * 3 + t) * 0.5;
+        ctx.shadowColor = `rgba(${tr}, ${tg}, ${tb}, 0.5)`;
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+
     for (let wr = 0; wr < waveRings; wr++) {
-        const ringR = zRadius * (0.35 + wr * 0.09);
-        const waveSpeed = 3 + wr * 0.5;
-        const waveFreq = 4 + wr * 1.5;
-        const waveAmpBase = 2 + wr * 0.8 + amp * 12;
-        const ringAlpha = symAlpha * (0.7 - wr * 0.06);
+        const ringR = zRadius * (0.2 + wr * 0.08);
+        const waveSpeed = 3 + wr * 0.6;
+        const waveFreq = 3 + wr * 1.2;
+        const waveAmpBase = 4 + wr * 1.5 + amp * 20;
+        const ringAlpha = symAlpha * (0.75 - wr * 0.05);
         const c = waveColors[wr % waveColors.length];
         const phaseOff = wr * 0.8;
 
@@ -1764,9 +1831,10 @@ function drawSphere() {
         for (let i = 0; i <= waveSegs; i++) {
             const angle = (i / waveSegs) * Math.PI * 2;
             const wave1 = Math.sin(angle * waveFreq + time * waveSpeed + phaseOff) * waveAmpBase;
-            const wave2 = Math.sin(angle * (waveFreq + 2) - time * (waveSpeed * 0.7) + phaseOff * 1.5) * waveAmpBase * 0.4;
-            const wave3 = Math.cos(angle * (waveFreq * 0.5) + time * (waveSpeed * 1.3) + phaseOff * 2) * waveAmpBase * 0.25;
-            const wr_final = ringR + wave1 + wave2 + wave3;
+            const wave2 = Math.sin(angle * (waveFreq + 3) - time * (waveSpeed * 0.6) + phaseOff * 1.5) * waveAmpBase * 0.45;
+            const wave3 = Math.cos(angle * (waveFreq * 0.5) + time * (waveSpeed * 1.4) + phaseOff * 2) * waveAmpBase * 0.3;
+            const wave4 = Math.sin(angle * (waveFreq * 2) + time * (waveSpeed * 0.4) + phaseOff * 3) * waveAmpBase * 0.2;
+            const wr_final = ringR + wave1 + wave2 + wave3 + wave4;
             const wx = Math.cos(angle) * wr_final;
             const wy = Math.sin(angle) * wr_final;
             if (i === 0) ctx.moveTo(wx, wy);
@@ -1776,22 +1844,23 @@ function drawSphere() {
 
         const rGrad = ctx.createLinearGradient(-ringR, -ringR, ringR, ringR);
         rGrad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha})`);
-        rGrad.addColorStop(0.5, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha * 0.5})`);
+        rGrad.addColorStop(0.5, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha * 0.4})`);
         rGrad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${ringAlpha})`);
         ctx.strokeStyle = rGrad;
-        ctx.lineWidth = 1.8 - wr * 0.1;
-        ctx.shadowColor = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.5)`;
-        ctx.shadowBlur = 6 + amp * 8;
+        ctx.lineWidth = 2.2 - wr * 0.1;
+        ctx.shadowColor = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`;
+        ctx.shadowBlur = 10 + amp * 12;
         ctx.stroke();
     }
     ctx.shadowBlur = 0;
 
-    const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, zRadius * 0.4);
-    innerGlow.addColorStop(0, `rgba(180, 140, 255, ${0.12 + amp * 0.1})`);
-    innerGlow.addColorStop(0.5, `rgba(100, 180, 255, ${0.06 + amp * 0.05})`);
+    const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, zRadius * 0.35);
+    innerGlow.addColorStop(0, `rgba(180, 140, 255, ${0.15 + amp * 0.12})`);
+    innerGlow.addColorStop(0.4, `rgba(100, 180, 255, ${0.08 + amp * 0.06})`);
+    innerGlow.addColorStop(0.7, `rgba(255, 160, 200, ${0.04 + amp * 0.03})`);
     innerGlow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.beginPath();
-    ctx.arc(0, 0, zRadius * 0.4, 0, Math.PI * 2);
+    ctx.arc(0, 0, zRadius * 0.35, 0, Math.PI * 2);
     ctx.fillStyle = innerGlow;
     ctx.fill();
 
