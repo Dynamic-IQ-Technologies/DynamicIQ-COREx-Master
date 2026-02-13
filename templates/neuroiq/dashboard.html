@@ -1704,6 +1704,89 @@ function drawSphere() {
     ctx.fillStyle = specGrad;
     ctx.fill();
 
+    const symScale = r * 0.0045;
+    const symPulse = Math.sin(time * 1.5) * 0.08 + 1;
+    const symAlpha = 0.6 + Math.sin(time * 2) * 0.15 + amp * 0.25;
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.scale(symScale * symPulse, symScale * symPulse);
+
+    ctx.shadowColor = 'rgba(180, 120, 255, 0.8)';
+    ctx.shadowBlur = 20 + amp * 15;
+
+    const brainGrad = ctx.createLinearGradient(-50, -55, 50, 55);
+    brainGrad.addColorStop(0, `rgba(200, 140, 255, ${symAlpha})`);
+    brainGrad.addColorStop(0.5, `rgba(255, 220, 100, ${symAlpha})`);
+    brainGrad.addColorStop(1, `rgba(180, 100, 255, ${symAlpha})`);
+
+    ctx.strokeStyle = brainGrad;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+    ctx.arc(0, -8, 32, Math.PI * 0.85, Math.PI * 0.15, true);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, -8, 32, Math.PI * 0.85, Math.PI * 2.15);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, -40);
+    ctx.lineTo(0, 8);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-24, -28);
+    ctx.bezierCurveTo(-18, -18, -6, -14, 0, -8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(24, -28);
+    ctx.bezierCurveTo(18, -18, 6, -14, 0, -8);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-30, -8);
+    ctx.bezierCurveTo(-20, -2, -8, 0, 0, 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(30, -8);
+    ctx.bezierCurveTo(20, -2, 8, 0, 0, 2);
+    ctx.stroke();
+
+    const nodePositions = [
+        [0, -40], [-24, -28], [24, -28], [-30, -8], [30, -8],
+        [-20, -18], [20, -18], [0, -8], [-12, 4], [12, 4]
+    ];
+    const nodeGrad1 = ctx.createRadialGradient(0, 0, 0, 0, 0, 5);
+    nodeGrad1.addColorStop(0, `rgba(255, 240, 150, ${symAlpha})`);
+    nodeGrad1.addColorStop(1, `rgba(200, 130, 255, ${symAlpha * 0.6})`);
+    ctx.fillStyle = nodeGrad1;
+    for (let ni = 0; ni < nodePositions.length; ni++) {
+        const np = nodePositions[ni];
+        const nodePulse = Math.sin(time * 3 + ni * 0.7) * 0.4 + 0.6;
+        ctx.beginPath();
+        ctx.arc(np[0], np[1], 2.5 * nodePulse + 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 18px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const txtGrad = ctx.createLinearGradient(-30, 18, 30, 36);
+    txtGrad.addColorStop(0, `rgba(200, 150, 255, ${symAlpha})`);
+    txtGrad.addColorStop(0.5, `rgba(255, 225, 120, ${symAlpha})`);
+    txtGrad.addColorStop(1, `rgba(180, 120, 255, ${symAlpha})`);
+    ctx.fillStyle = txtGrad;
+    ctx.shadowColor = 'rgba(180, 120, 255, 0.6)';
+    ctx.shadowBlur = 12;
+    ctx.fillText('NiQ', 0, 18);
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+
     const rippleCount = 3;
     const showRipples = amp > 0.03 || sphereState !== 'idle';
     if (showRipples) {
