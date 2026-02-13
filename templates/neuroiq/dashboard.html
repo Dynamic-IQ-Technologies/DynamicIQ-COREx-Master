@@ -187,8 +187,8 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 80vmin;
-        height: 80vmin;
+        width: 90vmin;
+        height: 90vmin;
         z-index: 10;
         pointer-events: none;
     }
@@ -206,9 +206,9 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 95vmin;
-        height: 95vmin;
-        background: radial-gradient(circle, rgba(0, 245, 255, 0.06) 0%, rgba(123, 47, 190, 0.04) 40%, rgba(255, 50, 80, 0.02) 60%, transparent 75%);
+        width: 100vmin;
+        height: 100vmin;
+        background: radial-gradient(circle, rgba(120, 50, 220, 0.08) 0%, rgba(0, 150, 255, 0.05) 30%, rgba(255, 100, 50, 0.03) 50%, transparent 70%);
         border-radius: 50%;
         pointer-events: none;
         animation: sphere-breathe 4s ease-in-out infinite;
@@ -217,100 +217,6 @@
     @keyframes sphere-breathe {
         0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
         50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
-    }
-
-    .sphere-rings {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 88vmin;
-        height: 88vmin;
-        pointer-events: none;
-    }
-
-    .sphere-ring {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        border: 1px solid rgba(0, 245, 255, 0.08);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-    }
-
-    .sphere-ring:nth-child(1) {
-        width: 100%;
-        height: 100%;
-        animation: ring-rotate 20s linear infinite;
-    }
-
-    .sphere-ring:nth-child(2) {
-        width: 115%;
-        height: 115%;
-        border-color: rgba(123, 47, 190, 0.06);
-        animation: ring-rotate 30s linear infinite reverse;
-    }
-
-    .sphere-ring:nth-child(3) {
-        width: 130%;
-        height: 130%;
-        border-color: rgba(0, 245, 255, 0.04);
-        animation: ring-rotate 40s linear infinite;
-        border-style: dashed;
-    }
-
-    @keyframes ring-rotate {
-        from { transform: translate(-50%, -50%) rotate(0deg); }
-        to { transform: translate(-50%, -50%) rotate(360deg); }
-    }
-
-    .sphere-holo-arc {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        width: 90vmin;
-        height: 90vmin;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-    }
-
-    .holo-arc {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border: 2px solid transparent;
-        border-top-color: rgba(0, 245, 255, 0.15);
-        border-radius: 50%;
-    }
-
-    .holo-arc:nth-child(1) {
-        animation: arc-spin 8s linear infinite;
-    }
-
-    .holo-arc:nth-child(2) {
-        width: 90%;
-        height: 90%;
-        top: 5%;
-        left: 5%;
-        border-top-color: rgba(123, 47, 190, 0.12);
-        animation: arc-spin 12s linear infinite reverse;
-    }
-
-    .holo-arc:nth-child(3) {
-        width: 110%;
-        height: 110%;
-        top: -5%;
-        left: -5%;
-        border-top-color: rgba(0, 245, 255, 0.08);
-        border-right-color: rgba(0, 245, 255, 0.05);
-        animation: arc-spin 15s linear infinite;
-    }
-
-    @keyframes arc-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
     }
 
     .glass-panel {
@@ -1079,10 +985,8 @@
             width: 100%;
             max-height: none;
         }
-        .sphere-container { width: 280px; height: 280px; }
-        .sphere-glow { width: 340px; height: 340px; }
-        .sphere-rings { width: 320px; height: 320px; }
-        .sphere-holo-arc { width: 340px; height: 340px; }
+        .sphere-container { width: 300px; height: 300px; }
+        .sphere-glow { width: 360px; height: 360px; }
         .sphere-state-label { top: calc(50% + 160px); }
         .neuroiq-universe { position: relative; height: auto; min-height: 100vh; overflow-y: auto; }
         .bottom-interface { position: relative; margin-top: 60vh; }
@@ -1120,16 +1024,6 @@
     </div>
 
     <div class="sphere-glow" id="sphere-glow"></div>
-    <div class="sphere-rings">
-        <div class="sphere-ring"></div>
-        <div class="sphere-ring"></div>
-        <div class="sphere-ring"></div>
-    </div>
-    <div class="sphere-holo-arc">
-        <div class="holo-arc"></div>
-        <div class="holo-arc"></div>
-        <div class="holo-arc"></div>
-    </div>
     <div class="sphere-container">
         <canvas id="sphere-canvas"></canvas>
     </div>
@@ -1442,15 +1336,51 @@ function getAmplitude() {
     return Math.sqrt(sum / dataArray.length);
 }
 
-function project3D(x3, y3, z3, radius) {
+const meshNodes = [];
+const meshEdges = [];
+const meshNodeCount = 220;
+for (let i = 0; i < meshNodeCount; i++) {
+    const phi = Math.acos(1 - 2 * (i + 0.5) / meshNodeCount);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+    meshNodes.push({ phi, theta, twinkle: Math.random() * Math.PI * 2, speed: 0.5 + Math.random() * 1.5 });
+}
+for (let i = 0; i < meshNodes.length; i++) {
+    for (let j = i + 1; j < meshNodes.length; j++) {
+        const a = meshNodes[i], b = meshNodes[j];
+        const dx = Math.sin(a.phi)*Math.cos(a.theta) - Math.sin(b.phi)*Math.cos(b.theta);
+        const dy = Math.cos(a.phi) - Math.cos(b.phi);
+        const dz = Math.sin(a.phi)*Math.sin(a.theta) - Math.sin(b.phi)*Math.sin(b.theta);
+        const dist = Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if (dist < 0.52) meshEdges.push([i, j]);
+    }
+}
+
+const bgStars = [];
+for (let i = 0; i < 120; i++) {
+    bgStars.push({
+        x: Math.random(), y: Math.random(),
+        size: 0.3 + Math.random() * 1.5,
+        twinkle: Math.random() * Math.PI * 2,
+        speed: 0.3 + Math.random() * 2,
+        color: [[100,180,255],[200,120,255],[255,140,80],[80,255,200],[255,80,120]][Math.floor(Math.random()*5)]
+    });
+}
+
+function rotPoint(x, y, z, cosRY, sinRY, cosRX, sinRX) {
+    const ry = y * cosRX - z * sinRX;
+    const rz = y * sinRX + z * cosRX;
+    return { x: x * cosRY + rz * sinRY, y: ry, z: -x * sinRY + rz * cosRY };
+}
+
+function proj(x, y, z) {
     const fov = 600;
-    const scale = fov / (fov + z3);
-    return { x: centerX + x3 * scale, y: centerY + y3 * scale, z: z3, scale: scale, front: z3 < 0 };
+    const s = fov / (fov + z);
+    return { sx: centerX + x * s, sy: centerY + y * s, s, front: z < 0 };
 }
 
 function drawSphere() {
     if (!ctx) return;
-    time += 0.008;
+    time += 0.006;
 
     let targetAmplitude = 0;
     if (sphereState === 'listening' || sphereState === 'responding') {
@@ -1461,224 +1391,269 @@ function drawSphere() {
     ctx.clearRect(0, 0, canvasW, canvasH);
 
     const amp = smoothAmplitude;
-    const breathe = Math.sin(time * 0.8) * 0.02;
+    const breathe = Math.sin(time * 0.8) * 0.015;
     const r = baseRadius * (1 + breathe);
 
-    const rotY = time * 0.3;
-    const rotX = Math.sin(time * 0.15) * 0.2;
+    const rotY = time * 0.25;
+    const rotX = 0.3 + Math.sin(time * 0.12) * 0.1;
     const cosRY = Math.cos(rotY), sinRY = Math.sin(rotY);
     const cosRX = Math.cos(rotX), sinRX = Math.sin(rotX);
 
-    const glowAlpha = sphereState === 'idle' ? 0.04 : (sphereState === 'listening' ? 0.07 : 0.09);
-    const outerGlow = ctx.createRadialGradient(centerX, centerY, r * 0.1, centerX, centerY, r * 1.6);
-    outerGlow.addColorStop(0, `rgba(0, 150, 255, ${glowAlpha + amp * 0.15})`);
-    outerGlow.addColorStop(0.3, `rgba(123, 47, 190, ${glowAlpha * 0.7 + amp * 0.08})`);
-    outerGlow.addColorStop(0.6, `rgba(255, 50, 80, ${glowAlpha * 0.3 + amp * 0.04})`);
-    outerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = outerGlow;
+    for (let i = 0; i < bgStars.length; i++) {
+        const st = bgStars[i];
+        const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(time * st.speed + st.twinkle));
+        ctx.beginPath();
+        ctx.arc(st.x * canvasW, st.y * canvasH, st.size * twinkle, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${st.color[0]},${st.color[1]},${st.color[2]},${0.4 * twinkle})`;
+        ctx.fill();
+    }
+
+    const glowA = sphereState === 'idle' ? 0.06 : 0.1 + amp * 0.15;
+    const g1 = ctx.createRadialGradient(centerX, centerY, r * 0.2, centerX, centerY, r * 2.2);
+    g1.addColorStop(0, `rgba(100, 50, 200, ${glowA})`);
+    g1.addColorStop(0.25, `rgba(0, 120, 255, ${glowA * 0.7})`);
+    g1.addColorStop(0.5, `rgba(255, 80, 40, ${glowA * 0.3})`);
+    g1.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g1;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const lightX = -0.4, lightY = -0.5, lightZ = -0.8;
-    const lightLen = Math.sqrt(lightX*lightX + lightY*lightY + lightZ*lightZ);
-    const lx = lightX/lightLen, ly = lightY/lightLen, lz = lightZ/lightLen;
-
-    const bodyGrad = ctx.createRadialGradient(
-        centerX + r * 0.25, centerY - r * 0.25, r * 0.05,
-        centerX, centerY, r
-    );
-    bodyGrad.addColorStop(0, `rgba(40, 80, 140, ${0.25 + amp * 0.15})`);
-    bodyGrad.addColorStop(0.3, `rgba(20, 50, 110, ${0.2 + amp * 0.1})`);
-    bodyGrad.addColorStop(0.6, `rgba(15, 30, 70, ${0.18 + amp * 0.08})`);
-    bodyGrad.addColorStop(0.85, `rgba(8, 15, 40, ${0.22 + amp * 0.05})`);
-    bodyGrad.addColorStop(1, `rgba(2, 5, 20, ${0.12})`);
+    const bodyG = ctx.createRadialGradient(centerX - r*0.2, centerY - r*0.2, r*0.05, centerX, centerY, r);
+    bodyG.addColorStop(0, `rgba(30, 50, 120, ${0.35 + amp*0.2})`);
+    bodyG.addColorStop(0.35, `rgba(20, 30, 90, ${0.3 + amp*0.15})`);
+    bodyG.addColorStop(0.7, `rgba(10, 15, 50, ${0.35 + amp*0.1})`);
+    bodyG.addColorStop(1, `rgba(5, 5, 25, ${0.25})`);
     ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fillStyle = bodyGrad;
+    ctx.arc(centerX, centerY, r, 0, Math.PI*2);
+    ctx.fillStyle = bodyG;
     ctx.fill();
 
-    const rimGrad = ctx.createRadialGradient(centerX, centerY, r * 0.9, centerX, centerY, r * 1.02);
-    rimGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    rimGrad.addColorStop(0.5, `rgba(0, 200, 255, ${0.06 + amp * 0.08})`);
-    rimGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    const edgeG = ctx.createRadialGradient(centerX, centerY, r*0.85, centerX, centerY, r*1.05);
+    edgeG.addColorStop(0, 'rgba(0,0,0,0)');
+    edgeG.addColorStop(0.4, `rgba(150, 80, 255, ${0.12 + amp*0.1})`);
+    edgeG.addColorStop(0.7, `rgba(255, 100, 60, ${0.08 + amp*0.06})`);
+    edgeG.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fillStyle = rimGrad;
+    ctx.arc(centerX, centerY, r, 0, Math.PI*2);
+    ctx.fillStyle = edgeG;
     ctx.fill();
 
-    const wfColors = [
-        [0, 200, 255],
-        [100, 60, 220],
-        [0, 230, 180],
+    const nodeProj = [];
+    for (let i = 0; i < meshNodes.length; i++) {
+        const n = meshNodes[i];
+        const x3 = r * Math.sin(n.phi) * Math.cos(n.theta);
+        const y3 = r * Math.cos(n.phi);
+        const z3 = r * Math.sin(n.phi) * Math.sin(n.theta);
+        const rp = rotPoint(x3, y3, z3, cosRY, sinRY, cosRX, sinRX);
+        const p = proj(rp.x, rp.y, rp.z);
+        nodeProj.push(p);
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r, 0, Math.PI*2);
+    ctx.clip();
+
+    for (let i = 0; i < meshEdges.length; i++) {
+        const [ai, bi] = meshEdges[i];
+        const a = nodeProj[ai], b = nodeProj[bi];
+        const frontness = (a.front && b.front) ? 1.0 : (!a.front && !b.front) ? 0.15 : 0.4;
+        const alpha = frontness * (0.2 + amp * 0.15);
+        if (alpha < 0.02) continue;
+        const blend = Math.sin(time + ai * 0.1) * 0.5 + 0.5;
+        const cr = Math.round(80 + blend * 120);
+        const cg = Math.round(100 + (1-blend) * 80);
+        const cb = Math.round(200 + blend * 55);
+        ctx.beginPath();
+        ctx.moveTo(a.sx, a.sy);
+        ctx.lineTo(b.sx, b.sy);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha})`;
+        ctx.lineWidth = frontness > 0.5 ? 0.8 : 0.3;
+        ctx.stroke();
+    }
+
+    for (let i = 0; i < nodeProj.length; i++) {
+        const p = nodeProj[i];
+        const tw = Math.sin(time * meshNodes[i].speed + meshNodes[i].twinkle);
+        const frontness = p.front ? 1.0 : 0.2;
+        const alpha = frontness * (0.4 + tw * 0.3 + amp * 0.3);
+        if (alpha < 0.05) continue;
+        const sz = (1.0 + tw * 0.5) * p.s * (p.front ? 1.2 : 0.6);
+        const blend = tw * 0.5 + 0.5;
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, Math.max(0.4, sz), 0, Math.PI*2);
+        ctx.fillStyle = `rgba(${Math.round(150+blend*105)}, ${Math.round(180+blend*75)}, 255, ${alpha})`;
+        ctx.fill();
+        if (p.front && alpha > 0.5) {
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, sz * 2.5, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(${Math.round(100+blend*100)}, ${Math.round(150+blend*50)}, 255, ${alpha * 0.15})`;
+            ctx.fill();
+        }
+    }
+
+    ctx.restore();
+
+    const waveSegs = 200;
+    const waveH = r * (0.2 + amp * 0.6);
+    const waveColors = [
+        {r:100, g:180, b:255, off:0},
+        {r:200, g:100, b:255, off:0.3},
+        {r:255, g:80, b:80, off:0.6},
+    ];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r * 0.98, 0, Math.PI*2);
+    ctx.clip();
+    for (let w = 0; w < waveColors.length; w++) {
+        const wc = waveColors[w];
+        ctx.beginPath();
+        for (let i = 0; i <= waveSegs; i++) {
+            const t = i / waveSegs;
+            const x = centerX - r + t * r * 2;
+            const freq1 = 5 + w * 2;
+            const freq2 = 12 + w * 3;
+            const freq3 = 20 + w * 5;
+            const phase = time * (3 + w) + wc.off * 10;
+            const val = Math.sin(t * freq1 * Math.PI + phase) * 0.5
+                      + Math.sin(t * freq2 * Math.PI + phase * 1.3) * 0.3
+                      + Math.sin(t * freq3 * Math.PI + phase * 0.7) * 0.2;
+            const envelope = Math.sin(t * Math.PI);
+            const y = centerY + val * waveH * envelope * (0.3 + w * 0.2);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        const alpha = 0.3 + amp * 0.4 - w * 0.05;
+        ctx.strokeStyle = `rgba(${wc.r},${wc.g},${wc.b},${alpha})`;
+        ctx.lineWidth = 2 - w * 0.4;
+        ctx.shadowColor = `rgba(${wc.r},${wc.g},${wc.b},${alpha * 0.5})`;
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+
+    const specG = ctx.createRadialGradient(centerX - r*0.3, centerY - r*0.3, 0, centerX - r*0.3, centerY - r*0.3, r*0.5);
+    specG.addColorStop(0, `rgba(200, 220, 255, ${0.1 + amp*0.08})`);
+    specG.addColorStop(0.5, `rgba(150, 180, 255, ${0.03})`);
+    specG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r, 0, Math.PI*2);
+    ctx.fillStyle = specG;
+    ctx.fill();
+
+    const ringConfigs = [
+        { tilt: 0.35, radius: 1.35, width: 3.5, speed: 0.15, colors: [[255,120,40],[255,180,80]], glow: 12, alpha: 0.7 },
+        { tilt: 0.35, radius: 1.55, width: 2.5, speed: -0.12, colors: [[255,80,60],[255,140,40]], glow: 8, alpha: 0.5 },
+        { tilt: 0.35, radius: 1.75, width: 1.8, speed: 0.09, colors: [[255,60,80],[200,80,180]], glow: 6, alpha: 0.35 },
+        { tilt: 0.35, radius: 1.2, width: 2.5, speed: -0.18, colors: [[0,200,255],[80,160,255]], glow: 10, alpha: 0.55 },
+        { tilt: 0.35, radius: 1.95, width: 1.2, speed: 0.06, colors: [[200,80,255],[140,60,220]], glow: 5, alpha: 0.25 },
     ];
 
-    const latLines = 9;
-    const segments = 80;
-    for (let lat = 1; lat < latLines; lat++) {
-        const phi = (lat / latLines) * Math.PI;
-        ctx.beginPath();
-        let started = false;
-        let prevFront = false;
-        for (let i = 0; i <= segments; i++) {
-            const theta = (i / segments) * Math.PI * 2;
-            let x3 = r * Math.sin(phi) * Math.cos(theta);
-            let y3 = r * Math.cos(phi);
-            let z3 = r * Math.sin(phi) * Math.sin(theta);
+    const ringSegs = 180;
+    const cosTilt = Math.cos(0.35);
+    const sinTilt = Math.sin(0.35);
 
-            const noiseVal = sphereState === 'idle'
-                ? Math.sin(theta * 4 + time * 2 + phi * 3) * 2
-                : Math.sin(theta * 4 + time * 3 + phi * 3) * (4 + amp * 30);
-            const nr = r + noiseVal;
-            x3 = nr * Math.sin(phi) * Math.cos(theta);
-            y3 = nr * Math.cos(phi);
-            z3 = nr * Math.sin(phi) * Math.sin(theta);
+    for (let ri = 0; ri < ringConfigs.length; ri++) {
+        const rc = ringConfigs[ri];
+        const ringR = r * rc.radius;
+        const ringRot = time * rc.speed;
+        const cosRR = Math.cos(ringRot), sinRR = Math.sin(ringRot);
 
-            const rx = x3;
-            const ry = y3 * cosRX - z3 * sinRX;
-            const rz = y3 * sinRX + z3 * cosRX;
-            const fx = rx * cosRY + rz * sinRY;
-            const fy = ry;
-            const fz = -rx * sinRY + rz * cosRY;
-
-            const p = project3D(fx, fy, fz, r);
-            const isFront = fz < 0;
-
-            if (!started) {
-                ctx.moveTo(p.x, p.y);
-                started = true;
-                prevFront = isFront;
-            } else {
-                if (isFront !== prevFront) {
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    prevFront = isFront;
-                } else {
-                    ctx.lineTo(p.x, p.y);
-                }
-            }
-
-            const nx = Math.sin(phi) * Math.cos(theta);
-            const ny = Math.cos(phi);
-            const nz = Math.sin(phi) * Math.sin(theta);
-            const dot = Math.max(0, -(nx * lx + ny * ly + nz * lz));
-            const cIdx = lat % wfColors.length;
-            const c = wfColors[cIdx];
-
-            const baseAlpha = isFront ? (0.25 + dot * 0.3 + amp * 0.2) : (0.06 + dot * 0.06);
-            ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${baseAlpha})`;
-            ctx.lineWidth = isFront ? (1.2 + dot * 0.6) : 0.5;
+        const allPts = [];
+        for (let i = 0; i <= ringSegs; i++) {
+            const angle = (i / ringSegs) * Math.PI * 2;
+            let x3 = ringR * Math.cos(angle);
+            let z3 = ringR * Math.sin(angle);
+            const rx = x3 * cosRR - z3 * sinRR;
+            const rz = x3 * sinRR + z3 * cosRR;
+            const fy = rz * sinTilt;
+            const fz = rz * cosTilt;
+            const p = proj(rx, fy, fz);
+            allPts.push({ sx: p.sx, sy: p.sy, front: fz < 0 });
         }
-        ctx.stroke();
-    }
 
-    const lonLines = 12;
-    for (let lon = 0; lon < lonLines; lon++) {
-        const theta = (lon / lonLines) * Math.PI * 2;
-        ctx.beginPath();
-        let started = false;
-        let prevFront = false;
-        for (let i = 0; i <= segments; i++) {
-            const phi = (i / segments) * Math.PI;
-            let x3 = r * Math.sin(phi) * Math.cos(theta);
-            let y3 = r * Math.cos(phi);
-            let z3 = r * Math.sin(phi) * Math.sin(theta);
+        const blend = Math.sin(time * 0.5 + ri) * 0.5 + 0.5;
+        const c1 = rc.colors[0], c2 = rc.colors[1];
+        const cr = Math.round(c1[0] + (c2[0]-c1[0])*blend);
+        const cg = Math.round(c1[1] + (c2[1]-c1[1])*blend);
+        const cb = Math.round(c1[2] + (c2[2]-c1[2])*blend);
 
-            const noiseVal = sphereState === 'idle'
-                ? Math.sin(phi * 4 + time * 2 + theta * 3) * 2
-                : Math.sin(phi * 4 + time * 3 + theta * 3) * (4 + amp * 30);
-            const nr = r + noiseVal;
-            x3 = nr * Math.sin(phi) * Math.cos(theta);
-            y3 = nr * Math.cos(phi);
-            z3 = nr * Math.sin(phi) * Math.sin(theta);
-
-            const rx = x3;
-            const ry = y3 * cosRX - z3 * sinRX;
-            const rz = y3 * sinRX + z3 * cosRX;
-            const fx = rx * cosRY + rz * sinRY;
-            const fy = ry;
-            const fz = -rx * sinRY + rz * cosRY;
-
-            const p = project3D(fx, fy, fz, r);
-            const isFront = fz < 0;
-
-            if (!started) {
-                ctx.moveTo(p.x, p.y);
-                started = true;
-                prevFront = isFront;
-            } else {
-                if (isFront !== prevFront) {
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    prevFront = isFront;
-                } else {
-                    ctx.lineTo(p.x, p.y);
-                }
-            }
-
-            const nx = Math.sin(phi) * Math.cos(theta);
-            const ny = Math.cos(phi);
-            const nz = Math.sin(phi) * Math.sin(theta);
-            const dot = Math.max(0, -(nx * lx + ny * ly + nz * lz));
-            const cIdx = lon % wfColors.length;
-            const c = wfColors[cIdx];
-            const baseAlpha = isFront ? (0.2 + dot * 0.25 + amp * 0.2) : (0.05 + dot * 0.05);
-            ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${baseAlpha})`;
-            ctx.lineWidth = isFront ? (1 + dot * 0.5) : 0.4;
-        }
-        ctx.stroke();
-    }
-
-    const specX = centerX - r * 0.3;
-    const specY = centerY - r * 0.3;
-    const specGrad = ctx.createRadialGradient(specX, specY, 0, specX, specY, r * 0.45);
-    specGrad.addColorStop(0, `rgba(180, 220, 255, ${0.12 + amp * 0.1})`);
-    specGrad.addColorStop(0.4, `rgba(100, 160, 255, ${0.04 + amp * 0.04})`);
-    specGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fillStyle = specGrad;
-    ctx.fill();
-
-    const rippleCount = 3;
-    const showRipples = amp > 0.03 || sphereState !== 'idle';
-    if (showRipples) {
-        for (let i = 0; i < rippleCount; i++) {
-            const ripplePhase = (time * 0.5 + i * 0.5) % 1;
-            const rippleR = r + ripplePhase * r * 0.5;
-            const rippleAlpha = (1 - ripplePhase) * 0.15 * (sphereState === 'idle' ? 0.3 : 1);
+        for (let pass = 0; pass < 2; pass++) {
+            const isFront = pass === 1;
+            const baseAlpha = isFront ? (rc.alpha + amp*0.2) : (rc.alpha * 0.2);
             ctx.beginPath();
-            ctx.arc(centerX, centerY, rippleR, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(0, 245, 255, ${rippleAlpha})`;
-            ctx.lineWidth = 1;
+            let drawing = false;
+            for (let i = 0; i < allPts.length; i++) {
+                const pt = allPts[i];
+                if (pt.front === isFront) {
+                    if (!drawing) { ctx.moveTo(pt.sx, pt.sy); drawing = true; }
+                    else ctx.lineTo(pt.sx, pt.sy);
+                } else {
+                    if (drawing) { drawing = false; }
+                }
+            }
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},${baseAlpha})`;
+            ctx.lineWidth = rc.width * (isFront ? 1 : 0.4);
+            if (isFront) {
+                ctx.shadowColor = `rgba(${cr},${cg},${cb},${baseAlpha * 0.6})`;
+                ctx.shadowBlur = rc.glow;
+            }
             ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        if (ri < 2) {
+            const sparkCount = 8 + ri * 4;
+            for (let si = 0; si < sparkCount; si++) {
+                const sa = (si / sparkCount) * Math.PI * 2 + time * rc.speed * 2;
+                let sx3 = ringR * Math.cos(sa);
+                let sz3 = ringR * Math.sin(sa);
+                const srx = sx3 * cosRR - sz3 * sinRR;
+                const srz = sx3 * sinRR + sz3 * cosRR;
+                const sfy = srz * sinTilt;
+                const sfz = srz * cosTilt;
+                if (sfz > r * 0.3) continue;
+                const sp = proj(srx, sfy, sfz);
+                const tw = Math.sin(time * 3 + si * 2.1) * 0.5 + 0.5;
+                const c = rc.colors[si % 2];
+                ctx.beginPath();
+                ctx.arc(sp.sx, sp.sy, (1 + tw) * sp.s, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${tw * 0.6})`;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sp.sx, sp.sy, (2 + tw * 2) * sp.s, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${tw * 0.15})`;
+                ctx.fill();
+            }
         }
     }
 
-    const particleCount = sphereState === 'idle' ? 50 : 90;
-    const pColors = [[0,180,255],[150,50,220],[255,50,90],[0,245,200],[200,80,255]];
-    for (let i = 0; i < particleCount; i++) {
-        const pPhi = Math.acos(1 - 2 * ((i + 0.5) / particleCount));
-        const pTheta = Math.PI * (1 + Math.sqrt(5)) * i + time * 0.2;
-        const pDist = r * (1.15 + Math.sin(time * 1.5 + i * 0.7) * 0.1 + amp * 0.3);
-        let px3 = pDist * Math.sin(pPhi) * Math.cos(pTheta);
-        let py3 = pDist * Math.cos(pPhi);
-        let pz3 = pDist * Math.sin(pPhi) * Math.sin(pTheta);
-        const prx = px3;
-        const pry = py3 * cosRX - pz3 * sinRX;
-        const prz = py3 * sinRX + pz3 * cosRX;
-        const pfx = prx * cosRY + prz * sinRY;
-        const pfy = pry;
-        const pfz = -prx * sinRY + prz * cosRY;
-        const pp = project3D(pfx, pfy, pfz, r);
-        const pSize = (1 + Math.sin(time * 2 + i) * 0.5) * pp.scale;
-        const depthFade = pfz < 0 ? 1.0 : 0.3;
-        const pAlpha = (0.3 + Math.sin(time + i) * 0.15) * depthFade;
-        const pc = pColors[i % pColors.length];
+    const flyCount = sphereState === 'idle' ? 60 : 100;
+    const flyColors = [[100,180,255],[200,100,255],[255,120,60],[80,255,200],[255,80,150]];
+    for (let i = 0; i < flyCount; i++) {
+        const pPhi = Math.acos(1 - 2 * ((i + 0.5) / flyCount));
+        const pTheta = Math.PI * (1 + Math.sqrt(5)) * i + time * 0.15;
+        const pDist = r * (1.1 + Math.sin(time * 1.2 + i * 0.8) * 0.2 + amp * 0.4);
+        const px3 = pDist * Math.sin(pPhi) * Math.cos(pTheta);
+        const py3 = pDist * Math.cos(pPhi);
+        const pz3 = pDist * Math.sin(pPhi) * Math.sin(pTheta);
+        const rp = rotPoint(px3, py3, pz3, cosRY, sinRY, cosRX, sinRX);
+        const pp = proj(rp.x, rp.y, rp.z);
+        const tw = Math.sin(time * 2 + i * 1.3);
+        const depthFade = rp.z < 0 ? 1.0 : 0.25;
+        const pAlpha = (0.35 + tw * 0.2) * depthFade;
+        const pc = flyColors[i % flyColors.length];
+        const sz = Math.max(0.4, (0.8 + tw * 0.4) * pp.s);
         ctx.beginPath();
-        ctx.arc(pp.x, pp.y, Math.max(0.5, pSize), 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${pc[0]}, ${pc[1]}, ${pc[2]}, ${pAlpha})`;
+        ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},${pAlpha})`;
         ctx.fill();
+        if (depthFade > 0.5 && pAlpha > 0.3) {
+            ctx.beginPath();
+            ctx.arc(pp.sx, pp.sy, sz * 3, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},${pAlpha * 0.1})`;
+            ctx.fill();
+        }
     }
 
     animFrame = requestAnimationFrame(drawSphere);
