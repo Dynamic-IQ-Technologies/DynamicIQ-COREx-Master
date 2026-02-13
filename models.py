@@ -6085,6 +6085,17 @@ def init_qms_tables(cursor):
     ''')
     
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS work_order_notes (
+            id SERIAL PRIMARY KEY,
+            work_order_id INTEGER NOT NULL,
+            note_text TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS repair_order_audit (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ro_id INTEGER NOT NULL,
