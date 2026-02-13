@@ -1868,12 +1868,12 @@ function drawSphere() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const niqGrad = ctx.createLinearGradient(-18, 0, 18, 0);
-    niqGrad.addColorStop(0, `rgba(200, 150, 255, ${symAlpha})`);
-    niqGrad.addColorStop(0.5, `rgba(255, 225, 120, ${symAlpha})`);
-    niqGrad.addColorStop(1, `rgba(180, 120, 255, ${symAlpha})`);
+    niqGrad.addColorStop(0, `rgba(255, 160, 0, ${symAlpha})`);
+    niqGrad.addColorStop(0.5, `rgba(255, 200, 40, ${symAlpha})`);
+    niqGrad.addColorStop(1, `rgba(255, 140, 0, ${symAlpha})`);
     ctx.fillStyle = niqGrad;
-    ctx.shadowColor = 'rgba(180, 120, 255, 0.6)';
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = 'rgba(255, 160, 0, 0.7)';
+    ctx.shadowBlur = 14;
     ctx.fillText('NiQ', 0, 0);
     ctx.shadowBlur = 0;
 
