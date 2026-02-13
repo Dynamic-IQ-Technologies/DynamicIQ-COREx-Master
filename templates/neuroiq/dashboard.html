@@ -1795,28 +1795,17 @@ function drawSphere() {
     ctx.fillStyle = innerGlow;
     ctx.fill();
 
-    const niqRotAngle = time * 0.5;
-    ctx.font = 'bold 14px Inter, sans-serif';
+    ctx.font = 'bold 16px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const txtChars = ['N','i','Q'];
-    const charSpread = 9;
-    for (let ci = 0; ci < txtChars.length; ci++) {
-        const cOff = (ci - 1) * charSpread;
-        const cBob = Math.sin(time * 2.5 + ci * 1.2) * 3;
-        const cWave = Math.sin(time * 1.8 + ci * 0.9) * 2;
-        const cx = Math.cos(niqRotAngle) * cOff + cWave;
-        const cy = cBob;
-        const cAlpha = symAlpha * (0.85 + Math.sin(time * 3 + ci) * 0.15);
-        const cGrad = ctx.createLinearGradient(cx - 8, cy, cx + 8, cy);
-        cGrad.addColorStop(0, `rgba(200, 150, 255, ${cAlpha})`);
-        cGrad.addColorStop(0.5, `rgba(255, 225, 120, ${cAlpha})`);
-        cGrad.addColorStop(1, `rgba(180, 120, 255, ${cAlpha})`);
-        ctx.fillStyle = cGrad;
-        ctx.shadowColor = `rgba(180, 120, 255, ${0.6})`;
-        ctx.shadowBlur = 10;
-        ctx.fillText(txtChars[ci], cx, cy);
-    }
+    const niqGrad = ctx.createLinearGradient(-18, 0, 18, 0);
+    niqGrad.addColorStop(0, `rgba(200, 150, 255, ${symAlpha})`);
+    niqGrad.addColorStop(0.5, `rgba(255, 225, 120, ${symAlpha})`);
+    niqGrad.addColorStop(1, `rgba(180, 120, 255, ${symAlpha})`);
+    ctx.fillStyle = niqGrad;
+    ctx.shadowColor = 'rgba(180, 120, 255, 0.6)';
+    ctx.shadowBlur = 12;
+    ctx.fillText('NiQ', 0, 0);
     ctx.shadowBlur = 0;
 
     ctx.restore();
