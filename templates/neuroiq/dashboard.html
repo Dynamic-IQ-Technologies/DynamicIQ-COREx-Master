@@ -1338,7 +1338,7 @@ function getAmplitude() {
 
 const meshNodes = [];
 const meshEdges = [];
-const meshNodeCount = 220;
+const meshNodeCount = 280;
 for (let i = 0; i < meshNodeCount; i++) {
     const phi = Math.acos(1 - 2 * (i + 0.5) / meshNodeCount);
     const theta = Math.PI * (1 + Math.sqrt(5)) * i;
@@ -1351,18 +1351,18 @@ for (let i = 0; i < meshNodes.length; i++) {
         const dy = Math.cos(a.phi) - Math.cos(b.phi);
         const dz = Math.sin(a.phi)*Math.sin(a.theta) - Math.sin(b.phi)*Math.sin(b.theta);
         const dist = Math.sqrt(dx*dx+dy*dy+dz*dz);
-        if (dist < 0.52) meshEdges.push([i, j]);
+        if (dist < 0.45) meshEdges.push([i, j]);
     }
 }
 
 const bgStars = [];
-for (let i = 0; i < 120; i++) {
+for (let i = 0; i < 150; i++) {
     bgStars.push({
         x: Math.random(), y: Math.random(),
-        size: 0.3 + Math.random() * 1.5,
+        size: 0.3 + Math.random() * 2.0,
         twinkle: Math.random() * Math.PI * 2,
         speed: 0.3 + Math.random() * 2,
-        color: [[100,180,255],[200,120,255],[255,140,80],[80,255,200],[255,80,120]][Math.floor(Math.random()*5)]
+        color: [[120,200,255],[220,140,255],[255,160,80],[80,255,220],[255,100,140]][Math.floor(Math.random()*5)]
     });
 }
 
@@ -1374,7 +1374,7 @@ function rotPoint(x, y, z, cosRY, sinRY, cosRX, sinRX) {
 
 function proj(x, y, z) {
     const fov = 600;
-    const s = fov / (fov + z);
+    const s = Math.max(0.01, fov / (fov + z));
     return { sx: centerX + x * s, sy: centerY + y * s, s, front: z < 0 };
 }
 
@@ -1394,46 +1394,137 @@ function drawSphere() {
     const breathe = Math.sin(time * 0.8) * 0.015;
     const r = baseRadius * (1 + breathe);
 
-    const rotY = time * 0.25;
-    const rotX = 0.3 + Math.sin(time * 0.12) * 0.1;
+    const rotY = time * 0.2;
+    const rotX = 0.25 + Math.sin(time * 0.1) * 0.08;
     const cosRY = Math.cos(rotY), sinRY = Math.sin(rotY);
     const cosRX = Math.cos(rotX), sinRX = Math.sin(rotX);
 
     for (let i = 0; i < bgStars.length; i++) {
         const st = bgStars[i];
-        const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(time * st.speed + st.twinkle));
+        const tw = 0.3 + 0.7 * Math.abs(Math.sin(time * st.speed + st.twinkle));
         ctx.beginPath();
-        ctx.arc(st.x * canvasW, st.y * canvasH, st.size * twinkle, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${st.color[0]},${st.color[1]},${st.color[2]},${0.4 * twinkle})`;
+        ctx.arc(st.x * canvasW, st.y * canvasH, st.size * tw, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${st.color[0]},${st.color[1]},${st.color[2]},${0.5 * tw})`;
         ctx.fill();
     }
 
-    const glowA = sphereState === 'idle' ? 0.06 : 0.1 + amp * 0.15;
-    const g1 = ctx.createRadialGradient(centerX, centerY, r * 0.2, centerX, centerY, r * 2.2);
-    g1.addColorStop(0, `rgba(100, 50, 200, ${glowA})`);
-    g1.addColorStop(0.25, `rgba(0, 120, 255, ${glowA * 0.7})`);
-    g1.addColorStop(0.5, `rgba(255, 80, 40, ${glowA * 0.3})`);
+    const glowA = sphereState === 'idle' ? 0.1 : 0.16 + amp * 0.2;
+    const g1 = ctx.createRadialGradient(centerX, centerY, r * 0.1, centerX, centerY, r * 2.5);
+    g1.addColorStop(0, `rgba(140, 60, 255, ${glowA * 1.2})`);
+    g1.addColorStop(0.15, `rgba(200, 50, 200, ${glowA})`);
+    g1.addColorStop(0.35, `rgba(0, 140, 255, ${glowA * 0.6})`);
+    g1.addColorStop(0.55, `rgba(255, 100, 40, ${glowA * 0.35})`);
     g1.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g1;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const bodyG = ctx.createRadialGradient(centerX - r*0.2, centerY - r*0.2, r*0.05, centerX, centerY, r);
-    bodyG.addColorStop(0, `rgba(30, 50, 120, ${0.35 + amp*0.2})`);
-    bodyG.addColorStop(0.35, `rgba(20, 30, 90, ${0.3 + amp*0.15})`);
-    bodyG.addColorStop(0.7, `rgba(10, 15, 50, ${0.35 + amp*0.1})`);
-    bodyG.addColorStop(1, `rgba(5, 5, 25, ${0.25})`);
+    const ringTilt = 0.4;
+    const cosTilt = Math.cos(ringTilt);
+    const sinTilt = Math.sin(ringTilt);
+    const ringSegs = 200;
+
+    const ringConfigs = [
+        { radius: 1.15, width: 3.0, speed: -0.2, colors: [[0,220,255],[100,200,255]], glow: 14, alpha: 0.65 },
+        { radius: 1.3, width: 4.0, speed: 0.12, colors: [[255,140,30],[255,200,60]], glow: 18, alpha: 0.85 },
+        { radius: 1.45, width: 3.0, speed: -0.1, colors: [[255,100,40],[255,160,60]], glow: 14, alpha: 0.7 },
+        { radius: 1.6, width: 2.5, speed: 0.08, colors: [[255,70,50],[255,120,40]], glow: 10, alpha: 0.55 },
+        { radius: 1.75, width: 2.0, speed: -0.06, colors: [[200,60,180],[255,80,120]], glow: 8, alpha: 0.4 },
+        { radius: 1.9, width: 1.5, speed: 0.15, colors: [[0,180,255],[60,140,255]], glow: 8, alpha: 0.35 },
+        { radius: 2.05, width: 1.2, speed: -0.04, colors: [[180,60,220],[120,40,200]], glow: 6, alpha: 0.25 },
+        { radius: 2.2, width: 1.0, speed: 0.03, colors: [[255,60,60],[200,40,100]], glow: 5, alpha: 0.18 },
+    ];
+
+    function drawRings(behindSphere) {
+        for (let ri = 0; ri < ringConfigs.length; ri++) {
+            const rc = ringConfigs[ri];
+            const ringR = r * rc.radius;
+            const ringRot = time * rc.speed;
+            const cosRR = Math.cos(ringRot), sinRR = Math.sin(ringRot);
+            const blend = Math.sin(time * 0.4 + ri * 0.8) * 0.5 + 0.5;
+            const c1 = rc.colors[0], c2 = rc.colors[1];
+            const cr = Math.round(c1[0] + (c2[0]-c1[0])*blend);
+            const cg = Math.round(c1[1] + (c2[1]-c1[1])*blend);
+            const cb = Math.round(c1[2] + (c2[2]-c1[2])*blend);
+
+            ctx.beginPath();
+            let drawing = false;
+            for (let i = 0; i <= ringSegs; i++) {
+                const angle = (i / ringSegs) * Math.PI * 2;
+                const x3 = ringR * Math.cos(angle);
+                const z3 = ringR * Math.sin(angle);
+                const rx = x3 * cosRR - z3 * sinRR;
+                const rz = x3 * sinRR + z3 * cosRR;
+                const fy = rz * sinTilt;
+                const fz = rz * cosTilt;
+                const isFront = fz < 0;
+                const wantFront = !behindSphere;
+                if (isFront === wantFront) {
+                    const p = proj(rx, fy, fz);
+                    if (!drawing) { ctx.moveTo(p.sx, p.sy); drawing = true; }
+                    else ctx.lineTo(p.sx, p.sy);
+                } else {
+                    drawing = false;
+                }
+            }
+            const baseAlpha = behindSphere ? (rc.alpha * 0.18) : (rc.alpha + amp * 0.15);
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},${baseAlpha})`;
+            ctx.lineWidth = rc.width * (behindSphere ? 0.35 : 1);
+            if (!behindSphere) {
+                ctx.shadowColor = `rgba(${cr},${cg},${cb},${Math.min(1, baseAlpha * 0.7)})`;
+                ctx.shadowBlur = rc.glow;
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            if (!behindSphere && ri < 3) {
+                const sparkCount = 10 + ri * 3;
+                for (let si = 0; si < sparkCount; si++) {
+                    const sa = (si / sparkCount) * Math.PI * 2 + time * rc.speed * 1.5;
+                    const sx3 = ringR * Math.cos(sa);
+                    const sz3 = ringR * Math.sin(sa);
+                    const srx = sx3 * cosRR - sz3 * sinRR;
+                    const srz = sx3 * sinRR + sz3 * cosRR;
+                    const sfz = srz * cosTilt;
+                    if (sfz > r * 0.2) continue;
+                    const sfy = srz * sinTilt;
+                    const sp = proj(srx, sfy, sfz);
+                    const stw = Math.sin(time * 4 + si * 2.5) * 0.5 + 0.5;
+                    const sc = rc.colors[si % 2];
+                    const sRadius1 = Math.max(0.5, (1.2 + stw * 1.5) * sp.s);
+                    const sRadius2 = Math.max(0.5, (3 + stw * 3) * sp.s);
+                    ctx.beginPath();
+                    ctx.arc(sp.sx, sp.sy, sRadius1, 0, Math.PI*2);
+                    ctx.fillStyle = `rgba(${sc[0]},${sc[1]},${sc[2]},${stw * 0.7})`;
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(sp.sx, sp.sy, sRadius2, 0, Math.PI*2);
+                    ctx.fillStyle = `rgba(${sc[0]},${sc[1]},${sc[2]},${stw * 0.12})`;
+                    ctx.fill();
+                }
+            }
+        }
+    }
+
+    drawRings(true);
+
+    const bodyG = ctx.createRadialGradient(centerX - r*0.15, centerY - r*0.2, r*0.05, centerX, centerY, r);
+    bodyG.addColorStop(0, `rgba(25, 35, 100, ${0.5 + amp*0.2})`);
+    bodyG.addColorStop(0.3, `rgba(15, 20, 70, ${0.45 + amp*0.15})`);
+    bodyG.addColorStop(0.65, `rgba(8, 10, 45, ${0.5 + amp*0.1})`);
+    bodyG.addColorStop(1, `rgba(3, 3, 20, ${0.4})`);
     ctx.beginPath();
     ctx.arc(centerX, centerY, r, 0, Math.PI*2);
     ctx.fillStyle = bodyG;
     ctx.fill();
 
-    const edgeG = ctx.createRadialGradient(centerX, centerY, r*0.85, centerX, centerY, r*1.05);
+    const edgeG = ctx.createRadialGradient(centerX, centerY, r*0.8, centerX, centerY, r*1.08);
     edgeG.addColorStop(0, 'rgba(0,0,0,0)');
-    edgeG.addColorStop(0.4, `rgba(150, 80, 255, ${0.12 + amp*0.1})`);
-    edgeG.addColorStop(0.7, `rgba(255, 100, 60, ${0.08 + amp*0.06})`);
+    edgeG.addColorStop(0.3, `rgba(200, 50, 255, ${0.2 + amp*0.15})`);
+    edgeG.addColorStop(0.55, `rgba(255, 100, 180, ${0.15 + amp*0.12})`);
+    edgeG.addColorStop(0.8, `rgba(255, 140, 60, ${0.08 + amp*0.06})`);
     edgeG.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI*2);
+    ctx.arc(centerX, centerY, r * 1.02, 0, Math.PI*2);
     ctx.fillStyle = edgeG;
     ctx.fill();
 
@@ -1456,202 +1547,118 @@ function drawSphere() {
     for (let i = 0; i < meshEdges.length; i++) {
         const [ai, bi] = meshEdges[i];
         const a = nodeProj[ai], b = nodeProj[bi];
-        const frontness = (a.front && b.front) ? 1.0 : (!a.front && !b.front) ? 0.15 : 0.4;
-        const alpha = frontness * (0.2 + amp * 0.15);
-        if (alpha < 0.02) continue;
-        const blend = Math.sin(time + ai * 0.1) * 0.5 + 0.5;
-        const cr = Math.round(80 + blend * 120);
-        const cg = Math.round(100 + (1-blend) * 80);
+        const frontness = (a.front && b.front) ? 1.0 : (!a.front && !b.front) ? 0.12 : 0.35;
+        const alpha = frontness * (0.35 + amp * 0.2);
+        if (alpha < 0.03) continue;
+        const blend = Math.sin(time * 0.8 + ai * 0.12) * 0.5 + 0.5;
+        const cr = Math.round(180 + blend * 75);
+        const cg = Math.round(50 + blend * 60);
         const cb = Math.round(200 + blend * 55);
         ctx.beginPath();
         ctx.moveTo(a.sx, a.sy);
         ctx.lineTo(b.sx, b.sy);
         ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha})`;
-        ctx.lineWidth = frontness > 0.5 ? 0.8 : 0.3;
+        ctx.lineWidth = frontness > 0.5 ? 1.0 : 0.3;
         ctx.stroke();
     }
 
     for (let i = 0; i < nodeProj.length; i++) {
         const p = nodeProj[i];
         const tw = Math.sin(time * meshNodes[i].speed + meshNodes[i].twinkle);
-        const frontness = p.front ? 1.0 : 0.2;
-        const alpha = frontness * (0.4 + tw * 0.3 + amp * 0.3);
+        const frontness = p.front ? 1.0 : 0.15;
+        const alpha = frontness * (0.55 + tw * 0.35 + amp * 0.3);
         if (alpha < 0.05) continue;
-        const sz = (1.0 + tw * 0.5) * p.s * (p.front ? 1.2 : 0.6);
+        const sz = (1.2 + tw * 0.6) * p.s * (p.front ? 1.4 : 0.5);
         const blend = tw * 0.5 + 0.5;
+        const nr = Math.round(200 + blend * 55);
+        const ng = Math.round(120 + blend * 80);
+        const nb = Math.round(240 + blend * 15);
         ctx.beginPath();
-        ctx.arc(p.sx, p.sy, Math.max(0.4, sz), 0, Math.PI*2);
-        ctx.fillStyle = `rgba(${Math.round(150+blend*105)}, ${Math.round(180+blend*75)}, 255, ${alpha})`;
+        ctx.arc(p.sx, p.sy, Math.max(0.5, sz), 0, Math.PI*2);
+        ctx.fillStyle = `rgba(${nr},${ng},${nb},${alpha})`;
         ctx.fill();
-        if (p.front && alpha > 0.5) {
+        if (p.front && alpha > 0.4) {
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, sz * 2.5, 0, Math.PI*2);
-            ctx.fillStyle = `rgba(${Math.round(100+blend*100)}, ${Math.round(150+blend*50)}, 255, ${alpha * 0.15})`;
+            ctx.arc(p.sx, p.sy, sz * 3, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(${nr},${ng},${nb},${alpha * 0.12})`;
             ctx.fill();
         }
     }
 
     ctx.restore();
 
-    const waveSegs = 200;
-    const waveH = r * (0.2 + amp * 0.6);
+    const waveSegs = 250;
+    const waveH = r * (0.35 + amp * 0.8);
+    const waveSpan = r * 1.25;
     const waveColors = [
-        {r:100, g:180, b:255, off:0},
-        {r:200, g:100, b:255, off:0.3},
-        {r:255, g:80, b:80, off:0.6},
+        {r:220, g:240, b:255, off:0, lw: 2.5},
+        {r:100, g:220, b:255, off:0.2, lw: 2.2},
+        {r:200, g:100, b:255, off:0.5, lw: 2.0},
+        {r:255, g:120, b:80, off:0.8, lw: 1.8},
+        {r:255, g:60, b:100, off:1.1, lw: 1.5},
     ];
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.98, 0, Math.PI*2);
-    ctx.clip();
     for (let w = 0; w < waveColors.length; w++) {
         const wc = waveColors[w];
         ctx.beginPath();
         for (let i = 0; i <= waveSegs; i++) {
             const t = i / waveSegs;
-            const x = centerX - r + t * r * 2;
-            const freq1 = 5 + w * 2;
-            const freq2 = 12 + w * 3;
-            const freq3 = 20 + w * 5;
-            const phase = time * (3 + w) + wc.off * 10;
-            const val = Math.sin(t * freq1 * Math.PI + phase) * 0.5
-                      + Math.sin(t * freq2 * Math.PI + phase * 1.3) * 0.3
-                      + Math.sin(t * freq3 * Math.PI + phase * 0.7) * 0.2;
-            const envelope = Math.sin(t * Math.PI);
-            const y = centerY + val * waveH * envelope * (0.3 + w * 0.2);
+            const x = centerX - waveSpan + t * waveSpan * 2;
+            const freq1 = 6 + w * 1.5;
+            const freq2 = 14 + w * 2.5;
+            const freq3 = 22 + w * 4;
+            const phase = time * (2.5 + w * 0.5) + wc.off * 8;
+            const val = Math.sin(t * freq1 * Math.PI + phase) * 0.45
+                      + Math.sin(t * freq2 * Math.PI + phase * 1.4) * 0.3
+                      + Math.sin(t * freq3 * Math.PI + phase * 0.6) * 0.25;
+            const envelope = Math.pow(Math.sin(t * Math.PI), 0.7);
+            const y = centerY + val * waveH * envelope * (0.5 + w * 0.12);
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
-        const alpha = 0.3 + amp * 0.4 - w * 0.05;
+        const alpha = (0.5 + amp * 0.4 - w * 0.04);
         ctx.strokeStyle = `rgba(${wc.r},${wc.g},${wc.b},${alpha})`;
-        ctx.lineWidth = 2 - w * 0.4;
-        ctx.shadowColor = `rgba(${wc.r},${wc.g},${wc.b},${alpha * 0.5})`;
-        ctx.shadowBlur = 8;
+        ctx.lineWidth = wc.lw;
+        ctx.shadowColor = `rgba(${wc.r},${wc.g},${wc.b},${Math.min(1, alpha * 0.6)})`;
+        ctx.shadowBlur = w === 0 ? 15 : 10;
         ctx.stroke();
         ctx.shadowBlur = 0;
     }
-    ctx.restore();
 
-    const specG = ctx.createRadialGradient(centerX - r*0.3, centerY - r*0.3, 0, centerX - r*0.3, centerY - r*0.3, r*0.5);
-    specG.addColorStop(0, `rgba(200, 220, 255, ${0.1 + amp*0.08})`);
-    specG.addColorStop(0.5, `rgba(150, 180, 255, ${0.03})`);
+    const specG = ctx.createRadialGradient(centerX - r*0.25, centerY - r*0.25, 0, centerX - r*0.25, centerY - r*0.25, r*0.55);
+    specG.addColorStop(0, `rgba(220, 230, 255, ${0.08 + amp*0.06})`);
+    specG.addColorStop(0.5, `rgba(180, 200, 255, ${0.02})`);
     specG.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.beginPath();
     ctx.arc(centerX, centerY, r, 0, Math.PI*2);
     ctx.fillStyle = specG;
     ctx.fill();
 
-    const ringConfigs = [
-        { tilt: 0.35, radius: 1.35, width: 3.5, speed: 0.15, colors: [[255,120,40],[255,180,80]], glow: 12, alpha: 0.7 },
-        { tilt: 0.35, radius: 1.55, width: 2.5, speed: -0.12, colors: [[255,80,60],[255,140,40]], glow: 8, alpha: 0.5 },
-        { tilt: 0.35, radius: 1.75, width: 1.8, speed: 0.09, colors: [[255,60,80],[200,80,180]], glow: 6, alpha: 0.35 },
-        { tilt: 0.35, radius: 1.2, width: 2.5, speed: -0.18, colors: [[0,200,255],[80,160,255]], glow: 10, alpha: 0.55 },
-        { tilt: 0.35, radius: 1.95, width: 1.2, speed: 0.06, colors: [[200,80,255],[140,60,220]], glow: 5, alpha: 0.25 },
-    ];
+    drawRings(false);
 
-    const ringSegs = 180;
-    const cosTilt = Math.cos(0.35);
-    const sinTilt = Math.sin(0.35);
-
-    for (let ri = 0; ri < ringConfigs.length; ri++) {
-        const rc = ringConfigs[ri];
-        const ringR = r * rc.radius;
-        const ringRot = time * rc.speed;
-        const cosRR = Math.cos(ringRot), sinRR = Math.sin(ringRot);
-
-        const allPts = [];
-        for (let i = 0; i <= ringSegs; i++) {
-            const angle = (i / ringSegs) * Math.PI * 2;
-            let x3 = ringR * Math.cos(angle);
-            let z3 = ringR * Math.sin(angle);
-            const rx = x3 * cosRR - z3 * sinRR;
-            const rz = x3 * sinRR + z3 * cosRR;
-            const fy = rz * sinTilt;
-            const fz = rz * cosTilt;
-            const p = proj(rx, fy, fz);
-            allPts.push({ sx: p.sx, sy: p.sy, front: fz < 0 });
-        }
-
-        const blend = Math.sin(time * 0.5 + ri) * 0.5 + 0.5;
-        const c1 = rc.colors[0], c2 = rc.colors[1];
-        const cr = Math.round(c1[0] + (c2[0]-c1[0])*blend);
-        const cg = Math.round(c1[1] + (c2[1]-c1[1])*blend);
-        const cb = Math.round(c1[2] + (c2[2]-c1[2])*blend);
-
-        for (let pass = 0; pass < 2; pass++) {
-            const isFront = pass === 1;
-            const baseAlpha = isFront ? (rc.alpha + amp*0.2) : (rc.alpha * 0.2);
-            ctx.beginPath();
-            let drawing = false;
-            for (let i = 0; i < allPts.length; i++) {
-                const pt = allPts[i];
-                if (pt.front === isFront) {
-                    if (!drawing) { ctx.moveTo(pt.sx, pt.sy); drawing = true; }
-                    else ctx.lineTo(pt.sx, pt.sy);
-                } else {
-                    if (drawing) { drawing = false; }
-                }
-            }
-            ctx.strokeStyle = `rgba(${cr},${cg},${cb},${baseAlpha})`;
-            ctx.lineWidth = rc.width * (isFront ? 1 : 0.4);
-            if (isFront) {
-                ctx.shadowColor = `rgba(${cr},${cg},${cb},${baseAlpha * 0.6})`;
-                ctx.shadowBlur = rc.glow;
-            }
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-        }
-
-        if (ri < 2) {
-            const sparkCount = 8 + ri * 4;
-            for (let si = 0; si < sparkCount; si++) {
-                const sa = (si / sparkCount) * Math.PI * 2 + time * rc.speed * 2;
-                let sx3 = ringR * Math.cos(sa);
-                let sz3 = ringR * Math.sin(sa);
-                const srx = sx3 * cosRR - sz3 * sinRR;
-                const srz = sx3 * sinRR + sz3 * cosRR;
-                const sfy = srz * sinTilt;
-                const sfz = srz * cosTilt;
-                if (sfz > r * 0.3) continue;
-                const sp = proj(srx, sfy, sfz);
-                const tw = Math.sin(time * 3 + si * 2.1) * 0.5 + 0.5;
-                const c = rc.colors[si % 2];
-                ctx.beginPath();
-                ctx.arc(sp.sx, sp.sy, (1 + tw) * sp.s, 0, Math.PI*2);
-                ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${tw * 0.6})`;
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(sp.sx, sp.sy, (2 + tw * 2) * sp.s, 0, Math.PI*2);
-                ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${tw * 0.15})`;
-                ctx.fill();
-            }
-        }
-    }
-
-    const flyCount = sphereState === 'idle' ? 60 : 100;
-    const flyColors = [[100,180,255],[200,100,255],[255,120,60],[80,255,200],[255,80,150]];
+    const flyCount = sphereState === 'idle' ? 50 : 80;
+    const flyColors = [[120,200,255],[220,120,255],[255,140,60],[80,255,220],[255,100,180]];
     for (let i = 0; i < flyCount; i++) {
         const pPhi = Math.acos(1 - 2 * ((i + 0.5) / flyCount));
-        const pTheta = Math.PI * (1 + Math.sqrt(5)) * i + time * 0.15;
-        const pDist = r * (1.1 + Math.sin(time * 1.2 + i * 0.8) * 0.2 + amp * 0.4);
+        const pTheta = Math.PI * (1 + Math.sqrt(5)) * i + time * 0.12;
+        const pDist = r * (1.08 + Math.sin(time * 1.2 + i * 0.8) * 0.15 + amp * 0.35);
         const px3 = pDist * Math.sin(pPhi) * Math.cos(pTheta);
         const py3 = pDist * Math.cos(pPhi);
         const pz3 = pDist * Math.sin(pPhi) * Math.sin(pTheta);
         const rp = rotPoint(px3, py3, pz3, cosRY, sinRY, cosRX, sinRX);
         const pp = proj(rp.x, rp.y, rp.z);
         const tw = Math.sin(time * 2 + i * 1.3);
-        const depthFade = rp.z < 0 ? 1.0 : 0.25;
-        const pAlpha = (0.35 + tw * 0.2) * depthFade;
+        const depthFade = rp.z < 0 ? 1.0 : 0.2;
+        const pAlpha = (0.4 + tw * 0.25) * depthFade;
         const pc = flyColors[i % flyColors.length];
-        const sz = Math.max(0.4, (0.8 + tw * 0.4) * pp.s);
+        const sz = Math.max(0.5, (1.0 + tw * 0.5) * pp.s);
         ctx.beginPath();
         ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI*2);
         ctx.fillStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},${pAlpha})`;
         ctx.fill();
-        if (depthFade > 0.5 && pAlpha > 0.3) {
+        if (depthFade > 0.5 && pAlpha > 0.35) {
             ctx.beginPath();
-            ctx.arc(pp.sx, pp.sy, sz * 3, 0, Math.PI*2);
-            ctx.fillStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},${pAlpha * 0.1})`;
+            ctx.arc(pp.sx, pp.sy, sz * 3.5, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},${pAlpha * 0.08})`;
             ctx.fill();
         }
     }
