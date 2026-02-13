@@ -1453,7 +1453,7 @@ function initCanvas() {
     ctx.scale(dpr, dpr);
     centerX = canvasW / 2;
     centerY = canvasH / 2;
-    baseRadius = Math.min(canvasW, canvasH) * 0.38;
+    baseRadius = Math.max(10, Math.min(canvasW, canvasH) * 0.38);
 }
 initCanvas();
 window.addEventListener('resize', initCanvas);
@@ -1475,8 +1475,9 @@ function getAmplitude() {
 
 function project3D(x3, y3, z3, radius) {
     const fov = 600;
-    const scale = fov / (fov + z3);
-    return { x: centerX + x3 * scale, y: centerY + y3 * scale, z: z3, scale: scale, front: z3 < 0 };
+    const denom = fov + z3;
+    const scale = denom > 0 ? fov / denom : fov / 1;
+    return { x: centerX + x3 * scale, y: centerY + y3 * scale, z: z3, scale: Math.max(0.01, scale), front: z3 < 0 };
 }
 
 function drawSphere() {
