@@ -755,6 +755,189 @@
         height: 12px;
     }
 
+    .risk-command-section {
+        margin-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        padding-top: 12px;
+    }
+    .risk-pulse-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .risk-pulse {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 8px rgba(34,197,94,0.5);
+        animation: riskPulse 2s infinite;
+    }
+    .risk-pulse.medium { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.5); }
+    .risk-pulse.high { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.5); animation-duration: 1s; }
+    .risk-pulse.critical { background: #dc2626; box-shadow: 0 0 12px rgba(220,38,38,0.7); animation-duration: 0.6s; }
+    @keyframes riskPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    .risk-score-display {
+        font-size: 1.4rem;
+        font-weight: 700;
+        font-family: var(--neuro-font);
+    }
+    .risk-score-display.low { color: #22c55e; }
+    .risk-score-display.medium { color: #f59e0b; }
+    .risk-score-display.high { color: #ef4444; }
+    .risk-score-display.critical { color: #dc2626; }
+    .risk-score-label {
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: rgba(255,255,255,0.4);
+    }
+    .risk-heatmap {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin: 10px 0;
+    }
+    .risk-domain-cell {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px;
+        padding: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .risk-domain-cell:hover {
+        background: rgba(0,180,255,0.08);
+        border-color: rgba(0,180,255,0.2);
+    }
+    .risk-domain-cell.full-width {
+        grid-column: span 2;
+    }
+    .risk-domain-name {
+        font-size: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: rgba(255,255,255,0.5);
+        margin-bottom: 4px;
+    }
+    .risk-domain-bar {
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255,255,255,0.08);
+        overflow: hidden;
+        margin-bottom: 3px;
+    }
+    .risk-domain-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.8s ease, background 0.5s ease;
+    }
+    .risk-domain-fill.low { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .risk-domain-fill.medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .risk-domain-fill.high { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .risk-domain-fill.critical { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .risk-domain-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .risk-domain-prob {
+        font-size: 0.65rem;
+        font-weight: 600;
+        font-family: var(--neuro-font);
+    }
+    .risk-domain-exposure {
+        font-size: 0.5rem;
+        color: rgba(255,255,255,0.35);
+    }
+    .risk-trend-arrow {
+        display: inline-block;
+        font-size: 0.5rem;
+        margin-left: 3px;
+    }
+    .risk-trend-arrow.up { color: #ef4444; }
+    .risk-trend-arrow.down { color: #22c55e; }
+    .risk-trend-arrow.stable { color: #f59e0b; }
+    .risk-correlations {
+        margin-top: 8px;
+    }
+    .risk-correlation-item {
+        background: rgba(255,50,90,0.06);
+        border: 1px solid rgba(255,50,90,0.12);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 4px;
+        font-size: 0.55rem;
+        color: rgba(255,255,255,0.6);
+        line-height: 1.4;
+    }
+    .risk-correlation-title {
+        font-size: 0.5rem;
+        font-weight: 600;
+        color: rgba(255,100,130,0.9);
+        margin-bottom: 2px;
+    }
+    .risk-top-list {
+        margin-top: 8px;
+    }
+    .risk-top-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .risk-top-item:last-child { border-bottom: none; }
+    .risk-top-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .risk-top-dot.low { background: #22c55e; }
+    .risk-top-dot.medium { background: #f59e0b; }
+    .risk-top-dot.high { background: #ef4444; }
+    .risk-top-dot.critical { background: #dc2626; }
+    .risk-top-name {
+        font-size: 0.55rem;
+        color: rgba(255,255,255,0.6);
+        flex: 1;
+    }
+    .risk-top-prob {
+        font-size: 0.6rem;
+        font-weight: 600;
+        font-family: var(--neuro-font);
+    }
+    .risk-briefing-btn {
+        width: 100%;
+        background: rgba(0,180,255,0.08);
+        border: 1px solid rgba(0,180,255,0.15);
+        border-radius: 8px;
+        color: rgba(0,200,255,0.8);
+        font-size: 0.55rem;
+        padding: 6px 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: var(--neuro-font);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-top: 8px;
+    }
+    .risk-briefing-btn:hover {
+        background: rgba(0,180,255,0.15);
+        border-color: rgba(0,180,255,0.3);
+    }
+    .risk-loading {
+        text-align: center;
+        padding: 20px;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.6rem;
+    }
+
     .strategic-actions {
         display: flex;
         gap: 6px;
@@ -1032,6 +1215,83 @@
         <div class="metric-row">
             <span class="metric-label">Low Stock Items</span>
             <span class="metric-value danger" id="metric-lowstock">--</span>
+        </div>
+
+        <div class="risk-command-section">
+            <div class="panel-section-title">
+                <i class="bi bi-shield-exclamation"></i>
+                Enterprise Risk Pulse
+            </div>
+            <div class="risk-pulse-wrapper">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="risk-pulse" id="risk-pulse-dot"></div>
+                    <div>
+                        <div class="risk-score-display" id="risk-score-value">--</div>
+                        <div class="risk-score-label" id="risk-score-label">Loading...</div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="risk-score-label">EXPOSURE</div>
+                    <div style="font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.7);" id="risk-total-exposure">--</div>
+                </div>
+            </div>
+
+            <div class="risk-heatmap" id="risk-heatmap">
+                <div class="risk-domain-cell" onclick="window.drillRiskDomain('operational')">
+                    <div class="risk-domain-name">Operational</div>
+                    <div class="risk-domain-bar"><div class="risk-domain-fill low" id="risk-bar-operational" style="width:0%"></div></div>
+                    <div class="risk-domain-stats">
+                        <span class="risk-domain-prob" id="risk-prob-operational">0%</span>
+                        <span class="risk-domain-exposure" id="risk-exp-operational">$0</span>
+                    </div>
+                </div>
+                <div class="risk-domain-cell" onclick="window.drillRiskDomain('financial')">
+                    <div class="risk-domain-name">Financial</div>
+                    <div class="risk-domain-bar"><div class="risk-domain-fill low" id="risk-bar-financial" style="width:0%"></div></div>
+                    <div class="risk-domain-stats">
+                        <span class="risk-domain-prob" id="risk-prob-financial">0%</span>
+                        <span class="risk-domain-exposure" id="risk-exp-financial">$0</span>
+                    </div>
+                </div>
+                <div class="risk-domain-cell" onclick="window.drillRiskDomain('supply_chain')">
+                    <div class="risk-domain-name">Supply Chain</div>
+                    <div class="risk-domain-bar"><div class="risk-domain-fill low" id="risk-bar-supply_chain" style="width:0%"></div></div>
+                    <div class="risk-domain-stats">
+                        <span class="risk-domain-prob" id="risk-prob-supply_chain">0%</span>
+                        <span class="risk-domain-exposure" id="risk-exp-supply_chain">$0</span>
+                    </div>
+                </div>
+                <div class="risk-domain-cell" onclick="window.drillRiskDomain('regulatory')">
+                    <div class="risk-domain-name">Regulatory</div>
+                    <div class="risk-domain-bar"><div class="risk-domain-fill low" id="risk-bar-regulatory" style="width:0%"></div></div>
+                    <div class="risk-domain-stats">
+                        <span class="risk-domain-prob" id="risk-prob-regulatory">0%</span>
+                        <span class="risk-domain-exposure" id="risk-exp-regulatory">$0</span>
+                    </div>
+                </div>
+                <div class="risk-domain-cell full-width" onclick="window.drillRiskDomain('governance')">
+                    <div class="risk-domain-name">Governance & Strategic</div>
+                    <div class="risk-domain-bar"><div class="risk-domain-fill low" id="risk-bar-governance" style="width:0%"></div></div>
+                    <div class="risk-domain-stats">
+                        <span class="risk-domain-prob" id="risk-prob-governance">0%</span>
+                        <span class="risk-domain-exposure" id="risk-exp-governance">$0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="risk-correlations" id="risk-correlations"></div>
+
+            <div class="panel-section-title" style="margin-top:8px;">
+                <i class="bi bi-exclamation-triangle"></i>
+                Top Risks
+            </div>
+            <div class="risk-top-list" id="risk-top-list">
+                <div class="risk-loading">Scanning enterprise risks...</div>
+            </div>
+
+            <button class="risk-briefing-btn" onclick="window.triggerStrategic('risk_briefing')">
+                <i class="bi bi-file-earmark-text"></i> Generate AI Risk Briefing
+            </button>
         </div>
     </div>
 
@@ -1642,7 +1902,8 @@ function triggerStrategic(type) {
         'revenue': 'Run a 20% revenue contraction simulation and show me the impact analysis',
         'market': 'Compare our performance against current market trends and industry benchmarks',
         'regulatory': 'Scan for new regulatory requirements and compliance updates that affect us',
-        'scenario': 'Run a scenario analysis for potential customer loss impact'
+        'scenario': 'Run a scenario analysis for potential customer loss impact',
+        'risk_briefing': 'What are our top enterprise risks right now? Generate a comprehensive risk intelligence briefing with cross-domain correlations and recommended actions'
     };
     const input = document.getElementById('neuroiq-input');
     if (input && prompts[type]) {
@@ -1664,10 +1925,111 @@ document.getElementById('neuroiq-input').addEventListener('input', function() {
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
+function formatCurrency(val) {
+    if (val >= 1000000) return '$' + (val/1000000).toFixed(1) + 'M';
+    if (val >= 1000) return '$' + (val/1000).toFixed(0) + 'K';
+    return '$' + val.toFixed(0);
+}
+
+function severityClass(sev) {
+    return (sev || 'low').toLowerCase();
+}
+
+function loadRiskAssessment() {
+    fetch('/neuroiq/risk/assessment')
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+
+            const es = data.enterprise_score || {};
+            const scoreEl = document.getElementById('risk-score-value');
+            const labelEl = document.getElementById('risk-score-label');
+            const pulseEl = document.getElementById('risk-pulse-dot');
+            const expEl = document.getElementById('risk-total-exposure');
+
+            if (scoreEl) {
+                scoreEl.textContent = es.score || 0;
+                scoreEl.className = 'risk-score-display ' + severityClass(es.severity);
+            }
+            if (labelEl) labelEl.textContent = (es.severity || 'Low') + ' Risk';
+            if (pulseEl) {
+                pulseEl.className = 'risk-pulse ' + severityClass(es.severity);
+            }
+            if (expEl) expEl.textContent = formatCurrency(es.total_exposure || 0);
+
+            const domains = data.domain_summaries || {};
+            ['operational','financial','supply_chain','regulatory','governance'].forEach(d => {
+                const ds = domains[d] || {};
+                const bar = document.getElementById('risk-bar-' + d);
+                const prob = document.getElementById('risk-prob-' + d);
+                const exp = document.getElementById('risk-exp-' + d);
+                if (bar) {
+                    bar.style.width = (ds.max_probability || 0) + '%';
+                    bar.className = 'risk-domain-fill ' + severityClass(ds.severity);
+                }
+                if (prob) {
+                    prob.textContent = (ds.max_probability || 0) + '%';
+                    prob.style.color = ds.max_probability > 70 ? '#ef4444' : ds.max_probability > 40 ? '#f59e0b' : '#22c55e';
+                }
+                if (exp) exp.textContent = formatCurrency(ds.total_exposure || 0);
+            });
+
+            const corrDiv = document.getElementById('risk-correlations');
+            if (corrDiv && data.correlations && data.correlations.length > 0) {
+                corrDiv.innerHTML = '<div class="panel-section-title" style="margin-top:6px;"><i class="bi bi-link-45deg"></i> Cross-Domain Correlations</div>' +
+                    data.correlations.map(c =>
+                        '<div class="risk-correlation-item">' +
+                        '<div class="risk-correlation-title">' + c.name + ' (' + c.probability + '%)</div>' +
+                        c.description.substring(0, 120) + '...' +
+                        '</div>'
+                    ).join('');
+            } else if (corrDiv) {
+                corrDiv.innerHTML = '';
+            }
+
+            const topList = document.getElementById('risk-top-list');
+            if (topList && data.risks) {
+                const top5 = data.risks.slice(0, 5);
+                if (top5.length > 0) {
+                    topList.innerHTML = top5.map(r =>
+                        '<div class="risk-top-item">' +
+                        '<div class="risk-top-dot ' + severityClass(r.severity) + '"></div>' +
+                        '<span class="risk-top-name">' + r.name + '</span>' +
+                        '<span class="risk-top-prob" style="color:' +
+                            (r.probability > 70 ? '#ef4444' : r.probability > 40 ? '#f59e0b' : '#22c55e') +
+                            '">' + r.probability + '%</span>' +
+                        '</div>'
+                    ).join('');
+                } else {
+                    topList.innerHTML = '<div class="risk-loading">No significant risks detected</div>';
+                }
+            }
+        })
+        .catch(() => {});
+}
+
+function drillRiskDomain(domain) {
+    const names = {
+        'operational': 'operational risk details',
+        'financial': 'financial risk analysis',
+        'supply_chain': 'supply chain risk assessment',
+        'regulatory': 'regulatory compliance risk review',
+        'governance': 'governance and strategic risk analysis'
+    };
+    const input = document.getElementById('neuroiq-input');
+    if (input) {
+        input.value = 'Provide detailed ' + (names[domain] || domain + ' risk') + ' with recommended actions';
+        neuroSendMessage();
+    }
+}
+window.drillRiskDomain = drillRiskDomain;
+
 loadContext();
 loadInsights();
+loadRiskAssessment();
 setInterval(loadContext, 60000);
 setInterval(loadInsights, 60000);
+setInterval(loadRiskAssessment, 120000);
 
 })();
 </script>

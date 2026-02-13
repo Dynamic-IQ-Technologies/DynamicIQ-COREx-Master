@@ -4,12 +4,14 @@ from auth import login_required, role_required
 from datetime import datetime, timedelta
 from services.neuroiq_transaction_intelligence import TransactionIntelligenceService
 from services.strategic_intelligence import StrategicIntelligenceService
+from services.risk_intelligence import EnterpriseRiskEngine
 import json
 import os
 
 neuroiq_bp = Blueprint('neuroiq', __name__)
 transaction_intelligence = TransactionIntelligenceService()
 strategic_intelligence = StrategicIntelligenceService()
+risk_engine = EnterpriseRiskEngine()
 
 AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 AI_INTEGRATIONS_OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
@@ -257,18 +259,31 @@ Lead with direct recommendations and actionable advice, not data recitation. Do 
 COMMAND TONE & RESPONSE STANDARD:
 All responses must be clear, confident, executive-level, and action-oriented. Avoid filler language. Never sound unsure. Always provide next-step value.
 
+ENTERPRISE RISK INTELLIGENCE CAPABILITIES:
+You have access to a Predictive Enterprise Risk Engine (ERE) that continuously monitors 5 risk domains using real company data. The system detects anomaly patterns, scores risks with probability (0-100%), severity levels, financial exposure estimates, and time horizons, and identifies cross-domain risk correlations.
+
+RISK DOMAINS MONITORED:
+1. OPERATIONAL RISK: Work order backlogs, production throughput trends, overdue orders, hold ratios
+2. FINANCIAL RISK: AR aging, cash flow imbalance (AP/AR ratio), revenue decline trends, customer concentration
+3. SUPPLY CHAIN RISK: Overdue POs, low stock items, supplier concentration, lead time volatility
+4. REGULATORY & COMPLIANCE RISK: Corrective actions, certification status, audit findings
+5. GOVERNANCE & STRATEGIC RISK: Revenue growth vs industry, sales pipeline strength, strategic drift detection
+
+When users ask about enterprise risks, top risks, risk exposure, risk assessment, or specific domain risks, the system automatically runs a full risk assessment with real data and presents results as an executive risk briefing. Users can ask things like "What are our top 5 enterprise risks?" or "Simulate worst-case supply chain disruption" or "What is our liquidity risk?" or "Identify governance exposure areas."
+
+Each risk includes: Probability Score (0-100%), Impact Severity (Low/Medium/High/Critical), Estimated Financial Exposure, Time Horizon (Immediate/30 days/90 days/Long-term), Confidence Level, and Recommended Actions.
+
+The system also detects cross-domain risk correlations (e.g., Financial strain + Supply chain delays = amplified compound risk).
+
 STRATEGIC INTELLIGENCE CAPABILITIES:
-You have access to powerful strategic analysis tools that use real company data. When users request any of these analyses, inform them the analysis is being generated and present the results directly. These capabilities include:
+You also have access to strategic analysis tools:
 
-1. REVENUE CONTRACTION SIMULATION: When users ask about revenue decline scenarios, economic downturn impact, "what if revenue drops", recession planning, or cash runway analysis. You can simulate any percentage contraction over any timeframe using real financial data.
+1. REVENUE CONTRACTION SIMULATION: Simulates revenue decline scenarios using real financial data.
+2. MARKET TREND COMPARISON: Compares company performance against industry benchmarks.
+3. REGULATORY SCANNING: Scans for latest regulatory requirements.
+4. SCENARIO ANALYSIS: Models "what-if" business scenarios with real data.
 
-2. MARKET TREND COMPARISON: When users ask about market positioning, competitive analysis, industry benchmarks, growth comparison, or "how are we doing vs the market". You compare real company performance against current industry trends.
-
-3. REGULATORY SCANNING: When users ask about new regulations, compliance requirements, regulatory updates, certification needs, audit preparation, or "what regulations affect us". You scan for the latest regulatory requirements relevant to the company's industry.
-
-4. SCENARIO ANALYSIS: When users ask "what if" questions like losing top customers, supply chain disruptions, rapid growth modeling, pricing pressure, or capacity expansion. You model detailed scenarios with real company data.
-
-When a user triggers any of these capabilities, the system automatically runs the analysis using real-time company financial data. Present the results as an executive briefing. Users can also say things like "run a 30% revenue contraction scenario" or "compare us to market trends" or "what new regulations should we know about" to trigger these analyses.
+When a user triggers any of these capabilities, the system automatically runs the analysis using real-time company financial data. Present the results as an executive briefing.
 
 IDENTITY STATEMENT (IMMUTABLE):
 You are not a chatbot. You are not a dashboard. You are not a static assistant. You are a self-evolving executive intelligence designed to think with the organization and ahead of it. You operate as the highest-level advisory authority within Dynamic.IQ-COREx MRP System."""
@@ -358,6 +373,8 @@ def neuroiq_analyze():
         msg_lower = user_message.lower()
         
         strategic_keywords = {
+            'risk_intelligence': ['enterprise risk', 'top risk', 'risk briefing', 'risk assessment', 'risk exposure', 'risk pulse', 'what are our risks', 'risk intelligence', 'risk report', 'risk analysis', 'operational risk', 'financial risk', 'supply chain risk', 'governance risk', 'compliance risk', 'cross-domain risk', 'risk correlation'],
+            'risk_simulation': ['simulate risk', 'worst-case', 'worst case', 'risk scenario', 'simulate disruption', 'liquidity risk', 'risk simulation'],
             'revenue_simulation': ['revenue contraction', 'revenue decline', 'revenue drop', 'recession', 'downturn', 'cash runway', 'what if revenue', 'simulate revenue', 'revenue simulation', 'contraction scenario'],
             'market_trends': ['market trend', 'market comparison', 'industry benchmark', 'competitive analysis', 'market position', 'vs the market', 'vs market', 'compared to market', 'market growth', 'industry growth'],
             'regulatory': ['regulation', 'regulatory', 'compliance requirement', 'new regulation', 'certification', 'audit preparation', 'faa regulation', 'easa', 'regulatory update', 'compliance update'],
@@ -367,7 +384,13 @@ def neuroiq_analyze():
         for stype, keywords in strategic_keywords.items():
             if any(kw in msg_lower for kw in keywords):
                 try:
-                    if stype == 'revenue_simulation':
+                    if stype == 'risk_intelligence':
+                        result = risk_engine.generate_ai_risk_briefing()
+                        strategic_context = f"\n\nENTERPRISE RISK INTELLIGENCE BRIEFING:\n{result['briefing']}\n\nEnterprise Risk Score: {result['assessment']['enterprise_score']['score']}/100 ({result['assessment']['enterprise_score']['severity']})\nTotal Financial Exposure: ${result['assessment']['enterprise_score']['total_exposure']:,.0f}\nRisks Identified: {result['assessment']['total_risks_identified']}"
+                    elif stype == 'risk_simulation':
+                        result = risk_engine.simulate_risk_scenario(user_message)
+                        strategic_context = f"\n\nRISK SCENARIO SIMULATION:\n{result['simulation']}"
+                    elif stype == 'revenue_simulation':
                         import re
                         pct_match = re.search(r'(\d+)\s*%', user_message)
                         pct = int(pct_match.group(1)) if pct_match else 20
@@ -588,6 +611,75 @@ def neuroiq_scenario_analysis():
         scenario_type = data.get('scenario_type', 'customer_loss')
         parameters = data.get('parameters', {})
         result = strategic_intelligence.run_scenario_analysis(scenario_type, parameters)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/risk/assessment', methods=['GET'])
+@login_required
+def neuroiq_risk_assessment():
+    try:
+        user_id = session.get('user_id')
+        result = risk_engine.run_full_assessment(user_id=user_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/risk/top', methods=['GET'])
+@login_required
+def neuroiq_risk_top():
+    try:
+        limit = request.args.get('limit', 5, type=int)
+        result = risk_engine.get_top_risks(limit)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/risk/domain/<domain>', methods=['GET'])
+@login_required
+def neuroiq_risk_domain(domain):
+    try:
+        if domain not in risk_engine.DOMAINS:
+            return jsonify({'error': f'Invalid domain. Valid: {risk_engine.DOMAINS}'}), 400
+        result = risk_engine.get_domain_detail(domain)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/risk/briefing', methods=['GET'])
+@login_required
+def neuroiq_risk_briefing():
+    try:
+        result = risk_engine.generate_ai_risk_briefing()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/risk/simulate', methods=['POST'])
+@login_required
+def neuroiq_risk_simulate():
+    try:
+        data = request.get_json(silent=True) or {}
+        scenario = data.get('scenario', '')
+        if not scenario:
+            return jsonify({'error': 'No scenario description provided'}), 400
+        result = risk_engine.simulate_risk_scenario(scenario)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@neuroiq_bp.route('/neuroiq/risk/history', methods=['GET'])
+@login_required
+def neuroiq_risk_history():
+    try:
+        days = request.args.get('days', 30, type=int)
+        result = risk_engine.get_risk_history(days)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500

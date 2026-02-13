@@ -109,7 +109,18 @@ Key features include:
   - Tool Purchase: DR Equipment (1210), CR A/P (2110) or CR Cash (1110)
   - NDT Labor/Materials/Subcontract: All tracked through proper WIP accounting
 - **Labor Management**: Time clock station with skill-based task filtering, labor resources, and skillset management.
-- **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI), COREx Guide Transaction Assistant (proactive field assistance), Part Intake System (web part capture), Marketing Presentation Generator, Executive Sales/Procurement Dashboards with AI Copilot, and Leads Management with AI-powered sales engagement.
+- **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI with strategic intelligence and predictive risk engine), COREx Guide Transaction Assistant (proactive field assistance), Part Intake System (web part capture), Marketing Presentation Generator, Executive Sales/Procurement Dashboards with AI Copilot, and Leads Management with AI-powered sales engagement.
+- **Enterprise Risk Engine (ERE)**: Predictive multi-domain risk intelligence system integrated into NeuroIQ:
+  - **5 Risk Domains**: Operational, Financial, Supply Chain, Regulatory/Compliance, Governance/Strategic
+  - **Risk Scoring**: Probability (0-100%), Severity (Low/Medium/High/Critical), Financial Exposure, Time Horizon, Confidence Level
+  - **Cross-Domain Correlation**: Detects compound risks (e.g., Financial + Supply Chain, Operational + Regulatory)
+  - **Predictive Analysis**: Trend slope detection, anomaly z-scores, trend acceleration analysis
+  - **AI Risk Briefings**: GPT-4o generates executive risk briefings from real-time assessment data
+  - **Risk Scenario Simulation**: On-demand simulation of worst-case scenarios with mitigation playbooks
+  - **Risk Audit Trail**: All assessments logged to risk_snapshots and risk_audit_log tables
+  - **Risk Command Deck UI**: Heat map visualization, risk pulse indicator, domain bars, top risks list, correlation display
+  - **Services**: services/risk_intelligence.py (EnterpriseRiskEngine), services/strategic_intelligence.py (StrategicIntelligenceService)
+  - **Routes**: /neuroiq/risk/assessment, /neuroiq/risk/top, /neuroiq/risk/domain/<domain>, /neuroiq/risk/briefing, /neuroiq/risk/simulate, /neuroiq/risk/history
 - **Quality & Compliance**: Duplicate Detection System with multiple algorithms and configurable thresholds.
 - **Core Tracking**: Core Due Days tracking for exchange orders.
 - **Dynamic Material Issue Module**: High-performance multi-material issuance with real-time inventory validation.
