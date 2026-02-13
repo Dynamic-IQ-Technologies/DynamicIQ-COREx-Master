@@ -30,7 +30,6 @@
         .left-section {
             flex: 1.2;
             background: 
-                linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.8) 50%, rgba(51, 65, 85, 0.75) 100%),
                 url('{{ url_for("static", filename="images/login-bg.png") }}');
             background-size: cover;
             background-position: center;
@@ -52,10 +51,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: 
-                radial-gradient(ellipse at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(249, 115, 22, 0.1) 0%, transparent 40%),
-                radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 60%);
+            background: transparent;
+            pointer-events: none;
         }
         
         .background-shapes {
