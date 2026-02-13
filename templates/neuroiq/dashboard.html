@@ -1442,6 +1442,12 @@ function getAmplitude() {
     return Math.sqrt(sum / dataArray.length);
 }
 
+function project3D(x3, y3, z3, radius) {
+    const fov = 600;
+    const scale = fov / (fov + z3);
+    return { x: centerX + x3 * scale, y: centerY + y3 * scale, z: z3, scale: scale, front: z3 < 0 };
+}
+
 function drawSphere() {
     if (!ctx) return;
     time += 0.008;
@@ -1458,54 +1464,181 @@ function drawSphere() {
     const breathe = Math.sin(time * 0.8) * 0.02;
     const r = baseRadius * (1 + breathe);
 
+    const rotY = time * 0.3;
+    const rotX = Math.sin(time * 0.15) * 0.2;
+    const cosRY = Math.cos(rotY), sinRY = Math.sin(rotY);
+    const cosRX = Math.cos(rotX), sinRX = Math.sin(rotX);
+
     const glowAlpha = sphereState === 'idle' ? 0.04 : (sphereState === 'listening' ? 0.07 : 0.09);
-    const grad = ctx.createRadialGradient(centerX, centerY, r * 0.1, centerX, centerY, r * 1.4);
-    grad.addColorStop(0, `rgba(0, 150, 255, ${glowAlpha + amp * 0.2})`);
-    grad.addColorStop(0.3, `rgba(123, 47, 190, ${glowAlpha * 0.8 + amp * 0.1})`);
-    grad.addColorStop(0.6, `rgba(255, 50, 80, ${glowAlpha * 0.4 + amp * 0.05})`);
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = grad;
+    const outerGlow = ctx.createRadialGradient(centerX, centerY, r * 0.1, centerX, centerY, r * 1.6);
+    outerGlow.addColorStop(0, `rgba(0, 150, 255, ${glowAlpha + amp * 0.15})`);
+    outerGlow.addColorStop(0.3, `rgba(123, 47, 190, ${glowAlpha * 0.7 + amp * 0.08})`);
+    outerGlow.addColorStop(0.6, `rgba(255, 50, 80, ${glowAlpha * 0.3 + amp * 0.04})`);
+    outerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = outerGlow;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const waveColors = [
-        { r: 0, g: 180, b: 255 },
-        { r: 150, g: 50, b: 220 },
-        { r: 255, g: 50, b: 90 },
-        { r: 0, g: 245, b: 200 },
-        { r: 200, g: 80, b: 255 },
+    const lightX = -0.4, lightY = -0.5, lightZ = -0.8;
+    const lightLen = Math.sqrt(lightX*lightX + lightY*lightY + lightZ*lightZ);
+    const lx = lightX/lightLen, ly = lightY/lightLen, lz = lightZ/lightLen;
+
+    const bodyGrad = ctx.createRadialGradient(
+        centerX + r * 0.25, centerY - r * 0.25, r * 0.05,
+        centerX, centerY, r
+    );
+    bodyGrad.addColorStop(0, `rgba(40, 80, 140, ${0.25 + amp * 0.15})`);
+    bodyGrad.addColorStop(0.3, `rgba(20, 50, 110, ${0.2 + amp * 0.1})`);
+    bodyGrad.addColorStop(0.6, `rgba(15, 30, 70, ${0.18 + amp * 0.08})`);
+    bodyGrad.addColorStop(0.85, `rgba(8, 15, 40, ${0.22 + amp * 0.05})`);
+    bodyGrad.addColorStop(1, `rgba(2, 5, 20, ${0.12})`);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+
+    const rimGrad = ctx.createRadialGradient(centerX, centerY, r * 0.9, centerX, centerY, r * 1.02);
+    rimGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    rimGrad.addColorStop(0.5, `rgba(0, 200, 255, ${0.06 + amp * 0.08})`);
+    rimGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+    ctx.fillStyle = rimGrad;
+    ctx.fill();
+
+    const wfColors = [
+        [0, 200, 255],
+        [100, 60, 220],
+        [0, 230, 180],
     ];
 
-    const waveCount = 5;
-    for (let w = 0; w < waveCount; w++) {
+    const latLines = 9;
+    const segments = 80;
+    for (let lat = 1; lat < latLines; lat++) {
+        const phi = (lat / latLines) * Math.PI;
         ctx.beginPath();
-        const waveR = r * (0.75 + w * 0.06);
-        const segments = 150;
+        let started = false;
+        let prevFront = false;
         for (let i = 0; i <= segments; i++) {
-            const angle = (i / segments) * Math.PI * 2;
-            const noiseAmp = sphereState === 'idle'
-                ? 4 + Math.sin(time * 2 + w) * 3
-                : 8 + amp * 80 + Math.sin(time * 3 + w * 2) * 5;
-            const noise = Math.sin(angle * 6 + time * 3 + w * 1.5) * noiseAmp
-                        + Math.sin(angle * 10 + time * 5 + w) * noiseAmp * 0.4
-                        + Math.sin(angle * 3 + time * 1.5 + w * 3) * noiseAmp * 0.3;
-            const finalR = waveR + noise;
-            const x = centerX + Math.cos(angle) * finalR;
-            const y = centerY + Math.sin(angle) * finalR;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            const theta = (i / segments) * Math.PI * 2;
+            let x3 = r * Math.sin(phi) * Math.cos(theta);
+            let y3 = r * Math.cos(phi);
+            let z3 = r * Math.sin(phi) * Math.sin(theta);
+
+            const noiseVal = sphereState === 'idle'
+                ? Math.sin(theta * 4 + time * 2 + phi * 3) * 2
+                : Math.sin(theta * 4 + time * 3 + phi * 3) * (4 + amp * 30);
+            const nr = r + noiseVal;
+            x3 = nr * Math.sin(phi) * Math.cos(theta);
+            y3 = nr * Math.cos(phi);
+            z3 = nr * Math.sin(phi) * Math.sin(theta);
+
+            const rx = x3;
+            const ry = y3 * cosRX - z3 * sinRX;
+            const rz = y3 * sinRX + z3 * cosRX;
+            const fx = rx * cosRY + rz * sinRY;
+            const fy = ry;
+            const fz = -rx * sinRY + rz * cosRY;
+
+            const p = project3D(fx, fy, fz, r);
+            const isFront = fz < 0;
+
+            if (!started) {
+                ctx.moveTo(p.x, p.y);
+                started = true;
+                prevFront = isFront;
+            } else {
+                if (isFront !== prevFront) {
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    prevFront = isFront;
+                } else {
+                    ctx.lineTo(p.x, p.y);
+                }
+            }
+
+            const nx = Math.sin(phi) * Math.cos(theta);
+            const ny = Math.cos(phi);
+            const nz = Math.sin(phi) * Math.sin(theta);
+            const dot = Math.max(0, -(nx * lx + ny * ly + nz * lz));
+            const cIdx = lat % wfColors.length;
+            const c = wfColors[cIdx];
+
+            const baseAlpha = isFront ? (0.25 + dot * 0.3 + amp * 0.2) : (0.06 + dot * 0.06);
+            ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${baseAlpha})`;
+            ctx.lineWidth = isFront ? (1.2 + dot * 0.6) : 0.5;
         }
-        ctx.closePath();
-        const c = waveColors[w % waveColors.length];
-        const alpha = (0.35 - w * 0.05) + amp * 0.3;
-        if (sphereState === 'listening') {
-            const blend = 0.5 + Math.sin(time + w) * 0.5;
-            ctx.strokeStyle = `rgba(${Math.round(255 * blend + c.r * (1-blend))}, ${Math.round(50 * blend + c.g * (1-blend))}, ${Math.round(90 * blend + c.b * (1-blend))}, ${alpha})`;
-        } else {
-            ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
-        }
-        ctx.lineWidth = 2 - w * 0.25;
         ctx.stroke();
     }
+
+    const lonLines = 12;
+    for (let lon = 0; lon < lonLines; lon++) {
+        const theta = (lon / lonLines) * Math.PI * 2;
+        ctx.beginPath();
+        let started = false;
+        let prevFront = false;
+        for (let i = 0; i <= segments; i++) {
+            const phi = (i / segments) * Math.PI;
+            let x3 = r * Math.sin(phi) * Math.cos(theta);
+            let y3 = r * Math.cos(phi);
+            let z3 = r * Math.sin(phi) * Math.sin(theta);
+
+            const noiseVal = sphereState === 'idle'
+                ? Math.sin(phi * 4 + time * 2 + theta * 3) * 2
+                : Math.sin(phi * 4 + time * 3 + theta * 3) * (4 + amp * 30);
+            const nr = r + noiseVal;
+            x3 = nr * Math.sin(phi) * Math.cos(theta);
+            y3 = nr * Math.cos(phi);
+            z3 = nr * Math.sin(phi) * Math.sin(theta);
+
+            const rx = x3;
+            const ry = y3 * cosRX - z3 * sinRX;
+            const rz = y3 * sinRX + z3 * cosRX;
+            const fx = rx * cosRY + rz * sinRY;
+            const fy = ry;
+            const fz = -rx * sinRY + rz * cosRY;
+
+            const p = project3D(fx, fy, fz, r);
+            const isFront = fz < 0;
+
+            if (!started) {
+                ctx.moveTo(p.x, p.y);
+                started = true;
+                prevFront = isFront;
+            } else {
+                if (isFront !== prevFront) {
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    prevFront = isFront;
+                } else {
+                    ctx.lineTo(p.x, p.y);
+                }
+            }
+
+            const nx = Math.sin(phi) * Math.cos(theta);
+            const ny = Math.cos(phi);
+            const nz = Math.sin(phi) * Math.sin(theta);
+            const dot = Math.max(0, -(nx * lx + ny * ly + nz * lz));
+            const cIdx = lon % wfColors.length;
+            const c = wfColors[cIdx];
+            const baseAlpha = isFront ? (0.2 + dot * 0.25 + amp * 0.2) : (0.05 + dot * 0.05);
+            ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${baseAlpha})`;
+            ctx.lineWidth = isFront ? (1 + dot * 0.5) : 0.4;
+        }
+        ctx.stroke();
+    }
+
+    const specX = centerX - r * 0.3;
+    const specY = centerY - r * 0.3;
+    const specGrad = ctx.createRadialGradient(specX, specY, 0, specX, specY, r * 0.45);
+    specGrad.addColorStop(0, `rgba(180, 220, 255, ${0.12 + amp * 0.1})`);
+    specGrad.addColorStop(0.4, `rgba(100, 160, 255, ${0.04 + amp * 0.04})`);
+    specGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+    ctx.fillStyle = specGrad;
+    ctx.fill();
 
     const rippleCount = 3;
     const showRipples = amp > 0.03 || sphereState !== 'idle';
@@ -1522,18 +1655,28 @@ function drawSphere() {
         }
     }
 
-    const particleCount = sphereState === 'idle' ? 40 : 80;
+    const particleCount = sphereState === 'idle' ? 50 : 90;
     const pColors = [[0,180,255],[150,50,220],[255,50,90],[0,245,200],[200,80,255]];
     for (let i = 0; i < particleCount; i++) {
-        const angle = (i / particleCount) * Math.PI * 2 + time * 0.3;
-        const dist = r * (1.1 + Math.sin(time + i * 0.5) * 0.15 + amp * 0.3);
-        const px = centerX + Math.cos(angle) * dist;
-        const py = centerY + Math.sin(angle) * dist;
-        const pSize = 1.2 + Math.sin(time * 2 + i) * 0.6;
-        const pAlpha = 0.35 + Math.sin(time + i) * 0.2;
+        const pPhi = Math.acos(1 - 2 * ((i + 0.5) / particleCount));
+        const pTheta = Math.PI * (1 + Math.sqrt(5)) * i + time * 0.2;
+        const pDist = r * (1.15 + Math.sin(time * 1.5 + i * 0.7) * 0.1 + amp * 0.3);
+        let px3 = pDist * Math.sin(pPhi) * Math.cos(pTheta);
+        let py3 = pDist * Math.cos(pPhi);
+        let pz3 = pDist * Math.sin(pPhi) * Math.sin(pTheta);
+        const prx = px3;
+        const pry = py3 * cosRX - pz3 * sinRX;
+        const prz = py3 * sinRX + pz3 * cosRX;
+        const pfx = prx * cosRY + prz * sinRY;
+        const pfy = pry;
+        const pfz = -prx * sinRY + prz * cosRY;
+        const pp = project3D(pfx, pfy, pfz, r);
+        const pSize = (1 + Math.sin(time * 2 + i) * 0.5) * pp.scale;
+        const depthFade = pfz < 0 ? 1.0 : 0.3;
+        const pAlpha = (0.3 + Math.sin(time + i) * 0.15) * depthFade;
         const pc = pColors[i % pColors.length];
         ctx.beginPath();
-        ctx.arc(px, py, pSize, 0, Math.PI * 2);
+        ctx.arc(pp.x, pp.y, Math.max(0.5, pSize), 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${pc[0]}, ${pc[1]}, ${pc[2]}, ${pAlpha})`;
         ctx.fill();
     }
