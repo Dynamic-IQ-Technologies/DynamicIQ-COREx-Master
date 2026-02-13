@@ -1,777 +1,1055 @@
 {% extends "base.html" %}
 
-{% block title %}COREx NeuroIQ - Executive Intelligence{% endblock %}
+{% block title %}COREx NeuroIQ - Executive Intelligence Core{% endblock %}
 
 {% block extra_css %}
 <style>
     :root {
-        --neuro-bg: #0a0a0f;
-        --neuro-surface: #12121a;
-        --neuro-border: #1e1e2e;
-        --neuro-accent: #00d4ff;
-        --neuro-accent-glow: rgba(0, 212, 255, 0.3);
+        --neuro-bg-deep: #05070F;
+        --neuro-bg: #0A0F1E;
+        --neuro-surface: rgba(15, 20, 40, 0.6);
+        --neuro-border: rgba(0, 245, 255, 0.12);
+        --neuro-accent: #00F5FF;
+        --neuro-accent-dim: rgba(0, 245, 255, 0.15);
+        --neuro-accent-glow: rgba(0, 245, 255, 0.4);
+        --neuro-violet: #7B2FBE;
+        --neuro-violet-glow: rgba(123, 47, 190, 0.3);
         --neuro-success: #00ff88;
-        --neuro-warning: #ffaa00;
-        --neuro-danger: #ff4466;
-        --neuro-text: #e0e0e0;
-        --neuro-text-dim: #888;
+        --neuro-warning: #FFB020;
+        --neuro-danger: #FF4466;
+        --neuro-text: rgba(255, 255, 255, 0.85);
+        --neuro-text-dim: rgba(255, 255, 255, 0.45);
+        --glass-bg: rgba(10, 15, 30, 0.55);
+        --glass-border: rgba(0, 245, 255, 0.08);
     }
-    
-    body.neuroiq-mode {
-        background: var(--neuro-bg);
+
+    body.neuroiq-mode,
+    body.neuroiq-mode .main-content,
+    body.neuroiq-mode .container-fluid {
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden;
     }
-    
-    .neuroiq-container {
-        min-height: 100vh;
-        background: linear-gradient(135deg, var(--neuro-bg) 0%, #0f0f1a 50%, var(--neuro-bg) 100%);
-        padding: 2rem;
-        color: var(--neuro-text);
+
+    .neuroiq-universe {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(ellipse at 50% 40%, #0A0F1E 0%, #05070F 60%, #020305 100%);
+        overflow: hidden;
+        z-index: 1;
+        font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
     }
-    
-    .neuroiq-header {
+
+    .neuro-grid-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image:
+            linear-gradient(rgba(0, 245, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 245, 255, 0.03) 1px, transparent 1px);
+        background-size: 60px 60px;
+        animation: grid-drift 20s linear infinite;
+        pointer-events: none;
+    }
+
+    @keyframes grid-drift {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(60px, 60px); }
+    }
+
+    .neuro-particles {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .neuro-particle {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: var(--neuro-accent);
+        border-radius: 50%;
+        opacity: 0;
+        animation: particle-float linear infinite;
+    }
+
+    @keyframes particle-float {
+        0% { opacity: 0; transform: translateY(100vh) scale(0); }
+        10% { opacity: 0.6; }
+        90% { opacity: 0.6; }
+        100% { opacity: 0; transform: translateY(-20vh) scale(1); }
+    }
+
+    .neuro-top-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        z-index: 100;
+        background: linear-gradient(180deg, rgba(5, 7, 15, 0.8) 0%, transparent 100%);
+    }
+
+    .neuro-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--neuro-text-dim);
+        text-decoration: none;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        padding: 6px 14px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .neuro-back-link:hover {
+        color: var(--neuro-accent);
+        background: var(--neuro-accent-dim);
+        border-color: var(--neuro-border);
+    }
+
+    .neuro-sys-status {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--neuro-text-dim);
+    }
+
+    .neuro-header {
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
         text-align: center;
-        margin-bottom: 2rem;
-        position: relative;
+        z-index: 50;
+        pointer-events: none;
     }
-    
-    .neuroiq-logo {
-        font-size: 2.5rem;
+
+    .neuro-title {
+        font-size: 1.6rem;
         font-weight: 700;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
         background: linear-gradient(90deg, var(--neuro-accent), #00ff88, var(--neuro-accent));
         background-size: 200% auto;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        animation: gradient-shift 3s ease infinite;
-        letter-spacing: 0.1em;
+        animation: title-shimmer 4s ease infinite;
+        text-shadow: none;
+        filter: drop-shadow(0 0 20px rgba(0, 245, 255, 0.3));
     }
-    
-    @keyframes gradient-shift {
+
+    @keyframes title-shimmer {
         0% { background-position: 0% center; }
         50% { background-position: 100% center; }
         100% { background-position: 0% center; }
     }
-    
-    .neuroiq-subtitle {
+
+    .neuro-subtitle {
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
         color: var(--neuro-text-dim);
-        font-size: 0.9rem;
+        margin-top: 4px;
+    }
+
+    .neuro-online-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        font-size: 0.6rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
-        margin-top: 0.5rem;
+        color: var(--neuro-success);
     }
-    
-    .neuroiq-main {
-        display: grid;
-        grid-template-columns: 280px 1fr 280px;
-        gap: 1.5rem;
-        max-width: 1600px;
-        margin: 0 auto;
+
+    .neuro-online-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--neuro-success);
+        border-radius: 50%;
+        animation: online-pulse 2s infinite;
+        box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
     }
-    
-    @media (max-width: 1200px) {
-        .neuroiq-main {
-            grid-template-columns: 1fr;
-        }
+
+    @keyframes online-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(0.8); }
     }
-    
-    .neuroiq-panel {
-        background: var(--neuro-surface);
-        border: 1px solid var(--neuro-border);
-        border-radius: 12px;
-        padding: 1.25rem;
-        position: relative;
+
+    .sphere-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 420px;
+        height: 420px;
+        z-index: 10;
+    }
+
+    #sphere-canvas {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+    }
+
+    .sphere-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(0, 245, 255, 0.08) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        animation: sphere-breathe 4s ease-in-out infinite;
+    }
+
+    @keyframes sphere-breathe {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+        50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+    }
+
+    .sphere-rings {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 460px;
+        height: 460px;
+        pointer-events: none;
+    }
+
+    .sphere-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border: 1px solid rgba(0, 245, 255, 0.08);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .sphere-ring:nth-child(1) {
+        width: 100%;
+        height: 100%;
+        animation: ring-rotate 20s linear infinite;
+    }
+
+    .sphere-ring:nth-child(2) {
+        width: 115%;
+        height: 115%;
+        border-color: rgba(123, 47, 190, 0.06);
+        animation: ring-rotate 30s linear infinite reverse;
+    }
+
+    .sphere-ring:nth-child(3) {
+        width: 130%;
+        height: 130%;
+        border-color: rgba(0, 245, 255, 0.04);
+        animation: ring-rotate 40s linear infinite;
+        border-style: dashed;
+    }
+
+    @keyframes ring-rotate {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    .sphere-holo-arc {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 480px;
+        height: 480px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }
+
+    .holo-arc {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 2px solid transparent;
+        border-top-color: rgba(0, 245, 255, 0.15);
+        border-radius: 50%;
+    }
+
+    .holo-arc:nth-child(1) {
+        animation: arc-spin 8s linear infinite;
+    }
+
+    .holo-arc:nth-child(2) {
+        width: 90%;
+        height: 90%;
+        top: 5%;
+        left: 5%;
+        border-top-color: rgba(123, 47, 190, 0.12);
+        animation: arc-spin 12s linear infinite reverse;
+    }
+
+    .holo-arc:nth-child(3) {
+        width: 110%;
+        height: 110%;
+        top: -5%;
+        left: -5%;
+        border-top-color: rgba(0, 245, 255, 0.08);
+        border-right-color: rgba(0, 245, 255, 0.05);
+        animation: arc-spin 15s linear infinite;
+    }
+
+    @keyframes arc-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .glass-panel {
+        position: absolute;
+        z-index: 30;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         overflow: hidden;
     }
-    
-    .neuroiq-panel::before {
+
+    .glass-panel::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: 2px;
+        height: 1px;
         background: linear-gradient(90deg, transparent, var(--neuro-accent), transparent);
-        opacity: 0.5;
+        opacity: 0.3;
     }
-    
-    .panel-title {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: var(--neuro-accent);
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+
+    .glass-panel::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--neuro-accent), transparent);
+        opacity: 0.15;
     }
-    
-    .panel-title i {
-        font-size: 0.9rem;
+
+    .glass-panel:hover {
+        border-color: rgba(0, 245, 255, 0.2);
+        box-shadow: 0 0 40px rgba(0, 245, 255, 0.05);
     }
-    
-    .insight-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin-bottom: 0.75rem;
-        border-left: 3px solid var(--neuro-accent);
-        transition: all 0.3s ease;
+
+    .glass-panel.collapsed {
+        opacity: 0.4;
+        transform: scale(0.95);
     }
-    
-    .insight-card:hover {
-        background: rgba(255, 255, 255, 0.05);
-        transform: translateX(4px);
-    }
-    
-    .insight-card.warning {
-        border-left-color: var(--neuro-warning);
-    }
-    
-    .insight-card.success {
-        border-left-color: var(--neuro-success);
-    }
-    
-    .insight-card.danger {
-        border-left-color: var(--neuro-danger);
-    }
-    
-    .insight-domain {
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        color: var(--neuro-text-dim);
-        letter-spacing: 0.1em;
-    }
-    
-    .insight-title {
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin: 0.25rem 0;
-    }
-    
-    .insight-message {
-        font-size: 0.75rem;
-        color: var(--neuro-text-dim);
-    }
-    
-    .conversation-container {
-        display: flex;
-        flex-direction: column;
-        height: 70vh;
-        min-height: 500px;
-    }
-    
-    .conversation-display {
-        flex: 1;
+
+    .panel-left {
+        top: 130px;
+        left: 24px;
+        width: 280px;
+        max-height: calc(100vh - 280px);
         overflow-y: auto;
-        padding: 1rem;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        margin-bottom: 1rem;
     }
-    
-    .message {
-        margin-bottom: 1rem;
-        animation: message-fade-in 0.3s ease;
+
+    .panel-right {
+        top: 130px;
+        right: 24px;
+        width: 280px;
+        max-height: calc(100vh - 280px);
+        overflow-y: auto;
     }
-    
-    @keyframes message-fade-in {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+
+    .glass-panel::-webkit-scrollbar {
+        width: 3px;
     }
-    
-    .message-user {
-        text-align: right;
+
+    .glass-panel::-webkit-scrollbar-track {
+        background: transparent;
     }
-    
-    .message-user .message-bubble {
-        background: linear-gradient(135deg, #1a3a5c, #0d2847);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        display: inline-block;
-        max-width: 80%;
-        text-align: left;
+
+    .glass-panel::-webkit-scrollbar-thumb {
+        background: var(--neuro-accent-dim);
+        border-radius: 3px;
     }
-    
-    .message-assistant .message-bubble {
-        background: linear-gradient(135deg, #1a1a2e, #16162a);
-        border: 1px solid var(--neuro-border);
-        max-width: 90%;
-    }
-    
-    .message-bubble {
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        font-size: 0.9rem;
-        line-height: 1.5;
-    }
-    
-    .message-label {
-        font-size: 0.65rem;
+
+    .panel-section-title {
+        font-size: 0.6rem;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--neuro-text-dim);
-        margin-bottom: 0.25rem;
-    }
-    
-    .input-area {
-        display: flex;
-        gap: 0.75rem;
-        align-items: flex-end;
-    }
-    
-    .input-wrapper {
-        flex: 1;
-        position: relative;
-    }
-    
-    #neuroiq-input {
-        width: 100%;
-        background: var(--neuro-surface);
-        border: 1px solid var(--neuro-border);
-        border-radius: 12px;
-        padding: 1rem 1.25rem;
-        color: var(--neuro-text);
-        font-size: 0.95rem;
-        resize: none;
-        min-height: 56px;
-        max-height: 150px;
-        transition: all 0.3s ease;
-    }
-    
-    #neuroiq-input:focus {
-        outline: none;
-        border-color: var(--neuro-accent);
-        box-shadow: 0 0 0 3px var(--neuro-accent-glow);
-    }
-    
-    #neuroiq-input::placeholder {
-        color: var(--neuro-text-dim);
-    }
-    
-    .send-btn {
-        background: linear-gradient(135deg, var(--neuro-accent), #0099cc);
-        border: none;
-        border-radius: 12px;
-        width: 56px;
-        height: 56px;
+        letter-spacing: 0.2em;
+        color: var(--neuro-accent);
+        margin-bottom: 12px;
         display: flex;
         align-items: center;
-        justify-content: center;
-        cursor: pointer;
+        gap: 6px;
+        font-weight: 600;
+    }
+
+    .panel-section-title i {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+
+    .panel-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--neuro-border), transparent);
+        margin: 16px 0;
+    }
+
+    .insight-card {
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border-left: 2px solid var(--neuro-accent);
         transition: all 0.3s ease;
-        color: #000;
-        font-size: 1.2rem;
+        cursor: default;
     }
-    
-    .send-btn:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 20px var(--neuro-accent-glow);
+
+    .insight-card:hover {
+        background: rgba(0, 245, 255, 0.04);
+        transform: translateX(3px);
     }
-    
-    .send-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
+
+    .insight-card.warning { border-left-color: var(--neuro-warning); }
+    .insight-card.success { border-left-color: var(--neuro-success); }
+    .insight-card.danger { border-left-color: var(--neuro-danger); }
+
+    .insight-domain {
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        color: var(--neuro-text-dim);
+        letter-spacing: 0.1em;
     }
-    
-    .metric-item {
+
+    .insight-title {
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin: 3px 0;
+        color: var(--neuro-text);
+    }
+
+    .insight-message {
+        font-size: 0.68rem;
+        color: var(--neuro-text-dim);
+        line-height: 1.4;
+    }
+
+    .metric-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
-    
-    .metric-item:last-child {
-        border-bottom: none;
-    }
-    
+
+    .metric-row:last-child { border-bottom: none; }
+
     .metric-label {
-        font-size: 0.75rem;
+        font-size: 0.68rem;
         color: var(--neuro-text-dim);
     }
-    
+
     .metric-value {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         font-weight: 600;
         color: var(--neuro-accent);
+        text-shadow: 0 0 10px rgba(0, 245, 255, 0.2);
     }
-    
-    .status-indicator {
+
+    .metric-value.warning { color: var(--neuro-warning); }
+    .metric-value.danger { color: var(--neuro-danger); }
+
+    .role-tags {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
-        color: var(--neuro-success);
+        flex-wrap: wrap;
+        gap: 4px;
     }
-    
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        background: var(--neuro-success);
-        border-radius: 50%;
-        animation: pulse 2s infinite;
+
+    .role-tag {
+        padding: 3px 8px;
+        background: var(--neuro-accent-dim);
+        border: 1px solid rgba(0, 245, 255, 0.15);
+        border-radius: 4px;
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--neuro-text);
+        transition: all 0.3s ease;
     }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
-        50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+
+    .role-tag:hover {
+        background: rgba(0, 245, 255, 0.25);
+        box-shadow: 0 0 10px rgba(0, 245, 255, 0.15);
     }
-    
-    .thinking-indicator {
+
+    .bottom-interface {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 680px;
+        max-width: calc(100vw - 48px);
+        z-index: 60;
+        padding-bottom: 24px;
+    }
+
+    .conversation-area {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-bottom: 12px;
+        padding: 0 4px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--neuro-accent-dim) transparent;
+    }
+
+    .conversation-area::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .conversation-area::-webkit-scrollbar-thumb {
+        background: var(--neuro-accent-dim);
+        border-radius: 3px;
+    }
+
+    .msg {
+        margin-bottom: 10px;
+        animation: msg-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes msg-in {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-user {
+        text-align: right;
+    }
+
+    .msg-label {
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--neuro-text-dim);
+        margin-bottom: 3px;
+    }
+
+    .msg-bubble {
+        display: inline-block;
+        max-width: 85%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 0.82rem;
+        line-height: 1.55;
+        text-align: left;
+        color: var(--neuro-text);
+    }
+
+    .msg-user .msg-bubble {
+        background: linear-gradient(135deg, rgba(0, 245, 255, 0.12), rgba(0, 245, 255, 0.06));
+        border: 1px solid rgba(0, 245, 255, 0.2);
+    }
+
+    .msg-assistant .msg-bubble {
+        background: linear-gradient(135deg, rgba(123, 47, 190, 0.1), rgba(15, 20, 40, 0.6));
+        border: 1px solid rgba(123, 47, 190, 0.15);
+    }
+
+    .msg-assistant .msg-bubble .holo-type {
+        overflow: hidden;
+        border-right: 2px solid var(--neuro-accent);
+        animation: holo-blink 0.7s step-end infinite;
+    }
+
+    @keyframes holo-blink {
+        50% { border-color: transparent; }
+    }
+
+    .thinking-bar {
         display: none;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        background: rgba(0, 212, 255, 0.1);
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        font-size: 0.85rem;
+        gap: 8px;
+        padding: 8px 14px;
+        background: rgba(0, 245, 255, 0.06);
+        border: 1px solid rgba(0, 245, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 10px;
+        font-size: 0.75rem;
         color: var(--neuro-accent);
     }
-    
-    .thinking-indicator.active {
-        display: flex;
-    }
-    
+
+    .thinking-bar.active { display: flex; }
+
     .thinking-dots span {
-        width: 6px;
-        height: 6px;
+        width: 5px;
+        height: 5px;
         background: var(--neuro-accent);
         border-radius: 50%;
         display: inline-block;
         margin: 0 2px;
-        animation: thinking-bounce 1.4s infinite ease-in-out both;
+        animation: t-bounce 1.4s infinite ease-in-out both;
     }
-    
+
     .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
     .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
     .thinking-dots span:nth-child(3) { animation-delay: 0s; }
-    
-    @keyframes thinking-bounce {
+
+    @keyframes t-bounce {
         0%, 80%, 100% { transform: scale(0); }
         40% { transform: scale(1); }
     }
-    
-    .role-badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        background: rgba(0, 212, 255, 0.15);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        border-radius: 4px;
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-right: 0.5rem;
-        margin-bottom: 0.25rem;
-    }
-    
-    .welcome-message {
-        text-align: center;
-        padding: 3rem 2rem;
-        color: var(--neuro-text-dim);
-    }
-    
-    .welcome-icon {
-        font-size: 3rem;
-        color: var(--neuro-accent);
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-    
-    .welcome-text {
-        font-size: 1.1rem;
-        margin-bottom: 0.5rem;
-        color: var(--neuro-text);
-    }
-    
-    .welcome-subtext {
-        font-size: 0.85rem;
-    }
-    
-    .back-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--neuro-text-dim);
-        text-decoration: none;
-        font-size: 0.85rem;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        margin-bottom: 1rem;
-    }
-    
-    .back-link:hover {
-        color: var(--neuro-accent);
-        background: rgba(0, 212, 255, 0.1);
-    }
-    
-    .voice-controls {
+
+    .voice-row {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
+        gap: 8px;
+        margin-bottom: 8px;
     }
-    
-    .voice-btn {
-        background: var(--neuro-surface);
-        border: 1px solid var(--neuro-border);
+
+    .voice-orb {
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        width: 44px;
-        height: 44px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: all 0.3s ease;
         color: var(--neuro-text-dim);
+        font-size: 1rem;
+        flex-shrink: 0;
     }
-    
-    .voice-btn:hover {
+
+    .voice-orb:hover {
         border-color: var(--neuro-accent);
         color: var(--neuro-accent);
+        box-shadow: 0 0 15px rgba(0, 245, 255, 0.15);
     }
-    
-    .voice-btn.active {
-        background: rgba(255, 68, 102, 0.2);
+
+    .voice-orb.listening {
+        background: rgba(255, 68, 102, 0.15);
         border-color: var(--neuro-danger);
         color: var(--neuro-danger);
-        animation: voice-pulse 1.5s infinite;
+        animation: mic-pulse 1.5s infinite;
     }
-    
-    .voice-btn.speaking {
-        background: rgba(0, 212, 255, 0.2);
+
+    .voice-orb.speaking {
+        background: rgba(0, 245, 255, 0.15);
         border-color: var(--neuro-accent);
         color: var(--neuro-accent);
     }
-    
-    @keyframes voice-pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 102, 0.4); }
+
+    @keyframes mic-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 102, 0.3); }
         50% { box-shadow: 0 0 0 10px rgba(255, 68, 102, 0); }
     }
-    
-    .voice-status {
-        font-size: 0.75rem;
-        color: var(--neuro-text-dim);
+
+    .voice-mini-vis {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .voice-status.listening {
-        color: var(--neuro-danger);
-    }
-    
-    .voice-status.speaking {
-        color: var(--neuro-accent);
-    }
-    
-    .voice-visualizer {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 3px;
-        height: 40px;
-        padding: 0 1rem;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 20px;
-        margin-left: 0.5rem;
+        gap: 2px;
+        height: 28px;
+        padding: 0 8px;
         opacity: 0;
         transition: opacity 0.3s ease;
     }
-    
-    .voice-visualizer.active {
-        opacity: 1;
-    }
-    
-    .voice-visualizer .bar {
-        width: 4px;
-        height: 8px;
-        background: linear-gradient(180deg, var(--neuro-accent), #00ff88);
+
+    .voice-mini-vis.active { opacity: 1; }
+
+    .voice-mini-vis .vbar {
+        width: 3px;
+        height: 6px;
+        background: linear-gradient(180deg, var(--neuro-accent), rgba(0, 245, 255, 0.3));
         border-radius: 2px;
-        transition: height 0.1s ease;
+        transition: height 0.08s ease;
     }
-    
-    .voice-visualizer.speaking .bar {
-        animation: voice-wave 0.5s ease-in-out infinite;
+
+    .voice-mini-vis.listening .vbar {
+        background: linear-gradient(180deg, var(--neuro-danger), rgba(255, 68, 102, 0.3));
+        animation: v-wave 0.6s ease-in-out infinite;
     }
-    
-    .voice-visualizer.speaking .bar:nth-child(1) { animation-delay: 0s; }
-    .voice-visualizer.speaking .bar:nth-child(2) { animation-delay: 0.1s; }
-    .voice-visualizer.speaking .bar:nth-child(3) { animation-delay: 0.2s; }
-    .voice-visualizer.speaking .bar:nth-child(4) { animation-delay: 0.15s; }
-    .voice-visualizer.speaking .bar:nth-child(5) { animation-delay: 0.25s; }
-    .voice-visualizer.speaking .bar:nth-child(6) { animation-delay: 0.05s; }
-    .voice-visualizer.speaking .bar:nth-child(7) { animation-delay: 0.2s; }
-    .voice-visualizer.speaking .bar:nth-child(8) { animation-delay: 0.1s; }
-    .voice-visualizer.speaking .bar:nth-child(9) { animation-delay: 0.15s; }
-    .voice-visualizer.speaking .bar:nth-child(10) { animation-delay: 0.25s; }
-    .voice-visualizer.speaking .bar:nth-child(11) { animation-delay: 0.05s; }
-    .voice-visualizer.speaking .bar:nth-child(12) { animation-delay: 0.2s; }
-    
-    @keyframes voice-wave {
-        0%, 100% { height: 8px; }
-        25% { height: 28px; }
-        50% { height: 16px; }
-        75% { height: 32px; }
+
+    .voice-mini-vis.speaking .vbar {
+        animation: v-wave 0.5s ease-in-out infinite;
     }
-    
-    .voice-visualizer.listening .bar {
-        background: linear-gradient(180deg, var(--neuro-danger), #ff8866);
-        animation: listen-wave 0.8s ease-in-out infinite;
+
+    .voice-mini-vis .vbar:nth-child(1) { animation-delay: 0s; }
+    .voice-mini-vis .vbar:nth-child(2) { animation-delay: 0.08s; }
+    .voice-mini-vis .vbar:nth-child(3) { animation-delay: 0.16s; }
+    .voice-mini-vis .vbar:nth-child(4) { animation-delay: 0.12s; }
+    .voice-mini-vis .vbar:nth-child(5) { animation-delay: 0.2s; }
+    .voice-mini-vis .vbar:nth-child(6) { animation-delay: 0.04s; }
+    .voice-mini-vis .vbar:nth-child(7) { animation-delay: 0.14s; }
+    .voice-mini-vis .vbar:nth-child(8) { animation-delay: 0.1s; }
+
+    @keyframes v-wave {
+        0%, 100% { height: 5px; }
+        50% { height: 22px; }
     }
-    
-    @keyframes listen-wave {
-        0%, 100% { height: 6px; opacity: 0.5; }
-        50% { height: 24px; opacity: 1; }
-    }
-    
-    .continuous-mode {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
+
+    .voice-status-text {
+        font-size: 0.65rem;
         color: var(--neuro-text-dim);
-        margin-left: 1rem;
-        padding: 0.25rem 0.75rem;
-        background: rgba(0, 212, 255, 0.1);
-        border-radius: 12px;
-        border: 1px solid rgba(0, 212, 255, 0.2);
+        letter-spacing: 0.05em;
     }
-    
-    .continuous-mode input[type="checkbox"] {
-        accent-color: var(--neuro-accent);
-    }
-    
-    .voice-control-btn {
-        background: var(--neuro-surface);
-        border: 1px solid var(--neuro-border);
-        border-radius: 8px;
-        width: 36px;
-        height: 36px;
+
+    .voice-status-text.listening { color: var(--neuro-danger); }
+    .voice-status-text.speaking { color: var(--neuro-accent); }
+
+    .voice-ctrl-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
+        color: var(--neuro-text-dim);
+        font-size: 0.8rem;
         transition: all 0.3s ease;
-        color: var(--neuro-text-dim);
-        font-size: 0.9rem;
     }
-    
-    .voice-control-btn:hover {
-        border-color: var(--neuro-accent);
-        color: var(--neuro-accent);
-    }
-    
-    .voice-control-btn.stop-btn:hover {
-        border-color: var(--neuro-danger);
-        color: var(--neuro-danger);
-    }
-    
-    .voice-control-btn.pause-btn:hover {
-        border-color: var(--neuro-warning);
-        color: var(--neuro-warning);
-    }
-    
-    .voice-control-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
-    
-    .voice-control-btn:disabled:hover {
-        border-color: var(--neuro-border);
-        color: var(--neuro-text-dim);
-    }
-    
-    .voice-playback-controls {
-        display: flex;
-        gap: 0.25rem;
-        margin-left: 0.5rem;
-    }
-    
-    .tts-toggle {
+
+    .voice-ctrl-btn:hover { border-color: var(--neuro-accent); color: var(--neuro-accent); }
+    .voice-ctrl-btn.stop:hover { border-color: var(--neuro-danger); color: var(--neuro-danger); }
+    .voice-ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .voice-ctrl-btn:disabled:hover { border-color: var(--glass-border); color: var(--neuro-text-dim); }
+
+    .voice-toggles {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
-        color: var(--neuro-text-dim);
+        gap: 12px;
         margin-left: auto;
+        font-size: 0.6rem;
+        color: var(--neuro-text-dim);
+        letter-spacing: 0.05em;
     }
-    
-    .tts-toggle input[type="checkbox"] {
+
+    .voice-toggles label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+    }
+
+    .voice-toggles input[type="checkbox"] {
         accent-color: var(--neuro-accent);
+        width: 12px;
+        height: 12px;
+    }
+
+    .input-row {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+
+    .input-field {
+        flex: 1;
+        position: relative;
+    }
+
+    .input-field textarea {
+        width: 100%;
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        padding: 14px 18px;
+        color: var(--neuro-text);
+        font-size: 0.88rem;
+        font-family: inherit;
+        resize: none;
+        min-height: 52px;
+        max-height: 120px;
+        transition: all 0.3s ease;
+        line-height: 1.4;
+    }
+
+    .input-field textarea:focus {
+        outline: none;
+        border-color: var(--neuro-accent);
+        box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.1), 0 0 30px rgba(0, 245, 255, 0.05);
+    }
+
+    .input-field textarea::placeholder {
+        color: var(--neuro-text-dim);
+        font-size: 0.82rem;
+    }
+
+    .send-orb {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--neuro-accent), #0099cc);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #000;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .send-orb:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 25px rgba(0, 245, 255, 0.3);
+    }
+
+    .send-orb:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .sphere-state-label {
+        position: absolute;
+        top: calc(50% + 230px);
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        z-index: 20;
+        pointer-events: none;
+    }
+
+    .sphere-state-text {
+        font-size: 0.6rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--neuro-text-dim);
+        transition: all 0.5s ease;
+    }
+
+    .sphere-state-text.listening {
+        color: var(--neuro-danger);
+        text-shadow: 0 0 10px rgba(255, 68, 102, 0.4);
+    }
+
+    .sphere-state-text.responding {
+        color: var(--neuro-accent);
+        text-shadow: 0 0 10px rgba(0, 245, 255, 0.4);
+    }
+
+    .sphere-state-text.processing {
+        color: var(--neuro-violet);
+        text-shadow: 0 0 10px var(--neuro-violet-glow);
+    }
+
+    @media (max-width: 1100px) {
+        .panel-left, .panel-right {
+            position: relative;
+            top: auto;
+            left: auto;
+            right: auto;
+            width: 100%;
+            max-height: none;
+        }
+        .sphere-container { width: 280px; height: 280px; }
+        .sphere-glow { width: 340px; height: 340px; }
+        .sphere-rings { width: 320px; height: 320px; }
+        .sphere-holo-arc { width: 340px; height: 340px; }
+        .sphere-state-label { top: calc(50% + 160px); }
+        .neuroiq-universe { position: relative; height: auto; min-height: 100vh; overflow-y: auto; }
+        .bottom-interface { position: relative; margin-top: 60vh; }
+    }
+
+    .parallax-layer {
+        transition: transform 0.15s ease-out;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="neuroiq-container">
-    <a href="/" class="back-link">
-        <i class="bi bi-arrow-left"></i> Back to Dashboard
-    </a>
-    
-    <div class="neuroiq-header">
-        <div class="neuroiq-logo">COREx NeuroIQ</div>
-        <div class="neuroiq-subtitle">Executive Intelligence System</div>
-        <div class="status-indicator mt-2" style="justify-content: center;">
-            <span class="status-dot"></span>
+<div class="neuroiq-universe" id="neuroiq-universe">
+    <div class="neuro-grid-bg"></div>
+    <div class="neuro-particles" id="neuro-particles"></div>
+
+    <div class="neuro-top-bar">
+        <a href="/" class="neuro-back-link">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <div class="neuro-sys-status">
+            <span>SYS v4.2</span>
+            <span>|</span>
+            <span id="sys-time"></span>
+        </div>
+    </div>
+
+    <div class="neuro-header parallax-layer" data-depth="0.02">
+        <div class="neuro-title">COREx NeuroIQ</div>
+        <div class="neuro-subtitle">Executive Intelligence Core</div>
+        <div class="neuro-online-badge">
+            <span class="neuro-online-dot"></span>
             <span>Online</span>
         </div>
     </div>
-    
-    <div class="neuroiq-main">
-        <div class="left-panels">
-            <div class="neuroiq-panel mb-3">
-                <div class="panel-title">
-                    <i class="bi bi-lightning-charge"></i>
-                    Proactive Insights
-                </div>
-                <div id="insights-container">
-                    <div class="text-center py-3" style="color: var(--neuro-text-dim); font-size: 0.8rem;">
-                        Loading insights...
-                    </div>
-                </div>
+
+    <div class="sphere-container parallax-layer" data-depth="0.04">
+        <div class="sphere-glow" id="sphere-glow"></div>
+        <div class="sphere-rings">
+            <div class="sphere-ring"></div>
+            <div class="sphere-ring"></div>
+            <div class="sphere-ring"></div>
+        </div>
+        <div class="sphere-holo-arc">
+            <div class="holo-arc"></div>
+            <div class="holo-arc"></div>
+            <div class="holo-arc"></div>
+        </div>
+        <canvas id="sphere-canvas"></canvas>
+    </div>
+
+    <div class="sphere-state-label">
+        <div class="sphere-state-text" id="sphere-state-text">Awaiting Command</div>
+    </div>
+
+    <div class="glass-panel panel-left" id="panel-left">
+        <div class="panel-section-title">
+            <i class="bi bi-lightning-charge-fill"></i>
+            Proactive Insights
+        </div>
+        <div id="insights-container">
+            <div style="color: var(--neuro-text-dim); font-size: 0.7rem; text-align: center; padding: 12px 0;">Scanning systems...</div>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="panel-section-title">
+            <i class="bi bi-cpu-fill"></i>
+            Intelligence Roles
+        </div>
+        <div class="role-tags">
+            <span class="role-tag">CEO</span>
+            <span class="role-tag">CFO</span>
+            <span class="role-tag">COO</span>
+            <span class="role-tag">GM</span>
+            <span class="role-tag">Analyst</span>
+            <span class="role-tag">Strategy</span>
+            <span class="role-tag">Supply Chain</span>
+            <span class="role-tag">BD/VP</span>
+        </div>
+    </div>
+
+    <div class="glass-panel panel-right" id="panel-right">
+        <div class="panel-section-title">
+            <i class="bi bi-graph-up-arrow"></i>
+            Financial Snapshot
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">YTD Revenue</span>
+            <span class="metric-value" id="metric-revenue">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Accounts Receivable</span>
+            <span class="metric-value" id="metric-ar">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Accounts Payable</span>
+            <span class="metric-value" id="metric-ap">--</span>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="panel-section-title">
+            <i class="bi bi-gear-fill"></i>
+            Operations Status
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Work Orders Active</span>
+            <span class="metric-value" id="metric-wo">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">On Hold</span>
+            <span class="metric-value warning" id="metric-hold">--</span>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="panel-section-title">
+            <i class="bi bi-box-seam-fill"></i>
+            Inventory & Sales
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Inventory Value</span>
+            <span class="metric-value" id="metric-inv">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Sales Pipeline</span>
+            <span class="metric-value" id="metric-pipeline">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Low Stock Items</span>
+            <span class="metric-value danger" id="metric-lowstock">--</span>
+        </div>
+    </div>
+
+    <div class="bottom-interface">
+        <div class="conversation-area" id="conversation-display"></div>
+
+        <div class="thinking-bar" id="thinking-indicator">
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
+            <span>Analyzing and formulating response...</span>
+        </div>
+
+        <div class="voice-row">
+            <div class="voice-orb" id="voice-btn" onclick="window.toggleVoiceInput()" title="Voice Input">
+                <i class="bi bi-mic" id="mic-icon"></i>
             </div>
-            
-            <div class="neuroiq-panel">
-                <div class="panel-title">
-                    <i class="bi bi-cpu"></i>
-                    Executive Roles
-                </div>
-                <div class="role-badge">CEO</div>
-                <div class="role-badge">CFO</div>
-                <div class="role-badge">COO</div>
-                <div class="role-badge">GM</div>
-                <div class="role-badge">Analyst</div>
-                <div class="role-badge">Strategy</div>
-                <div class="role-badge">Supply Chain</div>
-                <div class="role-badge">BD/VP</div>
+            <div class="voice-ctrl-btn" id="pause-btn" onclick="window.togglePauseVoice()" title="Pause" disabled>
+                <i class="bi bi-pause-fill" id="pause-icon"></i>
+            </div>
+            <div class="voice-ctrl-btn stop" id="stop-btn" onclick="window.stopVoice()" title="Stop" disabled>
+                <i class="bi bi-stop-fill"></i>
+            </div>
+            <div class="voice-mini-vis" id="voice-visualizer">
+                <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+                <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+            </div>
+            <div class="voice-status-text" id="voice-status-text">Click mic to speak</div>
+            <div class="voice-toggles">
+                <label><input type="checkbox" id="continuous-mode" checked> Continuous</label>
+                <label><input type="checkbox" id="tts-enabled" checked> Voice</label>
             </div>
         </div>
-        
-        <div class="neuroiq-panel conversation-container">
-            <div class="conversation-display" id="conversation-display">
-                <div class="welcome-message">
-                    <div class="welcome-icon">
-                        <i class="bi bi-stars"></i>
-                    </div>
-                    <div class="welcome-text">COREx Activate</div>
-                    <div class="welcome-subtext">Ask me about strategy, operations, finance, or any executive decision.</div>
-                </div>
+
+        <div class="input-row">
+            <div class="input-field">
+                <textarea id="neuroiq-input" placeholder="Command COREx NeuroIQ..." rows="1"></textarea>
             </div>
-            
-            <div class="thinking-indicator" id="thinking-indicator">
-                <div class="thinking-dots">
-                    <span></span><span></span><span></span>
-                </div>
-                <span>Analyzing and formulating response...</span>
-            </div>
-            
-            <div class="voice-controls">
-                <button class="voice-btn" id="voice-btn" onclick="window.toggleVoiceInput()" title="Voice Input">
-                    <i class="bi bi-mic" id="mic-icon"></i>
-                </button>
-                <div class="voice-playback-controls">
-                    <button class="voice-control-btn pause-btn" id="pause-btn" onclick="window.togglePauseVoice()" title="Pause/Resume" disabled>
-                        <i class="bi bi-pause-fill" id="pause-icon"></i>
-                    </button>
-                    <button class="voice-control-btn stop-btn" id="stop-btn" onclick="window.stopVoice()" title="Stop" disabled>
-                        <i class="bi bi-stop-fill"></i>
-                    </button>
-                </div>
-                <div class="voice-visualizer" id="voice-visualizer">
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                </div>
-                <div class="voice-status" id="voice-status">
-                    <span id="voice-status-text">Click mic to speak</span>
-                </div>
-                <div class="continuous-mode">
-                    <input type="checkbox" id="continuous-mode" checked>
-                    <label for="continuous-mode">Continuous</label>
-                </div>
-                <div class="tts-toggle">
-                    <input type="checkbox" id="tts-enabled" checked>
-                    <label for="tts-enabled">Voice Response</label>
-                </div>
-            </div>
-            
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <textarea 
-                        id="neuroiq-input" 
-                        placeholder="Ask COREx NeuroIQ for strategic insights, operational guidance, or financial analysis..."
-                        rows="1"
-                    ></textarea>
-                </div>
-                <button class="send-btn" id="send-btn" onclick="window.sendMessage()">
-                    <i class="bi bi-send-fill"></i>
-                </button>
-            </div>
-        </div>
-        
-        <div class="right-panels">
-            <div class="neuroiq-panel mb-3">
-                <div class="panel-title">
-                    <i class="bi bi-graph-up"></i>
-                    Financial Snapshot
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">YTD Revenue</span>
-                    <span class="metric-value" id="metric-revenue">--</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Accounts Receivable</span>
-                    <span class="metric-value" id="metric-ar">--</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Accounts Payable</span>
-                    <span class="metric-value" id="metric-ap">--</span>
-                </div>
-            </div>
-            
-            <div class="neuroiq-panel mb-3">
-                <div class="panel-title">
-                    <i class="bi bi-gear"></i>
-                    Operations Status
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Work Orders (Active)</span>
-                    <span class="metric-value" id="metric-wo">--</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">On Hold</span>
-                    <span class="metric-value" id="metric-hold">--</span>
-                </div>
-            </div>
-            
-            <div class="neuroiq-panel">
-                <div class="panel-title">
-                    <i class="bi bi-box-seam"></i>
-                    Inventory & Sales
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Inventory Value</span>
-                    <span class="metric-value" id="metric-inv">--</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Pipeline Value</span>
-                    <span class="metric-value" id="metric-pipeline">--</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Low Stock Alerts</span>
-                    <span class="metric-value" id="metric-lowstock">--</span>
-                </div>
-            </div>
+            <button class="send-orb" id="send-btn" onclick="window.sendMessage()">
+                <i class="bi bi-send-fill"></i>
+            </button>
         </div>
     </div>
 </div>
@@ -780,307 +1058,433 @@
 {% block extra_js %}
 <script>
 (function() {
+'use strict';
+
 document.body.classList.add('neuroiq-mode');
+
+const sidebar = document.querySelector('.sidebar');
+if (sidebar) sidebar.style.display = 'none';
+
+const mainContent = document.querySelector('.main-content');
+if (mainContent) {
+    mainContent.style.marginLeft = '0';
+    mainContent.style.width = '100%';
+}
+
+function createParticles() {
+    const container = document.getElementById('neuro-particles');
+    if (!container) return;
+    for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'neuro-particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDuration = (8 + Math.random() * 15) + 's';
+        p.style.animationDelay = (Math.random() * 10) + 's';
+        p.style.width = (1 + Math.random() * 2) + 'px';
+        p.style.height = p.style.width;
+        container.appendChild(p);
+    }
+}
+createParticles();
+
+function updateClock() {
+    const el = document.getElementById('sys-time');
+    if (el) {
+        const now = new Date();
+        el.textContent = now.toLocaleTimeString('en-US', { hour12: false }) + ' UTC';
+    }
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+document.addEventListener('mousemove', function(e) {
+    const layers = document.querySelectorAll('.parallax-layer');
+    const cx = (e.clientX / window.innerWidth - 0.5) * 2;
+    const cy = (e.clientY / window.innerHeight - 0.5) * 2;
+    layers.forEach(layer => {
+        const depth = parseFloat(layer.dataset.depth) || 0.02;
+        const moveX = cx * depth * 30;
+        const moveY = cy * depth * 30;
+        layer.style.transform = layer.dataset.baseTransform
+            ? layer.dataset.baseTransform + ` translate(${moveX}px, ${moveY}px)`
+            : `translate(calc(-50% + ${moveX}px), ${moveY}px)`;
+    });
+});
+
+const sphereHeader = document.querySelector('.neuro-header');
+if (sphereHeader) sphereHeader.dataset.baseTransform = 'translateX(-50%)';
+
+let sphereState = 'idle';
+let audioCtx, analyser, micSource, dataArray;
+
+const canvas = document.getElementById('sphere-canvas');
+const ctx = canvas ? canvas.getContext('2d') : null;
+let canvasW, canvasH, centerX, centerY, baseRadius;
+
+function initCanvas() {
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvasW = rect.width;
+    canvasH = rect.height;
+    canvas.width = canvasW * dpr;
+    canvas.height = canvasH * dpr;
+    canvas.style.width = canvasW + 'px';
+    canvas.style.height = canvasH + 'px';
+    ctx.scale(dpr, dpr);
+    centerX = canvasW / 2;
+    centerY = canvasH / 2;
+    baseRadius = Math.min(canvasW, canvasH) * 0.32;
+}
+initCanvas();
+window.addEventListener('resize', initCanvas);
+
+let animFrame;
+let time = 0;
+let smoothAmplitude = 0;
+
+function getAmplitude() {
+    if (!analyser || !dataArray) return 0;
+    analyser.getByteTimeDomainData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+        const v = (dataArray[i] - 128) / 128;
+        sum += v * v;
+    }
+    return Math.sqrt(sum / dataArray.length);
+}
+
+function drawSphere() {
+    if (!ctx) return;
+    time += 0.008;
+
+    let targetAmplitude = 0;
+    if (sphereState === 'listening' || sphereState === 'responding') {
+        targetAmplitude = getAmplitude();
+    }
+    smoothAmplitude += (targetAmplitude - smoothAmplitude) * 0.15;
+
+    ctx.clearRect(0, 0, canvasW, canvasH);
+
+    const amp = smoothAmplitude;
+    const breathe = Math.sin(time * 0.8) * 0.02;
+    const r = baseRadius * (1 + breathe);
+
+    const glowAlpha = sphereState === 'idle' ? 0.03 : (sphereState === 'listening' ? 0.06 : 0.08);
+    const grad = ctx.createRadialGradient(centerX, centerY, r * 0.2, centerX, centerY, r * 1.3);
+    grad.addColorStop(0, `rgba(0, 245, 255, ${glowAlpha + amp * 0.15})`);
+    grad.addColorStop(0.5, `rgba(123, 47, 190, ${glowAlpha * 0.5 + amp * 0.05})`);
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    const waveCount = 3;
+    for (let w = 0; w < waveCount; w++) {
+        ctx.beginPath();
+        const waveR = r * (0.85 + w * 0.08);
+        const segments = 120;
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i / segments) * Math.PI * 2;
+            const noiseAmp = sphereState === 'idle'
+                ? 3 + Math.sin(time * 2 + w) * 2
+                : 5 + amp * 60 + Math.sin(time * 3 + w * 2) * 4;
+            const noise = Math.sin(angle * 6 + time * 3 + w * 1.5) * noiseAmp
+                        + Math.sin(angle * 10 + time * 5 + w) * noiseAmp * 0.4;
+            const finalR = waveR + noise;
+            const x = centerX + Math.cos(angle) * finalR;
+            const y = centerY + Math.sin(angle) * finalR;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        const alpha = (0.3 - w * 0.08) + amp * 0.3;
+        if (sphereState === 'listening') {
+            ctx.strokeStyle = `rgba(255, 68, 102, ${alpha})`;
+        } else if (sphereState === 'responding') {
+            ctx.strokeStyle = `rgba(0, 245, 255, ${alpha})`;
+        } else {
+            ctx.strokeStyle = `rgba(0, 245, 255, ${alpha * 0.6})`;
+        }
+        ctx.lineWidth = 1.5 - w * 0.3;
+        ctx.stroke();
+    }
+
+    if (amp > 0.05 || sphereState !== 'idle') {
+        const rippleCount = 2;
+        for (let i = 0; i < rippleCount; i++) {
+            const ripplePhase = (time * 0.5 + i * 0.5) % 1;
+            const rippleR = r + ripplePhase * r * 0.5;
+            const rippleAlpha = (1 - ripplePhase) * 0.15 * (sphereState === 'idle' ? 0.3 : 1);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, rippleR, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0, 245, 255, ${rippleAlpha})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+
+    const particleCount = sphereState === 'idle' ? 30 : 60;
+    for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2 + time * 0.3;
+        const dist = r * (1.1 + Math.sin(time + i * 0.5) * 0.15 + amp * 0.3);
+        const px = centerX + Math.cos(angle) * dist;
+        const py = centerY + Math.sin(angle) * dist;
+        const pSize = 1 + Math.sin(time * 2 + i) * 0.5;
+        const pAlpha = 0.3 + Math.sin(time + i) * 0.2;
+        ctx.beginPath();
+        ctx.arc(px, py, pSize, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 245, 255, ${pAlpha})`;
+        ctx.fill();
+    }
+
+    animFrame = requestAnimationFrame(drawSphere);
+}
+drawSphere();
+
+function setSphereState(state) {
+    sphereState = state;
+    const label = document.getElementById('sphere-state-text');
+    const glow = document.getElementById('sphere-glow');
+    const panelL = document.getElementById('panel-left');
+    const panelR = document.getElementById('panel-right');
+
+    if (label) {
+        label.className = 'sphere-state-text';
+        switch (state) {
+            case 'idle':
+                label.textContent = 'Awaiting Command';
+                if (panelL) panelL.classList.remove('collapsed');
+                if (panelR) panelR.classList.remove('collapsed');
+                break;
+            case 'listening':
+                label.textContent = 'Listening';
+                label.classList.add('listening');
+                if (panelL) panelL.classList.add('collapsed');
+                if (panelR) panelR.classList.add('collapsed');
+                break;
+            case 'processing':
+                label.textContent = 'Processing';
+                label.classList.add('processing');
+                break;
+            case 'responding':
+                label.textContent = 'Responding';
+                label.classList.add('responding');
+                if (panelL) panelL.classList.add('collapsed');
+                if (panelR) panelR.classList.add('collapsed');
+                break;
+        }
+    }
+}
 
 let neuroConversationHistory = [];
 let neuroIsProcessing = false;
-let neuroRecognition = null;
 let neuroIsListening = false;
+let neuroRecognition = null;
 let neuroSynthesis = window.speechSynthesis;
+let neuroIsPaused = false;
 
 function initVoiceRecognition() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        document.getElementById('voice-btn').style.display = 'none';
-        document.getElementById('voice-status-text').textContent = 'Voice not supported';
-        return;
-    }
-    
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
     neuroRecognition = new SpeechRecognition();
     neuroRecognition.continuous = false;
     neuroRecognition.interimResults = true;
     neuroRecognition.lang = 'en-US';
-    
+
     neuroRecognition.onstart = function() {
         neuroIsListening = true;
-        document.getElementById('voice-btn').classList.add('active');
-        document.getElementById('mic-icon').className = 'bi bi-mic-fill';
-        document.getElementById('voice-status').classList.add('listening');
-        document.getElementById('voice-status-text').textContent = 'Listening...';
-        const visualizer = document.getElementById('voice-visualizer');
-        if (visualizer) {
-            visualizer.classList.add('active', 'listening');
-            visualizer.classList.remove('speaking');
-        }
+        const btn = document.getElementById('voice-btn');
+        const vis = document.getElementById('voice-visualizer');
+        const statusText = document.getElementById('voice-status-text');
+        if (btn) btn.classList.add('listening');
+        if (vis) { vis.classList.add('active', 'listening'); vis.classList.remove('speaking'); }
+        if (statusText) { statusText.textContent = 'Listening...'; statusText.className = 'voice-status-text listening'; }
+        setSphereState('listening');
     };
-    
+
     neuroRecognition.onend = function() {
         neuroIsListening = false;
-        document.getElementById('voice-btn').classList.remove('active');
-        document.getElementById('mic-icon').className = 'bi bi-mic';
-        document.getElementById('voice-status').classList.remove('listening');
-        const visualizer = document.getElementById('voice-visualizer');
-        if (visualizer) {
-            visualizer.classList.remove('active', 'listening');
+        const btn = document.getElementById('voice-btn');
+        const vis = document.getElementById('voice-visualizer');
+        const statusText = document.getElementById('voice-status-text');
+        if (btn) btn.classList.remove('listening');
+        if (vis) vis.classList.remove('active', 'listening');
+        if (statusText && !neuroIsProcessing) {
+            statusText.textContent = 'Click mic to speak';
+            statusText.className = 'voice-status-text';
         }
-        const continuousMode = document.getElementById('continuous-mode');
-        if (!continuousMode || !continuousMode.checked) {
-            document.getElementById('voice-status-text').textContent = 'Click mic to speak';
-        }
+        if (sphereState === 'listening') setSphereState('idle');
     };
-    
+
     neuroRecognition.onresult = function(event) {
         let finalTranscript = '';
         let interimTranscript = '';
-        
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-                finalTranscript += transcript;
+                finalTranscript += event.results[i][0].transcript;
             } else {
-                interimTranscript += transcript;
+                interimTranscript += event.results[i][0].transcript;
             }
         }
-        
+
+        const input = document.getElementById('neuroiq-input');
+        if (interimTranscript) {
+            if (input) input.value = interimTranscript;
+        }
         if (finalTranscript) {
-            document.getElementById('neuroiq-input').value = finalTranscript;
+            if (input) input.value = finalTranscript;
             setTimeout(() => neuroSendMessage(), 300);
-        } else if (interimTranscript) {
-            document.getElementById('voice-status-text').textContent = interimTranscript.substring(0, 50) + '...';
         }
     };
-    
+
     neuroRecognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            console.error('Speech recognition error:', event.error);
+        }
         neuroIsListening = false;
-        document.getElementById('voice-btn').classList.remove('active');
-        document.getElementById('voice-status').classList.remove('listening');
-        document.getElementById('voice-status-text').textContent = 'Voice error - try again';
+        const btn = document.getElementById('voice-btn');
+        if (btn) btn.classList.remove('listening');
+        setSphereState('idle');
     };
 }
 
-window.toggleVoiceInput = function() {
+function toggleVoiceInput() {
     if (!neuroRecognition) {
-        initVoiceRecognition();
-        if (!neuroRecognition) return;
+        const statusText = document.getElementById('voice-status-text');
+        if (statusText) statusText.textContent = 'Voice not supported';
+        return;
     }
-    
     if (neuroIsListening) {
         neuroRecognition.stop();
     } else {
-        try {
-            neuroRecognition.start();
-        } catch (e) {
-            console.error('Failed to start recognition:', e);
+        if (neuroSynthesis && neuroSynthesis.speaking) {
+            neuroSynthesis.cancel();
+        }
+        try { neuroRecognition.start(); } catch (e) { console.error(e); }
+
+        if (!audioCtx) {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                    micSource = audioCtx.createMediaStreamSource(stream);
+                    micSource.connect(analyser);
+                }).catch(() => {});
+            } catch (e) {}
         }
     }
-};
+}
 
-let neuroIsPaused = false;
+window.toggleVoiceInput = toggleVoiceInput;
 
-window.stopVoice = function() {
-    if (neuroSynthesis) {
-        neuroSynthesis.cancel();
-        neuroIsPaused = false;
-        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
-        document.getElementById('pause-btn').disabled = true;
-        document.getElementById('stop-btn').disabled = true;
-        document.getElementById('voice-status-text').textContent = 'Voice stopped';
-        const visualizer = document.getElementById('voice-visualizer');
-        if (visualizer) {
-            visualizer.classList.remove('active', 'speaking');
-        }
-        document.getElementById('voice-btn').classList.remove('speaking');
-        document.getElementById('voice-status').classList.remove('speaking');
-    }
-};
-
-window.togglePauseVoice = function() {
+function togglePauseVoice() {
     if (!neuroSynthesis) return;
-    
-    if (neuroIsPaused) {
-        neuroSynthesis.resume();
-        neuroIsPaused = false;
-        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
-        document.getElementById('voice-status-text').textContent = 'Speaking...';
-        const visualizer = document.getElementById('voice-visualizer');
-        if (visualizer) {
-            visualizer.classList.add('speaking');
-        }
-    } else {
-        neuroSynthesis.pause();
-        neuroIsPaused = true;
-        document.getElementById('pause-icon').className = 'bi bi-play-fill';
-        document.getElementById('voice-status-text').textContent = 'Paused';
-        const visualizer = document.getElementById('voice-visualizer');
-        if (visualizer) {
-            visualizer.classList.remove('speaking');
+    if (neuroSynthesis.speaking) {
+        if (neuroIsPaused) {
+            neuroSynthesis.resume();
+            neuroIsPaused = false;
+            document.getElementById('pause-icon').className = 'bi bi-pause-fill';
+        } else {
+            neuroSynthesis.pause();
+            neuroIsPaused = true;
+            document.getElementById('pause-icon').className = 'bi bi-play-fill';
         }
     }
-};
+}
+
+window.togglePauseVoice = togglePauseVoice;
+
+function stopVoice() {
+    if (neuroSynthesis && neuroSynthesis.speaking) {
+        neuroSynthesis.cancel();
+    }
+    setSphereState('idle');
+}
+
+window.stopVoice = stopVoice;
 
 function speakResponse(text) {
-    const ttsCheckbox = document.getElementById('tts-enabled');
-    if (!ttsCheckbox || !ttsCheckbox.checked) {
-        console.log('TTS disabled or checkbox not found');
-        return;
-    }
-    if (!neuroSynthesis) {
-        console.log('Speech synthesis not available');
-        return;
-    }
-    
+    const ttsEnabled = document.getElementById('tts-enabled');
+    if (!neuroSynthesis || !ttsEnabled || !ttsEnabled.checked) return;
+
     neuroSynthesis.cancel();
-    
-    let cleanText = text.replace(/[*#_`]/g, '').replace(/<[^>]*>/g, '');
-    cleanText = cleanText.replace(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g, '$1 dollars');
-    cleanText = cleanText.replace(/(\d+)%/g, '$1 percent');
-    cleanText = cleanText.replace(/\.\s+/g, '. ... ');
-    cleanText = cleanText.replace(/,\s+/g, ', ');
-    cleanText = cleanText.substring(0, 1200);
-    
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.05;
-    utterance.volume = 1.0;
-    utterance.lang = 'en-US';
-    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
     const voices = neuroSynthesis.getVoices();
-    if (voices.length > 0) {
-        const premiumVoices = [
-            'Microsoft Aria Online', 'Microsoft Jenny Online', 'Microsoft Ava Online',
-            'Google US English', 'Samantha (Enhanced)', 'Samantha',
-            'Ava (Premium)', 'Ava', 'Karen (Enhanced)', 'Karen',
-            'Allison', 'Victoria', 'Moira', 'Fiona'
-        ];
-        
-        const maleVoiceNames = [
-            'Alex', 'Daniel', 'David', 'James', 'Tom', 'Fred', 'Ralph',
-            'Mark', 'Guy', 'Aaron', 'Gordon', 'Microsoft David', 'Microsoft Mark',
-            'Microsoft Guy', 'Microsoft Roger'
-        ];
-        
-        let preferredVoice = null;
-        
-        for (const name of premiumVoices) {
-            preferredVoice = voices.find(v => 
-                v.name.toLowerCase().includes(name.toLowerCase()) && v.lang.startsWith('en')
-            );
-            if (preferredVoice) {
-                if (name.includes('Online') || name.includes('Enhanced') || name.includes('Premium')) {
-                    utterance.rate = 0.95;
-                    utterance.pitch = 1.02;
-                }
-                break;
-            }
-        }
-        
-        if (!preferredVoice) {
-            preferredVoice = voices.find(v => 
-                v.lang.startsWith('en') && 
-                (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('neural'))
-            );
-        }
-        
-        if (!preferredVoice) {
-            preferredVoice = voices.find(v => {
-                const nameLower = v.name.toLowerCase();
-                const isMale = maleVoiceNames.some(m => nameLower.includes(m.toLowerCase()));
-                return v.lang.startsWith('en') && !isMale && !nameLower.includes('male');
-            });
-        }
-        
-        if (!preferredVoice) {
-            preferredVoice = voices.find(v => v.lang.startsWith('en-US')) || voices[0];
-        }
-        
-        if (preferredVoice) {
-            utterance.voice = preferredVoice;
-            console.log('COREx Voice:', preferredVoice.name, '| Rate:', utterance.rate, '| Pitch:', utterance.pitch);
-        }
-    }
-    
-    const visualizer = document.getElementById('voice-visualizer');
-    
+    const preferred = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
+                   || voices.find(v => v.lang.startsWith('en'));
+    if (preferred) utterance.voice = preferred;
+
+    const vis = document.getElementById('voice-visualizer');
+
     utterance.onstart = function() {
-        document.getElementById('voice-btn').classList.add('speaking');
-        document.getElementById('voice-status').classList.add('speaking');
-        document.getElementById('voice-status-text').textContent = 'Speaking...';
+        const btn = document.getElementById('voice-btn');
+        const statusText = document.getElementById('voice-status-text');
+        if (btn) btn.classList.add('speaking');
+        if (statusText) { statusText.textContent = 'Speaking...'; statusText.className = 'voice-status-text speaking'; }
         document.getElementById('pause-btn').disabled = false;
         document.getElementById('stop-btn').disabled = false;
         neuroIsPaused = false;
         document.getElementById('pause-icon').className = 'bi bi-pause-fill';
-        if (visualizer) {
-            visualizer.classList.add('active', 'speaking');
-            visualizer.classList.remove('listening');
-        }
+        if (vis) { vis.classList.add('active', 'speaking'); vis.classList.remove('listening'); }
+        setSphereState('responding');
     };
-    
+
     utterance.onend = function() {
-        document.getElementById('voice-btn').classList.remove('speaking');
-        document.getElementById('voice-status').classList.remove('speaking');
+        const btn = document.getElementById('voice-btn');
+        const statusText = document.getElementById('voice-status-text');
+        if (btn) btn.classList.remove('speaking');
         document.getElementById('pause-btn').disabled = true;
         document.getElementById('stop-btn').disabled = true;
         neuroIsPaused = false;
-        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
-        if (visualizer) {
-            visualizer.classList.remove('active', 'speaking');
-        }
-        
+        if (vis) vis.classList.remove('active', 'speaking');
+        setSphereState('idle');
+
         const continuousMode = document.getElementById('continuous-mode');
         if (continuousMode && continuousMode.checked) {
-            document.getElementById('voice-status-text').textContent = 'Listening...';
+            if (statusText) { statusText.textContent = 'Listening...'; statusText.className = 'voice-status-text listening'; }
             setTimeout(() => {
                 if (!neuroIsListening && neuroRecognition) {
-                    try {
-                        neuroRecognition.start();
-                    } catch (e) {
-                        console.error('Failed to restart recognition:', e);
-                        document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+                    try { neuroRecognition.start(); } catch (e) {
+                        if (statusText) { statusText.textContent = 'Click mic to speak'; statusText.className = 'voice-status-text'; }
                     }
                 }
             }, 500);
         } else {
-            document.getElementById('voice-status-text').textContent = 'Click mic to speak';
+            if (statusText) { statusText.textContent = 'Click mic to speak'; statusText.className = 'voice-status-text'; }
         }
     };
-    
-    utterance.onerror = function(event) {
-        console.error('Speech synthesis error:', event.error);
-        document.getElementById('voice-status-text').textContent = 'Speech error';
-        if (visualizer) {
-            visualizer.classList.remove('active', 'speaking');
-        }
+
+    utterance.onerror = function() {
+        if (vis) vis.classList.remove('active', 'speaking');
+        setSphereState('idle');
     };
-    
-    setTimeout(() => {
-        neuroSynthesis.speak(utterance);
-    }, 100);
+
+    setTimeout(() => neuroSynthesis.speak(utterance), 100);
 }
 
 initVoiceRecognition();
 if (neuroSynthesis) {
-    neuroSynthesis.onvoiceschanged = function() {
-        neuroSynthesis.getVoices();
-    };
+    neuroSynthesis.onvoiceschanged = () => neuroSynthesis.getVoices();
     neuroSynthesis.getVoices();
 }
 
 function formatCurrency(value) {
     return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
+        style: 'currency', currency: 'USD',
+        minimumFractionDigits: 0, maximumFractionDigits: 0
     }).format(value);
 }
 
 function loadContext() {
     fetch('/neuroiq/context', { credentials: 'same-origin' })
-        .then(r => {
-            if (!r.ok) throw new Error('Failed to fetch context');
-            return r.json();
-        })
+        .then(r => { if (!r.ok) throw new Error('Err'); return r.json(); })
         .then(data => {
             document.getElementById('metric-revenue').textContent = formatCurrency(data.financial?.ytd_revenue || 0);
             document.getElementById('metric-ar').textContent = formatCurrency(data.financial?.accounts_receivable || 0);
@@ -1091,15 +1495,12 @@ function loadContext() {
             document.getElementById('metric-pipeline').textContent = formatCurrency(data.sales?.pipeline_value || 0);
             document.getElementById('metric-lowstock').textContent = data.inventory?.low_stock_count || 0;
         })
-        .catch(err => console.error('Failed to load context:', err));
+        .catch(err => console.error('Context load failed:', err));
 }
 
 function loadInsights() {
     fetch('/neuroiq/insights', { credentials: 'same-origin' })
-        .then(r => {
-            if (!r.ok) throw new Error('Failed to fetch insights');
-            return r.json();
-        })
+        .then(r => { if (!r.ok) throw new Error('Err'); return r.json(); })
         .then(data => {
             const container = document.getElementById('insights-container');
             if (data.insights && data.insights.length > 0) {
@@ -1111,49 +1512,47 @@ function loadInsights() {
                     </div>
                 `).join('');
             } else {
-                container.innerHTML = '<div style="color: var(--neuro-text-dim); font-size: 0.8rem; text-align: center;">No active alerts</div>';
+                container.innerHTML = '<div style="color: var(--neuro-text-dim); font-size: 0.7rem; text-align: center; padding: 8px 0;">All systems nominal</div>';
             }
         })
-        .catch(err => console.error('Failed to load insights:', err));
+        .catch(err => console.error('Insights load failed:', err));
 }
 
 function addMessage(role, content) {
     const display = document.getElementById('conversation-display');
-    const welcome = display.querySelector('.welcome-message');
-    if (welcome) welcome.remove();
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message message-${role}`;
-    
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `msg msg-${role}`;
+
     const label = role === 'user' ? 'You' : 'COREx NeuroIQ';
-    
-    messageDiv.innerHTML = `
-        <div class="message-label">${label}</div>
-        <div class="message-bubble">${content.replace(/\n/g, '<br>')}</div>
+
+    msgDiv.innerHTML = `
+        <div class="msg-label">${label}</div>
+        <div class="msg-bubble">${content.replace(/\n/g, '<br>')}</div>
     `;
-    
-    display.appendChild(messageDiv);
+
+    display.appendChild(msgDiv);
     display.scrollTop = display.scrollHeight;
 }
 
 async function neuroSendMessage() {
     if (neuroIsProcessing) return;
-    
+
     const input = document.getElementById('neuroiq-input');
     const message = input.value.trim();
-    
     if (!message) return;
-    
+
     neuroIsProcessing = true;
     input.value = '';
     input.style.height = 'auto';
-    
+
     document.getElementById('send-btn').disabled = true;
     document.getElementById('thinking-indicator').classList.add('active');
-    
+    setSphereState('processing');
+
     addMessage('user', message);
     neuroConversationHistory.push({ role: 'user', content: message });
-    
+
     try {
         const response = await fetch('/neuroiq/analyze', {
             method: 'POST',
@@ -1164,11 +1563,12 @@ async function neuroSendMessage() {
                 history: neuroConversationHistory
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.error) {
             addMessage('assistant', 'I apologize, but I encountered an issue processing your request. Please try again.');
+            setSphereState('idle');
         } else {
             addMessage('assistant', data.response);
             neuroConversationHistory.push({ role: 'assistant', content: data.response });
@@ -1176,10 +1576,12 @@ async function neuroSendMessage() {
         }
     } catch (error) {
         addMessage('assistant', 'I apologize, but I am currently unable to process your request. Please try again in a moment.');
+        setSphereState('idle');
     } finally {
         neuroIsProcessing = false;
         document.getElementById('send-btn').disabled = false;
         document.getElementById('thinking-indicator').classList.remove('active');
+        if (sphereState === 'processing') setSphereState('idle');
     }
 }
 
@@ -1194,14 +1596,14 @@ document.getElementById('neuroiq-input').addEventListener('keydown', function(e)
 
 document.getElementById('neuroiq-input').addEventListener('input', function() {
     this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
 loadContext();
 loadInsights();
-
 setInterval(loadContext, 60000);
 setInterval(loadInsights, 60000);
+
 })();
 </script>
 {% endblock %}
