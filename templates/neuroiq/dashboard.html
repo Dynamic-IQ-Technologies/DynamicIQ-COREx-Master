@@ -190,12 +190,15 @@
         width: 80vmin;
         height: 80vmin;
         z-index: 10;
+        pointer-events: none;
     }
 
     #sphere-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
-        border-radius: 50%;
     }
 
     .sphere-glow {
@@ -217,7 +220,7 @@
     }
 
     .sphere-rings {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
@@ -262,7 +265,7 @@
     }
 
     .sphere-holo-arc {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
         width: 90vmin;
@@ -900,18 +903,18 @@
         </div>
     </div>
 
-    <div class="sphere-container parallax-layer" data-depth="0.04">
-        <div class="sphere-glow" id="sphere-glow"></div>
-        <div class="sphere-rings">
-            <div class="sphere-ring"></div>
-            <div class="sphere-ring"></div>
-            <div class="sphere-ring"></div>
-        </div>
-        <div class="sphere-holo-arc">
-            <div class="holo-arc"></div>
-            <div class="holo-arc"></div>
-            <div class="holo-arc"></div>
-        </div>
+    <div class="sphere-glow" id="sphere-glow"></div>
+    <div class="sphere-rings">
+        <div class="sphere-ring"></div>
+        <div class="sphere-ring"></div>
+        <div class="sphere-ring"></div>
+    </div>
+    <div class="sphere-holo-arc">
+        <div class="holo-arc"></div>
+        <div class="holo-arc"></div>
+        <div class="holo-arc"></div>
+    </div>
+    <div class="sphere-container">
         <canvas id="sphere-canvas"></canvas>
     </div>
 
