@@ -1723,6 +1723,58 @@ def add_material_requirement(wo_id):
         conn.commit()
         flash('Material requirement added successfully!', 'success')
         
+        try:
+            po_history = conn.execute('''
+                SELECT COUNT(*) as cnt FROM purchase_order_lines WHERE product_id = ?
+            ''', (product_id,)).fetchone()
+            
+            has_history = po_history and po_history['cnt'] > 0
+            
+            if not has_history:
+                product = conn.execute('''
+                    SELECT name, part_number FROM products WHERE id = ?
+                ''', (product_id,)).fetchone()
+                
+                wo = conn.execute('''
+                    SELECT work_order_number FROM work_orders WHERE id = ?
+                ''', (wo_id,)).fetchone()
+                
+                from routes.rfq_routes import generate_rfq_number
+                rfq_number = generate_rfq_number(conn)
+                
+                product_name = product['name'] if product else 'Unknown'
+                part_num = product['part_number'] if product and product['part_number'] else ''
+                wo_num = wo['work_order_number'] if wo else str(wo_id)
+                
+                title = f"RFQ for {product_name}"
+                if part_num:
+                    title += f" (P/N: {part_num})"
+                
+                description = f"Auto-generated RFQ - No purchase or pricing history found for this item. Created from Work Order {wo_num} material requirement."
+                
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO rfqs (rfq_number, title, description, status, created_by)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (rfq_number, title, description, 'Draft', session.get('user_id')))
+                
+                rfq_id = cursor.lastrowid
+                
+                cursor.execute('''
+                    INSERT INTO rfq_lines (rfq_id, line_number, product_id, description, quantity, notes)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (rfq_id, 1, product_id, product_name + (f' - P/N: {part_num}' if part_num else ''), required_quantity, f'Required for WO {wo_num}'))
+                
+                conn.commit()
+                
+                AuditLogger.log_change(conn, 'rfqs', rfq_id, 'CREATE', session.get('user_id'),
+                                      {'rfq_number': rfq_number, 'title': title, 'auto_generated': True, 'source_wo': wo_id})
+                conn.commit()
+                
+                flash(f'No purchase/pricing history found - RFQ {rfq_number} created automatically.', 'info')
+        except Exception as rfq_err:
+            flash(f'Material added but auto-RFQ creation failed: {str(rfq_err)}', 'warning')
+        
     except Exception as e:
         conn.rollback()
         flash(f'Error adding material requirement: {str(e)}', 'danger')
