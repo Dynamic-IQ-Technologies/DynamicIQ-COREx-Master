@@ -1746,9 +1746,7 @@ def add_material_requirement(wo_id):
                 part_num = product['part_number'] if product and product['part_number'] else ''
                 wo_num = wo['work_order_number'] if wo else str(wo_id)
                 
-                title = f"RFQ for {product_name}"
-                if part_num:
-                    title += f" (P/N: {part_num})"
+                title = "Material Source Pricing"
                 
                 description = f"Auto-generated RFQ - No purchase or pricing history found for this item. Created from Work Order {wo_num} material requirement."
                 
