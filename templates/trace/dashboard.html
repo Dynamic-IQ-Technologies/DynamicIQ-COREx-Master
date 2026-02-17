@@ -1,0 +1,1081 @@
+{% extends "base.html" %}
+{% block title %}Enterprise Forensic Intelligence - Traceability Engine{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --trace-primary: #6366f1;
+    --trace-success: #10b981;
+    --trace-warning: #f59e0b;
+    --trace-danger: #ef4444;
+    --trace-info: #3b82f6;
+    --trace-dark: #0f172a;
+    --trace-surface: #1e293b;
+    --trace-surface-2: #334155;
+    --trace-border: #475569;
+    --trace-text: #e2e8f0;
+    --trace-muted: #94a3b8;
+}
+
+.trace-container {
+    background: var(--trace-dark);
+    min-height: 100vh;
+    color: var(--trace-text);
+    padding: 0;
+}
+
+.trace-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+    padding: 24px 32px;
+    position: relative;
+    overflow: hidden;
+}
+
+.trace-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.trace-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.trace-subtitle {
+    font-size: 0.85rem;
+    color: var(--trace-muted);
+    margin: 4px 0 0 0;
+}
+
+.trace-search-panel {
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 24px;
+}
+
+.trace-search-row {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+}
+
+.trace-search-group {
+    flex: 1;
+}
+
+.trace-search-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--trace-muted);
+    margin-bottom: 6px;
+}
+
+.trace-select, .trace-input {
+    width: 100%;
+    background: var(--trace-dark);
+    border: 1px solid var(--trace-border);
+    color: var(--trace-text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+}
+
+.trace-select:focus, .trace-input:focus {
+    outline: none;
+    border-color: var(--trace-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.trace-btn-search {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trace-btn-search:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.trace-btn-search:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.trace-results {
+    padding: 0 24px 24px;
+    display: none;
+}
+
+.trace-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.trace-summary-card {
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    text-align: center;
+}
+
+.trace-summary-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+
+.trace-summary-label {
+    font-size: 0.75rem;
+    color: var(--trace-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 6px;
+}
+
+.trace-risk-card {
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.trace-risk-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.trace-risk-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trace-risk-badge {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.trace-risk-meter {
+    height: 8px;
+    background: var(--trace-dark);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.trace-risk-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+}
+
+.trace-risk-factors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.trace-risk-factor {
+    display: flex;
+    align-items: start;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--trace-text);
+}
+
+.trace-risk-factor i {
+    color: var(--trace-warning);
+    margin-top: 2px;
+}
+
+.trace-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--trace-surface);
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid var(--trace-border);
+}
+
+.trace-tab {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--trace-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.trace-tab.active {
+    background: var(--trace-primary);
+    color: #fff;
+}
+
+.trace-tab:hover:not(.active) {
+    background: var(--trace-surface-2);
+    color: var(--trace-text);
+}
+
+.trace-tab-panel {
+    display: none;
+}
+
+.trace-tab-panel.active {
+    display: block;
+}
+
+.trace-timeline {
+    position: relative;
+    padding-left: 40px;
+}
+
+.trace-timeline::before {
+    content: '';
+    position: absolute;
+    left: 16px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--trace-primary), var(--trace-surface-2));
+}
+
+.trace-event {
+    position: relative;
+    margin-bottom: 12px;
+    padding: 14px 18px;
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.trace-event:hover {
+    border-color: var(--trace-primary);
+    transform: translateX(4px);
+}
+
+.trace-event::before {
+    content: '';
+    position: absolute;
+    left: -32px;
+    top: 18px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--trace-primary);
+    border: 2px solid var(--trace-dark);
+    z-index: 1;
+}
+
+.trace-event-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.trace-event-module {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--trace-primary);
+}
+
+.trace-event-time {
+    font-size: 0.75rem;
+    color: var(--trace-muted);
+}
+
+.trace-event-desc {
+    font-size: 0.9rem;
+    color: var(--trace-text);
+    margin: 0;
+}
+
+.trace-event-type {
+    font-size: 0.8rem;
+    color: var(--trace-muted);
+    margin-top: 4px;
+}
+
+.trace-graph-container {
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 500px;
+    position: relative;
+}
+
+.trace-graph-canvas {
+    width: 100%;
+    height: 500px;
+}
+
+.trace-cost-container {
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.trace-cost-canvas {
+    width: 100%;
+    height: 350px;
+}
+
+.trace-module-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin: 2px;
+}
+
+.trace-supplier-panel {
+    background: var(--trace-surface);
+    border: 1px solid var(--trace-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.trace-filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.trace-filter-chip {
+    padding: 4px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--trace-border);
+    background: transparent;
+    color: var(--trace-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trace-filter-chip.active {
+    background: var(--trace-primary);
+    border-color: var(--trace-primary);
+    color: #fff;
+}
+
+.trace-loading {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.trace-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--trace-surface-2);
+    border-top-color: var(--trace-primary);
+    border-radius: 50%;
+    animation: traceSpin 0.8s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes traceSpin {
+    to { transform: rotate(360deg); }
+}
+
+.trace-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--trace-muted);
+}
+
+.trace-empty i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.trace-recommendations {
+    margin-top: 16px;
+}
+
+.trace-recommendation {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(99, 102, 241, 0.08);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    color: var(--trace-text);
+}
+
+.trace-recommendation i {
+    color: var(--trace-primary);
+}
+
+.module-color-product { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+.module-color-inventory { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.module-color-receiving { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.module-color-manufacturing { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.module-color-procurement { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+.module-color-sales { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.module-color-shipping { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
+.module-color-finance { background: rgba(132, 204, 22, 0.15); color: #a3e635; }
+.module-color-quality { background: rgba(249, 115, 22, 0.15); color: #fb923c; }
+.module-color-engineering { background: rgba(236, 72, 153, 0.15); color: #f472b6; }
+.module-color-labor { background: rgba(20, 184, 166, 0.15); color: #2dd4bf; }
+
+.graph-node {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid rgba(255,255,255,0.2);
+    font-size: 0.6rem;
+    text-align: center;
+    padding: 4px;
+    color: #fff;
+    font-weight: 600;
+    word-break: break-all;
+    overflow: hidden;
+}
+
+.graph-node:hover {
+    transform: scale(1.2);
+    z-index: 10;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+}
+
+.graph-tooltip {
+    position: absolute;
+    background: var(--trace-dark);
+    border: 1px solid var(--trace-primary);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: var(--trace-text);
+    z-index: 100;
+    pointer-events: none;
+    max-width: 280px;
+    display: none;
+}
+
+.trace-export-btn {
+    background: var(--trace-surface-2);
+    border: 1px solid var(--trace-border);
+    color: var(--trace-text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.trace-export-btn:hover {
+    background: var(--trace-border);
+}
+
+@media (max-width: 768px) {
+    .trace-search-row { flex-direction: column; }
+    .trace-risk-factors { grid-template-columns: 1fr; }
+    .trace-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="trace-container">
+    <div class="trace-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="trace-title"><i class="bi bi-fingerprint me-2"></i>Enterprise Forensic Intelligence</h1>
+                <p class="trace-subtitle">Cross-Module Traceability Engine - Reconstruct Operational History</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="trace-export-btn" onclick="exportTrace('json')" id="exportJsonBtn" style="display:none">
+                    <i class="bi bi-filetype-json"></i> Export JSON
+                </button>
+                <button class="trace-export-btn" onclick="exportTrace('csv')" id="exportCsvBtn" style="display:none">
+                    <i class="bi bi-filetype-csv"></i> Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="trace-search-panel">
+        <div class="trace-search-row">
+            <div class="trace-search-group" style="max-width: 220px;">
+                <label>Search Type</label>
+                <select class="trace-select" id="traceType">
+                    <option value="part_number">Part Number</option>
+                    <option value="serial_number">Serial Number</option>
+                    <option value="lot_number">Batch / Lot Number</option>
+                    <option value="work_order">Work Order</option>
+                    <option value="purchase_order">Purchase Order</option>
+                    <option value="sales_order">Sales Order</option>
+                </select>
+            </div>
+            <div class="trace-search-group">
+                <label>Search Value</label>
+                <input type="text" class="trace-input" id="traceValue" placeholder="Enter part number, serial, WO number..." autocomplete="off">
+            </div>
+            <button class="trace-btn-search" id="traceSearchBtn" onclick="executeTrace()">
+                <i class="bi bi-search"></i> Trace
+            </button>
+        </div>
+    </div>
+
+    <div class="trace-loading" id="traceLoading">
+        <div class="trace-loading-spinner"></div>
+        <div style="color: var(--trace-muted); font-size: 0.9rem;">Reconstructing operational history across all modules...</div>
+    </div>
+
+    <div class="trace-results" id="traceResults">
+        <div class="trace-summary-grid" id="traceSummary"></div>
+
+        <div class="trace-risk-card" id="traceRiskPanel"></div>
+
+        <div class="trace-tabs">
+            <button class="trace-tab active" onclick="switchTab('timeline')">
+                <i class="bi bi-clock-history"></i> Timeline
+            </button>
+            <button class="trace-tab" onclick="switchTab('graph')">
+                <i class="bi bi-diagram-3"></i> Relationship Graph
+            </button>
+            <button class="trace-tab" onclick="switchTab('cost')">
+                <i class="bi bi-graph-up"></i> Cost Evolution
+            </button>
+            <button class="trace-tab" onclick="switchTab('supplier')">
+                <i class="bi bi-building"></i> Supplier Snapshot
+            </button>
+        </div>
+
+        <div class="trace-tab-panel active" id="panel-timeline">
+            <div class="trace-filter-bar" id="moduleFilters"></div>
+            <div class="trace-timeline" id="traceTimeline"></div>
+        </div>
+
+        <div class="trace-tab-panel" id="panel-graph">
+            <div class="trace-graph-container" id="graphContainer">
+                <canvas class="trace-graph-canvas" id="graphCanvas"></canvas>
+                <div class="graph-tooltip" id="graphTooltip"></div>
+            </div>
+        </div>
+
+        <div class="trace-tab-panel" id="panel-cost">
+            <div class="trace-cost-container">
+                <canvas class="trace-cost-canvas" id="costCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="trace-tab-panel" id="panel-supplier">
+            <div class="trace-supplier-panel" id="supplierPanel"></div>
+        </div>
+    </div>
+
+    <div class="trace-empty" id="traceEmpty">
+        <i class="bi bi-fingerprint d-block"></i>
+        <h5>Enterprise Forensic Intelligence</h5>
+        <p>Search by Part Number, Serial Number, Lot Number, Work Order, Purchase Order, or Sales Order to reconstruct the complete operational history.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let traceData = null;
+let costChart = null;
+let activeFilters = new Set();
+
+document.getElementById('traceValue').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') executeTrace();
+});
+
+{% if auto_search is defined and auto_search %}
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('traceType').value = '{{ query_type }}';
+    document.getElementById('traceValue').value = '{{ query_value }}';
+    executeTrace();
+});
+{% endif %}
+
+function executeTrace() {
+    const type = document.getElementById('traceType').value;
+    const value = document.getElementById('traceValue').value.trim();
+    if (!value) return;
+
+    document.getElementById('traceLoading').style.display = 'block';
+    document.getElementById('traceResults').style.display = 'none';
+    document.getElementById('traceEmpty').style.display = 'none';
+    document.getElementById('traceSearchBtn').disabled = true;
+
+    fetch('/trace/search', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query_type: type, query_value: value})
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('traceLoading').style.display = 'none';
+        document.getElementById('traceSearchBtn').disabled = false;
+
+        if (!data.success || !data.events || data.events.length === 0) {
+            document.getElementById('traceEmpty').style.display = 'block';
+            document.getElementById('traceEmpty').innerHTML = `
+                <i class="bi bi-search d-block"></i>
+                <h5>No Records Found</h5>
+                <p>No trace data found for "${value}". Verify the identifier and try again.</p>`;
+            return;
+        }
+
+        traceData = data;
+        document.getElementById('traceResults').style.display = 'block';
+        document.getElementById('exportJsonBtn').style.display = 'flex';
+        document.getElementById('exportCsvBtn').style.display = 'flex';
+
+        renderSummary(data.summary);
+        renderRiskPanel(data.risk_analysis);
+        renderTimeline(data.events);
+        renderModuleFilters(data.events);
+        renderGraph(data.graph_data);
+        renderCostChart(data.cost_data);
+        renderSupplierPanel(data.events);
+    })
+    .catch(err => {
+        document.getElementById('traceLoading').style.display = 'none';
+        document.getElementById('traceSearchBtn').disabled = false;
+        document.getElementById('traceEmpty').style.display = 'block';
+        document.getElementById('traceEmpty').innerHTML = `
+            <i class="bi bi-exclamation-triangle d-block" style="color: var(--trace-danger);"></i>
+            <h5>Trace Error</h5>
+            <p>${err.message}</p>`;
+    });
+}
+
+function renderSummary(summary) {
+    const el = document.getElementById('traceSummary');
+    el.innerHTML = `
+        <div class="trace-summary-card">
+            <div class="trace-summary-value" style="color: var(--trace-primary);">${summary.total_events}</div>
+            <div class="trace-summary-label">Total Events</div>
+        </div>
+        <div class="trace-summary-card">
+            <div class="trace-summary-value" style="color: var(--trace-info);">${summary.modules_touched.length}</div>
+            <div class="trace-summary-label">Modules Touched</div>
+        </div>
+        <div class="trace-summary-card">
+            <div class="trace-summary-value" style="color: var(--trace-success);">$${(summary.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div class="trace-summary-label">Total Cost Impact</div>
+        </div>
+        <div class="trace-summary-card">
+            <div class="trace-summary-value" style="color: var(--trace-warning);">${Object.keys(summary.event_types).length}</div>
+            <div class="trace-summary-label">Event Types</div>
+        </div>
+        <div class="trace-summary-card">
+            <div class="trace-summary-value" style="font-size: 1rem; color: var(--trace-muted);">${summary.first_event ? summary.first_event.substring(0,10) : 'N/A'}</div>
+            <div class="trace-summary-label">First Event</div>
+        </div>
+        <div class="trace-summary-card">
+            <div class="trace-summary-value" style="font-size: 1rem; color: var(--trace-muted);">${summary.last_event ? summary.last_event.substring(0,10) : 'N/A'}</div>
+            <div class="trace-summary-label">Last Event</div>
+        </div>`;
+}
+
+function renderRiskPanel(risk) {
+    const el = document.getElementById('traceRiskPanel');
+    const factorsHtml = risk.risk_factors.map(f =>
+        `<div class="trace-risk-factor"><i class="bi bi-exclamation-diamond"></i><span>${f}</span></div>`
+    ).join('');
+    const recsHtml = risk.recommendations.map(r =>
+        `<div class="trace-recommendation"><i class="bi bi-lightbulb"></i><span>${r}</span></div>`
+    ).join('');
+
+    el.innerHTML = `
+        <div class="trace-risk-header">
+            <div class="trace-risk-title">
+                <i class="bi bi-shield-exclamation"></i> AI Risk Index
+            </div>
+            <div class="trace-risk-badge" style="background: ${risk.risk_color}20; color: ${risk.risk_color};">
+                ${risk.risk_level} - ${risk.risk_score}/100
+            </div>
+        </div>
+        <div class="trace-risk-meter">
+            <div class="trace-risk-fill" style="width: ${risk.risk_score}%; background: ${risk.risk_color};"></div>
+        </div>
+        ${factorsHtml ? `<div class="trace-risk-factors">${factorsHtml}</div>` : ''}
+        ${recsHtml ? `<div class="trace-recommendations">${recsHtml}</div>` : ''}`;
+}
+
+function getModuleColorClass(module) {
+    const map = {
+        'Product Master': 'module-color-product',
+        'Inventory': 'module-color-inventory',
+        'Receiving': 'module-color-receiving',
+        'Manufacturing': 'module-color-manufacturing',
+        'Procurement': 'module-color-procurement',
+        'Sales': 'module-color-sales',
+        'Shipping': 'module-color-shipping',
+        'Finance': 'module-color-finance',
+        'Quality': 'module-color-quality',
+        'Engineering': 'module-color-engineering',
+        'Labor': 'module-color-labor'
+    };
+    return map[module] || 'module-color-product';
+}
+
+function renderModuleFilters(events) {
+    const modules = [...new Set(events.map(e => e.module))];
+    activeFilters = new Set(modules);
+    const el = document.getElementById('moduleFilters');
+    el.innerHTML = `<button class="trace-filter-chip active" onclick="toggleFilter('all')">All</button>` +
+        modules.map(m => `<button class="trace-filter-chip active ${getModuleColorClass(m)}" data-module="${m}" onclick="toggleFilter('${m}')">${m}</button>`).join('');
+}
+
+function toggleFilter(module) {
+    if (module === 'all') {
+        const modules = [...new Set(traceData.events.map(e => e.module))];
+        if (activeFilters.size === modules.length) {
+            activeFilters.clear();
+        } else {
+            activeFilters = new Set(modules);
+        }
+    } else {
+        if (activeFilters.has(module)) {
+            activeFilters.delete(module);
+        } else {
+            activeFilters.add(module);
+        }
+    }
+    document.querySelectorAll('.trace-filter-chip').forEach(chip => {
+        const m = chip.dataset.module;
+        if (!m) {
+            chip.classList.toggle('active', activeFilters.size === [...new Set(traceData.events.map(e => e.module))].length);
+        } else {
+            chip.classList.toggle('active', activeFilters.has(m));
+        }
+    });
+    renderTimeline(traceData.events);
+}
+
+function renderTimeline(events) {
+    const el = document.getElementById('traceTimeline');
+    const filtered = events.filter(e => activeFilters.has(e.module));
+
+    if (filtered.length === 0) {
+        el.innerHTML = '<div class="trace-empty"><p>No events match the selected filters.</p></div>';
+        return;
+    }
+
+    el.innerHTML = filtered.map((e, i) => `
+        <div class="trace-event">
+            <div class="trace-event-header">
+                <span class="trace-event-module ${getModuleColorClass(e.module)}">${e.module}</span>
+                <span class="trace-event-time">${e.timestamp ? e.timestamp.replace('T', ' ').substring(0, 19) : 'No timestamp'}</span>
+            </div>
+            <p class="trace-event-desc"><i class="${e.icon} me-1"></i>${e.description}</p>
+            <div class="trace-event-type">${e.event_type} ${e.entity_ref ? '- ' + e.entity_ref : ''}</div>
+        </div>
+    `).join('');
+}
+
+function renderGraph(graphData) {
+    const container = document.getElementById('graphContainer');
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+
+    container.querySelectorAll('.graph-node').forEach(n => n.remove());
+
+    if (!graphData.nodes.length) return;
+
+    const w = container.offsetWidth - 40;
+    const h = 500;
+    const nodes = graphData.nodes;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    const moduleGroups = {};
+    nodes.forEach(n => {
+        if (!moduleGroups[n.module]) moduleGroups[n.module] = [];
+        moduleGroups[n.module].push(n);
+    });
+
+    const moduleKeys = Object.keys(moduleGroups);
+    const positions = {};
+
+    moduleKeys.forEach((mod, mi) => {
+        const angle = (2 * Math.PI * mi) / moduleKeys.length - Math.PI / 2;
+        const groupNodes = moduleGroups[mod];
+        const baseR = Math.min(w, h) * 0.35;
+
+        groupNodes.forEach((node, ni) => {
+            const spread = groupNodes.length > 1 ? (ni - (groupNodes.length - 1) / 2) * 30 : 0;
+            const r = baseR + spread;
+            const a = angle + (ni - (groupNodes.length - 1) / 2) * 0.15;
+            positions[node.id] = {
+                x: cx + r * Math.cos(a),
+                y: cy + r * Math.sin(a)
+            };
+        });
+    });
+
+    canvas.width = w;
+    canvas.height = h;
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(99, 102, 241, 0.2)';
+    ctx.lineWidth = 1;
+
+    graphData.edges.forEach(edge => {
+        const from = positions[edge.from];
+        const to = positions[edge.to];
+        if (from && to) {
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+        }
+    });
+
+    nodes.forEach(node => {
+        const pos = positions[node.id];
+        if (!pos) return;
+        const div = document.createElement('div');
+        div.className = 'graph-node';
+        div.style.left = (pos.x - 30 + 20) + 'px';
+        div.style.top = (pos.y - 30) + 'px';
+        div.style.background = node.color;
+        div.textContent = node.label.substring(0, 10);
+        div.title = `${node.module}: ${node.label}\n${node.description}`;
+
+        div.addEventListener('mouseenter', (e) => {
+            const tooltip = document.getElementById('graphTooltip');
+            tooltip.innerHTML = `<strong>${node.module}</strong><br>${node.type}: ${node.label}<br><small>${node.description}</small>`;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (pos.x + 40) + 'px';
+            tooltip.style.top = (pos.y - 20) + 'px';
+        });
+        div.addEventListener('mouseleave', () => {
+            document.getElementById('graphTooltip').style.display = 'none';
+        });
+
+        container.appendChild(div);
+    });
+}
+
+function renderCostChart(costData) {
+    const canvas = document.getElementById('costCanvas');
+    if (costChart) costChart.destroy();
+
+    if (!costData.length) {
+        canvas.parentElement.innerHTML = '<div class="trace-empty"><p>No cost data available for this trace.</p></div>';
+        return;
+    }
+
+    costChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: costData.map(d => d.timestamp ? d.timestamp.substring(0, 10) : 'N/A'),
+            datasets: [{
+                label: 'Transaction Amount',
+                data: costData.map(d => d.amount),
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.3,
+                fill: false,
+                pointRadius: 5,
+                pointBackgroundColor: '#6366f1'
+            }, {
+                label: 'Cumulative Cost',
+                data: costData.map(d => d.cumulative),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#10b981'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#94a3b8' }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(ctx) {
+                            return costData[ctx.dataIndex].description;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(71, 85, 105, 0.3)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#94a3b8',
+                        callback: v => '$' + v.toLocaleString()
+                    },
+                    grid: { color: 'rgba(71, 85, 105, 0.3)' }
+                }
+            }
+        }
+    });
+}
+
+function renderSupplierPanel(events) {
+    const el = document.getElementById('supplierPanel');
+    const suppliers = {};
+    events.forEach(e => {
+        const sup = e.details && e.details.supplier;
+        if (sup) {
+            if (!suppliers[sup]) suppliers[sup] = {name: sup, events: 0, cost: 0};
+            suppliers[sup].events++;
+            suppliers[sup].cost += (e.details.cost || 0);
+        }
+    });
+
+    const poEvents = events.filter(e => e.module === 'Procurement');
+    const recEvents = events.filter(e => e.module === 'Receiving');
+
+    const supList = Object.values(suppliers);
+    if (supList.length === 0 && poEvents.length === 0) {
+        el.innerHTML = '<div class="trace-empty"><p>No supplier data found in this trace.</p></div>';
+        return;
+    }
+
+    let html = '<h6 style="color: #fff; margin-bottom: 16px;"><i class="bi bi-building me-2"></i>Supplier Dependency Snapshot</h6>';
+
+    if (supList.length > 0) {
+        html += '<div class="row g-3 mb-3">';
+        supList.forEach(s => {
+            html += `<div class="col-md-4">
+                <div style="background: var(--trace-dark); border: 1px solid var(--trace-border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 700; color: #fff;">${s.name}</div>
+                    <div style="font-size: 0.8rem; color: var(--trace-muted);">${s.events} transactions - $${s.cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    if (poEvents.length > 0) {
+        html += '<h6 style="color: var(--trace-muted); margin-top: 16px; font-size: 0.85rem;">Procurement History</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm" style="color: var(--trace-text); font-size: 0.85rem;">';
+        html += '<thead><tr><th style="color: var(--trace-muted); border-color: var(--trace-border);">Reference</th><th style="color: var(--trace-muted); border-color: var(--trace-border);">Description</th><th style="color: var(--trace-muted); border-color: var(--trace-border);">Date</th></tr></thead><tbody>';
+        poEvents.forEach(pe => {
+            html += `<tr><td style="border-color: var(--trace-border);">${pe.entity_ref}</td><td style="border-color: var(--trace-border);">${pe.description}</td><td style="border-color: var(--trace-border);">${pe.timestamp ? pe.timestamp.substring(0,10) : 'N/A'}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    el.innerHTML = html;
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.trace-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.trace-tab-panel').forEach(p => p.classList.remove('active'));
+    event.target.closest('.trace-tab').classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+
+    if (tab === 'graph' && traceData) {
+        setTimeout(() => renderGraph(traceData.graph_data), 100);
+    }
+}
+
+function exportTrace(format) {
+    if (!traceData) return;
+    if (format === 'json') {
+        const blob = new Blob([JSON.stringify(traceData, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trace_${traceData.query.value}_${new Date().toISOString().substring(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } else if (format === 'csv') {
+        let csv = 'Module,Event Type,Timestamp,Description,Reference\n';
+        traceData.events.forEach(e => {
+            csv += `"${e.module}","${e.event_type}","${e.timestamp || ''}","${e.description.replace(/"/g, '""')}","${e.entity_ref || ''}"\n`;
+        });
+        const blob = new Blob([csv], {type: 'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trace_${traceData.query.value}_${new Date().toISOString().substring(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
+</script>
+{% endblock %}

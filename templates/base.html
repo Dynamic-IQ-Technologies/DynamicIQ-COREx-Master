@@ -1040,6 +1040,20 @@
         </ul>
         {% endif %}
         
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('traceability')">
+            <i class="bi bi-fingerprint section-icon"></i>
+            <span>Traceability</span>
+            <i class="bi bi-chevron-down toggle-icon" id="traceability-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="traceability-content">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('trace.dashboard') }}">
+                    <i class="bi bi-search"></i>
+                    <span>Forensic Intelligence</span>
+                </a>
+            </li>
+        </ul>
+        
         {% if user_permissions.get('section_shipping', 1) == 1 %}
         <div class="sidebar-section-title collapsible" onclick="toggleSection('shipping')">
             <i class="bi bi-box-seam section-icon"></i>
