@@ -354,14 +354,7 @@ def dashboard():
             FROM vendor_invoices
             WHERE status NOT IN ('Paid', 'Cancelled')
             GROUP BY 1
-            ORDER BY 
-                CASE aging_bucket
-                    WHEN 'Current' THEN 1
-                    WHEN '1-30 Days' THEN 2
-                    WHEN '31-60 Days' THEN 3
-                    WHEN '61-90 Days' THEN 4
-                    ELSE 5
-                END
+            ORDER BY MIN(CURRENT_DATE - due_date) ASC
         '''
     else:
         ap_aging_query = '''
@@ -377,14 +370,7 @@ def dashboard():
             FROM vendor_invoices
             WHERE status NOT IN ('Paid', 'Cancelled')
             GROUP BY 1
-            ORDER BY 
-                CASE aging_bucket
-                    WHEN 'Current' THEN 1
-                    WHEN '1-30 Days' THEN 2
-                    WHEN '31-60 Days' THEN 3
-                    WHEN '61-90 Days' THEN 4
-                    ELSE 5
-                END
+            ORDER BY MIN(julianday('now') - julianday(due_date)) ASC
         '''
     ap_aging = conn.execute(ap_aging_query, ap_aging_params).fetchall()
     
