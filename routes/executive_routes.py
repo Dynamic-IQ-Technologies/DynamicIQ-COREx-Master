@@ -353,6 +353,15 @@ def dashboard():
                 COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
             FROM vendor_invoices
             WHERE status NOT IN ('Paid', 'Cancelled')
+            GROUP BY 1
+            ORDER BY 
+                CASE aging_bucket
+                    WHEN 'Current' THEN 1
+                    WHEN '1-30 Days' THEN 2
+                    WHEN '31-60 Days' THEN 3
+                    WHEN '61-90 Days' THEN 4
+                    ELSE 5
+                END
         '''
     else:
         ap_aging_query = '''
@@ -367,24 +376,16 @@ def dashboard():
                 COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
             FROM vendor_invoices
             WHERE status NOT IN ('Paid', 'Cancelled')
+            GROUP BY 1
+            ORDER BY 
+                CASE aging_bucket
+                    WHEN 'Current' THEN 1
+                    WHEN '1-30 Days' THEN 2
+                    WHEN '31-60 Days' THEN 3
+                    WHEN '61-90 Days' THEN 4
+                    ELSE 5
+                END
         '''
-    ap_aging_query += '''
-        GROUP BY 1
-        ORDER BY 
-            CASE 
-                WHEN (CASE WHEN CURRENT_DATE - due_date <= 0 THEN 'Current'
-                          WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN '1-30 Days'
-                          WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN '31-60 Days'
-                          WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN '61-90 Days'
-                          ELSE '90+ Days' END) = 'Current' THEN 1
-                WHEN (CASE WHEN CURRENT_DATE - due_date <= 0 THEN 'Current'
-                          WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN '1-30 Days'
-                          WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN '31-60 Days'
-                          WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN '61-90 Days'
-                          ELSE '90+ Days' END) = '1-30 Days' THEN 2
-                ELSE 3
-            END
-    '''
     ap_aging = conn.execute(ap_aging_query, ap_aging_params).fetchall()
     
     # Chart Data: Top 10 Vendors by Spend
