@@ -2177,6 +2177,14 @@ if (neuroSynthesis) {
     neuroSynthesis.getVoices();
 }
 
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        const welcomeMsg = "Hi, I am COREx NeuroIQ, your full system intelligent neuro layer. How may I assist you today?";
+        addMessage('assistant', welcomeMsg);
+        speakResponse(welcomeMsg);
+    }, 800);
+});
+
 function formatCurrency(value) {
     return new Intl.NumberFormat('en-US', {
         style: 'currency', currency: 'USD',
