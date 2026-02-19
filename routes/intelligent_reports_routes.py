@@ -392,7 +392,7 @@ def _log_action(report_id, action, details):
         db = Database()
         conn = db.get_connection()
         conn.execute('''
-            INSERT INTO report_audit_log (report_id, action, user_id, details)
+            INSERT INTO report_audit_log (report_id, action_type, performed_by, action_description)
             VALUES (%s, %s, %s, %s)
         ''', (report_id, action, user_id, details))
         conn.commit()

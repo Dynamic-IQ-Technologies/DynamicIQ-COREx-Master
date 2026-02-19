@@ -176,10 +176,14 @@ class ReportingEngine:
         if not selected_fields:
             selected_fields = list(valid_fields)
 
+        cleaned_fields = []
         for f in selected_fields:
             base_field = f.split('(')[-1].rstrip(')') if '(' in f else f
-            if base_field not in valid_fields and base_field != '*':
-                raise ValueError(f"Invalid field: {f}")
+            if base_field in valid_fields or base_field == '*':
+                cleaned_fields.append(f)
+        if not cleaned_fields:
+            cleaned_fields = list(valid_fields)
+        selected_fields = cleaned_fields
 
         joins = config.get('joins', [])
         join_clauses = []
@@ -485,7 +489,7 @@ class ReportingEngine:
     def _log_audit(self, conn, report_id, action, user_id, details):
         try:
             conn.execute('''
-                INSERT INTO report_audit_log (report_id, action, user_id, details)
+                INSERT INTO report_audit_log (report_id, action_type, performed_by, action_description)
                 VALUES (%s, %s, %s, %s)
             ''', (report_id, action, user_id, details))
             conn.commit()
