@@ -109,7 +109,7 @@ RULES:
         )
 
         sql_query = response.choices[0].message.content.strip()
-        sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
+        sql_query = sql_query.replace('```sql', '').replace('```', '').strip().rstrip(';').strip()
 
         validation_error = _validate_sql_safety(sql_query)
         if validation_error:
@@ -165,7 +165,7 @@ RULES:
         )
 
         sql_query = response.choices[0].message.content.strip()
-        sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
+        sql_query = sql_query.replace('```sql', '').replace('```', '').strip().rstrip(';').strip()
 
         validation_error = _validate_sql_safety(sql_query)
         if validation_error:
@@ -327,7 +327,7 @@ def _validate_sql_safety(sql_query):
     if not sql_query or not sql_query.strip():
         return 'Empty query'
 
-    cleaned = sql_query.strip()
+    cleaned = sql_query.strip().rstrip(';').strip()
 
     if ';' in cleaned:
         return 'Multiple statements are not allowed. Please rephrase your request as a single query.'
