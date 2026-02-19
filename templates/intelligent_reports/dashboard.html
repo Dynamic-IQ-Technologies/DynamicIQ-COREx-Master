@@ -1,0 +1,718 @@
+{% extends "base.html" %}
+
+{% block title %}Intelligent Reporting{% endblock %}
+
+{% block head %}
+<style>
+    .ir-container { max-width: 1400px; margin: 0 auto; }
+    .ir-header { 
+        background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+        border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; color: #f8fafc;
+        border: 1px solid rgba(99,102,241,0.3);
+    }
+    .ir-header h2 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .ir-header p { color: #94a3b8; margin: 4px 0 0; font-size: 0.9rem; }
+    .ir-tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #1e293b; border-radius: 10px; padding: 4px; }
+    .ir-tab { 
+        flex: 1; text-align: center; padding: 10px 16px; border-radius: 8px; cursor: pointer;
+        color: #94a3b8; font-weight: 500; font-size: 0.85rem; transition: all 0.2s;
+        border: none; background: transparent;
+    }
+    .ir-tab.active { background: #6366f1; color: #fff; }
+    .ir-tab:hover:not(.active) { background: #334155; color: #e2e8f0; }
+    .ir-panel { display: none; }
+    .ir-panel.active { display: block; }
+    .ir-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    .ir-card-header { font-weight: 600; color: #e2e8f0; margin-bottom: 12px; font-size: 0.95rem; }
+    .ir-nl-input { 
+        width: 100%; background: #0f172a; border: 1px solid #475569; border-radius: 8px;
+        color: #e2e8f0; padding: 14px 16px; font-size: 0.9rem; resize: vertical; min-height: 80px;
+    }
+    .ir-nl-input::placeholder { color: #64748b; }
+    .ir-nl-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+    .ir-btn { 
+        padding: 8px 20px; border-radius: 6px; font-weight: 500; font-size: 0.85rem; cursor: pointer;
+        border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .ir-btn-primary { background: #6366f1; color: #fff; }
+    .ir-btn-primary:hover { background: #4f46e5; }
+    .ir-btn-secondary { background: #334155; color: #e2e8f0; }
+    .ir-btn-secondary:hover { background: #475569; }
+    .ir-btn-success { background: #059669; color: #fff; }
+    .ir-btn-success:hover { background: #047857; }
+    .ir-btn-danger { background: #dc2626; color: #fff; }
+    .ir-btn-danger:hover { background: #b91c1c; }
+    .ir-btn-sm { padding: 5px 12px; font-size: 0.8rem; }
+    .ir-select, .ir-input { 
+        background: #0f172a; border: 1px solid #475569; border-radius: 6px;
+        color: #e2e8f0; padding: 8px 12px; font-size: 0.85rem; width: 100%;
+    }
+    .ir-select:focus, .ir-input:focus { outline: none; border-color: #6366f1; }
+    .ir-label { color: #94a3b8; font-size: 0.8rem; font-weight: 500; margin-bottom: 4px; display: block; }
+    .ir-results-area { 
+        background: #0f172a; border: 1px solid #334155; border-radius: 10px; 
+        min-height: 200px; overflow: hidden;
+    }
+    .ir-table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+    .ir-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .ir-table th { 
+        background: #1e293b; color: #94a3b8; padding: 10px 12px; text-align: left;
+        font-weight: 600; position: sticky; top: 0; z-index: 1; border-bottom: 1px solid #334155;
+    }
+    .ir-table td { padding: 8px 12px; color: #e2e8f0; border-bottom: 1px solid #1e293b; }
+    .ir-table tr:hover td { background: rgba(99,102,241,0.05); }
+    .ir-status-bar { 
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 16px; background: #1e293b; border-top: 1px solid #334155;
+        font-size: 0.8rem; color: #94a3b8;
+    }
+    .ir-field-tag { 
+        display: inline-flex; align-items: center; gap: 4px; background: #334155; 
+        color: #e2e8f0; padding: 4px 10px; border-radius: 14px; font-size: 0.78rem; margin: 2px;
+    }
+    .ir-field-tag .remove { cursor: pointer; color: #94a3b8; font-size: 0.9rem; }
+    .ir-field-tag .remove:hover { color: #f87171; }
+    .ir-filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+    .ir-filter-row .ir-select, .ir-filter-row .ir-input { width: auto; flex: 1; min-width: 120px; }
+    .ir-saved-item { 
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 12px 16px; border-bottom: 1px solid #334155; cursor: pointer; transition: background 0.15s;
+    }
+    .ir-saved-item:hover { background: rgba(99,102,241,0.08); }
+    .ir-saved-item:last-child { border-bottom: none; }
+    .ir-saved-meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+    .ir-badge { 
+        display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 500;
+    }
+    .ir-badge-ops { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .ir-badge-quality { background: rgba(16,185,129,0.15); color: #34d399; }
+    .ir-badge-procurement { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .ir-badge-finance { background: rgba(239,68,68,0.15); color: #f87171; }
+    .ir-chart-container { padding: 20px; height: 350px; position: relative; }
+    .ir-viz-toggle { display: flex; gap: 4px; }
+    .ir-viz-btn { 
+        padding: 4px 10px; border: 1px solid #475569; border-radius: 4px; background: transparent;
+        color: #94a3b8; font-size: 0.78rem; cursor: pointer;
+    }
+    .ir-viz-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .ir-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #475569; border-top-color: #6366f1; border-radius: 50%; animation: ir-spin 0.6s linear infinite; }
+    @keyframes ir-spin { to { transform: rotate(360deg); } }
+    .ir-refine-bar { display: flex; gap: 8px; margin-top: 12px; }
+    .ir-refine-bar input { flex: 1; }
+    .ir-empty { text-align: center; padding: 40px 20px; color: #64748b; }
+    .ir-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; color: #475569; }
+    .ir-save-modal { 
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;
+    }
+    .ir-save-modal.show { display: flex; }
+    .ir-modal-content { 
+        background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+        padding: 24px; width: 480px; max-width: 90vw;
+    }
+    .ir-modal-title { font-weight: 600; color: #e2e8f0; font-size: 1.05rem; margin-bottom: 16px; }
+    .ir-form-group { margin-bottom: 12px; }
+    .ir-actions-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    .ir-insight-box {
+        background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
+        border-radius: 8px; padding: 12px 16px; margin-top: 12px; color: #c7d2fe; font-size: 0.85rem;
+    }
+    .ir-insight-box i { color: #818cf8; margin-right: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ir-container">
+    <div class="ir-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="bi bi-cpu"></i> Intelligent Reporting</h2>
+                <p>Create, analyze, and manage reports using natural language or the guided builder</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="ir-tabs">
+        <button class="ir-tab active" onclick="switchTab('nl')"><i class="bi bi-chat-dots"></i> Natural Language</button>
+        <button class="ir-tab" onclick="switchTab('builder')"><i class="bi bi-tools"></i> Report Builder</button>
+        <button class="ir-tab" onclick="switchTab('saved')"><i class="bi bi-bookmark"></i> Saved Reports</button>
+    </div>
+
+    <div id="panel-nl" class="ir-panel active">
+        <div class="ir-card">
+            <div class="ir-card-header"><i class="bi bi-chat-dots"></i> Describe Your Report</div>
+            <textarea id="nlPrompt" class="ir-nl-input" placeholder="Example: Show all open work orders with material cost overruns in the last 90 days&#10;Example: List top 10 suppliers by total purchase order value&#10;Example: Show inventory items below reorder point with supplier details"></textarea>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="text-muted" style="font-size:0.78rem;">Powered by COREx NeuroIQ Intelligence</div>
+                <button class="ir-btn ir-btn-primary" onclick="generateNLReport()">
+                    <i class="bi bi-lightning-charge"></i> Generate Report
+                </button>
+            </div>
+        </div>
+        <div id="nlRefineBar" class="ir-refine-bar" style="display:none;">
+            <input type="text" id="refineInput" class="ir-input" placeholder="Refine: Add supplier name and sort by highest cost...">
+            <button class="ir-btn ir-btn-secondary" onclick="refineReport()"><i class="bi bi-arrow-repeat"></i> Refine</button>
+        </div>
+    </div>
+
+    <div id="panel-builder" class="ir-panel">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="ir-card">
+                    <div class="ir-card-header"><i class="bi bi-database"></i> Data Source</div>
+                    <select id="builderSource" class="ir-select" onchange="loadSourceFields()">
+                        <option value="">Select data source...</option>
+                        {% for key, src in data_sources.items() %}
+                        <option value="{{ key }}">{{ src.label }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="ir-card-header mt-3"><i class="bi bi-list-columns"></i> Fields</div>
+                    <div id="builderFields" style="max-height:200px;overflow-y:auto;"></div>
+
+                    <div class="ir-card-header mt-3"><i class="bi bi-sort-down"></i> Sort By</div>
+                    <div class="d-flex gap-2">
+                        <select id="builderSortBy" class="ir-select" style="flex:2;"><option value="">None</option></select>
+                        <select id="builderSortDir" class="ir-select" style="flex:1;">
+                            <option value="ASC">Asc</option>
+                            <option value="DESC">Desc</option>
+                        </select>
+                    </div>
+
+                    <div class="ir-card-header mt-3"><i class="bi bi-hash"></i> Limit</div>
+                    <input type="number" id="builderLimit" class="ir-input" value="500" min="1" max="5000">
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="ir-card">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="ir-card-header mb-0"><i class="bi bi-funnel"></i> Filters</div>
+                        <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="addFilter()"><i class="bi bi-plus"></i> Add</button>
+                    </div>
+                    <div id="builderFilters"></div>
+                </div>
+                <div class="ir-card">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="ir-card-header mb-0"><i class="bi bi-calculator"></i> Aggregations</div>
+                        <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="addAggregation()"><i class="bi bi-plus"></i> Add</button>
+                    </div>
+                    <div id="builderAggregations"></div>
+                    <div id="builderGroupByWrap" style="display:none;" class="mt-2">
+                        <label class="ir-label">Group By</label>
+                        <select id="builderGroupBy" class="ir-select" multiple style="min-height:60px;"></select>
+                    </div>
+                </div>
+                <button class="ir-btn ir-btn-primary" onclick="runBuilderReport()">
+                    <i class="bi bi-play-fill"></i> Run Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="panel-saved" class="ir-panel">
+        <div class="ir-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="ir-card-header mb-0"><i class="bi bi-bookmark"></i> Saved Reports</div>
+            </div>
+            {% if saved_reports %}
+            {% for report in saved_reports %}
+            <div class="ir-saved-item" onclick="loadSavedReport({{ report.id }})">
+                <div>
+                    <div style="color:#e2e8f0;font-weight:500;">{{ report.name }}</div>
+                    <div class="ir-saved-meta">
+                        {{ report.description or 'No description' }} | 
+                        <span class="ir-badge {% if report.category == 'Operations' %}ir-badge-ops{% elif report.category == 'Quality' %}ir-badge-quality{% elif report.category == 'Procurement' %}ir-badge-procurement{% else %}ir-badge-finance{% endif %}">{{ report.category }}</span>
+                        | v{{ report.version }} | {{ report.owner_name or 'Unknown' }}
+                        | {{ report.access_level }}
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="event.stopPropagation();cloneReport({{ report.id }})" title="Clone"><i class="bi bi-copy"></i></button>
+                    <button class="ir-btn ir-btn-danger ir-btn-sm" onclick="event.stopPropagation();deleteReport({{ report.id }})" title="Delete"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="ir-empty">
+                <i class="bi bi-bookmark-plus"></i>
+                <div>No saved reports yet</div>
+                <div style="font-size:0.8rem;margin-top:4px;">Generate a report and save it for reuse</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="resultsSection" style="display:none;margin-top:20px;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div style="color:#e2e8f0;font-weight:600;font-size:0.95rem;"><i class="bi bi-table"></i> Results</div>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="ir-viz-toggle">
+                    <button class="ir-viz-btn active" data-viz="table" onclick="switchViz('table')"><i class="bi bi-table"></i></button>
+                    <button class="ir-viz-btn" data-viz="bar" onclick="switchViz('bar')"><i class="bi bi-bar-chart"></i></button>
+                    <button class="ir-viz-btn" data-viz="line" onclick="switchViz('line')"><i class="bi bi-graph-up"></i></button>
+                    <button class="ir-viz-btn" data-viz="doughnut" onclick="switchViz('doughnut')"><i class="bi bi-pie-chart"></i></button>
+                </div>
+                <div class="ir-actions-bar" style="margin-top:0;">
+                    <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="exportReport('csv')"><i class="bi bi-filetype-csv"></i> CSV</button>
+                    <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="exportReport('json')"><i class="bi bi-filetype-json"></i> JSON</button>
+                    <button class="ir-btn ir-btn-success ir-btn-sm" onclick="openSaveModal()"><i class="bi bi-save"></i> Save</button>
+                </div>
+            </div>
+        </div>
+        <div class="ir-results-area">
+            <div id="tableView" class="ir-table-wrap"></div>
+            <div id="chartView" class="ir-chart-container" style="display:none;">
+                <canvas id="reportChart"></canvas>
+            </div>
+            <div id="resultsStatus" class="ir-status-bar"></div>
+        </div>
+        <div id="insightBox" class="ir-insight-box" style="display:none;"></div>
+    </div>
+</div>
+
+<div id="saveModal" class="ir-save-modal">
+    <div class="ir-modal-content">
+        <div class="ir-modal-title"><i class="bi bi-save"></i> Save Report</div>
+        <div class="ir-form-group">
+            <label class="ir-label">Report Name</label>
+            <input type="text" id="saveName" class="ir-input" placeholder="Enter report name">
+        </div>
+        <div class="ir-form-group">
+            <label class="ir-label">Description</label>
+            <input type="text" id="saveDescription" class="ir-input" placeholder="Brief description">
+        </div>
+        <div class="row g-2">
+            <div class="col-6">
+                <div class="ir-form-group">
+                    <label class="ir-label">Category</label>
+                    <select id="saveCategory" class="ir-select">
+                        <option>Operations</option>
+                        <option>Quality</option>
+                        <option>Procurement</option>
+                        <option>Finance</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="ir-form-group">
+                    <label class="ir-label">Access Level</label>
+                    <select id="saveAccess" class="ir-select">
+                        <option>Private</option>
+                        <option>Team</option>
+                        <option>Organization</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <button class="ir-btn ir-btn-secondary" onclick="closeSaveModal()">Cancel</button>
+            <button class="ir-btn ir-btn-primary" onclick="saveReport()"><i class="bi bi-check-lg"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center;">
+    <div style="background:#1e293b;border-radius:12px;padding:30px 40px;text-align:center;border:1px solid #334155;">
+        <div class="ir-spinner" style="width:32px;height:32px;margin:0 auto 12px;"></div>
+        <div style="color:#e2e8f0;font-weight:500;">Generating Report...</div>
+        <div style="color:#64748b;font-size:0.8rem;margin-top:4px;">Analyzing your request</div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let currentData = [];
+let currentSqlQuery = '';
+let currentNlPrompt = '';
+let currentConfig = {};
+let reportChart = null;
+let dataSources = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/intelligent-reports/api/sources')
+    .then(r => r.json())
+    .then(d => { dataSources = d; });
+});
+
+function switchTab(tab) {
+    document.querySelectorAll('.ir-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ir-panel').forEach(p => p.classList.remove('active'));
+    event.target.closest('.ir-tab').classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
+function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+
+function generateNLReport() {
+    const prompt = document.getElementById('nlPrompt').value.trim();
+    if (!prompt) return alert('Please describe the report you want to generate.');
+    showLoading();
+    fetch('/intelligent-reports/api/nl-generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prompt: prompt})
+    })
+    .then(r => r.json())
+    .then(result => {
+        hideLoading();
+        if (result.success) {
+            currentData = result.data;
+            currentSqlQuery = result.sql_query || '';
+            currentNlPrompt = prompt;
+            renderResults(result.data, result.row_count);
+            document.getElementById('nlRefineBar').style.display = 'flex';
+            suggestVisualization(result.data);
+        } else {
+            alert(result.error || 'Failed to generate report');
+        }
+    })
+    .catch(e => { hideLoading(); alert('Error: ' + e.message); });
+}
+
+function refineReport() {
+    const refinement = document.getElementById('refineInput').value.trim();
+    if (!refinement) return;
+    showLoading();
+    fetch('/intelligent-reports/api/refine', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            sql_query: currentSqlQuery,
+            refinement: refinement,
+            original_prompt: currentNlPrompt
+        })
+    })
+    .then(r => r.json())
+    .then(result => {
+        hideLoading();
+        if (result.success) {
+            currentData = result.data;
+            currentSqlQuery = result.sql_query || '';
+            currentNlPrompt = result.nl_prompt || currentNlPrompt;
+            renderResults(result.data, result.row_count);
+            document.getElementById('refineInput').value = '';
+        } else {
+            alert(result.error || 'Refinement failed');
+        }
+    })
+    .catch(e => { hideLoading(); alert('Error: ' + e.message); });
+}
+
+function loadSourceFields() {
+    const source = document.getElementById('builderSource').value;
+    const container = document.getElementById('builderFields');
+    const sortBy = document.getElementById('builderSortBy');
+    const groupBy = document.getElementById('builderGroupBy');
+    container.innerHTML = '';
+    sortBy.innerHTML = '<option value="">None</option>';
+    groupBy.innerHTML = '';
+    if (!source || !dataSources[source]) return;
+    const fields = dataSources[source].fields;
+    for (const [key, info] of Object.entries(fields)) {
+        container.innerHTML += `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;color:#cbd5e1;font-size:0.82rem;cursor:pointer;">
+            <input type="checkbox" class="field-check" value="${key}" checked> ${info.label} <span style="color:#64748b;font-size:0.72rem;">(${info.type})</span>
+        </label>`;
+        sortBy.innerHTML += `<option value="${key}">${info.label}</option>`;
+        groupBy.innerHTML += `<option value="${key}">${info.label}</option>`;
+    }
+}
+
+function addFilter() {
+    const source = document.getElementById('builderSource').value;
+    if (!source || !dataSources[source]) return alert('Select a data source first');
+    const fields = dataSources[source].fields;
+    const container = document.getElementById('builderFilters');
+    const idx = container.children.length;
+    let options = Object.entries(fields).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
+    container.innerHTML += `<div class="ir-filter-row" id="filter-${idx}">
+        <select class="ir-select filter-field">${options}</select>
+        <select class="ir-select filter-op">
+            <option value="=">=</option><option value="!=">!=</option>
+            <option value=">">></option><option value="<"><</option>
+            <option value=">=">>=</option><option value="<="><=</option>
+            <option value="LIKE">Contains</option>
+            <option value="IS NULL">Is Empty</option><option value="IS NOT NULL">Has Value</option>
+        </select>
+        <input type="text" class="ir-input filter-value" placeholder="Value">
+        <button class="ir-btn ir-btn-danger ir-btn-sm" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
+    </div>`;
+}
+
+function addAggregation() {
+    const source = document.getElementById('builderSource').value;
+    if (!source || !dataSources[source]) return alert('Select a data source first');
+    const fields = dataSources[source].fields;
+    const container = document.getElementById('builderAggregations');
+    const idx = container.children.length;
+    let options = '<option value="*">All (*)</option>' + Object.entries(fields).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
+    container.innerHTML += `<div class="ir-filter-row" id="agg-${idx}">
+        <select class="ir-select agg-func">
+            <option value="COUNT">COUNT</option><option value="SUM">SUM</option>
+            <option value="AVG">AVG</option><option value="MIN">MIN</option><option value="MAX">MAX</option>
+        </select>
+        <select class="ir-select agg-field">${options}</select>
+        <input type="text" class="ir-input" placeholder="Alias (optional)" style="max-width:120px;">
+        <button class="ir-btn ir-btn-danger ir-btn-sm" onclick="this.parentElement.remove();checkAggregations();"><i class="bi bi-x"></i></button>
+    </div>`;
+    document.getElementById('builderGroupByWrap').style.display = 'block';
+}
+
+function checkAggregations() {
+    if (document.getElementById('builderAggregations').children.length === 0) {
+        document.getElementById('builderGroupByWrap').style.display = 'none';
+    }
+}
+
+function runBuilderReport() {
+    const source = document.getElementById('builderSource').value;
+    if (!source) return alert('Please select a data source');
+
+    const selectedFields = Array.from(document.querySelectorAll('.field-check:checked')).map(c => c.value);
+    const filters = Array.from(document.querySelectorAll('.ir-filter-row')).map(row => {
+        const field = row.querySelector('.filter-field')?.value;
+        const op = row.querySelector('.filter-op')?.value;
+        const value = row.querySelector('.filter-value')?.value;
+        return field ? {field, operator: op, value} : null;
+    }).filter(Boolean);
+
+    const aggregations = Array.from(document.querySelectorAll('#builderAggregations .ir-filter-row')).map(row => {
+        const func = row.querySelector('.agg-func')?.value;
+        const field = row.querySelector('.agg-field')?.value;
+        const alias = row.querySelectorAll('.ir-input')[0]?.value || '';
+        return {function: func, field, alias: alias || `${func.toLowerCase()}_${field}`};
+    });
+
+    const groupByEl = document.getElementById('builderGroupBy');
+    const groupBy = Array.from(groupByEl.selectedOptions).map(o => o.value);
+
+    const config = {
+        data_source: source,
+        fields: selectedFields,
+        filters: filters,
+        aggregations: aggregations,
+        group_by: groupBy,
+        sort_by: document.getElementById('builderSortBy').value,
+        sort_direction: document.getElementById('builderSortDir').value,
+        limit: parseInt(document.getElementById('builderLimit').value) || 500
+    };
+
+    currentConfig = config;
+    showLoading();
+
+    fetch('/intelligent-reports/api/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({config: config})
+    })
+    .then(r => r.json())
+    .then(result => {
+        hideLoading();
+        if (result.success) {
+            currentData = result.data;
+            currentSqlQuery = '';
+            currentNlPrompt = '';
+            renderResults(result.data, result.row_count);
+            suggestVisualization(result.data);
+        } else {
+            alert(result.error || 'Failed to generate report');
+        }
+    })
+    .catch(e => { hideLoading(); alert('Error: ' + e.message); });
+}
+
+function renderResults(data, rowCount) {
+    const section = document.getElementById('resultsSection');
+    section.style.display = 'block';
+    const tableView = document.getElementById('tableView');
+    const status = document.getElementById('resultsStatus');
+
+    if (!data || data.length === 0) {
+        tableView.innerHTML = '<div class="ir-empty"><i class="bi bi-inbox"></i><div>No results found</div></div>';
+        status.textContent = '0 rows returned';
+        return;
+    }
+
+    const columns = Object.keys(data[0]);
+    let html = '<table class="ir-table"><thead><tr>';
+    columns.forEach(col => {
+        html += `<th>${col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    data.forEach(row => {
+        html += '<tr>';
+        columns.forEach(col => {
+            let val = row[col];
+            if (val === null || val === undefined) val = '';
+            else if (typeof val === 'number' && !Number.isInteger(val)) val = val.toFixed(2);
+            html += `<td>${val}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    tableView.innerHTML = html;
+    status.innerHTML = `<span>${rowCount} row${rowCount !== 1 ? 's' : ''} returned</span><span>${new Date().toLocaleTimeString()}</span>`;
+    switchViz('table');
+}
+
+function switchViz(type) {
+    document.querySelectorAll('.ir-viz-btn').forEach(b => b.classList.toggle('active', b.dataset.viz === type));
+    document.getElementById('tableView').style.display = type === 'table' ? 'block' : 'none';
+    document.getElementById('chartView').style.display = type !== 'table' ? 'block' : 'none';
+    if (type !== 'table') renderChart(type);
+}
+
+function renderChart(type) {
+    if (!currentData || currentData.length === 0) return;
+    const ctx = document.getElementById('reportChart').getContext('2d');
+    if (reportChart) reportChart.destroy();
+
+    const columns = Object.keys(currentData[0]);
+    let labelCol = columns[0];
+    let numericCols = columns.filter(c => typeof currentData[0][c] === 'number');
+    if (numericCols.length === 0) numericCols = [columns[1] || columns[0]];
+
+    const labels = currentData.slice(0, 50).map(r => String(r[labelCol] || '').substring(0, 30));
+    const colors = ['#6366f1','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+
+    const datasets = type === 'doughnut' ? [{
+        data: currentData.slice(0, 50).map(r => Number(r[numericCols[0]]) || 0),
+        backgroundColor: colors.concat(colors),
+        borderWidth: 0
+    }] : numericCols.map((col, i) => ({
+        label: col.replace(/_/g, ' '),
+        data: currentData.slice(0, 50).map(r => Number(r[col]) || 0),
+        backgroundColor: type === 'bar' ? colors[i % colors.length] : 'transparent',
+        borderColor: colors[i % colors.length],
+        borderWidth: 2,
+        tension: 0.3,
+        fill: false
+    }));
+
+    reportChart = new Chart(ctx, {
+        type: type,
+        data: { labels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94a3b8' } } },
+            scales: type === 'doughnut' ? {} : {
+                x: { ticks: { color: '#64748b', maxRotation: 45 }, grid: { color: '#1e293b' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+            }
+        }
+    });
+}
+
+function suggestVisualization(data) {
+    fetch('/intelligent-reports/api/suggest-viz', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({data: data.slice(0, 10)})
+    })
+    .then(r => r.json())
+    .then(result => {
+        const box = document.getElementById('insightBox');
+        box.style.display = 'block';
+        box.innerHTML = `<i class="bi bi-lightbulb"></i> <strong>Visualization Suggestion:</strong> ${result.reason}`;
+    });
+}
+
+function openSaveModal() { document.getElementById('saveModal').classList.add('show'); }
+function closeSaveModal() { document.getElementById('saveModal').classList.remove('show'); }
+
+function saveReport() {
+    const name = document.getElementById('saveName').value.trim();
+    if (!name) return alert('Please enter a report name');
+
+    const payload = {
+        name: name,
+        description: document.getElementById('saveDescription').value.trim(),
+        category: document.getElementById('saveCategory').value,
+        access_level: document.getElementById('saveAccess').value,
+        report_type: currentSqlQuery ? 'nl' : 'builder',
+        query_config: currentConfig,
+        nl_prompt: currentNlPrompt,
+        visualization_type: 'table'
+    };
+
+    fetch('/intelligent-reports/api/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            closeSaveModal();
+            alert('Report saved successfully');
+            location.reload();
+        } else {
+            alert(result.error || 'Failed to save report');
+        }
+    });
+}
+
+function loadSavedReport(reportId) {
+    fetch(`/intelligent-reports/api/report/${reportId}`)
+    .then(r => r.json())
+    .then(result => {
+        if (!result.success) return alert('Failed to load report');
+        const report = result.report;
+        if (report.report_type === 'nl' && report.nl_prompt) {
+            switchTab('nl');
+            document.querySelectorAll('.ir-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.ir-tab').classList.add('active');
+            document.getElementById('nlPrompt').value = report.nl_prompt;
+            generateNLReport();
+        } else if (report.query_config) {
+            const config = typeof report.query_config === 'string' ? JSON.parse(report.query_config) : report.query_config;
+            if (config.data_source) {
+                switchTab('builder');
+                document.getElementById('builderSource').value = config.data_source;
+                loadSourceFields();
+                currentConfig = config;
+                setTimeout(() => runBuilderReport(), 200);
+            }
+        }
+    });
+}
+
+function cloneReport(reportId) {
+    fetch(`/intelligent-reports/api/clone/${reportId}`, {method: 'POST'})
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) { alert('Report cloned'); location.reload(); }
+        else alert(result.error || 'Clone failed');
+    });
+}
+
+function deleteReport(reportId) {
+    if (!confirm('Delete this report?')) return;
+    fetch(`/intelligent-reports/api/delete/${reportId}`, {method: 'DELETE'})
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) location.reload();
+        else alert(result.error || 'Delete failed');
+    });
+}
+
+function exportReport(format) {
+    if (!currentData || currentData.length === 0) return alert('No data to export');
+    fetch(`/intelligent-reports/api/export/${format}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({data: currentData, name: 'report'})
+    })
+    .then(response => {
+        const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || `report.${format}`;
+        return response.blob().then(blob => ({blob, filename}));
+    })
+    .then(({blob, filename}) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+    });
+}
+</script>
+{% endblock %}

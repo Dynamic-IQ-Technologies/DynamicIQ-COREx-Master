@@ -76,6 +76,7 @@ from routes.health_routes import health_bp
 from routes.asc_admin_routes import asc_admin_bp
 from routes.external_app_routes import external_app_bp
 from routes.trace_routes import trace_bp
+from routes.intelligent_reports_routes import intelligent_reports_bp
 from engines.asc_ai import asc_engine
 import os
 
@@ -365,6 +366,7 @@ app.register_blueprint(health_bp)
 app.register_blueprint(asc_admin_bp)
 app.register_blueprint(external_app_bp)
 app.register_blueprint(trace_bp)
+app.register_blueprint(intelligent_reports_bp)
 
 def get_database():
     from models import Database
