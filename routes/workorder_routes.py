@@ -1694,7 +1694,6 @@ def add_material_requirement(wo_id):
         product_id = int(request.form['product_id'])
         required_quantity = int(request.form['required_quantity'])
         
-        # Check if this material requirement already exists
         existing = conn.execute('''
             SELECT id FROM material_requirements 
             WHERE work_order_id = ? AND product_id = ?
@@ -1705,9 +1704,8 @@ def add_material_requirement(wo_id):
             conn.close()
             return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
         
-        # Get available quantity from inventory
         inventory = conn.execute('''
-            SELECT quantity FROM inventory WHERE product_id = ?
+            SELECT COALESCE(SUM(quantity), 0) as quantity FROM inventory WHERE product_id = ?
         ''', (product_id,)).fetchone()
         
         available_quantity = inventory['quantity'] if inventory else 0
@@ -1723,55 +1721,7 @@ def add_material_requirement(wo_id):
         conn.commit()
         flash('Material requirement added successfully!', 'success')
         
-        try:
-            po_history = conn.execute('''
-                SELECT COUNT(*) as cnt FROM purchase_order_lines WHERE product_id = ?
-            ''', (product_id,)).fetchone()
-            
-            has_history = po_history and po_history['cnt'] > 0
-            
-            if not has_history:
-                product = conn.execute('''
-                    SELECT name, part_number FROM products WHERE id = ?
-                ''', (product_id,)).fetchone()
-                
-                wo = conn.execute('''
-                    SELECT work_order_number FROM work_orders WHERE id = ?
-                ''', (wo_id,)).fetchone()
-                
-                from routes.rfq_routes import generate_rfq_number
-                rfq_number = generate_rfq_number(conn)
-                
-                product_name = product['name'] if product else 'Unknown'
-                part_num = product['part_number'] if product and product['part_number'] else ''
-                wo_num = wo['work_order_number'] if wo else str(wo_id)
-                
-                title = "Material Source Pricing"
-                
-                description = f"Auto-generated RFQ - No purchase or pricing history found for this item. Created from Work Order {wo_num} material requirement."
-                
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT INTO rfqs (rfq_number, title, description, status, created_by)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (rfq_number, title, description, 'Draft', session.get('user_id')))
-                
-                rfq_id = cursor.lastrowid
-                
-                cursor.execute('''
-                    INSERT INTO rfq_lines (rfq_id, line_number, product_id, description, quantity, notes)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (rfq_id, 1, product_id, product_name + (f' - P/N: {part_num}' if part_num else ''), required_quantity, f'Required for WO {wo_num}'))
-                
-                conn.commit()
-                
-                AuditLogger.log_change(conn, 'rfqs', rfq_id, 'CREATE', session.get('user_id'),
-                                      {'rfq_number': rfq_number, 'title': title, 'auto_generated': True, 'source_wo': wo_id})
-                conn.commit()
-                
-                flash(f'No purchase/pricing history found - RFQ {rfq_number} created automatically.', 'info')
-        except Exception as rfq_err:
-            flash(f'Material added but auto-RFQ creation failed: {str(rfq_err)}', 'warning')
+        _auto_rfq_pricing_validation(conn, wo_id, product_id, required_quantity)
         
     except Exception as e:
         conn.rollback()
@@ -1780,6 +1730,166 @@ def add_material_requirement(wo_id):
         conn.close()
     
     return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+
+def _auto_rfq_pricing_validation(conn, wo_id, product_id, required_quantity):
+    try:
+        product = conn.execute('''
+            SELECT id, code, name, description FROM products WHERE id = ?
+        ''', (product_id,)).fetchone()
+        
+        wo = conn.execute('''
+            SELECT id, wo_number, planned_start_date FROM work_orders WHERE id = ?
+        ''', (wo_id,)).fetchone()
+        
+        if not product or not wo:
+            return
+        
+        product_code = product['code'] or ''
+        product_name = product['name'] or 'Unknown'
+        wo_number = wo['wo_number'] or str(wo_id)
+        
+        pricing_record = conn.execute('''
+            SELECT pol.unit_price, po.order_date
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            WHERE pol.product_id = ?
+            ORDER BY po.order_date DESC
+            LIMIT 1
+        ''', (product_id,)).fetchone()
+        
+        pricing_missing = pricing_record is None
+        pricing_expired = False
+        rfq_reason = ''
+        
+        if pricing_missing:
+            rfq_reason = 'No purchase or pricing history exists'
+        else:
+            from datetime import datetime, timedelta
+            order_date = pricing_record['order_date']
+            if order_date:
+                if isinstance(order_date, str):
+                    try:
+                        order_date = datetime.strptime(order_date[:10], '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        order_date = None
+                elif hasattr(order_date, 'date'):
+                    order_date = order_date.date()
+                
+                if order_date:
+                    from datetime import date as date_type
+                    days_old = (date_type.today() - order_date).days
+                    if days_old > 90:
+                        pricing_expired = True
+                        rfq_reason = f'Pricing is {days_old} days old (exceeds 90-day threshold)'
+        
+        if not pricing_missing and not pricing_expired:
+            return
+        
+        active_rfq = conn.execute('''
+            SELECT r.id, r.rfq_number 
+            FROM rfqs r
+            JOIN rfq_lines rl ON r.id = rl.rfq_id
+            WHERE rl.product_id = ?
+              AND r.status NOT IN ('Closed', 'Cancelled', 'Rejected', 'Expired')
+              AND r.description LIKE ?
+        ''', (product_id, f'%WO {wo_number}%')).fetchone()
+        
+        if active_rfq:
+            flash(f'Active RFQ {active_rfq["rfq_number"]} already exists for this material - no duplicate created.', 'info')
+            return
+        
+        from routes.rfq_routes import generate_rfq_number
+        rfq_number = generate_rfq_number(conn)
+        
+        title = "Material Source Pricing"
+        rfq_status = "Auto-Generated - Pricing Validation"
+        
+        description = (
+            f"Auto-generated RFQ - {rfq_reason}. "
+            f"Created from Work Order {wo_number} material requirement. "
+            f"Part: {product_code} - {product_name}. "
+            f"Required Qty: {required_quantity}."
+        )
+        
+        required_date = wo['planned_start_date']
+        if not required_date:
+            from datetime import datetime, timedelta
+            required_date = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+        elif hasattr(required_date, 'strftime'):
+            required_date = required_date.strftime('%Y-%m-%d')
+        else:
+            required_date = str(required_date)[:10]
+        
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO rfqs (rfq_number, title, description, status, due_date, created_by, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (rfq_number, title, description, rfq_status, required_date, 
+              session.get('user_id'), f'WO Reference: {wo_number}'))
+        
+        rfq_id = cursor.lastrowid
+        if not rfq_id:
+            rfq_row = conn.execute('SELECT id FROM rfqs WHERE rfq_number = ?', (rfq_number,)).fetchone()
+            rfq_id = rfq_row['id'] if rfq_row else None
+        
+        if rfq_id:
+            line_desc = product_name
+            if product_code:
+                line_desc = f'{product_name} - P/N: {product_code}'
+            
+            cursor.execute('''
+                INSERT INTO rfq_lines (rfq_id, line_number, product_id, description, quantity, 
+                                       required_date, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (rfq_id, 1, product_id, line_desc, required_quantity,
+                  required_date, f'Required for WO {wo_number} | Reason: {rfq_reason}'))
+            
+            preferred_supplier = conn.execute('''
+                SELECT po.supplier_id, s.name
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.po_id = po.id
+                JOIN suppliers s ON po.supplier_id = s.id
+                WHERE pol.product_id = ?
+                ORDER BY po.order_date DESC
+                LIMIT 1
+            ''', (product_id,)).fetchone()
+            
+            if preferred_supplier and preferred_supplier['supplier_id']:
+                existing_sup = conn.execute(
+                    'SELECT id FROM rfq_suppliers WHERE rfq_id = ? AND supplier_id = ?',
+                    (rfq_id, preferred_supplier['supplier_id'])
+                ).fetchone()
+                if not existing_sup:
+                    cursor.execute('''
+                        INSERT INTO rfq_suppliers (rfq_id, supplier_id, notes)
+                        VALUES (?, ?, ?)
+                    ''', (rfq_id, preferred_supplier['supplier_id'], 
+                          f'Previous supplier for this part'))
+            
+            conn.commit()
+            
+            AuditLogger.log_change(conn, 'rfqs', rfq_id, 'CREATE', session.get('user_id'), {
+                'rfq_number': rfq_number,
+                'title': title,
+                'auto_generated': True,
+                'trigger': 'pricing_validation',
+                'reason': rfq_reason,
+                'source_work_order': wo_number,
+                'source_wo_id': wo_id,
+                'product_id': product_id,
+                'product_code': product_code,
+                'required_quantity': required_quantity
+            })
+            conn.commit()
+            
+            reason_label = 'expired pricing (>90 days)' if pricing_expired else 'no pricing history'
+            flash(f'RFQ {rfq_number} auto-generated - {reason_label} detected for {product_code}.', 'info')
+        
+    except Exception as rfq_err:
+        import traceback
+        traceback.print_exc()
+        flash(f'Material added but auto-RFQ creation failed: {str(rfq_err)}', 'warning')
 
 @workorder_bp.route('/workorders/<int:wo_id>/materials/<int:req_id>/edit', methods=['POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
