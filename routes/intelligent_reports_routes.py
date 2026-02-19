@@ -11,21 +11,18 @@ from services.reporting_engine import ReportingEngine, AVAILABLE_DATA_SOURCES
 logger = logging.getLogger('intelligent_reports')
 
 intelligent_reports_bp = Blueprint('intelligent_reports', __name__)
-AI_INTEGRATIONS_OPENAI_API_KEY = None
-AI_INTEGRATIONS_OPENAI_BASE_URL = None
 
-try:
-    from replit.ai.modelfarm import ChatModel
-    AI_INTEGRATIONS_OPENAI_API_KEY = __import__('os').environ.get('AI_INTEGRATIONS_OPENAI_API_KEY', '')
-    AI_INTEGRATIONS_OPENAI_BASE_URL = __import__('os').environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL', '')
-except:
-    pass
+import os
 
 def get_openai_client():
     from openai import OpenAI
+    api_key = os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', '')
+    base_url = os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL', '') or None
+    if not api_key:
+        raise ValueError("OpenAI API key not configured")
     return OpenAI(
-        api_key=AI_INTEGRATIONS_OPENAI_API_KEY,
-        base_url=AI_INTEGRATIONS_OPENAI_BASE_URL
+        api_key=api_key,
+        base_url=base_url if base_url else None
     )
 
 engine = ReportingEngine()
