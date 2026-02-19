@@ -82,21 +82,24 @@ def nl_generate_report():
         system_prompt = f"""You are an intelligent SQL report generator for an enterprise MRP/ERP system using PostgreSQL.
 Given a natural language report request, generate a safe, read-only SQL SELECT query.
 
-AVAILABLE SCHEMA:
+AVAILABLE SCHEMA (use ONLY these exact table and column names):
 {schema_desc}
 
-RULES:
+CRITICAL RULES:
 1. Only generate SELECT queries. Never generate INSERT, UPDATE, DELETE, DROP, ALTER, or any data-modifying statements.
-2. Only use tables and columns listed in the schema above.
+2. STRICTLY use ONLY the tables and columns listed above. Do NOT invent, guess, or assume any column names. If a column is not listed above, it does not exist.
 3. Use proper PostgreSQL syntax.
 4. For date filtering use CURRENT_DATE, INTERVAL syntax (e.g., CURRENT_DATE - INTERVAL '90 days').
 5. Always include a LIMIT clause (max 500 rows unless specified).
 6. For text searches use ILIKE with % wildcards.
 7. Use aliases for readability.
 8. Return ONLY the SQL query, no explanation, no markdown, no code fences.
-9. For work order costs use material_cost, labor_cost, overhead_cost columns. Total cost = material_cost + labor_cost + overhead_cost.
+9. For work order costs use material_cost, labor_cost, overhead_cost columns. Total cost = COALESCE(material_cost,0) + COALESCE(labor_cost,0) + COALESCE(overhead_cost,0).
 10. Use LEFT JOIN when combining tables.
-11. Never use subqueries referencing non-existent columns."""
+11. The inventory table uses 'condition' (NOT condition_code), 'warehouse_location' (NOT location), 'last_received_date' (NOT received_date).
+12. The products table uses 'cost' (NOT unit_price), 'product_category' (NOT category).
+13. The sales_orders table uses 'customer_id' (NOT customer_name). Join to a customers table is not available.
+14. Do NOT end the query with a semicolon."""
 
         response = client.chat.completions.create(
             model="gpt-4o",
