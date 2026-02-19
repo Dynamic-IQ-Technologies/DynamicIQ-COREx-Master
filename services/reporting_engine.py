@@ -16,12 +16,20 @@ AVAILABLE_DATA_SOURCES = {
             'status': {'label': 'Status', 'type': 'text'},
             'priority': {'label': 'Priority', 'type': 'text'},
             'customer_name': {'label': 'Customer', 'type': 'text'},
+            'product_id': {'label': 'Product ID', 'type': 'integer'},
+            'quantity': {'label': 'Quantity', 'type': 'number'},
+            'serial_number': {'label': 'Serial Number', 'type': 'text'},
             'created_at': {'label': 'Created Date', 'type': 'date'},
-            'due_date': {'label': 'Due Date', 'type': 'date'},
-            'actual_start_date': {'label': 'Start Date', 'type': 'date'},
-            'actual_end_date': {'label': 'End Date', 'type': 'date'},
-            'estimated_cost': {'label': 'Estimated Cost', 'type': 'number'},
-            'actual_cost': {'label': 'Actual Cost', 'type': 'number'},
+            'planned_start_date': {'label': 'Planned Start Date', 'type': 'date'},
+            'planned_end_date': {'label': 'Planned End Date', 'type': 'date'},
+            'actual_start_date': {'label': 'Actual Start Date', 'type': 'date'},
+            'actual_end_date': {'label': 'Actual End Date', 'type': 'date'},
+            'material_cost': {'label': 'Material Cost', 'type': 'number'},
+            'labor_cost': {'label': 'Labor Cost', 'type': 'number'},
+            'overhead_cost': {'label': 'Overhead Cost', 'type': 'number'},
+            'workorder_type': {'label': 'Work Order Type', 'type': 'text'},
+            'disposition': {'label': 'Disposition', 'type': 'text'},
+            'notes': {'label': 'Notes', 'type': 'text'},
         }
     },
     'inventory': {
@@ -31,12 +39,15 @@ AVAILABLE_DATA_SOURCES = {
             'id': {'label': 'ID', 'type': 'integer'},
             'product_id': {'label': 'Product ID', 'type': 'integer'},
             'quantity': {'label': 'Quantity', 'type': 'number'},
-            'location': {'label': 'Location', 'type': 'text'},
-            'condition_code': {'label': 'Condition', 'type': 'text'},
+            'warehouse_location': {'label': 'Warehouse Location', 'type': 'text'},
+            'bin_location': {'label': 'Bin Location', 'type': 'text'},
+            'condition': {'label': 'Condition', 'type': 'text'},
             'unit_cost': {'label': 'Unit Cost', 'type': 'number'},
-            'received_date': {'label': 'Received Date', 'type': 'date'},
+            'last_received_date': {'label': 'Last Received Date', 'type': 'date'},
             'serial_number': {'label': 'Serial Number', 'type': 'text'},
             'lot_number': {'label': 'Lot Number', 'type': 'text'},
+            'status': {'label': 'Status', 'type': 'text'},
+            'supplier_id': {'label': 'Supplier ID', 'type': 'integer'},
         }
     },
     'purchase_orders': {
@@ -49,7 +60,12 @@ AVAILABLE_DATA_SOURCES = {
             'status': {'label': 'Status', 'type': 'text'},
             'order_date': {'label': 'Order Date', 'type': 'date'},
             'expected_date': {'label': 'Expected Date', 'type': 'date'},
+            'expected_delivery_date': {'label': 'Expected Delivery Date', 'type': 'date'},
             'total_amount': {'label': 'Total Amount', 'type': 'number'},
+            'grand_total': {'label': 'Grand Total', 'type': 'number'},
+            'po_type': {'label': 'PO Type', 'type': 'text'},
+            'notes': {'label': 'Notes', 'type': 'text'},
+            'created_at': {'label': 'Created Date', 'type': 'date'},
         }
     },
     'sales_orders': {
@@ -58,10 +74,15 @@ AVAILABLE_DATA_SOURCES = {
         'fields': {
             'id': {'label': 'ID', 'type': 'integer'},
             'so_number': {'label': 'SO Number', 'type': 'text'},
-            'customer_name': {'label': 'Customer', 'type': 'text'},
+            'customer_id': {'label': 'Customer ID', 'type': 'integer'},
             'status': {'label': 'Status', 'type': 'text'},
             'order_date': {'label': 'Order Date', 'type': 'date'},
+            'required_date': {'label': 'Required Date', 'type': 'date'},
             'total_amount': {'label': 'Total Amount', 'type': 'number'},
+            'sales_type': {'label': 'Sales Type', 'type': 'text'},
+            'order_type': {'label': 'Order Type', 'type': 'text'},
+            'balance_due': {'label': 'Balance Due', 'type': 'number'},
+            'created_at': {'label': 'Created Date', 'type': 'date'},
         }
     },
     'products': {
@@ -72,9 +93,11 @@ AVAILABLE_DATA_SOURCES = {
             'code': {'label': 'Part Number', 'type': 'text'},
             'name': {'label': 'Name', 'type': 'text'},
             'description': {'label': 'Description', 'type': 'text'},
-            'category': {'label': 'Category', 'type': 'text'},
-            'unit_price': {'label': 'Unit Price', 'type': 'number'},
+            'product_category': {'label': 'Category', 'type': 'text'},
+            'product_type': {'label': 'Product Type', 'type': 'text'},
+            'cost': {'label': 'Cost', 'type': 'number'},
             'reorder_point': {'label': 'Reorder Point', 'type': 'number'},
+            'manufacturer': {'label': 'Manufacturer', 'type': 'text'},
         }
     },
     'suppliers': {
@@ -83,10 +106,14 @@ AVAILABLE_DATA_SOURCES = {
         'fields': {
             'id': {'label': 'ID', 'type': 'integer'},
             'name': {'label': 'Supplier Name', 'type': 'text'},
+            'code': {'label': 'Supplier Code', 'type': 'text'},
             'contact_name': {'label': 'Contact', 'type': 'text'},
             'email': {'label': 'Email', 'type': 'text'},
             'phone': {'label': 'Phone', 'type': 'text'},
             'status': {'label': 'Status', 'type': 'text'},
+            'city': {'label': 'City', 'type': 'text'},
+            'state': {'label': 'State', 'type': 'text'},
+            'country': {'label': 'Country', 'type': 'text'},
         }
     },
     'rfqs': {
@@ -94,6 +121,7 @@ AVAILABLE_DATA_SOURCES = {
         'table': 'rfqs',
         'fields': {
             'id': {'label': 'ID', 'type': 'integer'},
+            'rfq_number': {'label': 'RFQ Number', 'type': 'text'},
             'title': {'label': 'Title', 'type': 'text'},
             'status': {'label': 'Status', 'type': 'text'},
             'created_at': {'label': 'Created Date', 'type': 'date'},
@@ -106,11 +134,13 @@ AVAILABLE_DATA_SOURCES = {
         'fields': {
             'id': {'label': 'ID', 'type': 'integer'},
             'invoice_number': {'label': 'Invoice Number', 'type': 'text'},
+            'invoice_type': {'label': 'Invoice Type', 'type': 'text'},
             'status': {'label': 'Status', 'type': 'text'},
             'total_amount': {'label': 'Total Amount', 'type': 'number'},
             'balance_due': {'label': 'Balance Due', 'type': 'number'},
             'invoice_date': {'label': 'Invoice Date', 'type': 'date'},
             'due_date': {'label': 'Due Date', 'type': 'date'},
+            'amount_paid': {'label': 'Amount Paid', 'type': 'number'},
         }
     },
 }

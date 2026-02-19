@@ -94,7 +94,7 @@ RULES:
 6. For text searches use ILIKE with % wildcards.
 7. Use aliases for readability.
 8. Return ONLY the SQL query, no explanation, no markdown, no code fences.
-9. For cost overruns compare actual_cost > estimated_cost.
+9. For work order costs use material_cost, labor_cost, overhead_cost columns. Total cost = material_cost + labor_cost + overhead_cost.
 10. Use LEFT JOIN when combining tables.
 11. Never use subqueries referencing non-existent columns."""
 
