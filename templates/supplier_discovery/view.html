@@ -92,11 +92,11 @@
                     <dd class="col-sm-7">{{ request.created_by_name }}</dd>
                     
                     <dt class="col-sm-5">Created At:</dt>
-                    <dd class="col-sm-7">{{ request.created_at[:16] if request.created_at else '' }}</dd>
+                    <dd class="col-sm-7">{{ format_dt(request.created_at) if request.created_at else '' }}</dd>
                     
                     {% if request.completed_at %}
                     <dt class="col-sm-5">Completed At:</dt>
-                    <dd class="col-sm-7">{{ request.completed_at[:16] }}</dd>
+                    <dd class="col-sm-7">{{ format_dt(request.completed_at) }}</dd>
                     {% endif %}
                 </dl>
             </div>
