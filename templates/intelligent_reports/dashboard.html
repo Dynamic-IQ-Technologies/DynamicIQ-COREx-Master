@@ -4,262 +4,737 @@
 
 {% block head %}
 <style>
-    .ir-container { max-width: 1400px; margin: 0 auto; }
-    .ir-header { 
-        background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
-        border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; color: #f8fafc;
+    .ir-page-header {
+        background: linear-gradient(135deg, var(--slate-800) 0%, var(--slate-900) 100%);
+        border-radius: var(--radius-lg);
+        padding: 2rem 2.25rem;
+        margin-bottom: 1.75rem;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+    .ir-page-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    .ir-page-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        position: relative;
+    }
+    .ir-page-header h2 i { color: #818cf8; }
+    .ir-page-header .subtitle {
+        color: var(--slate-400);
+        margin: 0.375rem 0 0;
+        font-size: 0.875rem;
+        position: relative;
+    }
+    .ir-page-header .header-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        background: rgba(99,102,241,0.2);
+        color: #a5b4fc;
         border: 1px solid rgba(99,102,241,0.3);
+        border-radius: 2rem;
+        padding: 0.25rem 0.875rem;
+        font-size: 0.75rem;
+        font-weight: 500;
     }
-    .ir-header h2 { font-size: 1.5rem; font-weight: 700; margin: 0; }
-    .ir-header p { color: #94a3b8; margin: 4px 0 0; font-size: 0.9rem; }
-    .ir-tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #1e293b; border-radius: 10px; padding: 4px; }
-    .ir-tab { 
-        flex: 1; text-align: center; padding: 10px 16px; border-radius: 8px; cursor: pointer;
-        color: #94a3b8; font-weight: 500; font-size: 0.85rem; transition: all 0.2s;
-        border: none; background: transparent;
+
+    .ir-tabs-wrapper {
+        background: #fff;
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-lg);
+        padding: 0.375rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 0.25rem;
+        box-shadow: var(--shadow-sm);
     }
-    .ir-tab.active { background: #6366f1; color: #fff; }
-    .ir-tab:hover:not(.active) { background: #334155; color: #e2e8f0; }
+    .ir-tab-btn {
+        flex: 1;
+        text-align: center;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        color: var(--slate-500);
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        border: none;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .ir-tab-btn:hover:not(.active) { background: var(--slate-50); color: var(--slate-700); }
+    .ir-tab-btn.active {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+    }
+    .ir-tab-btn i { font-size: 1rem; }
+
     .ir-panel { display: none; }
     .ir-panel.active { display: block; }
-    .ir-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-    .ir-card-header { font-weight: 600; color: #e2e8f0; margin-bottom: 12px; font-size: 0.95rem; }
-    .ir-nl-input { 
-        width: 100%; background: #0f172a; border: 1px solid #475569; border-radius: 8px;
-        color: #e2e8f0; padding: 14px 16px; font-size: 0.9rem; resize: vertical; min-height: 80px;
+
+    .ir-section-card {
+        background: #fff;
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin-bottom: 1rem;
     }
-    .ir-nl-input::placeholder { color: #64748b; }
-    .ir-nl-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
-    .ir-btn { 
-        padding: 8px 20px; border-radius: 6px; font-weight: 500; font-size: 0.85rem; cursor: pointer;
-        border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+    .ir-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--slate-100);
+        background: var(--slate-50);
     }
-    .ir-btn-primary { background: #6366f1; color: #fff; }
-    .ir-btn-primary:hover { background: #4f46e5; }
-    .ir-btn-secondary { background: #334155; color: #e2e8f0; }
-    .ir-btn-secondary:hover { background: #475569; }
-    .ir-btn-success { background: #059669; color: #fff; }
+    .ir-section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--slate-700);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+    .ir-section-title i { color: var(--slate-400); font-size: 1rem; }
+    .ir-section-body { padding: 1.25rem; }
+
+    .ir-nl-textarea {
+        width: 100%;
+        border: 2px solid var(--slate-200);
+        border-radius: var(--radius);
+        padding: 1rem 1.25rem;
+        font-size: 0.9rem;
+        color: var(--slate-800);
+        resize: vertical;
+        min-height: 100px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: var(--font-sans);
+        line-height: 1.6;
+        background: #fff;
+    }
+    .ir-nl-textarea::placeholder { color: var(--slate-400); }
+    .ir-nl-textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    .ir-nl-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--slate-100);
+    }
+    .ir-powered-by {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        color: var(--slate-400);
+    }
+    .ir-powered-by i { color: var(--purple); }
+
+    .ir-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1.25rem;
+        border-radius: var(--radius);
+        font-weight: 500;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border: none;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .ir-btn-primary { background: var(--primary); color: #fff; }
+    .ir-btn-primary:hover { background: var(--primary-dark); box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+    .ir-btn-secondary { background: var(--slate-100); color: var(--slate-600); border: 1px solid var(--slate-200); }
+    .ir-btn-secondary:hover { background: var(--slate-200); color: var(--slate-800); }
+    .ir-btn-success { background: var(--success); color: #fff; }
     .ir-btn-success:hover { background: #047857; }
-    .ir-btn-danger { background: #dc2626; color: #fff; }
-    .ir-btn-danger:hover { background: #b91c1c; }
-    .ir-btn-sm { padding: 5px 12px; font-size: 0.8rem; }
-    .ir-select, .ir-input { 
-        background: #0f172a; border: 1px solid #475569; border-radius: 6px;
-        color: #e2e8f0; padding: 8px 12px; font-size: 0.85rem; width: 100%;
+    .ir-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger-light); }
+    .ir-btn-danger:hover { background: #fef2f2; }
+    .ir-btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8rem; }
+    .ir-btn-lg { padding: 0.625rem 1.5rem; font-size: 0.9rem; }
+    .ir-btn-icon { padding: 0.4rem; width: 2rem; height: 2rem; justify-content: center; border-radius: 0.375rem; }
+
+    .ir-form-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--slate-600);
+        margin-bottom: 0.375rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
     }
-    .ir-select:focus, .ir-input:focus { outline: none; border-color: #6366f1; }
-    .ir-label { color: #94a3b8; font-size: 0.8rem; font-weight: 500; margin-bottom: 4px; display: block; }
-    .ir-results-area { 
-        background: #0f172a; border: 1px solid #334155; border-radius: 10px; 
-        min-height: 200px; overflow: hidden;
+    .ir-form-control {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius);
+        font-size: 0.875rem;
+        color: var(--slate-800);
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .ir-table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; }
-    .ir-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    .ir-table th { 
-        background: #1e293b; color: #94a3b8; padding: 10px 12px; text-align: left;
-        font-weight: 600; position: sticky; top: 0; z-index: 1; border-bottom: 1px solid #334155;
+    .ir-form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
     }
-    .ir-table td { padding: 8px 12px; color: #e2e8f0; border-bottom: 1px solid #1e293b; }
-    .ir-table tr:hover td { background: rgba(99,102,241,0.05); }
-    .ir-status-bar { 
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 10px 16px; background: #1e293b; border-top: 1px solid #334155;
-        font-size: 0.8rem; color: #94a3b8;
+    select.ir-form-control {
+        appearance: auto;
     }
-    .ir-field-tag { 
-        display: inline-flex; align-items: center; gap: 4px; background: #334155; 
-        color: #e2e8f0; padding: 4px 10px; border-radius: 14px; font-size: 0.78rem; margin: 2px;
+
+    .ir-field-list {
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius);
+        background: var(--slate-50);
     }
-    .ir-field-tag .remove { cursor: pointer; color: #94a3b8; font-size: 0.9rem; }
-    .ir-field-tag .remove:hover { color: #f87171; }
-    .ir-filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
-    .ir-filter-row .ir-select, .ir-filter-row .ir-input { width: auto; flex: 1; min-width: 120px; }
-    .ir-saved-item { 
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 12px 16px; border-bottom: 1px solid #334155; cursor: pointer; transition: background 0.15s;
+    .ir-field-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.825rem;
+        color: var(--slate-700);
+        cursor: pointer;
+        transition: background 0.1s;
+        border-bottom: 1px solid var(--slate-100);
     }
-    .ir-saved-item:hover { background: rgba(99,102,241,0.08); }
-    .ir-saved-item:last-child { border-bottom: none; }
-    .ir-saved-meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
-    .ir-badge { 
-        display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 500;
+    .ir-field-item:last-child { border-bottom: none; }
+    .ir-field-item:hover { background: var(--slate-100); }
+    .ir-field-item input[type="checkbox"] {
+        accent-color: var(--primary);
+        width: 1rem;
+        height: 1rem;
     }
-    .ir-badge-ops { background: rgba(59,130,246,0.15); color: #60a5fa; }
-    .ir-badge-quality { background: rgba(16,185,129,0.15); color: #34d399; }
-    .ir-badge-procurement { background: rgba(245,158,11,0.15); color: #fbbf24; }
-    .ir-badge-finance { background: rgba(239,68,68,0.15); color: #f87171; }
-    .ir-chart-container { padding: 20px; height: 350px; position: relative; }
-    .ir-viz-toggle { display: flex; gap: 4px; }
-    .ir-viz-btn { 
-        padding: 4px 10px; border: 1px solid #475569; border-radius: 4px; background: transparent;
-        color: #94a3b8; font-size: 0.78rem; cursor: pointer;
+    .ir-field-type {
+        font-size: 0.7rem;
+        color: var(--slate-400);
+        margin-left: auto;
+        background: var(--slate-200);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
     }
-    .ir-viz-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
-    .ir-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #475569; border-top-color: #6366f1; border-radius: 50%; animation: ir-spin 0.6s linear infinite; }
-    @keyframes ir-spin { to { transform: rotate(360deg); } }
-    .ir-refine-bar { display: flex; gap: 8px; margin-top: 12px; }
-    .ir-refine-bar input { flex: 1; }
-    .ir-empty { text-align: center; padding: 40px 20px; color: #64748b; }
-    .ir-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; color: #475569; }
-    .ir-save-modal { 
-        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;
+
+    .ir-filter-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        padding: 0.625rem;
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius);
     }
-    .ir-save-modal.show { display: flex; }
-    .ir-modal-content { 
-        background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-        padding: 24px; width: 480px; max-width: 90vw;
+    .ir-filter-row .ir-form-control { width: auto; flex: 1; min-width: 100px; }
+
+    .ir-results-card {
+        background: #fff;
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin-top: 1.5rem;
     }
-    .ir-modal-title { font-weight: 600; color: #e2e8f0; font-size: 1.05rem; margin-bottom: 16px; }
-    .ir-form-group { margin-bottom: 12px; }
-    .ir-actions-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    .ir-results-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid var(--slate-200);
+        background: var(--slate-50);
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .ir-results-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--slate-700);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .ir-results-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .ir-viz-toggle {
+        display: inline-flex;
+        background: var(--slate-100);
+        border-radius: var(--radius);
+        padding: 0.125rem;
+        gap: 0.125rem;
+        border: 1px solid var(--slate-200);
+    }
+    .ir-viz-btn {
+        padding: 0.35rem 0.625rem;
+        border: none;
+        border-radius: 0.375rem;
+        background: transparent;
+        color: var(--slate-500);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .ir-viz-btn:hover { color: var(--slate-700); background: var(--slate-200); }
+    .ir-viz-btn.active { background: var(--primary); color: #fff; box-shadow: 0 1px 3px rgba(37,99,235,0.2); }
+
+    .ir-table-wrap { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+    .ir-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 0.825rem;
+    }
+    .ir-table th {
+        background: var(--slate-50);
+        color: var(--slate-600);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        border-bottom: 2px solid var(--slate-200);
+    }
+    .ir-table td {
+        padding: 0.625rem 1rem;
+        color: var(--slate-700);
+        border-bottom: 1px solid var(--slate-100);
+    }
+    .ir-table tbody tr:hover td { background: rgba(37,99,235,0.03); }
+    .ir-table tbody tr:last-child td { border-bottom: none; }
+
+    .ir-status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.625rem 1.25rem;
+        background: var(--slate-50);
+        border-top: 1px solid var(--slate-200);
+        font-size: 0.8rem;
+        color: var(--slate-500);
+    }
+
+    .ir-chart-container { padding: 1.5rem; height: 380px; position: relative; }
+
     .ir-insight-box {
-        background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
-        border-radius: 8px; padding: 12px 16px; margin-top: 12px; color: #c7d2fe; font-size: 0.85rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        background: #f0f4ff;
+        border: 1px solid #c7d2fe;
+        border-radius: var(--radius);
+        padding: 0.875rem 1.125rem;
+        margin-top: 1rem;
+        color: var(--slate-700);
+        font-size: 0.85rem;
     }
-    .ir-insight-box i { color: #818cf8; margin-right: 6px; }
+    .ir-insight-box i { color: var(--primary); font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+    .ir-refine-bar {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    .ir-refine-bar input { flex: 1; }
+
+    .ir-saved-list { list-style: none; padding: 0; margin: 0; }
+    .ir-saved-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--slate-100);
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .ir-saved-item:hover { background: var(--slate-50); }
+    .ir-saved-item:last-child { border-bottom: none; }
+    .ir-saved-name { font-weight: 600; color: var(--slate-800); font-size: 0.9rem; }
+    .ir-saved-desc { font-size: 0.8rem; color: var(--slate-500); margin-top: 0.25rem; }
+    .ir-saved-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        margin-top: 0.375rem;
+        font-size: 0.75rem;
+        color: var(--slate-400);
+    }
+    .ir-saved-meta span { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+    .ir-badge {
+        display: inline-block;
+        padding: 0.15rem 0.625rem;
+        border-radius: 1rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .ir-badge-ops { background: #dbeafe; color: #1d4ed8; }
+    .ir-badge-quality { background: #d1fae5; color: #047857; }
+    .ir-badge-procurement { background: #fef3c7; color: #b45309; }
+    .ir-badge-finance { background: #fee2e2; color: #b91c1c; }
+
+    .ir-empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--slate-400);
+    }
+    .ir-empty-state .empty-icon {
+        width: 4rem;
+        height: 4rem;
+        background: var(--slate-100);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+    .ir-empty-state .empty-icon i { font-size: 1.5rem; color: var(--slate-400); }
+    .ir-empty-state .empty-title { font-size: 0.95rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.375rem; }
+    .ir-empty-state .empty-desc { font-size: 0.825rem; color: var(--slate-400); }
+
+    .ir-modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15,23,42,0.5);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    .ir-modal-backdrop.show { display: flex; }
+    .ir-modal-box {
+        background: #fff;
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-lg);
+        padding: 1.75rem;
+        width: 520px;
+        max-width: 92vw;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+    .ir-modal-title {
+        font-weight: 700;
+        color: var(--slate-800);
+        font-size: 1.1rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .ir-modal-title i { color: var(--primary); }
+    .ir-form-group { margin-bottom: 1rem; }
+
+    .ir-loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15,23,42,0.45);
+        backdrop-filter: blur(4px);
+        z-index: 9998;
+        align-items: center;
+        justify-content: center;
+    }
+    .ir-loading-box {
+        background: #fff;
+        border-radius: var(--radius-lg);
+        padding: 2rem 2.5rem;
+        text-align: center;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        border: 1px solid var(--slate-200);
+    }
+    .ir-spinner {
+        display: inline-block;
+        width: 2.5rem;
+        height: 2.5rem;
+        border: 3px solid var(--slate-200);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: ir-spin 0.7s linear infinite;
+        margin-bottom: 1rem;
+    }
+    @keyframes ir-spin { to { transform: rotate(360deg); } }
+    .ir-loading-text { font-weight: 600; color: var(--slate-700); font-size: 0.95rem; }
+    .ir-loading-subtext { color: var(--slate-400); font-size: 0.8rem; margin-top: 0.25rem; }
+
+    .ir-example-prompts {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+    }
+    .ir-example-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: 2rem;
+        font-size: 0.75rem;
+        color: var(--slate-500);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .ir-example-chip:hover {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        color: var(--primary);
+    }
+
+    .ir-builder-grid { display: grid; grid-template-columns: 340px 1fr; gap: 1rem; }
+    @media (max-width: 991px) {
+        .ir-builder-grid { grid-template-columns: 1fr; }
+    }
+    .ir-builder-sidebar {}
+    .ir-builder-main {}
+
+    .ir-divider { border: 0; border-top: 1px solid var(--slate-100); margin: 1rem 0; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="ir-container">
-    <div class="ir-header">
+<div style="max-width:1440px;margin:0 auto;">
+    <div class="ir-page-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h2><i class="bi bi-cpu"></i> Intelligent Reporting</h2>
-                <p>Create, analyze, and manage reports using natural language or the guided builder</p>
+                <h2><i class="bi bi-bar-chart-line"></i> Intelligent Reporting</h2>
+                <p class="subtitle">Create, analyze, and manage reports using natural language or the guided builder</p>
+            </div>
+            <div class="header-badge">
+                <i class="bi bi-cpu"></i> AI-Powered Analytics
             </div>
         </div>
     </div>
 
-    <div class="ir-tabs">
-        <button class="ir-tab active" onclick="switchTab('nl')"><i class="bi bi-chat-dots"></i> Natural Language</button>
-        <button class="ir-tab" onclick="switchTab('builder')"><i class="bi bi-tools"></i> Report Builder</button>
-        <button class="ir-tab" onclick="switchTab('saved')"><i class="bi bi-bookmark"></i> Saved Reports</button>
+    <div class="ir-tabs-wrapper">
+        <button class="ir-tab-btn active" onclick="switchTab('nl', this)">
+            <i class="bi bi-chat-dots"></i> Natural Language
+        </button>
+        <button class="ir-tab-btn" onclick="switchTab('builder', this)">
+            <i class="bi bi-tools"></i> Report Builder
+        </button>
+        <button class="ir-tab-btn" onclick="switchTab('saved', this)">
+            <i class="bi bi-bookmark"></i> Saved Reports
+            {% if saved_reports %}<span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ saved_reports|length }}</span>{% endif %}
+        </button>
     </div>
 
     <div id="panel-nl" class="ir-panel active">
-        <div class="ir-card">
-            <div class="ir-card-header"><i class="bi bi-chat-dots"></i> Describe Your Report</div>
-            <textarea id="nlPrompt" class="ir-nl-input" placeholder="Example: Show all open work orders with material cost overruns in the last 90 days&#10;Example: List top 10 suppliers by total purchase order value&#10;Example: Show inventory items below reorder point with supplier details"></textarea>
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <div class="text-muted" style="font-size:0.78rem;">Powered by COREx NeuroIQ Intelligence</div>
-                <button class="ir-btn ir-btn-primary" onclick="generateNLReport()">
-                    <i class="bi bi-lightning-charge"></i> Generate Report
-                </button>
+        <div class="ir-section-card">
+            <div class="ir-section-header">
+                <h6 class="ir-section-title"><i class="bi bi-chat-dots"></i> Describe Your Report</h6>
+            </div>
+            <div class="ir-section-body">
+                <textarea id="nlPrompt" class="ir-nl-textarea" placeholder="Describe the report you want to generate...&#10;&#10;For example: Show all open work orders with their assigned operators and material costs from the last 90 days"></textarea>
+                <div class="ir-example-prompts">
+                    <span class="ir-example-chip" onclick="fillExample(this)"><i class="bi bi-lightning-charge"></i> Top 10 suppliers by PO value</span>
+                    <span class="ir-example-chip" onclick="fillExample(this)"><i class="bi bi-lightning-charge"></i> Inventory below reorder point</span>
+                    <span class="ir-example-chip" onclick="fillExample(this)"><i class="bi bi-lightning-charge"></i> Open work orders with costs</span>
+                    <span class="ir-example-chip" onclick="fillExample(this)"><i class="bi bi-lightning-charge"></i> Sales orders this quarter</span>
+                </div>
+                <div class="ir-nl-footer">
+                    <div class="ir-powered-by">
+                        <i class="bi bi-cpu"></i> Powered by COREx NeuroIQ Intelligence
+                    </div>
+                    <button class="ir-btn ir-btn-primary ir-btn-lg" onclick="generateNLReport()">
+                        <i class="bi bi-lightning-charge-fill"></i> Generate Report
+                    </button>
+                </div>
             </div>
         </div>
         <div id="nlRefineBar" class="ir-refine-bar" style="display:none;">
-            <input type="text" id="refineInput" class="ir-input" placeholder="Refine: Add supplier name and sort by highest cost...">
+            <input type="text" id="refineInput" class="ir-form-control" placeholder="Refine your report... e.g., Add supplier name and sort by highest cost">
             <button class="ir-btn ir-btn-secondary" onclick="refineReport()"><i class="bi bi-arrow-repeat"></i> Refine</button>
         </div>
     </div>
 
     <div id="panel-builder" class="ir-panel">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <div class="ir-card">
-                    <div class="ir-card-header"><i class="bi bi-database"></i> Data Source</div>
-                    <select id="builderSource" class="ir-select" onchange="loadSourceFields()">
-                        <option value="">Select data source...</option>
-                        {% for key, src in data_sources.items() %}
-                        <option value="{{ key }}">{{ src.label }}</option>
-                        {% endfor %}
-                    </select>
-
-                    <div class="ir-card-header mt-3"><i class="bi bi-list-columns"></i> Fields</div>
-                    <div id="builderFields" style="max-height:200px;overflow-y:auto;"></div>
-
-                    <div class="ir-card-header mt-3"><i class="bi bi-sort-down"></i> Sort By</div>
-                    <div class="d-flex gap-2">
-                        <select id="builderSortBy" class="ir-select" style="flex:2;"><option value="">None</option></select>
-                        <select id="builderSortDir" class="ir-select" style="flex:1;">
-                            <option value="ASC">Asc</option>
-                            <option value="DESC">Desc</option>
+        <div class="ir-builder-grid">
+            <div class="ir-builder-sidebar">
+                <div class="ir-section-card">
+                    <div class="ir-section-header">
+                        <h6 class="ir-section-title"><i class="bi bi-database"></i> Data Source</h6>
+                    </div>
+                    <div class="ir-section-body">
+                        <select id="builderSource" class="ir-form-control" onchange="loadSourceFields()">
+                            <option value="">Select data source...</option>
+                            {% for key, src in data_sources.items() %}
+                            <option value="{{ key }}">{{ src.label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
+                </div>
 
-                    <div class="ir-card-header mt-3"><i class="bi bi-hash"></i> Limit</div>
-                    <input type="number" id="builderLimit" class="ir-input" value="500" min="1" max="5000">
+                <div class="ir-section-card">
+                    <div class="ir-section-header">
+                        <h6 class="ir-section-title"><i class="bi bi-list-columns-reverse"></i> Fields</h6>
+                    </div>
+                    <div id="builderFields" class="ir-field-list" style="min-height:60px;"></div>
+                </div>
+
+                <div class="ir-section-card">
+                    <div class="ir-section-header">
+                        <h6 class="ir-section-title"><i class="bi bi-sort-down"></i> Sort & Limit</h6>
+                    </div>
+                    <div class="ir-section-body">
+                        <div class="mb-3">
+                            <label class="ir-form-label">Sort By</label>
+                            <div class="d-flex gap-2">
+                                <select id="builderSortBy" class="ir-form-control" style="flex:2;">
+                                    <option value="">None</option>
+                                </select>
+                                <select id="builderSortDir" class="ir-form-control" style="flex:1;">
+                                    <option value="ASC">Asc</option>
+                                    <option value="DESC">Desc</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="ir-form-label">Row Limit</label>
+                            <input type="number" id="builderLimit" class="ir-form-control" value="500" min="1" max="5000">
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-8">
-                <div class="ir-card">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="ir-card-header mb-0"><i class="bi bi-funnel"></i> Filters</div>
-                        <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="addFilter()"><i class="bi bi-plus"></i> Add</button>
+
+            <div class="ir-builder-main">
+                <div class="ir-section-card">
+                    <div class="ir-section-header">
+                        <h6 class="ir-section-title"><i class="bi bi-funnel"></i> Filters</h6>
+                        <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="addFilter()"><i class="bi bi-plus-lg"></i> Add Filter</button>
                     </div>
-                    <div id="builderFilters"></div>
-                </div>
-                <div class="ir-card">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="ir-card-header mb-0"><i class="bi bi-calculator"></i> Aggregations</div>
-                        <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="addAggregation()"><i class="bi bi-plus"></i> Add</button>
-                    </div>
-                    <div id="builderAggregations"></div>
-                    <div id="builderGroupByWrap" style="display:none;" class="mt-2">
-                        <label class="ir-label">Group By</label>
-                        <select id="builderGroupBy" class="ir-select" multiple style="min-height:60px;"></select>
+                    <div class="ir-section-body">
+                        <div id="builderFilters">
+                            <div class="text-center py-2" style="color:var(--slate-400);font-size:0.825rem;">No filters applied. Click "Add Filter" to narrow your results.</div>
+                        </div>
                     </div>
                 </div>
-                <button class="ir-btn ir-btn-primary" onclick="runBuilderReport()">
-                    <i class="bi bi-play-fill"></i> Run Report
-                </button>
+
+                <div class="ir-section-card">
+                    <div class="ir-section-header">
+                        <h6 class="ir-section-title"><i class="bi bi-calculator"></i> Aggregations</h6>
+                        <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="addAggregation()"><i class="bi bi-plus-lg"></i> Add Aggregation</button>
+                    </div>
+                    <div class="ir-section-body">
+                        <div id="builderAggregations">
+                            <div class="text-center py-2" style="color:var(--slate-400);font-size:0.825rem;">No aggregations. Add COUNT, SUM, AVG, or other functions.</div>
+                        </div>
+                        <div id="builderGroupByWrap" style="display:none;" class="mt-3">
+                            <label class="ir-form-label">Group By</label>
+                            <select id="builderGroupBy" class="ir-form-control" multiple style="min-height:70px;"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-2">
+                    <button class="ir-btn ir-btn-primary ir-btn-lg" onclick="runBuilderReport()">
+                        <i class="bi bi-play-fill"></i> Run Report
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="panel-saved" class="ir-panel">
-        <div class="ir-card">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="ir-card-header mb-0"><i class="bi bi-bookmark"></i> Saved Reports</div>
+        <div class="ir-section-card">
+            <div class="ir-section-header">
+                <h6 class="ir-section-title"><i class="bi bi-bookmark-star"></i> Saved Reports</h6>
             </div>
             {% if saved_reports %}
-            {% for report in saved_reports %}
-            <div class="ir-saved-item" onclick="loadSavedReport({{ report.id }})">
-                <div>
-                    <div style="color:#e2e8f0;font-weight:500;">{{ report.name }}</div>
-                    <div class="ir-saved-meta">
-                        {{ report.description or 'No description' }} | 
-                        <span class="ir-badge {% if report.category == 'Operations' %}ir-badge-ops{% elif report.category == 'Quality' %}ir-badge-quality{% elif report.category == 'Procurement' %}ir-badge-procurement{% else %}ir-badge-finance{% endif %}">{{ report.category }}</span>
-                        | v{{ report.version }} | {{ report.owner_name or 'Unknown' }}
-                        | {{ report.access_level }}
+            <div class="ir-saved-list">
+                {% for report in saved_reports %}
+                <div class="ir-saved-item" onclick="loadSavedReport({{ report.id }})">
+                    <div style="flex:1;min-width:0;">
+                        <div class="ir-saved-name">{{ report.name }}</div>
+                        <div class="ir-saved-desc">{{ report.description or 'No description' }}</div>
+                        <div class="ir-saved-meta">
+                            <span class="ir-badge {% if report.category == 'Operations' %}ir-badge-ops{% elif report.category == 'Quality' %}ir-badge-quality{% elif report.category == 'Procurement' %}ir-badge-procurement{% else %}ir-badge-finance{% endif %}">{{ report.category }}</span>
+                            <span><i class="bi bi-layers"></i> v{{ report.version }}</span>
+                            <span><i class="bi bi-person"></i> {{ report.owner_name or 'Unknown' }}</span>
+                            <span><i class="bi bi-shield-lock"></i> {{ report.access_level }}</span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="ir-btn ir-btn-secondary ir-btn-icon" onclick="event.stopPropagation();cloneReport({{ report.id }})" title="Clone Report">
+                            <i class="bi bi-copy"></i>
+                        </button>
+                        <button class="ir-btn ir-btn-danger ir-btn-icon" onclick="event.stopPropagation();deleteReport({{ report.id }})" title="Delete Report">
+                            <i class="bi bi-trash3"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="event.stopPropagation();cloneReport({{ report.id }})" title="Clone"><i class="bi bi-copy"></i></button>
-                    <button class="ir-btn ir-btn-danger ir-btn-sm" onclick="event.stopPropagation();deleteReport({{ report.id }})" title="Delete"><i class="bi bi-trash"></i></button>
-                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
             {% else %}
-            <div class="ir-empty">
-                <i class="bi bi-bookmark-plus"></i>
-                <div>No saved reports yet</div>
-                <div style="font-size:0.8rem;margin-top:4px;">Generate a report and save it for reuse</div>
+            <div class="ir-empty-state">
+                <div class="empty-icon"><i class="bi bi-bookmark-plus"></i></div>
+                <div class="empty-title">No saved reports yet</div>
+                <div class="empty-desc">Generate a report using Natural Language or the Builder, then save it for quick access.</div>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <div id="resultsSection" style="display:none;margin-top:20px;">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <div style="color:#e2e8f0;font-weight:600;font-size:0.95rem;"><i class="bi bi-table"></i> Results</div>
-            <div class="d-flex gap-2 align-items-center">
-                <div class="ir-viz-toggle">
-                    <button class="ir-viz-btn active" data-viz="table" onclick="switchViz('table')"><i class="bi bi-table"></i></button>
-                    <button class="ir-viz-btn" data-viz="bar" onclick="switchViz('bar')"><i class="bi bi-bar-chart"></i></button>
-                    <button class="ir-viz-btn" data-viz="line" onclick="switchViz('line')"><i class="bi bi-graph-up"></i></button>
-                    <button class="ir-viz-btn" data-viz="doughnut" onclick="switchViz('doughnut')"><i class="bi bi-pie-chart"></i></button>
+    <div id="resultsSection" style="display:none;">
+        <div class="ir-results-card">
+            <div class="ir-results-toolbar">
+                <div class="ir-results-title">
+                    <i class="bi bi-table"></i> Report Results
                 </div>
-                <div class="ir-actions-bar" style="margin-top:0;">
+                <div class="ir-results-actions">
+                    <div class="ir-viz-toggle">
+                        <button class="ir-viz-btn active" data-viz="table" onclick="switchViz('table')" title="Table View"><i class="bi bi-table"></i></button>
+                        <button class="ir-viz-btn" data-viz="bar" onclick="switchViz('bar')" title="Bar Chart"><i class="bi bi-bar-chart"></i></button>
+                        <button class="ir-viz-btn" data-viz="line" onclick="switchViz('line')" title="Line Chart"><i class="bi bi-graph-up"></i></button>
+                        <button class="ir-viz-btn" data-viz="doughnut" onclick="switchViz('doughnut')" title="Doughnut Chart"><i class="bi bi-pie-chart"></i></button>
+                    </div>
+                    <div style="width:1px;height:24px;background:var(--slate-200);"></div>
                     <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="exportReport('csv')"><i class="bi bi-filetype-csv"></i> CSV</button>
                     <button class="ir-btn ir-btn-secondary ir-btn-sm" onclick="exportReport('json')"><i class="bi bi-filetype-json"></i> JSON</button>
-                    <button class="ir-btn ir-btn-success ir-btn-sm" onclick="openSaveModal()"><i class="bi bi-save"></i> Save</button>
+                    <button class="ir-btn ir-btn-success ir-btn-sm" onclick="openSaveModal()"><i class="bi bi-save"></i> Save Report</button>
                 </div>
             </div>
-        </div>
-        <div class="ir-results-area">
             <div id="tableView" class="ir-table-wrap"></div>
             <div id="chartView" class="ir-chart-container" style="display:none;">
                 <canvas id="reportChart"></canvas>
@@ -270,22 +745,22 @@
     </div>
 </div>
 
-<div id="saveModal" class="ir-save-modal">
-    <div class="ir-modal-content">
+<div id="saveModal" class="ir-modal-backdrop">
+    <div class="ir-modal-box">
         <div class="ir-modal-title"><i class="bi bi-save"></i> Save Report</div>
         <div class="ir-form-group">
-            <label class="ir-label">Report Name</label>
-            <input type="text" id="saveName" class="ir-input" placeholder="Enter report name">
+            <label class="ir-form-label">Report Name</label>
+            <input type="text" id="saveName" class="ir-form-control" placeholder="Enter a descriptive name for this report">
         </div>
         <div class="ir-form-group">
-            <label class="ir-label">Description</label>
-            <input type="text" id="saveDescription" class="ir-input" placeholder="Brief description">
+            <label class="ir-form-label">Description</label>
+            <input type="text" id="saveDescription" class="ir-form-control" placeholder="Brief description of what this report shows">
         </div>
-        <div class="row g-2">
+        <div class="row g-3">
             <div class="col-6">
                 <div class="ir-form-group">
-                    <label class="ir-label">Category</label>
-                    <select id="saveCategory" class="ir-select">
+                    <label class="ir-form-label">Category</label>
+                    <select id="saveCategory" class="ir-form-control">
                         <option>Operations</option>
                         <option>Quality</option>
                         <option>Procurement</option>
@@ -295,8 +770,8 @@
             </div>
             <div class="col-6">
                 <div class="ir-form-group">
-                    <label class="ir-label">Access Level</label>
-                    <select id="saveAccess" class="ir-select">
+                    <label class="ir-form-label">Access Level</label>
+                    <select id="saveAccess" class="ir-form-control">
                         <option>Private</option>
                         <option>Team</option>
                         <option>Organization</option>
@@ -304,18 +779,19 @@
                 </div>
             </div>
         </div>
-        <div class="d-flex justify-content-end gap-2 mt-3">
+        <hr class="ir-divider" style="margin-top:1.25rem;">
+        <div class="d-flex justify-content-end gap-2">
             <button class="ir-btn ir-btn-secondary" onclick="closeSaveModal()">Cancel</button>
-            <button class="ir-btn ir-btn-primary" onclick="saveReport()"><i class="bi bi-check-lg"></i> Save</button>
+            <button class="ir-btn ir-btn-primary" onclick="saveReport()"><i class="bi bi-check-lg"></i> Save Report</button>
         </div>
     </div>
 </div>
 
-<div id="loadingOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center;">
-    <div style="background:#1e293b;border-radius:12px;padding:30px 40px;text-align:center;border:1px solid #334155;">
-        <div class="ir-spinner" style="width:32px;height:32px;margin:0 auto 12px;"></div>
-        <div style="color:#e2e8f0;font-weight:500;">Generating Report...</div>
-        <div style="color:#64748b;font-size:0.8rem;margin-top:4px;">Analyzing your request</div>
+<div id="loadingOverlay" class="ir-loading-overlay">
+    <div class="ir-loading-box">
+        <div class="ir-spinner"></div>
+        <div class="ir-loading-text">Generating Report...</div>
+        <div class="ir-loading-subtext">Analyzing your request with COREx Intelligence</div>
     </div>
 </div>
 
@@ -334,11 +810,17 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(d => { dataSources = d; });
 });
 
-function switchTab(tab) {
-    document.querySelectorAll('.ir-tab').forEach(t => t.classList.remove('active'));
+function switchTab(tab, btn) {
+    document.querySelectorAll('.ir-tab-btn').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.ir-panel').forEach(p => p.classList.remove('active'));
-    event.target.closest('.ir-tab').classList.add('active');
+    btn.classList.add('active');
     document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function fillExample(el) {
+    const text = el.textContent.trim().replace(/^[^\s]+\s/, '');
+    document.getElementById('nlPrompt').value = text;
+    document.getElementById('nlPrompt').focus();
 }
 
 function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
@@ -410,8 +892,10 @@ function loadSourceFields() {
     if (!source || !dataSources[source]) return;
     const fields = dataSources[source].fields;
     for (const [key, info] of Object.entries(fields)) {
-        container.innerHTML += `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;color:#cbd5e1;font-size:0.82rem;cursor:pointer;">
-            <input type="checkbox" class="field-check" value="${key}" checked> ${info.label} <span style="color:#64748b;font-size:0.72rem;">(${info.type})</span>
+        container.innerHTML += `<label class="ir-field-item">
+            <input type="checkbox" class="field-check" value="${key}" checked>
+            <span>${info.label}</span>
+            <span class="ir-field-type">${info.type}</span>
         </label>`;
         sortBy.innerHTML += `<option value="${key}">${info.label}</option>`;
         groupBy.innerHTML += `<option value="${key}">${info.label}</option>`;
@@ -423,20 +907,29 @@ function addFilter() {
     if (!source || !dataSources[source]) return alert('Select a data source first');
     const fields = dataSources[source].fields;
     const container = document.getElementById('builderFilters');
+    if (container.querySelector('.text-center')) container.innerHTML = '';
     const idx = container.children.length;
     let options = Object.entries(fields).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
     container.innerHTML += `<div class="ir-filter-row" id="filter-${idx}">
-        <select class="ir-select filter-field">${options}</select>
-        <select class="ir-select filter-op">
+        <select class="ir-form-control filter-field">${options}</select>
+        <select class="ir-form-control filter-op" style="max-width:130px;">
             <option value="=">=</option><option value="!=">!=</option>
             <option value=">">></option><option value="<"><</option>
             <option value=">=">>=</option><option value="<="><=</option>
             <option value="LIKE">Contains</option>
             <option value="IS NULL">Is Empty</option><option value="IS NOT NULL">Has Value</option>
         </select>
-        <input type="text" class="ir-input filter-value" placeholder="Value">
-        <button class="ir-btn ir-btn-danger ir-btn-sm" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
+        <input type="text" class="ir-form-control filter-value" placeholder="Value">
+        <button class="ir-btn ir-btn-danger ir-btn-icon" onclick="removeFilterRow(this)"><i class="bi bi-x-lg"></i></button>
     </div>`;
+}
+
+function removeFilterRow(btn) {
+    btn.parentElement.remove();
+    const container = document.getElementById('builderFilters');
+    if (container.children.length === 0) {
+        container.innerHTML = '<div class="text-center py-2" style="color:var(--slate-400);font-size:0.825rem;">No filters applied. Click "Add Filter" to narrow your results.</div>';
+    }
 }
 
 function addAggregation() {
@@ -444,23 +937,31 @@ function addAggregation() {
     if (!source || !dataSources[source]) return alert('Select a data source first');
     const fields = dataSources[source].fields;
     const container = document.getElementById('builderAggregations');
+    if (container.querySelector('.text-center')) container.innerHTML = '';
     const idx = container.children.length;
     let options = '<option value="*">All (*)</option>' + Object.entries(fields).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
     container.innerHTML += `<div class="ir-filter-row" id="agg-${idx}">
-        <select class="ir-select agg-func">
+        <select class="ir-form-control agg-func" style="max-width:120px;">
             <option value="COUNT">COUNT</option><option value="SUM">SUM</option>
             <option value="AVG">AVG</option><option value="MIN">MIN</option><option value="MAX">MAX</option>
         </select>
-        <select class="ir-select agg-field">${options}</select>
-        <input type="text" class="ir-input" placeholder="Alias (optional)" style="max-width:120px;">
-        <button class="ir-btn ir-btn-danger ir-btn-sm" onclick="this.parentElement.remove();checkAggregations();"><i class="bi bi-x"></i></button>
+        <select class="ir-form-control agg-field">${options}</select>
+        <input type="text" class="ir-form-control" placeholder="Alias" style="max-width:120px;">
+        <button class="ir-btn ir-btn-danger ir-btn-icon" onclick="removeAggRow(this)"><i class="bi bi-x-lg"></i></button>
     </div>`;
     document.getElementById('builderGroupByWrap').style.display = 'block';
 }
 
+function removeAggRow(btn) {
+    btn.parentElement.remove();
+    checkAggregations();
+}
+
 function checkAggregations() {
-    if (document.getElementById('builderAggregations').children.length === 0) {
+    const container = document.getElementById('builderAggregations');
+    if (container.children.length === 0) {
         document.getElementById('builderGroupByWrap').style.display = 'none';
+        container.innerHTML = '<div class="text-center py-2" style="color:var(--slate-400);font-size:0.825rem;">No aggregations. Add COUNT, SUM, AVG, or other functions.</div>';
     }
 }
 
@@ -479,7 +980,7 @@ function runBuilderReport() {
     const aggregations = Array.from(document.querySelectorAll('#builderAggregations .ir-filter-row')).map(row => {
         const func = row.querySelector('.agg-func')?.value;
         const field = row.querySelector('.agg-field')?.value;
-        const alias = row.querySelectorAll('.ir-input')[0]?.value || '';
+        const alias = row.querySelectorAll('.ir-form-control')[2]?.value || '';
         return {function: func, field, alias: alias || `${func.toLowerCase()}_${field}`};
     });
 
@@ -524,11 +1025,16 @@ function runBuilderReport() {
 function renderResults(data, rowCount) {
     const section = document.getElementById('resultsSection');
     section.style.display = 'block';
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const tableView = document.getElementById('tableView');
     const status = document.getElementById('resultsStatus');
 
     if (!data || data.length === 0) {
-        tableView.innerHTML = '<div class="ir-empty"><i class="bi bi-inbox"></i><div>No results found</div></div>';
+        tableView.innerHTML = `<div class="ir-empty-state" style="padding:2rem;">
+            <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+            <div class="empty-title">No results found</div>
+            <div class="empty-desc">Try adjusting your query or filters to get results.</div>
+        </div>`;
         status.textContent = '0 rows returned';
         return;
     }
@@ -543,7 +1049,7 @@ function renderResults(data, rowCount) {
         html += '<tr>';
         columns.forEach(col => {
             let val = row[col];
-            if (val === null || val === undefined) val = '';
+            if (val === null || val === undefined) val = '<span style="color:var(--slate-300);">--</span>';
             else if (typeof val === 'number' && !Number.isInteger(val)) val = val.toFixed(2);
             html += `<td>${val}</td>`;
         });
@@ -551,7 +1057,7 @@ function renderResults(data, rowCount) {
     });
     html += '</tbody></table>';
     tableView.innerHTML = html;
-    status.innerHTML = `<span>${rowCount} row${rowCount !== 1 ? 's' : ''} returned</span><span>${new Date().toLocaleTimeString()}</span>`;
+    status.innerHTML = `<span><i class="bi bi-check-circle" style="color:var(--success);margin-right:0.25rem;"></i> ${rowCount} row${rowCount !== 1 ? 's' : ''} returned</span><span>${new Date().toLocaleTimeString()}</span>`;
     switchViz('table');
 }
 
@@ -573,31 +1079,36 @@ function renderChart(type) {
     if (numericCols.length === 0) numericCols = [columns[1] || columns[0]];
 
     const labels = currentData.slice(0, 50).map(r => String(r[labelCol] || '').substring(0, 30));
-    const colors = ['#6366f1','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+    const colors = ['#2563eb','#06b6d4','#059669','#d97706','#dc2626','#7c3aed','#ec4899','#14b8a6','#f59e0b','#6366f1'];
 
     const datasets = type === 'doughnut' ? [{
         data: currentData.slice(0, 50).map(r => Number(r[numericCols[0]]) || 0),
         backgroundColor: colors.concat(colors),
-        borderWidth: 0
+        borderWidth: 2,
+        borderColor: '#fff'
     }] : numericCols.map((col, i) => ({
         label: col.replace(/_/g, ' '),
         data: currentData.slice(0, 50).map(r => Number(r[col]) || 0),
-        backgroundColor: type === 'bar' ? colors[i % colors.length] : 'transparent',
+        backgroundColor: type === 'bar' ? colors[i % colors.length] + '20' : 'transparent',
         borderColor: colors[i % colors.length],
         borderWidth: 2,
         tension: 0.3,
-        fill: false
+        fill: type === 'bar',
+        borderRadius: type === 'bar' ? 4 : 0
     }));
 
     reportChart = new Chart(ctx, {
         type: type,
         data: { labels, datasets },
         options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#94a3b8' } } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#475569', font: { family: 'Inter', weight: '500' } } }
+            },
             scales: type === 'doughnut' ? {} : {
-                x: { ticks: { color: '#64748b', maxRotation: 45 }, grid: { color: '#1e293b' } },
-                y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+                x: { ticks: { color: '#64748b', maxRotation: 45, font: { size: 11 } }, grid: { color: '#f1f5f9' } },
+                y: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#f1f5f9' } }
             }
         }
     });
@@ -612,8 +1123,8 @@ function suggestVisualization(data) {
     .then(r => r.json())
     .then(result => {
         const box = document.getElementById('insightBox');
-        box.style.display = 'block';
-        box.innerHTML = `<i class="bi bi-lightbulb"></i> <strong>Visualization Suggestion:</strong> ${result.reason}`;
+        box.style.display = 'flex';
+        box.innerHTML = `<i class="bi bi-lightbulb-fill"></i> <div><strong>Visualization Tip:</strong> ${result.reason}</div>`;
     });
 }
 
@@ -659,15 +1170,19 @@ function loadSavedReport(reportId) {
         if (!result.success) return alert('Failed to load report');
         const report = result.report;
         if (report.report_type === 'nl' && report.nl_prompt) {
-            switchTab('nl');
-            document.querySelectorAll('.ir-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector('.ir-tab').classList.add('active');
+            document.querySelectorAll('.ir-tab-btn').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.ir-panel').forEach(p => p.classList.remove('active'));
+            document.querySelector('.ir-tab-btn').classList.add('active');
+            document.getElementById('panel-nl').classList.add('active');
             document.getElementById('nlPrompt').value = report.nl_prompt;
             generateNLReport();
         } else if (report.query_config) {
             const config = typeof report.query_config === 'string' ? JSON.parse(report.query_config) : report.query_config;
             if (config.data_source) {
-                switchTab('builder');
+                document.querySelectorAll('.ir-tab-btn').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.ir-panel').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.ir-tab-btn')[1].classList.add('active');
+                document.getElementById('panel-builder').classList.add('active');
                 document.getElementById('builderSource').value = config.data_source;
                 loadSourceFields();
                 currentConfig = config;
