@@ -136,10 +136,10 @@ class EnterpriseRiskEngine:
                     })
 
             monthly_completions = conn.execute('''
-                SELECT TO_CHAR(updated_at, 'YYYY-MM') as month, COUNT(*) as cnt
+                SELECT TO_CHAR(COALESCE(actual_end_date, created_at), 'YYYY-MM') as month, COUNT(*) as cnt
                 FROM work_orders
-                WHERE status = 'Completed' AND updated_at >= ?
-                GROUP BY TO_CHAR(updated_at, 'YYYY-MM')
+                WHERE status = 'Completed' AND COALESCE(actual_end_date, created_at) >= ?
+                GROUP BY TO_CHAR(COALESCE(actual_end_date, created_at), 'YYYY-MM')
                 ORDER BY month
             ''', (ninety_ago,)).fetchall()
 
