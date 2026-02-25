@@ -190,6 +190,10 @@
                                    class="btn btn-sm btn-outline-secondary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" title="Delete"
+                                        onclick="confirmDeleteCapability({{ cap.id }}, '{{ cap.capability_code }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -295,4 +299,33 @@
     </div>
     {% endif %}
 </div>
+
+<div class="modal fade" id="deleteCapabilityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Delete Capability</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete capability <strong id="deleteCapCode"></strong>?</p>
+                <p class="text-danger">This action cannot be undone. All associated specifications will also be removed.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteCapabilityForm" method="POST" style="display:inline">
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDeleteCapability(id, code) {
+    document.getElementById('deleteCapCode').textContent = code;
+    document.getElementById('deleteCapabilityForm').action = '/capabilities/' + id + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteCapabilityModal')).show();
+}
+</script>
 {% endblock %}
