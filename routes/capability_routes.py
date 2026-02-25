@@ -570,7 +570,7 @@ def convert_recommendation():
     try:
         product = conn.execute('''
             SELECT id, code, name, part_category, product_category, manufacturer, applicability, description
-            FROM products WHERE id = %s
+            FROM products WHERE id = ?
         ''', (product_id,)).fetchone()
         
         if not product:
@@ -580,7 +580,7 @@ def convert_recommendation():
         
         existing = conn.execute('''
             SELECT id FROM mro_capabilities 
-            WHERE product_id = %s OR part_number = %s
+            WHERE product_id = ? OR part_number = ?
         ''', (product_id, product['code'])).fetchone()
         
         if existing:
@@ -590,8 +590,8 @@ def convert_recommendation():
         
         last_cap = conn.execute('''
             SELECT capability_code FROM mro_capabilities 
-            WHERE capability_code LIKE 'CAP-%%'
-            ORDER BY CAST(SUBSTRING(capability_code FROM 5) AS INTEGER) DESC 
+            WHERE capability_code LIKE 'CAP-%'
+            ORDER BY CAST(SUBSTR(capability_code, 5) AS INTEGER) DESC 
             LIMIT 1
         ''').fetchone()
         
@@ -609,7 +609,7 @@ def convert_recommendation():
         wo_types = conn.execute('''
             SELECT DISTINCT wo.workorder_type
             FROM work_orders wo
-            WHERE wo.product_id = %s AND wo.workorder_type IS NOT NULL AND wo.workorder_type != ''
+            WHERE wo.product_id = ? AND wo.workorder_type IS NOT NULL AND wo.workorder_type != ''
         ''', (product_id,)).fetchall()
         
         capability_names = []
@@ -643,19 +643,23 @@ def convert_recommendation():
                 applicability, part_class, description, category, manufacturer,
                 certification_required, status, notes,
                 created_by, created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 'Active', 'Auto-converted from system recommendation based on product demand history', %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Active', 'Auto-converted from system recommendation based on product demand history', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ''', (
             capability_code, product['code'], product['id'], capability_name,
             applicability, category, description, category, manufacturer,
             session['user_id']
         ))
         
-        capability_id = conn.execute('SELECT lastval()').fetchone()[0]
+        new_cap = conn.execute('SELECT id FROM mro_capabilities WHERE capability_code = ?', (capability_code,)).fetchone()
+        capability_id = new_cap['id'] if new_cap else None
         
         conn.commit()
         flash(f'Capability {capability_code} created from recommendation for {product["code"]}!', 'success')
         conn.close()
-        return redirect(url_for('capability_routes.capability_edit', capability_id=capability_id))
+        
+        if capability_id:
+            return redirect(url_for('capability_routes.capability_edit', capability_id=capability_id))
+        return redirect(url_for('capability_routes.capability_list'))
         
     except Exception as e:
         conn.rollback()
