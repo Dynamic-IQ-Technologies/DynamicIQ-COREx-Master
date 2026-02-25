@@ -24,6 +24,9 @@
         <button class="btn btn-outline-success" onclick="showConvertModal()">
             <i class="bi bi-arrow-right-circle me-1"></i>Convert
         </button>
+        <button class="btn btn-outline-danger" onclick="confirmDeleteLead({{ lead.id }}, '{{ lead.lead_number }}', '{{ lead.company_name|e }}')">
+            <i class="bi bi-trash me-1"></i>Delete
+        </button>
         {% endif %}
     </div>
 </div>
@@ -513,6 +516,24 @@ function askCopilot() {
             answerDiv.innerHTML = '<span class="text-danger">Error: ' + (data.error || 'Failed to get response') + '</span>';
         }
     });
+}
+
+function confirmDeleteLead(leadId, leadNumber, companyName) {
+    if (confirm(`Are you sure you want to permanently delete lead ${leadNumber} (${companyName})?\n\nThis action cannot be undone. All associated activities and documents will also be removed.`)) {
+        fetch(`/leads/${leadId}/delete`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '{{ url_for("leads.leads_list") }}';
+            } else {
+                alert(data.error || 'Failed to delete lead');
+            }
+        })
+        .catch(() => alert('Error deleting lead'));
+    }
 }
 </script>
 {% endblock %}

@@ -934,22 +934,24 @@ def leads_copilot():
 
 @leads_bp.route('/leads/<int:lead_id>/delete', methods=['POST'])
 @login_required
-@role_required(['Admin'])
+@role_required(['Admin', 'Sales'])
 def delete_lead(lead_id):
     conn = db.get_connection()
     
-    lead = conn.execute('SELECT * FROM leads WHERE id = ?', (lead_id,)).fetchone()
+    lead = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
     if not lead:
+        conn.close()
         return jsonify({'success': False, 'error': 'Lead not found'}), 404
     
     if lead['status'] == 'Converted':
-        return jsonify({'success': False, 'error': 'Cannot delete converted lead'}), 400
+        conn.close()
+        return jsonify({'success': False, 'error': 'Cannot delete a converted lead'}), 400
     
-    conn.execute('DELETE FROM lead_activities WHERE lead_id = ?', (lead_id,))
-    conn.execute('DELETE FROM lead_documents WHERE lead_id = ?', (lead_id,))
-    conn.execute('DELETE FROM leads WHERE id = ?', (lead_id,))
+    conn.execute('DELETE FROM lead_activities WHERE lead_id = %s', (lead_id,))
+    conn.execute('DELETE FROM lead_documents WHERE lead_id = %s', (lead_id,))
+    conn.execute('DELETE FROM leads WHERE id = %s', (lead_id,))
     
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'message': 'Lead deleted successfully'})

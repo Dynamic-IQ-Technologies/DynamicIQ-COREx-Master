@@ -197,6 +197,9 @@
                                 <a href="{{ url_for('leads.edit_lead', lead_id=lead.id) }}" class="btn btn-outline-secondary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <button class="btn btn-outline-danger" title="Delete" onclick="confirmDeleteLead({{ lead.id }}, '{{ lead.lead_number }}', '{{ lead.company_name|e }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                                 {% endif %}
                             </div>
                         </td>
@@ -246,6 +249,32 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" onclick="generateLink()">Generate Link</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteLeadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger bg-opacity-10">
+                <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Delete Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="deleteLeadId">
+                <p>Are you sure you want to permanently delete this lead?</p>
+                <div class="bg-light rounded p-3">
+                    <div class="fw-semibold" id="deleteLeadNumber"></div>
+                    <div class="text-muted" id="deleteCompanyName"></div>
+                </div>
+                <p class="text-danger mt-3 mb-0"><small>This action cannot be undone. All associated activities and documents will also be removed.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="deleteLeadBtn" onclick="deleteLead()">
+                    <i class="bi bi-trash me-1"></i>Delete Lead
+                </button>
             </div>
         </div>
     </div>
@@ -344,6 +373,42 @@ function copyLink() {
     link.select();
     document.execCommand('copy');
     showToast('Link copied to clipboard', 'success');
+}
+
+function confirmDeleteLead(leadId, leadNumber, companyName) {
+    document.getElementById('deleteLeadNumber').textContent = leadNumber;
+    document.getElementById('deleteCompanyName').textContent = companyName;
+    document.getElementById('deleteLeadId').value = leadId;
+    new bootstrap.Modal(document.getElementById('deleteLeadModal')).show();
+}
+
+function deleteLead() {
+    const leadId = document.getElementById('deleteLeadId').value;
+    const btn = document.getElementById('deleteLeadBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+
+    fetch(`/leads/${leadId}/delete`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('deleteLeadModal')).hide();
+            showToast('Lead deleted successfully', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete Lead';
+            showToast(data.error || 'Failed to delete lead', 'danger');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete Lead';
+        showToast('Error deleting lead', 'danger');
+    });
 }
 
 function showQRCodeModal() {
