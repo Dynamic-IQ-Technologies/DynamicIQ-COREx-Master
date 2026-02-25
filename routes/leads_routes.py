@@ -1,10 +1,12 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, send_file
 from functools import wraps
 from models import Database, User
 from auth import role_required
 from datetime import datetime, timedelta
 import secrets
 import os
+import io
+import base64
 
 def login_required(f):
     @wraps(f)
@@ -676,6 +678,89 @@ def generate_form_link():
     link = f"{base_url}/leads/public-form/{token}?type={form_type}"
     
     return jsonify({'success': True, 'link': link, 'token': token})
+
+@leads_bp.route('/leads/generate-qr-code', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Sales'])
+def generate_qr_code():
+    import qrcode
+    from qrcode.image.styledpil import StyledPilImage
+    from PIL import Image, ImageDraw, ImageFont
+
+    token = secrets.token_urlsafe(32)
+    form_type = request.form.get('form_type', 'contact')
+    company_label = request.form.get('company_label', 'Dynamic.IQ-COREx')
+
+    base_url = request.host_url.rstrip('/')
+    link = f"{base_url}/leads/public-form/{token}?type={form_type}"
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(link)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="#0d6efd", back_color="white").convert('RGB')
+
+    qr_w, qr_h = qr_img.size
+    padding = 40
+    label_height = 80
+    canvas_w = qr_w + (padding * 2)
+    canvas_h = qr_h + (padding * 2) + label_height + 30
+    canvas = Image.new('RGB', (canvas_w, canvas_h), 'white')
+
+    canvas.paste(qr_img, (padding, padding))
+
+    draw = ImageDraw.Draw(canvas)
+    try:
+        font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+    except:
+        font_large = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+
+    type_labels = {
+        'contact': 'Contact Sales',
+        'services': 'Request Services',
+        'supplier': 'Become a Supplier',
+        'demo': 'Request a Demo'
+    }
+    label_text = company_label
+    sub_text = f"Scan to {type_labels.get(form_type, 'Contact Us')}"
+
+    bbox1 = draw.textbbox((0, 0), label_text, font=font_large)
+    tw1 = bbox1[2] - bbox1[0]
+    draw.text(((canvas_w - tw1) / 2, qr_h + padding + 15), label_text, fill="#1a202c", font=font_large)
+
+    bbox2 = draw.textbbox((0, 0), sub_text, font=font_small)
+    tw2 = bbox2[2] - bbox2[0]
+    draw.text(((canvas_w - tw2) / 2, qr_h + padding + 45), sub_text, fill="#6c757d", font=font_small)
+
+    buf = io.BytesIO()
+    canvas.save(buf, format='PNG', quality=95)
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    return jsonify({
+        'success': True,
+        'link': link,
+        'token': token,
+        'qr_image': f"data:image/png;base64,{img_base64}"
+    })
+
+@leads_bp.route('/leads/download-qr', methods=['POST'])
+@login_required
+@role_required(['Admin', 'Sales'])
+def download_qr():
+    img_data = request.form.get('qr_image', '')
+    if not img_data or ',' not in img_data:
+        return 'No image data', 400
+    img_bytes = base64.b64decode(img_data.split(',')[1])
+    buf = io.BytesIO(img_bytes)
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png', as_attachment=True, download_name='lead-capture-qr.png')
 
 @leads_bp.route('/leads/analytics')
 @login_required
