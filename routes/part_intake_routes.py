@@ -435,11 +435,6 @@ def convert_to_product(id):
             
             product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             
-            conn.execute('''
-                INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
-                VALUES (?, 0, ?, ?)
-            ''', (product_id, float(request.form.get('reorder_point', 0) or 0), float(request.form.get('safety_stock', 0) or 0)))
-            
             if intake['supplier_name'] or intake['supplier_part_number']:
                 conn.execute('''
                     INSERT INTO part_intake_supplier_xref (
