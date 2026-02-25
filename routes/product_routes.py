@@ -165,11 +165,6 @@ def create_product():
             
             product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             
-            conn.execute('''
-                INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
-                VALUES (?, 0, ?, ?)
-            ''', (product_id, float(request.form.get('reorder_point', 0)), float(request.form.get('safety_stock', 0))))
-            
             # Log audit trail
             AuditLogger.log_change(
                 conn=conn,
@@ -649,11 +644,6 @@ def import_products():
                           is_serialized, calibration_required, master_plan_part))
                     
                     product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-                    
-                    conn.execute('''
-                        INSERT INTO inventory (product_id, quantity, reorder_point, safety_stock)
-                        VALUES (?, 0, 0, 0)
-                    ''', (product_id,))
                 
                 imported_count += 1
             except Exception as row_error:
