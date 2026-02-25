@@ -128,6 +128,7 @@
                         {% endif %}
                         <th data-sort-type="string">Product Code / Part Number</th>
                         <th data-sort-type="string">Name</th>
+                        <th data-sort-type="string">Description</th>
                         <th data-sort-type="string">Type</th>
                         <th data-sort-type="string">UOM</th>
                         <th data-sort-type="currency">Listing Price</th>
@@ -144,6 +145,7 @@
                         {% endif %}
                         <td>{{ product.code }}</td>
                         <td>{{ product.name }}</td>
+                        <td>{{ product.description or '-' }}</td>
                         <td><span class="badge bg-secondary">{{ product.product_type }}</span></td>
                         <td>{{ product.unit_of_measure }}</td>
                         <td>{{ product.cost|currency }}</td>
