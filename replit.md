@@ -36,6 +36,7 @@ Key features include:
 - **AI Supplier Discovery Engine (Precision Mode)**: Aerospace-grade supplier matching with 4-tier hierarchy (Exact/Intelligent Equivalent/Functional Equivalent/Fuzzy), CAGE code/NSN cross-referencing, counterfeit risk screening, supply chain risk intelligence, cost estimation, and alternate part identification.
 - **Intelligent Reporting Module**: AI-powered self-service analytics hub with natural language report creation, guided builder, and visualizations.
 - **Enterprise Risk Engine (ERE)**: Predictive multi-domain risk intelligence system with risk scoring, cross-domain correlation, predictive analysis, and AI risk briefings.
+- **Capability Recommendation Engine**: Auto-recommends capabilities based on product demand history (work orders, sales orders, purchase orders) with demand scoring and one-click conversion to active capabilities.
 - **Quality & Compliance**: Duplicate Detection System.
 - **Core Tracking**: Core Due Days for exchange orders.
 - **Dynamic Material Issue Module**: High-performance multi-material issuance with real-time inventory validation.

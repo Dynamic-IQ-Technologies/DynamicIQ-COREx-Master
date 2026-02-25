@@ -93,12 +93,68 @@ def capability_list():
         ORDER BY manufacturer
     ''').fetchall()
     
+    recommendations = conn.execute('''
+        SELECT 
+            p.id as product_id,
+            p.code as part_number,
+            p.name as product_name,
+            p.part_category,
+            p.product_category,
+            p.manufacturer,
+            p.applicability,
+            COALESCE(wo_stats.wo_count, 0) as work_order_count,
+            COALESCE(wo_stats.wo_completed, 0) as wo_completed,
+            COALESCE(so_stats.so_count, 0) as sales_order_count,
+            COALESCE(so_stats.so_qty, 0) as sales_qty,
+            COALESCE(po_stats.po_count, 0) as purchase_order_count,
+            COALESCE(wo_stats.wo_count, 0) + COALESCE(so_stats.so_count, 0) + COALESCE(po_stats.po_count, 0) as total_activity,
+            COALESCE(so_stats.so_revenue, 0) as total_revenue,
+            CASE 
+                WHEN COALESCE(wo_stats.wo_count, 0) + COALESCE(so_stats.so_count, 0) + COALESCE(po_stats.po_count, 0) >= 10 THEN 'High'
+                WHEN COALESCE(wo_stats.wo_count, 0) + COALESCE(so_stats.so_count, 0) + COALESCE(po_stats.po_count, 0) >= 5 THEN 'Medium'
+                ELSE 'Low'
+            END as demand_level
+        FROM products p
+        LEFT JOIN (
+            SELECT product_id, 
+                   COUNT(*) as wo_count,
+                   SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as wo_completed
+            FROM work_orders
+            GROUP BY product_id
+        ) wo_stats ON wo_stats.product_id = p.id
+        LEFT JOIN (
+            SELECT sol.product_id,
+                   COUNT(DISTINCT sol.sales_order_id) as so_count,
+                   SUM(sol.quantity) as so_qty,
+                   SUM(sol.line_total) as so_revenue
+            FROM sales_order_lines sol
+            JOIN sales_orders so ON sol.sales_order_id = so.id
+            WHERE so.status NOT IN ('Cancelled', 'Draft')
+            GROUP BY sol.product_id
+        ) so_stats ON so_stats.product_id = p.id
+        LEFT JOIN (
+            SELECT pol.product_id,
+                   COUNT(DISTINCT pol.po_id) as po_count
+            FROM purchase_order_lines pol
+            JOIN purchase_orders po ON pol.po_id = po.id
+            WHERE po.status NOT IN ('Cancelled', 'Draft')
+            GROUP BY pol.product_id
+        ) po_stats ON po_stats.product_id = p.id
+        WHERE p.id NOT IN (SELECT DISTINCT product_id FROM mro_capabilities WHERE product_id IS NOT NULL)
+        AND p.code NOT IN (SELECT DISTINCT part_number FROM mro_capabilities WHERE part_number IS NOT NULL AND part_number != '')
+        AND (COALESCE(wo_stats.wo_count, 0) + COALESCE(so_stats.so_count, 0) + COALESCE(po_stats.po_count, 0)) > 0
+        AND p.product_type NOT IN ('Non-Inventory', 'Tool')
+        ORDER BY total_activity DESC, total_revenue DESC
+        LIMIT 20
+    ''').fetchall()
+    
     conn.close()
     
     return render_template('capabilities/list.html',
                          capabilities=capabilities,
                          categories=categories,
                          manufacturers=manufacturers,
+                         recommendations=recommendations,
                          search_query=search_query,
                          filter_category=filter_category,
                          filter_status=filter_status,
@@ -497,3 +553,112 @@ def capability_export():
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename=mro_capabilities_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'}
     )
+
+@capability_bp.route('/capabilities/convert-recommendation', methods=['POST'])
+@login_required
+def convert_recommendation():
+    """Convert a recommended capability into an actual capability"""
+    db = Database()
+    conn = db.get_connection()
+    
+    product_id = request.form.get('product_id')
+    
+    if not product_id:
+        flash('Invalid product selection.', 'danger')
+        return redirect(url_for('capability_routes.capability_list'))
+    
+    try:
+        product = conn.execute('''
+            SELECT id, code, name, part_category, product_category, manufacturer, applicability, description
+            FROM products WHERE id = %s
+        ''', (product_id,)).fetchone()
+        
+        if not product:
+            flash('Product not found.', 'danger')
+            conn.close()
+            return redirect(url_for('capability_routes.capability_list'))
+        
+        existing = conn.execute('''
+            SELECT id FROM mro_capabilities 
+            WHERE product_id = %s OR part_number = %s
+        ''', (product_id, product['code'])).fetchone()
+        
+        if existing:
+            flash(f'A capability already exists for {product["code"]}.', 'warning')
+            conn.close()
+            return redirect(url_for('capability_routes.capability_detail', capability_id=existing['id']))
+        
+        last_cap = conn.execute('''
+            SELECT capability_code FROM mro_capabilities 
+            WHERE capability_code LIKE 'CAP-%%'
+            ORDER BY CAST(SUBSTRING(capability_code FROM 5) AS INTEGER) DESC 
+            LIMIT 1
+        ''').fetchone()
+        
+        if last_cap:
+            try:
+                last_number = int(last_cap['capability_code'].split('-')[1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        capability_code = f'CAP-{next_number:04d}'
+        
+        wo_types = conn.execute('''
+            SELECT DISTINCT wo.work_order_type
+            FROM work_orders wo
+            WHERE wo.product_id = %s AND wo.work_order_type IS NOT NULL AND wo.work_order_type != ''
+        ''', (product_id,)).fetchall()
+        
+        capability_names = []
+        type_mapping = {
+            'Repair': 'Repair',
+            'Overhaul': 'Overhaul',
+            'Inspection': 'Maintenance',
+            'Maintenance': 'Maintenance',
+            'Manufacturing': 'Manufacturing',
+            'Assembly': 'Manufacturing',
+            'Test': 'Testing'
+        }
+        
+        for wt in wo_types:
+            mapped = type_mapping.get(wt['work_order_type'], wt['work_order_type'])
+            if mapped and mapped not in capability_names:
+                capability_names.append(mapped)
+        
+        if not capability_names:
+            capability_names = ['Repair', 'Overhaul']
+        
+        capability_name = ', '.join(capability_names)
+        category = product['part_category'] or product['product_category'] or ''
+        manufacturer = product['manufacturer'] or ''
+        applicability = product['applicability'] or ''
+        description = f"Auto-recommended capability for {product['code']} - {product['name']}"
+        
+        conn.execute('''
+            INSERT INTO mro_capabilities (
+                capability_code, part_number, product_id, capability_name,
+                applicability, part_class, description, category, manufacturer,
+                certification_required, status, notes,
+                created_by, created_at, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 'Active', 'Auto-converted from system recommendation based on product demand history', %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ''', (
+            capability_code, product['code'], product['id'], capability_name,
+            applicability, category, description, category, manufacturer,
+            session['user_id']
+        ))
+        
+        capability_id = conn.execute('SELECT lastval()').fetchone()[0]
+        
+        conn.commit()
+        flash(f'Capability {capability_code} created from recommendation for {product["code"]}!', 'success')
+        conn.close()
+        return redirect(url_for('capability_routes.capability_edit', capability_id=capability_id))
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f'Error converting recommendation: {str(e)}', 'danger')
+        return redirect(url_for('capability_routes.capability_list'))

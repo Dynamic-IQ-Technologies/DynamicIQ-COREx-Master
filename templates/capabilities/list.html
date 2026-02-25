@@ -207,5 +207,92 @@
             {% endif %}
         </div>
     </div>
+
+    {% if recommendations and recommendations|length > 0 %}
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%); color: white;">
+            <div>
+                <i class="bi bi-lightbulb"></i> <strong>Recommended Capabilities</strong>
+                <span class="badge bg-light text-dark ms-2">{{ recommendations|length }}</span>
+            </div>
+            <small>Based on product demand and operational history</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Manufacturer</th>
+                            <th style="text-align:center">Work Orders</th>
+                            <th style="text-align:center">Sales Orders</th>
+                            <th style="text-align:center">Purchase Orders</th>
+                            <th style="text-align:right">Revenue</th>
+                            <th style="text-align:center">Demand</th>
+                            <th style="text-align:center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rec in recommendations %}
+                        <tr>
+                            <td><strong>{{ rec.part_number }}</strong></td>
+                            <td>{{ rec.product_name }}</td>
+                            <td>
+                                {% if rec.part_category %}
+                                <span class="badge bg-secondary">{{ rec.part_category }}</span>
+                                {% elif rec.product_category %}
+                                <span class="badge bg-secondary">{{ rec.product_category }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ rec.manufacturer or '-' }}</td>
+                            <td style="text-align:center">
+                                {% if rec.work_order_count > 0 %}
+                                <span class="badge bg-info">{{ rec.work_order_count }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:center">
+                                {% if rec.sales_order_count > 0 %}
+                                <span class="badge bg-success">{{ rec.sales_order_count }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:center">
+                                {% if rec.purchase_order_count > 0 %}
+                                <span class="badge bg-warning text-dark">{{ rec.purchase_order_count }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right">
+                                {% if rec.total_revenue > 0 %}
+                                ${{ "{:,.2f}".format(rec.total_revenue) }}
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:center">
+                                {% if rec.demand_level == 'High' %}
+                                <span class="badge bg-danger">High</span>
+                                {% elif rec.demand_level == 'Medium' %}
+                                <span class="badge bg-warning text-dark">Medium</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Low</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:center">
+                                <form method="POST" action="{{ url_for('capability_routes.convert_recommendation') }}" style="display:inline">
+                                    <input type="hidden" name="product_id" value="{{ rec.product_id }}">
+                                    <button type="submit" class="btn btn-sm btn-primary" title="Convert to Capability">
+                                        <i class="bi bi-arrow-right-circle"></i> Convert
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
