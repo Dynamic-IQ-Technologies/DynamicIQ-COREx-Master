@@ -124,11 +124,11 @@ def capability_list():
         ) wo_stats ON wo_stats.product_id = p.id
         LEFT JOIN (
             SELECT sol.product_id,
-                   COUNT(DISTINCT sol.sales_order_id) as so_count,
+                   COUNT(DISTINCT sol.so_id) as so_count,
                    SUM(sol.quantity) as so_qty,
                    SUM(sol.line_total) as so_revenue
             FROM sales_order_lines sol
-            JOIN sales_orders so ON sol.sales_order_id = so.id
+            JOIN sales_orders so ON sol.so_id = so.id
             WHERE so.status NOT IN ('Cancelled', 'Draft')
             GROUP BY sol.product_id
         ) so_stats ON so_stats.product_id = p.id
