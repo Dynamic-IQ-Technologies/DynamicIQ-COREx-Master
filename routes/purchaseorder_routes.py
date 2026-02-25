@@ -1779,12 +1779,6 @@ def api_quick_add_product():
         
         product_id = cursor.lastrowid
         
-        # Create inventory record for the new product
-        conn.execute('''
-            INSERT INTO inventory (product_id, quantity, warehouse_location, reorder_point, safety_stock)
-            VALUES (?, 0, 'Main', 0, 0)
-        ''', (product_id,))
-        
         conn.commit()
         
         # Log the audit
