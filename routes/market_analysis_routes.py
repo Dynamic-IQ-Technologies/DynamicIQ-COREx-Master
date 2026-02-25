@@ -115,9 +115,9 @@ def upload_fleet_data():
         # Create source record
         conn.execute('''
             INSERT INTO airline_fleet_sources (source_name, source_type, file_name, uploaded_by, record_count)
-            VALUES (?, 'CSV Upload', ?, ?, ?)
+            VALUES (%s, 'CSV Upload', %s, %s, %s)
         ''', (source_name, filename, session['user_id'], len(df)))
-        source_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        source_id = conn.execute('SELECT lastval()').fetchone()[0]
         
         # Process each row
         for _, row in df.iterrows():
@@ -128,9 +128,9 @@ def upload_fleet_data():
             
             conn.execute('''
                 INSERT INTO airline_fleet_aircraft (source_id, airline_name, region, tail_number, aircraft_model, aircraft_variant)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
             ''', (source_id, row['Airline'], region, tail, row['AircraftModel'], variant))
-            aircraft_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            aircraft_id = conn.execute('SELECT lastval()').fetchone()[0]
             
             # Add part record
             ata = row.get('ATAChapter', '')
@@ -140,7 +140,7 @@ def upload_fleet_data():
             
             conn.execute('''
                 INSERT INTO airline_fleet_parts (aircraft_id, ata_chapter, part_number, description, quantity_in_service, criticality)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
             ''', (aircraft_id, ata, row['PartNumber'], description, qty, criticality))
         
         conn.commit()
@@ -385,23 +385,23 @@ Make it realistic with actual company names, common {config['asset_type']}, and 
         # Create source record
         conn.execute('''
             INSERT INTO airline_fleet_sources (source_name, source_type, file_name, uploaded_by, record_count)
-            VALUES (?, 'AI Generated', 'ai-generated.json', ?, ?)
+            VALUES (%s, 'AI Generated', 'ai-generated.json', %s, %s)
         ''', (source_name, session['user_id'], len(fleet_data)))
-        source_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        source_id = conn.execute('SELECT lastval()').fetchone()[0]
         
         # Process each generated record
         for record in fleet_data:
             # Create aircraft record
             conn.execute('''
                 INSERT INTO airline_fleet_aircraft (source_id, airline_name, region, aircraft_model)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
             ''', (source_id, record['Airline'], record.get('Region', ''), record['AircraftModel']))
-            aircraft_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            aircraft_id = conn.execute('SELECT lastval()').fetchone()[0]
             
             # Add part record
             conn.execute('''
                 INSERT INTO airline_fleet_parts (aircraft_id, ata_chapter, part_number, description, criticality)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
             ''', (aircraft_id, record.get('ATAChapter', ''), record['PartNumber'], 
                   record.get('Description', ''), record.get('Criticality', 'Standard')))
         
@@ -428,9 +428,9 @@ def run_analysis(source_id):
         # Create match run record
         conn.execute('''
             INSERT INTO match_runs (source_id, triggered_by, run_type, status)
-            VALUES (?, ?, 'adhoc', 'Running')
+            VALUES (%s, %s, 'adhoc', 'Running')
         ''', (source_id, session['user_id']))
-        run_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        run_id = conn.execute('SELECT lastval()').fetchone()[0]
         
         # Get fleet parts for this source
         fleet_parts = conn.execute('''
@@ -438,7 +438,7 @@ def run_analysis(source_id):
                    afa.airline_name, afa.region, afa.aircraft_model
             FROM airline_fleet_parts fp
             JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-            WHERE afa.source_id = ?
+            WHERE afa.source_id = %s
         ''', (source_id,)).fetchall()
         
         # Get all capabilities with specifications
@@ -496,7 +496,7 @@ def run_analysis(source_id):
                     conn.execute('''
                         INSERT INTO capability_matches 
                         (fleet_part_id, capability_id, match_score, score_breakdown, match_reason, recommended_action)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                     ''', (part['id'], cap['id'], match_score, json.dumps(score_breakdown), match_reason, recommended_action))
                     match_count += 1
             else:
@@ -504,7 +504,7 @@ def run_analysis(source_id):
                 conn.execute('''
                     INSERT INTO capability_matches 
                     (fleet_part_id, capability_id, match_score, match_reason, recommended_action)
-                    VALUES (?, NULL, 'No Match', ?, ?)
+                    VALUES (%s, NULL, 'No Match', %s, %s)
                 ''', (part['id'], f"No capability found for part {part_num}", 
                       "Consider adding this capability to expand service offerings"))
                 match_count += 1
@@ -520,8 +520,8 @@ def run_analysis(source_id):
         
         conn.execute('''
             UPDATE match_runs
-            SET status = 'Completed', completed_at = datetime('now'), metrics = ?
-            WHERE id = ?
+            SET status = 'Completed', completed_at = datetime('now'), metrics = %s
+            WHERE id = %s
         ''', (json.dumps(metrics), run_id))
         
         conn.commit()
@@ -545,7 +545,7 @@ def generate_ai_insights(source_id, run_id):
         conn = db.get_connection()
         
         # Detect industry from source name
-        source_info = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+        source_info = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = %s', (source_id,)).fetchone()
         industry = 'Aviation MRO'
         if source_info and source_info['source_name']:
             sname = source_info['source_name']
@@ -565,7 +565,7 @@ def generate_ai_insights(source_id, run_id):
             JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
             JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
             LEFT JOIN mro_capabilities mc ON cm.capability_id = mc.id
-            WHERE afa.source_id = ? AND cm.is_active = 1
+            WHERE afa.source_id = %s AND cm.is_active = 1
             LIMIT 500
         ''', (source_id,)).fetchall()
         
@@ -581,7 +581,7 @@ def generate_ai_insights(source_id, run_id):
             FROM capability_matches cm
             JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
             JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-            WHERE afa.source_id = ? AND cm.is_active = 1
+            WHERE afa.source_id = %s AND cm.is_active = 1
         ''', (source_id,)).fetchone()
         
         # Prepare data summary for AI
@@ -592,7 +592,7 @@ def generate_ai_insights(source_id, run_id):
             SELECT afa.airline_name, afa.region, afa.aircraft_model, 
                    COUNT(DISTINCT afa.id) as fleet_size
             FROM airline_fleet_aircraft afa
-            WHERE afa.source_id = ?
+            WHERE afa.source_id = %s
             GROUP BY afa.airline_name, afa.region, afa.aircraft_model
             ORDER BY afa.airline_name, fleet_size DESC
         ''', (source_id,)).fetchall()
@@ -798,8 +798,8 @@ Format your response with clear section headings using plain text (no special ch
         # Store AI insights in match_runs
         conn.execute('''
             UPDATE match_runs
-            SET notes = ?
-            WHERE id = ?
+            SET notes = %s
+            WHERE id = %s
         ''', (ai_insights, run_id))
         
         conn.commit()
@@ -822,7 +822,7 @@ def view_results(source_id):
     conn = db.get_connection()
     
     # Get source info
-    source = conn.execute('SELECT * FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+    source = conn.execute('SELECT * FROM airline_fleet_sources WHERE id = %s', (source_id,)).fetchone()
     if not source:
         flash('Source not found', 'danger')
         return redirect(url_for('market_analysis_routes.dashboard'))
@@ -844,20 +844,20 @@ def view_results(source_id):
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
         LEFT JOIN mro_capabilities mc ON cm.capability_id = mc.id
-        WHERE afa.source_id = ? AND cm.is_active = 1
+        WHERE afa.source_id = %s AND cm.is_active = 1
     '''
     
     if region_filter:
-        base_query += ' AND afa.region = ?'
+        base_query += ' AND afa.region = %s'
         params.append(region_filter)
     if airline_filter:
-        base_query += ' AND afa.airline_name = ?'
+        base_query += ' AND afa.airline_name = %s'
         params.append(airline_filter)
     if model_filter:
-        base_query += ' AND afa.aircraft_model = ?'
+        base_query += ' AND afa.aircraft_model = %s'
         params.append(model_filter)
     if score_filter:
-        base_query += ' AND cm.match_score = ?'
+        base_query += ' AND cm.match_score = %s'
         params.append(score_filter)
     
     base_query += ' ORDER BY cm.match_score DESC, afa.airline_name, fp.part_number'
@@ -867,19 +867,19 @@ def view_results(source_id):
     # Get filter options
     regions = conn.execute('''
         SELECT DISTINCT region FROM airline_fleet_aircraft 
-        WHERE source_id = ? AND region IS NOT NULL AND region != ''
+        WHERE source_id = %s AND region IS NOT NULL AND region != ''
         ORDER BY region
     ''', (source_id,)).fetchall()
     
     airlines = conn.execute('''
         SELECT DISTINCT airline_name FROM airline_fleet_aircraft 
-        WHERE source_id = ?
+        WHERE source_id = %s
         ORDER BY airline_name
     ''', (source_id,)).fetchall()
     
     models = conn.execute('''
         SELECT DISTINCT aircraft_model FROM airline_fleet_aircraft 
-        WHERE source_id = ?
+        WHERE source_id = %s
         ORDER BY aircraft_model
     ''', (source_id,)).fetchall()
     
@@ -894,14 +894,14 @@ def view_results(source_id):
         FROM capability_matches cm
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-        WHERE afa.source_id = ? AND cm.is_active = 1
+        WHERE afa.source_id = %s AND cm.is_active = 1
     ''', (source_id,)).fetchone()
     
     # Get AI insights from most recent match run
     ai_insights = None
     latest_run = conn.execute('''
         SELECT notes FROM match_runs
-        WHERE source_id = ? AND status = 'Completed' AND notes IS NOT NULL AND notes != ''
+        WHERE source_id = %s AND status = 'Completed' AND notes IS NOT NULL AND notes != ''
         ORDER BY completed_at DESC
         LIMIT 1
     ''', (source_id,)).fetchone()
@@ -911,13 +911,13 @@ def view_results(source_id):
     
     # Check if any match runs exist for this source
     has_match_run = conn.execute('''
-        SELECT COUNT(*) as count FROM match_runs WHERE source_id = ?
+        SELECT COUNT(*) as count FROM match_runs WHERE source_id = %s
     ''', (source_id,)).fetchone()['count'] > 0
     
     # Check if analysis is currently running
     analysis_running = conn.execute('''
         SELECT COUNT(*) as count FROM match_runs 
-        WHERE source_id = ? AND status = 'Running'
+        WHERE source_id = %s AND status = 'Running'
     ''', (source_id,)).fetchone()['count'] > 0
     
     conn.close()
@@ -958,7 +958,7 @@ def export_results(source_id):
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
         LEFT JOIN mro_capabilities mc ON cm.capability_id = mc.id
-        WHERE afa.source_id = ? AND cm.is_active = 1
+        WHERE afa.source_id = %s AND cm.is_active = 1
         ORDER BY cm.match_score DESC, afa.airline_name
     ''', (source_id,)).fetchall()
     
@@ -1002,7 +1002,7 @@ def chart_data(source_id):
         FROM capability_matches cm
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-        WHERE afa.source_id = ? AND cm.is_active = 1
+        WHERE afa.source_id = %s AND cm.is_active = 1
         GROUP BY match_score
     ''', (source_id,)).fetchall()
     
@@ -1012,7 +1012,7 @@ def chart_data(source_id):
         FROM capability_matches cm
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-        WHERE afa.source_id = ? AND cm.is_active = 1 AND afa.region IS NOT NULL AND afa.region != ''
+        WHERE afa.source_id = %s AND cm.is_active = 1 AND afa.region IS NOT NULL AND afa.region != ''
         GROUP BY afa.region, cm.match_score
     ''', (source_id,)).fetchall()
     
@@ -1022,7 +1022,7 @@ def chart_data(source_id):
         FROM capability_matches cm
         JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
         JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-        WHERE afa.source_id = ? AND cm.is_active = 1 AND cm.match_score = 'High'
+        WHERE afa.source_id = %s AND cm.is_active = 1 AND cm.match_score = 'High'
         GROUP BY afa.airline_name
         ORDER BY high_matches DESC
         LIMIT 10
@@ -1046,19 +1046,19 @@ def delete_analysis(source_id):
     conn = db.get_connection()
     
     try:
-        source = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+        source = conn.execute('SELECT source_name FROM airline_fleet_sources WHERE id = %s', (source_id,)).fetchone()
         
         if not source:
             flash('Market analysis not found', 'danger')
             return redirect(url_for('market_analysis_routes.dashboard'))
         
-        source_name = source[0]
+        source_name = source['source_name'] if hasattr(source, '__getitem__') and not isinstance(source, tuple) else source[0]
         
-        aircraft_ids = conn.execute('SELECT id FROM airline_fleet_aircraft WHERE source_id = ?', (source_id,)).fetchall()
-        aircraft_id_list = [a[0] for a in aircraft_ids]
+        aircraft_ids = conn.execute('SELECT id FROM airline_fleet_aircraft WHERE source_id = %s', (source_id,)).fetchall()
+        aircraft_id_list = [a['id'] if hasattr(a, '__getitem__') and not isinstance(a, tuple) else a[0] for a in aircraft_ids]
         
         if aircraft_id_list:
-            placeholders = ','.join(['?' for _ in aircraft_id_list])
+            placeholders = ','.join(['%s' for _ in aircraft_id_list])
             
             conn.execute(f'''
                 DELETE FROM capability_matches WHERE fleet_part_id IN (
@@ -1068,9 +1068,9 @@ def delete_analysis(source_id):
             
             conn.execute(f'DELETE FROM airline_fleet_parts WHERE aircraft_id IN ({placeholders})', aircraft_id_list)
         
-        conn.execute('DELETE FROM airline_fleet_aircraft WHERE source_id = ?', (source_id,))
-        conn.execute('DELETE FROM match_runs WHERE source_id = ?', (source_id,))
-        conn.execute('DELETE FROM airline_fleet_sources WHERE id = ?', (source_id,))
+        conn.execute('DELETE FROM airline_fleet_aircraft WHERE source_id = %s', (source_id,))
+        conn.execute('DELETE FROM match_runs WHERE source_id = %s', (source_id,))
+        conn.execute('DELETE FROM airline_fleet_sources WHERE id = %s', (source_id,))
         
         conn.commit()
         flash(f'Successfully deleted market analysis: {source_name}', 'success')
@@ -1141,7 +1141,7 @@ def view_source_aircraft(source_id):
     db = Database()
     conn = db.get_connection()
     
-    source = conn.execute('SELECT * FROM airline_fleet_sources WHERE id = ?', (source_id,)).fetchone()
+    source = conn.execute('SELECT * FROM airline_fleet_sources WHERE id = %s', (source_id,)).fetchone()
     if not source:
         flash('Source not found', 'danger')
         return redirect(url_for('market_analysis_routes.manage_data'))
@@ -1150,7 +1150,7 @@ def view_source_aircraft(source_id):
         SELECT afa.*, 
                (SELECT COUNT(*) FROM airline_fleet_parts WHERE aircraft_id = afa.id) as parts_count
         FROM airline_fleet_aircraft afa
-        WHERE afa.source_id = ?
+        WHERE afa.source_id = %s
         ORDER BY afa.airline_name, afa.aircraft_model
     ''', (source_id,)).fetchall()
     
@@ -1191,7 +1191,7 @@ def add_capabilities_from_analysis(source_id):
                 FROM capability_matches cm
                 JOIN airline_fleet_parts fp ON cm.fleet_part_id = fp.id
                 JOIN airline_fleet_aircraft afa ON fp.aircraft_id = afa.id
-                WHERE cm.id = ? AND cm.match_score = 'No Match'
+                WHERE cm.id = %s AND cm.match_score = 'No Match'
             ''', (match_id,)).fetchone()
             
             if not match_data:
@@ -1202,7 +1202,7 @@ def add_capabilities_from_analysis(source_id):
             aircraft = match_data['aircraft_model'] or ''
             
             existing = conn.execute('''
-                SELECT id FROM mro_capabilities WHERE part_number = ?
+                SELECT id FROM mro_capabilities WHERE part_number = %s
             ''', (part_number,)).fetchone()
             
             if existing:
@@ -1214,7 +1214,7 @@ def add_capabilities_from_analysis(source_id):
             conn.execute('''
                 INSERT INTO mro_capabilities 
                 (capability_code, part_number, capability_name, category, status, created_at)
-                VALUES (?, ?, ?, ?, 'Active', datetime('now'))
+                VALUES (%s, %s, %s, %s, 'Active', datetime('now'))
             ''', (cap_code, part_number, description, aircraft))
             
             added_count += 1
