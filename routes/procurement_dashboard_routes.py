@@ -120,9 +120,10 @@ def executive_procurement_dashboard():
     ''').fetchone()
     
     inventory_value = conn.execute('''
-        SELECT COALESCE(SUM((i.quantity - COALESCE(i.reserved_quantity, 0)) * COALESCE(i.unit_cost, 0)), 0) as total_value
+        SELECT COALESCE(SUM(i.quantity * COALESCE(i.unit_cost, p.cost, 0)), 0) as total_value
         FROM inventory i
-        WHERE (i.quantity - COALESCE(i.reserved_quantity, 0)) > 0
+        JOIN products p ON i.product_id = p.id
+        WHERE i.quantity > 0
     ''').fetchone()
     
     excess_inventory = conn.execute('''
