@@ -17,7 +17,7 @@
             <span class="badge bg-secondary">{{ request.status }}</span>
             {% endif %}
         </h2>
-        <p class="text-muted mb-0">Supplier Discovery Request</p>
+        <p class="text-muted mb-0">AI Supplier Discovery Engine - Precision Mode</p>
     </div>
     <div>
         <a href="{{ url_for('supplier_discovery_routes.list_requests') }}" class="btn btn-outline-secondary">
@@ -69,9 +69,9 @@
                     
                     <dt class="col-sm-5">Urgency:</dt>
                     <dd class="col-sm-7">
-                        {% if request.urgency == 'Urgent' %}
+                        {% if request.urgency == 'Urgent' or request.urgency == 'AOG' %}
                         <span class="badge bg-danger">{{ request.urgency }}</span>
-                        {% elif request.urgency == 'High' %}
+                        {% elif request.urgency == 'High' or request.urgency == 'Critical' %}
                         <span class="badge bg-warning text-dark">{{ request.urgency }}</span>
                         {% else %}
                         <span class="badge bg-secondary">{{ request.urgency }}</span>
@@ -101,6 +101,30 @@
                 </dl>
             </div>
         </div>
+
+        {% if suppliers %}
+        <div class="card mb-4 border-primary">
+            <div class="card-header bg-primary bg-opacity-10">
+                <h6 class="mb-0"><i class="bi bi-bar-chart-fill me-1"></i> Match Tier Summary</h6>
+            </div>
+            <div class="card-body py-2">
+                {% set tier_counts = {'Tier 1': 0, 'Tier 2': 0, 'Tier 3': 0, 'Tier 4': 0} %}
+                {% for s in suppliers %}
+                    {% if s.match_tier and 'Tier 1' in (s.match_tier or '') %}{% if tier_counts.update({'Tier 1': tier_counts['Tier 1'] + 1}) %}{% endif %}
+                    {% elif s.match_tier and 'Tier 2' in (s.match_tier or '') %}{% if tier_counts.update({'Tier 2': tier_counts['Tier 2'] + 1}) %}{% endif %}
+                    {% elif s.match_tier and 'Tier 3' in (s.match_tier or '') %}{% if tier_counts.update({'Tier 3': tier_counts['Tier 3'] + 1}) %}{% endif %}
+                    {% elif s.match_tier and 'Tier 4' in (s.match_tier or '') %}{% if tier_counts.update({'Tier 4': tier_counts['Tier 4'] + 1}) %}{% endif %}
+                    {% endif %}
+                {% endfor %}
+                <div class="d-flex justify-content-between small">
+                    <span><span class="badge bg-success">T1</span> Exact: {{ tier_counts['Tier 1'] }}</span>
+                    <span><span class="badge bg-primary">T2</span> Equivalent: {{ tier_counts['Tier 2'] }}</span>
+                    <span><span class="badge bg-info">T3</span> Functional: {{ tier_counts['Tier 3'] }}</span>
+                    <span><span class="badge bg-secondary">T4</span> Fuzzy: {{ tier_counts['Tier 4'] }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
     
     <div class="col-lg-8">
@@ -111,79 +135,149 @@
                     <span class="badge bg-primary ms-2">{{ suppliers|length }}</span>
                 </h5>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 {% if suppliers %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Supplier</th>
-                                <th>Match</th>
-                                <th>Certifications</th>
-                                <th>Region</th>
-                                <th>Lead Time</th>
-                                <th>Score</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for supplier in suppliers %}
-                            <tr id="supplier-row-{{ supplier.id }}">
-                                <td>
-                                    <strong>{{ supplier.supplier_name }}</strong>
-                                    {% if supplier.website %}
-                                    <br><a href="{{ supplier.website }}" target="_blank" class="small text-muted">
-                                        <i class="bi bi-box-arrow-up-right"></i> {{ supplier.website[:40] }}...
-                                    </a>
-                                    {% endif %}
-                                </td>
-                                <td><small>{{ supplier.material_match[:60] }}{% if supplier.material_match|length > 60 %}...{% endif %}</small></td>
-                                <td><small>{{ supplier.certifications }}</small></td>
-                                <td>{{ supplier.region }}</td>
-                                <td>{{ supplier.estimated_lead_time }}</td>
-                                <td>
-                                    {% if supplier.confidence_score >= 80 %}
-                                    <span class="badge bg-success">{{ supplier.confidence_score }}%</span>
-                                    {% elif supplier.confidence_score >= 60 %}
-                                    <span class="badge bg-warning text-dark">{{ supplier.confidence_score }}%</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">{{ supplier.confidence_score }}%</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if supplier.approval_status == 'Approved' %}
-                                    <span class="badge bg-success">Approved</span>
-                                    {% elif supplier.approval_status == 'Rejected' %}
-                                    <span class="badge bg-danger">Rejected</span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark">Unapproved</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if supplier.approval_status == 'Unapproved' and session.role in ['Admin', 'Procurement'] %}
-                                    <button type="button" class="btn btn-sm btn-success" 
-                                            onclick="approveSupplier({{ supplier.id }})" title="Approve">
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-danger" 
-                                            onclick="rejectSupplier({{ supplier.id }})" title="Reject">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% if supplier.notes %}
-                            <tr class="table-light">
-                                <td colspan="8" class="small text-muted py-1 ps-4">
-                                    <i class="bi bi-chat-left-text"></i> {{ supplier.notes }}
-                                </td>
-                            </tr>
+                {% for supplier in suppliers %}
+                <div class="border-bottom p-3" id="supplier-row-{{ supplier.id }}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-0">
+                                {{ supplier.supplier_name }}
+                                {% if supplier.match_tier %}
+                                <span class="badge ms-1
+                                    {% if 'Tier 1' in (supplier.match_tier or '') %}bg-success
+                                    {% elif 'Tier 2' in (supplier.match_tier or '') %}bg-primary
+                                    {% elif 'Tier 3' in (supplier.match_tier or '') %}bg-info
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ supplier.match_tier }}
+                                </span>
+                                {% endif %}
+                            </h6>
+                            {% if supplier.website %}
+                            <a href="{{ supplier.website }}" target="_blank" class="small text-muted">
+                                <i class="bi bi-box-arrow-up-right"></i> {{ supplier.website[:50] }}{% if supplier.website|length > 50 %}...{% endif %}
+                            </a>
                             {% endif %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if supplier.confidence_score >= 80 %}
+                            <span class="badge bg-success fs-6">{{ supplier.confidence_score }}%</span>
+                            {% elif supplier.confidence_score >= 60 %}
+                            <span class="badge bg-warning text-dark fs-6">{{ supplier.confidence_score }}%</span>
+                            {% else %}
+                            <span class="badge bg-secondary fs-6">{{ supplier.confidence_score }}%</span>
+                            {% endif %}
+                            
+                            {% if supplier.approval_status == 'Approved' %}
+                            <span class="badge bg-success">Approved</span>
+                            {% elif supplier.approval_status == 'Rejected' %}
+                            <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Unapproved</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block"><strong>Match Analysis:</strong></small>
+                            <small>{{ supplier.material_match }}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block"><strong>Certifications:</strong></small>
+                            <small>{{ supplier.certifications or '-' }}</small>
+                            {% if supplier.certification_status %}
+                            <br><small class="text-success"><i class="bi bi-patch-check"></i> {{ supplier.certification_status }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block"><strong>Region:</strong></small>
+                            <small>{{ supplier.region or '-' }}</small>
+                            {% if supplier.cage_code %}
+                            <br><small class="text-muted">CAGE: {{ supplier.cage_code }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-3">
+                            <small class="text-muted d-block"><strong>Lead Time:</strong></small>
+                            <small>{{ supplier.estimated_lead_time or '-' }}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block"><strong>Est. Cost:</strong></small>
+                            <small>{{ supplier.estimated_cost_range or '-' }}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block"><strong>Counterfeit Risk:</strong></small>
+                            {% if supplier.counterfeit_risk %}
+                                {% if 'Low' in (supplier.counterfeit_risk or '') %}
+                                <small class="text-success"><i class="bi bi-shield-check"></i> {{ supplier.counterfeit_risk }}</small>
+                                {% elif 'High' in (supplier.counterfeit_risk or '') %}
+                                <small class="text-danger"><i class="bi bi-shield-exclamation"></i> {{ supplier.counterfeit_risk }}</small>
+                                {% else %}
+                                <small class="text-warning"><i class="bi bi-shield"></i> {{ supplier.counterfeit_risk }}</small>
+                                {% endif %}
+                            {% else %}
+                            <small>-</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block"><strong>Supply Chain Risk:</strong></small>
+                            {% if supplier.supply_chain_risk %}
+                                {% if 'Low' in (supplier.supply_chain_risk or '') %}
+                                <small class="text-success">{{ supplier.supply_chain_risk }}</small>
+                                {% elif 'High' in (supplier.supply_chain_risk or '') %}
+                                <small class="text-danger">{{ supplier.supply_chain_risk }}</small>
+                                {% else %}
+                                <small class="text-warning">{{ supplier.supply_chain_risk }}</small>
+                                {% endif %}
+                            {% else %}
+                            <small>-</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if supplier.risk_indicators and supplier.risk_indicators != 'None identified' and supplier.risk_indicators != 'None' %}
+                    <div class="alert alert-warning py-1 px-2 mb-2 small">
+                        <i class="bi bi-exclamation-triangle me-1"></i><strong>Risk Indicators:</strong> {{ supplier.risk_indicators }}
+                    </div>
+                    {% endif %}
+
+                    {% if supplier.alternate_parts %}
+                    <div class="mb-2">
+                        <small class="text-muted"><strong>Alternate Parts:</strong></small>
+                        <small>{{ supplier.alternate_parts }}</small>
+                    </div>
+                    {% endif %}
+
+                    {% if supplier.nsn %}
+                    <div class="mb-2">
+                        <small class="text-muted"><strong>NSN:</strong></small>
+                        <small>{{ supplier.nsn }}</small>
+                    </div>
+                    {% endif %}
+
+                    {% if supplier.notes %}
+                    <div class="mb-2">
+                        <small class="text-muted"><i class="bi bi-chat-left-text"></i> {{ supplier.notes }}</small>
+                    </div>
+                    {% endif %}
+
+                    {% if supplier.approval_status == 'Unapproved' and session.role in ['Admin', 'Procurement'] %}
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-success" 
+                                onclick="approveSupplier({{ supplier.id }})" title="Approve and add to vendor list">
+                            <i class="bi bi-check-lg me-1"></i>Approve
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                onclick="rejectSupplier({{ supplier.id }})" title="Reject">
+                            <i class="bi bi-x-lg me-1"></i>Reject
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
+                {% endfor %}
                 {% else %}
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-inbox fs-1 d-block mb-3"></i>
@@ -206,8 +300,8 @@
             <div class="card-body">
                 <p class="mb-0 small">
                     <i class="bi bi-info-circle text-info"></i>
-                    <strong>Note:</strong> All discovered suppliers are marked as "Unapproved" by default. 
-                    Use the approve/reject buttons to update their status. Approved suppliers can be added to your vendor list.
+                    <strong>Precision Mode:</strong> Results ranked by 4-tier matching hierarchy (Exact > Intelligent Equivalent > Functional Equivalent > Fuzzy Match). 
+                    Risk intelligence and counterfeit screening applied to all results. All discovered suppliers require human verification before approval.
                 </p>
             </div>
         </div>
@@ -220,7 +314,7 @@ function runDiscovery() {
     const btn = document.getElementById('runDiscoveryBtn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Searching...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analyzing supply chain...';
     
     fetch('{{ url_for("supplier_discovery_routes.run_discovery", id=request.id) }}', {
         method: 'POST',
@@ -231,7 +325,7 @@ function runDiscovery() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Success! Found ' + data.supplier_count + ' potential suppliers.');
+            alert('Discovery complete! Found ' + data.supplier_count + ' potential suppliers with risk analysis.');
             location.reload();
         } else {
             alert('Error: ' + (data.error || 'Unknown error'));

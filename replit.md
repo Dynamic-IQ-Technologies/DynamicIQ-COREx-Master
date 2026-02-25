@@ -32,7 +32,8 @@ Key features include:
 - **Purchase Order Management**: Service/misc POs, exchange obligations, supplier portal.
 - **Accounting & Reporting**: Chart of Accounts, General Ledger, financial and operational reports with automatic journal entries.
 - **Labor Management**: Time clock, skill-based task filtering, resource management.
-- **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI, predictive risk), COREx Guide Transaction Assistant, Part Intake System, Marketing Presentation Generator, AI Copilot dashboards, Leads Management.
+- **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI, predictive risk), COREx Guide Transaction Assistant, Part Intake System, Marketing Presentation Generator, AI Copilot dashboards, Leads Management (with QR Code lead capture).
+- **AI Supplier Discovery Engine (Precision Mode)**: Aerospace-grade supplier matching with 4-tier hierarchy (Exact/Intelligent Equivalent/Functional Equivalent/Fuzzy), CAGE code/NSN cross-referencing, counterfeit risk screening, supply chain risk intelligence, cost estimation, and alternate part identification.
 - **Intelligent Reporting Module**: AI-powered self-service analytics hub with natural language report creation, guided builder, and visualizations.
 - **Enterprise Risk Engine (ERE)**: Predictive multi-domain risk intelligence system with risk scoring, cross-domain correlation, predictive analysis, and AI risk briefings.
 - **Quality & Compliance**: Duplicate Detection System.
@@ -47,7 +48,7 @@ Key features include:
 
 ## External Dependencies
 
--   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `ReportLab`, `Pandas`, `openpyxl`, `openai`, `psycopg2-binary`.
+-   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `ReportLab`, `Pandas`, `openpyxl`, `openai`, `psycopg2-binary`, `qrcode`, `Pillow`.
 -   **Frontend Libraries**: Bootstrap 5.3.0, Bootstrap Icons 1.11.0, Chart.js 4.4.0.
 -   **AI Integration**: OpenAI API (GPT-4o).
 -   **Database**: PostgreSQL.

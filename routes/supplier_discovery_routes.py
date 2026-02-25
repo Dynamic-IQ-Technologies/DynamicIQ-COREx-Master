@@ -11,7 +11,7 @@ def generate_request_number(conn):
     last = conn.execute('''
         SELECT request_number FROM supplier_discovery_requests
         WHERE request_number LIKE 'SDR-%'
-        ORDER BY CAST(SUBSTR(request_number, 5) AS INTEGER) DESC
+        ORDER BY CAST(SUBSTRING(request_number FROM 5) AS INTEGER) DESC
         LIMIT 1
     ''').fetchone()
     
@@ -45,7 +45,7 @@ def list_requests():
     params = []
     
     if status_filter:
-        query += ' AND sdr.status = ?'
+        query += ' AND sdr.status = %s'
         params.append(status_filter)
     
     query += ' ORDER BY sdr.created_at DESC'
@@ -90,12 +90,12 @@ def create_request():
                     request_number, product_id, part_number, description, specifications,
                     quantity, uom, need_by_date, urgency, plant_location, industry,
                     preferred_regions, status, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending', %s)
             ''', (request_number, product_id, part_number, description, specifications,
                   quantity, uom, need_by_date, urgency, plant_location, industry,
                   preferred_regions, session.get('user_id')))
             
-            request_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            request_id = conn.execute('SELECT lastval()').fetchone()[0]
             
             AuditLogger.log_change(
                 conn=conn,
@@ -137,7 +137,7 @@ def view_request(id):
         FROM supplier_discovery_requests sdr
         LEFT JOIN products p ON sdr.product_id = p.id
         LEFT JOIN users u ON sdr.created_by = u.id
-        WHERE sdr.id = ?
+        WHERE sdr.id = %s
     ''', (id,)).fetchone()
     
     if not req:
@@ -149,7 +149,7 @@ def view_request(id):
         SELECT ds.*, u.username as approved_by_name
         FROM discovered_suppliers ds
         LEFT JOIN users u ON ds.approved_by = u.id
-        WHERE ds.request_id = ?
+        WHERE ds.request_id = %s
         ORDER BY ds.confidence_score DESC
     ''', (id,)).fetchall()
     
@@ -167,7 +167,7 @@ def run_discovery(id):
     db = Database()
     conn = db.get_connection()
     
-    req = conn.execute('SELECT * FROM supplier_discovery_requests WHERE id = ?', (id,)).fetchone()
+    req = conn.execute('SELECT * FROM supplier_discovery_requests WHERE id = %s', (id,)).fetchone()
     
     if not req:
         conn.close()
@@ -177,7 +177,7 @@ def run_discovery(id):
         conn.execute('''
             UPDATE supplier_discovery_requests 
             SET status = 'Processing' 
-            WHERE id = ?
+            WHERE id = %s
         ''', (id,))
         conn.commit()
         
@@ -200,9 +200,31 @@ def run_discovery(id):
             'preferred_regions': req['preferred_regions'] or ''
         }
         
-        prompt = f"""You are an expert procurement analyst specializing in supplier discovery for manufacturing and MRO (Maintenance, Repair, Operations) industries, with deep knowledge of the aerospace supply chain.
+        system_prompt = """You are an aerospace-grade AI Supplier Discovery and Part Matching Engine operating within Dynamic.IQ COREx.
 
-Given the following material requirement, identify potential suppliers who could provide this part or similar products:
+Your objective is to return the most accurate and procurement-ready supplier matches by intelligently analyzing exact part numbers, part descriptions, partial/fuzzy part number matches, alternate part numbers, manufacturer cross references, industry standard equivalents (MIL-SPEC, NAS, AN, ISO, OEM equivalents), functional similarity matches, and historical procurement patterns.
+
+MATCHING PRIORITY LOGIC - Follow this strict ranking hierarchy:
+- Tier 1 (Exact Match): Exact part number match (case insensitive), exact manufacturer match, exact revision match.
+- Tier 2 (Intelligent Equivalent): Verified alternate part number, OEM-approved substitute, MIL/NAS/AN cross reference, manufacturer supersession.
+- Tier 3 (Functional Equivalent): Same specifications (dimensions, material, tolerance, rating), same certification standard, same operational application.
+- Tier 4 (Fuzzy Match): High similarity score (85%+), minor character deviation (dash, space, revision suffix), typographical corrections.
+Reject low-confidence matches (<75%) unless none exist above that threshold.
+
+SEARCH ENHANCEMENT RULES:
+- Normalize part numbers: remove spaces, dashes, revision suffixes for comparison.
+- Deconstruct descriptions to extract material, dimensions, performance rating, industry standard, and application (airframe, avionics, hydraulic, etc.).
+- Expand search using manufacturer CAGE codes, NSN cross references, and known industry distributors.
+- Flag counterfeit risk indicators, obsolete parts, end-of-life parts, and certification gaps.
+
+For aerospace/aviation parts, always consider major distributors and PMA manufacturers including HEICO Corporation, Aviall (Boeing), Wesco Aircraft/Boeing Distribution, Satair (Airbus), AAR Corp, TransDigm Group, Honeywell Aerospace, Parker Hannifin Aerospace, Collins Aerospace (RTX), GE Aviation, Pratt & Whitney, Safran, and other OEMs/authorized distributors relevant to the part.
+
+RISK INTELLIGENCE: For every result, assess supply chain volatility, geographic risk exposure, sole-source dependency, MOQ risk, and price anomaly vs historical average.
+
+IMPORTANT: All suppliers must be marked as "Unapproved" since they require human verification.
+Always respond with valid JSON only. No markdown, no code fences, no explanation."""
+
+        prompt = f"""Analyze this sourcing requirement and find the best supplier matches:
 
 Material Details:
 - Part Number: {material_context['part_number']}
@@ -214,57 +236,39 @@ Material Details:
 - Industry: {material_context['industry']}
 - Preferred Regions: {material_context['preferred_regions']}
 
-For aerospace/aviation parts, always consider major distributors and PMA manufacturers including but not limited to:
-- HEICO Corporation (PMA parts, repairs)
-- Aviall (Boeing Company)
-- Wesco Aircraft / Boeing Distribution
-- Satair (Airbus)
-- AAR Corp
-- TransDigm Group companies
-- Honeywell Aerospace
-- Parker Hannifin Aerospace
-- Collins Aerospace (RTX)
-- GE Aviation
-- Pratt & Whitney
-- Safran
-- Other OEMs and authorized distributors relevant to the part
-
-Based on your knowledge, provide 5-8 potential suppliers that could supply this material. For each supplier, provide:
-1. Supplier name
-2. Website URL (if known, otherwise leave empty)
-3. Material match description (how well they match the requirement)
-4. Known certifications (AS9100, ISO 9001, NADCAP, etc.)
-5. Region/Country
-6. Estimated lead time (if typical for this type of supplier)
-7. Confidence score (0-100) based on likelihood they can supply this
-8. Additional notes
-
-IMPORTANT: All suppliers must be marked as "Unapproved" since they require human verification.
-
-Respond ONLY with a valid JSON array of supplier objects with these exact keys:
+Return 5-8 potential suppliers as a JSON array. Each object must have these exact keys:
 [
   {{
     "supplier_name": "Company Name",
     "website": "https://example.com",
-    "material_match": "Description of how they match the requirement",
-    "certifications": "AS9100, ISO 9001",
+    "material_match": "Detailed description of how they match the requirement",
+    "match_tier": "Tier 1",
+    "certifications": "AS9100, ISO 9001, NADCAP",
+    "certification_status": "8130-3 available",
     "region": "USA",
+    "cage_code": "XXXXX",
+    "nsn": "XXXX-XX-XXX-XXXX",
     "estimated_lead_time": "4-6 weeks",
+    "estimated_cost_range": "$XX - $XX per unit",
     "confidence_score": 85,
-    "notes": "Additional relevant information"
+    "risk_indicators": "None identified",
+    "counterfeit_risk": "Low",
+    "supply_chain_risk": "Low - Multiple distribution channels",
+    "alternate_parts": "ALT-PN-001, ALT-PN-002",
+    "notes": "Additional relevant information including sourcing strategy recommendations"
   }}
 ]
 
-Return ONLY the JSON array, no other text."""
+Sort results by confidence score descending. If CAGE code or NSN is unknown, use empty string. Return ONLY the JSON array."""
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a supplier discovery assistant. Always respond with valid JSON only."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=2000
+            temperature=0.5,
+            max_tokens=4000
         )
         
         ai_response = (response.choices[0].message.content or '').strip()
@@ -279,15 +283,19 @@ Return ONLY the JSON array, no other text."""
         
         suppliers_data = json.loads(ai_response)
         
-        conn.execute('DELETE FROM discovered_suppliers WHERE request_id = ?', (id,))
+        conn.execute('DELETE FROM discovered_suppliers WHERE request_id = %s', (id,))
         
         for supplier in suppliers_data:
             conn.execute('''
                 INSERT INTO discovered_suppliers (
                     request_id, supplier_name, website, material_match,
                     certifications, region, estimated_lead_time,
-                    confidence_score, notes, approval_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Unapproved')
+                    confidence_score, notes, approval_status,
+                    match_tier, estimated_cost_range, certification_status,
+                    risk_indicators, alternate_parts, cage_code, nsn,
+                    counterfeit_risk, supply_chain_risk
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Unapproved',
+                          %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 id,
                 supplier.get('supplier_name', 'Unknown'),
@@ -297,15 +305,24 @@ Return ONLY the JSON array, no other text."""
                 supplier.get('region', ''),
                 supplier.get('estimated_lead_time', ''),
                 supplier.get('confidence_score', 0),
-                supplier.get('notes', '')
+                supplier.get('notes', ''),
+                supplier.get('match_tier', ''),
+                supplier.get('estimated_cost_range', ''),
+                supplier.get('certification_status', ''),
+                supplier.get('risk_indicators', ''),
+                supplier.get('alternate_parts', ''),
+                supplier.get('cage_code', ''),
+                supplier.get('nsn', ''),
+                supplier.get('counterfeit_risk', ''),
+                supplier.get('supply_chain_risk', '')
             ))
         
         conn.execute('''
             UPDATE supplier_discovery_requests 
             SET status = 'Completed', 
-                completed_at = ?,
-                ai_search_queries = ?
-            WHERE id = ?
+                completed_at = %s,
+                ai_search_queries = %s
+            WHERE id = %s
         ''', (datetime.now().isoformat(), prompt[:500], id))
         
         AuditLogger.log_change(
@@ -332,7 +349,7 @@ Return ONLY the JSON array, no other text."""
         conn.execute('''
             UPDATE supplier_discovery_requests 
             SET status = 'Failed' 
-            WHERE id = ?
+            WHERE id = %s
         ''', (id,))
         conn.commit()
         conn.close()
@@ -342,7 +359,7 @@ Return ONLY the JSON array, no other text."""
         conn.execute('''
             UPDATE supplier_discovery_requests 
             SET status = 'Failed' 
-            WHERE id = ?
+            WHERE id = %s
         ''', (id,))
         conn.commit()
         conn.close()
@@ -354,7 +371,7 @@ def generate_supplier_code(conn):
     last = conn.execute('''
         SELECT code FROM suppliers
         WHERE code LIKE 'SUP-%'
-        ORDER BY CAST(SUBSTR(code, 5) AS INTEGER) DESC
+        ORDER BY CAST(SUBSTRING(code FROM 5) AS INTEGER) DESC
         LIMIT 1
     ''').fetchone()
     
@@ -374,7 +391,7 @@ def approve_supplier(id):
     db = Database()
     conn = db.get_connection()
     
-    supplier = conn.execute('SELECT * FROM discovered_suppliers WHERE id = ?', (id,)).fetchone()
+    supplier = conn.execute('SELECT * FROM discovered_suppliers WHERE id = %s', (id,)).fetchone()
     
     if not supplier:
         conn.close()
@@ -402,7 +419,7 @@ def approve_supplier(id):
         
         conn.execute('''
             INSERT INTO suppliers (code, name, contact_person, email, phone, address)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         ''', (
             supplier_code,
             supplier_name,
@@ -412,17 +429,17 @@ def approve_supplier(id):
             address.strip()
         ))
         
-        new_supplier_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        new_supplier_id = conn.execute('SELECT lastval()').fetchone()[0]
         
         conn.execute('''
             UPDATE discovered_suppliers
             SET approval_status = 'Approved',
-                approved_by = ?,
-                approved_at = ?,
+                approved_by = %s,
+                approved_at = %s,
                 notes = CASE WHEN notes IS NULL OR notes = '' 
-                        THEN ? 
-                        ELSE notes || ' | Created as ' || ? END
-            WHERE id = ?
+                        THEN %s 
+                        ELSE notes || ' | Created as ' || %s END
+            WHERE id = %s
         ''', (session.get('user_id'), datetime.now().isoformat(), 
               f'Created as {supplier_code}', supplier_code, id))
         
@@ -471,7 +488,7 @@ def reject_supplier(id):
     db = Database()
     conn = db.get_connection()
     
-    supplier = conn.execute('SELECT * FROM discovered_suppliers WHERE id = ?', (id,)).fetchone()
+    supplier = conn.execute('SELECT * FROM discovered_suppliers WHERE id = %s', (id,)).fetchone()
     
     if not supplier:
         conn.close()
@@ -485,9 +502,9 @@ def reject_supplier(id):
             UPDATE discovered_suppliers
             SET approval_status = 'Rejected',
                 notes = CASE WHEN notes IS NULL OR notes = '' 
-                        THEN ? 
-                        ELSE notes || ' | Rejected: ' || ? END
-            WHERE id = ?
+                        THEN %s 
+                        ELSE notes || ' | Rejected: ' || %s END
+            WHERE id = %s
         ''', (f'Rejected: {rejection_reason}', rejection_reason, id))
         
         AuditLogger.log_change(
@@ -518,7 +535,7 @@ def delete_request(id):
     db = Database()
     conn = db.get_connection()
     
-    req = conn.execute('SELECT * FROM supplier_discovery_requests WHERE id = ?', (id,)).fetchone()
+    req = conn.execute('SELECT * FROM supplier_discovery_requests WHERE id = %s', (id,)).fetchone()
     
     if not req:
         conn.close()
@@ -536,7 +553,7 @@ def delete_request(id):
             user_agent=request.headers.get('User-Agent')
         )
         
-        conn.execute('DELETE FROM supplier_discovery_requests WHERE id = ?', (id,))
+        conn.execute('DELETE FROM supplier_discovery_requests WHERE id = %s', (id,))
         conn.commit()
         conn.close()
         
@@ -566,7 +583,7 @@ def create_from_material():
                 request_number, product_id, part_number, description, specifications,
                 quantity, uom, need_by_date, urgency, plant_location, industry,
                 preferred_regions, status, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending', %s)
         ''', (
             request_number,
             data.get('product_id'),
@@ -582,7 +599,7 @@ def create_from_material():
             data.get('preferred_regions', '')
         , session.get('user_id')))
         
-        request_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        request_id = conn.execute('SELECT lastval()').fetchone()[0]
         
         conn.commit()
         conn.close()
@@ -610,7 +627,7 @@ def get_suppliers_json(id):
         SELECT ds.*, u.username as approved_by_name
         FROM discovered_suppliers ds
         LEFT JOIN users u ON ds.approved_by = u.id
-        WHERE ds.request_id = ?
+        WHERE ds.request_id = %s
         ORDER BY ds.confidence_score DESC
     ''', (id,)).fetchall()
     
