@@ -607,9 +607,9 @@ def convert_recommendation():
         capability_code = f'CAP-{next_number:04d}'
         
         wo_types = conn.execute('''
-            SELECT DISTINCT wo.work_order_type
+            SELECT DISTINCT wo.workorder_type
             FROM work_orders wo
-            WHERE wo.product_id = %s AND wo.work_order_type IS NOT NULL AND wo.work_order_type != ''
+            WHERE wo.product_id = %s AND wo.workorder_type IS NOT NULL AND wo.workorder_type != ''
         ''', (product_id,)).fetchall()
         
         capability_names = []
@@ -624,7 +624,7 @@ def convert_recommendation():
         }
         
         for wt in wo_types:
-            mapped = type_mapping.get(wt['work_order_type'], wt['work_order_type'])
+            mapped = type_mapping.get(wt['workorder_type'], wt['workorder_type'])
             if mapped and mapped not in capability_names:
                 capability_names.append(mapped)
         
