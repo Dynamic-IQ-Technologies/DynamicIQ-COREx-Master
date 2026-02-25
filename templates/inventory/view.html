@@ -822,9 +822,9 @@
                                     {% if entry.modified_at %}
                                     {{ entry.modified_at|format_date }}
                                     <small class="text-muted d-block">
-                                        {% set time_parts = entry.modified_at.split(' ') %}
+                                        {% set time_parts = (entry.modified_at|string).split(' ') %}
                                         {% if time_parts|length > 1 %}
-                                        {{ time_parts[1] }}
+                                        {{ time_parts[1][:8] }}
                                         {% endif %}
                                     </small>
                                     {% else %}
