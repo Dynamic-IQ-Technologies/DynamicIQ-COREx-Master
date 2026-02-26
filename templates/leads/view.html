@@ -311,7 +311,7 @@
                                 Customer {{ lead.customer_number }}
                             </a>
                             {% elif lead.converted_to_supplier_id %}
-                            <a href="{{ url_for('suppliers.view_supplier', supplier_id=lead.converted_to_supplier_id) }}">
+                            <a href="{{ url_for('supplier_routes.view_supplier', supplier_id=lead.converted_to_supplier_id) }}">
                                 Supplier {{ lead.supplier_code }}
                             </a>
                             {% endif %}
