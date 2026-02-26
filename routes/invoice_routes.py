@@ -165,9 +165,9 @@ def list_invoices():
     ''').fetchall()
     
     # Calculate dashboard metrics
-    total_invoiced = sum(inv['total_amount'] for inv in invoices)
-    total_paid = sum(inv['amount_paid'] for inv in invoices)
-    total_outstanding = sum(inv['balance_due'] for inv in invoices if inv['status'] != 'Void')
+    total_invoiced = sum(float(inv['total_amount'] or 0) for inv in invoices)
+    total_paid = sum(float(inv['amount_paid'] or 0) for inv in invoices)
+    total_outstanding = sum(float(inv['balance_due'] or 0) for inv in invoices if inv['status'] != 'Void')
     
     # Overdue invoices
     today_date = datetime.now().date()
