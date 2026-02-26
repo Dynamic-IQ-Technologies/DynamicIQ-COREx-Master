@@ -179,7 +179,8 @@ def create_sales_order():
     ).fetchall()
     conn.close()
     
-    return render_template('salesorders/create.html', customers=customers)
+    today = datetime.now().strftime('%Y-%m-%d')
+    return render_template('salesorders/create.html', customers=customers, today=today)
 
 @salesorder_bp.route('/sales-orders/<int:id>')
 @login_required
