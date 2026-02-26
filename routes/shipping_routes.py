@@ -3,11 +3,101 @@ from models import Database
 from auth import login_required, role_required
 from datetime import datetime
 from utils.shipping_documents import ShippingDocumentGenerator
-from utils.gl_journal import create_journal_entry, GL_ACCOUNTS
+from utils.gl_journal import create_journal_entry, create_sales_invoice_entry, GL_ACCOUNTS
+from datetime import timedelta
 import os
 import logging
 
 logger = logging.getLogger('shipping_routes')
+
+
+def auto_generate_invoice(conn, so, shipment, user_id):
+    """Auto-generate an invoice for a shipped sales order if one doesn't already exist.
+    Returns (invoice_id, invoice_number) or (None, None) if invoice already exists or creation fails."""
+    so_id = so['id']
+
+    existing_invoice = conn.execute(
+        'SELECT id, invoice_number FROM invoices WHERE so_id = ?', (so_id,)
+    ).fetchone()
+    if existing_invoice:
+        logger.info(f'Invoice {existing_invoice["invoice_number"]} already exists for SO {so["so_number"]} - skipping auto-generation')
+        return existing_invoice['id'], existing_invoice['invoice_number']
+
+    last_inv = conn.execute('''
+        SELECT invoice_number FROM invoices 
+        WHERE invoice_number LIKE 'INV-%'
+        ORDER BY id DESC
+    ''').fetchall()
+
+    max_num = 0
+    for inv in last_inv:
+        try:
+            parts = inv['invoice_number'].replace('INV-', '').split('-')
+            num = int(parts[-1])
+            if num > max_num:
+                max_num = num
+        except (ValueError, IndexError):
+            continue
+
+    invoice_number = f'INV-{max_num + 1:06d}'
+    invoice_date = datetime.now().strftime('%Y-%m-%d')
+
+    customer = conn.execute('SELECT payment_terms FROM customers WHERE id = ?', (so['customer_id'],)).fetchone()
+    payment_terms = int(customer['payment_terms'] or 30) if customer and customer['payment_terms'] else 30
+    due_date = (datetime.now() + timedelta(days=payment_terms)).strftime('%Y-%m-%d')
+
+    subtotal = float(so['subtotal'] or 0)
+    tax_amount = float(so['tax_amount'] or 0)
+    discount_amount = float(so['discount_amount'] or 0)
+    total_amount = float(so['total_amount'] or 0)
+
+    cursor = conn.execute('''
+        INSERT INTO invoices (
+            invoice_number, invoice_type, customer_id, so_id,
+            invoice_date, due_date, payment_terms, status,
+            subtotal, tax_rate, tax_amount, discount_amount, total_amount,
+            balance_due, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        invoice_number, 'Sales Order', so['customer_id'], so_id,
+        invoice_date, due_date, payment_terms, 'Posted',
+        subtotal, 0, tax_amount, discount_amount, total_amount,
+        total_amount, f'Auto-generated from shipment {shipment["shipment_number"]}', user_id
+    ))
+    invoice_id = cursor.lastrowid
+
+    so_lines = conn.execute('''
+        SELECT * FROM sales_order_lines WHERE so_id = ? ORDER BY line_number
+    ''', (so_id,)).fetchall()
+
+    for line in so_lines:
+        conn.execute('''
+            INSERT INTO invoice_lines (
+                invoice_id, line_number, product_id, description,
+                quantity, unit_price, discount_percent, line_total,
+                reference_type, reference_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            invoice_id, line['line_number'], line['product_id'], line['description'],
+            line['quantity'], line['unit_price'], line.get('discount_percent', 0), line['line_total'],
+            'sales_order_line', line['id']
+        ))
+
+    if total_amount > 0:
+        gl_entry_id = create_sales_invoice_entry(
+            conn=conn,
+            invoice_id=invoice_id,
+            invoice_number=invoice_number,
+            invoice_date=invoice_date,
+            total_amount=total_amount,
+            cogs_amount=0,
+            user_id=user_id
+        )
+        if gl_entry_id:
+            logger.info(f'GL Journal Entry {gl_entry_id} created for invoice {invoice_number} AR/Revenue')
+
+    logger.info(f'Auto-generated invoice {invoice_number} for SO {so["so_number"]} from shipment {shipment["shipment_number"]}')
+    return invoice_id, invoice_number
 
 shipping_bp = Blueprint('shipping_routes', __name__)
 
@@ -512,42 +602,9 @@ def ship_shipment(id):
                   shipment['reference_id']))
 
             if so:
-                total_revenue = float(so['total_amount'] or 0)
-                if total_revenue > 0:
-                    existing_rev = conn.execute('''
-                        SELECT id FROM gl_entries 
-                        WHERE reference_type = 'Shipment' AND reference_id = ? 
-                        AND transaction_source = 'Shipment Revenue'
-                    ''', (str(id),)).fetchone()
-
-                    if not existing_rev:
-                        from datetime import date
-                        rev_entry_id = create_journal_entry(
-                            conn=conn,
-                            entry_date=date.today().isoformat(),
-                            description=f'Revenue - Shipment {shipment["shipment_number"]} / {so["so_number"]}',
-                            transaction_source='Shipment Revenue',
-                            reference_type='Shipment',
-                            reference_id=id,
-                            lines=[
-                                {
-                                    'account_code': GL_ACCOUNTS['AR'],
-                                    'debit': round(total_revenue, 2),
-                                    'credit': 0,
-                                    'description': f'A/R for shipment {shipment["shipment_number"]} - {so["so_number"]}'
-                                },
-                                {
-                                    'account_code': GL_ACCOUNTS['SALES_REVENUE'],
-                                    'debit': 0,
-                                    'credit': round(total_revenue, 2),
-                                    'description': f'Sales revenue - {shipment["shipment_number"]} - {so["so_number"]}'
-                                }
-                            ],
-                            user_id=session.get('user_id'),
-                            auto_post=True
-                        )
-                        if rev_entry_id:
-                            logger.info(f'GL Journal Entry {rev_entry_id} created for shipment revenue recognition')
+                inv_id, inv_num = auto_generate_invoice(conn, so, shipment, session.get('user_id'))
+                if inv_num:
+                    flash(f'Invoice {inv_num} auto-generated', 'info')
         
         conn.commit()
         flash('Shipment marked as shipped successfully!', 'success')
@@ -1155,7 +1212,7 @@ def confirm_shipment(id):
                 WHERE id = ?
             ''', (tracking_number, shipping_method, shipment['so_id']))
             
-            # Create Revenue / AR journal entry for shipped sales order
+            # Auto-generate invoice and AR/Revenue GL entry for shipped sales order
             sales_order = conn.execute('''
                 SELECT so.*, c.name as customer_name
                 FROM sales_orders so
@@ -1164,51 +1221,11 @@ def confirm_shipment(id):
             ''', (shipment['so_id'],)).fetchone()
 
             if sales_order:
-                total_revenue = float(sales_order['total_amount'] or 0)
-                if total_revenue > 0:
-                    existing_rev = conn.execute('''
-                        SELECT id FROM gl_entries 
-                        WHERE reference_type = 'Shipment' AND reference_id = ? 
-                        AND transaction_source = 'Shipment Revenue'
-                    ''', (str(id),)).fetchone()
-
-                    if not existing_rev:
-                        from datetime import date
-                        rev_entry_id = create_journal_entry(
-                            conn=conn,
-                            entry_date=date.today().isoformat(),
-                            description=f'Revenue - Shipment {shipment["shipment_number"]} / {sales_order["so_number"]}',
-                            transaction_source='Shipment Revenue',
-                            reference_type='Shipment',
-                            reference_id=id,
-                            lines=[
-                                {
-                                    'account_code': GL_ACCOUNTS['AR'],
-                                    'debit': round(total_revenue, 2),
-                                    'credit': 0,
-                                    'description': f'A/R for shipment {shipment["shipment_number"]} - {sales_order["so_number"]}'
-                                },
-                                {
-                                    'account_code': GL_ACCOUNTS['SALES_REVENUE'],
-                                    'debit': 0,
-                                    'credit': round(total_revenue, 2),
-                                    'description': f'Sales revenue - {shipment["shipment_number"]} - {sales_order["so_number"]}'
-                                }
-                            ],
-                            user_id=session.get('user_id'),
-                            auto_post=True
-                        )
-                        if rev_entry_id:
-                            logger.info(f'GL Journal Entry {rev_entry_id} created for shipment revenue recognition - {shipment["shipment_number"]}')
+                inv_id, inv_num = auto_generate_invoice(conn, sales_order, shipment, session.get('user_id'))
+                if inv_num:
+                    flash(f'Invoice {inv_num} auto-generated', 'info')
 
             # Create exchange tracking records for Exchange orders
-            if not sales_order:
-                sales_order = conn.execute('''
-                    SELECT so.*, c.name as customer_name
-                    FROM sales_orders so
-                    JOIN customers c ON so.customer_id = c.id
-                    WHERE so.id = ?
-                ''', (shipment['so_id'],)).fetchone()
             
             if sales_order and sales_order['sales_type'] == 'Exchange':
                 # Check if exchange_master record already exists

@@ -30,7 +30,7 @@ Key features include:
 - **Work Order Management**: Task-level material requirements, master routing templates.
 - **Sales Order Management**: Dual exchange workflow, document generation, email acknowledgements.
 - **Purchase Order Management**: Service/misc POs, exchange obligations, supplier portal.
-- **Accounting & Reporting**: Chart of Accounts, General Ledger, financial and operational reports with automatic journal entries.
+- **Accounting & Reporting**: Chart of Accounts, General Ledger, financial and operational reports with automatic journal entries. Auto-invoice generation on shipment with AR/Revenue GL entries.
 - **Labor Management**: Time clock, skill-based task filtering, resource management.
 - **AI-Powered Modules**: COREx NeuroIQ Executive Intelligence System (conversational AI, predictive risk), COREx Guide Transaction Assistant, Part Intake System, Marketing Presentation Generator, AI Copilot dashboards, Leads Management (with QR Code lead capture).
 - **AI Supplier Discovery Engine (Precision Mode)**: Aerospace-grade supplier matching with 4-tier hierarchy (Exact/Intelligent Equivalent/Functional Equivalent/Fuzzy), CAGE code/NSN cross-referencing, counterfeit risk screening, supply chain risk intelligence, cost estimation, and alternate part identification.
