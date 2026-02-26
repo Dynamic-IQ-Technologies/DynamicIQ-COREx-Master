@@ -544,7 +544,7 @@ def convert_lead(lead_id):
             conn.close()
             
             return jsonify({'success': True, 'message': f'Lead converted to Supplier {supplier_code}',
-                          'redirect': url_for('supplier_routes.view_supplier', supplier_id=supplier_id)})
+                          'redirect': url_for('supplier_routes.view_supplier', id=supplier_id)})
     
     except Exception as e:
         conn.rollback()
