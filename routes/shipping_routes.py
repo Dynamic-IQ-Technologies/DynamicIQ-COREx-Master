@@ -842,7 +842,7 @@ def list_pending_shipments():
         LEFT JOIN customers c ON (so.customer_id = c.id OR wo.customer_id = c.id)
         LEFT JOIN sales_order_lines sol ON so.id = sol.so_id
         WHERE s.shipment_stage = ?
-        GROUP BY s.id
+        GROUP BY s.id, u.username, u2.username, so.so_number, wo.wo_number, c.name, c.customer_number
         ORDER BY s.released_at DESC
     '''
     
