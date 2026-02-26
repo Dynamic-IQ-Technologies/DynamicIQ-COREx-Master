@@ -1242,6 +1242,11 @@ def api_quick_receive_po_line(po_id, line_id):
         serial_number_raw = data.get('serial_number')
         serial_number = serial_number_raw.strip() if serial_number_raw else None
         remarks = data.get('remarks') or ''
+        tool_category = data.get('tool_category', 'General')
+        last_calibration_date = data.get('last_calibration_date') or None
+        calibration_interval_days = data.get('calibration_interval_days') or None
+        tool_manufacturer = data.get('manufacturer') or None
+        tool_model_number = data.get('model_number') or None
         
         if quantity_received <= 0:
             return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
@@ -1339,23 +1344,39 @@ def api_quick_receive_po_line(po_id, line_id):
                 
                 tool_serial = f"{serial_number}-{i+1}" if serial_number and int(quantity_received) > 1 else serial_number
                 
+                next_cal_date = None
+                if last_calibration_date and calibration_interval_days:
+                    try:
+                        from datetime import timedelta as td
+                        cal_date = datetime.strptime(last_calibration_date, '%Y-%m-%d')
+                        next_cal_date = (cal_date + td(days=int(calibration_interval_days))).strftime('%Y-%m-%d')
+                    except:
+                        pass
+
                 conn.execute('''
                     INSERT INTO tools (tool_number, name, description, category, location, 
                                        status, condition, purchase_date, purchase_cost, 
-                                       supplier_id, serial_number, notes)
-                    VALUES (?, ?, ?, ?, ?, 'Available', ?, ?, ?, ?, ?, ?)
+                                       supplier_id, serial_number, notes,
+                                       manufacturer, model_number,
+                                       last_calibration_date, calibration_interval_days, next_calibration_date)
+                    VALUES (?, ?, ?, ?, ?, 'Available', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     tool_number,
                     product_name,
                     f"Received from PO {po['po_number']}",
-                    'General',
+                    tool_category or 'General',
                     f"{warehouse_location}/{bin_location}",
                     condition or 'Good',
                     receipt_date,
                     base_unit_cost,
                     po['supplier_id'],
                     tool_serial,
-                    remarks
+                    remarks,
+                    tool_manufacturer,
+                    tool_model_number,
+                    last_calibration_date,
+                    calibration_interval_days,
+                    next_cal_date
                 ))
                 tools_created.append(tool_number)
                 

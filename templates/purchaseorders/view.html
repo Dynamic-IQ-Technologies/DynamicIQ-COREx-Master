@@ -518,7 +518,8 @@
                                         purchaseUom: '{{ line.uom_code or line.unit_of_measure }}',
                                         baseUom: '{{ line.base_uom_code or line.unit_of_measure }}',
                                         conversionFactor: {{ line.conversion_factor_used or 1 }},
-                                        hasConversion: {{ 'true' if line.base_uom_code and line.base_uom_code != (line.uom_code or line.unit_of_measure) else 'false' }}
+                                        hasConversion: {{ 'true' if line.base_uom_code and line.base_uom_code != (line.uom_code or line.unit_of_measure) else 'false' }},
+                                        isToolPO: {{ 'true' if po.po_type == 'Tool' else 'false' }}
                                     })"
                                     title="Quick Receive">
                                 <i class="bi bi-box-arrow-in-down"></i> Receive
@@ -1131,6 +1132,48 @@
                     <input type="text" class="form-control" id="qr_serial_number" placeholder="Enter serial number if applicable">
                 </div>
                 
+                <div id="qr_tool_fields" style="display: none;">
+                    <hr>
+                    <h6 class="text-success mb-3"><i class="bi bi-tools me-1"></i>Tool Information</h6>
+                    
+                    <div class="mb-3">
+                        <label for="qr_tool_category" class="form-label">Tool Category *</label>
+                        <select class="form-select" id="qr_tool_category">
+                            <option value="General">General</option>
+                            <option value="Hand Tools">Hand Tools</option>
+                            <option value="Power Tools">Power Tools</option>
+                            <option value="Measurement">Measurement</option>
+                            <option value="Calibrated">Calibrated</option>
+                            <option value="Inspection">Inspection</option>
+                            <option value="Safety">Safety</option>
+                            <option value="Specialty">Specialty</option>
+                            <option value="Fixtures">Fixtures</option>
+                            <option value="Consumable">Consumable</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label for="qr_last_calibration_date" class="form-label">Last Calibration Date</label>
+                            <input type="date" class="form-control" id="qr_last_calibration_date">
+                        </div>
+                        <div class="col-6">
+                            <label for="qr_calibration_interval" class="form-label">Calibration Interval (Days)</label>
+                            <input type="number" class="form-control" id="qr_calibration_interval" min="1" placeholder="e.g., 365">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="qr_manufacturer" class="form-label">Manufacturer</label>
+                        <input type="text" class="form-control" id="qr_manufacturer" placeholder="Tool manufacturer">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="qr_model_number" class="form-label">Model Number</label>
+                        <input type="text" class="form-control" id="qr_model_number" placeholder="Model / part number">
+                    </div>
+                </div>
+                
                 <div class="mb-3">
                     <label for="qr_remarks" class="form-label">Remarks (Optional)</label>
                     <textarea class="form-control" id="qr_remarks" rows="2" placeholder="Optional notes..."></textarea>
@@ -1171,6 +1214,18 @@ window.openQuickReceive = function(data) {
     document.getElementById('qr_expiration_date').value = '';
     document.getElementById('qr_serial_number').value = '';
     document.getElementById('qr_remarks').value = '';
+    
+    const toolFields = document.getElementById('qr_tool_fields');
+    if (data.isToolPO) {
+        toolFields.style.display = 'block';
+        document.getElementById('qr_tool_category').value = 'General';
+        document.getElementById('qr_last_calibration_date').value = '';
+        document.getElementById('qr_calibration_interval').value = '';
+        document.getElementById('qr_manufacturer').value = '';
+        document.getElementById('qr_model_number').value = '';
+    } else {
+        toolFields.style.display = 'none';
+    }
     
     const conversionInfo = document.getElementById('qr_conversion_info');
     if (data.hasConversion && data.conversionFactor != 1) {
@@ -1228,19 +1283,30 @@ window.submitQuickReceive = async function() {
         return;
     }
     
+    const payload = {
+        quantity_received: quantity,
+        warehouse_location: warehouse,
+        bin_location: bin,
+        condition: condition,
+        expiration_date: expirationDate,
+        serial_number: serialNumber,
+        remarks: remarks
+    };
+    
+    const toolFieldsVisible = document.getElementById('qr_tool_fields').style.display !== 'none';
+    if (toolFieldsVisible) {
+        payload.tool_category = document.getElementById('qr_tool_category').value;
+        payload.last_calibration_date = document.getElementById('qr_last_calibration_date').value || null;
+        payload.calibration_interval_days = parseInt(document.getElementById('qr_calibration_interval').value) || null;
+        payload.manufacturer = document.getElementById('qr_manufacturer').value.trim() || null;
+        payload.model_number = document.getElementById('qr_model_number').value.trim() || null;
+    }
+    
     try {
         const response = await fetch(`/api/purchaseorders/${poId}/lines/${lineId}/quick-receive`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                quantity_received: quantity,
-                warehouse_location: warehouse,
-                bin_location: bin,
-                condition: condition,
-                expiration_date: expirationDate,
-                serial_number: serialNumber,
-                remarks: remarks
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
