@@ -364,7 +364,7 @@ def create_receiving():
                 SELECT vi.id, vi.invoice_number FROM vendor_invoices vi
                 JOIN gl_entries ge ON vi.gl_entry_id = ge.id
                 WHERE ge.reference_type = 'receiving_transaction' AND ge.reference_id = ?
-            ''', (receipt_id,)).fetchone()
+            ''', (str(receipt_id),)).fetchone()
             
             if existing_ap:
                 # Duplicate receipt - reuse existing AP

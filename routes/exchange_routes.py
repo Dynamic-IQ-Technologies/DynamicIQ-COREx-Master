@@ -1007,7 +1007,7 @@ def receive_core(exchange_id):
             SELECT id FROM gl_entries 
             WHERE reference_type = 'Exchange' AND reference_id = ? 
             AND transaction_source = 'Exchange Core Receipt'
-        ''', (exchange_id,)).fetchone()
+        ''', (str(exchange_id),)).fetchone()
         
         if not existing_gl:
             entry_id = create_journal_entry(

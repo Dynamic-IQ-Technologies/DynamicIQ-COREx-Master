@@ -499,7 +499,8 @@ def ship_shipment(id):
         ''', (datetime.now().strftime('%Y-%m-%d'), session['user_id'], id))
         
         # Update reference order status if needed
-        if shipment['reference_type'] == 'SalesOrder':
+        if shipment['reference_type'] in ('SalesOrder', 'Sales Order'):
+            so = conn.execute('SELECT * FROM sales_orders WHERE id = ?', (shipment['reference_id'],)).fetchone()
             conn.execute('''
                 UPDATE sales_orders
                 SET status = 'Shipped',
@@ -509,6 +510,44 @@ def ship_shipment(id):
             ''', (datetime.now().strftime('%Y-%m-%d'), 
                   shipment['tracking_number'], 
                   shipment['reference_id']))
+
+            if so:
+                total_revenue = float(so['total_amount'] or 0)
+                if total_revenue > 0:
+                    existing_rev = conn.execute('''
+                        SELECT id FROM gl_entries 
+                        WHERE reference_type = 'Shipment' AND reference_id = ? 
+                        AND transaction_source = 'Shipment Revenue'
+                    ''', (str(id),)).fetchone()
+
+                    if not existing_rev:
+                        from datetime import date
+                        rev_entry_id = create_journal_entry(
+                            conn=conn,
+                            entry_date=date.today().isoformat(),
+                            description=f'Revenue - Shipment {shipment["shipment_number"]} / {so["so_number"]}',
+                            transaction_source='Shipment Revenue',
+                            reference_type='Shipment',
+                            reference_id=id,
+                            lines=[
+                                {
+                                    'account_code': GL_ACCOUNTS['AR'],
+                                    'debit': round(total_revenue, 2),
+                                    'credit': 0,
+                                    'description': f'A/R for shipment {shipment["shipment_number"]} - {so["so_number"]}'
+                                },
+                                {
+                                    'account_code': GL_ACCOUNTS['SALES_REVENUE'],
+                                    'debit': 0,
+                                    'credit': round(total_revenue, 2),
+                                    'description': f'Sales revenue - {shipment["shipment_number"]} - {so["so_number"]}'
+                                }
+                            ],
+                            user_id=session.get('user_id'),
+                            auto_post=True
+                        )
+                        if rev_entry_id:
+                            logger.info(f'GL Journal Entry {rev_entry_id} created for shipment revenue recognition')
         
         conn.commit()
         flash('Shipment marked as shipped successfully!', 'success')
@@ -1116,13 +1155,60 @@ def confirm_shipment(id):
                 WHERE id = ?
             ''', (tracking_number, shipping_method, shipment['so_id']))
             
-            # Create exchange tracking records for Exchange orders
+            # Create Revenue / AR journal entry for shipped sales order
             sales_order = conn.execute('''
                 SELECT so.*, c.name as customer_name
                 FROM sales_orders so
                 JOIN customers c ON so.customer_id = c.id
                 WHERE so.id = ?
             ''', (shipment['so_id'],)).fetchone()
+
+            if sales_order:
+                total_revenue = float(sales_order['total_amount'] or 0)
+                if total_revenue > 0:
+                    existing_rev = conn.execute('''
+                        SELECT id FROM gl_entries 
+                        WHERE reference_type = 'Shipment' AND reference_id = ? 
+                        AND transaction_source = 'Shipment Revenue'
+                    ''', (str(id),)).fetchone()
+
+                    if not existing_rev:
+                        from datetime import date
+                        rev_entry_id = create_journal_entry(
+                            conn=conn,
+                            entry_date=date.today().isoformat(),
+                            description=f'Revenue - Shipment {shipment["shipment_number"]} / {sales_order["so_number"]}',
+                            transaction_source='Shipment Revenue',
+                            reference_type='Shipment',
+                            reference_id=id,
+                            lines=[
+                                {
+                                    'account_code': GL_ACCOUNTS['AR'],
+                                    'debit': round(total_revenue, 2),
+                                    'credit': 0,
+                                    'description': f'A/R for shipment {shipment["shipment_number"]} - {sales_order["so_number"]}'
+                                },
+                                {
+                                    'account_code': GL_ACCOUNTS['SALES_REVENUE'],
+                                    'debit': 0,
+                                    'credit': round(total_revenue, 2),
+                                    'description': f'Sales revenue - {shipment["shipment_number"]} - {sales_order["so_number"]}'
+                                }
+                            ],
+                            user_id=session.get('user_id'),
+                            auto_post=True
+                        )
+                        if rev_entry_id:
+                            logger.info(f'GL Journal Entry {rev_entry_id} created for shipment revenue recognition - {shipment["shipment_number"]}')
+
+            # Create exchange tracking records for Exchange orders
+            if not sales_order:
+                sales_order = conn.execute('''
+                    SELECT so.*, c.name as customer_name
+                    FROM sales_orders so
+                    JOIN customers c ON so.customer_id = c.id
+                    WHERE so.id = ?
+                ''', (shipment['so_id'],)).fetchone()
             
             if sales_order and sales_order['sales_type'] == 'Exchange':
                 # Check if exchange_master record already exists
