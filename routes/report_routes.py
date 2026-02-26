@@ -435,7 +435,12 @@ def material_requirements_report():
     
     for req in sales_order_requirements:
         product_id = req['product_id']
-        shortage_qty = req['shortage_quantity']
+        required_qty = req['required_quantity']
+        
+        available_qty = max(0, net_inventory.get(product_id, 0))
+        shortage_qty = max(0, required_qty - available_qty)
+        
+        net_inventory[product_id] = net_inventory.get(product_id, 0) - required_qty
         
         req_dict = {
             'source_type': req['source_type'],
@@ -447,13 +452,14 @@ def material_requirements_report():
             'name': req['name'],
             'unit_of_measure': req['unit_of_measure'],
             'cost': req['cost'],
-            'required_quantity': req['required_quantity'],
-            'available_quantity': req['allocated_quantity'],
+            'required_quantity': required_qty,
+            'available_quantity': available_qty,
             'shortage_quantity': shortage_qty,
             'status': 'Shortage' if shortage_qty > 0 else 'Available',
-            'total_cost': req['required_quantity'] * (req['cost'] or 0)
+            'total_cost': required_qty * (req['cost'] or 0)
         }
-        all_requirements.append(req_dict)
+        if shortage_qty > 0:
+            all_requirements.append(req_dict)
         
         if shortage_qty > 0:
             if product_id not in product_shortages:
