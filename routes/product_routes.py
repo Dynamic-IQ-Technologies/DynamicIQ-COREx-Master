@@ -1190,21 +1190,26 @@ def get_alternates(id):
 @product_bp.route('/products/<int:id>/alternates', methods=['POST'])
 @role_required('Admin', 'Planner')
 def add_alternate(id):
-    db = Database()
-    conn = db.get_connection()
-    
-    data = request.get_json() if request.is_json else request.form
-    alternate_product_id = int(data.get('alternate_product_id'))
-    relationship_type = data.get('relationship_type', 'Interchangeable')
-    priority = int(data.get('priority', 1))
-    notes = data.get('notes', '')
-    bidirectional = data.get('bidirectional', False)
-    
-    if alternate_product_id == id:
-        conn.close()
-        return jsonify({'success': False, 'error': 'Cannot add product as its own alternate'})
-    
     try:
+        db = Database()
+        conn = db.get_connection()
+        
+        data = request.get_json() if request.is_json else request.form
+        alternate_product_id = data.get('alternate_product_id')
+        
+        if not alternate_product_id:
+            return jsonify({'success': False, 'error': 'Please select an alternate product'}), 400
+        
+        alternate_product_id = int(alternate_product_id)
+        relationship_type = data.get('relationship_type', 'Interchangeable')
+        priority = int(data.get('priority', 1) or 1)
+        notes = data.get('notes', '') or ''
+        bidirectional = data.get('bidirectional', False)
+        
+        if alternate_product_id == id:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Cannot add product as its own alternate'})
+        
         conn.execute('''
             INSERT INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
             VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, 1)
@@ -1225,10 +1230,15 @@ def add_alternate(id):
         
         return jsonify({'success': True, 'message': 'Alternate added successfully'})
     except Exception as e:
-        conn.close()
-        if 'UNIQUE constraint' in str(e) or 'duplicate key' in str(e).lower():
+        try:
+            conn.rollback()
+            conn.close()
+        except:
+            pass
+        err = str(e)
+        if 'unique' in err.lower() or 'duplicate key' in err.lower():
             return jsonify({'success': False, 'error': 'This alternate relationship already exists'})
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': err})
 
 @product_bp.route('/products/alternates/<int:alternate_id>', methods=['DELETE'])
 @role_required('Admin', 'Planner')
