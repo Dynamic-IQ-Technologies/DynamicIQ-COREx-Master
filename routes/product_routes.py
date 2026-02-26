@@ -1207,14 +1207,17 @@ def add_alternate(id):
     try:
         conn.execute('''
             INSERT INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, DATE('now'), 1)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, 1)
         ''', (id, alternate_product_id, relationship_type, priority, notes, session.get('username', '')))
         
         if bidirectional:
             conn.execute('''
-                INSERT OR IGNORE INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, DATE('now'), 1)
-            ''', (alternate_product_id, id, relationship_type, priority, notes, session.get('username', '')))
+                INSERT INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
+                SELECT ?, ?, ?, ?, ?, ?, CURRENT_DATE, 1
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM product_alternates WHERE product_id = ? AND alternate_product_id = ?
+                )
+            ''', (alternate_product_id, id, relationship_type, priority, notes, session.get('username', ''), alternate_product_id, id))
         
         conn.commit()
         conn.close()
@@ -1222,7 +1225,7 @@ def add_alternate(id):
         return jsonify({'success': True, 'message': 'Alternate added successfully'})
     except Exception as e:
         conn.close()
-        if 'UNIQUE constraint' in str(e):
+        if 'UNIQUE constraint' in str(e) or 'duplicate key' in str(e).lower():
             return jsonify({'success': False, 'error': 'This alternate relationship already exists'})
         return jsonify({'success': False, 'error': str(e)})
 
