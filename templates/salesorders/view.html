@@ -245,9 +245,6 @@
                                     <span class="badge {% if line.line_type == 'Exchange' %}bg-primary{% elif line.line_type == 'Managed Repair' %}bg-info{% else %}bg-secondary{% endif %} ms-2">
                                         {{ line.line_type or 'Outright' }}
                                     </span>
-                                    <span class="badge {% if line.line_status == 'Confirmed' %}bg-success{% elif line.line_status == 'Shipped' %}bg-primary{% elif line.line_status == 'Closed' %}bg-dark{% else %}bg-warning{% endif %} ms-1">
-                                        {{ line.line_status or 'Draft' }}
-                                    </span>
                                 </h6>
                                 {% if line.description %}
                                 <p class="text-muted mb-1">{{ line.description }}</p>
