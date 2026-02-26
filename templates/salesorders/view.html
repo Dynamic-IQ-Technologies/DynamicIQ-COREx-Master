@@ -614,7 +614,7 @@
                             <th>Amount Paid:</th>
                             <td class="text-end">{{ sales_order.amount_paid|currency }}</td>
                         </tr>
-                        <tr class="{% if sales_order.balance_due > 0 %}table-warning{% else %}table-success{% endif %} fw-bold">
+                        <tr class="{% if (sales_order.balance_due or 0) > 0 %}table-warning{% else %}table-success{% endif %} fw-bold">
                             <th>Balance Due:</th>
                             <td class="text-end">{{ sales_order.balance_due|currency }}</td>
                         </tr>
@@ -1173,7 +1173,7 @@ document.getElementById('generateExchangeAgreementForm')?.addEventListener('subm
                                         </td>
                                         <td class="text-end">${{ "%.2f"|format(inv.total_amount or 0) }}</td>
                                         <td class="text-end">
-                                            {% if inv.balance_due > 0 %}
+                                            {% if (inv.balance_due or 0) > 0 %}
                                             <span class="text-warning fw-bold">${{ "%.2f"|format(inv.balance_due) }}</span>
                                             {% else %}
                                             <span class="text-success">${{ "%.2f"|format(inv.balance_due or 0) }}</span>
