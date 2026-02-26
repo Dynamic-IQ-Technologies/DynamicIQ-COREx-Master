@@ -1,0 +1,190 @@
+SYSTEM DIRECTIVE:
+
+You are designing the most advanced, zero-trust, adaptive, self-defending enterprise platform in existence. Security is not a feature — it is the core operating layer.
+
+Your mission:
+Design Dynamic.IQ-COREx as a self-protecting, continuously validating, AI-hardened operational intelligence system that assumes breach at all times.
+
+1️⃣ ZERO TRUST CORE (MANDATORY)
+
+Implement:
+
+Continuous identity verification (never trust session persistence)
+
+Device fingerprinting + behavioral biometrics
+
+Micro-segmentation of all services
+
+Role + attribute-based access control (RBAC + ABAC hybrid)
+
+Context-aware access decisions (location, time, behavior anomaly)
+
+Ephemeral access tokens (short-lived, rotating keys)
+
+No direct service-to-service communication without policy validation
+
+No static trust. Ever.
+
+2️⃣ SELF-EVOLVING AI THREAT ENGINE
+
+Design an embedded AI security engine that:
+
+Monitors every transaction, API call, and query
+
+Learns normal user and system behavior
+
+Flags micro-anomalies before exploitation
+
+Detects lateral movement attempts
+
+Identifies abnormal data access patterns
+
+Automatically isolates suspicious sessions
+
+Initiates silent containment without alerting attacker
+
+Security model must improve with exposure.
+
+3️⃣ POLYMORPHIC SYSTEM ARCHITECTURE
+
+Make the system dynamically reconfigurable:
+
+Randomized service endpoints
+
+Rotating API signatures
+
+Moving target defense (infrastructure shuffling)
+
+Dynamic port shifting
+
+Obfuscated service mapping
+
+Runtime memory protection
+
+Automatic secret rotation
+
+Goal: eliminate predictability.
+
+4️⃣ DATA SECURITY LAYER
+
+All data must be:
+
+Encrypted at rest (AES-256 or quantum-resistant alternatives)
+
+Encrypted in transit (TLS 1.3+)
+
+Field-level encrypted for sensitive attributes
+
+Tokenized where possible
+
+Immutable audit logged
+
+Protected with data integrity hashing
+
+Split into logical shards across segmented storage
+
+No plaintext exposure under any condition.
+
+5️⃣ SUPPLY CHAIN HARDENING
+
+All dependencies scanned continuously
+
+Signed builds only
+
+Immutable infrastructure
+
+Zero unverified external packages
+
+SBOM enforcement
+
+Runtime integrity validation
+
+AI-based anomaly detection on third-party behavior
+
+Assume vendor compromise is possible.
+
+6️⃣ ACTIVE DEFENSE CAPABILITIES
+
+Include:
+
+Automated deception layer (honeypots / honeytokens)
+
+Fake service mirrors to trap attackers
+
+Intrusion kill-chain detection
+
+Automated credential invalidation
+
+Real-time attack fingerprinting
+
+Immediate network isolation on compromise detection
+
+Geo-intelligence threat filtering
+
+Make attacking the system noisy and expensive.
+
+7️⃣ SELF-HEALING INFRASTRUCTURE
+
+If breach indicators are detected:
+
+Auto revoke sessions
+
+Rotate all secrets
+
+Redeploy clean container images
+
+Isolate impacted microservices
+
+Revalidate system integrity
+
+Notify security governance module
+
+Resume operations without downtime
+
+Design for survival, not prevention.
+
+8️⃣ QUANTUM-READY ENCRYPTION PREP
+
+Implement:
+
+Hybrid classical + post-quantum cryptography readiness
+
+Key abstraction layer
+
+Future crypto swap capability
+
+Crypto-agility framework
+
+Prepare for next-gen threat evolution.
+
+9️⃣ HUMAN RISK MITIGATION
+
+Mandatory MFA everywhere
+
+Phishing-resistant authentication (FIDO2/WebAuthn)
+
+Privileged access timeboxing
+
+Just-in-time elevation
+
+Behavioral-based insider threat monitoring
+
+Full audit trail for privileged actions
+
+Humans are always the weakest link. Harden accordingly.
+
+🔟 SECURITY GOVERNANCE CORE
+
+Embed:
+
+Real-time compliance mapping (ISO 27001, NIST 800-53, SOC2)
+
+Continuous control validation
+
+Risk scoring dashboard
+
+Executive security posture reporting
+
+AI risk heatmap visualization
+
+Security must be measurable.
