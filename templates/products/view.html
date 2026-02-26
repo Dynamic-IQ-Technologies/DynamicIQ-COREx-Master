@@ -925,7 +925,46 @@
                         <select class="form-select" id="alternateProductId" required>
                             <option value="">Select a product...</option>
                         </select>
-                        <div class="form-text">Search and select the part that can be used as an alternate</div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <div class="form-text mb-0">Search and select the part that can be used as an alternate</div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleNewProductForm()">
+                                <i class="bi bi-plus-circle"></i> Create New
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="newProductPanel" class="card border-primary mb-3" style="display:none;">
+                        <div class="card-header bg-primary bg-opacity-10 py-2 d-flex justify-content-between align-items-center">
+                            <strong class="small"><i class="bi bi-plus-circle me-1"></i>Create New Product</strong>
+                            <button type="button" class="btn-close btn-close-sm" onclick="toggleNewProductForm()"></button>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">Part Number <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="newPartCode" placeholder="e.g. 745-0001-001">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="newPartName" placeholder="Product name">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small mb-1">Description</label>
+                                    <input type="text" class="form-control form-control-sm" id="newPartDescription" placeholder="Optional description">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">Category</label>
+                                    <input type="text" class="form-control form-control-sm" id="newPartCategory" placeholder="e.g. Engine">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">Cost</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="newPartCost" placeholder="0.00" value="0">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary w-100 mt-2" onclick="createAndSelectProduct()">
+                                <i class="bi bi-check-lg me-1"></i> Create & Select
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -993,6 +1032,53 @@ function loadProductsForAlternate() {
                 }
             });
         });
+}
+
+function toggleNewProductForm() {
+    const panel = document.getElementById('newProductPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function createAndSelectProduct() {
+    const code = document.getElementById('newPartCode').value.trim();
+    const name = document.getElementById('newPartName').value.trim();
+    const description = document.getElementById('newPartDescription').value.trim();
+    const category = document.getElementById('newPartCategory').value.trim();
+    const cost = parseFloat(document.getElementById('newPartCost').value) || 0;
+
+    if (!code || !name) {
+        showToast('Part Number and Name are required', 'error');
+        return;
+    }
+
+    fetch('/api/products/quick-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, name, description, category, cost })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const select = document.getElementById('alternateProductId');
+            const option = document.createElement('option');
+            option.value = data.product.id;
+            option.textContent = `${data.product.code} - ${data.product.name}`;
+            select.appendChild(option);
+            select.value = data.product.id;
+
+            document.getElementById('newProductPanel').style.display = 'none';
+            document.getElementById('newPartCode').value = '';
+            document.getElementById('newPartName').value = '';
+            document.getElementById('newPartDescription').value = '';
+            document.getElementById('newPartCategory').value = '';
+            document.getElementById('newPartCost').value = '0';
+
+            showToast('Product created and selected', 'success');
+        } else {
+            showToast(data.error || 'Failed to create product', 'error');
+        }
+    })
+    .catch(() => showToast('Error creating product', 'error'));
 }
 
 function saveAlternate() {
