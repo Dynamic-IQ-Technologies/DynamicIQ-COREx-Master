@@ -1211,13 +1211,14 @@ def add_alternate(id):
         ''', (id, alternate_product_id, relationship_type, priority, notes, session.get('username', '')))
         
         if bidirectional:
-            conn.execute('''
-                INSERT INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
-                SELECT ?, ?, ?, ?, ?, ?, CURRENT_DATE, 1
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM product_alternates WHERE product_id = ? AND alternate_product_id = ?
-                )
-            ''', (alternate_product_id, id, relationship_type, priority, notes, session.get('username', ''), alternate_product_id, id))
+            existing_reverse = conn.execute('''
+                SELECT id FROM product_alternates WHERE product_id = ? AND alternate_product_id = ?
+            ''', (alternate_product_id, id)).fetchone()
+            if not existing_reverse:
+                conn.execute('''
+                    INSERT INTO product_alternates (product_id, alternate_product_id, relationship_type, priority, notes, approved_by, approved_date, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, 1)
+                ''', (alternate_product_id, id, relationship_type, priority, notes, session.get('username', '')))
         
         conn.commit()
         conn.close()
