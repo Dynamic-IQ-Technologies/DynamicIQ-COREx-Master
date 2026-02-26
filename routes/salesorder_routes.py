@@ -530,9 +530,12 @@ def add_line(id):
         ''', (so['customer_id'], id)).fetchone()['total_outstanding']
         
         # Project new total after adding this line
-        projected_total = outstanding + so['total_amount'] + line_total
+        current_total = float(so['total_amount'] or 0)
+        outstanding = float(outstanding or 0)
+        credit_limit = float(customer['credit_limit'] or 0)
+        projected_total = outstanding + current_total + line_total
         
-        if customer['credit_limit'] > 0 and projected_total > customer['credit_limit']:
+        if credit_limit > 0 and projected_total > credit_limit:
             flash(f'Credit limit exceeded for {customer["customer_number"]} - {customer["name"]}. Credit Limit: ${customer["credit_limit"]:,.2f}, Current Outstanding: ${outstanding:,.2f}, Projected: ${projected_total:,.2f}', 'danger')
             conn.close()
             return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
