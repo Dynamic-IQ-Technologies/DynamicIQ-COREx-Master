@@ -457,7 +457,7 @@ def ship_shipment(id):
                 SELECT id FROM gl_entries 
                 WHERE reference_type = 'Shipment' AND reference_id = ? 
                 AND transaction_source = 'Shipment COGS'
-            ''', (id,)).fetchone()
+            ''', (str(id),)).fetchone()
             
             if not existing_gl:
                 from datetime import date
@@ -1074,7 +1074,7 @@ def confirm_shipment(id):
                     SELECT id FROM gl_entries 
                     WHERE reference_type = 'Shipment' AND reference_id = ? 
                     AND transaction_source = 'Shipment COGS'
-                ''', (id,)).fetchone()
+                ''', (str(id),)).fetchone()
                 
                 if not existing_gl:
                     from datetime import date
