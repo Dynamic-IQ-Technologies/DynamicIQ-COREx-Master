@@ -1414,7 +1414,7 @@ def generate_certificate_of_conformance(id):
         
         cursor = conn.execute('''
             INSERT INTO shipment_documents (shipment_id, document_type, document_number, version, 
-                                           status, file_path, signed_by, generated_by, generated_at)
+                                           status, file_path, signature_name, generated_by, generated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (id, 'Certificate of Conformance', doc_number, new_version, 'Unsigned', 
               file_path, signatory, session.get('user_id')))
