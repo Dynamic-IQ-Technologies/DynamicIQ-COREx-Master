@@ -394,6 +394,14 @@ def inject_user():
 logging.basicConfig(level=logging.INFO)
 error_logger = logging.getLogger('error_handler')
 
+@app.after_request
+def add_cache_headers(response):
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+    else:
+        response.headers['X-Correlation-ID'] = getattr(request, 'correlation_id', '')
+    return response
+
 @app.before_request
 def before_request():
     request.correlation_id = str(uuid.uuid4())[:8]
@@ -596,137 +604,14 @@ def initialize_application():
     except Exception as e:
         print(f"Warning: Could not load exchange graph: {e}")
     
-    # Database migrations - run on every startup
     try:
         conn = db.get_connection()
-        # Drop unique constraint on inventory.product_id to allow multiple inventory lines per product
-        # This enables receiving to create separate lines for different locations/lots
         try:
             conn.execute('ALTER TABLE inventory DROP CONSTRAINT IF EXISTS inventory_product_id_key')
             conn.commit()
             print("[Startup] Dropped inventory_product_id_key constraint (allows multiple lines per product)")
         except Exception as constraint_err:
-            # Constraint may not exist, that's OK
             print(f"[Startup] Constraint check: {constraint_err}")
-        
-        # Split consolidated inventory into separate lines for serialized parts
-        # Each unit should have its own inventory record for proper tracking
-        consolidated_inv = conn.execute('''
-            SELECT i.id, i.product_id, i.quantity, i.warehouse_location, i.bin_location, 
-                   i.condition, i.unit_cost, i.expiration_date, i.serial_number, i.status,
-                   p.code as product_code, p.name as product_name
-            FROM inventory i
-            JOIN products p ON i.product_id = p.id
-            WHERE i.quantity > 1 AND i.serial_number IS NULL
-        ''').fetchall()
-        
-        if consolidated_inv:
-            print(f"[Startup] Found {len(consolidated_inv)} consolidated inventory records to split")
-            for inv in consolidated_inv:
-                try:
-                    qty = int(float(inv['quantity'] or 1))
-                    if qty <= 1:
-                        continue
-                    
-                    unit_cost = float(inv['unit_cost'] or 0)
-                    
-                    # Create individual inventory records for each unit
-                    for i in range(qty):
-                        serial_suffix = f"-{i+1:03d}"
-                        inv_cursor = conn.cursor()
-                        inv_cursor.execute('''
-                            INSERT INTO inventory 
-                            (product_id, quantity, warehouse_location, bin_location, condition,
-                             reorder_point, safety_stock, status, unit_cost, expiration_date, 
-                             serial_number, last_updated)
-                            VALUES (?, 1, ?, ?, ?, 0, 0, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                        ''', (
-                            inv['product_id'],
-                            inv['warehouse_location'] or 'MAIN',
-                            inv['bin_location'] or '',
-                            inv['condition'] or 'New',
-                            inv['status'] or 'Available',
-                            unit_cost,
-                            inv['expiration_date'] if inv['expiration_date'] else None,
-                            f"{inv['product_code']}{serial_suffix}"
-                        ))
-                        new_inv_id = inv_cursor.lastrowid
-                        print(f"[Startup] Created inventory #{new_inv_id} for {inv['product_code']} unit {i+1}/{qty}")
-                    
-                    # Delete the original consolidated record
-                    conn.execute('DELETE FROM inventory WHERE id = ?', (inv['id'],))
-                    print(f"[Startup] Removed consolidated inventory #{inv['id']} ({inv['product_code']} qty={qty})")
-                    
-                except Exception as split_err:
-                    print(f"[Startup] Error splitting inventory #{inv['id']}: {split_err}")
-            
-            conn.commit()
-            print(f"[Startup] Inventory split migration complete")
-        
-        # Fix receiving transactions that don't have proper inventory records
-        # Each receiving transaction should have its own inventory line
-        orphan_receipts = conn.execute('''
-            SELECT rt.id, rt.receipt_number, rt.product_id, 
-                   COALESCE(rt.base_quantity_received, rt.quantity_received) as quantity,
-                   rt.receipt_date, rt.warehouse_location, rt.bin_location, rt.condition,
-                   rt.unit_cost_at_receipt, rt.expiration_date, rt.serial_number, rt.inventory_id
-            FROM receiving_transactions rt
-            LEFT JOIN inventory i ON rt.inventory_id = i.id
-            WHERE rt.inventory_id IS NULL OR i.id IS NULL
-        ''').fetchall()
-        
-        if orphan_receipts:
-            print(f"[Startup] Found {len(orphan_receipts)} receiving transactions without proper inventory records")
-            for rcv in orphan_receipts:
-                try:
-                    # Create individual inventory record for this receipt
-                    inv_cursor = conn.cursor()
-                    inv_cursor.execute('''
-                        INSERT INTO inventory 
-                        (product_id, quantity, warehouse_location, bin_location, condition,
-                         reorder_point, safety_stock, status, unit_cost, expiration_date, 
-                         serial_number, last_received_date, last_updated)
-                        VALUES (?, ?, ?, ?, ?, 0, 0, 'Available', ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ''', (
-                        rcv['product_id'], 
-                        float(rcv['quantity'] or 1),
-                        rcv['warehouse_location'] or 'MAIN',
-                        rcv['bin_location'] or '',
-                        rcv['condition'] or 'New',
-                        float(rcv['unit_cost_at_receipt'] or 0),
-                        rcv['expiration_date'] if rcv['expiration_date'] else None,
-                        rcv['serial_number'] if rcv['serial_number'] else None,
-                        rcv['receipt_date']
-                    ))
-                    new_inv_id = inv_cursor.lastrowid
-                    
-                    # Link receiving transaction to new inventory record
-                    conn.execute('UPDATE receiving_transactions SET inventory_id = ? WHERE id = ?', 
-                                (new_inv_id, rcv['id']))
-                    print(f"[Startup] Created inventory #{new_inv_id} for receipt {rcv['receipt_number']}")
-                except Exception as rcv_err:
-                    print(f"[Startup] Error creating inventory for {rcv['receipt_number']}: {rcv_err}")
-            
-            # Delete the old consolidated inventory record if it exists and has duplicated quantity
-            # Only do this if we successfully created individual records
-            old_inv = conn.execute('SELECT id, product_id, quantity FROM inventory WHERE id = 1').fetchone()
-            if old_inv:
-                # Check if this old record's quantity matches sum of receipts (indicating consolidation)
-                receipt_sum = conn.execute('''
-                    SELECT product_id, SUM(COALESCE(base_quantity_received, quantity_received)) as total
-                    FROM receiving_transactions 
-                    WHERE product_id = ? AND inventory_id != 1
-                    GROUP BY product_id
-                ''', (old_inv['product_id'],)).fetchone()
-                
-                if receipt_sum and float(old_inv['quantity'] or 0) > 0:
-                    # The old consolidated record can be removed since we created individual records
-                    conn.execute('DELETE FROM inventory WHERE id = 1')
-                    print(f"[Startup] Removed old consolidated inventory record (id=1)")
-            
-            conn.commit()
-            print(f"[Startup] Migration complete: {len(orphan_receipts)} inventory records created")
-        
         conn.close()
     except Exception as e:
         print(f"[Startup] Migration check: {e}")
