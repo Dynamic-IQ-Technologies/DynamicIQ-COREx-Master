@@ -47,7 +47,7 @@
                         <p><strong>Classification:</strong> <span class="badge bg-secondary">{{ receipt.classification }}</span></p>
                         <p><strong>Priority:</strong> {{ receipt.priority }}</p>
                         <p><strong>Serial Numbers:</strong> {{ receipt.serial_numbers or 'None recorded' }}</p>
-                        {% if receipt.provisional_cost > 0 %}
+                        {% if (receipt.provisional_cost or 0) > 0 %}
                         <p><strong>Provisional Cost:</strong> ${{ "%.2f"|format(receipt.provisional_cost) }}</p>
                         {% endif %}
                     </div>
