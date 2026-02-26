@@ -194,9 +194,9 @@ def list_tools():
         'calibration_due': sum(1 for t in all_tools if is_calibration_due(t['next_calibration_date']))
     }
     
-    categories = conn.execute('SELECT DISTINCT category FROM tools WHERE category IS NOT NULL AND category != "" ORDER BY category').fetchall()
-    locations = conn.execute('SELECT DISTINCT location FROM tools WHERE location IS NOT NULL AND location != "" ORDER BY location').fetchall()
-    suppliers = conn.execute('SELECT id, name FROM suppliers WHERE status = "Active" ORDER BY name').fetchall()
+    categories = conn.execute("SELECT DISTINCT category FROM tools WHERE category IS NOT NULL AND category != '' ORDER BY category").fetchall()
+    locations = conn.execute("SELECT DISTINCT location FROM tools WHERE location IS NOT NULL AND location != '' ORDER BY location").fetchall()
+    suppliers = conn.execute("SELECT id, name FROM suppliers WHERE status = 'Active' ORDER BY name").fetchall()
     
     conn.close()
     return render_template('tools/list.html', 
