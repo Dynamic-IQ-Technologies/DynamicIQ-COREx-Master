@@ -390,8 +390,8 @@ def certification_add(id):
     
     conn.execute('''
         INSERT INTO ndt_certifications 
-        (technician_id, method, level, certification_number, issued_date, expiration_date, issuing_body, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (technician_id, method, level, certification_number, issued_date, expiration_date, issuing_body, status, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         id,
         request.form['method'],
@@ -400,6 +400,7 @@ def certification_add(id):
         get_form_date('issued_date'),
         get_form_date('expiration_date'),
         request.form.get('issuing_body'),
+        request.form.get('status', 'Active'),
         request.form.get('notes')
     ))
     
@@ -407,6 +408,53 @@ def certification_add(id):
     conn.close()
     
     flash('Certification added successfully', 'success')
+    return redirect(url_for('ndt_routes.technician_view', id=id))
+
+@ndt_bp.route('/ndt/technicians/<int:id>/certifications/<int:cert_id>/edit', methods=['POST'])
+def certification_edit(id, cert_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    conn.execute('''
+        UPDATE ndt_certifications 
+        SET method = ?, level = ?, certification_number = ?, 
+            issued_date = ?, expiration_date = ?, issuing_body = ?, status = ?, notes = ?
+        WHERE id = ? AND technician_id = ?
+    ''', (
+        request.form['method'],
+        request.form['level'],
+        request.form.get('certification_number'),
+        get_form_date('issued_date'),
+        get_form_date('expiration_date'),
+        request.form.get('issuing_body'),
+        request.form.get('status', 'Active'),
+        request.form.get('notes'),
+        cert_id,
+        id
+    ))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Certification updated successfully', 'success')
+    return redirect(url_for('ndt_routes.technician_view', id=id))
+
+@ndt_bp.route('/ndt/technicians/<int:id>/certifications/<int:cert_id>/delete', methods=['POST'])
+def certification_delete(id, cert_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    conn.execute('DELETE FROM ndt_certifications WHERE id = ? AND technician_id = ?', (cert_id, id))
+    conn.commit()
+    conn.close()
+    
+    flash('Certification deleted', 'success')
     return redirect(url_for('ndt_routes.technician_view', id=id))
 
 @ndt_bp.route('/ndt/work-orders')
