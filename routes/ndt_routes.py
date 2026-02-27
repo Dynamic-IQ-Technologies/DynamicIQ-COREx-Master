@@ -857,10 +857,9 @@ def add_result(id):
     method = request.form['method']
     inspection_date = request.form['inspection_date']
     
+    cert_warning = ''
     if not check_technician_certified(conn, technician_id, method, inspection_date):
-        flash(f'Technician is not certified for {method} on the inspection date', 'error')
-        conn.close()
-        return redirect(url_for('ndt_routes.wo_view', id=id))
+        cert_warning = f' (Warning: Technician certification for {method} not found or expired)'
     
     conn.execute('''
         INSERT INTO ndt_inspection_results 
@@ -888,7 +887,7 @@ def add_result(id):
     conn.commit()
     conn.close()
     
-    flash('Inspection result added successfully', 'success')
+    flash(f'Inspection result added successfully{cert_warning}', 'warning' if cert_warning else 'success')
     return redirect(url_for('ndt_routes.wo_view', id=id))
 
 @ndt_bp.route('/ndt/api/certified-technicians')
