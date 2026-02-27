@@ -247,6 +247,7 @@
                                     <th>Area</th>
                                     <th>Result</th>
                                     <th>Defects</th>
+                                    <th width="100">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -268,10 +269,34 @@
                                             -
                                         {% endif %}
                                     </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1 edit-result-btn" title="Edit"
+                                            data-result-id="{{ result.id }}"
+                                            data-method="{{ result.method }}"
+                                            data-inspection-date="{{ result.inspection_date }}"
+                                            data-technician-id="{{ result.technician_id }}"
+                                            data-equipment="{{ result.equipment_used or '' }}"
+                                            data-calibration="{{ result.calibration_reference or '' }}"
+                                            data-procedure="{{ result.procedure_reference or '' }}"
+                                            data-area="{{ result.area_inspected or '' }}"
+                                            data-defect-type="{{ result.defect_type or '' }}"
+                                            data-defect-size="{{ result.defect_size or '' }}"
+                                            data-defect-location="{{ result.defect_location or '' }}"
+                                            data-indication="{{ result.indication_details or '' }}"
+                                            data-result="{{ result.result }}"
+                                            data-remarks="{{ result.remarks or '' }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form action="{{ url_for('ndt_routes.delete_result', id=ndt_wo.id, result_id=result.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this inspection result?')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">No inspection results recorded</td>
+                                    <td colspan="7" class="text-center text-muted py-4">No inspection results recorded</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -429,4 +454,116 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editResultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editResultForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Inspection Result</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Method <span class="text-danger">*</span></label>
+                            <select name="method" id="edit_result_method" class="form-select" required>
+                                {% for m in ndt_wo.ndt_methods.split(',') %}
+                                <option value="{{ m.strip() }}">{{ m.strip() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Inspection Date <span class="text-danger">*</span></label>
+                            <input type="date" name="inspection_date" id="edit_result_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Technician <span class="text-danger">*</span></label>
+                            <select name="technician_id" id="edit_result_technician" class="form-select" required>
+                                <option value="">-- Select --</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.id }}">{{ t.first_name }} {{ t.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Equipment Used</label>
+                            <input type="text" name="equipment_used" id="edit_result_equipment" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Calibration Reference</label>
+                            <input type="text" name="calibration_reference" id="edit_result_calibration" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Procedure Reference</label>
+                            <input type="text" name="procedure_reference" id="edit_result_procedure" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Area Inspected</label>
+                            <input type="text" name="area_inspected" id="edit_result_area" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <hr>
+                            <h6>Findings</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Defect Type</label>
+                            <input type="text" name="defect_type" id="edit_result_defect_type" class="form-control" placeholder="e.g., Crack, Porosity">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Defect Size</label>
+                            <input type="text" name="defect_size" id="edit_result_defect_size" class="form-control" placeholder="e.g., 2mm x 5mm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Defect Location</label>
+                            <input type="text" name="defect_location" id="edit_result_defect_location" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Indication Details</label>
+                            <textarea name="indication_details" id="edit_result_indication" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Result <span class="text-danger">*</span></label>
+                            <select name="result" id="edit_result_result" class="form-select" required>
+                                <option value="Pass">Pass</option>
+                                <option value="Fail">Fail</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Remarks</label>
+                            <textarea name="remarks" id="edit_result_remarks" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.edit-result-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var d = this.dataset;
+        document.getElementById('editResultForm').action = '/ndt/work-orders/{{ ndt_wo.id }}/results/' + d.resultId + '/edit';
+        document.getElementById('edit_result_method').value = d.method;
+        document.getElementById('edit_result_date').value = d.inspectionDate;
+        document.getElementById('edit_result_technician').value = d.technicianId;
+        document.getElementById('edit_result_equipment').value = d.equipment;
+        document.getElementById('edit_result_calibration').value = d.calibration;
+        document.getElementById('edit_result_procedure').value = d.procedure;
+        document.getElementById('edit_result_area').value = d.area;
+        document.getElementById('edit_result_defect_type').value = d.defectType;
+        document.getElementById('edit_result_defect_size').value = d.defectSize;
+        document.getElementById('edit_result_defect_location').value = d.defectLocation;
+        document.getElementById('edit_result_indication').value = d.indication;
+        document.getElementById('edit_result_result').value = d.result;
+        document.getElementById('edit_result_remarks').value = d.remarks;
+        new bootstrap.Modal(document.getElementById('editResultModal')).show();
+    });
+});
+</script>
 {% endblock %}

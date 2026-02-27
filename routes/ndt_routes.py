@@ -938,6 +938,70 @@ def add_result(id):
     flash(f'Inspection result added successfully{cert_warning}', 'warning' if cert_warning else 'success')
     return redirect(url_for('ndt_routes.wo_view', id=id))
 
+@ndt_bp.route('/ndt/work-orders/<int:id>/results/<int:result_id>/edit', methods=['POST'])
+def edit_result(id, result_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.rollback()
+    except:
+        pass
+    
+    conn.execute('''
+        UPDATE ndt_inspection_results 
+        SET method = ?, inspection_date = ?, technician_id = ?,
+            equipment_used = ?, calibration_reference = ?, procedure_reference = ?,
+            area_inspected = ?, defect_type = ?, defect_size = ?, defect_location = ?,
+            indication_details = ?, result = ?, remarks = ?
+        WHERE id = ? AND ndt_wo_id = ?
+    ''', (
+        request.form['method'],
+        request.form['inspection_date'],
+        request.form['technician_id'],
+        request.form.get('equipment_used'),
+        request.form.get('calibration_reference'),
+        request.form.get('procedure_reference'),
+        request.form.get('area_inspected'),
+        request.form.get('defect_type'),
+        request.form.get('defect_size'),
+        request.form.get('defect_location'),
+        request.form.get('indication_details'),
+        request.form['result'],
+        request.form.get('remarks'),
+        result_id,
+        id
+    ))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Inspection result updated successfully', 'success')
+    return redirect(url_for('ndt_routes.wo_view', id=id))
+
+@ndt_bp.route('/ndt/work-orders/<int:id>/results/<int:result_id>/delete', methods=['POST'])
+def delete_result(id, result_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    db = Database()
+    conn = db.get_connection()
+    
+    try:
+        conn.rollback()
+    except:
+        pass
+    
+    conn.execute('DELETE FROM ndt_inspection_results WHERE id = ? AND ndt_wo_id = ?', (result_id, id))
+    conn.commit()
+    conn.close()
+    
+    flash('Inspection result deleted', 'success')
+    return redirect(url_for('ndt_routes.wo_view', id=id))
+
 @ndt_bp.route('/ndt/api/certified-technicians')
 def api_certified_technicians():
     """API to get certified technicians for a method"""
