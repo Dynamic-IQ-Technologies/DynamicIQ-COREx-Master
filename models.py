@@ -6698,6 +6698,49 @@ def init_qms_tables(cursor):
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS saved_reports (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            category VARCHAR(100) DEFAULT 'Operations',
+            owner_id INTEGER REFERENCES users(id),
+            access_level VARCHAR(50) DEFAULT 'Private',
+            report_type VARCHAR(50) DEFAULT 'custom',
+            query_config TEXT,
+            nl_prompt TEXT,
+            visualization_type VARCHAR(50) DEFAULT 'table',
+            version INTEGER DEFAULT 1,
+            status VARCHAR(50) DEFAULT 'Active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_versions (
+            id SERIAL PRIMARY KEY,
+            report_id INTEGER REFERENCES saved_reports(id),
+            version INTEGER DEFAULT 1,
+            query_config TEXT,
+            nl_prompt TEXT,
+            changed_by INTEGER REFERENCES users(id),
+            change_description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_audit_log (
+            id SERIAL PRIMARY KEY,
+            report_id INTEGER REFERENCES saved_reports(id),
+            action_type VARCHAR(50),
+            performed_by INTEGER REFERENCES users(id),
+            action_description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Create indexes for document template queries
     try:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_templates_type ON document_templates(document_type)')
