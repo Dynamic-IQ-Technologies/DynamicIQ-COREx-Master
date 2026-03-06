@@ -573,3 +573,137 @@ def quick_create_customer():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
+
+@customer_bp.route('/customers/import-template')
+@login_required
+def import_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['name', 'contact_person', 'email', 'phone', 'billing_address',
+                     'shipping_address', 'payment_terms', 'credit_limit', 'tax_exempt',
+                     'tax_id', 'currency', 'notes', 'status'])
+    writer.writerow(['Acme Corp', 'John Smith', 'john@acme.com', '555-0100',
+                     '123 Main St', '123 Main St', '30', '50000', 'No',
+                     '', 'USD', '', 'Active'])
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=customer_import_template.csv'}
+    )
+
+@customer_bp.route('/customers/import', methods=['POST'])
+@role_required('Admin', 'Planner')
+def import_customers():
+    file = request.files.get('csv_file')
+    if not file or not file.filename.endswith('.csv'):
+        flash('Please upload a valid CSV file', 'danger')
+        return redirect(url_for('customer_routes.list_customers'))
+
+    skip_duplicates = 'skip_duplicates' in request.form
+
+    try:
+        stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+        reader = csv.DictReader(stream)
+
+        fieldnames = [f.strip().lower() for f in (reader.fieldnames or [])]
+        if 'name' not in fieldnames:
+            flash('CSV must have a "name" column', 'danger')
+            return redirect(url_for('customer_routes.list_customers'))
+
+        db = Database()
+        conn = db.get_connection()
+
+        last_customer = conn.execute(
+            'SELECT customer_number FROM customers ORDER BY id DESC LIMIT 1'
+        ).fetchone()
+        if last_customer:
+            next_num = int(last_customer['customer_number'].split('-')[1]) + 1
+        else:
+            next_num = 1
+
+        imported = 0
+        skipped = 0
+        errors = []
+
+        for row_num, raw_row in enumerate(reader, start=2):
+            row = {k.strip().lower(): (v.strip() if v else '') for k, v in raw_row.items()}
+            name = row.get('name', '').strip()
+            if not name:
+                errors.append(f'Row {row_num}: Missing name')
+                continue
+
+            if skip_duplicates:
+                existing = conn.execute(
+                    'SELECT id FROM customers WHERE LOWER(name) = LOWER(?)', (name,)
+                ).fetchone()
+                if existing:
+                    skipped += 1
+                    continue
+
+            customer_number = f'CUST-{next_num:06d}'
+            next_num += 1
+
+            payment_terms = row.get('payment_terms', '30').strip()
+            try:
+                payment_terms = int(payment_terms) if payment_terms else 30
+            except ValueError:
+                payment_terms = 30
+
+            credit_limit = row.get('credit_limit', '0').strip()
+            try:
+                credit_limit = float(credit_limit) if credit_limit else 0.0
+            except ValueError:
+                credit_limit = 0.0
+
+            tax_exempt_val = row.get('tax_exempt', '').lower()
+            tax_exempt = 1 if tax_exempt_val in ('yes', 'true', '1', 'y') else 0
+
+            status = row.get('status', 'Active').strip()
+            if status not in ('Active', 'Inactive'):
+                status = 'Active'
+
+            try:
+                conn.execute('''
+                    INSERT INTO customers 
+                    (customer_number, name, contact_person, email, phone,
+                     billing_address, shipping_address, payment_terms, credit_limit,
+                     tax_exempt, tax_id, currency, notes, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    customer_number,
+                    name,
+                    row.get('contact_person', ''),
+                    row.get('email', ''),
+                    row.get('phone', ''),
+                    row.get('billing_address', ''),
+                    row.get('shipping_address', ''),
+                    payment_terms,
+                    credit_limit,
+                    tax_exempt,
+                    row.get('tax_id', ''),
+                    row.get('currency', 'USD') or 'USD',
+                    row.get('notes', ''),
+                    status
+                ))
+                imported += 1
+            except Exception as e:
+                errors.append(f'Row {row_num} ({name}): {str(e)}')
+
+        conn.commit()
+        conn.close()
+
+        msg = f'Import complete: {imported} customers imported'
+        if skipped:
+            msg += f', {skipped} duplicates skipped'
+        if errors:
+            msg += f', {len(errors)} errors'
+            for err in errors[:5]:
+                flash(err, 'warning')
+
+        flash(msg, 'success' if not errors else 'warning')
+
+    except Exception as e:
+        flash(f'Import failed: {str(e)}', 'danger')
+
+    return redirect(url_for('customer_routes.list_customers'))

@@ -6,9 +6,14 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-people"></i> Customers</h2>
         {% if session.role in ['Admin', 'Planner'] %}
-        <a href="{{ url_for('customer_routes.create_customer') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> New Customer
-        </a>
+        <div>
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="bi bi-upload"></i> Import CSV
+            </button>
+            <a href="{{ url_for('customer_routes.create_customer') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Customer
+            </a>
+        </div>
         {% endif %}
     </div>
 
@@ -213,4 +218,42 @@ th[data-sort-type]::after { content: '\F282'; font-family: 'bootstrap-icons'; po
 th.sort-asc::after { content: '\F148'; opacity: 1; }
 th.sort-desc::after { content: '\F128'; opacity: 1; }
 </style>
+
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('customer_routes.import_customers') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Import Customers from CSV</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">CSV File <span class="text-danger">*</span></label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="skip_duplicates" id="skipDuplicates" checked>
+                        <label class="form-check-label" for="skipDuplicates">
+                            Skip customers with duplicate names
+                        </label>
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        <strong>Required column:</strong> name<br>
+                        <strong>Optional columns:</strong> contact_person, email, phone, billing_address, shipping_address, payment_terms, credit_limit, tax_exempt, tax_id, currency, notes, status<br><br>
+                        <a href="{{ url_for('customer_routes.import_template') }}">
+                            <i class="bi bi-download me-1"></i>Download CSV Template
+                        </a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i>Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
