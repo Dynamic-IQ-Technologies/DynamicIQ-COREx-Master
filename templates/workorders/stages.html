@@ -154,7 +154,7 @@
 {% block scripts %}
 <script>
 function editStage(id, name, description, color, sequence, isActive) {
-    document.getElementById('editStageForm').action = '/workorder-stages/' + id + '/update';
+    document.getElementById('editStageForm').action = '/workorders/stages/' + id + '/update';
     document.getElementById('editName').value = name;
     document.getElementById('editDescription').value = description;
     document.getElementById('editColor').value = color;
