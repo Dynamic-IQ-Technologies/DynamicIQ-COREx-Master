@@ -85,7 +85,7 @@ def create_request():
                 conn.close()
                 return redirect(url_for('supplier_discovery_routes.create_request'))
             
-            conn.execute('''
+            cursor = conn.execute('''
                 INSERT INTO supplier_discovery_requests (
                     request_number, product_id, part_number, description, specifications,
                     quantity, uom, need_by_date, urgency, plant_location, industry,
@@ -95,7 +95,7 @@ def create_request():
                   quantity, uom, need_by_date, urgency, plant_location, industry,
                   preferred_regions, session.get('user_id')))
             
-            request_id = conn.execute('SELECT lastval()').fetchone()[0]
+            request_id = cursor.lastrowid
             
             AuditLogger.log_change(
                 conn=conn,
@@ -417,7 +417,7 @@ def approve_supplier(id):
         if supplier['website']:
             address = f"{address} | Website: {supplier['website']}" if address else f"Website: {supplier['website']}"
         
-        conn.execute('''
+        sup_cursor = conn.execute('''
             INSERT INTO suppliers (code, name, contact_person, email, phone, address)
             VALUES (%s, %s, %s, %s, %s, %s)
         ''', (
@@ -429,7 +429,7 @@ def approve_supplier(id):
             address.strip()
         ))
         
-        new_supplier_id = conn.execute('SELECT lastval()').fetchone()[0]
+        new_supplier_id = sup_cursor.lastrowid
         
         conn.execute('''
             UPDATE discovered_suppliers
@@ -578,7 +578,7 @@ def create_from_material():
         
         request_number = generate_request_number(conn)
         
-        conn.execute('''
+        mat_cursor = conn.execute('''
             INSERT INTO supplier_discovery_requests (
                 request_number, product_id, part_number, description, specifications,
                 quantity, uom, need_by_date, urgency, plant_location, industry,
@@ -599,7 +599,7 @@ def create_from_material():
             data.get('preferred_regions', '')
         , session.get('user_id')))
         
-        request_id = conn.execute('SELECT lastval()').fetchone()[0]
+        request_id = mat_cursor.lastrowid
         
         conn.commit()
         conn.close()
