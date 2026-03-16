@@ -451,6 +451,126 @@ def delete_rfq(rfq_id):
     return redirect(url_for('rfq_routes.list_rfqs'))
 
 
+def create_auto_rfq_for_product(conn, product_id, product_code, product_name, quantity, user_id, source_note=''):
+    """
+    Create a Draft RFQ for a product that has no pricing history.
+    Returns the new rfq_id, or None if an open RFQ already exists for this product.
+    """
+    # Check for an existing open (Draft or Issued) RFQ that already contains this product
+    existing = conn.execute('''
+        SELECT r.id, r.rfq_number
+        FROM rfq_lines rl
+        JOIN rfqs r ON rl.rfq_id = r.id
+        WHERE rl.product_id = ? AND r.status IN ('Draft', 'Issued')
+        LIMIT 1
+    ''', (product_id,)).fetchone()
+
+    if existing:
+        return None, existing['rfq_number']
+
+    rfq_number = generate_rfq_number(conn)
+    title = f'Auto-RFQ – {product_code}: {product_name}'
+    if source_note:
+        title = f'{title} ({source_note})'
+
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO rfqs (rfq_number, title, description, status, currency, notes, created_by)
+        VALUES (?, ?, ?, 'Draft', 'USD', ?, ?)
+    ''', (
+        rfq_number,
+        title,
+        f'Automatically generated: no pricing history found for {product_code}.',
+        source_note,
+        user_id
+    ))
+    rfq_id = cursor.lastrowid
+
+    # Get next line number
+    conn.execute('''
+        INSERT INTO rfq_lines (rfq_id, line_number, product_id, description, quantity)
+        VALUES (?, 1, ?, ?, ?)
+    ''', (rfq_id, product_id, product_name, quantity))
+
+    return rfq_id, rfq_number
+
+
+@rfq_bp.route('/rfqs/auto-create-for-parts', methods=['POST'])
+@role_required('Admin', 'Procurement', 'Planner')
+def auto_create_rfqs_for_parts():
+    """
+    API endpoint: receives a list of product_ids with quantities.
+    Creates Draft RFQs for all parts that have no pricing history (cost = 0 and no PO history).
+    Returns JSON with results.
+    """
+    data = request.get_json()
+    if not data or 'products' not in data:
+        return jsonify({'success': False, 'error': 'No products provided'}), 400
+
+    db = Database()
+    conn = db.get_connection()
+
+    created = []
+    skipped = []
+    errors = []
+
+    try:
+        for item in data['products']:
+            product_id = item.get('product_id')
+            quantity = item.get('quantity', 1)
+            source = item.get('source', '')
+
+            if not product_id:
+                continue
+
+            # Fetch product details
+            product = conn.execute(
+                'SELECT id, code, name, cost FROM products WHERE id = ?', (product_id,)
+            ).fetchone()
+            if not product:
+                continue
+
+            # Check for pricing history: cost > 0 OR completed PO lines exist
+            po_history = conn.execute('''
+                SELECT COUNT(*) as cnt
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.po_id = po.id
+                WHERE pol.product_id = ? AND po.status IN ('Received', 'Partially Received', 'Ordered', 'Closed')
+            ''', (product_id,)).fetchone()
+
+            has_price = float(product['cost'] or 0) > 0
+            has_po_history = (po_history['cnt'] if po_history else 0) > 0
+
+            if has_price and has_po_history:
+                skipped.append({'code': product['code'], 'reason': 'Has pricing history'})
+                continue
+
+            rfq_id, rfq_number = create_auto_rfq_for_product(
+                conn, product_id, product['code'], product['name'],
+                quantity, session.get('user_id'), source
+            )
+
+            if rfq_id is None:
+                skipped.append({'code': product['code'], 'reason': f'Open RFQ already exists ({rfq_number})'})
+            else:
+                created.append({'code': product['code'], 'rfq_number': rfq_number, 'rfq_id': rfq_id})
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    conn.close()
+    return jsonify({
+        'success': True,
+        'created': created,
+        'skipped': skipped,
+        'created_count': len(created),
+        'skipped_count': len(skipped)
+    })
+
+
 @rfq_bp.route('/rfqs/<int:rfq_id>/send-to-supplier', methods=['GET', 'POST'])
 @login_required
 def send_to_supplier(rfq_id):

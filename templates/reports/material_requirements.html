@@ -10,6 +10,10 @@
         <button type="button" class="btn btn-primary me-2" onclick="procureSelected()">
             <i class="bi bi-cart-plus"></i> Procure Selected
         </button>
+        <button type="button" class="btn btn-warning me-2" onclick="autoCreateRFQs()" id="autoRfqBtn"
+                title="Creates Draft RFQs for all shortage items that have no pricing or purchase history">
+            <i class="bi bi-file-earmark-plus"></i> Auto-Create RFQs for Unpriced Parts
+        </button>
         {% endif %}
         <a href="{{ url_for('report_routes.export_material_requirements') }}" class="btn btn-success">
             <i class="bi bi-download"></i> Export CSV
@@ -410,6 +414,85 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleSelectAll(checkbox) {
     const checkboxes = document.querySelectorAll('.shortage-checkbox');
     checkboxes.forEach(cb => cb.checked = checkbox.checked);
+}
+
+async function autoCreateRFQs() {
+    const btn = document.getElementById('autoRfqBtn');
+
+    // Collect ALL shortage rows (not just checked) — all shortage items with no price
+    const shortageRows = document.querySelectorAll('.shortage-checkbox');
+    if (shortageRows.length === 0) {
+        alert('No shortage items found to create RFQs for.');
+        return;
+    }
+
+    // De-duplicate by product_id, sum quantities
+    const products = {};
+    shortageRows.forEach(cb => {
+        const pid = cb.dataset.productId;
+        const cost = parseFloat(cb.dataset.cost || 0);
+        const shortage = parseFloat(cb.dataset.shortage || 0);
+        if (shortage <= 0) return;
+        if (!products[pid]) {
+            products[pid] = {
+                product_id: parseInt(pid),
+                quantity: shortage,
+                cost: cost,
+                source: 'Material Requirements shortage'
+            };
+        } else {
+            products[pid].quantity += shortage;
+        }
+    });
+
+    const productList = Object.values(products);
+    if (productList.length === 0) {
+        alert('No shortage items to process.');
+        return;
+    }
+
+    // Confirm with the user
+    if (!confirm(`Auto-create Draft RFQs for ${productList.length} shortage part(s) with no pricing history?\n\nParts that already have a cost or an open RFQ will be skipped.`)) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating RFQs…';
+
+    try {
+        const resp = await fetch('/rfqs/auto-create-for-parts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({products: productList})
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            let msg = '';
+            if (data.created_count > 0) {
+                msg += `Created ${data.created_count} RFQ(s):\n`;
+                data.created.forEach(r => { msg += `  • ${r.rfq_number} for ${r.code}\n`; });
+            }
+            if (data.skipped_count > 0) {
+                msg += `\nSkipped ${data.skipped_count} part(s) (already have pricing or open RFQ):\n`;
+                data.skipped.forEach(r => { msg += `  • ${r.code}: ${r.reason}\n`; });
+            }
+            if (data.created_count === 0 && data.skipped_count === 0) {
+                msg = 'No eligible parts found (all parts already have pricing or open RFQs).';
+            }
+            alert(msg.trim());
+            if (data.created_count > 0) {
+                window.location.href = '/rfqs';
+            }
+        } else {
+            alert('Error creating RFQs: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-file-earmark-plus"></i> Auto-Create RFQs for Unpriced Parts';
+    }
 }
 
 function procureSelected() {

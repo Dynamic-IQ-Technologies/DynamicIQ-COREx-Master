@@ -6,6 +6,15 @@ import io
 import os
 import json
 
+# Imported lazily inside function to avoid circular imports
+_auto_rfq_fn = None
+def _get_auto_rfq():
+    global _auto_rfq_fn
+    if _auto_rfq_fn is None:
+        from routes.rfq_routes import create_auto_rfq_for_product
+        _auto_rfq_fn = create_auto_rfq_for_product
+    return _auto_rfq_fn
+
 product_bp = Blueprint('product_routes', __name__)
 
 @product_bp.route('/products')
@@ -175,7 +184,25 @@ def create_product():
                 ip_address=request.remote_addr,
                 user_agent=request.headers.get('User-Agent')
             )
-            
+
+            # Auto-create RFQ if product has no cost and is a purchaseable type
+            product_type = request.form['product_type']
+            purchased_types = ['Raw Material', 'Purchased Part', 'Purchased', 'Component',
+                               'Consumable', 'MRO', 'Spare Part', 'Tooling', 'Other']
+            if product_type in purchased_types:
+                try:
+                    auto_rfq = _get_auto_rfq()
+                    rfq_id, rfq_number = auto_rfq(
+                        conn, product_id,
+                        part_code, request.form['name'],
+                        1, session.get('user_id'),
+                        'New product – no pricing history'
+                    )
+                    if rfq_id:
+                        flash(f'RFQ {rfq_number} automatically created — no pricing history found for this part.', 'info')
+                except Exception:
+                    pass  # Auto-RFQ failure should not block product creation
+
             conn.commit()
             conn.close()
             
