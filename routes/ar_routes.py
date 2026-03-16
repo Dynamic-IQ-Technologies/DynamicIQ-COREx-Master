@@ -19,29 +19,63 @@ def list_ar():
     status_filter = request.args.get('status', 'all')
     customer_filter = request.args.get('customer_id', '')
     
-    query = '''
-        SELECT 
-            i.*,
-            c.name as customer_name,
-            c.customer_number as customer_code,
-            (i.total_amount - COALESCE(i.amount_paid, 0)) as balance_due
-        FROM invoices i
-        JOIN customers c ON i.customer_id = c.id
-        WHERE 1=1
-    '''
-    
-    params = []
+    inv_where = 'WHERE 1=1'
+    ndt_where = 'WHERE 1=1'
+    params_inv = []
+    params_ndt = []
+
     if status_filter != 'all':
-        query += ' AND i.status = ?'
-        params.append(status_filter)
-    
+        inv_where += ' AND i.status = ?'
+        ndt_where += ' AND ni.status = ?'
+        params_inv.append(status_filter)
+        params_ndt.append(status_filter)
+
     if customer_filter:
-        query += ' AND i.customer_id = ?'
-        params.append(customer_filter)
-    
-    query += ' ORDER BY i.due_date ASC, i.created_at DESC'
-    
-    receivables = conn.execute(query, params).fetchall()
+        inv_where += ' AND i.customer_id = ?'
+        ndt_where += ' AND ni.customer_id = ?'
+        params_inv.append(customer_filter)
+        params_ndt.append(customer_filter)
+
+    query = f'''
+        SELECT * FROM (
+            SELECT
+                i.id,
+                i.invoice_number,
+                i.customer_id,
+                i.invoice_date,
+                i.due_date,
+                i.total_amount,
+                COALESCE(i.amount_paid, 0) as amount_paid,
+                (i.total_amount - COALESCE(i.amount_paid, 0)) as balance_due,
+                i.status,
+                c.name as customer_name,
+                c.customer_number as customer_code,
+                'invoices' as source_table
+            FROM invoices i
+            JOIN customers c ON i.customer_id = c.id
+            {inv_where}
+            UNION ALL
+            SELECT
+                ni.id,
+                ni.invoice_number,
+                ni.customer_id,
+                ni.invoice_date,
+                ni.due_date,
+                ni.total_amount,
+                COALESCE(ni.amount_paid, 0) as amount_paid,
+                COALESCE(ni.balance_due, ni.total_amount - COALESCE(ni.amount_paid, 0)) as balance_due,
+                ni.status,
+                c.name as customer_name,
+                c.customer_number as customer_code,
+                'ndt_invoices' as source_table
+            FROM ndt_invoices ni
+            JOIN customers c ON ni.customer_id = c.id
+            {ndt_where}
+        ) combined
+        ORDER BY due_date ASC, id DESC
+    '''
+
+    receivables = conn.execute(query, params_inv + params_ndt).fetchall()
     
     today_date = datetime.now().date()
     total_open = sum(float(r['balance_due'] or 0) for r in receivables if r['status'] not in ['Paid', 'Cancelled'])
@@ -62,9 +96,16 @@ def list_ar():
                 ELSE '90+ Days'
             END as aging_bucket,
             COUNT(*) as invoice_count,
-            COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as amount
-        FROM invoices
-        WHERE status NOT IN ('Paid', 'Cancelled')
+            COALESCE(SUM(balance_due), 0) as amount
+        FROM (
+            SELECT due_date, status, (total_amount - COALESCE(amount_paid, 0)) as balance_due
+            FROM invoices
+            WHERE status NOT IN ('Paid', 'Cancelled')
+            UNION ALL
+            SELECT due_date, status, COALESCE(balance_due, total_amount - COALESCE(amount_paid, 0)) as balance_due
+            FROM ndt_invoices
+            WHERE status NOT IN ('Paid', 'Cancelled')
+        ) all_invoices
         GROUP BY 1
     '''
     aging_raw = conn.execute(aging_query).fetchall()
@@ -236,26 +277,48 @@ def export_ar():
     conn = db.get_connection()
     
     receivables = conn.execute('''
-        SELECT 
-            i.invoice_number,
-            c.name as customer_name,
-            i.invoice_date,
-            i.due_date,
-            i.total_amount,
-            i.amount_paid,
-            (i.total_amount - COALESCE(i.amount_paid, 0)) as balance_due,
-            i.status,
-            CASE 
-                WHEN i.due_date >= date('now') THEN 'Current'
-                WHEN julianday('now') - julianday(i.due_date) BETWEEN 1 AND 30 THEN '1-30 Days'
-                WHEN julianday('now') - julianday(i.due_date) BETWEEN 31 AND 60 THEN '31-60 Days'
-                WHEN julianday('now') - julianday(i.due_date) BETWEEN 61 AND 90 THEN '61-90 Days'
-                ELSE '90+ Days'
-            END as aging
-        FROM invoices i
-        JOIN customers c ON i.customer_id = c.id
-        WHERE i.status NOT IN ('Paid', 'Cancelled')
-        ORDER BY i.due_date ASC
+        SELECT * FROM (
+            SELECT
+                i.invoice_number,
+                c.name as customer_name,
+                i.invoice_date,
+                i.due_date,
+                i.total_amount,
+                COALESCE(i.amount_paid, 0) as amount_paid,
+                (i.total_amount - COALESCE(i.amount_paid, 0)) as balance_due,
+                i.status,
+                CASE
+                    WHEN i.due_date >= CURRENT_DATE THEN 'Current'
+                    WHEN CURRENT_DATE - i.due_date BETWEEN 1 AND 30 THEN '1-30 Days'
+                    WHEN CURRENT_DATE - i.due_date BETWEEN 31 AND 60 THEN '31-60 Days'
+                    WHEN CURRENT_DATE - i.due_date BETWEEN 61 AND 90 THEN '61-90 Days'
+                    ELSE '90+ Days'
+                END as aging
+            FROM invoices i
+            JOIN customers c ON i.customer_id = c.id
+            WHERE i.status NOT IN ('Paid', 'Cancelled')
+            UNION ALL
+            SELECT
+                ni.invoice_number,
+                c.name as customer_name,
+                ni.invoice_date,
+                ni.due_date,
+                ni.total_amount,
+                COALESCE(ni.amount_paid, 0) as amount_paid,
+                COALESCE(ni.balance_due, ni.total_amount - COALESCE(ni.amount_paid, 0)) as balance_due,
+                ni.status,
+                CASE
+                    WHEN ni.due_date >= CURRENT_DATE THEN 'Current'
+                    WHEN CURRENT_DATE - ni.due_date BETWEEN 1 AND 30 THEN '1-30 Days'
+                    WHEN CURRENT_DATE - ni.due_date BETWEEN 31 AND 60 THEN '31-60 Days'
+                    WHEN CURRENT_DATE - ni.due_date BETWEEN 61 AND 90 THEN '61-90 Days'
+                    ELSE '90+ Days'
+                END as aging
+            FROM ndt_invoices ni
+            JOIN customers c ON ni.customer_id = c.id
+            WHERE ni.status NOT IN ('Paid', 'Cancelled')
+        ) all_inv
+        ORDER BY due_date ASC
     ''').fetchall()
     
     conn.close()

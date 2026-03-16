@@ -98,9 +98,16 @@
                         {% for inv in receivables %}
                         <tr class="{% if inv.status not in ['Paid', 'Cancelled'] and inv.due_date < today_date %}table-danger{% endif %}">
                             <td>
+                                {% if inv.source_table == 'ndt_invoices' %}
+                                <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="fw-bold text-decoration-none">
+                                    {{ inv.invoice_number }}
+                                </a>
+                                <span class="badge bg-purple ms-1" style="background-color:#6f42c1 !important;">NDT</span>
+                                {% else %}
                                 <a href="{{ url_for('ar_routes.view_ar', id=inv.id) }}" class="fw-bold text-decoration-none">
                                     {{ inv.invoice_number }}
                                 </a>
+                                {% endif %}
                             </td>
                             <td>{{ inv.customer_name }}</td>
                             <td>{{ inv.invoice_date }}</td>
@@ -126,6 +133,16 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    {% if inv.source_table == 'ndt_invoices' %}
+                                    <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="btn btn-outline-primary" title="View NDT Invoice">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if inv.status not in ['Paid', 'Cancelled'] and inv.balance_due > 0 %}
+                                    <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="btn btn-outline-success" title="Record Payment (NDT)">
+                                        <i class="bi bi-cash"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% else %}
                                     <a href="{{ url_for('ar_routes.view_ar', id=inv.id) }}" class="btn btn-outline-primary" title="View">
                                         <i class="bi bi-eye"></i>
                                     </a>
@@ -133,6 +150,7 @@
                                     <a href="{{ url_for('ar_routes.record_payment', id=inv.id) }}" class="btn btn-outline-success" title="Record Payment">
                                         <i class="bi bi-cash"></i>
                                     </a>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             </td>
