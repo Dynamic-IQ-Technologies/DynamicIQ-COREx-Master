@@ -118,7 +118,7 @@ def create_request():
             flash(f'Error creating request: {str(e)}', 'danger')
             return redirect(url_for('supplier_discovery_routes.create_request'))
     
-    products = conn.execute('SELECT id, code, name FROM products ORDER BY code').fetchall()
+    products = conn.execute('SELECT id, code, name, description FROM products ORDER BY code').fetchall()
     conn.close()
     
     return render_template('supplier_discovery/create.html', products=products)

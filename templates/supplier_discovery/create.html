@@ -27,7 +27,10 @@
                             <select class="form-select" id="product_id" name="product_id">
                                 <option value="">-- Select Product --</option>
                                 {% for product in products %}
-                                <option value="{{ product.id }}" data-code="{{ product.code }}">
+                                <option value="{{ product.id }}"
+                                        data-code="{{ product.code }}"
+                                        data-name="{{ product.name }}"
+                                        data-description="{{ product.description or '' }}">
                                     {{ product.code }} - {{ product.name }}
                                 </option>
                                 {% endfor %}
@@ -150,6 +153,18 @@ document.getElementById('product_id').addEventListener('change', function() {
     const selected = this.options[this.selectedIndex];
     if (selected.dataset.code) {
         document.getElementById('part_number').value = selected.dataset.code;
+
+        const descField = document.getElementById('description');
+        const name = selected.dataset.name || '';
+        const desc = selected.dataset.description || '';
+        if (desc) {
+            descField.value = name + ' — ' + desc;
+        } else {
+            descField.value = name;
+        }
+    } else {
+        document.getElementById('part_number').value = '';
+        document.getElementById('description').value = '';
     }
 });
 </script>
