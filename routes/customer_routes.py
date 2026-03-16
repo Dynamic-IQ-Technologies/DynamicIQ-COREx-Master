@@ -4,6 +4,7 @@ from auth import login_required, role_required
 import csv
 import io
 import secrets
+import os
 from datetime import datetime
 
 customer_bp = Blueprint('customer_routes', __name__)
@@ -202,6 +203,112 @@ def view_customer(id):
     conn.close()
     return render_template('customers/view.html', customer=customer, sales_history=sales_history, 
                           audit_trail=audit_trail, financials=financials)
+
+@customer_bp.route('/customers/<int:id>/intel', methods=['POST'])
+@login_required
+def customer_intel(id):
+    """AI-generated market intelligence for a customer"""
+    db = Database()
+    conn = db.get_connection()
+
+    customer = conn.execute('SELECT * FROM customers WHERE id = ?', (id,)).fetchone()
+    if not customer:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Customer not found'}), 404
+
+    top_products = conn.execute('''
+        SELECT p.name, p.code, SUM(sol.quantity) as qty, SUM(sol.total_price) as revenue
+        FROM sales_order_lines sol
+        JOIN sales_orders so ON sol.so_id = so.id
+        JOIN products p ON sol.product_id = p.id
+        WHERE so.customer_id = ? AND so.status NOT IN ('Cancelled', 'Draft')
+        GROUP BY p.id ORDER BY revenue DESC LIMIT 5
+    ''', (id,)).fetchall()
+
+    order_count = conn.execute(
+        "SELECT COUNT(*) as c FROM sales_orders WHERE customer_id = ? AND status NOT IN ('Cancelled','Draft')", (id,)
+    ).fetchone()['c']
+
+    total_revenue = conn.execute(
+        "SELECT COALESCE(SUM(total_amount),0) as t FROM sales_orders WHERE customer_id = ? AND status NOT IN ('Cancelled','Draft')", (id,)
+    ).fetchone()['t']
+
+    conn.close()
+
+    api_key = os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY')
+    if not api_key:
+        return jsonify({'success': False, 'error': 'AI service not configured. Please set up the OpenAI integration.'}), 503
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+
+        top_prod_text = ', '.join([f"{r['name']} ({r['code']})" for r in top_products]) if top_products else 'No purchase history'
+        cust_info = (
+            f"Company Name: {customer['name']}\n"
+            f"Customer Number: {customer['customer_number']}\n"
+            f"Billing Address: {customer['billing_address'] or 'Not specified'}\n"
+            f"Status: {customer['status']}\n"
+            f"Payment Terms: Net {customer['payment_terms']} days\n"
+            f"Credit Limit: ${float(customer['credit_limit'] or 0):,.0f}\n"
+            f"Total Orders with Us: {order_count}\n"
+            f"Total Revenue with Us: ${float(total_revenue or 0):,.0f}\n"
+            f"Top Products Purchased: {top_prod_text}\n"
+            f"Notes: {customer['notes'] or 'None'}"
+        )
+
+        prompt = f"""You are an expert business intelligence analyst. Based on the customer information below, generate a comprehensive market intelligence report.
+
+Customer Information:
+{cust_info}
+
+Generate a structured intelligence report covering the following sections. Write in clear, professional prose — no bullet symbols, no asterisks, no markdown formatting. Use plain numbered sections only.
+
+1. Company Overview
+Brief background on the company, their likely industry sector, size, and what they do based on their name, address, and purchasing history.
+
+2. Market Position and Industry Context
+Their likely position in their industry, competitive landscape they operate in, and key market dynamics affecting them.
+
+3. Business Relationship Analysis
+Analysis of their purchasing patterns with us, payment behavior, and what their buying history tells us about their operations and priorities.
+
+4. Market Trends and Opportunities
+Current industry trends that may affect this customer, growth opportunities we could help them with, and potential expansion of the relationship.
+
+5. Risk Factors
+Any risks in the customer relationship — payment terms, credit exposure, market risks their industry faces, or concentration risk.
+
+6. Strategic Recommendations
+Specific actionable recommendations for how to grow, protect, or improve this customer relationship.
+
+Note: Base your analysis on the company name, location, and purchasing history provided. Clearly state where you are making reasonable inferences versus stating confirmed facts. Do not fabricate specific financial figures for the customer's own business."""
+
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            messages=[
+                {'role': 'system', 'content': 'You are an expert business intelligence and market research analyst. Generate insightful, professional reports based on available customer data. Never use markdown symbols like asterisks or hashes in your output.'},
+                {'role': 'user', 'content': prompt}
+            ],
+            temperature=0.6,
+            max_tokens=1800
+        )
+
+        report_text = response.choices[0].message.content.strip()
+
+        return jsonify({
+            'success': True,
+            'report': report_text,
+            'customer_name': customer['name'],
+            'generated_at': datetime.now().strftime('%B %d, %Y at %I:%M %p')
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @customer_bp.route('/customers/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')

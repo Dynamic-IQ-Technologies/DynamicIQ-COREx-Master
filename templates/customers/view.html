@@ -107,89 +107,135 @@
     </div>
 
     <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="bi bi-person me-2"></i>Customer Information</h5>
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs card-header-tabs ms-2" id="custInfoTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details-pane" type="button" role="tab">
+                        <i class="bi bi-person me-1"></i> Customer Information
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="intel-tab" data-bs-toggle="tab" data-bs-target="#intel-pane" type="button" role="tab">
+                        <i class="bi bi-cpu me-1"></i> Customer Intel
+                        <span class="badge bg-primary ms-1" style="font-size:0.65rem;">AI</span>
+                    </button>
+                </li>
+            </ul>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <table class="table table-borderless">
-                        <tr>
-                            <th width="40%">Customer Number:</th>
-                            <td>{{ customer.customer_number }}</td>
-                        </tr>
-                        <tr>
-                            <th>Name:</th>
-                            <td>{{ customer.name }}</td>
-                        </tr>
-                        <tr>
-                            <th>Contact Person:</th>
-                            <td>{{ customer.contact_person or '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th>Email:</th>
-                            <td>{{ customer.email or '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th>Phone:</th>
-                            <td>{{ customer.phone or '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th>Payment Terms:</th>
-                            <td>Net {{ customer.payment_terms }} Days</td>
-                        </tr>
-                    </table>
+        <div class="tab-content">
+            <div class="tab-pane fade show active p-3" id="details-pane" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Customer Number:</th>
+                                <td>{{ customer.customer_number }}</td>
+                            </tr>
+                            <tr>
+                                <th>Name:</th>
+                                <td>{{ customer.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Contact Person:</th>
+                                <td>{{ customer.contact_person or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email:</th>
+                                <td>{{ customer.email or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Phone:</th>
+                                <td>{{ customer.phone or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Payment Terms:</th>
+                                <td>Net {{ customer.payment_terms }} Days</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Credit Limit:</th>
+                                <td>{{ customer.credit_limit|currency }}</td>
+                            </tr>
+                            <tr>
+                                <th>Tax Exempt:</th>
+                                <td>
+                                    {% if customer.tax_exempt %}
+                                        <span class="badge bg-warning">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td>
+                                    {% if customer.status == 'Active' %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Billing Address:</th>
+                                <td>{{ customer.billing_address or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Shipping Address:</th>
+                                <td>{{ customer.shipping_address or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Created:</th>
+                                <td>{{ customer.created_at }}</td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <table class="table table-borderless">
-                        <tr>
-                            <th width="40%">Credit Limit:</th>
-                            <td>{{ customer.credit_limit|currency }}</td>
-                        </tr>
-                        <tr>
-                            <th>Tax Exempt:</th>
-                            <td>
-                                {% if customer.tax_exempt %}
-                                    <span class="badge bg-warning">Yes</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">No</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Status:</th>
-                            <td>
-                                {% if customer.status == 'Active' %}
-                                    <span class="badge bg-success">Active</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">Inactive</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Billing Address:</th>
-                            <td>{{ customer.billing_address or '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th>Shipping Address:</th>
-                            <td>{{ customer.shipping_address or '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th>Created:</th>
-                            <td>{{ customer.created_at }}</td>
-                        </tr>
-                    </table>
+                {% if customer.notes %}
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <h6>Notes:</h6>
+                        <p>{{ customer.notes }}</p>
+                    </div>
                 </div>
+                {% endif %}
             </div>
 
-            {% if customer.notes %}
-            <div class="row mt-3">
-                <div class="col-12">
-                    <h6>Notes:</h6>
-                    <p>{{ customer.notes }}</p>
+            <div class="tab-pane fade p-3" id="intel-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0"><i class="bi bi-cpu me-2 text-primary"></i>AI Market Intelligence — {{ customer.name }}</h6>
+                        <small class="text-muted">AI-generated analysis based on customer profile and purchase history</small>
+                    </div>
+                    <button class="btn btn-primary" id="generateIntelBtn" onclick="generateIntel()">
+                        <i class="bi bi-stars me-1"></i> Generate Intelligence Report
+                    </button>
+                </div>
+
+                <div id="intelLoading" class="text-center py-5 d-none">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <p class="text-muted">Analysing customer profile and market data...</p>
+                </div>
+
+                <div id="intelError" class="alert alert-danger d-none"></div>
+
+                <div id="intelResult" class="d-none">
+                    <div class="alert alert-light border d-flex align-items-center gap-2 mb-3 py-2">
+                        <i class="bi bi-info-circle text-primary"></i>
+                        <small class="text-muted mb-0" id="intelTimestamp"></small>
+                    </div>
+                    <div id="intelReport" class="lh-lg" style="white-space: pre-wrap; font-size: 0.95rem;"></div>
+                </div>
+
+                <div id="intelPlaceholder" class="text-center py-5 text-muted">
+                    <i class="bi bi-cpu display-4 d-block mb-3 opacity-25"></i>
+                    <p class="mb-1">No intelligence report generated yet.</p>
+                    <p class="small">Click <strong>Generate Intelligence Report</strong> to get AI-powered market insights for this customer.</p>
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 
@@ -300,4 +346,48 @@
         </div>
     </div>
 </div>
+
+<script>
+async function generateIntel() {
+    const btn = document.getElementById('generateIntelBtn');
+    const loading = document.getElementById('intelLoading');
+    const result = document.getElementById('intelResult');
+    const error = document.getElementById('intelError');
+    const placeholder = document.getElementById('intelPlaceholder');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating...';
+    loading.classList.remove('d-none');
+    result.classList.add('d-none');
+    error.classList.add('d-none');
+    placeholder.classList.add('d-none');
+
+    try {
+        const resp = await fetch('/customers/{{ customer.id }}/intel', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            document.getElementById('intelReport').textContent = data.report;
+            document.getElementById('intelTimestamp').textContent =
+                'Generated on ' + data.generated_at + ' — Based on customer profile and internal purchase history. AI analysis may include inferences.';
+            result.classList.remove('d-none');
+        } else {
+            error.textContent = 'Error: ' + (data.error || 'Unknown error');
+            error.classList.remove('d-none');
+            placeholder.classList.remove('d-none');
+        }
+    } catch (err) {
+        error.textContent = 'Network error: ' + err.message;
+        error.classList.remove('d-none');
+        placeholder.classList.remove('d-none');
+    } finally {
+        loading.classList.add('d-none');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-stars me-1"></i> Regenerate Report';
+    }
+}
+</script>
 {% endblock %}
