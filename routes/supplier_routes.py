@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import secrets
 import csv
 import io
+import os
 
 supplier_bp = Blueprint('supplier_routes', __name__)
 
@@ -259,6 +260,134 @@ def view_supplier(id):
     return render_template('suppliers/view.html', supplier=supplier, contacts=contacts,
                           purchase_orders=purchase_orders, financials=financials, 
                           audit_trail=audit_trail, portal_token=portal_token)
+
+@supplier_bp.route('/suppliers/<int:id>/intel', methods=['POST'])
+@login_required
+def supplier_intel(id):
+    """AI-generated market intelligence and risk assessment for a supplier"""
+    db = Database()
+    conn = db.get_connection()
+
+    supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (id,)).fetchone()
+    if not supplier:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Supplier not found'}), 404
+
+    # Top products procured from this supplier
+    top_products = conn.execute('''
+        SELECT p.name, p.code, SUM(pol.quantity) as qty, SUM(pol.total_price) as spend
+        FROM purchase_order_lines pol
+        JOIN purchase_orders po ON pol.po_id = po.id
+        JOIN products p ON pol.product_id = p.id
+        WHERE po.supplier_id = ? AND po.status NOT IN ('Cancelled', 'Draft')
+        GROUP BY p.id ORDER BY spend DESC LIMIT 6
+    ''', (id,)).fetchall()
+
+    po_count = conn.execute(
+        "SELECT COUNT(*) as c FROM purchase_orders WHERE supplier_id = ? AND status NOT IN ('Cancelled','Draft')", (id,)
+    ).fetchone()['c']
+
+    total_spend = conn.execute('''
+        SELECT COALESCE(SUM(pol.quantity * pol.unit_price), 0) as t
+        FROM purchase_orders po
+        JOIN purchase_order_lines pol ON po.id = pol.po_id
+        WHERE po.supplier_id = ? AND po.status NOT IN ('Cancelled','Draft')
+    ''', (id,)).fetchone()['t']
+
+    open_pos = conn.execute(
+        "SELECT COUNT(*) as c FROM purchase_orders WHERE supplier_id = ? AND status IN ('Open','Pending','Partial')", (id,)
+    ).fetchone()['c']
+
+    late_deliveries = conn.execute('''
+        SELECT COUNT(*) as c FROM purchase_orders
+        WHERE supplier_id = ? AND status NOT IN ('Cancelled','Draft','Received')
+        AND expected_date < CURRENT_DATE
+    ''', (id,)).fetchone()['c']
+
+    conn.close()
+
+    api_key = os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY')
+    if not api_key:
+        return jsonify({'success': False, 'error': 'AI service not configured. Please set up the OpenAI integration.'}), 503
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        )
+
+        top_prod_text = ', '.join([f"{r['name']} ({r['code']})" for r in top_products]) if top_products else 'No purchase history'
+        supp_info = (
+            f"Supplier Name: {supplier['name']}\n"
+            f"Supplier Code: {supplier['code']}\n"
+            f"Address: {supplier['address'] or 'Not specified'}\n"
+            f"Primary Contact: {supplier['contact_person'] or 'Not specified'}\n"
+            f"Email: {supplier['email'] or 'Not specified'}\n"
+            f"Phone: {supplier['phone'] or 'Not specified'}\n"
+            f"Total POs Placed: {po_count}\n"
+            f"Total Spend with Supplier: ${float(total_spend or 0):,.0f}\n"
+            f"Currently Open POs: {open_pos}\n"
+            f"Overdue/Late Deliveries: {late_deliveries}\n"
+            f"Top Products Sourced: {top_prod_text}"
+        )
+
+        prompt = f"""You are an expert procurement risk analyst and supply chain strategist. Based on the supplier information below, generate a comprehensive supplier intelligence and risk assessment report.
+
+Supplier Information:
+{supp_info}
+
+Generate a structured report covering the following sections. Write in clear, professional prose. No bullet symbols, no asterisks, no markdown formatting. Use plain numbered sections only.
+
+1. Supplier Overview
+Background on the supplier, their likely industry/sector, capabilities, and what they supply based on name, address, and the products we source from them.
+
+2. Market Position and Industry Context
+Their likely standing in their industry, key competitors they face, and market dynamics affecting their business and pricing.
+
+3. Supply Chain Risk Assessment
+A thorough risk analysis covering:
+- Financial stability indicators (based on available data and industry norms)
+- Geopolitical and geographic risk (based on their location)
+- Single-source dependency risk (if we appear to rely heavily on them)
+- Operational and capacity risks
+- Quality and compliance risks
+- Delivery performance (note the {late_deliveries} overdue PO(s) if relevant)
+Rate overall risk level as: Low, Medium, Medium-High, or High, and explain why.
+
+4. Business Relationship Analysis
+Analysis of our procurement relationship — volume trends, dependency level, pricing dynamics, and what our PO history reveals about this supplier's importance to our operations.
+
+5. Alternative Sourcing Considerations
+Recommended alternative supplier types or regions to consider for risk mitigation and dual sourcing, given what we source from this supplier.
+
+6. Strategic Recommendations
+Specific, actionable recommendations for managing, developing, or de-risking this supplier relationship.
+
+Note: Clearly distinguish between confirmed facts from the data provided and reasonable inferences based on industry knowledge. Do not fabricate specific financials about the supplier's own company."""
+
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            messages=[
+                {'role': 'system', 'content': 'You are an expert procurement risk analyst and supply chain strategist. Generate insightful, professional supplier intelligence and risk assessment reports. Never use markdown symbols like asterisks or hashes in your output.'},
+                {'role': 'user', 'content': prompt}
+            ],
+            temperature=0.6,
+            max_tokens=2000
+        )
+
+        report_text = response.choices[0].message.content.strip()
+
+        return jsonify({
+            'success': True,
+            'report': report_text,
+            'supplier_name': supplier['name'],
+            'generated_at': datetime.now().strftime('%B %d, %Y at %I:%M %p')
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @supplier_bp.route('/suppliers/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
