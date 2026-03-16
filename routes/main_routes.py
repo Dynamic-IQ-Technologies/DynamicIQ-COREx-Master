@@ -9,6 +9,12 @@ main_bp = Blueprint('main_routes', __name__)
 
 USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
 
+@main_bp.route('/system-repository')
+@login_required
+def system_repository():
+    from datetime import datetime
+    return render_template('system_repository.html', last_updated=datetime.now().strftime('%B %d, %Y'))
+
 @main_bp.route('/health')
 def health_check():
     """Lightweight health check endpoint for deployment"""

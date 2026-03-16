@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+{% block title %}System Repository – Dynamic.IQ COREx{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+  <!-- Header -->
+  <div class="bg-dark text-white py-4 px-4 mb-0" style="background: linear-gradient(135deg, #0d1b2a 0%, #1b2a4a 100%) !important;">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <h1 class="mb-1 fw-bold"><i class="bi bi-grid-3x3-gap-fill me-2 text-info"></i>System Repository</h1>
+        <p class="mb-0 text-white-50">Single source of truth for all ERP modules, pages, and capabilities in Dynamic.IQ COREx</p>
+      </div>
+      <div class="text-end">
+        <span class="badge bg-info text-dark px-3 py-2"><i class="bi bi-clock me-1"></i>Last Updated: {{ last_updated }}</span>
+        <div class="mt-1 text-white-50 small">12 Modules &bull; 70+ Pages &bull; 300+ Functions</div>
+      </div>
+    </div>
+    <!-- Search -->
+    <div class="mt-3">
+      <div class="input-group input-group-lg" style="max-width: 600px;">
+        <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" id="repoSearch" class="form-control border-0 shadow-none" placeholder="Search modules, pages, or features…">
+        <button class="btn btn-outline-light" onclick="clearSearch()"><i class="bi bi-x"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Nav Pills -->
+  <div class="bg-white border-bottom px-4 py-2 sticky-top shadow-sm" style="z-index: 100;">
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="#sales" class="btn btn-sm btn-outline-primary nav-pill"><i class="bi bi-bag me-1"></i>Sales & CRM</a>
+      <a href="#procurement" class="btn btn-sm btn-outline-warning nav-pill"><i class="bi bi-cart me-1"></i>Procurement</a>
+      <a href="#inventory" class="btn btn-sm btn-outline-success nav-pill"><i class="bi bi-boxes me-1"></i>Inventory</a>
+      <a href="#manufacturing" class="btn btn-sm btn-outline-info nav-pill"><i class="bi bi-gear me-1"></i>Manufacturing</a>
+      <a href="#ndt" class="btn btn-sm btn-outline-secondary nav-pill"><i class="bi bi-radioactive me-1"></i>NDT</a>
+      <a href="#qms" class="btn btn-sm btn-outline-danger nav-pill"><i class="bi bi-shield-check me-1"></i>Quality</a>
+      <a href="#finance" class="btn btn-sm btn-outline-dark nav-pill"><i class="bi bi-currency-dollar me-1"></i>Finance</a>
+      <a href="#labor" class="btn btn-sm btn-outline-primary nav-pill"><i class="bi bi-people me-1"></i>HR & Labor</a>
+      <a href="#tools" class="btn btn-sm btn-outline-warning nav-pill"><i class="bi bi-tools me-1"></i>Tools</a>
+      <a href="#supplychain" class="btn btn-sm btn-outline-success nav-pill"><i class="bi bi-truck me-1"></i>Supply Chain</a>
+      <a href="#ai" class="btn btn-sm btn-outline-info nav-pill"><i class="bi bi-robot me-1"></i>AI & Intelligence</a>
+      <a href="#admin" class="btn btn-sm btn-outline-secondary nav-pill"><i class="bi bi-gear-fill me-1"></i>Admin</a>
+    </div>
+  </div>
+
+  <div class="p-4" id="repoContent">
+
+    <!-- ===================== SALES & CRM ===================== -->
+    <div class="repo-module" id="sales">
+      <div class="module-header" style="background: linear-gradient(135deg, #0d6efd15, #0d6efd08); border-left: 4px solid #0d6efd;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-primary text-white"><i class="bi bi-bag-fill"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Sales & CRM</h3>
+            <p class="mb-0 text-muted small">End-to-end customer relationship and revenue management</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-primary">7 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Sales, Admin, Planner</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set sales_pages = [
+          ('Leads', '/leads', 'bi-funnel', 'Track and manage inbound sales leads. Log contact info, source, status, and follow-up notes. Generate QR code forms for lead capture.', 'Contact name, company, source, status, notes', 'Create lead, update status, assign to rep, generate QR form, convert to customer', 'Sales, Admin', 'Lead Intake → Status Update → Convert to Customer'),
+          ('Customers', '/customers', 'bi-people', 'Central customer master. Manage billing/shipping addresses, payment terms, credit limits, tax status, and portal access. Supports CSV bulk import.', 'Name, contact, email, phone, addresses, payment terms, credit limit', 'Create, edit, import CSV, enable portal, view orders/invoices', 'Sales, Admin, Planner', 'Create Customer → Set Terms → Enable Portal → View AR'),
+          ('Quotes', '/quotes', 'bi-file-earmark-text', 'Build and send customer price quotes. Line items pull from the product catalog. Convert approved quotes directly to sales orders.', 'Customer, line items, pricing, validity date, terms', 'Create quote, add line items, email to customer, approve, convert to SO', 'Sales, Admin, Planner', 'Create Quote → Customer Review → Approve → Convert to SO'),
+          ('Sales Orders', '/salesorders', 'bi-receipt', 'Primary sales transaction record. Tracks order status from draft through fulfillment, shipping, and invoicing. Ties to work orders and inventory.', 'Customer, line items, pricing, delivery date, shipping address', 'Create SO, allocate inventory, create work order, ship, auto-invoice', 'Sales, Admin, Planner', 'SO Created → Allocated → Shipped → Invoiced'),
+          ('Invoices', '/invoices', 'bi-file-earmark-invoice', 'Customer invoices generated from shipped sales orders or manually. Tracks amount due, payments, and balance. Posts AR/Revenue GL entries automatically.', 'Invoice #, customer, line items, amount, due date', 'Create invoice, post to GL, record payment, export PDF', 'Finance, Admin', 'Invoice Created → Posted → Payment Applied → Closed'),
+          ('Accounts Receivable', '/accounts-receivable', 'bi-cash-coin', 'Track all open customer invoices and payment status. View aging buckets (current, 30/60/90+ days). Export AR aging reports.', 'Invoice list, aging buckets, payment history', 'View aging, apply payments, export report', 'Finance, Admin', 'Invoice Posted → Aging Tracked → Payment Applied'),
+          ('Customer Service', '/customer-service', 'bi-headset', 'Multi-function customer service hub. Manage SLAs, feedback, escalations, at-risk accounts, communications, and order confirmations.', 'Customer data, tickets, SLA thresholds, feedback', 'Add SLA, log feedback, escalate, send confirmation, view at-risk accounts', 'Sales, Admin', 'Ticket Created → SLA Monitored → Resolved → Feedback Logged'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in sales_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Sales & CRM" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-primary fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-primary px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-primary-subtle text-primary">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-primary me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== PROCUREMENT ===================== -->
+    <div class="repo-module mt-5" id="procurement">
+      <div class="module-header" style="background: linear-gradient(135deg, #ffc10715, #ffc10708); border-left: 4px solid #ffc107;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-warning text-dark"><i class="bi bi-cart-fill"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Procurement</h3>
+            <p class="mb-0 text-muted small">Supplier management, purchasing, and goods receipt</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-warning text-dark">6 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Procurement, Admin, Planner</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set proc_pages = [
+          ('Suppliers', '/suppliers', 'bi-building', 'Supplier master record with contact info, payment terms, certifications, performance ratings, and document attachments. Supports CSV import.', 'Name, contact, address, payment terms, currency, certifications', 'Create, edit, import CSV, add contacts, manage documents, evaluate performance', 'Procurement, Admin', 'Create Supplier → Certify → Issue PO → Evaluate'),
+          ('RFQs', '/rfqs', 'bi-envelope-open', 'Request for Quotation workflow. Send RFQs to multiple suppliers, compare responses, and convert the winner to a purchase order.', 'Product/service, qty, required date, supplier list', 'Create RFQ, send to suppliers, log responses, compare, convert to PO', 'Procurement, Admin, Planner', 'Create RFQ → Send → Receive Quotes → Compare → Convert to PO'),
+          ('Purchase Orders', '/purchaseorders', 'bi-file-earmark-check', 'Full PO lifecycle from draft to fully received. Supports multi-line items, UOM conversions, tool POs with calibration data, and supplier portal sharing.', 'Supplier, line items, pricing, delivery date, terms', 'Create PO, email to supplier, receive via Quick Receive, approve, close', 'Procurement, Admin', 'Draft → Approved → Sent → Receiving → Closed'),
+          ('Receiving', '/receiving', 'bi-box-arrow-in-down', 'Log incoming shipments against open POs. Records receipt number, warehouse location, bin, serial numbers, and inspection condition.', 'PO reference, product, qty, location, serial, condition', 'Create receipt, assign location, record inspection, update inventory', 'Warehouse, Procurement, Admin', 'PO Open → Receive → Inspect → Stock Inventory'),
+          ('Accounts Payable', '/accounts-payable', 'bi-wallet2', 'Track supplier invoices and payment obligations. View aging, approve for payment, and reconcile with receipts. Posts AP GL entries.', 'Supplier invoice, amount, due date, payment status', 'View AP aging, approve payment, record payment, export', 'Finance, Admin', 'Receipt → AP Created → Aging Tracked → Payment Recorded'),
+          ('Unplanned Receipts', '/unplanned-receipts', 'bi-question-circle', 'Register goods received without a PO. Used for emergency purchases, tool returns, and ad-hoc deliveries. Can retroactively link to PO.', 'Supplier, product, qty, cost, location, reason', 'Register receipt, assign to PO, approve, stock inventory', 'Warehouse, Admin', 'Item Arrives → Register → Approve → Stock'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in proc_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Procurement" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-warning fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-warning px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-warning-subtle text-warning">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-warning me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== INVENTORY ===================== -->
+    <div class="repo-module mt-5" id="inventory">
+      <div class="module-header" style="background: linear-gradient(135deg, #19875415, #19875408); border-left: 4px solid #198754;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-success text-white"><i class="bi bi-boxes"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Inventory & Warehouse</h3>
+            <p class="mb-0 text-muted small">Stock management, issuance, adjustments, and UOM conversions</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-success">5 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Warehouse, Admin, Planner</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set inv_pages = [
+          ('Inventory', '/inventory', 'bi-box-seam', 'Master inventory ledger showing on-hand quantity by product, warehouse location, and bin. Supports serial tracking, lot numbers, expiration dates, and low-stock alerts. CSV import/export.', 'Product, warehouse, bin, quantity, cost, serial, lot', 'Add stock, adjust qty, transfer location, export, import CSV, print labels', 'Warehouse, Admin, Planner', 'Stock Received → Located → Issued or Adjusted → Balanced'),
+          ('Issuance', '/issuance', 'bi-box-arrow-up', 'Issue materials from inventory to work orders. Supports BOM-driven batch issuance. Records lot, serial, and cost at time of issue. Reduces on-hand automatically.', 'Work order, product, qty, location, lot/serial', 'Create issuance, batch-issue BOM, assign from WO, confirm', 'Warehouse, Production, Admin', 'WO Created → Materials Issued → Inventory Reduced'),
+          ('Adjustments', '/adjustments', 'bi-sliders', 'Manual inventory quantity corrections. Used for cycle counts, write-offs, found stock, and damaged goods. Requires reason code and creates GL entry.', 'Product, location, adjustment qty, reason, cost', 'Create adjustment, approve, post to GL', 'Admin, Warehouse Supervisor', 'Discrepancy Found → Create Adjustment → Approve → GL Posted'),
+          ('Labor Issuance', '/labor-issuance', 'bi-person-badge', 'Record direct labor hours applied to a work order from the floor. Links employee, task, rate, and hours. Posts to WO cost and GL.', 'Work order, employee, hours, rate, task', 'Log labor, approve hours, sync to accounting', 'Production, Admin', 'Employee Clocks Work → Labor Logged → Cost Added to WO'),
+          ('Unit of Measure (UOM)', '/uom', 'bi-rulers', 'Define base and derived units of measure. Configure conversion factors used throughout purchasing, inventory, and production (e.g., EACH ↔ BOX ↔ CASE).', 'UOM name, abbreviation, base UOM, conversion factor', 'Create UOM, set conversion, assign to products', 'Admin', 'Define UOM → Set Conversion → Assign to Product'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in inv_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Inventory" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-success fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-success px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-success-subtle text-success">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-success me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== MANUFACTURING ===================== -->
+    <div class="repo-module mt-5" id="manufacturing">
+      <div class="module-header" style="background: linear-gradient(135deg, #0dcaf015, #0dcaf008); border-left: 4px solid #0dcaf0;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-info text-white"><i class="bi bi-gear-fill"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Manufacturing</h3>
+            <p class="mb-0 text-muted small">Work order execution, BOM management, scheduling, and capacity planning</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-info text-dark">8 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Production, Admin, Planner</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set mfg_pages = [
+          ('Work Orders', '/workorders', 'bi-clipboard-check', 'Core production document. Tracks items to build, quantities, stages, material requirements, labor, and costs from creation to completion and shipment.', 'Product, qty, customer/SO ref, due date, BOM, stage', 'Create, assign stages, issue materials, log labor, complete, ship', 'Production, Admin, Planner', 'Create WO → Issue Materials → Log Labor → Complete → Ship'),
+          ('Bill of Materials', '/boms', 'bi-list-nested', 'Define the components and sub-assemblies required to build each product. Multi-level BOM support. Import/export and mass update capabilities.', 'Finished product, components, quantities, UOM, operation', 'Create BOM, add lines, clone, export, import CSV, mass update', 'Engineering, Admin, Planner', 'Design Product → Build BOM → Attach to WO → Drive MRP'),
+          ('Master Routings', '/master-routings', 'bi-signpost-split', 'Define the sequence of operations (routing steps) required to manufacture a product. Each step has a work center, labor time, and setup time.', 'Product, operation sequence, work center, cycle time, setup time', 'Create routing, add steps, assign work centers, clone', 'Engineering, Admin', 'Define Operations → Set Times → Attach to Product → Drive Scheduling'),
+          ('Master Scheduler', '/master-scheduler', 'bi-calendar3', 'Production scheduling based on demand. Creates planned production orders from sales orders and forecasts. Manages overrides and exceptions.', 'Demand data, lead times, capacity constraints', 'Run schedule, view plan, create overrides, approve planned orders', 'Planner, Admin', 'Load Demand → Run Schedule → Review Plan → Release Orders'),
+          ('Work Order Stages', '/workorders/stages', 'bi-diagram-3', 'Configure the workflow stages used to track work order progress (e.g., Planned, In Work, QC, Complete). Each stage has a name, color, and sequence.', 'Stage name, color, sequence, description', 'Create stage, reorder, activate/deactivate', 'Admin', 'Define Stages → Assign Colors → Activate → Track WOs'),
+          ('Capacity Planning', '/capacity', 'bi-bar-chart-line', 'View and manage production capacity by work center. Identify overloads and bottlenecks. See scheduled operations vs. available hours.', 'Work center, hours available, scheduled hours, WO load', 'View utilization, view overloads, manage work centers, generate report', 'Planner, Admin', 'Load Schedule → Check Capacity → Resolve Overloads'),
+          ('Operations', '/capacity/operations', 'bi-activity', 'View individual manufacturing operations across all work orders in real time. Filter by stage, work center, and due date.', 'WO operations, work center assignments, stage, due date', 'View active operations, drill into WO, filter by stage/work center', 'Production, Admin', 'Operations Listed → Filter → Drill Into WO → Update Stage'),
+          ('Work Instructions', '/work-instructions', 'bi-file-text', 'Step-by-step procedure documents for manufacturing operations. Can be auto-generated using AI from BOM/routing data. Attached to work orders.', 'WO/product reference, operation steps, images, warnings', 'Create, auto-generate (AI), attach to WO, print', 'Engineering, Admin', 'Create/Generate → Review → Attach to WO → Print for Floor'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in mfg_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Manufacturing" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-info fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-info px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-info-subtle text-info">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-info me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== NDT ===================== -->
+    <div class="repo-module mt-5" id="ndt">
+      <div class="module-header" style="background: linear-gradient(135deg, #6c757d15, #6c757d08); border-left: 4px solid #6c757d;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-secondary text-white"><i class="bi bi-radioactive"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">NDT Operations</h3>
+            <p class="mb-0 text-muted small">Non-Destructive Testing work orders, technicians, certifications, and invoicing</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-secondary">4 Pages</span>
+            <span class="badge bg-light text-dark">Roles: NDT Tech, QC, Admin</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set ndt_pages = [
+          ('NDT Dashboard', '/ndt', 'bi-speedometer2', 'Executive overview of all NDT operations. Shows open work orders, in-inspection count, results pending review, pass/fail rates, and upcoming technician certification expirations.', 'WO counts, pass/fail rates, cert expiry alerts', 'View KPIs, drill into WOs, view cert alerts', 'NDT, Admin', 'Review Dashboard → Identify Priorities → Act on WOs'),
+          ('NDT Work Orders', '/ndt/work-orders', 'bi-clipboard2-pulse', 'Manage end-to-end NDT inspection work orders. Record inspection results, upload findings, manage status workflow from open to approved/rejected. Edit and delete results.', 'Customer, product, serial, heat #, NDT method, procedure, acceptance criteria', 'Create WO, add inspection results (edit/delete), attach docs, approve/reject, generate packing slip', 'NDT Tech, QC, Admin', 'WO Created → In Inspection → Results Recorded → Review → Approved/Rejected'),
+          ('NDT Technicians', '/ndt/technicians', 'bi-person-check', 'Manage certified NDT technician profiles. Track certifications by method (UT, RT, MT, PT, ET, VT) and level (I, II, III). Edit/delete certifications with status management.', 'Name, employer, certifications (method, level, dates, issuing body)', 'Create technician, add/edit/delete certifications, view work history', 'Admin, QC Manager', 'Add Technician → Add Certifications → Assign to WOs'),
+          ('NDT Invoices', '/ndt/invoices', 'bi-file-earmark-invoice', 'Generate and manage invoices for completed NDT inspection work orders. Tracks revenue per customer and syncs to accounts receivable.', 'NDT WO reference, customer, services, rate, amount', 'Create invoice, post to AR, export PDF', 'Admin, Finance', 'WO Approved → Invoice Created → Posted to AR → Collected'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in ndt_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="NDT" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-secondary fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-secondary px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-secondary-subtle text-secondary">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-secondary me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== QMS ===================== -->
+    <div class="repo-module mt-5" id="qms">
+      <div class="module-header" style="background: linear-gradient(135deg, #dc354515, #dc354508); border-left: 4px solid #dc3545;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-danger text-white"><i class="bi bi-shield-check"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Quality Management (QMS)</h3>
+            <p class="mb-0 text-muted small">SOPs, CAPA, deviations, incidents, training, compliance, and change management</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-danger">7 Pages</span>
+            <span class="badge bg-light text-dark">Roles: QC, Admin, All Users</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set qms_pages = [
+          ('SOPs', '/sops', 'bi-journal-text', 'Create, manage, and version-control Standard Operating Procedures. AI can auto-generate SOPs from work instructions or templates. Organize by category and track employee acknowledgments.', 'Title, category, steps, revision, effective date', 'Create SOP, AI-generate, review, approve, publish, track acknowledgments', 'QC Manager, Admin', 'Draft SOP → Review → Approve → Publish → Acknowledge'),
+          ('CAPA', '/capa', 'bi-exclamation-triangle', 'Corrective and Preventive Action management. Log non-conformances, identify root causes, assign corrective actions, and track effectiveness.', 'Non-conformance description, root cause, corrective action, owner, due date', 'Create CAPA, assign actions, update status, close', 'QC, Admin', 'Issue Found → CAPA Created → Root Cause → Actions → Closed'),
+          ('Deviations', '/deviations', 'bi-exclamation-diamond', 'Document and track planned or unplanned deviations from standard procedures. Requires justification and management approval.', 'Procedure reference, deviation type, description, impact, justification', 'Create deviation, approve, close, link to CAPA', 'QC, Admin', 'Deviation Identified → Documented → Approved → Monitored'),
+          ('Incidents', '/incidents', 'bi-cone-striped', 'Log safety and quality incidents. Track investigation status, corrective actions, and closure. Links to CAPA when needed.', 'Incident type, date, description, location, personnel involved', 'Log incident, assign investigator, update status, close, link CAPA', 'All Users, QC, Admin', 'Incident Occurs → Logged → Investigated → Action → Closed'),
+          ('Change Management', '/change-management', 'bi-arrow-left-right', 'Control changes to procedures, products, equipment, or systems. Formal review and approval workflow before changes are implemented.', 'Change description, affected area, impact assessment, approvers', 'Submit change request, review, approve, implement, close', 'All Users, QC, Admin', 'Change Request → Impact Review → Approval → Implementation → Closed'),
+          ('Training', '/training', 'bi-mortarboard', 'Track employee training completions against required SOPs, procedures, and certifications. Manage OJT records and training matrices.', 'Employee, training item, completion date, trainer, score', 'Assign training, record completion, export matrix, track OJT', 'HR, Admin, Supervisors', 'Assign Training → Employee Completes → Record → Track Compliance'),
+          ('Compliance', '/compliance', 'bi-check2-all', 'Monitor regulatory and internal compliance requirements. Track due dates, status, and responsible owners across all compliance items.', 'Requirement, framework, due date, owner, status', 'Add requirement, assign owner, update status, generate compliance report', 'QC, Admin', 'Requirement Identified → Assigned → Monitored → Closed'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in qms_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Quality" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-danger fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-danger px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-danger-subtle text-danger">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-danger me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== FINANCE ===================== -->
+    <div class="repo-module mt-5" id="finance">
+      <div class="module-header" style="background: linear-gradient(135deg, #21252915, #21252908); border-left: 4px solid #212529;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-dark text-white"><i class="bi bi-currency-dollar"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Finance & Accounting</h3>
+            <p class="mb-0 text-muted small">General ledger, chart of accounts, journal entries, and financial reporting</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-dark">6 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Finance, Admin</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set fin_pages = [
+          ('General Ledger', '/general-ledger', 'bi-journal-bookmark', 'Master financial ledger showing all posted transactions with debit/credit entries. Filter by account, date range, reference type. Every financial action in the ERP auto-posts here.', 'Account code, date, reference, debit, credit, description', 'View GL entries, filter, export, drill into source document', 'Finance, Admin', 'Transaction Occurs → Auto-Posts to GL → Review → Report'),
+          ('Chart of Accounts', '/chart-of-accounts', 'bi-list-columns', 'Define the financial account structure (Assets, Liabilities, Equity, Revenue, Expenses). All GL posting uses these codes.', 'Account code, name, type, normal balance, description', 'Create account, edit, activate/deactivate', 'Admin, Finance', 'Define Accounts → Assign Types → Post Transactions'),
+          ('Journal Entries', '/journal-entries', 'bi-pencil-square', 'Create manual double-entry journal entries for adjustments, accruals, reclassifications, and corrections. Each entry must balance (debits = credits).', 'JE number, date, lines (account, debit/credit, description)', 'Create JE, add lines, post, void', 'Finance, Admin', 'Identify Adjustment → Create JE → Balance → Post → GL Updated'),
+          ('Financial Analyzer', '/financial-analyzer', 'bi-graph-up-arrow', 'AI-powered financial analysis tool. Generate P&L statements, scenario analysis, trend charts, and download reports. Analyzes GL data to produce insights.', 'Date range, account filters, scenario parameters', 'Generate P&L, run scenario analysis, download report, get AI insights', 'Finance, Admin', 'Select Period → Analyze → View Insights → Download Report'),
+          ('Aging Report', '/aging-report', 'bi-calendar-x', 'Combined AR and AP aging view. Shows open invoices grouped into current, 30-day, 60-day, 90-day, and 90+ day buckets. Used for cash flow management.', 'AR/AP invoices, due dates, payment status', 'View aging, filter by customer/supplier, export', 'Finance, Admin', 'Invoices Due → Aging Buckets → Review → Action on Overdue'),
+          ('Exchange Tracking', '/exchanges-report', 'bi-arrow-left-right', 'Track stock exchanges, core returns, and cross-shipment transactions. Manages multi-step exchange chains and their financial impact.', 'Source transaction, exchange type, components, financial impact', 'Create exchange chain, track status, view financial impact', 'Finance, Warehouse, Admin', 'Exchange Initiated → Chain Tracked → Financials Posted → Closed'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in fin_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Finance" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-dark fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-dark px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-dark text-white">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-dark me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== HR & LABOR ===================== -->
+    <div class="repo-module mt-5" id="labor">
+      <div class="module-header" style="background: linear-gradient(135deg, #0d6efd15, #0d6efd08); border-left: 4px solid #6610f2;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon text-white" style="background-color:#6610f2;"><i class="bi bi-people-fill"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">HR & Labor</h3>
+            <p class="mb-0 text-muted small">Labor resources, time tracking, clock station, and skillset management</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge" style="background-color:#6610f2;">4 Pages</span>
+            <span class="badge bg-light text-dark">Roles: HR, Admin, Supervisors</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set hr_pages = [
+          ('Labor Resources', '/labor-resources', 'bi-person-lines-fill', 'Employee and contractor master. Track personal info, roles, department, pay rates, certifications, and skillsets. Export labor list.', 'Name, role, department, pay rate, skills, status', 'Create employee, assign skills, edit, export, view time history', 'HR, Admin', 'Hire Employee → Configure Profile → Assign Skills → Track Time'),
+          ('Time Tracking', '/time-tracking', 'bi-stopwatch', 'Supervisor-level time tracking dashboard. View clocked-in employees, review time history, approve timesheets, and sync labor costs to accounting.', 'Employee, clock-in/out times, WO reference, hours', 'View active labor, review history, approve, sync to GL', 'Admin, Supervisor', 'Employee Clocks In → Supervisor Reviews → Approve → Sync to GL'),
+          ('Clock Station', '/clock', 'bi-display', 'Employee self-service time clock. Employees authenticate with a PIN or ID, clock in/out to work orders or general time, and view their own hours.', 'Employee ID/PIN, WO reference, task', 'Clock in, clock out, switch tasks, view hours', 'All Employees', 'Employee Logs In → Clocks In to WO → Works → Clocks Out'),
+          ('Skillsets', '/skillsets', 'bi-award', 'Define the skills and certifications required for roles. Assign to employees to enable labor planning and capacity matching.', 'Skill name, category, description, certification requirements', 'Create skillset, assign to employees, export', 'HR, Admin', 'Define Skill → Assign to Employee → Use in Capacity Planning'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in hr_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="HR & Labor" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} fs-5" style="color:#6610f2;"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs px-2 py-0" style="font-size:0.75rem;border:1px solid #6610f2;color:#6610f2;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge" style="background-color:#6610f215;color:#6610f2;">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle me-1" style="color:#6610f2;"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== TOOLS & EQUIPMENT ===================== -->
+    <div class="repo-module mt-5" id="tools">
+      <div class="module-header" style="background: linear-gradient(135deg, #fd7e1415, #fd7e1408); border-left: 4px solid #fd7e14;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon text-white" style="background-color:#fd7e14;"><i class="bi bi-tools"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Tools & Equipment</h3>
+            <p class="mb-0 text-muted small">Tool asset registry, calibration tracking, and part intake</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge" style="background-color:#fd7e14;">2 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Maintenance, Admin</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set tool_pages = [
+          ('Tools', '/tools', 'bi-wrench-adjustable', 'Asset registry for all tools and equipment. Track location, status, condition, calibration dates, manufacturer, model, and purchase history. When a Tool PO is received, tools auto-register with calibration data.', 'Tool #, name, category, location, status, serial, calibration dates, manufacturer', 'Create tool, edit, update location/status, print label, create tool PO, mass update', 'Maintenance, Admin, Warehouse', 'Purchase Tool (PO) → Auto-Register → Track Calibration → Service/Retire'),
+          ('Part Intake', '/part-intake', 'bi-box-arrow-in-right', 'Log customer-supplied or incoming parts that are checked in for service, repair, or inspection. Used as a receiving ledger for outside processing.', 'Part number, description, qty, customer, condition, purpose', 'Register intake, assign to WO/service order, release to customer', 'Receiving, Admin', 'Part Arrives → Registered → Assigned to WO → Returned to Customer'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in tool_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Tools" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} fs-5" style="color:#fd7e14;"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs px-2 py-0" style="font-size:0.75rem;border:1px solid #fd7e14;color:#fd7e14;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge" style="background-color:#fd7e1415;color:#fd7e14;">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle me-1" style="color:#fd7e14;"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== SUPPLY CHAIN & SERVICE ===================== -->
+    <div class="repo-module mt-5" id="supplychain">
+      <div class="module-header" style="background: linear-gradient(135deg, #19875415, #19875408); border-left: 4px solid #20c997;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon text-white" style="background-color:#20c997;"><i class="bi bi-truck"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">Supply Chain & Service</h3>
+            <p class="mb-0 text-muted small">Shipments, returns, repairs, and service work orders</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge" style="background-color:#20c997;">4 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Warehouse, Sales, Admin</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set sc_pages = [
+          ('Shipments', '/shipments', 'bi-truck', 'Manage outbound shipments for sales orders and NDT work orders. Generate packing slips, commercial invoices, and certificates of conformance. Track carrier and tracking numbers.', 'Sales order/NDT WO, products, qty, carrier, tracking #, destination', 'Create shipment, generate packing slip/COC/commercial invoice, ship, update tracking', 'Warehouse, Admin', 'SO Approved → Create Shipment → Pack → Ship → Invoice Auto-Created'),
+          ('Returns', '/returns', 'bi-box-arrow-in-left', 'Process customer returns (RMA). Log reason, condition, and disposition. Link to original sales order. Trigger credit memo or replacement order as needed.', 'Customer, SO reference, products, reason, condition', 'Create RMA, receive return, inspect, issue credit or replacement', 'Warehouse, Sales, Admin', 'Customer Requests Return → RMA Created → Received → Inspected → Disposition'),
+          ('Repair Orders', '/repair-orders', 'bi-wrench', 'Track repair and overhaul work on customer or company-owned assets. Manage repair stages, parts used, labor, and cost. Generate repair certificates.', 'Asset, customer, damage description, required repairs, parts, labor', 'Create repair order, assign tech, log parts/labor, complete, invoice', 'Production, Admin', 'Asset In → Assess → Repair Order Created → Repaired → Out'),
+          ('Service Work Orders', '/service-wo', 'bi-clipboard2-data', 'Field service and on-site maintenance work orders. Track service performed, parts used, technician, customer signature, and billing.', 'Customer, service type, location, tech assigned, parts, labor', 'Create SWO, schedule tech, log service, collect signature, invoice', 'Service, Admin', 'Customer Calls → SWO Created → Tech Dispatched → Service Done → Invoiced'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in sc_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Supply Chain" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} fs-5" style="color:#20c997;"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs px-2 py-0" style="font-size:0.75rem;border:1px solid #20c997;color:#20c997;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge" style="background-color:#20c99715;color:#20c997;">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle me-1" style="color:#20c997;"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== AI & INTELLIGENCE ===================== -->
+    <div class="repo-module mt-5" id="ai">
+      <div class="module-header" style="background: linear-gradient(135deg, #0dcaf015, #6610f208); border-left: 4px solid #0dcaf0;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-info text-white"><i class="bi bi-robot"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">AI & Intelligence</h3>
+            <p class="mb-0 text-muted small">AI-powered analytics, recommendations, automation, and business intelligence</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-info text-dark">7 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Admin, Analysts, All Users</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set ai_pages = [
+          ('COREx Guide', '/erp-helper/chat', 'bi-chat-dots', 'Conversational AI assistant embedded throughout the ERP. Answers questions about any page, guides users through workflows, and explains system features. Context-aware based on current page.', 'User question, current page context', 'Ask questions, get workflow guidance, get field explanations', 'All Users', 'User Has Question → Ask COREx Guide → AI Explains → User Proceeds'),
+          ('Intelligent Reports', '/intelligent-reports', 'bi-bar-chart-line', 'Natural language report builder. Describe what you want to see and the AI generates the query, visualizes the data, and saves the report. Supports tables, bar charts, line charts, and pie charts.', 'Natural language prompt, data source selection', 'Generate report, choose visualization, save, re-run, export', 'Admin, Analysts, Finance', 'Describe Report → AI Generates → Review Data → Save → Share'),
+          ('ASC-AI Engine', '/asc-ai/dashboard', 'bi-cpu', 'Autonomous financial compliance engine. Monitors all GL transactions in real time for anomalies. Flags errors, suggests corrections, and quarantines suspicious entries pending review.', 'GL transactions, business rules, risk thresholds', 'View anomalies, review corrections, approve/reject, view audit log, verify ledger', 'Finance, Admin', 'Transaction Posts → ASC Scans → Anomaly Flagged → Review → Correct or Approve'),
+          ('Financial Analyzer', '/financial-analyzer', 'bi-graph-up-arrow', 'AI-powered P&L analysis and scenario modeling. Generates income statements, identifies trends, and models financial scenarios (e.g., revenue increase, cost reduction).', 'GL data, date range, scenario parameters', 'Generate P&L, run scenarios, get AI insights, download PDF report', 'Finance, Admin', 'Select Period → AI Analyzes GL → View P&L & Insights → Download'),
+          ('Market Analysis', '/market-analysis', 'bi-globe2', 'AI-driven market intelligence for the company\'s industry and product lines. Upload market data or auto-generate reports. Identifies trends, competitive landscape, and pricing signals.', 'Industry, product lines, market data (upload or auto)', 'Auto-generate analysis, upload data, view report, manage analyses', 'Sales, Admin, Executives', 'Define Market → AI Generates Analysis → Review Insights → Act'),
+          ('Business Analytics', '/executive-dashboard', 'bi-speedometer', 'Executive dashboard with real-time KPIs across all modules: open WOs, inventory value, AR/AP balances, sales pipeline, production throughput, and quality metrics.', 'Aggregated data from all ERP modules', 'View KPIs, drill into modules, export dashboard, switch views', 'Admin, Executives', 'Data Flows from All Modules → Dashboard Aggregates → Executives Review → Decide'),
+          ('Org Intelligence', '/org-analyzer', 'bi-diagram-2', 'Organizational analytics tool analyzing workforce structure, performance, capacity utilization, and skill gaps. Provides recommendations for staffing and process improvement.', 'HR data, labor data, capacity data, skills matrix', 'Analyze org, view recommendations, identify gaps', 'HR, Admin, Executives', 'Analyze Workforce → Identify Gaps → View Recommendations → Plan'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in ai_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="AI & Intelligence" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-info fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-info px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-info-subtle text-info">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-info me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== SYSTEM ADMIN ===================== -->
+    <div class="repo-module mt-5" id="admin">
+      <div class="module-header" style="background: linear-gradient(135deg, #6c757d15, #6c757d08); border-left: 4px solid #495057;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="module-icon bg-dark text-white"><i class="bi bi-gear-fill"></i></div>
+          <div>
+            <h3 class="mb-0 fw-bold">System Administration</h3>
+            <p class="mb-0 text-muted small">Users, permissions, settings, audit trails, document templates, and integrations</p>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <span class="badge bg-dark">7 Pages</span>
+            <span class="badge bg-light text-dark">Roles: Admin Only</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        {% set admin_pages = [
+          ('Users', '/users', 'bi-person-gear', 'Manage system user accounts. Create accounts, assign roles (Admin, Planner, Sales, Finance, etc.), reset passwords, activate/deactivate. Roles control access to all modules.', 'Username, email, role, status', 'Create user, assign role, reset password, activate/deactivate', 'Admin Only', 'Create User → Assign Role → Activate → User Logs In'),
+          ('Permissions', '/access-governance', 'bi-shield-lock', 'Fine-grained access control beyond roles. Manage page-level permissions, data access restrictions, and audit role assignments.', 'User, role, permission set, resource', 'View permission matrix, modify access, audit role changes', 'Admin Only', 'Define Permissions → Assign to Roles → Assign Roles to Users → Audit'),
+          ('Settings', '/settings', 'bi-sliders', 'Global system configuration including company info, fiscal periods, default warehouses, email settings, currency, and integration preferences.', 'Company name, fiscal year, default warehouse, currency, email config', 'Edit company info, configure fiscal periods, set defaults', 'Admin Only', 'Configure Once → System Uses Settings Globally'),
+          ('Audit Trail', '/audit-trail', 'bi-clock-history', 'Complete history of all system actions. View who created, modified, or deleted any record and when. Exportable for compliance purposes.', 'User, action type, record type, record ID, timestamp, changes', 'Filter by user/record/date, export audit log', 'Admin Only', 'Any Action Occurs → Logged → Reviewable by Admin'),
+          ('Document Templates', '/document-templates', 'bi-file-earmark-code', 'Customize the layout and content of system-generated documents: packing slips, invoices, purchase orders, COCs, and more. Uses a token-based variable system.', 'Template type, layout, tokens (company name, date, etc.)', 'Create template, add tokens, set as default, preview', 'Admin Only', 'Design Template → Add Tokens → Set Default → Documents Use Template'),
+          ('Connected Apps', '/connected-apps/', 'bi-grid', 'Configure external application links embedded in the ERP navigation. Add shortcuts to external tools (portals, ERPs, cloud storage) directly in the system.', 'App name, URL, icon, category, description', 'Add app, configure icon/URL, activate, sort order', 'Admin Only', 'Add External App → Configure → Users See It in Nav'),
+          ('IT Manager', '/it-manager', 'bi-hdd-network', 'IT security and infrastructure overview. Monitor active sessions, security layers, encryption status, access audit log, and quantum readiness indicators.', 'Active sessions, security events, access logs', 'View active sessions, review access log, monitor security posture', 'Admin Only', 'Monitor Sessions → Review Access Log → Respond to Alerts'),
+        ] %}
+        {% for name, url, icon, purpose, inputs, actions, roles, workflow in admin_pages %}
+        <div class="col-md-6 col-xl-4 repo-page-card" data-module="Administration" data-name="{{ name }}">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi {{ icon }} text-dark fs-5"></i>
+                <h6 class="mb-0 fw-bold">{{ name }}</h6>
+                <a href="{{ url }}" class="ms-auto btn btn-xs btn-outline-dark px-2 py-0" style="font-size:0.75rem;">Open <i class="bi bi-arrow-up-right"></i></a>
+              </div>
+            </div>
+            <div class="card-body pt-2">
+              <p class="text-muted small mb-2">{{ purpose }}</p>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Inputs:</span> <span class="small text-muted">{{ inputs }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Actions:</span> <span class="small text-muted">{{ actions }}</span></div>
+              <div class="mb-1"><span class="fw-semibold small text-dark">Roles:</span> <span class="small"><span class="badge bg-dark text-white">{{ roles }}</span></span></div>
+              <div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-arrow-right-circle text-dark me-1"></i>{{ workflow }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===================== INTEGRATION MAP ===================== -->
+    <div class="mt-5">
+      <h4 class="fw-bold mb-3"><i class="bi bi-diagram-2 me-2 text-primary"></i>Module Integration Map</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm text-center small">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-start">Module</th>
+              <th>Sales & CRM</th>
+              <th>Procurement</th>
+              <th>Inventory</th>
+              <th>Manufacturing</th>
+              <th>Finance</th>
+              <th>NDT</th>
+              <th>Supply Chain</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="text-start fw-semibold">Sales & CRM</td><td>—</td><td></td><td><span class="badge bg-success-subtle text-success">Allocates</span></td><td><span class="badge bg-info-subtle text-info">Triggers WO</span></td><td><span class="badge bg-dark text-white">Auto-Invoice</span></td><td><span class="badge bg-secondary-subtle text-secondary">Links</span></td><td><span class="badge bg-success-subtle text-success">Ships From</span></td></tr>
+            <tr><td class="text-start fw-semibold">Procurement</td><td></td><td>—</td><td><span class="badge bg-success-subtle text-success">Receives Into</span></td><td><span class="badge bg-info-subtle text-info">Fulfills MRP</span></td><td><span class="badge bg-dark text-white">Posts AP/GL</span></td><td></td><td></td></tr>
+            <tr><td class="text-start fw-semibold">Inventory</td><td></td><td><span class="badge bg-warning-subtle text-warning">Replenished By</span></td><td>—</td><td><span class="badge bg-info-subtle text-info">Consumed By</span></td><td><span class="badge bg-dark text-white">Cost Tracked</span></td><td><span class="badge bg-secondary-subtle text-secondary">Supplies</span></td><td><span class="badge bg-success-subtle text-success">Ships From</span></td></tr>
+            <tr><td class="text-start fw-semibold">Manufacturing</td><td><span class="badge bg-primary-subtle text-primary">Driven By SO</span></td><td><span class="badge bg-warning-subtle text-warning">Requests PO</span></td><td><span class="badge bg-success-subtle text-success">Consumes</span></td><td>—</td><td><span class="badge bg-dark text-white">Posts WO Cost</span></td><td></td><td><span class="badge bg-success-subtle text-success">Outputs To</span></td></tr>
+            <tr><td class="text-start fw-semibold">Finance</td><td><span class="badge bg-primary-subtle text-primary">AR From Sales</span></td><td><span class="badge bg-warning-subtle text-warning">AP From PO</span></td><td><span class="badge bg-success-subtle text-success">Inventory Value</span></td><td><span class="badge bg-info-subtle text-info">WO Cost</span></td><td>—</td><td><span class="badge bg-secondary-subtle text-secondary">NDT Revenue</span></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== NO RESULTS ===================== -->
+    <div id="noResults" class="text-center py-5 d-none">
+      <i class="bi bi-search" style="font-size: 3rem; color: #ccc;"></i>
+      <p class="text-muted mt-3">No modules or pages match your search. Try different keywords.</p>
+    </div>
+
+  </div><!-- /repoContent -->
+</div>
+
+<style>
+.module-header { padding: 1.25rem 1.5rem; border-radius: 8px; margin-bottom: 0.5rem; }
+.module-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+.repo-page-card .card { transition: box-shadow 0.2s; }
+.repo-page-card .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important; }
+.nav-pill { font-size: 0.78rem; padding: 0.25rem 0.65rem; }
+.btn-xs { font-size: 0.72rem !important; padding: 0.15rem 0.45rem !important; }
+.repo-module { scroll-margin-top: 70px; }
+</style>
+
+<script>
+const searchInput = document.getElementById('repoSearch');
+const cards = document.querySelectorAll('.repo-page-card');
+const modules = document.querySelectorAll('.repo-module');
+const noResults = document.getElementById('noResults');
+
+function runSearch() {
+    const q = searchInput.value.toLowerCase().trim();
+    let totalVisible = 0;
+
+    modules.forEach(mod => {
+        const modCards = mod.querySelectorAll('.repo-page-card');
+        let modVisible = 0;
+        modCards.forEach(card => {
+            const text = card.textContent.toLowerCase();
+            const show = !q || text.includes(q);
+            card.style.display = show ? '' : 'none';
+            if (show) modVisible++;
+        });
+        const header = mod.querySelector('.module-header');
+        mod.style.display = modVisible > 0 ? '' : 'none';
+        totalVisible += modVisible;
+    });
+
+    noResults.classList.toggle('d-none', totalVisible > 0 || !q);
+}
+
+function clearSearch() {
+    searchInput.value = '';
+    runSearch();
+    searchInput.focus();
+}
+
+searchInput.addEventListener('input', runSearch);
+</script>
+{% endblock %}
