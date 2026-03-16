@@ -339,7 +339,11 @@ def edit_sales_order(id):
                         return redirect(url_for('salesorder_routes.edit_sales_order', id=id))
                     # Auto-calculate expected return date using order_date
                     order_date = current_so['order_date']
-                    order_dt = datetime.strptime(order_date, '%Y-%m-%d')
+                    # Handle both string (SQLite) and date object (PostgreSQL)
+                    if isinstance(order_date, str):
+                        order_dt = datetime.strptime(order_date, '%Y-%m-%d')
+                    else:
+                        order_dt = datetime(order_date.year, order_date.month, order_date.day)
                     expected_return_dt = order_dt + timedelta(days=core_due_days)
                     expected_return_date = expected_return_dt.strftime('%Y-%m-%d')
             elif current_so['sales_type'] == 'Managed Repair':
@@ -361,7 +365,7 @@ def edit_sales_order(id):
             
             # Audit logging for Core Due Days changes
             if current_so['sales_type'] == 'Exchange' and (old_core_due_days != core_due_days or old_expected_return_date != expected_return_date):
-                from audit import AuditLogger
+                from models import AuditLogger
                 AuditLogger.log(
                     conn=conn,
                     record_type='sales_order',
