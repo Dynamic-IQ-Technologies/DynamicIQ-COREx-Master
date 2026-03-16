@@ -6,6 +6,14 @@ import json
 import os
 import re
 
+_auto_rfq_fn = None
+def _get_auto_rfq():
+    global _auto_rfq_fn
+    if _auto_rfq_fn is None:
+        from routes.rfq_routes import create_auto_rfq_for_product
+        _auto_rfq_fn = create_auto_rfq_for_product
+    return _auto_rfq_fn
+
 class CurrentUser:
     """Session-based current user proxy"""
     @property
@@ -476,7 +484,24 @@ def convert_to_product(id):
                 ip_address=request.remote_addr,
                 user_agent=request.headers.get('User-Agent')
             )
-            
+
+            # Auto-create RFQ if product has no cost and is a purchaseable type
+            purchased_types = ['Raw Material', 'Purchased Part', 'Purchased', 'Component',
+                               'Consumable', 'MRO', 'Spare Part', 'Tooling', 'Other']
+            if product_type in purchased_types:
+                try:
+                    auto_rfq = _get_auto_rfq()
+                    rfq_id, rfq_number = auto_rfq(
+                        conn, product_id,
+                        product_code, product_name,
+                        1, session.get('user_id'),
+                        'New product from Part Intake – no pricing history'
+                    )
+                    if rfq_id:
+                        flash(f'RFQ {rfq_number} automatically created — no pricing history found for this part.', 'info')
+                except Exception:
+                    pass  # Auto-RFQ failure should not block product creation
+
             conn.commit()
             conn.close()
             
