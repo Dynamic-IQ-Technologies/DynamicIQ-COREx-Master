@@ -301,7 +301,8 @@ def supplier_intel(id):
     late_deliveries = conn.execute('''
         SELECT COUNT(*) as c FROM purchase_orders
         WHERE supplier_id = ? AND status NOT IN ('Cancelled','Draft','Received')
-        AND expected_date < CURRENT_DATE
+        AND expected_date IS NOT NULL AND expected_date != ''
+        AND expected_date::date < CURRENT_DATE
     ''', (id,)).fetchone()['c']
 
     conn.close()
