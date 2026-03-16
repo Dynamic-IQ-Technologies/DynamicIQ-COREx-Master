@@ -217,7 +217,7 @@ def customer_intel(id):
         return jsonify({'success': False, 'error': 'Customer not found'}), 404
 
     top_products = conn.execute('''
-        SELECT p.name, p.code, SUM(sol.quantity) as qty, SUM(sol.total_price) as revenue
+        SELECT p.name, p.code, SUM(sol.quantity) as qty, SUM(sol.line_total) as revenue
         FROM sales_order_lines sol
         JOIN sales_orders so ON sol.so_id = so.id
         JOIN products p ON sol.product_id = p.id
