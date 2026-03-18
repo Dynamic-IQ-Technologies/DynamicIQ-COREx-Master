@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Skill Capacity - Dynamic.IQ-COREx{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-badge me-2"></i>Capacity by Skill</h2>
+    <div>
+        <a href="{{ url_for('capacity_routes.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+        <a href="{{ url_for('capacity_routes.list_work_centers') }}" class="btn btn-outline-primary">
+            <i class="bi bi-building me-1"></i>Work Centers
+        </a>
+        <a href="{{ url_for('capacity_routes.capacity_report') }}" class="btn btn-outline-info">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i>Capacity Report
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Date From</label>
+                <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Date To</label>
+                <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Category</label>
+                <select class="form-select" name="category">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.category }}" {{ 'selected' if cat.category == category_filter else '' }}>{{ cat.category }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-1"></i>Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Active Skills</h6>
+                        <h2 class="mb-0">{{ total_skills }}</h2>
+                    </div>
+                    <i class="bi bi-person-badge fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Over Capacity</h6>
+                        <h2 class="mb-0">{{ critical_skills }}</h2>
+                    </div>
+                    <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Near Capacity</h6>
+                        <h2 class="mb-0">{{ warning_skills }}</h2>
+                    </div>
+                    <i class="bi bi-exclamation-circle fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Below Target Headcount</h6>
+                        <h2 class="mb-0">{{ understaffed }}</h2>
+                    </div>
+                    <i class="bi bi-people fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if skill_data %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table me-2"></i>Skill Capacity Overview
+            <small class="text-muted fw-normal ms-2">{{ date_from }} to {{ date_to }}</small>
+        </h5>
+        <span class="badge bg-secondary">{{ skill_data|length }} skill{{ 's' if skill_data|length != 1 else '' }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="skillCapacityTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:30px;"></th>
+                    <th>Skill / Skillset</th>
+                    <th>Category</th>
+                    <th>Criticality</th>
+                    <th class="text-center">Qualified Resources</th>
+                    <th class="text-center">Target Headcount</th>
+                    <th class="text-end">Available Hours</th>
+                    <th class="text-end">Planned Hours</th>
+                    <th class="text-end">Gap (hrs)</th>
+                    <th style="width:160px;">Utilization</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in skill_data %}
+                <tr class="align-middle">
+                    <td>
+                        {% if row.resources %}
+                        <button class="btn btn-sm btn-link p-0 text-muted toggle-detail" data-target="detail-{{ loop.index }}" title="Show resources">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ row.skill.skillset_name }}</strong>
+                        {% if row.skill.required_level %}
+                        <br><small class="text-muted">Min. level: {{ row.skill.required_level }}</small>
+                        {% endif %}
+                    </td>
+                    <td><span class="text-muted">{{ row.skill.category or '-' }}</span></td>
+                    <td>
+                        {% if row.skill.criticality == 'High' %}
+                        <span class="badge bg-danger">High</span>
+                        {% elif row.skill.criticality == 'Medium' %}
+                        <span class="badge bg-warning text-dark">Medium</span>
+                        {% elif row.skill.criticality == 'Low' %}
+                        <span class="badge bg-secondary">Low</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span class="fw-bold {% if row.qualified_count == 0 %}text-danger{% elif row.skill.target_headcount and row.qualified_count < row.skill.target_headcount %}text-warning{% else %}text-success{% endif %}">
+                            {{ row.qualified_count }}
+                        </span>
+                    </td>
+                    <td class="text-center text-muted">{{ row.skill.target_headcount or '-' }}</td>
+                    <td class="text-end fw-semibold">{{ row.available_hours }} hrs</td>
+                    <td class="text-end">{{ row.planned_hours }} hrs</td>
+                    <td class="text-end {% if row.gap < 0 %}text-danger fw-bold{% elif row.gap < row.available_hours * 0.15 %}text-warning{% else %}text-success{% endif %}">
+                        {% if row.gap < 0 %}<i class="bi bi-arrow-down-circle me-1"></i>{% endif %}
+                        {{ row.gap }} hrs
+                    </td>
+                    <td>
+                        {% if row.available_hours > 0 %}
+                        <div class="progress" style="height: 8px;" title="{{ row.utilization }}%">
+                            <div class="progress-bar {% if row.status == 'Critical' %}bg-danger{% elif row.status == 'Warning' %}bg-warning{% else %}bg-success{% endif %}"
+                                 style="width: {{ [row.utilization, 100]|min }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ row.utilization }}%</small>
+                        {% else %}
+                        <small class="text-muted">No capacity</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if row.qualified_count == 0 %}
+                        <span class="badge bg-secondary">No Staff</span>
+                        {% elif row.status == 'Critical' %}
+                        <span class="badge bg-danger">Over Capacity</span>
+                        {% elif row.status == 'Warning' %}
+                        <span class="badge bg-warning text-dark">Near Limit</span>
+                        {% else %}
+                        <span class="badge bg-success">OK</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if row.resources %}
+                <tr class="d-none detail-row" id="detail-{{ loop.index }}">
+                    <td colspan="11" class="bg-light p-0">
+                        <div class="px-4 py-3">
+                            <p class="fw-semibold mb-2 text-muted small text-uppercase">Qualified Resources — {{ row.skill.skillset_name }}</p>
+                            <table class="table table-sm table-bordered mb-0 bg-white">
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Employee ID</th>
+                                        <th>Skill Level</th>
+                                        <th>Assigned Work Centers</th>
+                                        <th class="text-end">Contributed Hours</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for res in row.resources %}
+                                    <tr>
+                                        <td><strong>{{ res.name }}</strong></td>
+                                        <td class="text-muted">{{ res.employee_id or '-' }}</td>
+                                        <td>
+                                            {% if res.skill_level == 'Expert' %}
+                                            <span class="badge bg-primary">Expert</span>
+                                            {% elif res.skill_level == 'Advanced' %}
+                                            <span class="badge bg-success">Advanced</span>
+                                            {% elif res.skill_level == 'Intermediate' %}
+                                            <span class="badge bg-info text-dark">Intermediate</span>
+                                            {% elif res.skill_level == 'Beginner' %}
+                                            <span class="badge bg-secondary">Beginner</span>
+                                            {% else %}
+                                            <span class="text-muted">{{ res.skill_level or '-' }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if res.work_centers %}
+                                            {% for wc in res.work_centers %}
+                                            <span class="badge bg-light text-dark border me-1">
+                                                {{ wc.code }} — {{ wc.utilization_percent }}% util
+                                                <small class="text-muted">({{ wc.contrib_hours }} hrs)</small>
+                                            </span>
+                                            {% endfor %}
+                                            {% else %}
+                                            <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Not assigned to any work center</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end fw-semibold">{{ res.hours }} hrs</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-person-badge display-4 d-block mb-3 opacity-25"></i>
+        <p class="mb-1">No active skillsets found.</p>
+        <p class="small">Add skillsets and assign them to labor resources to track skill-based capacity.</p>
+        <a href="{{ url_for('capacity_routes.list_work_centers') }}" class="btn btn-outline-primary mt-2">
+            <i class="bi bi-building me-1"></i>Manage Work Centers
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('.toggle-detail').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var targetId = this.getAttribute('data-target');
+        var detailRow = document.getElementById(targetId);
+        var icon = this.querySelector('i');
+        if (detailRow.classList.contains('d-none')) {
+            detailRow.classList.remove('d-none');
+            icon.classList.remove('bi-chevron-right');
+            icon.classList.add('bi-chevron-down');
+        } else {
+            detailRow.classList.add('d-none');
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-right');
+        }
+    });
+});
+</script>
+{% endblock %}

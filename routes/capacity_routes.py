@@ -935,3 +935,159 @@ def capacity_report():
                           report_data=report_data,
                           date_from=date_from,
                           date_to=date_to)
+
+
+@capacity_bp.route('/capacity/skill-capacity')
+@login_required
+def skill_capacity():
+    """Capacity planning view broken down by skill/skillset"""
+    db = Database()
+    conn = db.get_connection()
+
+    date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
+    date_to   = request.args.get('date_to',   (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))
+    category_filter = request.args.get('category', '')
+
+    # Precompute working days in the range (Mon–Fri default)
+    start_dt = datetime.strptime(date_from, '%Y-%m-%d')
+    end_dt   = datetime.strptime(date_to,   '%Y-%m-%d')
+    working_days = sum(1 for d in range((end_dt - start_dt).days + 1)
+                       if (start_dt + timedelta(days=d)).weekday() < 5)
+
+    # All active skillsets
+    skill_q = 'SELECT * FROM skillsets WHERE status = \'Active\''
+    if category_filter:
+        skill_q += ' AND category = ?'
+        skillsets = conn.execute(skill_q + ' ORDER BY skillset_name', (category_filter,)).fetchall()
+    else:
+        skillsets = conn.execute(skill_q + ' ORDER BY skillset_name').fetchall()
+
+    # Categories for filter dropdown
+    categories = conn.execute(
+        "SELECT DISTINCT category FROM skillsets WHERE category IS NOT NULL AND category != '' ORDER BY category"
+    ).fetchall()
+
+    skill_data = []
+    for skill in skillsets:
+        sid = skill['id']
+
+        # Qualified active resources for this skill
+        resources = conn.execute('''
+            SELECT lr.id, lr.name, lr.employee_id, lrs.skill_level,
+                   lr.status as resource_status
+            FROM labor_resource_skills lrs
+            JOIN labor_resources lr ON lr.id = lrs.labor_resource_id
+            WHERE lrs.skillset_id = ?
+            AND lr.status = 'Active'
+        ''', (sid,)).fetchall()
+
+        # For each resource, calculate their available hours from their work center assignments
+        total_available_hours = 0.0
+        resource_details = []
+        for res in resources:
+            assignments = conn.execute('''
+                SELECT wcr.utilization_percent, wc.default_hours_per_day,
+                       wc.default_days_per_week, wc.efficiency_factor,
+                       wc.name as wc_name, wc.code as wc_code
+                FROM work_center_resources wcr
+                JOIN work_centers wc ON wc.id = wcr.work_center_id
+                WHERE wcr.labor_resource_id = ?
+                AND (wcr.effective_start_date IS NULL OR wcr.effective_start_date <= ?)
+                AND (wcr.effective_end_date   IS NULL OR wcr.effective_end_date   >= ?)
+                AND wc.status = 'Active'
+            ''', (res['id'], date_to, date_from)).fetchall()
+
+            res_hours = 0.0
+            res_wcs = []
+            for asgn in assignments:
+                # Use date-specific overrides where available, else default hours
+                override_hours = conn.execute('''
+                    SELECT COALESCE(SUM(available_hours), 0) as oh
+                    FROM work_center_capacity wcc
+                    JOIN work_centers wc ON wc.id = wcc.work_center_id
+                    WHERE wc.id = (
+                        SELECT work_center_id FROM work_center_resources
+                        WHERE labor_resource_id = ? LIMIT 1
+                    )
+                    AND wcc.capacity_date BETWEEN ? AND ?
+                ''', (res['id'], date_from, date_to)).fetchone()
+
+                # Base available hours for this work center in the period
+                wc_days = min(working_days, asgn['default_days_per_week'] * ((end_dt - start_dt).days // 7 + 1))
+                base_hours = wc_days * float(asgn['default_hours_per_day'] or 8)
+                util_factor = float(asgn['utilization_percent'] or 100) / 100.0
+                eff_factor  = float(asgn['efficiency_factor'] or 1.0)
+                contrib = base_hours * util_factor * eff_factor
+                res_hours += contrib
+                res_wcs.append({
+                    'name': asgn['wc_name'],
+                    'code': asgn['wc_code'],
+                    'utilization_percent': asgn['utilization_percent'],
+                    'contrib_hours': round(contrib, 1)
+                })
+
+            total_available_hours += res_hours
+            resource_details.append({
+                'id':          res['id'],
+                'name':        res['name'],
+                'employee_id': res['employee_id'],
+                'skill_level': res['skill_level'],
+                'hours':       round(res_hours, 1),
+                'work_centers': res_wcs
+            })
+
+        # Demand: planned hours from work order tasks requiring this skill
+        demand = conn.execute('''
+            SELECT COALESCE(SUM(wot.planned_hours), 0) as demand_hours
+            FROM task_required_skills trs
+            JOIN work_order_tasks wot ON wot.id = trs.task_id
+            JOIN work_orders wo ON wot.work_order_id = wo.id
+            WHERE trs.skillset_id = ?
+            AND wo.status IN ('Planned', 'In Progress', 'Released')
+            AND wot.status IN ('Not Started', 'In Progress', 'On Hold')
+        ''', (sid,)).fetchone()
+
+        # Also demand from operations that tag a skill_required field
+        ops_demand = conn.execute('''
+            SELECT COALESCE(SUM(woo.planned_hours + COALESCE(woo.setup_hours, 0)), 0) as demand_hours
+            FROM work_order_operations woo
+            JOIN work_orders wo ON woo.work_order_id = wo.id
+            JOIN skillsets s ON LOWER(woo.skill_required) = LOWER(s.skillset_name)
+            WHERE s.id = ?
+            AND wo.status IN ('Planned', 'In Progress', 'Released')
+            AND woo.status IN ('Pending', 'In Progress')
+        ''', (sid,)).fetchone()
+
+        planned_hours = float(demand['demand_hours'] or 0) + float(ops_demand['demand_hours'] or 0)
+        utilization   = (planned_hours / total_available_hours * 100) if total_available_hours > 0 else 0
+        gap           = total_available_hours - planned_hours
+
+        skill_data.append({
+            'skill':              dict(skill),
+            'qualified_count':    len(resources),
+            'available_hours':    round(total_available_hours, 1),
+            'planned_hours':      round(planned_hours, 1),
+            'utilization':        round(utilization, 1),
+            'gap':                round(gap, 1),
+            'status':             'Critical' if utilization > 100 else 'Warning' if utilization > 85 else 'Normal',
+            'resources':          resource_details
+        })
+
+    # Summary stats
+    total_skills     = len(skill_data)
+    critical_skills  = sum(1 for s in skill_data if s['status'] == 'Critical')
+    warning_skills   = sum(1 for s in skill_data if s['status'] == 'Warning')
+    understaffed     = sum(1 for s in skill_data if s['qualified_count'] < (s['skill'].get('target_headcount') or 0))
+
+    conn.close()
+
+    return render_template('capacity/skill_capacity.html',
+                           skill_data=skill_data,
+                           categories=categories,
+                           date_from=date_from,
+                           date_to=date_to,
+                           category_filter=category_filter,
+                           total_skills=total_skills,
+                           critical_skills=critical_skills,
+                           warning_skills=warning_skills,
+                           understaffed=understaffed)
