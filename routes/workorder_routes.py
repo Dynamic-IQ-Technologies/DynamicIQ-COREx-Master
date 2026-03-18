@@ -272,7 +272,7 @@ def create_workorder():
                     request.form['status'],
                     request.form.get('priority', 'Medium'),
                     datetime.now().strftime('%Y-%m-%d'),
-                    request.form.get('planned_end_date'),
+                    request.form.get('planned_end_date') or None,
                     float(request.form.get('labor_cost', 0)),
                     float(request.form.get('overhead_cost', 0)),
                     customer_id,
