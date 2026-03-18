@@ -213,6 +213,13 @@
             });
 
             return input;
+        },
+
+        initSortableTable: function(tableIdOrSelector, options) {
+            var selector = tableIdOrSelector.startsWith('#') || tableIdOrSelector.startsWith('.') || tableIdOrSelector.startsWith('[')
+                ? tableIdOrSelector
+                : '#' + tableIdOrSelector;
+            return this.initSortable(selector, options || {});
         }
     };
 })();
