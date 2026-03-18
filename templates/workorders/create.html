@@ -282,7 +282,13 @@ document.addEventListener('DOMContentLoaded', function() {
         getDuplicateModal().show();
     }
 
-    document.getElementById('customer_id').addEventListener('change', checkForDuplicates);
+    document.getElementById('customer_id').addEventListener('change', function() {
+        var woType = document.getElementById('workorder_type');
+        if (this.value) {
+            woType.value = 'External';
+        }
+        checkForDuplicates();
+    });
     document.getElementById('serial_number').addEventListener('blur', checkForDuplicates);
     document.getElementById('serial_number').addEventListener('input', function() {
         clearTimeout(duplicateCheckTimeout);
