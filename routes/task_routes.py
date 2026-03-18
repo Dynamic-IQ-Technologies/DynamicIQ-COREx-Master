@@ -68,8 +68,8 @@ def create_task(wo_id):
             sequence_number = int(request.form.get('sequence_number', 0))
             priority = request.form.get('priority', 'Medium')
             
-            planned_start_date = request.form.get('planned_start_date')
-            planned_end_date = request.form.get('planned_end_date')
+            planned_start_date = request.form.get('planned_start_date') or None
+            planned_end_date = request.form.get('planned_end_date') or None
             planned_hours = float(request.form.get('planned_hours', 0))
             assigned_resource_id = request.form.get('assigned_resource_id')
             remarks = request.form.get('remarks', '').strip()
@@ -152,8 +152,8 @@ def edit_task(task_id):
             sequence_number = int(request.form.get('sequence_number', 0))
             priority = request.form.get('priority', 'Medium')
             
-            planned_start_date = request.form.get('planned_start_date')
-            planned_end_date = request.form.get('planned_end_date')
+            planned_start_date = request.form.get('planned_start_date') or None
+            planned_end_date = request.form.get('planned_end_date') or None
             planned_hours = float(request.form.get('planned_hours', 0))
             assigned_resource_id = request.form.get('assigned_resource_id')
             work_center_id = request.form.get('work_center_id')
