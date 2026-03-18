@@ -985,6 +985,15 @@ def skill_capacity():
         total_available_hours = 0.0
         resource_details = []
         for res in resources:
+            # Count how many active skills this resource holds — used to split hours fairly
+            total_skills_held = conn.execute('''
+                SELECT COUNT(*) as c
+                FROM labor_resource_skills lrs
+                JOIN skillsets s ON s.id = lrs.skillset_id AND s.status = 'Active'
+                WHERE lrs.labor_resource_id = ?
+            ''', (res['id'],)).fetchone()['c']
+            skill_split = max(total_skills_held, 1)  # avoid divide-by-zero
+
             assignments = conn.execute('''
                 SELECT wcr.utilization_percent, wc.default_hours_per_day,
                        wc.default_days_per_week, wc.efficiency_factor,
@@ -1000,24 +1009,13 @@ def skill_capacity():
             res_hours = 0.0
             res_wcs = []
             for asgn in assignments:
-                # Use date-specific overrides where available, else default hours
-                override_hours = conn.execute('''
-                    SELECT COALESCE(SUM(available_hours), 0) as oh
-                    FROM work_center_capacity wcc
-                    JOIN work_centers wc ON wc.id = wcc.work_center_id
-                    WHERE wc.id = (
-                        SELECT work_center_id FROM work_center_resources
-                        WHERE labor_resource_id = ? LIMIT 1
-                    )
-                    AND wcc.capacity_date BETWEEN ? AND ?
-                ''', (res['id'], date_from, date_to)).fetchone()
-
                 # Base available hours for this work center in the period
                 wc_days = min(working_days, asgn['default_days_per_week'] * ((end_dt - start_dt).days // 7 + 1))
                 base_hours = wc_days * float(asgn['default_hours_per_day'] or 8)
                 util_factor = float(asgn['utilization_percent'] or 100) / 100.0
                 eff_factor  = float(asgn['efficiency_factor'] or 1.0)
-                contrib = base_hours * util_factor * eff_factor
+                # Divide by number of skills held to prevent double-counting across skills
+                contrib = (base_hours * util_factor * eff_factor) / skill_split
                 res_hours += contrib
                 res_wcs.append({
                     'name': asgn['wc_name'],
@@ -1028,11 +1026,12 @@ def skill_capacity():
 
             total_available_hours += res_hours
             resource_details.append({
-                'id':          res['id'],
-                'name':        res['name'],
-                'employee_id': res['employee_id'],
-                'skill_level': res['skill_level'],
-                'hours':       round(res_hours, 1),
+                'id':            res['id'],
+                'name':          res['name'],
+                'employee_id':   res['employee_id'],
+                'skill_level':   res['skill_level'],
+                'hours':         round(res_hours, 1),
+                'skills_held':   skill_split,
                 'work_centers': res_wcs
             })
 

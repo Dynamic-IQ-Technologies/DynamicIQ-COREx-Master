@@ -202,7 +202,8 @@
                                         <th>Employee ID</th>
                                         <th>Skill Level</th>
                                         <th>Assigned Work Centers</th>
-                                        <th class="text-end">Contributed Hours</th>
+                                        <th class="text-center">Skills Held</th>
+                                        <th class="text-end">Hours Allocated to This Skill</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -235,7 +236,18 @@
                                             <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Not assigned to any work center</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-end fw-semibold">{{ res.hours }} hrs</td>
+                                        <td class="text-center">
+                                            <span class="badge {% if res.skills_held > 1 %}bg-info text-dark{% else %}bg-secondary{% endif %}" 
+                                                  title="{% if res.skills_held > 1 %}Hours split equally across {{ res.skills_held }} skills{% else %}Single-skill resource{% endif %}">
+                                                {{ res.skills_held }} skill{{ 's' if res.skills_held != 1 else '' }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-semibold">
+                                            {{ res.hours }} hrs
+                                            {% if res.skills_held > 1 %}
+                                            <br><small class="text-muted">1/{{ res.skills_held }} share</small>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
