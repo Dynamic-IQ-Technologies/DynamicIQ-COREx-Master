@@ -246,7 +246,13 @@ def create_workorder():
                     customer_id = None
                 
                 stage_id = request.form.get('stage_id')
-                stage_id = int(stage_id) if stage_id else None
+                if stage_id:
+                    stage_id = int(stage_id)
+                else:
+                    receiving = conn.execute(
+                        "SELECT id FROM work_order_stages WHERE name = 'Receiving' AND is_active = 1 LIMIT 1"
+                    ).fetchone()
+                    stage_id = receiving['id'] if receiving else None
                 
                 is_aog = 1 if request.form.get('is_aog') else 0
                 is_warranty = 1 if request.form.get('is_warranty') else 0
@@ -426,15 +432,15 @@ def create_workorder():
             if inv_record['product_id'] and not prefill['product_id']:
                 prefill['product_id'] = str(inv_record['product_id'])
     
-    # If coming from inventory, find the Receiving stage
-    stage_name = request.args.get('stage_name', '')
-    if stage_name:
-        receiving_stage = conn.execute(
-            'SELECT id FROM work_order_stages WHERE name = ? AND is_active = 1', 
+    # Default stage to "Receiving" unless overridden by URL param
+    stage_name = request.args.get('stage_name', 'Receiving')
+    if not prefill.get('stage_id'):
+        default_stage = conn.execute(
+            'SELECT id FROM work_order_stages WHERE name = ? AND is_active = 1',
             (stage_name,)
         ).fetchone()
-        if receiving_stage:
-            prefill['stage_id'] = receiving_stage['id']
+        if default_stage:
+            prefill['stage_id'] = default_stage['id']
     
     conn.close()
     
