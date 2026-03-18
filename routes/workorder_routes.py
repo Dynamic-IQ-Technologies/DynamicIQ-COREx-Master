@@ -265,7 +265,7 @@ def create_workorder():
                     request.form.get('disposition', 'Manufacture'),
                     request.form['status'],
                     request.form.get('priority', 'Medium'),
-                    request.form.get('planned_start_date'),
+                    datetime.now().strftime('%Y-%m-%d'),
                     request.form.get('planned_end_date'),
                     float(request.form.get('labor_cost', 0)),
                     float(request.form.get('overhead_cost', 0)),
