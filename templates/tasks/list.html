@@ -107,9 +107,9 @@
                         <td></td>
                         {% endif %}
                         <td colspan="5" class="text-end">Totals:</td>
-                        <td>{{ "%.2f"|format(tasks|sum(attribute='planned_hours') or 0) }}</td>
-                        <td>{{ "%.2f"|format(tasks|sum(attribute='actual_hours') or 0) }}</td>
-                        <td>{{ (tasks|sum(attribute='actual_labor_cost') or 0)|currency }}</td>
+                        <td>{{ "%.2f"|format(tasks|map(attribute='planned_hours')|select|sum or 0) }}</td>
+                        <td>{{ "%.2f"|format(tasks|map(attribute='actual_hours')|select|sum or 0) }}</td>
+                        <td>{{ (tasks|map(attribute='actual_labor_cost')|select|sum or 0)|currency }}</td>
                         <td></td>
                     </tr>
                 </tfoot>
