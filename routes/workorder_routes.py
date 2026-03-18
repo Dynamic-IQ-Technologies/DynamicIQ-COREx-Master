@@ -1365,9 +1365,9 @@ def update_receiving_inspection(id):
                 cursor = conn.execute('''
                     INSERT INTO work_order_tasks 
                     (task_number, work_order_id, task_name, description, category, 
-                     sequence_number, priority, status)
+                     sequence_number, priority, planned_hours, status)
                     VALUES (?, ?, 'Incoming Inspection', 'Incoming inspection task for receiving', 
-                            'Inspection', 10, 'High', 'Not Started')
+                            'Inspection', 10, 'High', 1.0, 'Not Started')
                 ''', (task_number, id))
                 incoming_task_id = cursor.lastrowid
             else:
