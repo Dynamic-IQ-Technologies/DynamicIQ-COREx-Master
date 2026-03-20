@@ -187,7 +187,7 @@
             </div>
             <div class="kpi-item">
                 <div class="kpi-label">On Hand</div>
-                <div class="kpi-value {% if inventory and inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory and inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
+                <div class="kpi-value {% if inventory and inventory.quantity <= (inventory.safety_stock or 0) %}text-danger{% elif inventory and inventory.quantity <= (inventory.reorder_point or 0) %}text-warning{% else %}text-success{% endif %}">
                     {{ inventory.quantity if inventory else 0 }} {{ product.unit_of_measure }}
                 </div>
             </div>
@@ -346,16 +346,16 @@
             <div class="card-body">
                 {% if inventory %}
                 <div class="inventory-gauge mb-3">
-                    <div class="gauge-value {% if inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
+                    <div class="gauge-value {% if inventory.quantity <= (inventory.safety_stock or 0) %}text-danger{% elif inventory.quantity <= (inventory.reorder_point or 0) %}text-warning{% else %}text-success{% endif %}">
                         {{ inventory.quantity }}
                     </div>
                     <div class="gauge-label">{{ product.unit_of_measure }} On Hand</div>
                     <div class="mt-2">
-                        {% if inventory.quantity <= inventory.safety_stock %}
+                        {% if inventory.quantity <= (inventory.safety_stock or 0) %}
                         <span class="status-indicator danger">
                             <i class="bi bi-exclamation-triangle"></i> Critical - Below Safety Stock
                         </span>
-                        {% elif inventory.quantity <= inventory.reorder_point %}
+                        {% elif inventory.quantity <= (inventory.reorder_point or 0) %}
                         <span class="status-indicator warning">
                             <i class="bi bi-arrow-down-circle"></i> Low - Reorder Needed
                         </span>

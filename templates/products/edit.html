@@ -277,15 +277,15 @@
                     <div class="alert alert-light mb-0">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Current Stock:</span>
-                            <strong class="{% if inventory.quantity <= inventory.safety_stock %}text-danger{% elif inventory.quantity <= inventory.reorder_point %}text-warning{% else %}text-success{% endif %}">
+                            <strong class="{% if inventory.quantity <= (inventory.safety_stock or 0) %}text-danger{% elif inventory.quantity <= (inventory.reorder_point or 0) %}text-warning{% else %}text-success{% endif %}">
                                 {{ inventory.quantity }} {{ product.unit_of_measure }}
                             </strong>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Status:</span>
-                            {% if inventory.quantity <= inventory.safety_stock %}
+                            {% if inventory.quantity <= (inventory.safety_stock or 0) %}
                             <span class="badge bg-danger">Critical</span>
-                            {% elif inventory.quantity <= inventory.reorder_point %}
+                            {% elif inventory.quantity <= (inventory.reorder_point or 0) %}
                             <span class="badge bg-warning">Low Stock</span>
                             {% else %}
                             <span class="badge bg-success">Adequate</span>

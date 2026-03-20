@@ -197,9 +197,9 @@
                     <span class="badge bg-danger">FULLY COMMITTED</span>
                     {% elif inventory.quantity <= 0 %}
                     <span class="badge bg-danger">OUT OF STOCK</span>
-                    {% elif inventory.quantity <= inventory.reorder_point %}
+                    {% elif inventory.quantity <= (inventory.reorder_point or 0) %}
                     <span class="badge bg-warning text-dark">LOW STOCK - REORDER NEEDED</span>
-                    {% elif inventory.quantity <= inventory.safety_stock %}
+                    {% elif inventory.quantity <= (inventory.safety_stock or 0) %}
                     <span class="badge bg-info">BELOW SAFETY STOCK</span>
                     {% else %}
                     <span class="badge bg-success">ADEQUATE STOCK</span>
