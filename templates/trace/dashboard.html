@@ -631,6 +631,9 @@
         <div class="trace-tab-panel" id="panel-cost">
             <div class="trace-cost-container">
                 <canvas class="trace-cost-canvas" id="costCanvas"></canvas>
+                <div class="trace-empty" id="costEmpty" style="display:none;">
+                    <p>No cost data available for this trace.</p>
+                </div>
             </div>
         </div>
 
@@ -930,12 +933,17 @@ function renderGraph(graphData) {
 
 function renderCostChart(costData) {
     const canvas = document.getElementById('costCanvas');
-    if (costChart) costChart.destroy();
+    const emptyMsg = document.getElementById('costEmpty');
+    if (costChart) { costChart.destroy(); costChart = null; }
 
-    if (!costData.length) {
-        canvas.parentElement.innerHTML = '<div class="trace-empty"><p>No cost data available for this trace.</p></div>';
+    if (!costData || !costData.length) {
+        canvas.style.display = 'none';
+        if (emptyMsg) emptyMsg.style.display = '';
         return;
     }
+
+    canvas.style.display = '';
+    if (emptyMsg) emptyMsg.style.display = 'none';
 
     costChart = new Chart(canvas, {
         type: 'line',
