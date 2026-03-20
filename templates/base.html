@@ -2450,6 +2450,12 @@
         createToggleButton: function() {
             if (document.getElementById('corex-guide-toggle')) return;
             
+            // Hide the main ERP Copilot button so only one AI button shows at a time
+            const mainBtn = document.getElementById('erpHelperBtn');
+            if (mainBtn) mainBtn.style.display = 'none';
+            const mainPanel = document.getElementById('erpHelperPanel');
+            if (mainPanel) mainPanel.classList.remove('open');
+            
             const btn = document.createElement('button');
             btn.id = 'corex-guide-toggle';
             btn.className = 'guide-toggle-btn';
