@@ -338,12 +338,12 @@
                     </label>
                 </div>
                 <div class="alert alert-secondary small py-2 mb-0">
-                    <i class="bi bi-info-circle me-1"></i>All three items must be acknowledged before the material can be received.
+                    <i class="bi bi-info-circle me-1"></i>Please review the items above before proceeding with receiving.
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="resetRotableAck()">Cancel</button>
-                <button type="button" class="btn btn-warning" id="rotableAckBtn" disabled onclick="confirmRotableAck()">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="rotableAckBtn" onclick="confirmRotableAck()">
                     <i class="bi bi-check2-circle me-1"></i>Acknowledge &amp; Receive Material
                 </button>
             </div>
@@ -508,9 +508,6 @@ function calculateReceivingCost() {
     }
 }
 
-// Rotable acknowledgement tracking
-let rotableAcknowledged = false;
-
 function updateRotableAlert() {
     const alert = document.getElementById('rotable_alert');
     if (currentProductType === 'Rotable') {
@@ -520,14 +517,7 @@ function updateRotableAlert() {
     }
 }
 
-function resetRotableAck() {
-    rotableAcknowledged = false;
-    document.querySelectorAll('.rotable-ack-check').forEach(cb => cb.checked = false);
-    document.getElementById('rotableAckBtn').disabled = true;
-}
-
 function confirmRotableAck() {
-    rotableAcknowledged = true;
     const modal = bootstrap.Modal.getInstance(document.getElementById('rotableAckModal'));
     modal.hide();
     document.getElementById('receiveBtn').form.submit();
@@ -539,23 +529,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('last_calibration_date').addEventListener('change', calculateNextCalibrationDate);
     document.getElementById('calibration_frequency').addEventListener('input', calculateNextCalibrationDate);
 
-    // Intercept form submit for Rotable items
+    // Show rotable prompt on submit — does not block
     const form = document.getElementById('receiveBtn').form;
     form.addEventListener('submit', function(e) {
-        if (currentProductType === 'Rotable' && !rotableAcknowledged) {
+        if (currentProductType === 'Rotable') {
             e.preventDefault();
-            resetRotableAck();
+            document.querySelectorAll('.rotable-ack-check').forEach(cb => cb.checked = false);
             new bootstrap.Modal(document.getElementById('rotableAckModal')).show();
         }
-    });
-
-    // Enable/disable acknowledge button based on all checkboxes being checked
-    document.querySelectorAll('.rotable-ack-check').forEach(function(cb) {
-        cb.addEventListener('change', function() {
-            const all = document.querySelectorAll('.rotable-ack-check');
-            const allChecked = Array.from(all).every(c => c.checked);
-            document.getElementById('rotableAckBtn').disabled = !allChecked;
-        });
     });
 });
 </script>

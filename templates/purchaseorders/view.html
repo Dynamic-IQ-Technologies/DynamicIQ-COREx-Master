@@ -1253,11 +1253,10 @@ window.openQuickReceive = function(data) {
     document.getElementById('qr_serial_number').value = '';
     document.getElementById('qr_remarks').value = '';
 
-    // Rotable verification: show section and reset checkboxes
+    // Rotable verification: show prompt section (non-blocking)
     const isRotable = (data.productType || '') === 'Rotable';
     document.getElementById('qr_rotable_section').style.display = isRotable ? 'block' : 'none';
     document.querySelectorAll('.qr-rotable-check').forEach(cb => cb.checked = false);
-    document.getElementById('qr_receive_btn').disabled = isRotable;
     
     const toolFields = document.getElementById('qr_tool_fields');
     if (data.isToolPO) {
@@ -1302,27 +1301,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Enable receive button only when all rotable checkboxes are checked
-    document.querySelectorAll('.qr-rotable-check').forEach(function(cb) {
-        cb.addEventListener('change', function() {
-            const all = document.querySelectorAll('.qr-rotable-check');
-            const allChecked = Array.from(all).every(c => c.checked);
-            document.getElementById('qr_receive_btn').disabled = !allChecked;
-        });
-    });
 });
 
 window.submitQuickReceive = async function() {
-    // Rotable safety check: all acknowledgements must be checked
-    const rotableSection = document.getElementById('qr_rotable_section');
-    if (rotableSection.style.display !== 'none') {
-        const allChecked = Array.from(document.querySelectorAll('.qr-rotable-check')).every(c => c.checked);
-        if (!allChecked) {
-            alert('Please acknowledge all rotable verification items before receiving.');
-            return;
-        }
-    }
-
     const poId = document.getElementById('qr_po_id').value;
     const lineId = document.getElementById('qr_line_id').value;
     const quantity = parseFloat(document.getElementById('qr_quantity').value);
