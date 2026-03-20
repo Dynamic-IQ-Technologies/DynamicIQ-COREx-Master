@@ -69,11 +69,12 @@
 .kpi-card.good    { border-color: rgba(16,185,129,.35); }
 .kpi-card.info    { border-color: rgba(99,102,241,.35); }
 
-.kpi-val-danger  { color: #fb923c; }
-.kpi-val-warning { color: #fb923c; }
-.kpi-val-good    { color: #fb923c; }
-.kpi-val-info    { color: #fb923c; }
-.kpi-val-neutral { color: #fb923c; }
+.kpi-val-danger,
+.kpi-val-warning,
+.kpi-val-good,
+.kpi-val-info,
+.kpi-val-neutral,
+.kpi-card .kpi-value { color: #fb923c !important; }
 
 /* ── Tabs ── */
 .intel-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
@@ -200,37 +201,37 @@
 
     <div class="kpi-card">
       <div class="kpi-label"><i class="bi bi-boxes me-1"></i>Total Items</div>
-      <div class="kpi-value kpi-val-neutral" id="kpiTotal">—</div>
+      <div class="kpi-value" id="kpiTotal" style="color:#fb923c">—</div>
       <div class="kpi-sub">Unique inventory records</div>
     </div>
 
     <div class="kpi-card danger">
       <div class="kpi-label"><i class="bi bi-exclamation-triangle-fill me-1"></i>Critical Items</div>
-      <div class="kpi-value kpi-val-danger" id="kpiCritical">—</div>
+      <div class="kpi-value" id="kpiCritical" style="color:#fb923c">—</div>
       <div class="kpi-sub">Immediate attention needed</div>
     </div>
 
     <div class="kpi-card warning">
       <div class="kpi-label"><i class="bi bi-exclamation-circle-fill me-1"></i>Warning Items</div>
-      <div class="kpi-value kpi-val-warning" id="kpiWarning">—</div>
+      <div class="kpi-value" id="kpiWarning" style="color:#fb923c">—</div>
       <div class="kpi-sub">Monitor closely</div>
     </div>
 
     <div class="kpi-card good">
       <div class="kpi-label"><i class="bi bi-shield-check me-1"></i>Avg Quality Score</div>
-      <div class="kpi-value kpi-val-good" id="kpiQuality">—</div>
+      <div class="kpi-value" id="kpiQuality" style="color:#fb923c">—</div>
       <div class="kpi-sub" id="kpiQualitySub">Pass / Fail</div>
     </div>
 
     <div class="kpi-card warning">
       <div class="kpi-label"><i class="bi bi-cart-x me-1"></i>Need Reorder</div>
-      <div class="kpi-value kpi-val-warning" id="kpiReorder">—</div>
+      <div class="kpi-value" id="kpiReorder" style="color:#fb923c">—</div>
       <div class="kpi-sub">Below reorder threshold</div>
     </div>
 
     <div class="kpi-card info">
       <div class="kpi-label"><i class="bi bi-cash-stack me-1"></i>Inventory Value</div>
-      <div class="kpi-value kpi-val-info" id="kpiValue" style="font-size:1.85rem">—</div>
+      <div class="kpi-value" id="kpiValue" style="color:#fb923c;font-size:1.85rem">—</div>
       <div class="kpi-sub">Total stock valuation</div>
     </div>
 
