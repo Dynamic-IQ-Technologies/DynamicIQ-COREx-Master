@@ -121,9 +121,9 @@ def dashboard():
         AND so.order_date BETWEEN ? AND ?
     ''', (start_date, end_date)).fetchone()['cogs']
     
-    # Work Order Costs (Operations)
+    # Work Order Costs (Operations) — COALESCE each field so NULL columns don't zero out the whole row
     wo_costs = conn.execute('''
-        SELECT COALESCE(SUM(material_cost + labor_cost + overhead_cost), 0) as cost
+        SELECT COALESCE(SUM(COALESCE(material_cost,0) + COALESCE(labor_cost,0) + COALESCE(overhead_cost,0)), 0) as cost
         FROM work_orders
         WHERE status NOT IN ('Cancelled')
         AND created_at BETWEEN ? AND ?
