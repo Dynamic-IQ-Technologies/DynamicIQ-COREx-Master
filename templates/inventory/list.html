@@ -187,7 +187,7 @@
                             <span class="badge bg-warning text-dark">Quarantine</span>
                             {% elif item.status == 'Out of Stock' %}
                             <span class="badge bg-dark">Out of Stock</span>
-                            {% elif item.quantity <= item.reorder_point %}
+                            {% elif item.quantity <= (item.reorder_point or 0) %}
                             <span class="badge bg-danger">Low Stock</span>
                             {% else %}
                             <span class="badge bg-success">{{ item.status or 'Available' }}</span>
