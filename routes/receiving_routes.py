@@ -314,14 +314,14 @@ def create_receiving():
                     UPDATE receiving_transactions SET inventory_id = ? WHERE id = ?
                 ''', (inventory_id, receipt_id))
             
-            # Update base received quantity on PO line
+            # Update base received quantity and inventory_id on PO line
             base_received_so_far = po_line['base_received_quantity'] if po_line['base_received_quantity'] else 0
             new_base_received = base_received_so_far + base_quantity_for_receipt
             conn.execute('''
                 UPDATE purchase_order_lines 
-                SET base_received_quantity = ?
+                SET base_received_quantity = ?, inventory_id = COALESCE(?, inventory_id)
                 WHERE id = ?
-            ''', (new_base_received, po_line_id))
+            ''', (new_base_received, inventory_id, po_line_id))
             
             # Auto-post GL entry for receiving
             # Debit: Inventory (increase asset)

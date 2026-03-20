@@ -1319,6 +1319,7 @@ def api_quick_receive_po_line(po_id, line_id):
         base_unit_cost = po_line['base_unit_price'] if po_line['base_unit_price'] else (unit_cost / conversion_factor if conversion_factor else unit_cost)
         logger.info(f"[Quick Receive] Cost calculation: unit_cost={unit_cost}, base_unit_cost={base_unit_cost}, conversion_factor={conversion_factor}")
         
+        new_inventory_id = None
         if po['po_type'] == 'Tool':
             product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
             product_name = product['name'] if product else 'Unknown Tool'
@@ -1474,9 +1475,9 @@ def api_quick_receive_po_line(po_id, line_id):
         new_received = already_received + quantity_received
         conn.execute('''
             UPDATE purchase_order_lines 
-            SET received_quantity = ?
+            SET received_quantity = ?, inventory_id = COALESCE(?, inventory_id)
             WHERE id = ?
-        ''', (new_received, line_id))
+        ''', (new_received, new_inventory_id, line_id))
         
         total_ordered = conn.execute('SELECT SUM(quantity) as total FROM purchase_order_lines WHERE po_id = ?', (po_id,)).fetchone()['total'] or 0
         total_received = conn.execute('SELECT SUM(received_quantity) as total FROM purchase_order_lines WHERE po_id = ?', (po_id,)).fetchone()['total'] or 0
