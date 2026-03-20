@@ -43,6 +43,7 @@ Key features include:
 - **Unplanned Receipt Module**: Controlled management of items arriving without documentation.
 - **Inventory Split Function**: Ability to split inventory records for flexible location/condition management.
 - **Enterprise Forensic Intelligence (Traceability Engine)**: Cross-module traceability system to reconstruct complete operational history for any item, including timeline, relationship graph, and cost evolution.
+- **Predictive Inventory Intelligence**: AI-driven inventory management module with quality scoring per item, automated cycle count scheduling (High=weekly, Medium=monthly, Low=quarterly), demand forecasting, what-if scenario simulation, reorder recommendations, and OpenAI-powered executive summaries. Uses two new tables: `inventory_cycle_counts` and `inventory_ai_recommendations`.
 - **Document Template & Form Management Module**: Enterprise-grade document template system with version control, dynamic tokens, and terms library.
 - **Permissions Manager**: Section-based permissions system with section-level visibility toggles and individual page access controls.
 - **ASC-AI (Autonomous System Correction) Engine**: Self-healing production system for anomaly detection, root cause analysis, and auto-correction with quarantine oversight.

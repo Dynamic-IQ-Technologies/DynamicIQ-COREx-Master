@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+{% block title %}Predictive Inventory Intelligence{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ── */
+.intel-page { padding: 1.5rem; }
+.intel-header { margin-bottom: 1.75rem; }
+.intel-header h1 { font-size: 1.6rem; font-weight: 700; color: #f1f5f9; margin: 0; }
+.intel-header p  { color: #94a3b8; font-size: 0.9rem; margin: 0.2rem 0 0; }
+
+/* ── KPI Cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.kpi-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.1rem 1.25rem; }
+.kpi-card .kpi-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 0.4rem; }
+.kpi-card .kpi-value { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.kpi-card .kpi-sub   { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; }
+.kpi-card.danger  { border-color: #ef4444; }
+.kpi-card.warning { border-color: #f59e0b; }
+.kpi-card.good    { border-color: #10b981; }
+.kpi-card.info    { border-color: #6366f1; }
+.kpi-val-danger  { color: #f87171; }
+.kpi-val-warning { color: #fbbf24; }
+.kpi-val-good    { color: #34d399; }
+.kpi-val-info    { color: #818cf8; }
+.kpi-val-neutral { color: #f1f5f9; }
+
+/* ── Tabs ── */
+.intel-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.intel-tab { padding: 0.5rem 1.1rem; border-radius: 8px; border: 1px solid #334155;
+             background: #1e293b; color: #94a3b8; cursor: pointer; font-size: 0.84rem;
+             transition: all .15s; white-space: nowrap; }
+.intel-tab:hover  { border-color: #6366f1; color: #c7d2fe; }
+.intel-tab.active { background: #6366f1; border-color: #6366f1; color: #fff; font-weight: 600; }
+
+.intel-panel { display: none; }
+.intel-panel.active { display: block; }
+
+/* ── Cards / Section ── */
+.intel-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+              padding: 1.25rem; margin-bottom: 1.25rem; }
+.intel-card-title { font-size: 0.95rem; font-weight: 600; color: #e2e8f0; margin-bottom: 1rem;
+                    display: flex; align-items: center; gap: 0.5rem; }
+
+/* ── Risk Badges ── */
+.badge-risk-critical { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3);
+                       padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; }
+.badge-risk-warning  { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3);
+                       padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; }
+.badge-risk-good     { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3);
+                       padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; }
+
+/* ── Priority Badges ── */
+.badge-prio-high   { background: rgba(239,68,68,.12); color: #f87171; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; }
+.badge-prio-medium { background: rgba(245,158,11,.12); color: #fbbf24; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; }
+.badge-prio-low    { background: rgba(100,116,139,.15); color: #94a3b8; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; }
+
+/* ── Tables ── */
+.intel-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.intel-table th { color: #64748b; font-weight: 600; text-transform: uppercase;
+                  font-size: 0.7rem; letter-spacing: .04em;
+                  padding: 0.6rem 0.75rem; border-bottom: 1px solid #334155; text-align: left; }
+.intel-table td { padding: 0.7rem 0.75rem; border-bottom: 1px solid #1e293b;
+                  color: #cbd5e1; vertical-align: middle; }
+.intel-table tr:last-child td { border-bottom: none; }
+.intel-table tbody tr:hover { background: rgba(99,102,241,.04); }
+
+/* ── Quality Bar ── */
+.quality-bar-wrap { display: flex; align-items: center; gap: 0.5rem; min-width: 110px; }
+.quality-bar-bg   { flex: 1; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+.quality-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+
+/* ── Action Buttons ── */
+.btn-intel { padding: 0.3rem 0.8rem; border-radius: 7px; border: none; cursor: pointer;
+             font-size: 0.78rem; font-weight: 600; transition: opacity .15s; }
+.btn-intel:hover { opacity: 0.85; }
+.btn-intel-primary  { background: #6366f1; color: #fff; }
+.btn-intel-danger   { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+.btn-intel-warning  { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+.btn-intel-green    { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+.btn-intel-ghost    { background: transparent; color: #94a3b8; border: 1px solid #334155; }
+
+/* ── AI Narrative box ── */
+.ai-narrative { background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(16,185,129,.05));
+                border: 1px solid rgba(99,102,241,.25); border-radius: 10px;
+                padding: 1.1rem 1.25rem; color: #c7d2fe; font-size: 0.88rem;
+                line-height: 1.65; white-space: pre-wrap; }
+
+/* ── What-If form ── */
+.whatif-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+.whatif-field label { font-size: 0.78rem; color: #64748b; display: block; margin-bottom: 0.3rem; }
+.whatif-field input[type=range] { width: 160px; accent-color: #6366f1; }
+.whatif-val { font-size: 0.85rem; color: #f1f5f9; font-weight: 600; min-width: 40px; }
+
+/* ── Cycle count status ── */
+.cc-scheduled  { color: #818cf8; }
+.cc-completed  { color: #34d399; }
+.cc-overdue    { color: #f87171; }
+
+/* ── Modal ── */
+.intel-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7);
+                       z-index: 9000; display: none; align-items: center; justify-content: center; }
+.intel-modal-overlay.open { display: flex; }
+.intel-modal { background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+               padding: 1.5rem; width: 420px; max-width: 95vw; }
+.intel-modal h5 { color: #f1f5f9; font-weight: 700; margin-bottom: 1rem; font-size: 1rem; }
+.intel-modal label { font-size: 0.8rem; color: #64748b; display: block; margin-bottom: 0.3rem; }
+.intel-modal input, .intel-modal textarea {
+    width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 7px;
+    padding: 0.55rem 0.75rem; color: #f1f5f9; font-size: 0.85rem; margin-bottom: 1rem; box-sizing: border-box; }
+.intel-modal textarea { height: 70px; resize: vertical; }
+.intel-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+/* ── Loading spinner ── */
+.intel-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #334155;
+                 border-top-color: #6366f1; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Charts ── */
+.chart-wrap { position: relative; height: 260px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="intel-page">
+
+  <!-- Header -->
+  <div class="intel-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+      <h1><i class="bi bi-cpu me-2" style="color:#6366f1"></i>Predictive Inventory Intelligence</h1>
+      <p>AI-driven quality assessment, cycle count automation, and demand forecasting</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn-intel btn-intel-ghost" onclick="refreshData()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+      </button>
+      <button class="btn-intel btn-intel-warning" onclick="generateForecast()">
+        <i class="bi bi-lightning-charge-fill me-1"></i>Generate Forecast
+      </button>
+      <button class="btn-intel btn-intel-primary" onclick="loadAISummary()">
+        <i class="bi bi-stars me-1"></i>AI Analysis
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card"><div class="kpi-label">Total Items</div><div class="kpi-value kpi-val-neutral" id="kpiTotal">—</div><div class="kpi-sub">Unique inventory records</div></div>
+    <div class="kpi-card danger"><div class="kpi-label">Critical Items</div><div class="kpi-value kpi-val-danger" id="kpiCritical">—</div><div class="kpi-sub">Immediate attention needed</div></div>
+    <div class="kpi-card warning"><div class="kpi-label">Warning Items</div><div class="kpi-value kpi-val-warning" id="kpiWarning">—</div><div class="kpi-sub">Monitor closely</div></div>
+    <div class="kpi-card good"><div class="kpi-label">Avg Quality Score</div><div class="kpi-value kpi-val-good" id="kpiQuality">—</div><div class="kpi-sub" id="kpiQualitySub">Pass / Fail</div></div>
+    <div class="kpi-card warning"><div class="kpi-label">Need Reorder</div><div class="kpi-value kpi-val-warning" id="kpiReorder">—</div><div class="kpi-sub">Below reorder threshold</div></div>
+    <div class="kpi-card info"><div class="kpi-label">Inventory Value</div><div class="kpi-value kpi-val-info" id="kpiValue" style="font-size:1.3rem">—</div><div class="kpi-sub">Total stock valuation</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="intel-tabs">
+    <button class="intel-tab active" onclick="switchTab('overview')"><i class="bi bi-grid-3x3-gap me-1"></i>Overview</button>
+    <button class="intel-tab" onclick="switchTab('quality')"><i class="bi bi-shield-check me-1"></i>Quality Assessment</button>
+    <button class="intel-tab" onclick="switchTab('forecast')"><i class="bi bi-graph-up-arrow me-1"></i>Demand Forecast</button>
+    <button class="intel-tab" onclick="switchTab('cycle')"><i class="bi bi-arrow-repeat me-1"></i>Cycle Counts</button>
+    <button class="intel-tab" onclick="switchTab('whatif')"><i class="bi bi-sliders me-1"></i>What-If Simulation</button>
+    <button class="intel-tab" onclick="switchTab('ai')"><i class="bi bi-stars me-1"></i>AI Narrative</button>
+  </div>
+
+  <!-- ── Panel: Overview ── -->
+  <div class="intel-panel active" id="panel-overview">
+    <div class="two-col">
+      <div class="intel-card">
+        <div class="intel-card-title"><i class="bi bi-pie-chart-fill" style="color:#6366f1"></i>Risk Distribution</div>
+        <div class="chart-wrap"><canvas id="riskChart"></canvas></div>
+      </div>
+      <div class="intel-card">
+        <div class="intel-card-title"><i class="bi bi-bar-chart-fill" style="color:#10b981"></i>Inventory Value by Part Class</div>
+        <div class="chart-wrap"><canvas id="valueChart"></canvas></div>
+      </div>
+    </div>
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-table" style="color:#f59e0b"></i>Inventory by Part Class</div>
+      <div style="overflow-x:auto">
+        <table class="intel-table">
+          <thead>
+            <tr>
+              <th>Part Class</th><th>Items</th><th>Total Value</th>
+              <th>Avg Quality</th><th>Critical</th><th>Warning</th><th>Good</th><th>Need Reorder</th>
+            </tr>
+          </thead>
+          <tbody id="partClassTable"><tr><td colspan="8" style="text-align:center;color:#475569">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-list-ul" style="color:#94a3b8"></i>All Inventory Items</div>
+      <div style="overflow-x:auto">
+        <table class="intel-table">
+          <thead>
+            <tr>
+              <th>Part</th><th>Class</th><th>Qty</th><th>Value</th>
+              <th>Quality</th><th>Risk</th><th>Priority</th><th>Reorder?</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="allItemsTable"><tr><td colspan="9" style="text-align:center;color:#475569">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Quality ── -->
+  <div class="intel-panel" id="panel-quality">
+    <div class="two-col">
+      <div class="intel-card">
+        <div class="intel-card-title"><i class="bi bi-patch-check-fill" style="color:#10b981"></i>Quality Score Breakdown</div>
+        <div class="chart-wrap"><canvas id="qualityChart"></canvas></div>
+      </div>
+      <div class="intel-card">
+        <div class="intel-card-title"><i class="bi bi-calendar-x" style="color:#f87171"></i>Inspection Status</div>
+        <div class="chart-wrap"><canvas id="inspectionChart"></canvas></div>
+      </div>
+    </div>
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-clipboard2-pulse" style="color:#fbbf24"></i>Quality Assessment Per Item</div>
+      <div style="overflow-x:auto">
+        <table class="intel-table">
+          <thead>
+            <tr>
+              <th>Part</th><th>Condition</th><th>Quality Score</th>
+              <th>Last Inspection</th><th>Stock Age</th><th>Risk</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="qualityTable"><tr><td colspan="7" style="text-align:center;color:#475569">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Demand Forecast ── -->
+  <div class="intel-panel" id="panel-forecast">
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-graph-up-arrow" style="color:#6366f1"></i>Forecast vs Current Stock</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="forecastChart"></canvas></div>
+    </div>
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-table" style="color:#10b981"></i>Reorder Recommendations</div>
+      <div style="overflow-x:auto">
+        <table class="intel-table">
+          <thead>
+            <tr>
+              <th>Part</th><th>Current Qty</th><th>Daily Demand</th>
+              <th>Days to Stockout</th><th>Lead Time</th><th>Rec. Reorder Qty</th>
+              <th>Reorder Date</th><th>Confidence</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="forecastTable"><tr><td colspan="9" style="text-align:center;color:#475569">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Cycle Counts ── -->
+  <div class="intel-panel" id="panel-cycle">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div style="color:#94a3b8;font-size:.85rem">Cycle counts are auto-scheduled based on inventory value priority. High = weekly, Medium = monthly, Low = quarterly.</div>
+      <button class="btn-intel btn-intel-primary" onclick="generateForecast()"><i class="bi bi-calendar-plus me-1"></i>Re-schedule All</button>
+    </div>
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-calendar-check" style="color:#818cf8"></i>Scheduled Cycle Counts</div>
+      <div style="overflow-x:auto">
+        <table class="intel-table">
+          <thead>
+            <tr>
+              <th>Part</th><th>Priority</th><th>Scheduled Date</th>
+              <th>Expected Qty</th><th>Status</th><th>Completed Date</th><th>Variance</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="cycleTable"><tr><td colspan="8" style="text-align:center;color:#475569">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: What-If ── -->
+  <div class="intel-panel" id="panel-whatif">
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-sliders" style="color:#f59e0b"></i>Scenario Simulation</div>
+      <div class="whatif-row">
+        <div class="whatif-field">
+          <label>Demand Spike Multiplier: <span class="whatif-val" id="demandVal">1.0x</span></label>
+          <input type="range" id="demandMult" min="0.5" max="3.0" step="0.1" value="1.0"
+                 oninput="document.getElementById('demandVal').textContent=parseFloat(this.value).toFixed(1)+'x'">
+        </div>
+        <div class="whatif-field">
+          <label>Supply Delay (days): <span class="whatif-val" id="delayVal">0</span></label>
+          <input type="range" id="supplyDelay" min="0" max="60" step="5" value="0"
+                 oninput="document.getElementById('delayVal').textContent=this.value">
+        </div>
+        <div class="whatif-field" style="margin-top:1.25rem">
+          <button class="btn-intel btn-intel-primary" onclick="runWhatIf()"><i class="bi bi-play-fill me-1"></i>Run Simulation</button>
+        </div>
+      </div>
+      <div id="whatifResults" style="display:none">
+        <div class="intel-card-title mt-2" style="font-size:.85rem;color:#94a3b8" id="whatifParamLabel"></div>
+        <div style="overflow-x:auto">
+          <table class="intel-table" id="whatifTable">
+            <thead>
+              <tr>
+                <th>Part</th><th>Current Qty</th><th>Risk</th>
+                <th>Adj. Daily Demand</th><th>Effective Lead (days)</th>
+                <th>Rec. Qty (Scenario)</th><th>Days to Stockout</th>
+              </tr>
+            </thead>
+            <tbody id="whatifBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: AI Narrative ── -->
+  <div class="intel-panel" id="panel-ai">
+    <div class="intel-card">
+      <div class="intel-card-title"><i class="bi bi-stars" style="color:#818cf8"></i>AI Executive Summary
+        <button class="btn-intel btn-intel-primary ms-auto" onclick="loadAISummary()"><i class="bi bi-arrow-clockwise me-1"></i>Regenerate</button>
+      </div>
+      <div id="aiNarrativeBox" style="color:#64748b;font-size:.88rem">Click "AI Analysis" to generate an executive summary powered by AI.</div>
+    </div>
+  </div>
+
+</div><!-- /intel-page -->
+
+<!-- ── Complete Count Modal ── -->
+<div class="intel-modal-overlay" id="completeCountModal">
+  <div class="intel-modal">
+    <h5><i class="bi bi-clipboard2-check me-2" style="color:#34d399"></i>Complete Cycle Count</h5>
+    <input type="hidden" id="countId">
+    <label>Counted Quantity</label>
+    <input type="number" id="countedQty" placeholder="Enter actual count" step="0.01" min="0">
+    <label>Notes (optional)</label>
+    <textarea id="countNotes" placeholder="Any discrepancies or observations…"></textarea>
+    <div class="intel-modal-actions">
+      <button class="btn-intel btn-intel-ghost" onclick="closeModal('completeCountModal')">Cancel</button>
+      <button class="btn-intel btn-intel-green" onclick="submitCount()"><i class="bi bi-check-lg me-1"></i>Submit</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let intelligenceData = null;
+let charts = {};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => refreshData());
+
+async function refreshData() {
+    try {
+        setLoadingState(true);
+        const res = await fetch('/inventory/intelligence/api/data');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Unknown error');
+        intelligenceData = data;
+        renderAll(data);
+    } catch (e) {
+        console.error('Intelligence load error:', e);
+        showToast('Failed to load intelligence data: ' + e.message, 'danger');
+    } finally {
+        setLoadingState(false);
+    }
+}
+
+function setLoadingState(loading) {
+    if (loading) {
+        ['kpiTotal','kpiCritical','kpiWarning','kpiQuality','kpiReorder','kpiValue'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<span class="intel-spinner"></span>';
+        });
+    }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+    document.querySelectorAll('.intel-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// ── Render All ────────────────────────────────────────────────────────────────
+function renderAll(data) {
+    renderKPIs(data.kpis);
+    renderPartClassTable(data.part_classes);
+    renderAllItemsTable(data.items);
+    renderQualityTable(data.items);
+    renderForecastTable(data.items);
+    renderCycleTable(data.cycle_counts);
+    renderRiskChart(data.kpis);
+    renderValueChart(data.part_classes);
+    renderQualityChart(data.items);
+    renderInspectionChart(data.items);
+    renderForecastChart(data.items);
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderKPIs(kpis) {
+    setText('kpiTotal', kpis.total_items);
+    setText('kpiCritical', kpis.critical_items);
+    setText('kpiWarning', kpis.warning_items);
+    setText('kpiQuality', kpis.avg_quality_score);
+    setText('kpiQualitySub', `${kpis.quality_pass} pass / ${kpis.quality_fail} fail`);
+    setText('kpiReorder', kpis.needs_reorder);
+    setText('kpiValue', '$' + Number(kpis.total_inventory_value).toLocaleString('en-US', {maximumFractionDigits:0}));
+}
+
+// ── Part Class Table ──────────────────────────────────────────────────────────
+function renderPartClassTable(classes) {
+    const tbody = document.getElementById('partClassTable');
+    if (!classes.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#475569">No data</td></tr>'; return; }
+    tbody.innerHTML = classes.map(pc => `
+        <tr>
+            <td style="font-weight:600;color:#e2e8f0">${esc(pc.name)}</td>
+            <td>${pc.count}</td>
+            <td>$${Number(pc.total_value).toLocaleString('en-US',{maximumFractionDigits:0})}</td>
+            <td>${qualityBar(pc.avg_quality)}</td>
+            <td>${pc.critical > 0 ? `<span class="badge-risk-critical">${pc.critical}</span>` : '<span style="color:#475569">0</span>'}</td>
+            <td>${pc.warning > 0 ? `<span class="badge-risk-warning">${pc.warning}</span>` : '<span style="color:#475569">0</span>'}</td>
+            <td>${pc.good > 0 ? `<span class="badge-risk-good">${pc.good}</span>` : '<span style="color:#475569">0</span>'}</td>
+            <td>${pc.needs_reorder > 0 ? `<span class="badge-risk-warning">${pc.needs_reorder}</span>` : '<span style="color:#475569">0</span>'}</td>
+        </tr>`).join('');
+}
+
+// ── All Items Table ───────────────────────────────────────────────────────────
+function renderAllItemsTable(items) {
+    const tbody = document.getElementById('allItemsTable');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#475569">No inventory items</td></tr>'; return; }
+    tbody.innerHTML = items.map(item => `
+        <tr>
+            <td><a href="/inventory/${item.id}/view" style="color:#818cf8;text-decoration:none">${esc(item.part_code)}</a><br><span style="color:#64748b;font-size:.75rem">${esc(item.part_name)}</span></td>
+            <td>${esc(item.part_class)}</td>
+            <td>${item.quantity} ${esc(item.unit_of_measure)}</td>
+            <td>$${Number(item.inventory_value).toLocaleString('en-US',{maximumFractionDigits:0})}</td>
+            <td>${qualityBar(item.quality_score)}</td>
+            <td>${riskBadge(item.risk_level)}</td>
+            <td>${prioBadge(item.priority)}</td>
+            <td>${item.needs_reorder ? '<span class="badge-risk-warning">Yes</span>' : '<span style="color:#475569">No</span>'}</td>
+            <td><a href="/inventory/${item.id}/view" class="btn-intel btn-intel-ghost" style="font-size:.72rem">View</a></td>
+        </tr>`).join('');
+}
+
+// ── Quality Table ─────────────────────────────────────────────────────────────
+function renderQualityTable(items) {
+    const tbody = document.getElementById('qualityTable');
+    tbody.innerHTML = items.map(item => {
+        const age = item.stock_age_days != null ? item.stock_age_days + ' days' : 'N/A';
+        const insp = item.last_inspection_date || 'Never';
+        const condColor = item.condition === 'New' ? '#34d399' : item.condition === 'Serviceable' ? '#94a3b8' : '#fbbf24';
+        return `<tr>
+            <td><span style="font-weight:600;color:#e2e8f0">${esc(item.part_code)}</span><br><span style="color:#64748b;font-size:.73rem">${esc(item.part_name)}</span></td>
+            <td><span style="color:${condColor}">${esc(item.condition)}</span></td>
+            <td>${qualityBar(item.quality_score)}</td>
+            <td style="color:${item.last_inspection_date ? '#94a3b8' : '#f87171'}">${esc(insp)}</td>
+            <td>${age}</td>
+            <td>${riskBadge(item.risk_level)}</td>
+            <td><a href="/inventory/${item.id}/edit" class="btn-intel btn-intel-warning" style="font-size:.72rem"><i class="bi bi-pencil me-1"></i>Inspect</a></td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Forecast Table ────────────────────────────────────────────────────────────
+function renderForecastTable(items) {
+    const tbody = document.getElementById('forecastTable');
+    tbody.innerHTML = items.map(item => {
+        const f = item.forecast;
+        const confColor = f.confidence >= 75 ? '#34d399' : f.confidence >= 50 ? '#fbbf24' : '#f87171';
+        const stockoutColor = (f.days_until_stockout != null && f.days_until_stockout < 30) ? '#f87171' : '#94a3b8';
+        return `<tr>
+            <td><span style="font-weight:600;color:#e2e8f0">${esc(item.part_code)}</span><br><span style="color:#64748b;font-size:.73rem">${esc(item.part_name)}</span></td>
+            <td>${item.quantity} ${esc(item.unit_of_measure)}</td>
+            <td>${f.daily_demand > 0 ? f.daily_demand.toFixed(4) : '<span style="color:#475569">No history</span>'}</td>
+            <td style="color:${stockoutColor}">${f.days_until_stockout != null ? f.days_until_stockout + ' days' : 'N/A'}</td>
+            <td>${f.lead_time_days} days</td>
+            <td style="color:#818cf8;font-weight:600">${f.recommended_qty > 0 ? f.recommended_qty : '—'}</td>
+            <td style="color:${item.needs_reorder ? '#f87171' : '#94a3b8'}">${f.reorder_date || 'Not needed'}</td>
+            <td><span style="color:${confColor}">${f.confidence}%</span></td>
+            <td>${item.needs_reorder
+                ? `<a href="/purchaseorders/create?product_id=${item.product_id}&qty=${f.recommended_qty}" class="btn-intel btn-intel-primary" style="font-size:.72rem"><i class="bi bi-cart-plus me-1"></i>Reorder</a>`
+                : '<span style="color:#475569;font-size:.75rem">OK</span>'}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Cycle Count Table ─────────────────────────────────────────────────────────
+function renderCycleTable(counts) {
+    const tbody = document.getElementById('cycleTable');
+    if (!counts.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#475569">No cycle counts scheduled. Click "Generate Forecast" to auto-schedule.</td></tr>';
+        return;
+    }
+    const today = new Date().toISOString().slice(0,10);
+    tbody.innerHTML = counts.map(cc => {
+        const overdue = cc.status === 'Scheduled' && cc.scheduled_date < today;
+        let statusBadge;
+        if (cc.status === 'Completed') statusBadge = '<span class="badge-risk-good">Completed</span>';
+        else if (overdue) statusBadge = '<span class="badge-risk-critical">Overdue</span>';
+        else statusBadge = '<span class="cc-scheduled">Scheduled</span>';
+        const variance = cc.variance != null ? (cc.variance >= 0 ? `+${cc.variance}` : cc.variance) : '—';
+        const varColor = cc.variance == null ? '#475569' : cc.variance == 0 ? '#34d399' : '#f87171';
+        const action = cc.status !== 'Completed'
+            ? `<button class="btn-intel btn-intel-green" style="font-size:.72rem" onclick="openCompleteModal(${cc.id}, ${cc.expected_qty})"><i class="bi bi-check-circle me-1"></i>Complete</button>`
+            : '<span style="color:#475569;font-size:.75rem">Done</span>';
+        return `<tr>
+            <td><span style="font-weight:600;color:#e2e8f0">${esc(cc.part_code || '')}</span><br><span style="color:#64748b;font-size:.73rem">${esc(cc.part_name || '')}</span></td>
+            <td>${prioBadge(cc.priority)}</td>
+            <td>${cc.scheduled_date || '—'}</td>
+            <td>${cc.expected_qty != null ? cc.expected_qty : '—'}</td>
+            <td>${statusBadge}</td>
+            <td>${cc.completed_date || '—'}</td>
+            <td style="color:${varColor}">${variance}</td>
+            <td>${action}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+function renderRiskChart(kpis) {
+    destroyChart('riskChart');
+    charts['riskChart'] = new Chart(document.getElementById('riskChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Critical', 'Warning', 'Good'],
+            datasets: [{
+                data: [kpis.critical_items, kpis.warning_items, kpis.good_items],
+                backgroundColor: ['rgba(239,68,68,.8)', 'rgba(245,158,11,.8)', 'rgba(16,185,129,.8)'],
+                borderColor: ['#ef4444','#f59e0b','#10b981'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+                legend: { labels: { color: '#94a3b8', font: { size: 12 } } }
+            }
+        }
+    });
+}
+
+function renderValueChart(classes) {
+    destroyChart('valueChart');
+    charts['valueChart'] = new Chart(document.getElementById('valueChart'), {
+        type: 'bar',
+        data: {
+            labels: classes.map(c => c.name),
+            datasets: [{
+                label: 'Inventory Value ($)',
+                data: classes.map(c => c.total_value),
+                backgroundColor: 'rgba(99,102,241,.7)',
+                borderColor: '#6366f1', borderWidth: 1, borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(71,85,105,.3)' } },
+                y: { ticks: { color: '#94a3b8', callback: v => '$' + Number(v).toLocaleString() }, grid: { color: 'rgba(71,85,105,.3)' } }
+            }
+        }
+    });
+}
+
+function renderQualityChart(items) {
+    destroyChart('qualityChart');
+    const buckets = { '90-100': 0, '70-89': 0, '50-69': 0, 'Below 50': 0 };
+    items.forEach(i => {
+        if (i.quality_score >= 90) buckets['90-100']++;
+        else if (i.quality_score >= 70) buckets['70-89']++;
+        else if (i.quality_score >= 50) buckets['50-69']++;
+        else buckets['Below 50']++;
+    });
+    charts['qualityChart'] = new Chart(document.getElementById('qualityChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(buckets),
+            datasets: [{
+                label: 'Items',
+                data: Object.values(buckets),
+                backgroundColor: ['rgba(16,185,129,.7)','rgba(99,102,241,.7)','rgba(245,158,11,.7)','rgba(239,68,68,.7)'],
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(71,85,105,.3)' } },
+                y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(71,85,105,.3)' } }
+            }
+        }
+    });
+}
+
+function renderInspectionChart(items) {
+    destroyChart('inspectionChart');
+    const inspected = items.filter(i => i.last_inspection_date).length;
+    const never = items.length - inspected;
+    charts['inspectionChart'] = new Chart(document.getElementById('inspectionChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Inspected', 'Never Inspected'],
+            datasets: [{
+                data: [inspected, never],
+                backgroundColor: ['rgba(16,185,129,.8)', 'rgba(239,68,68,.7)'],
+                borderColor: ['#10b981','#ef4444'], borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '60%',
+            plugins: { legend: { labels: { color: '#94a3b8' } } }
+        }
+    });
+}
+
+function renderForecastChart(items) {
+    destroyChart('forecastChart');
+    const labels = items.map(i => i.part_code);
+    const currentQty = items.map(i => i.quantity);
+    const reorderPt  = items.map(i => i.reorder_point);
+    const safetyStk  = items.map(i => i.safety_stock);
+    charts['forecastChart'] = new Chart(document.getElementById('forecastChart'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Current Qty', data: currentQty, backgroundColor: 'rgba(99,102,241,.7)', borderRadius: 4, borderSkipped: false },
+                { label: 'Reorder Point', data: reorderPt, type: 'line', borderColor: '#f87171', backgroundColor: 'transparent', pointRadius: 5, borderDash: [4,3], tension: 0 },
+                { label: 'Safety Stock', data: safetyStk, type: 'line', borderColor: '#fbbf24', backgroundColor: 'transparent', pointRadius: 4, borderDash: [2,4], tension: 0 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(71,85,105,.3)' } },
+                y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(71,85,105,.3)' } }
+            }
+        }
+    });
+}
+
+function destroyChart(id) {
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+// ── Generate Forecast ─────────────────────────────────────────────────────────
+async function generateForecast() {
+    try {
+        showToast('Generating forecast and scheduling cycle counts…', 'info');
+        const res = await fetch('/inventory/intelligence/api/generate-forecast', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        showToast(`Forecast generated. ${data.scheduled} cycle counts scheduled.`, 'success');
+        await refreshData();
+    } catch (e) {
+        showToast('Forecast failed: ' + e.message, 'danger');
+    }
+}
+
+// ── AI Summary ────────────────────────────────────────────────────────────────
+async function loadAISummary() {
+    const box = document.getElementById('aiNarrativeBox');
+    box.innerHTML = '<span class="intel-spinner"></span> Analyzing inventory with AI…';
+    switchTabByName('ai');
+    try {
+        const res = await fetch('/inventory/intelligence/api/ai-summary', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        box.innerHTML = `<div class="ai-narrative">${esc(data.narrative)}</div>`;
+    } catch (e) {
+        box.innerHTML = `<div style="color:#f87171">AI analysis failed: ${esc(e.message)}</div>`;
+    }
+}
+
+function switchTabByName(name) {
+    document.querySelectorAll('.intel-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    document.querySelectorAll('.intel-tab').forEach(t => {
+        if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'" + name + "'")) t.classList.add('active');
+    });
+}
+
+// ── What-If ───────────────────────────────────────────────────────────────────
+async function runWhatIf() {
+    const dm = parseFloat(document.getElementById('demandMult').value);
+    const sd = parseInt(document.getElementById('supplyDelay').value);
+    try {
+        const res = await fetch('/inventory/intelligence/api/what-if', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demand_multiplier: dm, supply_delay_days: sd })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        document.getElementById('whatifParamLabel').textContent =
+            `Scenario: ${dm}x demand, ${sd} day supply delay`;
+        const tbody = document.getElementById('whatifBody');
+        tbody.innerHTML = data.results.map(r => {
+            const s = r.simulation;
+            const stockoutColor = (s.days_until_stockout != null && s.days_until_stockout < 30) ? '#f87171' : '#94a3b8';
+            return `<tr>
+                <td><span style="font-weight:600;color:#e2e8f0">${esc(r.part_code)}</span></td>
+                <td>${r.current_qty}</td>
+                <td>${riskBadge(r.risk_level)}</td>
+                <td>${s.adjusted_daily_demand.toFixed(4)}</td>
+                <td>${s.effective_lead_time}</td>
+                <td style="color:#818cf8;font-weight:600">${s.recommended_qty}</td>
+                <td style="color:${stockoutColor}">${s.days_until_stockout != null ? s.days_until_stockout + ' days' : 'N/A'}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById('whatifResults').style.display = '';
+    } catch (e) {
+        showToast('Simulation failed: ' + e.message, 'danger');
+    }
+}
+
+// ── Cycle Count Modal ─────────────────────────────────────────────────────────
+function openCompleteModal(countId, expectedQty) {
+    document.getElementById('countId').value = countId;
+    document.getElementById('countedQty').value = expectedQty || '';
+    document.getElementById('countNotes').value = '';
+    document.getElementById('completeCountModal').classList.add('open');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+
+async function submitCount() {
+    const id = document.getElementById('countId').value;
+    const qty = parseFloat(document.getElementById('countedQty').value);
+    const notes = document.getElementById('countNotes').value;
+    if (isNaN(qty)) { showToast('Please enter a valid quantity', 'warning'); return; }
+    try {
+        const res = await fetch(`/inventory/intelligence/api/complete-count/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ counted_qty: qty, notes })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        closeModal('completeCountModal');
+        showToast('Cycle count completed successfully', 'success');
+        await refreshData();
+    } catch (e) {
+        showToast('Failed: ' + e.message, 'danger');
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function riskBadge(level) {
+    if (level === 'Critical') return `<span class="badge-risk-critical">Critical</span>`;
+    if (level === 'Warning')  return `<span class="badge-risk-warning">Warning</span>`;
+    return `<span class="badge-risk-good">Good</span>`;
+}
+
+function prioBadge(p) {
+    if (p === 'High')   return `<span class="badge-prio-high">High</span>`;
+    if (p === 'Medium') return `<span class="badge-prio-medium">Medium</span>`;
+    return `<span class="badge-prio-low">Low</span>`;
+}
+
+function qualityBar(score) {
+    const color = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+    return `<div class="quality-bar-wrap">
+        <div class="quality-bar-bg"><div class="quality-bar-fill" style="width:${score}%;background:${color}"></div></div>
+        <span style="font-size:.78rem;color:${color};min-width:30px">${score}</span>
+    </div>`;
+}
+
+function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type='info') {
+    const colors = { success:'#10b981', danger:'#ef4444', warning:'#f59e0b', info:'#6366f1' };
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:99999;
+        background:#1e293b;border:1px solid ${colors[type]};color:#f1f5f9;
+        padding:.75rem 1.25rem;border-radius:10px;font-size:.85rem;
+        box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:360px;`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4500);
+}
+
+document.getElementById('completeCountModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal('completeCountModal');
+});
+</script>
+{% endblock %}

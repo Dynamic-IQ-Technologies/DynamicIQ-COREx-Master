@@ -774,6 +774,12 @@
                     <span>Inventory</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('inv_intel.dashboard') }}">
+                    <i class="bi bi-cpu"></i>
+                    <span>Inventory Intelligence</span>
+                </a>
+            </li>
             {% endif %}
             {% if user_permissions.get('menu_supplier_discovery', 1) == 1 %}
             <li class="sidebar-nav-item">

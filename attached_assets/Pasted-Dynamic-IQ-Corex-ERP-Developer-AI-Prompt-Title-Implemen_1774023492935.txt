@@ -1,0 +1,116 @@
+Dynamic.IQ Corex ERP — Developer AI Prompt
+
+Title: Implement Predictive Inventory Intelligence Page with Automated Quality & Cycle Count
+
+Prompt:
+
+Context:
+You are developing a next-generation inventory management module for Dynamic.IQ Corex ERP. The system must monitor inventory by part class, evaluate quality, auto-schedule cycle counts, and provide predictive inventory supply recommendations using AI/ML.
+
+Requirements:
+
+1. Database & Data Integration
+
+Create or use tables for:
+
+Inventory Items (Item ID, Part Class, Current Stock, Min/Max Levels, Last Inspection Date, Supplier ID)
+
+Part Classes (Name, Priority, Risk Score)
+
+Suppliers (Lead Time, Reliability Score, Quality History)
+
+Inventory Transactions (Usage, Replenishment, Adjustments)
+
+Ensure real-time synchronization with ERP modules: Purchasing, Production, Finance, Supplier Management.
+
+2. Inventory Monitoring & KPI Dashboard
+
+Display inventory by Part Class with key metrics:
+
+Stock on hand vs minimum required
+
+Turnover rate
+
+Average stock age
+
+Quality pass/fail rate
+
+Color-coded risk alerts (green/yellow/red) based on thresholds.
+
+3. Automated Quality Assessment Module
+
+Compute quality score for each inventory item using:
+
+Last inspection date
+
+Supplier reliability
+
+Usage criticality
+
+Flag low-quality items for inspection or replacement automatically.
+
+4. Cycle Count Automation Engine
+
+Auto-schedule cycle counts by priority:
+
+High-priority: weekly
+
+Medium: monthly
+
+Low: quarterly
+
+Integrate with employee calendars and ERP workflows.
+
+Track completion status and generate alerts for overdue counts.
+
+5. AI-Driven Predictive Modeling
+
+Implement ML model to forecast inventory needs using:
+
+Historical consumption
+
+Lead times & supplier reliability
+
+Seasonal demand & market trends
+
+Suggest optimal reorder quantities per part class.
+
+Adjust safety stock dynamically based on demand volatility and risk scoring.
+
+Include simulation for “what-if” scenarios (demand spikes, supply delays).
+
+6. UI & Visualization
+
+Real-time, interactive dashboard showing:
+
+Stock vs predicted demand
+
+Slow-moving vs fast-moving items
+
+Quality trends & risk scoring
+
+One-click actions: approve reorders, initiate cycle counts, trigger inspections, generate reports.
+
+7. Automation & Integration
+
+Trigger automatic purchase orders based on predictive recommendations.
+
+Update AI forecasts in real-time as transactions occur.
+
+Integrate seamlessly with other Dynamic.IQ Corex ERP modules.
+
+Deliverables:
+
+Fully functional Inventory Intelligence Page with predictive supply, auto quality checks, and cycle count scheduling.
+
+Scalable, modular architecture using microservices.
+
+AI models trained on historical ERP data for accuracy and continuous learning.
+
+Optional Enhancements:
+
+Digital twin simulation for inventory planning.
+
+Role-based dashboards for managers, warehouse staff, and procurement.
+
+Mobile notifications for quality alerts and cycle count reminders.
