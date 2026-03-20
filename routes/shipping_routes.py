@@ -539,6 +539,13 @@ def ship_shipment(id):
                 SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END
                 WHERE product_id = ?
             ''', (qty, qty, line['product_id']))
+            
+            # Clear Allocated status on inventory lines that are now at 0
+            conn.execute('''
+                UPDATE inventory
+                SET status = 'Depleted', reserved_quantity = 0, last_updated = CURRENT_TIMESTAMP
+                WHERE product_id = ? AND quantity = 0 AND status = 'Allocated'
+            ''', (line['product_id'],))
         
         # Create GL Journal Entry for COGS recognition (with idempotency check)
         if total_cogs > 0:
@@ -600,6 +607,12 @@ def ship_shipment(id):
             ''', (datetime.now().strftime('%Y-%m-%d'), 
                   shipment['tracking_number'], 
                   shipment['reference_id']))
+            # Mark allocated SO lines as Shipped
+            conn.execute('''
+                UPDATE sales_order_lines
+                SET allocation_status = 'Shipped', line_status = 'Shipped'
+                WHERE so_id = ? AND allocation_status IN ('Allocated', 'Partially Allocated')
+            ''', (shipment['reference_id'],))
 
             if so:
                 inv_id, inv_num = auto_generate_invoice(conn, so, shipment, session.get('user_id'))
@@ -1123,13 +1136,15 @@ def confirm_shipment(id):
                                 WHERE id = ?
                             ''', (inventory_id,))
                         else:
-                            # For non-serialized, deduct quantity
+                            # For non-serialized, deduct quantity and clear Allocated status if depleted
                             conn.execute('''
                                 UPDATE inventory 
                                 SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END,
+                                    status = CASE WHEN (CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END) = 0 AND status = 'Allocated' THEN 'Depleted' ELSE status END,
+                                    reserved_quantity = CASE WHEN (CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END) = 0 THEN 0 ELSE reserved_quantity END,
                                     last_updated = CURRENT_TIMESTAMP
                                 WHERE id = ?
-                            ''', (qty, qty, inventory_id))
+                            ''', (qty, qty, qty, qty, qty, qty, inventory_id))
                     else:
                         # Fallback: use product_id lookup (legacy behavior)
                         inv_data = conn.execute('''
