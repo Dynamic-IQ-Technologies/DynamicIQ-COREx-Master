@@ -95,13 +95,13 @@ class TraceabilityEngine:
         events = []
         try:
             rows = db.execute_query("""
-                SELECT i.id, i.product_id, i.serial_number, p.code, p.name, i.created_at
+                SELECT i.id, i.product_id, i.serial_number, p.code, p.name, i.last_updated
                 FROM inventory i JOIN products p ON i.product_id = p.id
                 WHERE UPPER(i.serial_number) = UPPER(%s)
             """, (serial_number,))
             if not rows:
                 rows = db.execute_query("""
-                    SELECT i.id, i.product_id, i.serial_number, p.code, p.name, i.created_at
+                    SELECT i.id, i.product_id, i.serial_number, p.code, p.name, i.last_updated
                     FROM inventory i JOIN products p ON i.product_id = p.id
                     WHERE UPPER(i.serial_number) LIKE UPPER(%s)
                 """, (f'%{serial_number}%',))
@@ -191,7 +191,7 @@ class TraceabilityEngine:
         try:
             inv_rows = db.execute_query("""
                 SELECT i.id, i.product_id, i.lot_number, i.quantity, i.serial_number,
-                       p.code, p.name, i.created_at
+                       p.code, p.name, i.last_updated
                 FROM inventory i JOIN products p ON i.product_id = p.id
                 WHERE UPPER(i.lot_number) = UPPER(%s)
             """, (lot_number,))
@@ -451,7 +451,7 @@ class TraceabilityEngine:
         try:
             rows = db.execute_query("""
                 SELECT i.id, i.quantity, i.condition, i.warehouse_location, i.bin_location,
-                       i.unit_cost, i.serial_number, i.lot_number, i.status, i.created_at,
+                       i.unit_cost, i.serial_number, i.lot_number, i.status, i.last_updated,
                        i.supplier_id, i.po_id, s.name as supplier_name
                 FROM inventory i LEFT JOIN suppliers s ON i.supplier_id = s.id
                 WHERE i.product_id = %s
@@ -762,12 +762,12 @@ class TraceabilityEngine:
         events = []
         try:
             rows = db.execute_query("""
-                SELECT b.id, b.parent_product_id, b.component_product_id, b.quantity,
+                SELECT b.id, b.parent_product_id, b.child_product_id, b.quantity,
                        pp.code as parent_code, cp.code as component_code, cp.name as component_name
                 FROM boms b
                 LEFT JOIN products pp ON b.parent_product_id = pp.id
-                LEFT JOIN products cp ON b.component_product_id = cp.id
-                WHERE b.parent_product_id = %s OR b.component_product_id = %s
+                LEFT JOIN products cp ON b.child_product_id = cp.id
+                WHERE b.parent_product_id = %s OR b.child_product_id = %s
             """, (product_id, product_id))
             for r in rows:
                 if r[1] == product_id:

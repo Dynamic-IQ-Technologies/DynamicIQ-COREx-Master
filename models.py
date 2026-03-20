@@ -494,6 +494,29 @@ class Database:
             conn.row_factory = sqlite3.Row
             conn.execute('PRAGMA foreign_keys = ON')
             return conn
+
+    def execute_query(self, query, params=None):
+        """Execute a raw SQL query and return rows as a list of plain tuples.
+        Queries must use %s placeholders (PostgreSQL style).
+        For SQLite, %s is automatically converted to ?.
+        """
+        if self.use_postgres:
+            conn = psycopg2.connect(DATABASE_URL)
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, params or ())
+                return cursor.fetchall()
+            finally:
+                conn.close()
+        else:
+            conn = sqlite3.connect(self.db_name)
+            conn.row_factory = None
+            try:
+                sqlite_query = query.replace('%s', '?')
+                cursor = conn.execute(sqlite_query, params or ())
+                return cursor.fetchall()
+            finally:
+                conn.close()
     
     def init_db(self):
         if self.use_postgres:
