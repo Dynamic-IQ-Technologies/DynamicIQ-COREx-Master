@@ -441,7 +441,7 @@ def view_purchaseorder(id):
     # Get line items with product, UOM, and base UOM info
     # Use subquery for inventory to avoid duplicate rows when multiple inventory records exist
     lines = conn.execute('''
-        SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure,
+        SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure, p.product_type,
                uom.uom_code, uom.uom_name,
                base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name,
                (SELECT COALESCE(SUM(i.quantity), 0) FROM inventory i WHERE i.product_id = p.id) as inventory_quantity

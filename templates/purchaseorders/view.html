@@ -519,7 +519,8 @@
                                         baseUom: '{{ line.base_uom_code or line.unit_of_measure }}',
                                         conversionFactor: {{ line.conversion_factor_used or 1 }},
                                         hasConversion: {{ 'true' if line.base_uom_code and line.base_uom_code != (line.uom_code or line.unit_of_measure) else 'false' }},
-                                        isToolPO: {{ 'true' if po.po_type == 'Tool' else 'false' }}
+                                        isToolPO: {{ 'true' if po.po_type == 'Tool' else 'false' }},
+                                        productType: '{{ line.product_type or '' }}'
                                     })"
                                     title="Quick Receive">
                                 <i class="bi bi-box-arrow-in-down"></i> Receive
@@ -1178,10 +1179,47 @@
                     <label for="qr_remarks" class="form-label">Remarks (Optional)</label>
                     <textarea class="form-control" id="qr_remarks" rows="2" placeholder="Optional notes..."></textarea>
                 </div>
+
+                <!-- Rotable Verification Section -->
+                <div id="qr_rotable_section" style="display:none;">
+                    <hr>
+                    <div class="alert alert-warning border border-warning mb-2">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-exclamation-diamond-fill fs-5 mt-1 flex-shrink-0"></i>
+                            <div>
+                                <strong>Rotable Part - Verification Required</strong><br>
+                                <span class="small">Confirm all items below have been reviewed before receiving.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <label class="list-group-item d-flex gap-3 py-2" for="qr_ack_images" style="cursor:pointer;">
+                            <input class="form-check-input flex-shrink-0 mt-1 qr-rotable-check" type="checkbox" id="qr_ack_images">
+                            <span>
+                                <strong>Unit Images</strong>
+                                <small class="d-block text-muted">Unit images have been reviewed and are complete.</small>
+                            </span>
+                        </label>
+                        <label class="list-group-item d-flex gap-3 py-2" for="qr_ack_trace" style="cursor:pointer;">
+                            <input class="form-check-input flex-shrink-0 mt-1 qr-rotable-check" type="checkbox" id="qr_ack_trace">
+                            <span>
+                                <strong>Tag &amp; Trace Records</strong>
+                                <small class="d-block text-muted">Tag and trace records have been verified and completed.</small>
+                            </span>
+                        </label>
+                        <label class="list-group-item d-flex gap-3 py-2" for="qr_ack_source" style="cursor:pointer;">
+                            <input class="form-check-input flex-shrink-0 mt-1 qr-rotable-check" type="checkbox" id="qr_ack_source">
+                            <span>
+                                <strong>Source Information</strong>
+                                <small class="d-block text-muted">Source information has been verified and completed.</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="submitQuickReceive()">
+                <button type="button" class="btn btn-success" id="qr_receive_btn" onclick="submitQuickReceive()">
                     <i class="bi bi-check2-circle me-1"></i> Receive
                 </button>
             </div>
@@ -1214,6 +1252,12 @@ window.openQuickReceive = function(data) {
     document.getElementById('qr_expiration_date').value = '';
     document.getElementById('qr_serial_number').value = '';
     document.getElementById('qr_remarks').value = '';
+
+    // Rotable verification: show section and reset checkboxes
+    const isRotable = (data.productType || '') === 'Rotable';
+    document.getElementById('qr_rotable_section').style.display = isRotable ? 'block' : 'none';
+    document.querySelectorAll('.qr-rotable-check').forEach(cb => cb.checked = false);
+    document.getElementById('qr_receive_btn').disabled = isRotable;
     
     const toolFields = document.getElementById('qr_tool_fields');
     if (data.isToolPO) {
@@ -1257,9 +1301,28 @@ document.addEventListener('DOMContentLoaded', function() {
             updateConversionDisplay(parseFloat(this.value) || 0);
         });
     }
+
+    // Enable receive button only when all rotable checkboxes are checked
+    document.querySelectorAll('.qr-rotable-check').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            const all = document.querySelectorAll('.qr-rotable-check');
+            const allChecked = Array.from(all).every(c => c.checked);
+            document.getElementById('qr_receive_btn').disabled = !allChecked;
+        });
+    });
 });
 
 window.submitQuickReceive = async function() {
+    // Rotable safety check: all acknowledgements must be checked
+    const rotableSection = document.getElementById('qr_rotable_section');
+    if (rotableSection.style.display !== 'none') {
+        const allChecked = Array.from(document.querySelectorAll('.qr-rotable-check')).every(c => c.checked);
+        if (!allChecked) {
+            alert('Please acknowledge all rotable verification items before receiving.');
+            return;
+        }
+    }
+
     const poId = document.getElementById('qr_po_id').value;
     const lineId = document.getElementById('qr_line_id').value;
     const quantity = parseFloat(document.getElementById('qr_quantity').value);
