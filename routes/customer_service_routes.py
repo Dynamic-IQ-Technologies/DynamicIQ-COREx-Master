@@ -50,10 +50,10 @@ def _gather_customer_context(conn, customer_id):
         ORDER BY communication_date DESC LIMIT 5
     ''', (customer_id,)).fetchall()
     escalations = conn.execute('''
-        SELECT reason, status, created_at FROM order_escalations
+        SELECT escalation_reason as reason, status, escalated_at as created_at FROM order_escalations
         WHERE sales_order_id IN (SELECT id FROM sales_orders WHERE customer_id = ?)
         AND status != 'Resolved'
-        ORDER BY created_at DESC LIMIT 3
+        ORDER BY escalated_at DESC LIMIT 3
     ''', (customer_id,)).fetchall()
     return {
         'customer': dict(customer),
