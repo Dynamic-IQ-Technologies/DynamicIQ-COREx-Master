@@ -67,9 +67,10 @@ def _generate_ai_communication(context, scenario, custom_note=''):
     try:
         from openai import OpenAI
         api_key = os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY')
+        base_url = os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
         if not api_key:
             return None, 'AI service not configured'
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, base_url=base_url)
 
         cust = context['customer']
         orders = context['orders']
