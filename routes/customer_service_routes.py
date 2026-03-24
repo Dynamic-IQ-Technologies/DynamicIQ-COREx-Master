@@ -3,6 +3,156 @@ from auth import login_required, role_required
 from models import Database, safe_float
 from datetime import datetime, timedelta
 import os
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _send_brevo_email(to_email, to_name, subject, html_body):
+    api_key = os.environ.get('BREVO_API_KEY')
+    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    if not api_key or not from_email:
+        return False, 'Email service not configured (missing BREVO_API_KEY or BREVO_FROM_EMAIL)'
+    try:
+        import sib_api_v3_sdk
+        cfg = sib_api_v3_sdk.Configuration()
+        cfg.api_key['api-key'] = api_key
+        api = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(cfg))
+        msg = sib_api_v3_sdk.SendSmtpEmail(
+            to=[{'email': to_email, 'name': to_name}],
+            sender={'email': from_email, 'name': 'Customer Service'},
+            subject=subject,
+            html_content=html_body
+        )
+        resp = api.send_transac_email(msg)
+        return True, getattr(resp, 'message_id', 'sent')
+    except Exception as e:
+        return False, str(e)
+
+
+def _gather_customer_context(conn, customer_id):
+    customer = conn.execute('SELECT * FROM customers WHERE id = ?', (customer_id,)).fetchone()
+    if not customer:
+        return None
+    orders = conn.execute('''
+        SELECT so.so_number, so.status, so.order_date, so.total_amount,
+               CASE WHEN so.order_date < DATE('now', '-30 days') AND so.status NOT IN ('Shipped','Completed','Cancelled','Closed') 
+                    THEN 1 ELSE 0 END as overdue
+        FROM sales_orders so
+        WHERE so.customer_id = ?
+        ORDER BY so.order_date DESC LIMIT 10
+    ''', (customer_id,)).fetchall()
+    recent_comms = conn.execute('''
+        SELECT communication_type, subject, communication_date, ai_status
+        FROM customer_communications
+        WHERE customer_id = ?
+        ORDER BY communication_date DESC LIMIT 5
+    ''', (customer_id,)).fetchall()
+    escalations = conn.execute('''
+        SELECT reason, status, created_at FROM order_escalations
+        WHERE sales_order_id IN (SELECT id FROM sales_orders WHERE customer_id = ?)
+        AND status != 'Resolved'
+        ORDER BY created_at DESC LIMIT 3
+    ''', (customer_id,)).fetchall()
+    return {
+        'customer': dict(customer),
+        'orders': [dict(o) for o in orders],
+        'recent_comms': [dict(c) for c in recent_comms],
+        'escalations': [dict(e) for e in escalations],
+    }
+
+
+def _generate_ai_communication(context, scenario, custom_note=''):
+    try:
+        from openai import OpenAI
+        api_key = os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY')
+        if not api_key:
+            return None, 'AI service not configured'
+        client = OpenAI(api_key=api_key)
+
+        cust = context['customer']
+        orders = context['orders']
+        escalations = context['escalations']
+        comms = context['recent_comms']
+
+        order_summary = ''
+        if orders:
+            for o in orders:
+                flag = ' [OVERDUE]' if o.get('overdue') else ''
+                order_summary += f"  - {o['so_number']}: {o['status']}{flag} (ordered {o['order_date']})\n"
+        else:
+            order_summary = '  None\n'
+
+        esc_summary = ''
+        if escalations:
+            for e in escalations:
+                esc_summary += f"  - {e['reason']} ({e['status']})\n"
+        else:
+            esc_summary = '  None\n'
+
+        history_summary = ''
+        if comms:
+            for c in comms:
+                history_summary += f"  - {c['communication_type']}: {c['subject']} ({c['communication_date']})\n"
+        else:
+            history_summary = '  No previous communications\n'
+
+        scenario_instructions = {
+            'status_update': 'Write a professional order status update email informing the customer of their current order status.',
+            'overdue_alert': 'Write a sincere, apologetic email addressing the overdue order situation and providing reassurance.',
+            'quote_followup': 'Write a friendly follow-up email regarding a pending quote or proposal.',
+            'checkin': 'Write a warm customer check-in email to maintain the relationship and offer assistance.',
+            'order_shipped': 'Write a shipment confirmation email notifying the customer their order has been shipped.',
+            'order_complete': 'Write an order completion notification email thanking the customer for their business.',
+            'escalation': 'Write a professional apology and resolution email regarding an escalated issue.',
+            'custom': f'Write a professional email based on this specific request: {custom_note}',
+        }.get(scenario, 'Write a professional customer service email.')
+
+        prompt = f"""You are a professional customer service agent for an aerospace MRO/manufacturing company called Dynamic.IQ-COREx.
+
+Customer: {cust.get('name', 'Valued Customer')}
+Contact: {cust.get('contact_person', '') or cust.get('email', '')}
+
+Current Orders:
+{order_summary}
+
+Open Escalations:
+{esc_summary}
+
+Recent Communication History:
+{history_summary}
+
+Task: {scenario_instructions}
+
+Requirements:
+- Professional, warm, and concise tone
+- No special characters or markdown formatting
+- Plain text email body suitable for HTML rendering
+- Include a clear subject line on the FIRST LINE formatted as: SUBJECT: [your subject here]
+- Then a blank line
+- Then the full email body
+- Sign off as "Customer Service Team, Dynamic.IQ-COREx"
+- Keep it under 300 words"""
+
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            messages=[{'role': 'user', 'content': prompt}],
+            max_tokens=600,
+            temperature=0.5
+        )
+        text = response.choices[0].message.content.strip()
+        lines = text.split('\n')
+        subject = 'Customer Communication'
+        body_lines = lines
+        if lines and lines[0].upper().startswith('SUBJECT:'):
+            subject = lines[0][8:].strip()
+            body_lines = lines[2:] if len(lines) > 2 else lines[1:]
+        body = '\n'.join(body_lines).strip()
+        return {'subject': subject, 'body': body}, None
+    except Exception as e:
+        logger.error(f'AI generation error: {e}')
+        return None, str(e)
 
 customer_service_bp = Blueprint('customer_service', __name__)
 
@@ -738,6 +888,10 @@ def communications_list():
         SELECT COUNT(*) as cnt FROM customer_communications 
         WHERE follow_up_required = 1 AND follow_up_completed = 0
     ''').fetchone()['cnt']
+
+    pending_ai_drafts = conn.execute(
+        "SELECT COUNT(*) as cnt FROM customer_communications WHERE ai_generated = 1 AND ai_status = 'draft'"
+    ).fetchone()['cnt']
     
     conn.close()
     
@@ -745,6 +899,7 @@ def communications_list():
                          communications=communications,
                          customers=customers,
                          pending_follow_ups=pending_follow_ups,
+                         pending_ai_drafts=pending_ai_drafts,
                          filters={'customer': customer_filter, 'type': type_filter, 'pending': pending_only})
 
 
@@ -1368,3 +1523,257 @@ def add_feedback():
     return render_template('customer_service/add_feedback.html',
                          customers=customers,
                          recent_orders=recent_orders)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  AI CUSTOMER SERVICE AGENT
+# ─────────────────────────────────────────────────────────────────────────────
+
+@customer_service_bp.route('/customer-service/ai-agent')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def ai_agent():
+    db = Database()
+    conn = db.get_connection()
+    customers = conn.execute('SELECT id, name, email, status FROM customers WHERE status != ? ORDER BY name', ('Inactive',)).fetchall()
+    pending_drafts = conn.execute('''
+        SELECT cc.*, c.name as customer_name, so.so_number
+        FROM customer_communications cc
+        JOIN customers c ON cc.customer_id = c.id
+        LEFT JOIN sales_orders so ON cc.sales_order_id = so.id
+        WHERE cc.ai_generated = 1 AND cc.ai_status = 'draft'
+        ORDER BY cc.created_at DESC
+    ''').fetchall()
+    sent_count = conn.execute(
+        "SELECT COUNT(*) as cnt FROM customer_communications WHERE ai_generated = 1 AND ai_status = 'sent'"
+    ).fetchone()['cnt']
+    conn.close()
+    return render_template('customer_service/ai_agent.html',
+                           customers=customers,
+                           pending_drafts=pending_drafts,
+                           sent_count=sent_count)
+
+
+@customer_service_bp.route('/customer-service/ai-agent/generate', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def ai_agent_generate():
+    data = request.get_json() or {}
+    customer_id = data.get('customer_id')
+    scenario = data.get('scenario', 'status_update')
+    custom_note = data.get('custom_note', '')
+    sales_order_id = data.get('sales_order_id') or None
+
+    if not customer_id:
+        return jsonify({'success': False, 'error': 'Customer is required'}), 400
+
+    db = Database()
+    conn = db.get_connection()
+    try:
+        context = _gather_customer_context(conn, int(customer_id))
+        if not context:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Customer not found'}), 404
+
+        result, error = _generate_ai_communication(context, scenario, custom_note)
+        if error:
+            conn.close()
+            return jsonify({'success': False, 'error': error}), 500
+
+        subject = result['subject']
+        body = result['body']
+        html_body = '<p>' + body.replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+
+        conn.execute('''
+            INSERT INTO customer_communications
+            (customer_id, sales_order_id, communication_type, subject, description,
+             email_body, ai_generated, ai_status, ai_context, created_by)
+            VALUES (?, ?, 'Email', ?, ?, ?, 1, 'draft', ?, ?)
+        ''', (
+            customer_id, sales_order_id, subject, body, html_body,
+            json.dumps({'scenario': scenario, 'custom_note': custom_note}),
+            session.get('user_id')
+        ))
+        conn.commit()
+        draft_row = conn.execute(
+            "SELECT id FROM customer_communications WHERE ai_generated=1 AND ai_status='draft' AND customer_id=? ORDER BY created_at DESC LIMIT 1",
+            (customer_id,)
+        ).fetchone()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'subject': subject,
+            'body': body,
+            'draft_id': draft_row['id'] if draft_row else None,
+        })
+    except Exception as e:
+        logger.error(f'AI agent generate error: {e}', exc_info=True)
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@customer_service_bp.route('/customer-service/ai-agent/bulk-scan', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def ai_agent_bulk_scan():
+    db = Database()
+    conn = db.get_connection()
+    try:
+        at_risk = conn.execute('''
+            SELECT DISTINCT c.id, c.name
+            FROM customers c
+            JOIN sales_orders so ON so.customer_id = c.id
+            WHERE so.status NOT IN ('Shipped','Completed','Cancelled','Closed','Invoiced')
+              AND so.order_date < DATE('now', '-14 days')
+            ORDER BY c.name
+        ''').fetchall()
+
+        generated = 0
+        for cust in at_risk:
+            context = _gather_customer_context(conn, cust['id'])
+            if not context:
+                continue
+            result, error = _generate_ai_communication(context, 'status_update')
+            if error or not result:
+                continue
+            body = result['body']
+            html_body = '<p>' + body.replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+            conn.execute('''
+                INSERT INTO customer_communications
+                (customer_id, communication_type, subject, description, email_body,
+                 ai_generated, ai_status, ai_context, created_by)
+                VALUES (?, 'Email', ?, ?, ?, 1, 'draft', ?, ?)
+            ''', (
+                cust['id'], result['subject'], body, html_body,
+                json.dumps({'scenario': 'status_update', 'bulk': True}),
+                session.get('user_id')
+            ))
+            generated += 1
+
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'generated': generated, 'scanned': len(at_risk)})
+    except Exception as e:
+        logger.error(f'Bulk scan error: {e}', exc_info=True)
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@customer_service_bp.route('/customer-service/communications/<int:comm_id>/approve', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def approve_ai_communication(comm_id):
+    db = Database()
+    conn = db.get_connection()
+    try:
+        comm = conn.execute('''
+            SELECT cc.*, c.name as customer_name, c.email as customer_email,
+                   c.contact_person
+            FROM customer_communications cc
+            JOIN customers c ON cc.customer_id = c.id
+            WHERE cc.id = ? AND cc.ai_generated = 1
+        ''', (comm_id,)).fetchone()
+        if not comm:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Communication not found'}), 404
+
+        # Update subject/body if edits were submitted
+        data = request.get_json() or {}
+        new_subject = data.get('subject', comm['subject'])
+        new_body = data.get('body', comm['description'])
+        send_email = data.get('send_email', False)
+        html_body = '<p>' + new_body.replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+
+        new_status = 'approved'
+        sent_at = None
+        email_result = None
+
+        if send_email and comm['customer_email']:
+            ok, msg = _send_brevo_email(
+                comm['customer_email'],
+                comm['customer_name'],
+                new_subject,
+                html_body
+            )
+            if ok:
+                new_status = 'sent'
+                sent_at = datetime.now().isoformat()
+                email_result = {'sent': True, 'message_id': msg}
+            else:
+                email_result = {'sent': False, 'error': msg}
+        elif send_email and not comm['customer_email']:
+            email_result = {'sent': False, 'error': 'No email address on file for this customer'}
+
+        conn.execute('''
+            UPDATE customer_communications
+            SET ai_status = ?, subject = ?, description = ?, email_body = ?,
+                updated_at = CURRENT_TIMESTAMP, sent_at = ?
+            WHERE id = ?
+        ''', (new_status, new_subject, new_body, html_body, sent_at, comm_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'status': new_status, 'email': email_result})
+    except Exception as e:
+        logger.error(f'Approve communication error: {e}', exc_info=True)
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@customer_service_bp.route('/customer-service/communications/<int:comm_id>/reject', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def reject_ai_communication(comm_id):
+    db = Database()
+    conn = db.get_connection()
+    try:
+        conn.execute('''
+            UPDATE customer_communications SET ai_status = 'rejected', updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND ai_generated = 1
+        ''', (comm_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@customer_service_bp.route('/customer-service/api/customer-orders/<int:customer_id>')
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def api_customer_orders(customer_id):
+    db = Database()
+    conn = db.get_connection()
+    orders = conn.execute('''
+        SELECT id, so_number, status FROM sales_orders
+        WHERE customer_id = ?
+        ORDER BY order_date DESC LIMIT 20
+    ''', (customer_id,)).fetchall()
+    conn.close()
+    return jsonify({'orders': [dict(o) for o in orders]})
+
+
+@customer_service_bp.route('/customer-service/communications/<int:comm_id>/get', methods=['GET'])
+@login_required
+@role_required('Admin', 'Planner', 'Production Staff', 'Procurement')
+def get_communication(comm_id):
+    db = Database()
+    conn = db.get_connection()
+    try:
+        comm = conn.execute('''
+            SELECT cc.*, c.name as customer_name, c.email as customer_email
+            FROM customer_communications cc
+            JOIN customers c ON cc.customer_id = c.id
+            WHERE cc.id = ?
+        ''', (comm_id,)).fetchone()
+        conn.close()
+        if not comm:
+            return jsonify({'success': False, 'error': 'Not found'}), 404
+        d = dict(comm)
+        for k, v in d.items():
+            if hasattr(v, 'isoformat'):
+                d[k] = str(v)
+        return jsonify({'success': True, 'comm': d})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500

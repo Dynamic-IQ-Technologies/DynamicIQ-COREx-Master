@@ -19,6 +19,9 @@
                 <span class="badge bg-warning text-dark">{{ pending_followups }}</span>
                 {% endif %}
             </a>
+            <a href="{{ url_for('customer_service.ai_agent') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-robot me-1"></i> AI Agent
+            </a>
             <a href="{{ url_for('customer_service.escalations_list') }}" class="btn btn-outline-danger">
                 <i class="bi bi-exclamation-triangle me-1"></i> Escalations
                 {% if open_escalations > 0 %}

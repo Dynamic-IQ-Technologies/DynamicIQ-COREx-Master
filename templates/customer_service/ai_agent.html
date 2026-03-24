@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+{% block title %}AI Customer Service Agent{% endblock %}
+
+{% block extra_css %}
+<style>
+.ai-agent-page { max-width: 1400px; }
+
+/* Header strip */
+.ai-agent-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid #334155; border-radius: 14px; padding: 1.5rem 1.75rem;
+  margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.ai-agent-header .ai-icon { width: 52px; height: 52px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-agent-header h1 { font-size: 1.45rem; font-weight: 700; color: #f1f5f9; margin: 0; }
+.ai-agent-header p { color: #64748b; font-size: 0.88rem; margin: 0.15rem 0 0; }
+.ai-badge { background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.3);
+  color: #818cf8; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+
+/* Main grid */
+.ai-grid { display: grid; grid-template-columns: 400px 1fr; gap: 1.25rem; align-items: start; }
+@media (max-width: 900px) { .ai-grid { grid-template-columns: 1fr; } }
+
+/* Panel */
+.ai-panel { background: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow: hidden; }
+.ai-panel-header { padding: 1rem 1.25rem; border-bottom: 1px solid #334155; display: flex;
+  align-items: center; justify-content: space-between; gap: 0.5rem; }
+.ai-panel-title { font-size: 0.9rem; font-weight: 600; color: #e2e8f0;
+  display: flex; align-items: center; gap: 0.5rem; }
+.ai-panel-body { padding: 1.25rem; }
+
+/* Form fields */
+.ai-field { margin-bottom: 1.1rem; }
+.ai-field label { display: block; font-size: 0.78rem; font-weight: 600; color: #64748b;
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 0.4rem; }
+.ai-field select, .ai-field textarea, .ai-field input[type=text] {
+  width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+  padding: 0.6rem 0.85rem; color: #f1f5f9; font-size: 0.87rem; box-sizing: border-box;
+  transition: border-color .15s; }
+.ai-field select:focus, .ai-field textarea:focus, .ai-field input:focus {
+  outline: none; border-color: #6366f1; }
+.ai-field textarea { height: 80px; resize: vertical; }
+
+/* Scenario chips */
+.scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.scenario-chip { background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+  padding: 0.55rem 0.75rem; cursor: pointer; transition: all .15s; text-align: left; }
+.scenario-chip:hover { border-color: #6366f1; }
+.scenario-chip.active { background: rgba(99,102,241,.12); border-color: #6366f1; }
+.scenario-chip .sc-icon { font-size: 1.1rem; display: block; margin-bottom: 0.2rem; }
+.scenario-chip .sc-label { font-size: 0.75rem; color: #94a3b8; font-weight: 500; }
+
+/* Generate button */
+.btn-generate { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border: none; border-radius: 9px; color: #fff; font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.btn-generate:hover { opacity: 0.88; }
+.btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Draft queue */
+.draft-card { background: #0f172a; border: 1px solid #1e3a5f; border-radius: 10px;
+  padding: 1.1rem; margin-bottom: 0.85rem; }
+.draft-card .draft-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; }
+.draft-card .draft-subject { font-weight: 600; color: #e2e8f0; font-size: 0.9rem; flex: 1; }
+.draft-card .draft-meta { font-size: 0.75rem; color: #475569; margin-bottom: 0.6rem; }
+.draft-card .draft-preview { font-size: 0.82rem; color: #94a3b8; line-height: 1.5;
+  max-height: 60px; overflow: hidden; position: relative; }
+.draft-card .draft-preview::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 24px; background: linear-gradient(transparent, #0f172a); }
+.draft-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+
+/* Action buttons */
+.btn-sm-approve { background: rgba(16,185,129,.12); color: #34d399; border: 1px solid rgba(16,185,129,.25);
+  padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.btn-sm-send    { background: rgba(99,102,241,.12); color: #818cf8; border: 1px solid rgba(99,102,241,.25);
+  padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.btn-sm-edit    { background: rgba(245,158,11,.12); color: #fbbf24; border: 1px solid rgba(245,158,11,.25);
+  padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.btn-sm-reject  { background: rgba(239,68,68,.1); color: #f87171; border: 1px solid rgba(239,68,68,.2);
+  padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.btn-sm-approve:hover, .btn-sm-send:hover, .btn-sm-edit:hover, .btn-sm-reject:hover { opacity: 0.8; }
+
+/* Preview area */
+.preview-box { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 1.25rem;
+  min-height: 200px; margin-top: 1rem; }
+.preview-subject { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem; border-bottom: 1px solid #334155; }
+.preview-body { font-size: 0.87rem; color: #cbd5e1; line-height: 1.7; white-space: pre-wrap; }
+.preview-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 160px; color: #334155; gap: 0.75rem; }
+.preview-placeholder i { font-size: 2.5rem; }
+.preview-placeholder p { font-size: 0.85rem; text-align: center; margin: 0; }
+
+/* Spinner */
+.ai-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #334155;
+  border-top-color: #6366f1; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Status badges */
+.status-draft    { background: rgba(99,102,241,.15); color: #818cf8; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; }
+.status-approved { background: rgba(16,185,129,.15); color: #34d399; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; }
+.status-sent     { background: rgba(34,197,94,.15); color: #4ade80; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; }
+.status-rejected { background: rgba(239,68,68,.12); color: #f87171; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; }
+
+/* Bulk scan */
+.bulk-bar { background: linear-gradient(135deg, rgba(99,102,241,.1), rgba(16,185,129,.05));
+  border: 1px solid rgba(99,102,241,.2); border-radius: 10px; padding: 0.9rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  margin-bottom: 1.25rem; }
+.bulk-bar p { margin: 0; font-size: 0.85rem; color: #94a3b8; }
+.btn-bulk { background: rgba(99,102,241,.15); color: #818cf8; border: 1px solid rgba(99,102,241,.3);
+  padding: 0.45rem 1.1rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btn-bulk:hover { background: rgba(99,102,241,.25); }
+
+/* Empty state */
+.empty-drafts { text-align: center; padding: 2.5rem 1rem; color: #475569; }
+.empty-drafts i { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
+
+/* Toast */
+.ai-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; max-width: 360px; }
+
+/* Edit modal */
+.edit-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 8000;
+  display: none; align-items: center; justify-content: center; }
+.edit-modal-overlay.open { display: flex; }
+.edit-modal { background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+  padding: 1.5rem; width: 620px; max-width: 96vw; max-height: 90vh; overflow-y: auto; }
+.edit-modal h5 { color: #f1f5f9; font-weight: 700; font-size: 1rem; margin-bottom: 1.1rem; }
+.edit-modal label { font-size: 0.78rem; color: #64748b; text-transform: uppercase;
+  font-weight: 600; letter-spacing:.04em; display: block; margin-bottom: 0.35rem; }
+.edit-modal input, .edit-modal textarea {
+  width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+  padding: 0.6rem 0.85rem; color: #f1f5f9; font-size: 0.87rem;
+  margin-bottom: 1rem; box-sizing: border-box; }
+.edit-modal textarea { height: 240px; resize: vertical; }
+.edit-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid ai-agent-page">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0">
+      <li class="breadcrumb-item"><a href="{{ url_for('customer_service.dashboard') }}">Customer Service</a></li>
+      <li class="breadcrumb-item active">AI Agent</li>
+    </ol>
+  </nav>
+
+  <!-- Header -->
+  <div class="ai-agent-header">
+    <div class="ai-icon"><i class="bi bi-robot text-white fs-4"></i></div>
+    <div style="flex:1">
+      <h1>AI Customer Service Agent</h1>
+      <p>Automatically generate, review, and send personalized customer communications using AI</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <span class="ai-badge"><i class="bi bi-stars me-1"></i>GPT-4o Powered</span>
+      <span class="ai-badge"><i class="bi bi-send me-1"></i>{{ sent_count }} Sent</span>
+      <a href="{{ url_for('customer_service.communications_list') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-list me-1"></i>All Communications
+      </a>
+    </div>
+  </div>
+
+  <!-- Bulk scan bar -->
+  <div class="bulk-bar">
+    <div>
+      <strong style="color:#e2e8f0">Bulk Auto-Scan</strong>
+      <p>Automatically identify customers with overdue or at-risk orders and generate status update emails for all of them at once.</p>
+    </div>
+    <button class="btn-bulk" onclick="runBulkScan()">
+      <i class="bi bi-lightning-charge-fill me-1"></i>Scan &amp; Generate All
+    </button>
+  </div>
+
+  <!-- Main grid -->
+  <div class="ai-grid">
+
+    <!-- LEFT: Generator panel -->
+    <div>
+      <div class="ai-panel">
+        <div class="ai-panel-header">
+          <div class="ai-panel-title"><i class="bi bi-magic" style="color:#818cf8"></i>Generate Communication</div>
+        </div>
+        <div class="ai-panel-body">
+
+          <!-- Customer -->
+          <div class="ai-field">
+            <label>Customer</label>
+            <select id="genCustomer" onchange="loadCustomerOrders()">
+              <option value="">Select a customer…</option>
+              {% for c in customers %}
+              <option value="{{ c.id }}" data-email="{{ c.email or '' }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Order (optional) -->
+          <div class="ai-field">
+            <label>Related Order <span style="color:#475569;font-weight:400">(optional)</span></label>
+            <select id="genOrder">
+              <option value="">Select customer first…</option>
+            </select>
+          </div>
+
+          <!-- Scenario -->
+          <div class="ai-field">
+            <label>Communication Scenario</label>
+            <div class="scenario-grid" id="scenarioGrid">
+              <button class="scenario-chip active" data-scenario="status_update" onclick="selectScenario(this)">
+                <span class="sc-icon">📋</span><span class="sc-label">Order Status Update</span>
+              </button>
+              <button class="scenario-chip" data-scenario="overdue_alert" onclick="selectScenario(this)">
+                <span class="sc-icon">⚠️</span><span class="sc-label">Overdue Alert</span>
+              </button>
+              <button class="scenario-chip" data-scenario="quote_followup" onclick="selectScenario(this)">
+                <span class="sc-icon">💬</span><span class="sc-label">Quote Follow-Up</span>
+              </button>
+              <button class="scenario-chip" data-scenario="checkin" onclick="selectScenario(this)">
+                <span class="sc-icon">🤝</span><span class="sc-label">Relationship Check-In</span>
+              </button>
+              <button class="scenario-chip" data-scenario="order_shipped" onclick="selectScenario(this)">
+                <span class="sc-icon">🚚</span><span class="sc-label">Shipment Notification</span>
+              </button>
+              <button class="scenario-chip" data-scenario="order_complete" onclick="selectScenario(this)">
+                <span class="sc-icon">✅</span><span class="sc-label">Order Complete</span>
+              </button>
+              <button class="scenario-chip" data-scenario="escalation" onclick="selectScenario(this)">
+                <span class="sc-icon">🔴</span><span class="sc-label">Escalation Resolution</span>
+              </button>
+              <button class="scenario-chip" data-scenario="custom" onclick="selectScenario(this)">
+                <span class="sc-icon">✍️</span><span class="sc-label">Custom Message</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom note (shown only for custom scenario) -->
+          <div class="ai-field" id="customNoteField" style="display:none">
+            <label>Custom Instructions</label>
+            <textarea id="customNote" placeholder="Describe what the email should say…"></textarea>
+          </div>
+
+          <!-- Generate button -->
+          <button class="btn-generate" id="generateBtn" onclick="generateCommunication()">
+            <i class="bi bi-stars"></i>Generate with AI
+          </button>
+
+          <!-- Live preview -->
+          <div id="previewArea">
+            <div class="preview-box">
+              <div class="preview-placeholder">
+                <i class="bi bi-robot"></i>
+                <p>Select a customer and scenario, then click Generate to create a draft email</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview action row -->
+          <div id="previewActions" style="display:none; margin-top: 0.85rem;">
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn-sm-approve" onclick="quickApprove()"><i class="bi bi-check-lg me-1"></i>Approve</button>
+              <button class="btn-sm-send" onclick="quickApproveAndSend()"><i class="bi bi-send me-1"></i>Approve &amp; Send</button>
+              <button class="btn-sm-edit" onclick="openEditModal()"><i class="bi bi-pencil me-1"></i>Edit</button>
+              <button class="btn-sm-reject" onclick="quickReject()"><i class="bi bi-x-lg me-1"></i>Reject</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Draft queue -->
+    <div>
+      <div class="ai-panel">
+        <div class="ai-panel-header">
+          <div class="ai-panel-title">
+            <i class="bi bi-inbox" style="color:#fbbf24"></i>
+            Pending Approval
+            {% if pending_drafts %}
+            <span style="background:#f59e0b;color:#000;border-radius:12px;padding:.1rem .55rem;font-size:.7rem;font-weight:700">{{ pending_drafts|length }}</span>
+            {% endif %}
+          </div>
+          <button class="btn-bulk" style="font-size:.75rem;padding:.3rem .75rem" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div class="ai-panel-body" id="draftQueue">
+          {% if pending_drafts %}
+            {% for draft in pending_drafts %}
+            <div class="draft-card" id="draft-{{ draft.id }}">
+              <div class="draft-header">
+                <div class="draft-subject">{{ draft.subject or 'No subject' }}</div>
+                <span class="status-draft">Draft</span>
+              </div>
+              <div class="draft-meta">
+                <i class="bi bi-person me-1"></i>{{ draft.customer_name }}
+                {% if draft.so_number %} &nbsp;·&nbsp; <i class="bi bi-receipt me-1"></i>{{ draft.so_number }}{% endif %}
+                &nbsp;·&nbsp; <i class="bi bi-clock me-1"></i>{{ draft.created_at | string | truncate(16, True, '') }}
+              </div>
+              <div class="draft-preview">{{ draft.description or '' }}</div>
+              <div class="draft-actions">
+                <button class="btn-sm-approve" onclick="approveDraft({{ draft.id }}, false)">
+                  <i class="bi bi-check-lg me-1"></i>Approve
+                </button>
+                <button class="btn-sm-send" onclick="approveDraft({{ draft.id }}, true)">
+                  <i class="bi bi-send me-1"></i>Approve &amp; Send
+                </button>
+                <button class="btn-sm-edit" onclick="openEditDraft({{ draft.id }})">
+                  <i class="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button class="btn-sm-reject" onclick="rejectDraft({{ draft.id }})">
+                  <i class="bi bi-x-lg me-1"></i>Reject
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="empty-drafts">
+            <i class="bi bi-inbox"></i>
+            <strong style="color:#94a3b8;display:block;margin-bottom:.35rem">No pending drafts</strong>
+            <p style="font-size:.83rem;margin:0">Generate a communication on the left or run a bulk scan to populate the queue.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /ai-grid -->
+</div>
+
+<!-- Edit / Review Modal -->
+<div class="edit-modal-overlay" id="editModalOverlay">
+  <div class="edit-modal">
+    <h5><i class="bi bi-pencil-square me-2" style="color:#fbbf24"></i>Edit Draft Communication</h5>
+    <input type="hidden" id="editDraftId">
+    <label>Subject</label>
+    <input type="text" id="editSubject" placeholder="Email subject…">
+    <label>Body</label>
+    <textarea id="editBody" placeholder="Email body…"></textarea>
+    <div class="edit-modal-actions">
+      <button class="btn-sm-reject" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-sm-approve" onclick="saveEditAndApprove(false)"><i class="bi bi-check-lg me-1"></i>Save &amp; Approve</button>
+      <button class="btn-sm-send" onclick="saveEditAndApprove(true)"><i class="bi bi-send me-1"></i>Save, Approve &amp; Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="ai-toast" id="toastContainer"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentScenario = 'status_update';
+let currentDraftId = null;
+let currentPreview = null;
+
+// ── Scenario selection ────────────────────────────────────────────────────────
+function selectScenario(el) {
+  document.querySelectorAll('.scenario-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentScenario = el.dataset.scenario;
+  document.getElementById('customNoteField').style.display =
+    currentScenario === 'custom' ? '' : 'none';
+}
+
+// ── Load customer orders ──────────────────────────────────────────────────────
+async function loadCustomerOrders() {
+  const cid = document.getElementById('genCustomer').value;
+  const sel = document.getElementById('genOrder');
+  sel.innerHTML = '<option value="">No specific order</option>';
+  if (!cid) return;
+  try {
+    const res = await fetch(`/customer-service/api/customer-orders/${cid}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.orders) {
+      data.orders.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = `${o.so_number} — ${o.status}`;
+        sel.appendChild(opt);
+      });
+    }
+  } catch (e) {}
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function generateCommunication() {
+  const cid = document.getElementById('genCustomer').value;
+  if (!cid) { showToast('Please select a customer first', 'warning'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ai-spinner"></span> Generating…';
+
+  document.getElementById('previewArea').innerHTML = `
+    <div class="preview-box">
+      <div class="preview-placeholder">
+        <span class="ai-spinner" style="width:30px;height:30px;border-width:3px"></span>
+        <p style="color:#64748b">AI is composing your email…</p>
+      </div>
+    </div>`;
+  document.getElementById('previewActions').style.display = 'none';
+
+  try {
+    const res = await fetch('/customer-service/ai-agent/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_id: cid,
+        scenario: currentScenario,
+        custom_note: document.getElementById('customNote').value,
+        sales_order_id: document.getElementById('genOrder').value || null,
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Generation failed');
+
+    currentDraftId = data.draft_id;
+    currentPreview = { subject: data.subject, body: data.body };
+
+    document.getElementById('previewArea').innerHTML = `
+      <div class="preview-box">
+        <div class="preview-subject">${esc(data.subject)}</div>
+        <div class="preview-body">${esc(data.body)}</div>
+      </div>`;
+    document.getElementById('previewActions').style.display = '';
+
+    // Add to draft queue
+    addDraftToQueue(data, cid);
+    showToast('Draft generated successfully', 'success');
+  } catch (e) {
+    document.getElementById('previewArea').innerHTML = `
+      <div class="preview-box">
+        <div class="preview-placeholder" style="color:#f87171">
+          <i class="bi bi-exclamation-triangle"></i>
+          <p>Generation failed: ${esc(e.message)}</p>
+        </div>
+      </div>`;
+    showToast('Generation failed: ' + e.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-stars"></i>Generate with AI';
+  }
+}
+
+function addDraftToQueue(data, cid) {
+  const queue = document.getElementById('draftQueue');
+  const empty = queue.querySelector('.empty-drafts');
+  if (empty) empty.remove();
+  const custName = document.getElementById('genCustomer').selectedOptions[0]?.text || 'Customer';
+  const div = document.createElement('div');
+  div.className = 'draft-card';
+  div.id = `draft-${data.draft_id}`;
+  div.innerHTML = `
+    <div class="draft-header">
+      <div class="draft-subject">${esc(data.subject)}</div>
+      <span class="status-draft">Draft</span>
+    </div>
+    <div class="draft-meta"><i class="bi bi-person me-1"></i>${esc(custName)} &nbsp;·&nbsp; Just now</div>
+    <div class="draft-preview">${esc(data.body)}</div>
+    <div class="draft-actions">
+      <button class="btn-sm-approve" onclick="approveDraft(${data.draft_id}, false)"><i class="bi bi-check-lg me-1"></i>Approve</button>
+      <button class="btn-sm-send" onclick="approveDraft(${data.draft_id}, true)"><i class="bi bi-send me-1"></i>Approve &amp; Send</button>
+      <button class="btn-sm-edit" onclick="openEditDraft(${data.draft_id})"><i class="bi bi-pencil me-1"></i>Edit</button>
+      <button class="btn-sm-reject" onclick="rejectDraft(${data.draft_id})"><i class="bi bi-x-lg me-1"></i>Reject</button>
+    </div>`;
+  queue.insertBefore(div, queue.firstChild);
+}
+
+// ── Quick actions on preview ──────────────────────────────────────────────────
+async function quickApprove() {
+  if (!currentDraftId) return;
+  await doApprove(currentDraftId, currentPreview?.subject, currentPreview?.body, false);
+}
+async function quickApproveAndSend() {
+  if (!currentDraftId) return;
+  await doApprove(currentDraftId, currentPreview?.subject, currentPreview?.body, true);
+}
+async function quickReject() {
+  if (!currentDraftId) return;
+  await rejectDraft(currentDraftId);
+  document.getElementById('previewActions').style.display = 'none';
+}
+function openEditModal() {
+  if (!currentDraftId || !currentPreview) return;
+  document.getElementById('editDraftId').value = currentDraftId;
+  document.getElementById('editSubject').value = currentPreview.subject;
+  document.getElementById('editBody').value = currentPreview.body;
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+// ── Draft queue actions ───────────────────────────────────────────────────────
+async function approveDraft(id, sendEmail) {
+  const card = document.getElementById(`draft-${id}`);
+  const subject = card?.querySelector('.draft-subject')?.textContent;
+  const body = card?.querySelector('.draft-preview')?.textContent;
+  await doApprove(id, subject, body, sendEmail);
+}
+
+async function doApprove(id, subject, body, sendEmail) {
+  try {
+    const res = await fetch(`/customer-service/communications/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, body, send_email: sendEmail })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    const card = document.getElementById(`draft-${id}`);
+    if (card) {
+      const badge = card.querySelector('[class^="status-"]');
+      if (badge) {
+        badge.className = sendEmail && data.email?.sent ? 'status-sent' : 'status-approved';
+        badge.textContent = sendEmail && data.email?.sent ? 'Sent' : 'Approved';
+      }
+      card.querySelector('.draft-actions').innerHTML =
+        `<span style="color:#34d399;font-size:.78rem"><i class="bi bi-check-circle me-1"></i>${sendEmail && data.email?.sent ? 'Sent to customer' : 'Approved'}</span>`;
+    }
+
+    if (sendEmail && data.email && !data.email.sent) {
+      showToast('Approved but email not sent: ' + (data.email.error || 'Unknown error'), 'warning');
+    } else {
+      showToast(sendEmail ? 'Approved and sent to customer' : 'Communication approved', 'success');
+    }
+  } catch (e) {
+    showToast('Action failed: ' + e.message, 'danger');
+  }
+}
+
+async function rejectDraft(id) {
+  try {
+    const res = await fetch(`/customer-service/communications/${id}/reject`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    const card = document.getElementById(`draft-${id}`);
+    if (card) card.style.opacity = '0.35';
+    showToast('Draft rejected and removed from queue', 'info');
+  } catch (e) {
+    showToast('Reject failed: ' + e.message, 'danger');
+  }
+}
+
+async function openEditDraft(id) {
+  try {
+    const res = await fetch(`/customer-service/communications/${id}/get`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    document.getElementById('editDraftId').value = id;
+    document.getElementById('editSubject').value = data.comm.subject || '';
+    document.getElementById('editBody').value = data.comm.description || '';
+    document.getElementById('editModalOverlay').classList.add('open');
+  } catch (e) {
+    showToast('Could not load draft: ' + e.message, 'danger');
+  }
+}
+
+async function saveEditAndApprove(sendEmail) {
+  const id = document.getElementById('editDraftId').value;
+  const subject = document.getElementById('editSubject').value;
+  const body = document.getElementById('editBody').value;
+  if (!id || !subject) { showToast('Subject is required', 'warning'); return; }
+  closeEditModal();
+  await doApprove(id, subject, body, sendEmail);
+  // Update preview if same draft
+  if (id == currentDraftId) {
+    currentPreview = { subject, body };
+    document.getElementById('previewArea').innerHTML = `
+      <div class="preview-box">
+        <div class="preview-subject">${esc(subject)}</div>
+        <div class="preview-body">${esc(body)}</div>
+      </div>`;
+  }
+  // Update card preview
+  const card = document.getElementById(`draft-${id}`);
+  if (card) {
+    const s = card.querySelector('.draft-subject');
+    if (s) s.textContent = subject;
+    const p = card.querySelector('.draft-preview');
+    if (p) p.textContent = body;
+  }
+}
+
+function closeEditModal() {
+  document.getElementById('editModalOverlay').classList.remove('open');
+}
+document.getElementById('editModalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('editModalOverlay')) closeEditModal();
+});
+
+// ── Bulk scan ────────────────────────────────────────────────────────────────
+async function runBulkScan() {
+  showToast('Scanning customers and generating drafts… this may take a moment', 'info');
+  try {
+    const res = await fetch('/customer-service/ai-agent/bulk-scan', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showToast(`Scanned ${data.scanned} customers, generated ${data.generated} draft(s)`, 'success');
+    if (data.generated > 0) setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    showToast('Bulk scan failed: ' + e.message, 'danger');
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast(msg, type='info') {
+  const colors = { success:'#10b981', danger:'#ef4444', warning:'#f59e0b', info:'#6366f1' };
+  const t = document.createElement('div');
+  t.style.cssText = `background:#1e293b;border:1px solid ${colors[type]};color:#f1f5f9;
+    padding:.75rem 1.25rem;border-radius:10px;font-size:.84rem;margin-top:.5rem;
+    box-shadow:0 4px 20px rgba(0,0,0,.4);`;
+  t.textContent = msg;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+</script>
+{% endblock %}

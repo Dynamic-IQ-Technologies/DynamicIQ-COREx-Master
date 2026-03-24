@@ -14,10 +14,20 @@
             </nav>
             <h2 class="mb-0">Customer Communications</h2>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             {% if pending_follow_ups > 0 %}
             <a href="{{ url_for('customer_service.communications_list', pending='1') }}" class="btn btn-warning">
                 <i class="bi bi-bell me-1"></i> {{ pending_follow_ups }} Pending Follow-ups
+            </a>
+            {% endif %}
+            {% if pending_ai_drafts > 0 %}
+            <a href="{{ url_for('customer_service.ai_agent') }}" class="btn btn-outline-primary position-relative">
+                <i class="bi bi-robot me-1"></i> AI Agent
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ pending_ai_drafts }}</span>
+            </a>
+            {% else %}
+            <a href="{{ url_for('customer_service.ai_agent') }}" class="btn btn-outline-primary">
+                <i class="bi bi-robot me-1"></i> AI Agent
             </a>
             {% endif %}
             <a href="{{ url_for('customer_service.add_communication') }}" class="btn btn-primary">
