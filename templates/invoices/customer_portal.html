@@ -195,7 +195,7 @@
                                         <td class="text-end text-muted">Subtotal</td>
                                         <td class="text-end" style="width: 120px;">${{ "%.2f"|format(invoice.subtotal) }}</td>
                                     </tr>
-                                    {% if invoice.discount_amount > 0 %}
+                                    {% if (invoice.discount_amount or 0) > 0 %}
                                     <tr>
                                         <td class="text-end text-muted">Discount</td>
                                         <td class="text-end text-success">-${{ "%.2f"|format(invoice.discount_amount) }}</td>

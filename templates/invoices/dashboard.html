@@ -202,7 +202,7 @@
                             </td>
                             <td>
                                 {{ invoice.due_date }}
-                                {% if invoice.status in ['Posted', 'Approved'] and invoice.due_date and (invoice.due_date|string)[:10] < today and invoice.balance_due > 0 %}
+                                {% if invoice.status in ['Posted', 'Approved'] and invoice.due_date and (invoice.due_date|string)[:10] < today and (invoice.balance_due or 0) > 0 %}
                                 <span class="badge bg-danger ms-1">Overdue</span>
                                 {% endif %}
                             </td>

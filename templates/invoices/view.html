@@ -205,13 +205,13 @@
                         <div class="col-6"><strong>Subtotal:</strong></div>
                         <div class="col-6 text-end">{{ invoice.subtotal|currency }}</div>
                     </div>
-                    {% if invoice.discount_amount > 0 %}
+                    {% if (invoice.discount_amount or 0) > 0 %}
                     <div class="row mb-2">
                         <div class="col-6"><strong>Discount:</strong></div>
                         <div class="col-6 text-end text-danger">-{{ invoice.discount_amount|currency }}</div>
                     </div>
                     {% endif %}
-                    {% if invoice.tax_amount > 0 %}
+                    {% if (invoice.tax_amount or 0) > 0 %}
                     <div class="row mb-2">
                         <div class="col-6"><strong>Tax:</strong></div>
                         <div class="col-6 text-end">{{ invoice.tax_amount|currency }}</div>
@@ -229,14 +229,14 @@
                     <div class="row">
                         <div class="col-6"><strong>Balance Due:</strong></div>
                         <div class="col-6 text-end">
-                            {% if invoice.balance_due > 0 %}
+                            {% if (invoice.balance_due or 0) > 0 %}
                             <strong class="text-warning">{{ invoice.balance_due|currency }}</strong>
                             {% else %}
                             <span class="text-success">$0.00</span>
                             {% endif %}
                         </div>
                     </div>
-                    {% if session.role in ['Admin', 'Accountant'] and invoice.status in ['Posted', 'Partially Paid'] and invoice.balance_due > 0 %}
+                    {% if session.role in ['Admin', 'Accountant'] and invoice.status in ['Posted', 'Partially Paid'] and (invoice.balance_due or 0) > 0 %}
                     <hr>
                     <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
                         <i class="bi bi-cash-coin me-2"></i>Record Payment
@@ -248,7 +248,7 @@
     </div>
 
     <!-- Record Payment Modal -->
-    {% if session.role in ['Admin', 'Accountant'] and invoice.balance_due > 0 %}
+    {% if session.role in ['Admin', 'Accountant'] and (invoice.balance_due or 0) > 0 %}
     <div class="modal fade" id="recordPaymentModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">

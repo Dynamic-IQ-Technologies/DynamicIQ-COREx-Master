@@ -137,7 +137,7 @@
                                     <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="btn btn-outline-primary" title="View NDT Invoice">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    {% if inv.status not in ['Paid', 'Cancelled'] and inv.balance_due > 0 %}
+                                    {% if inv.status not in ['Paid', 'Cancelled'] and (inv.balance_due or 0) > 0 %}
                                     <a href="{{ url_for('ndt_routes.invoice_view', id=inv.id) }}" class="btn btn-outline-success" title="Record Payment (NDT)">
                                         <i class="bi bi-cash"></i>
                                     </a>
@@ -146,7 +146,7 @@
                                     <a href="{{ url_for('ar_routes.view_ar', id=inv.id) }}" class="btn btn-outline-primary" title="View">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    {% if inv.status not in ['Paid', 'Cancelled'] and inv.balance_due > 0 %}
+                                    {% if inv.status not in ['Paid', 'Cancelled'] and (inv.balance_due or 0) > 0 %}
                                     <a href="{{ url_for('ar_routes.record_payment', id=inv.id) }}" class="btn btn-outline-success" title="Record Payment">
                                         <i class="bi bi-cash"></i>
                                     </a>
