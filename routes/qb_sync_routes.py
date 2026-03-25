@@ -33,6 +33,9 @@ def ensure_qb_tables(conn):
             qb_mode          TEXT DEFAULT 'online',
             sandbox_mode     BOOLEAN DEFAULT TRUE,
             realm_id         TEXT,
+            client_id        TEXT,
+            client_secret    TEXT,
+            redirect_uri     TEXT,
             access_token     TEXT,
             refresh_token    TEXT,
             token_expiry     TIMESTAMP,
@@ -48,6 +51,16 @@ def ensure_qb_tables(conn):
             updated_at       TIMESTAMP DEFAULT NOW()
         )
     ''')
+    for col, definition in [
+        ('client_id',     'TEXT'),
+        ('client_secret', 'TEXT'),
+        ('redirect_uri',  'TEXT'),
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE qb_sync_config ADD COLUMN IF NOT EXISTS {col} {definition}')
+            conn.commit()
+        except Exception:
+            conn.rollback()
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_sync_event_log (
             id            SERIAL PRIMARY KEY,
@@ -144,9 +157,20 @@ def _token_expired(config):
     return datetime.now() >= expiry - timedelta(minutes=5)
 
 
+def _get_credentials(config):
+    """Return (client_id, client_secret) — DB values take priority over env vars."""
+    client_id     = (config.get('client_id') if config else None) or os.environ.get('QB_CLIENT_ID', '')
+    client_secret = (config.get('client_secret') if config else None) or os.environ.get('QB_CLIENT_SECRET', '')
+    return client_id, client_secret
+
+
+def _credentials_configured(config):
+    cid, csec = _get_credentials(config)
+    return bool(cid and csec)
+
+
 def _refresh_token(conn, config):
-    client_id     = os.environ.get('QB_CLIENT_ID', '')
-    client_secret = os.environ.get('QB_CLIENT_SECRET', '')
+    client_id, client_secret = _get_credentials(config)
     if not client_id or not client_secret or not config.get('refresh_token'):
         return None
     try:
@@ -569,10 +593,16 @@ def qb_connect():
         flash('Only Admin or Accountant users can connect QuickBooks.', 'danger')
         return redirect(url_for('qb_sync_routes.qb_dashboard'))
 
-    client_id     = os.environ.get('QB_CLIENT_ID', '')
-    redirect_uri  = os.environ.get('QB_REDIRECT_URI', request.host_url.rstrip('/') + '/qb/callback')
+    db   = Database()
+    conn = db.get_connection()
+    ensure_qb_tables(conn)
+    config = _get_config(conn)
+    conn.close()
+    client_id, _ = _get_credentials(config)
+    redirect_uri  = (config.get('redirect_uri') if config else None) or \
+                    os.environ.get('QB_REDIRECT_URI', request.host_url.rstrip('/') + '/qb/callback')
     if not client_id:
-        flash('QB_CLIENT_ID environment variable is not set. Please configure QB credentials first.', 'danger')
+        flash('QuickBooks credentials are not configured. Please enter your Client ID and Client Secret on this page first.', 'danger')
         return redirect(url_for('qb_sync_routes.qb_dashboard'))
 
     import secrets
@@ -601,9 +631,13 @@ def qb_callback():
         flash('Invalid OAuth state. Please try connecting again.', 'danger')
         return redirect(url_for('qb_sync_routes.qb_dashboard'))
 
-    client_id     = os.environ.get('QB_CLIENT_ID', '')
-    client_secret = os.environ.get('QB_CLIENT_SECRET', '')
-    redirect_uri  = os.environ.get('QB_REDIRECT_URI', request.host_url.rstrip('/') + '/qb/callback')
+    db         = Database()
+    conn       = db.get_connection()
+    ensure_qb_tables(conn)
+    config     = _get_config(conn)
+    client_id, client_secret = _get_credentials(config)
+    redirect_uri = (config.get('redirect_uri') if config else None) or \
+                   os.environ.get('QB_REDIRECT_URI', request.host_url.rstrip('/') + '/qb/callback')
 
     try:
         resp = http.post(
@@ -616,11 +650,8 @@ def qb_callback():
             flash(f'QB authentication failed: {resp.text[:200]}', 'danger')
             return redirect(url_for('qb_sync_routes.qb_dashboard'))
 
-        data       = resp.json()
-        expiry     = datetime.now() + timedelta(seconds=data.get('expires_in', 3600))
-        db         = Database()
-        conn       = db.get_connection()
-        ensure_qb_tables(conn)
+        data   = resp.json()
+        expiry = datetime.now() + timedelta(seconds=data.get('expires_in', 3600))
 
         conn.execute('''
             INSERT INTO qb_sync_config
@@ -665,9 +696,9 @@ def qb_disconnect():
         config = _get_config(conn)
         if config and config.get('access_token'):
             try:
+                cid, csec = _get_credentials(config)
                 http.post(QB_REVOKE_URL,
-                          auth=(os.environ.get('QB_CLIENT_ID', ''),
-                                os.environ.get('QB_CLIENT_SECRET', '')),
+                          auth=(cid, csec),
                           data={'token': config['access_token']}, timeout=5)
             except Exception:
                 pass
@@ -678,6 +709,44 @@ def qb_disconnect():
         ''')
         conn.commit()
         return jsonify({'message': 'QuickBooks disconnected.'})
+    finally:
+        conn.close()
+
+
+# ─── Credentials Save ─────────────────────────────────────────────────────────
+
+@qb_sync_bp.route('/api/qb/credentials', methods=['POST'])
+@login_required
+def save_qb_credentials():
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    data = request.get_json() or {}
+    client_id     = (data.get('client_id') or '').strip()
+    client_secret = (data.get('client_secret') or '').strip()
+    redirect_uri  = (data.get('redirect_uri') or '').strip()
+    if not client_id or not client_secret:
+        return jsonify({'error': 'Client ID and Client Secret are required.'}), 400
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        existing = conn.execute("SELECT id FROM qb_sync_config WHERE tenant_id='default' LIMIT 1").fetchone()
+        if existing:
+            conn.execute('''
+                UPDATE qb_sync_config
+                SET client_id=%s, client_secret=%s, redirect_uri=%s, updated_at=NOW()
+                WHERE tenant_id='default'
+            ''', (client_id, client_secret, redirect_uri or None))
+        else:
+            conn.execute('''
+                INSERT INTO qb_sync_config (tenant_id, client_id, client_secret, redirect_uri)
+                VALUES ('default', %s, %s, %s)
+            ''', (client_id, client_secret, redirect_uri or None))
+        conn.commit()
+        return jsonify({'message': 'Credentials saved. You can now connect to QuickBooks.'})
+    except Exception as ex:
+        conn.rollback()
+        return jsonify({'error': str(ex)}), 500
     finally:
         conn.close()
 
@@ -723,7 +792,16 @@ def qb_status():
         ensure_qb_tables(conn)
         config = _get_config(conn)
         if not config:
-            return jsonify({'connected': False, 'status': 'not_configured'})
+            return jsonify({
+                'connected': False,
+                'status': 'not_configured',
+                'credentials_configured': bool(os.environ.get('QB_CLIENT_ID')),
+                'client_id_hint': None,
+            })
+
+        cid, _   = _get_credentials(config)
+        creds_ok = bool(cid)
+        hint     = (cid[:6] + '...' + cid[-4:]) if cid and len(cid) > 10 else (cid or None)
 
         token_ok = not _token_expired(config)
         recent   = conn.execute('''
@@ -738,18 +816,20 @@ def qb_status():
         ).fetchone()
 
         return jsonify({
-            'connected':          bool(config['is_active']),
-            'realm_id':           config['realm_id'],
-            'sandbox_mode':       bool(config['sandbox_mode']),
-            'token_valid':        token_ok,
-            'connected_at':       str(config['connected_at']) if config['connected_at'] else None,
-            'connected_by':       config['connected_by'],
-            'conflict_rule':      config['conflict_rule'],
-            'auto_sync_wo':       bool(config['auto_sync_wo']),
-            'auto_sync_inv':      bool(config['auto_sync_inv']),
-            'auto_sync_pay':      bool(config['auto_sync_pay']),
-            'stats_24h':          stats,
-            'pending_conflicts':  int(pending_conflicts['cnt'] or 0) if pending_conflicts else 0,
+            'connected':               bool(config['is_active']),
+            'realm_id':                config['realm_id'],
+            'sandbox_mode':            bool(config['sandbox_mode']),
+            'token_valid':             token_ok,
+            'connected_at':            str(config['connected_at']) if config['connected_at'] else None,
+            'connected_by':            config['connected_by'],
+            'conflict_rule':           config['conflict_rule'],
+            'auto_sync_wo':            bool(config['auto_sync_wo']),
+            'auto_sync_inv':           bool(config['auto_sync_inv']),
+            'auto_sync_pay':           bool(config['auto_sync_pay']),
+            'stats_24h':               stats,
+            'pending_conflicts':       int(pending_conflicts['cnt'] or 0) if pending_conflicts else 0,
+            'credentials_configured':  creds_ok,
+            'client_id_hint':          hint,
         })
     finally:
         conn.close()
