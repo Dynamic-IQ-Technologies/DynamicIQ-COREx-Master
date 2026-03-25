@@ -70,11 +70,58 @@ EXCHANGE_STATUSES = [
 ]
 
 
+def _auto_sync_exchange_sos(conn):
+    """Auto-create exchange_master records for any Exchange-type SOs not yet tracked."""
+    try:
+        unlinked = conn.execute('''
+            SELECT so.id, so.customer_id, so.exchange_type, so.core_charge, so.status
+            FROM sales_orders so
+            WHERE so.sales_type LIKE '%Exchange%'
+              AND so.id NOT IN (SELECT sales_order_id FROM exchange_master WHERE sales_order_id IS NOT NULL)
+        ''').fetchall()
+        for so in unlinked:
+            result = conn.execute('SELECT MAX(id) as max_id FROM exchange_master').fetchone()
+            next_num = (result['max_id'] or 0) + 1
+            eid = f'EXC-{next_num:06d}'
+            line = conn.execute(
+                'SELECT product_id, serial_number, core_charge FROM sales_order_lines WHERE so_id = ? LIMIT 1',
+                (so['id'],)
+            ).fetchone()
+            product_id = line['product_id'] if line else None
+            serial = (line['serial_number'] if line else '') or ''
+            core_value = float((line['core_charge'] if line else None) or so['core_charge'] or 0)
+            status_map = {'Shipped': 'Core Received', 'Completed': 'Closed'}
+            exch_status = status_map.get(so['status'], 'Open')
+            cur = conn.execute('''
+                INSERT INTO exchange_master (exchange_id, sales_order_id, customer_id, product_id,
+                    shipped_serial_number, exchange_type, core_due_date,
+                    core_value, exchange_fee, deposit_amount, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, DATE('now', '+30 days'), ?, 0, 0, ?, 1)
+            ''', (eid, so['id'], so['customer_id'], product_id, serial,
+                  so['exchange_type'] or 'Standard', core_value, exch_status))
+            master_id = cur.lastrowid
+            if master_id:
+                core_status = 'Core Received' if so['status'] == 'Shipped' else 'Awaiting Core'
+                conn.execute('''
+                    INSERT INTO exchange_cores (exchange_id, core_status, ownership_responsibility, financial_exposure)
+                    VALUES (?, ?, 'Customer', ?)
+                ''', (master_id, core_status, core_value))
+                conn.execute('''
+                    INSERT INTO exchange_audit_log (exchange_id, action_type, new_status, action_details, performed_by, performed_by_name, ip_address)
+                    VALUES (?, 'Auto-Imported', ?, 'Auto-synced from Exchange Sales Order', 1, 'System', '127.0.0.1')
+                ''', (master_id, exch_status))
+        if unlinked:
+            conn.commit()
+    except Exception as e:
+        logger.warning(f'Exchange auto-sync warning: {e}')
+
+
 @exchange_bp.route('/')
 @login_required
 def exchange_dashboard():
     conn = get_db()
-    
+    _auto_sync_exchange_sos(conn)
+
     status_filter = request.args.get('status', '')
     customer_filter = request.args.get('customer_id', '')
     core_status_filter = request.args.get('core_status', '')
