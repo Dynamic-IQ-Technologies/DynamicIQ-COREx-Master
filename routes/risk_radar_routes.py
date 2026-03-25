@@ -6,6 +6,18 @@ import threading
 import uuid
 import json
 
+
+def _j(value, default=None):
+    """Safely return a parsed JSON value — handles both str and already-parsed dict/list."""
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return default
+
 logger = logging.getLogger(__name__)
 
 risk_radar_bp = Blueprint('risk_radar', __name__)
@@ -66,7 +78,7 @@ def dashboard():
         high_risk_suppliers = sum(1 for s in supplier_profiles if s['risk_level'] in ('High', 'Critical'))
         high_risk_parts = sum(1 for p in part_profiles if p['risk_level'] in ('High', 'Critical'))
         total_exposure = sum(
-            json.loads(p['score_breakdown'] or '{}').get('shortage', {}).get('shortage_qty', 0) *
+            _j(p['score_breakdown'], {}).get('shortage', {}).get('shortage_qty', 0) *
             float(p['unit_cost'] or 0)
             for p in part_profiles
         )
@@ -78,20 +90,20 @@ def dashboard():
 
         suppliers_enriched = []
         for s in supplier_profiles:
-            bd = json.loads(s['score_breakdown'] or '{}')
+            bd = _j(s['score_breakdown'], {})
             row = dict(s)
             row['breakdown'] = bd
-            row['mitigations'] = json.loads(s['mitigation_recommendations'] or '[]')
+            row['mitigations'] = _j(s['mitigation_recommendations'], [])
             row['level_color'] = _level_color(s['risk_level'])
             row['trend_icon'] = _trend_icon(s['trend'])
             suppliers_enriched.append(row)
 
         parts_enriched = []
         for p in part_profiles:
-            bd = json.loads(p['score_breakdown'] or '{}')
+            bd = _j(p['score_breakdown'], {})
             row = dict(p)
             row['breakdown'] = bd
-            row['mitigations'] = json.loads(p['mitigation_recommendations'] or '[]')
+            row['mitigations'] = _j(p['mitigation_recommendations'], [])
             row['level_color'] = _level_color(p['risk_level'])
             row['trend_icon'] = _trend_icon(p['trend'])
             row['shortage_qty'] = bd.get('shortage', {}).get('shortage_qty', 0)
@@ -203,8 +215,8 @@ def supplier_risk_detail(supplier_id):
             ORDER BY calculated_at DESC LIMIT 10
         ''', (supplier_id,)).fetchall()
         data = dict(row)
-        data['score_breakdown'] = json.loads(data.get('score_breakdown') or '{}')
-        data['mitigation_recommendations'] = json.loads(data.get('mitigation_recommendations') or '[]')
+        data['score_breakdown'] = _j(data.get('score_breakdown'), {})
+        data['mitigation_recommendations'] = _j(data.get('mitigation_recommendations'), [])
         data['history'] = [dict(h) for h in history]
         return jsonify(data)
     finally:
@@ -224,8 +236,8 @@ def part_risk_detail(product_id):
         if not row:
             return jsonify({'error': 'Not calculated yet'}), 404
         data = dict(row)
-        data['score_breakdown'] = json.loads(data.get('score_breakdown') or '{}')
-        data['mitigation_recommendations'] = json.loads(data.get('mitigation_recommendations') or '[]')
+        data['score_breakdown'] = _j(data.get('score_breakdown'), {})
+        data['mitigation_recommendations'] = _j(data.get('mitigation_recommendations'), [])
         return jsonify(data)
     finally:
         conn.close()
