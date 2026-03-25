@@ -17,8 +17,8 @@ _jobs_lock = threading.Lock()
 
 
 def _fetch_mrr_data(conn):
-    """Re-run the MRR queries to get current shortage and supplier data."""
-    po_summary = conn.execute('''
+    """Mirror the full MRR report logic across all four shortage sources."""
+    po_rows = conn.execute('''
         SELECT pol.product_id,
                SUM(pol.quantity - COALESCE(pol.received_quantity, 0)) as qty_on_order
         FROM purchase_order_lines pol
@@ -26,37 +26,129 @@ def _fetch_mrr_data(conn):
         WHERE po.status IN ('Ordered', 'Partially Received')
         GROUP BY pol.product_id
     ''').fetchall()
-    po_dict = {r['product_id']: float(r['qty_on_order'] or 0) for r in po_summary}
+    po_dict = {r['product_id']: float(r['qty_on_order'] or 0) for r in po_rows}
 
-    inventory_rows = conn.execute('''
+    inv_rows = conn.execute('''
         SELECT product_id, SUM(quantity) as total_qty
         FROM inventory GROUP BY product_id
     ''').fetchall()
-    inv_dict = {r['product_id']: float(r['total_qty'] or 0) for r in inventory_rows}
+    inv_dict = {r['product_id']: float(r['total_qty'] or 0) for r in inv_rows}
+    net_inventory = dict(inv_dict)
 
-    shortages = conn.execute('''
-        SELECT
-            mr.product_id,
-            p.code,
-            p.name,
-            p.unit_of_measure,
-            COALESCE(p.cost, 0) as unit_cost,
-            p.lead_time_days,
-            SUM(mr.shortage_quantity) as total_shortage,
-            COUNT(DISTINCT mr.work_order_id) as wo_count
+    product_shortages = {}
+
+    # --- Source 1: Production work order material requirements ---
+    prod_rows = conn.execute('''
+        SELECT mr.product_id, p.code, p.name, p.unit_of_measure,
+               COALESCE(p.cost, 0) as unit_cost, p.lead_time_days,
+               mr.required_quantity, mr.shortage_quantity
         FROM material_requirements mr
         JOIN products p ON mr.product_id = p.id
-        WHERE mr.status != 'Satisfied' AND mr.shortage_quantity > 0
-        GROUP BY mr.product_id, p.code, p.name, p.unit_of_measure, p.cost, p.lead_time_days
-        ORDER BY SUM(mr.shortage_quantity * COALESCE(p.cost, 0)) DESC
-        LIMIT 20
+        WHERE mr.status != 'Satisfied'
     ''').fetchall()
+    for r in prod_rows:
+        pid = r['product_id']
+        shortage = float(r['shortage_quantity'] or 0)
+        net_inventory[pid] = net_inventory.get(pid, 0) - float(r['required_quantity'] or 0)
+        if shortage > 0:
+            _accumulate(product_shortages, pid, r, shortage)
 
-    supplier_map = {}
-    if shortages:
-        pids = [r['product_id'] for r in shortages]
+    # --- Source 2: Service work order materials ---
+    svc_rows = conn.execute('''
+        SELECT swm.product_id, p.code, p.name, p.unit_of_measure,
+               COALESCE(p.cost, 0) as unit_cost, p.lead_time_days,
+               swm.quantity as required_quantity
+        FROM service_wo_materials swm
+        JOIN products p ON swm.product_id = p.id
+        JOIN service_work_orders swo ON swm.swo_id = swo.id
+        WHERE swo.status NOT IN ('Completed', 'Cancelled', 'Invoiced')
+          AND swm.allocated_from_inventory = 0
+    ''').fetchall()
+    for r in svc_rows:
+        pid = r['product_id']
+        required = float(r['required_quantity'] or 0)
+        available = max(0, net_inventory.get(pid, 0))
+        shortage = max(0, required - available)
+        net_inventory[pid] = net_inventory.get(pid, 0) - required
+        if shortage > 0:
+            _accumulate(product_shortages, pid, r, shortage)
+
+    # --- Source 3: Work order task materials ---
+    task_rows = conn.execute('''
+        SELECT tm.product_id, p.code, p.name, p.unit_of_measure,
+               COALESCE(p.cost, 0) as unit_cost, p.lead_time_days,
+               tm.required_qty as required_quantity,
+               COALESCE(tm.issued_qty, 0) as issued_qty
+        FROM work_order_task_materials tm
+        JOIN products p ON tm.product_id = p.id
+        JOIN work_order_tasks wot ON tm.task_id = wot.id
+        JOIN work_orders wo ON wot.work_order_id = wo.id
+        WHERE wo.status NOT IN ('Completed', 'Closed', 'Cancelled')
+          AND COALESCE(tm.issued_qty, 0) < tm.required_qty
+          AND NOT EXISTS (
+              SELECT 1 FROM material_requirements mr
+              WHERE mr.work_order_id = wo.id AND mr.product_id = tm.product_id
+          )
+    ''').fetchall()
+    for r in task_rows:
+        pid = r['product_id']
+        shortage = float(r['required_quantity'] or 0) - float(r['issued_qty'] or 0)
+        if shortage > 0:
+            _accumulate(product_shortages, pid, r, shortage)
+
+    # --- Source 4: Sales order lines not fully allocated ---
+    so_rows = conn.execute('''
+        SELECT sol.product_id, p.code, p.name, p.unit_of_measure,
+               COALESCE(p.cost, 0) as unit_cost, p.lead_time_days,
+               sol.quantity as required_quantity,
+               COALESCE(sol.allocated_quantity, 0) as allocated_quantity
+        FROM sales_order_lines sol
+        JOIN products p ON sol.product_id = p.id
+        JOIN sales_orders so ON sol.so_id = so.id
+        WHERE so.status NOT IN ('Cancelled', 'Closed', 'Shipped', 'Invoiced')
+          AND COALESCE(sol.is_core, 0) = 0
+          AND sol.quantity > COALESCE(sol.allocated_quantity, 0)
+    ''').fetchall()
+    for r in so_rows:
+        pid = r['product_id']
+        required = float(r['required_quantity'] or 0)
+        available = max(0, net_inventory.get(pid, 0))
+        shortage = max(0, required - available)
+        net_inventory[pid] = net_inventory.get(pid, 0) - required
+        if shortage > 0:
+            _accumulate(product_shortages, pid, r, shortage)
+
+    # Build final list, filter out items fully covered by POs
+    result = []
+    for pid, data in product_shortages.items():
+        on_order = po_dict.get(pid, 0)
+        total_shortage = data['total_shortage']
+        net_shortage = max(0, total_shortage - on_order)
+        if net_shortage <= 0:
+            continue
+        result.append({
+            'product_id': pid,
+            'code': data['code'],
+            'name': data['name'],
+            'uom': data['uom'],
+            'unit_cost': data['unit_cost'],
+            'lead_time_days': data['lead_time_days'],
+            'shortage_qty': total_shortage,
+            'on_order_qty': on_order,
+            'net_shortage': net_shortage,
+            'current_stock': inv_dict.get(pid, 0),
+            'wo_count': data['source_count'],
+            'suppliers': []
+        })
+
+    result.sort(key=lambda x: x['net_shortage'] * x['unit_cost'], reverse=True)
+    result = result[:20]
+
+    # Enrich with supplier history
+    if result:
+        pids = [r['product_id'] for r in result]
         placeholders = ','.join(['%s'] * len(pids))
-        supplier_rows = conn.execute(f'''
+        sup_rows = conn.execute(f'''
             SELECT pol.product_id, s.name as supplier_name, s.id as supplier_id,
                    AVG(pol.unit_price) as avg_price,
                    COUNT(pol.id) as order_count,
@@ -68,40 +160,37 @@ def _fetch_mrr_data(conn):
             GROUP BY pol.product_id, s.name, s.id
             ORDER BY pol.product_id, COUNT(pol.id) DESC
         ''', pids).fetchall()
-        for r in supplier_rows:
+        sup_map = {}
+        for r in sup_rows:
             pid = r['product_id']
-            if pid not in supplier_map:
-                supplier_map[pid] = []
-            supplier_map[pid].append({
+            if pid not in sup_map:
+                sup_map[pid] = []
+            sup_map[pid].append({
                 'name': r['supplier_name'],
                 'supplier_id': r['supplier_id'],
                 'avg_price': float(r['avg_price'] or 0),
                 'order_count': r['order_count'],
                 'last_order': str(r['last_order_date']) if r['last_order_date'] else None
             })
+        for item in result:
+            item['suppliers'] = sup_map.get(item['product_id'], [])
 
-    result = []
-    for r in shortages:
-        pid = r['product_id']
-        shortage = float(r['total_shortage'] or 0)
-        on_order = po_dict.get(pid, 0)
-        net_shortage = max(0, shortage - on_order)
-        result.append({
-            'product_id': pid,
-            'code': r['code'],
-            'name': r['name'],
-            'uom': r['unit_of_measure'],
-            'unit_cost': float(r['unit_cost'] or 0),
-            'lead_time_days': r['lead_time_days'],
-            'shortage_qty': shortage,
-            'on_order_qty': on_order,
-            'net_shortage': net_shortage,
-            'current_stock': inv_dict.get(pid, 0),
-            'wo_count': r['wo_count'],
-            'suppliers': supplier_map.get(pid, [])
-        })
+    return result
 
-    return [r for r in result if r['net_shortage'] > 0]
+
+def _accumulate(product_shortages, pid, row, shortage):
+    if pid not in product_shortages:
+        product_shortages[pid] = {
+            'code': row['code'],
+            'name': row['name'],
+            'uom': row['unit_of_measure'],
+            'unit_cost': float(row['unit_cost'] or 0),
+            'lead_time_days': row['lead_time_days'],
+            'total_shortage': 0,
+            'source_count': 0
+        }
+    product_shortages[pid]['total_shortage'] += shortage
+    product_shortages[pid]['source_count'] += 1
 
 
 def _build_mrr_prompt(items):
