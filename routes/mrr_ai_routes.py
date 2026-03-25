@@ -194,63 +194,29 @@ def _accumulate(product_shortages, pid, row, shortage):
 
 
 def _build_mrr_prompt(items):
+    cap = items[:8]
+    total_exposure = sum(i['net_shortage'] * i['unit_cost'] for i in cap)
     lines = []
-    for i, item in enumerate(items[:12], 1):
-        suppliers_text = ', '.join(
-            f"{s['name']} (avg ${s['avg_price']:.2f}, {s['order_count']} orders)"
-            for s in item['suppliers'][:3]
-        ) if item['suppliers'] else 'No supplier history'
-
+    for i, item in enumerate(cap, 1):
+        sup = item['suppliers'][0]['name'] if item['suppliers'] else 'none'
         lines.append(
-            f"{i}. {item['code']} - {item['name']}\n"
-            f"   Net shortage: {item['net_shortage']} {item['uom']} | "
-            f"Stock: {item['current_stock']} | On order: {item['on_order_qty']}\n"
-            f"   Unit cost: ${item['unit_cost']:.2f} | Lead time: {item['lead_time_days'] or 'Unknown'} days\n"
-            f"   Covering {item['wo_count']} work order(s)\n"
-            f"   Known suppliers: {suppliers_text}"
+            f"{i}. {item['code']} | {item['name']} | shortage:{item['net_shortage']} {item['uom']} "
+            f"| cost:${item['unit_cost']:.2f} | lead:{item['lead_time_days'] or '?'}d | supplier:{sup}"
         )
-
-    total_exposure = sum(i['net_shortage'] * i['unit_cost'] for i in items[:12])
-
-    prompt = f"""You are an aerospace MRO procurement intelligence analyst. Analyze the following material shortage data and generate procurement and maintenance decision recommendations.
-
-MATERIAL REQUIREMENTS SHORTAGE SUMMARY
-Total items with net shortage: {len(items[:12])}
-Total financial exposure: ${total_exposure:,.2f}
-
-SHORTAGE DETAILS:
-{chr(10).join(lines)}
-
-Return ONLY a valid JSON object — no markdown, no extra text:
-{{
-  "summary": "<2-3 sentence executive summary of the procurement situation>",
-  "total_risk_exposure": <float, total USD risk if shortages are not resolved>,
-  "overall_urgency": <"Low"|"Medium"|"High"|"Critical">,
-  "overall_confidence": <"Low"|"Medium"|"High">,
-  "recommendations": [
-    {{
-      "product_code": "<code>",
-      "product_name": "<name>",
-      "product_id": <integer>,
-      "shortage_qty": <float>,
-      "suggested_supplier": "<supplier name or 'Seek new supplier'>",
-      "suggested_quantity": <float, recommended order qty including buffer>,
-      "suggested_timing": "<e.g. 'Order within 48 hours'>",
-      "timing_urgency": <"Low"|"Medium"|"High"|"Critical">,
-      "why_supplier": "<plain English, 1 sentence>",
-      "why_quantity": "<plain English, 1 sentence>",
-      "why_now": "<plain English, 1 sentence>",
-      "if_ignored": "<plain English, 1 sentence consequence>",
-      "downtime_reduction_pct": <integer 0-100>,
-      "net_cash_impact": <float, negative=cost, positive=saving>,
-      "confidence": <"Low"|"Medium"|"High">,
-      "risk_exposure": <float, USD cost of inaction>,
-      "recommended_actions": [<"create_po"|"create_wo"|"flag_expedite">, ...]
-    }}
-  ],
-  "cfo_summary": "<3-4 sentence summary suitable for CFO approval, including total exposure, recommended spend, and expected risk reduction>"
-}}"""
-    return prompt
+    schema = ('{"summary":"str","total_risk_exposure":0.0,"overall_urgency":"High",'
+              '"overall_confidence":"High","cfo_summary":"str","recommendations":['
+              '{"product_code":"","product_name":"","product_id":0,"shortage_qty":0,'
+              '"suggested_supplier":"","suggested_quantity":0,"suggested_timing":"",'
+              '"timing_urgency":"High","why_supplier":"","why_quantity":"","why_now":"",'
+              '"if_ignored":"","downtime_reduction_pct":0,"net_cash_impact":0.0,'
+              '"confidence":"High","risk_exposure":0.0,'
+              '"recommended_actions":["create_po"]}]}')
+    return (
+        f"Aerospace MRO procurement analyst. {len(cap)} material shortages, "
+        f"total exposure ${total_exposure:,.0f}.\n"
+        + '\n'.join(lines)
+        + f"\n\nReturn ONLY valid JSON matching this schema (no markdown):\n{schema}"
+    )
 
 
 def _call_ai(prompt):
@@ -258,16 +224,17 @@ def _call_ai(prompt):
         from openai import OpenAI
         client = OpenAI(
             api_key=os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+            base_url=os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+            timeout=12.0
         )
         response = client.chat.completions.create(
-            model='gpt-4o',
+            model='gpt-4o-mini',
             messages=[
-                {'role': 'system', 'content': 'You are a procurement intelligence expert. Always respond with valid JSON only.'},
+                {'role': 'system', 'content': 'Respond with valid JSON only. No markdown.'},
                 {'role': 'user', 'content': prompt}
             ],
-            temperature=0.3,
-            max_tokens=2500
+            temperature=0.2,
+            max_tokens=1400
         )
         raw = response.choices[0].message.content.strip()
         if raw.startswith('```'):

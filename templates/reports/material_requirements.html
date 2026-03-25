@@ -1170,7 +1170,7 @@ function refreshMRRAI() {
         .then(d => {
             if (d.job_id) {
                 mrrAiJobId = d.job_id;
-                mrrAiPollTimer = setInterval(pollMRRAI, 2500);
+                mrrAiPollTimer = setInterval(pollMRRAI, 1000);
             } else {
                 showMRRAIError('Failed to start analysis.');
             }
