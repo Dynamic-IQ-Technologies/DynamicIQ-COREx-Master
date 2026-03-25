@@ -2505,6 +2505,95 @@
                         <span class="text-muted small" id="tsDesc"></span>
                     </div>
 
+                    <!-- Empty template message -->
+                    <div id="templateEmptyMsg" class="d-none">
+                        <div class="alert alert-warning d-flex gap-3 align-items-start mb-3">
+                            <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+                            <div>
+                                <strong id="tplName">This template</strong> has no tasks defined yet — add tasks to it before applying.
+                                <div class="mt-2">
+                                    <a id="tplEditLink" href="#" target="_blank" class="btn btn-warning btn-sm me-2">
+                                        <i class="bi bi-pencil me-1"></i>Edit Template (opens in new tab)
+                                    </a>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleInlineAdd()">
+                                        <i class="bi bi-plus-circle me-1"></i>Add Task Inline
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inline add task form (submitted to template route, then reload) -->
+                        <div id="inlineAddForm" class="d-none card border-primary mb-3">
+                            <div class="card-header bg-primary text-white py-2">
+                                <strong><i class="bi bi-plus-circle me-2"></i>Add Task to Template</strong>
+                            </div>
+                            <div class="card-body pb-2">
+                                <form id="addTaskToTplForm">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-7">
+                                            <label class="form-label small fw-semibold mb-1">Task Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control form-control-sm" id="inlineTaskName" placeholder="e.g. Initial Inspection" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold mb-1">Category</label>
+                                            <select class="form-select form-select-sm" id="inlineTaskCat">
+                                                <option>General</option>
+                                                <option>Inspection</option>
+                                                <option>Maintenance</option>
+                                                <option>Repair</option>
+                                                <option>Testing</option>
+                                                <option>NDT</option>
+                                                <option>Documentation</option>
+                                                <option>Safety</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold mb-1">Seq #</label>
+                                            <input type="number" class="form-control form-control-sm" id="inlineTaskSeq" value="10" min="0" step="10">
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Priority</label>
+                                            <select class="form-select form-select-sm" id="inlineTaskPri">
+                                                <option>Low</option>
+                                                <option selected>Medium</option>
+                                                <option>High</option>
+                                                <option>Critical</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold mb-1">Planned Hrs</label>
+                                            <input type="number" class="form-control form-control-sm" id="inlineTaskHrs" value="0" min="0" step="0.5">
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label small fw-semibold mb-1">Description</label>
+                                            <input type="text" class="form-control form-control-sm" id="inlineTaskDesc" placeholder="Optional">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="submitInlineTask()">
+                                            <i class="bi bi-check-lg me-1"></i>Save Task
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addAnotherTask()">
+                                            <i class="bi bi-plus me-1"></i>Save &amp; Add Another
+                                        </button>
+                                        <div id="inlineTaskSpinner" class="d-none ms-2">
+                                            <span class="spinner-border spinner-border-sm text-primary"></span>
+                                            <span class="small ms-1 text-muted">Saving...</span>
+                                        </div>
+                                    </div>
+                                </form>
+                                <div id="inlineTasksAdded" class="mt-2 d-none">
+                                    <span class="badge bg-success" id="inlineTaskCount">0 tasks added</span>
+                                    <button type="button" class="btn btn-success btn-sm ms-2" onclick="reloadTemplatePreview()">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Reload Preview
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Tasks preview -->
                     <div id="templatePreviewContainer" class="d-none">
                         <h6 class="fw-bold mb-2 text-muted">Tasks Preview</h6>
@@ -2614,18 +2703,87 @@ document.querySelectorAll('input[name="mode"]').forEach(radio => {
     });
 });
 
+// ── Inline add task to template ─────────────────────────────────────────────
+let _inlineTasksAdded = 0;
+
+function toggleInlineAdd() {
+    const f = document.getElementById('inlineAddForm');
+    f.classList.toggle('d-none');
+    if (!f.classList.contains('d-none')) document.getElementById('inlineTaskName').focus();
+}
+
+function submitInlineTask(addAnother) {
+    const name = document.getElementById('inlineTaskName').value.trim();
+    if (!name) { document.getElementById('inlineTaskName').classList.add('is-invalid'); return; }
+    document.getElementById('inlineTaskName').classList.remove('is-invalid');
+
+    const fd = new FormData();
+    fd.append('task_name', name);
+    fd.append('category', document.getElementById('inlineTaskCat').value);
+    fd.append('sequence_number', document.getElementById('inlineTaskSeq').value);
+    fd.append('priority', document.getElementById('inlineTaskPri').value);
+    fd.append('planned_hours', document.getElementById('inlineTaskHrs').value);
+    fd.append('description', document.getElementById('inlineTaskDesc').value);
+
+    document.getElementById('inlineTaskSpinner').classList.remove('d-none');
+
+    fetch(`/task-templates/${_currentTemplateId}/items/add-json`, { method:'POST', body:fd })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('inlineTaskSpinner').classList.add('d-none');
+            if (!data.success) { alert('Error: ' + data.message); return; }
+
+            _inlineTasksAdded++;
+            const ta = document.getElementById('inlineTasksAdded');
+            ta.classList.remove('d-none');
+            document.getElementById('inlineTaskCount').textContent =
+                `${_inlineTasksAdded} task${_inlineTasksAdded > 1 ? 's' : ''} added — ${data.total_items} total in template`;
+
+            // Reset form fields
+            document.getElementById('inlineTaskName').value = '';
+            document.getElementById('inlineTaskDesc').value = '';
+            const nextSeq = parseInt(document.getElementById('inlineTaskSeq').value || 10) + 10;
+            document.getElementById('inlineTaskSeq').value = nextSeq;
+
+            if (!addAnother) {
+                document.getElementById('inlineAddForm').classList.add('d-none');
+                reloadTemplatePreview();
+            } else {
+                document.getElementById('inlineTaskName').focus();
+            }
+        })
+        .catch(() => {
+            document.getElementById('inlineTaskSpinner').classList.add('d-none');
+            alert('Error saving task — please try again.');
+        });
+}
+
+function addAnotherTask() { submitInlineTask(true); }
+
+function reloadTemplatePreview() {
+    _inlineTasksAdded = 0;
+    document.getElementById('inlineTasksAdded').classList.add('d-none');
+    previewTemplate(_currentTemplateId);
+}
+
 // ── Task Template preview ───────────────────────────────────────────────────
+let _currentTemplateId = null;
+
 function previewTemplate(templateId) {
     const container = document.getElementById('templatePreviewContainer');
     const spinner = document.getElementById('templatePreviewSpinner');
     const summaryBar = document.getElementById('templateSummaryBar');
+    const emptyMsg = document.getElementById('templateEmptyMsg');
     const btn = document.getElementById('applyTemplateBtn');
 
     container.classList.add('d-none');
     summaryBar.classList.add('d-none');
+    emptyMsg.classList.add('d-none');
     btn.disabled = true;
+    _currentTemplateId = null;
 
     if (!templateId) return;
+    _currentTemplateId = templateId;
 
     spinner.classList.remove('d-none');
     fetch(`/api/task-template/${templateId}/preview`)
@@ -2633,12 +2791,13 @@ function previewTemplate(templateId) {
         .then(data => {
             spinner.classList.add('d-none');
             if (data.error) { alert('Error: ' + data.error); return; }
+
             if (!data.items || data.items.length === 0) {
-                container.classList.remove('d-none');
-                document.getElementById('templatePreviewBody').innerHTML =
-                    '<tr><td colspan="6" class="text-center text-muted py-3">This template has no tasks defined yet.</td></tr>';
-                summaryBar.classList.add('d-none');
-                btn.disabled = true;
+                // Show empty message with edit link — still allow apply (server handles gracefully)
+                document.getElementById('tplEditLink').href = `/task-templates/${templateId}/edit`;
+                document.getElementById('tplName').textContent = data.template.name || 'this template';
+                emptyMsg.classList.remove('d-none');
+                btn.disabled = true;   // Can't apply an empty template — guide user to add tasks
                 return;
             }
 

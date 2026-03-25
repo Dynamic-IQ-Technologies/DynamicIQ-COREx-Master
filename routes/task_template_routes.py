@@ -300,6 +300,45 @@ def delete_template_item(item_id):
     return redirect(url_for('task_template_routes.edit_template', template_id=template_id))
 
 
+@task_template_bp.route('/task-templates/<int:template_id>/items/add-json', methods=['POST'])
+@login_required
+@role_required('Admin', 'Planner')
+def add_template_item_json(template_id):
+    """JSON endpoint for inline task addition from the work order modal."""
+    db = Database()
+    conn = db.get_connection()
+    try:
+        template = conn.execute('SELECT id FROM task_templates WHERE id = ?', (template_id,)).fetchone()
+        if not template:
+            return jsonify({'success': False, 'message': 'Template not found'}), 404
+
+        task_name = (request.form.get('task_name') or '').strip()
+        if not task_name:
+            return jsonify({'success': False, 'message': 'Task name is required'}), 400
+
+        category = request.form.get('category') or 'General'
+        sequence_number = int(request.form.get('sequence_number') or 10)
+        priority = request.form.get('priority') or 'Medium'
+        planned_hours = float(request.form.get('planned_hours') or 0)
+        description = (request.form.get('description') or '').strip()
+        remarks = (request.form.get('remarks') or '').strip()
+
+        conn.execute('''
+            INSERT INTO task_template_items
+            (template_id, task_name, description, category, sequence_number, priority, planned_hours, remarks)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (template_id, task_name, description, category, sequence_number, priority, planned_hours, remarks))
+        conn.commit()
+
+        count = conn.execute('SELECT COUNT(*) AS c FROM task_template_items WHERE template_id = ?', (template_id,)).fetchone()['c']
+        return jsonify({'success': True, 'message': 'Task added', 'total_items': count})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @task_template_bp.route('/task-templates/api/list')
 @login_required
 def api_list_templates():
