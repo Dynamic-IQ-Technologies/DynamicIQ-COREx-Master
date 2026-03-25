@@ -67,8 +67,10 @@
                 <div class="card-header bg-transparent">
                     <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Aging Distribution</h5>
                 </div>
-                <div class="card-body">
-                    <canvas id="agingChart" height="200"></canvas>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <div style="position:relative; width:100%; max-width:320px; height:260px;">
+                        <canvas id="agingChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -178,6 +180,7 @@ new Chart(document.getElementById('agingChart'), {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'bottom'
