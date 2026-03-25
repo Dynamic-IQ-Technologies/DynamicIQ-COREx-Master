@@ -379,6 +379,8 @@ app.register_blueprint(mrr_ai_bp)
 app.register_blueprint(risk_radar_bp)
 app.register_blueprint(twin_bp)
 app.register_blueprint(inv_compliance_bp)
+from routes.wo_priority_routes import wo_priority_bp
+app.register_blueprint(wo_priority_bp)
 
 def get_database():
     from models import Database

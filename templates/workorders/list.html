@@ -200,6 +200,7 @@
                         <th data-sort-type="string">Status</th>
                         <th data-sort-type="string">Stage</th>
                         <th data-sort-type="string">Priority</th>
+                        <th data-sort-type="number" title="AI-computed priority score (0-100)">AI Score</th>
                         <th data-sort-type="date">Planned Start</th>
                         <th data-sort-type="date">Planned End</th>
                         <th data-sortable="false">Actions</th>
@@ -255,6 +256,11 @@
                                 </select>
                             </td>
                             <td>{{ wo.priority }}</td>
+                            <td>
+                                <span class="wo-ai-score-cell text-muted small" data-wo-id="{{ wo.id }}">
+                                    <span class="spinner-border spinner-border-sm opacity-25" style="width:.7rem;height:.7rem;" role="status"></span>
+                                </span>
+                            </td>
                             <td>{{ wo.planned_start_date or '-' }}</td>
                             <td>{{ wo.planned_end_date or '-' }}</td>
                             <td>
@@ -575,5 +581,34 @@ async function executeMassUpdate() {
         alert('Error performing mass update: ' + error.message);
     }
 }
+
+// ── Load AI Priority Scores for all visible WOs ───────────────────────────────
+(function loadAiPriorityScores() {
+    const CLS_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    const cells = document.querySelectorAll('.wo-ai-score-cell');
+    if (!cells.length) return;
+
+    fetch('/api/wo/priority/queue')
+        .then(r => r.ok ? r.json() : [])
+        .then(queue => {
+            const byId = {};
+            queue.forEach(w => { byId[w.id] = w; });
+            cells.forEach(cell => {
+                const wid = parseInt(cell.dataset.woId);
+                const w   = byId[wid];
+                if (w) {
+                    const color = CLS_COLOR[w.eff_class] || 'secondary';
+                    const ovr   = w.override_active ? ' <i class="bi bi-lock-fill" title="Override active" style="font-size:0.65rem;"></i>' : '';
+                    cell.innerHTML = '<span class="badge bg-' + color + '" style="font-size:0.7rem;">' +
+                        Math.round(w.eff_score) + ' ' + w.eff_class + '</span>' + ovr;
+                } else {
+                    cell.innerHTML = '<span class="text-muted">--</span>';
+                }
+            });
+        })
+        .catch(() => {
+            cells.forEach(c => { c.innerHTML = '<span class="text-muted">--</span>'; });
+        });
+})();
 </script>
 {% endblock %}

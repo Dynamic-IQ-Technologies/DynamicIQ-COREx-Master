@@ -279,6 +279,12 @@
         </button>
     </li>
     {% endif %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="priority-tab" data-bs-toggle="tab" data-bs-target="#priorityPane" type="button" role="tab" onclick="loadWoPriority()">
+            <i class="bi bi-lightning-charge-fill"></i> Priority Intelligence
+            <span id="wo-priority-tab-badge" class="ms-1"></span>
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="workOrderTabContent">
@@ -2119,6 +2125,117 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- ── Priority Intelligence Tab Pane ───────────────────────────────── -->
+    <div class="tab-pane fade p-3" id="priorityPane" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 fw-bold">
+                <i class="bi bi-lightning-charge-fill me-2 text-warning"></i>
+                Priority Intelligence — {{ workorder.wo_number }}
+            </h6>
+            <div class="d-flex gap-2">
+                {% if session.role in ['Admin', 'Planner'] %}
+                <button class="btn btn-sm btn-outline-secondary" onclick="refreshPriority()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="priorityLoading" class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Computing priority score...
+        </div>
+        <div id="priorityContent" style="display:none;">
+
+            <!-- Score Ring + Class Banner -->
+            <div class="d-flex align-items-center gap-4 mb-4 p-3 rounded-3 border" style="background:#f8fafc;" id="priorityScoreBanner">
+                <div class="flex-shrink-0" style="position:relative;width:110px;height:110px;">
+                    <svg width="110" height="110" viewBox="0 0 110 110" id="priorityRingSvg">
+                        <circle cx="55" cy="55" r="44" fill="none" stroke="#e9ecef" stroke-width="11"/>
+                        <circle cx="55" cy="55" r="44" fill="none" stroke="#ccc" stroke-width="11"
+                            id="priorityRingFill"
+                            stroke-dasharray="0 276.46"
+                            stroke-dashoffset="69.12"
+                            stroke-linecap="round"
+                            transform="rotate(-90 55 55)"/>
+                    </svg>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+                        <div class="fw-bold fs-3" id="priorityScoreNum">--</div>
+                        <div style="font-size:0.6rem;color:#6c757d;">/100</div>
+                    </div>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="mb-1">
+                        <span class="fs-5 fw-bold me-2">Priority:</span>
+                        <span class="badge fs-5 px-3 py-1" id="priorityClassBadge">--</span>
+                        <span class="ms-2 small" id="priorityTrendIcon"></span>
+                        <span class="badge bg-warning text-dark ms-2" id="priorityOverrideBadge" style="display:none;font-size:0.7rem;">OVERRIDE ACTIVE</span>
+                    </div>
+                    <div class="text-muted small" id="priorityComputedAt"></div>
+                    <div class="mt-2 p-2 rounded" style="background:#fff3cd;font-size:0.88rem;" id="priorityImpact">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                        <span id="priorityImpactText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Driver Breakdown -->
+                <div class="col-lg-6">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill me-1 text-primary"></i>Score Breakdown</h6>
+                    <div id="priorityDrivers"></div>
+                </div>
+
+                <!-- Override + History -->
+                <div class="col-lg-6">
+                    {% if session.role in ['Admin', 'Planner'] %}
+                    <div class="card mb-3 border-warning">
+                        <div class="card-header bg-warning bg-opacity-10 py-2">
+                            <h6 class="mb-0 fw-semibold small">
+                                <i class="bi bi-pencil-square me-1"></i>Manual Priority Override
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="overrideActiveNotice" class="alert alert-warning py-2 small" style="display:none;">
+                                <strong>Override active</strong> — AI recommendation is suppressed.
+                                <span id="overrideByText"></span>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="clearPriorityOverride()">Clear Override</button>
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">Override Score (0-100)</label>
+                                    <input type="number" id="overrideScore" class="form-control form-control-sm" min="0" max="100" placeholder="e.g. 80">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">Override Class</label>
+                                    <select id="overrideClass" class="form-select form-select-sm">
+                                        <option value="">Auto from score</option>
+                                        <option value="Critical">Critical</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Justification (required)</label>
+                                <textarea id="overrideReason" class="form-control form-control-sm" rows="2" placeholder="Why are you overriding the AI-recommended priority?"></textarea>
+                            </div>
+                            <button class="btn btn-warning btn-sm w-100" onclick="submitPriorityOverride()">
+                                <i class="bi bi-lock-fill me-1"></i>Apply Override
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <h6 class="fw-bold mb-2"><i class="bi bi-clock-history me-1 text-secondary"></i>Recent History</h6>
+                    <div id="priorityHistory" class="small text-muted">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div id="priorityError" class="alert alert-danger mt-3" style="display:none;"></div>
+    </div>
 </div>
 
 {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
@@ -3781,6 +3898,156 @@ document.addEventListener('DOMContentLoaded', function() {
             (drivers ? '<p class="text-muted mb-0" style="font-size:0.7rem">' + drivers + '</p>' : '') +
             '</div></div>';
     }
+})();
+
+// ── Priority Intelligence ─────────────────────────────────────────────────────
+(function() {
+    const WO_ID = {{ workorder.id }};
+    const CLS_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    const TREND_HTML = {rising:'<i class="bi bi-arrow-up-circle-fill text-danger"></i> Rising', falling:'<i class="bi bi-arrow-down-circle-fill text-success"></i> Falling', stable:'<i class="bi bi-dash-circle-fill text-muted"></i> Stable'};
+    const RING_CIRC = 2 * Math.PI * 44;
+    let _loaded = false;
+
+    window.loadWoPriority = function() {
+        if (_loaded) return;
+        _loaded = true;
+        _fetchPriority();
+    };
+
+    window.refreshPriority = function() {
+        _loaded = false;
+        document.getElementById('priorityContent').style.display = 'none';
+        document.getElementById('priorityLoading').style.display = '';
+        document.getElementById('priorityError').style.display = 'none';
+        loadWoPriority();
+    };
+
+    function _fetchPriority() {
+        fetch('/api/wo/priority/' + WO_ID)
+            .then(r => r.ok ? r.json() : Promise.reject(r))
+            .then(d => {
+                _render(d);
+                document.getElementById('priorityLoading').style.display = 'none';
+                document.getElementById('priorityContent').style.display = '';
+            })
+            .catch(() => {
+                document.getElementById('priorityLoading').style.display = 'none';
+                document.getElementById('priorityError').style.display = '';
+                document.getElementById('priorityError').textContent = 'Could not load priority intelligence. Please try again.';
+            });
+    }
+
+    function _render(d) {
+        const score    = Math.round(d.effective_score);
+        const cls      = d.effective_class;
+        const color    = CLS_COLOR[cls] || 'secondary';
+        const ringColor = color === 'danger' ? '#dc3545' : color === 'warning' ? '#ffc107' : color === 'info' ? '#0dcaf0' : '#198754';
+
+        // Score ring
+        const dash = (score / 100) * RING_CIRC;
+        const fill = document.getElementById('priorityRingFill');
+        fill.setAttribute('stroke', ringColor);
+        fill.setAttribute('stroke-dasharray', dash.toFixed(2) + ' ' + RING_CIRC.toFixed(2));
+
+        document.getElementById('priorityScoreNum').textContent = score;
+        document.getElementById('priorityScoreNum').style.color = ringColor;
+
+        const badge = document.getElementById('priorityClassBadge');
+        badge.textContent = cls;
+        badge.className = 'badge fs-5 px-3 py-1 bg-' + color;
+
+        document.getElementById('priorityTrendIcon').innerHTML = TREND_HTML[d.trend] || '';
+        document.getElementById('priorityImpactText').textContent = d.impact_if_delayed || '';
+        document.getElementById('priorityComputedAt').textContent = 'Last computed: ' + (d.computed_at || '').replace('T', ' ').slice(0, 19);
+
+        // Tab badge
+        const tabBadge = document.getElementById('wo-priority-tab-badge');
+        if (tabBadge) tabBadge.innerHTML = '<span class="badge bg-' + color + '" style="font-size:0.65rem;">' + cls + ' ' + score + '</span>';
+
+        // Override notice
+        if (d.override_active) {
+            document.getElementById('priorityOverrideBadge').style.display = '';
+            const oan = document.getElementById('overrideActiveNotice');
+            if (oan) {
+                oan.style.display = '';
+                const obt = document.getElementById('overrideByText');
+                if (obt) obt.textContent = 'Set by ' + (d.override_by || 'unknown') + ': ' + (d.override_reason || '');
+            }
+        } else {
+            document.getElementById('priorityOverrideBadge').style.display = 'none';
+            const oan = document.getElementById('overrideActiveNotice');
+            if (oan) oan.style.display = 'none';
+        }
+
+        // Drivers
+        const driverEl = document.getElementById('priorityDrivers');
+        const drivers  = d.drivers || {};
+        driverEl.innerHTML = Object.values(drivers).map(f => {
+            const pts     = f.points || 0;
+            const maxPts  = f.max || 1;
+            const pct     = Math.min(100, Math.round((pts / maxPts) * 100));
+            const barClr  = pts >= maxPts * 0.8 ? 'danger' : pts >= maxPts * 0.5 ? 'warning' : pts > 0 ? 'info' : 'success';
+            return '<div class="mb-3">' +
+                '<div class="d-flex justify-content-between mb-1">' +
+                    '<span class="small fw-semibold">' + f.label + '</span>' +
+                    '<span class="small fw-bold text-' + barClr + '">' + pts + ' / ' + maxPts + ' pts</span>' +
+                '</div>' +
+                '<div class="progress mb-1" style="height:7px">' +
+                    '<div class="progress-bar bg-' + barClr + '" style="width:' + pct + '%"></div>' +
+                '</div>' +
+                '<div class="text-muted" style="font-size:0.78rem;">' + (f.detail || '') + '</div>' +
+                '</div>';
+        }).join('');
+
+        // History
+        const histEl = document.getElementById('priorityHistory');
+        const hist   = d.history || [];
+        if (hist.length === 0) {
+            histEl.innerHTML = '<div class="text-muted small fst-italic">No history yet.</div>';
+        } else {
+            histEl.innerHTML = '<table class="table table-sm table-borderless mb-0">' +
+                '<thead><tr><th class="small text-muted">Score</th><th class="small text-muted">Class</th><th class="small text-muted">At</th></tr></thead><tbody>' +
+                hist.slice(0, 8).map(h => {
+                    const hc = CLS_COLOR[h.class] || 'secondary';
+                    return '<tr>' +
+                        '<td><span class="badge bg-' + hc + '">' + Math.round(h.score) + '</span></td>' +
+                        '<td>' + h.class + '</td>' +
+                        '<td>' + (h.at || '').replace('T', ' ').slice(0, 16) + '</td>' +
+                        '</tr>';
+                }).join('') +
+                '</tbody></table>';
+        }
+    }
+
+    window.submitPriorityOverride = function() {
+        const score  = document.getElementById('overrideScore')?.value;
+        const cls    = document.getElementById('overrideClass')?.value;
+        const reason = document.getElementById('overrideReason')?.value?.trim();
+        if (!score || !reason) {
+            alert('Please enter both a score and a justification to apply an override.');
+            return;
+        }
+        fetch('/api/wo/priority/' + WO_ID + '/override', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({score: parseFloat(score), class: cls || null, reason: reason}),
+        })
+        .then(r => r.json())
+        .then(r => { alert(r.message || 'Override applied.'); refreshPriority(); })
+        .catch(() => alert('Failed to apply override.'));
+    };
+
+    window.clearPriorityOverride = function() {
+        if (!confirm('Clear the manual override and restore AI-recommended priority?')) return;
+        fetch('/api/wo/priority/' + WO_ID + '/override', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({clear: true}),
+        })
+        .then(r => r.json())
+        .then(r => { alert(r.message || 'Override cleared.'); refreshPriority(); })
+        .catch(() => alert('Failed to clear override.'));
+    };
 })();
 </script>
 
