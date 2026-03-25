@@ -162,7 +162,7 @@ class MRPEngine:
             'material_cost': material_cost,
             'labor_cost': work_order['labor_cost'],
             'overhead_cost': work_order['overhead_cost'],
-            'total_cost': material_cost + work_order['labor_cost'] + work_order['overhead_cost']
+            'total_cost': material_cost + (work_order['labor_cost'] or 0) + (work_order['overhead_cost'] or 0)
         }
     
     def get_sales_order_demand(self):
