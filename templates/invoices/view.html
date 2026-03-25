@@ -383,9 +383,14 @@
                     A sync conflict was detected. <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}">Resolve on the QB Sync dashboard.</a>
                 </div>
                 {% endif %}
-                <button class="btn btn-sm btn-outline-success" onclick="syncToQb()">
-                    <i class="bi bi-arrow-repeat me-1"></i>Re-sync to QuickBooks
-                </button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-success" onclick="syncToQb()">
+                        <i class="bi bi-arrow-up-circle me-1"></i>Re-sync to QuickBooks
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="pullFromQb()">
+                        <i class="bi bi-arrow-down-circle me-1"></i>Pull from QuickBooks
+                    </button>
+                </div>
             {% elif not qb_connected %}
                 <p class="text-muted small mb-2">QuickBooks is not connected. Go to the <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}">QB Sync dashboard</a> to connect your account.</p>
             {% else %}
@@ -417,13 +422,40 @@
                 } else {
                     msg.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (d.reason || d.error || 'Sync failed') + '</span>';
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync Invoice to QuickBooks';
+                    btn.innerHTML = '<i class="bi bi-arrow-up-circle me-1"></i>Re-sync to QuickBooks';
                 }
             })
             .catch(e => {
                 msg.innerHTML = '<span class="text-danger">Error: ' + e + '</span>';
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync Invoice to QuickBooks';
+                btn.innerHTML = '<i class="bi bi-arrow-up-circle me-1"></i>Re-sync to QuickBooks';
+            });
+    }
+
+    function pullFromQb() {
+        const btn = event.target;
+        const msg = document.getElementById('qbSyncMsg');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Pulling...';
+        msg.innerHTML = '';
+        fetch('/api/qb/pull-invoice/{{ invoice.id }}', {method: 'POST'})
+            .then(r => r.json())
+            .then(d => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-down-circle me-1"></i>Pull from QuickBooks';
+                if (d.status === 'success') {
+                    msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Updated from QB — balance: $' + parseFloat(d.balance||0).toFixed(2) + ', paid: $' + parseFloat(d.amount_paid||0).toFixed(2) + '</span>';
+                    setTimeout(() => location.reload(), 1800);
+                } else if (d.status === 'skipped') {
+                    msg.innerHTML = '<span class="text-warning"><i class="bi bi-info-circle me-1"></i>' + (d.reason || 'Not yet synced to QB') + '</span>';
+                } else {
+                    msg.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (d.reason || d.error || 'Pull failed') + '</span>';
+                }
+            })
+            .catch(e => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-down-circle me-1"></i>Pull from QuickBooks';
+                msg.innerHTML = '<span class="text-danger">Error: ' + e + '</span>';
             });
     }
     </script>

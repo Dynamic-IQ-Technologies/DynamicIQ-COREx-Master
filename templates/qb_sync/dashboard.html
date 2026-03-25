@@ -107,8 +107,9 @@
                 <div class="mb-3">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="autoSyncPay">
-                        <label class="form-check-label small" for="autoSyncPay">Auto-pull QB payments (daily)</label>
+                        <label class="form-check-label small" for="autoSyncPay">Auto-pull QB updates every 30 min</label>
                     </div>
+                    <div class="text-muted" style="font-size:0.75rem;">When on, payment status and balances sync from QB automatically.</div>
                 </div>
                 <div class="mb-3">
                     <div class="form-check form-switch">
@@ -130,6 +131,61 @@
             <div class="card-header py-2 fw-semibold"><i class="bi bi-activity me-2"></i>Activity (Last 24 h)</div>
             <div class="card-body" id="statsPanel">
                 <div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Two-Way Sync Panel -->
+<div class="card mb-4">
+    <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-arrow-left-right me-2 text-primary"></i>Two-Way Sync — Pull from QuickBooks</span>
+        <span class="badge bg-info text-dark small">QB &rarr; App</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-7">
+                <p class="mb-1 small">
+                    Use <strong>Pull All</strong> to fetch the latest payment status, balances, and amounts from QuickBooks for every synced invoice.
+                    The app updates automatically — no manual entry needed.
+                </p>
+                <p class="mb-0 text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    If <em>Auto-pull every 30 min</em> is enabled in Sync Settings, this runs automatically in the background.
+                    You can also pull individual invoices from each invoice's detail page.
+                </p>
+            </div>
+            <div class="col-md-5 text-md-end">
+                <button class="btn btn-primary" id="pullAllBtn" onclick="pullAllInvoices()">
+                    <i class="bi bi-cloud-download me-1"></i>Pull All from QuickBooks
+                </button>
+                <div id="pullAllMsg" class="mt-2 small"></div>
+            </div>
+        </div>
+        <hr class="my-3">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="fw-semibold small mb-1"><i class="bi bi-webhook me-1 text-secondary"></i>Webhook URL (real-time updates)</div>
+                <p class="text-muted small mb-1">
+                    Register this URL in your QuickBooks app at
+                    <a href="https://developer.intuit.com" target="_blank">developer.intuit.com</a>
+                    under <strong>Webhooks</strong>. QB will call it instantly when invoices or payments change.
+                </p>
+                <div class="d-flex align-items-center gap-2">
+                    <code class="small flex-grow-1 text-break" id="webhookUrlDisplay">Loading...</code>
+                    <button class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick="copyWebhook()" title="Copy">
+                        <i class="bi bi-clipboard" id="webhookCopyIcon"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="fw-semibold small mb-1"><i class="bi bi-shield-check me-1 text-secondary"></i>Webhook Verifier Token (optional)</div>
+                <p class="text-muted small mb-1">Copy from the QB developer portal and paste here to verify webhook signatures.</p>
+                <div class="input-group input-group-sm">
+                    <input type="password" class="form-control font-monospace" id="webhookSecretInput" placeholder="Paste verifier token from QB portal">
+                    <button class="btn btn-outline-primary" onclick="saveWebhookSecret()">Save</button>
+                </div>
+                <div id="webhookSecretMsg" class="mt-1 small"></div>
             </div>
         </div>
     </div>
@@ -516,12 +572,69 @@ function saveSettings() {
     }).then(r=>r.json()).then(d=>{ alert(d.message || 'Saved.'); });
 }
 
+function pullAllInvoices() {
+    const btn = document.getElementById('pullAllBtn');
+    const msg = document.getElementById('pullAllMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Pulling...';
+    msg.innerHTML = '';
+    fetch('/api/qb/pull-all-invoices', {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-cloud-download me-1"></i>Pull All from QuickBooks';
+            if (d.error) {
+                msg.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${d.error}</span>`;
+            } else {
+                msg.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Done — ${d.pulled} updated, ${d.failed} failed, ${d.skipped} skipped</span>`;
+            }
+            loadStatus();
+            loadLogs();
+        })
+        .catch(e => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-cloud-download me-1"></i>Pull All from QuickBooks';
+            msg.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Error: ${e}</span>`;
+        });
+}
+
+function loadWebhookUrl() {
+    const base = window.location.origin;
+    const url  = base + '/qb/webhook';
+    document.getElementById('webhookUrlDisplay').textContent = url;
+}
+
+function copyWebhook() {
+    const url  = document.getElementById('webhookUrlDisplay').textContent;
+    const icon = document.getElementById('webhookCopyIcon');
+    navigator.clipboard.writeText(url).then(() => {
+        icon.className = 'bi bi-clipboard-check';
+        setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+    });
+}
+
+function saveWebhookSecret() {
+    const secret = document.getElementById('webhookSecretInput').value.trim();
+    const msg    = document.getElementById('webhookSecretMsg');
+    if (!secret) { msg.innerHTML = '<span class="text-warning">Enter a verifier token first.</span>'; return; }
+    fetch('/api/qb/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({webhook_secret: secret}),
+    }).then(r => r.json()).then(d => {
+        msg.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>${d.message || 'Saved.'}</span>`;
+        document.getElementById('webhookSecretInput').value = '';
+    }).catch(e => {
+        msg.innerHTML = `<span class="text-danger">Error: ${e}</span>`;
+    });
+}
+
 function disconnectQb() {
     if (!confirm('Disconnect QuickBooks? All sync will stop until you reconnect.')) return;
     fetch('/qb/disconnect', {method:'POST'}).then(r=>r.json()).then(d=>{ alert(d.message); loadAll(); });
 }
 
-document.addEventListener('DOMContentLoaded', loadAll);
+document.addEventListener('DOMContentLoaded', () => { loadAll(); loadWebhookUrl(); });
 document.getElementById('conflictsPane').addEventListener('shown.bs.tab', loadConflicts);
 document.getElementById('paymentsPane')?.addEventListener?.('shown.bs.tab', loadPayments);
 </script>

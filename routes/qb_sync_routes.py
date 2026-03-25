@@ -517,6 +517,102 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
         return {'status': 'failed', 'reason': err}
 
 
+def pull_invoice_from_qb(conn, erp_invoice_id, qb_invoice_id):
+    """Fetch a single QB invoice and update ERP invoice status, amount_paid, balance_due."""
+    config = _get_config(conn)
+    if not config or not config['is_active']:
+        return {'status': 'skipped', 'reason': 'QB not connected'}
+    try:
+        headers  = _qb_headers(conn, config)
+        url      = _api_url(config, f"invoice/{qb_invoice_id}?minorversion=65")
+        resp     = http.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            return {'status': 'failed', 'reason': f'QB API {resp.status_code}: {resp.text[:200]}'}
+
+        qb_inv      = resp.json().get('Invoice', {})
+        total_amt   = float(qb_inv.get('TotalAmt', 0))
+        balance     = float(qb_inv.get('Balance', 0))
+        amount_paid = round(total_amt - balance, 2)
+        qb_status   = qb_inv.get('EmailStatus') or ''
+
+        if balance <= 0:
+            new_status = 'Paid'
+        elif amount_paid > 0:
+            new_status = 'Partially Paid'
+        else:
+            new_status = None
+
+        update_parts = ['amount_paid=%s', 'balance_due=%s', 'updated_at=NOW()']
+        params       = [amount_paid, balance]
+        if new_status:
+            update_parts.append('status=%s')
+            params.append(new_status)
+        params.append(erp_invoice_id)
+
+        conn.execute(
+            f"UPDATE invoices SET {', '.join(update_parts)} WHERE id=%s",
+            params,
+        )
+        conn.execute('''
+            UPDATE qb_wo_invoice_map
+            SET last_synced_at=NOW(), sync_status='synced', qb_total_amount=%s
+            WHERE invoice_id=%s AND qb_invoice_id=%s
+        ''', (total_amt, erp_invoice_id, qb_invoice_id))
+        conn.commit()
+
+        _log_event(conn, 'invoice', erp_invoice_id, 'pulled_from_qb', 'qb_to_erp', 'success',
+                   qb_entity_id=qb_invoice_id, payload_recv=qb_inv)
+        return {
+            'status':      'success',
+            'total_amt':   total_amt,
+            'balance':     balance,
+            'amount_paid': amount_paid,
+            'new_status':  new_status,
+        }
+    except Exception as ex:
+        conn.rollback()
+        log.error(f'pull_invoice_from_qb error: {ex}')
+        _log_event(conn, 'invoice', erp_invoice_id, 'pull_failed', 'qb_to_erp', 'failed',
+                   qb_entity_id=qb_invoice_id, error=str(ex))
+        return {'status': 'failed', 'reason': str(ex)}
+
+
+def pull_all_synced_invoices(conn):
+    """Pull updates from QB for every invoice that has been synced. Returns summary dict."""
+    config = _get_config(conn)
+    if not config or not config['is_active']:
+        return {'pulled': 0, 'failed': 0, 'skipped': 1}
+
+    mappings = conn.execute('''
+        SELECT invoice_id, qb_invoice_id
+        FROM qb_wo_invoice_map
+        WHERE invoice_id IS NOT NULL AND qb_invoice_id IS NOT NULL
+        ORDER BY last_synced_at DESC
+        LIMIT 200
+    ''').fetchall()
+
+    results = {'pulled': 0, 'failed': 0, 'skipped': 0}
+    for m in mappings:
+        r = pull_invoice_from_qb(conn, m['invoice_id'], m['qb_invoice_id'])
+        if r['status'] == 'success':
+            results['pulled'] += 1
+        elif r['status'] == 'skipped':
+            results['skipped'] += 1
+        else:
+            results['failed'] += 1
+
+    try:
+        conn.execute(
+            "UPDATE qb_sync_config SET updated_at=NOW() WHERE tenant_id='default'"
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+    log.info(f'pull_all_synced_invoices: {results}')
+    return results
+
+
 def pull_qb_payments(conn, days_back=7):
     """Pull recent QB payments and update ERP invoice records."""
     config = _get_config(conn)
@@ -783,18 +879,24 @@ def save_qb_settings():
     conn = db.get_connection()
     try:
         ensure_qb_tables(conn)
-        conn.execute('''
-            UPDATE qb_sync_config
-            SET conflict_rule=%s, auto_sync_wo=%s, auto_sync_inv=%s,
-                auto_sync_pay=%s, sandbox_mode=%s, updated_at=NOW()
-            WHERE tenant_id='default'
-        ''', (
+        params = [
             data.get('conflict_rule', 'manual_review'),
             bool(data.get('auto_sync_wo', False)),
             bool(data.get('auto_sync_inv', False)),
             bool(data.get('auto_sync_pay', False)),
             bool(data.get('sandbox_mode', True)),
-        ))
+        ]
+        extra_set = ''
+        if 'webhook_secret' in data and data['webhook_secret']:
+            extra_set = ', webhook_secret=%s'
+            params.append(data['webhook_secret'].strip())
+        conn.execute(
+            f'''UPDATE qb_sync_config
+               SET conflict_rule=%s, auto_sync_wo=%s, auto_sync_inv=%s,
+                   auto_sync_pay=%s, sandbox_mode=%s{extra_set}, updated_at=NOW()
+               WHERE tenant_id='default' ''',
+            params,
+        )
         conn.commit()
         return jsonify({'message': 'Settings saved.'})
     finally:
@@ -893,6 +995,44 @@ def api_pull_payments():
         days  = int(request.json.get('days_back', 7)) if request.json else 7
         synced = pull_qb_payments(conn, days_back=days)
         return jsonify({'synced': len(synced), 'payments': synced})
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/qb/pull-invoice/<int:invoice_id>', methods=['POST'])
+@login_required
+def api_pull_invoice(invoice_id):
+    """Pull latest status for one invoice from QB back into ERP."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        mapping = conn.execute(
+            'SELECT qb_invoice_id FROM qb_wo_invoice_map WHERE invoice_id=%s AND qb_invoice_id IS NOT NULL ORDER BY id DESC LIMIT 1',
+            (invoice_id,)
+        ).fetchone()
+        if not mapping:
+            return jsonify({'status': 'skipped', 'reason': 'Invoice has not been synced to QB yet'}), 200
+        result = pull_invoice_from_qb(conn, invoice_id, mapping['qb_invoice_id'])
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/qb/pull-all-invoices', methods=['POST'])
+@login_required
+def api_pull_all_invoices():
+    """Pull QB updates for all synced invoices."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        results = pull_all_synced_invoices(conn)
+        return jsonify(results)
     finally:
         conn.close()
 
@@ -1038,6 +1178,13 @@ def qb_webhook():
                            qb_entity_id=eid)
                 if etype == 'Payment' and op in ('Create', 'Update'):
                     pull_qb_payments(conn, days_back=1)
+                elif etype == 'Invoice' and op in ('Create', 'Update', 'Delete'):
+                    mapping = conn.execute(
+                        'SELECT invoice_id FROM qb_wo_invoice_map WHERE qb_invoice_id=%s AND invoice_id IS NOT NULL LIMIT 1',
+                        (eid,)
+                    ).fetchone()
+                    if mapping and mapping['invoice_id']:
+                        pull_invoice_from_qb(conn, mapping['invoice_id'], eid)
 
         conn.commit()
         return jsonify({'status': 'ok'})
@@ -1058,3 +1205,40 @@ def qb_dashboard():
         return render_template('qb_sync/dashboard.html', config=config)
     finally:
         conn.close()
+
+
+# ─── Background Auto-Pull Scheduler ──────────────────────────────────────────
+
+import threading as _threading
+_qb_scheduler_started = False
+
+def _qb_auto_pull_loop():
+    """Background thread: pull QB invoice updates every 30 minutes if auto_sync_pay is on."""
+    import time
+    while True:
+        time.sleep(1800)
+        try:
+            db   = Database()
+            conn = db.get_connection()
+            try:
+                config = _get_config(conn)
+                if config and config['is_active'] and config.get('auto_sync_pay'):
+                    log.info('[QB Auto-Pull] Running scheduled pull from QuickBooks...')
+                    results = pull_all_synced_invoices(conn)
+                    log.info(f'[QB Auto-Pull] Done: {results}')
+            finally:
+                conn.close()
+        except Exception as ex:
+            log.warning(f'[QB Auto-Pull] Error: {ex}')
+
+
+def start_qb_scheduler():
+    global _qb_scheduler_started
+    if not _qb_scheduler_started:
+        _qb_scheduler_started = True
+        t = _threading.Thread(target=_qb_auto_pull_loop, name='qb-auto-pull', daemon=True)
+        t.start()
+        log.info('[QB] Background auto-pull scheduler started')
+
+
+start_qb_scheduler()
