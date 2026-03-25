@@ -209,7 +209,7 @@
                             <td class="text-end">{{ invoice.total_amount|currency }}</td>
                             <td class="text-end">{{ invoice.amount_paid|currency }}</td>
                             <td class="text-end">
-                                {% if invoice.balance_due > 0 %}
+                                {% if (invoice.balance_due or 0) > 0 %}
                                 <strong class="text-warning">{{ invoice.balance_due|currency }}</strong>
                                 {% else %}
                                 <span class="text-success">$0.00</span>

@@ -122,8 +122,8 @@
                         </td>
                         <td class="text-end">$ {{ fmt("{:,.2f}", inv.total_amount or 0) }}</td>
                         <td class="text-end">
-                            {% if inv.balance_due > 0 %}
-                            <span class="text-danger fw-bold">$ {{ fmt("{:,.2f}", inv.balance_due) }}</span>
+                            {% if (inv.balance_due or 0) > 0 %}
+                            <span class="text-danger fw-bold">$ {{ fmt("{:,.2f}", inv.balance_due or 0) }}</span>
                             {% else %}
                             <span class="text-success">$ 0.00</span>
                             {% endif %}
