@@ -76,14 +76,14 @@ def _gather_asset_data(product_id, work_order_id, conn):
     data['ndt_records'] = [dict(r) for r in ndt_records]
 
     capa_records = conn.execute(
-        '''SELECT title, status, severity, created_at
+        '''SELECT title, status, priority as severity, created_at
            FROM qms_capa
            ORDER BY created_at DESC LIMIT 5'''
     ).fetchall()
     data['qms_capa'] = [dict(r) for r in capa_records]
 
     faa_certs = conn.execute(
-        '''SELECT cert_number, expiry_date, status
+        '''SELECT certificate_number as cert_number, issue_date as expiry_date, status
            FROM faa_8130_certificates
            WHERE work_order_id = %s LIMIT 5''',
         (work_order_id,)
