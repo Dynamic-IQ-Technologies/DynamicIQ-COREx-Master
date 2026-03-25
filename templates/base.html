@@ -1515,6 +1515,16 @@
     </button>
     <script>
         (function() {
+            // If this page is loaded inside an iframe (e.g. the audit trail tab),
+            // hide the ERP Copilot button and panel — they belong to the parent page only.
+            if (window !== window.top) {
+                var btn = document.getElementById('erpHelperBtn');
+                if (btn) btn.style.display = 'none';
+                var panel = document.getElementById('erpHelperPanel');
+                if (panel) panel.style.display = 'none';
+                return;
+            }
+            // Deduplicate in case of any double-render edge case
             var btns = document.querySelectorAll('.erp-helper-btn');
             if (btns.length > 1) {
                 for (var i = 1; i < btns.length; i++) {
