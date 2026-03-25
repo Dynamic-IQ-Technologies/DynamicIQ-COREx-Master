@@ -23,6 +23,15 @@ QB_API_VERSION     = 'v3'
 CONFLICT_RULES = ('erp_wins', 'qb_wins', 'manual_review')
 
 
+def _auto_redirect_uri(req):
+    """Build the correct public-facing callback URL regardless of environment."""
+    domain = os.environ.get('REPLIT_DOMAINS') or os.environ.get('REPLIT_DEV_DOMAIN')
+    if domain:
+        return f'https://{domain}/qb/callback'
+    # Fall back to Flask's host_url (works when behind a proper reverse proxy)
+    return req.host_url.rstrip('/') + '/qb/callback'
+
+
 # ─── Lazy Table Creation ──────────────────────────────────────────────────────
 
 def ensure_qb_tables(conn):
@@ -600,7 +609,8 @@ def qb_connect():
     conn.close()
     client_id, _ = _get_credentials(config)
     redirect_uri  = (config.get('redirect_uri') if config else None) or \
-                    os.environ.get('QB_REDIRECT_URI', request.host_url.rstrip('/') + '/qb/callback')
+                    os.environ.get('QB_REDIRECT_URI') or \
+                    _auto_redirect_uri(request)
     if not client_id:
         flash('QuickBooks credentials are not configured. Please enter your Client ID and Client Secret on this page first.', 'danger')
         return redirect(url_for('qb_sync_routes.qb_dashboard'))
@@ -637,7 +647,8 @@ def qb_callback():
     config     = _get_config(conn)
     client_id, client_secret = _get_credentials(config)
     redirect_uri = (config.get('redirect_uri') if config else None) or \
-                   os.environ.get('QB_REDIRECT_URI', request.host_url.rstrip('/') + '/qb/callback')
+                   os.environ.get('QB_REDIRECT_URI') or \
+                   _auto_redirect_uri(request)
 
     try:
         resp = http.post(
@@ -791,12 +802,14 @@ def qb_status():
     try:
         ensure_qb_tables(conn)
         config = _get_config(conn)
+        auto_uri = _auto_redirect_uri(request)
         if not config:
             return jsonify({
                 'connected': False,
                 'status': 'not_configured',
                 'credentials_configured': bool(os.environ.get('QB_CLIENT_ID')),
                 'client_id_hint': None,
+                'redirect_uri_auto': auto_uri,
             })
 
         cid, _   = _get_credentials(config)
@@ -830,6 +843,7 @@ def qb_status():
             'pending_conflicts':       int(pending_conflicts['cnt'] or 0) if pending_conflicts else 0,
             'credentials_configured':  creds_ok,
             'client_id_hint':          hint,
+            'redirect_uri_auto':       (config.get('redirect_uri') or auto_uri),
         })
     finally:
         conn.close()
