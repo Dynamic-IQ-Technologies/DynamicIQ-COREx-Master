@@ -2523,13 +2523,13 @@
                             </div>
                         </div>
 
-                        <!-- Inline add task form (submitted to template route, then reload) -->
+                        <!-- Inline add task fields (fetch-based, no nested form) -->
                         <div id="inlineAddForm" class="d-none card border-primary mb-3">
                             <div class="card-header bg-primary text-white py-2">
                                 <strong><i class="bi bi-plus-circle me-2"></i>Add Task to Template</strong>
                             </div>
                             <div class="card-body pb-2">
-                                <form id="addTaskToTplForm">
+                                <div id="addTaskToTplForm">
                                     <div class="row g-2 mb-2">
                                         <div class="col-md-7">
                                             <label class="form-label small fw-semibold mb-1">Task Name <span class="text-danger">*</span></label>
@@ -2584,7 +2584,7 @@
                                             <span class="small ms-1 text-muted">Saving...</span>
                                         </div>
                                     </div>
-                                </form>
+                                </div>
                                 <div id="inlineTasksAdded" class="mt-2 d-none">
                                     <span class="badge bg-success" id="inlineTaskCount">0 tasks added</span>
                                     <button type="button" class="btn btn-success btn-sm ms-2" onclick="reloadTemplatePreview()">
