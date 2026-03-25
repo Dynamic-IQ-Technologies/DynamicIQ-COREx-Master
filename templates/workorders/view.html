@@ -265,6 +265,12 @@
             <i class="bi bi-file-earmark-text"></i> WO Invoices {% if wo_invoices %}<span class="badge bg-success">{{ wo_invoices|length }}</span>{% endif %}
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="qbsync-tab" data-bs-toggle="tab" data-bs-target="#qbSyncPane" type="button" role="tab" onclick="loadQbSyncTab()">
+            <i class="bi bi-plug-fill"></i> QB Sync
+            <span id="qb-sync-tab-indicator" class="ms-1"></span>
+        </button>
+    </li>
     {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#auditPane" type="button" role="tab">
@@ -1978,6 +1984,71 @@
                 {% endif %}
             </div>
         </div>
+    </div>
+
+    <!-- ── QuickBooks Sync Tab Pane ────────────────────────────────────────── -->
+    <div class="tab-pane fade p-3" id="qbSyncPane" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 fw-bold">
+                <i class="bi bi-plug-fill me-2 text-success"></i>QuickBooks Sync — {{ workorder.wo_number }}
+            </h6>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="/qb/dashboard" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-grid me-1"></i>QB Dashboard
+                </a>
+                {% if session.role in ['Admin', 'Accountant', 'Planner'] %}
+                <button class="btn btn-sm btn-success" onclick="syncWoToQb()">
+                    <i class="bi bi-cloud-upload me-1"></i>Sync to QuickBooks
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Status Banner -->
+        <div id="qbStatusBanner" class="mb-3"></div>
+
+        <div id="qbSyncLoading" class="text-center py-4 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Checking QuickBooks sync status...
+        </div>
+
+        <div id="qbSyncContent" style="display:none;">
+            <div class="row g-4">
+                <!-- Mapping Info -->
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3"><i class="bi bi-arrow-left-right me-2"></i>WO → QB Invoice Mapping</h6>
+                            <div id="qbMappingInfo"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Conflicts -->
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3"><i class="bi bi-exclamation-diamond me-2 text-warning"></i>Pending Conflicts</h6>
+                            <div id="qbConflictsInfo"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Log -->
+            <div class="mt-4">
+                <h6 class="fw-semibold mb-2"><i class="bi bi-journal-text me-2"></i>Recent Sync Events</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Event</th><th>Status</th><th>Error</th><th>Time</th></tr>
+                        </thead>
+                        <tbody id="qbLogsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="qbSyncError" class="alert alert-danger mt-3" style="display:none;"></div>
     </div>
 
     {% if session.role in ['Admin', 'Planner', 'Accountant'] %}
@@ -3898,6 +3969,129 @@ document.addEventListener('DOMContentLoaded', function() {
             (drivers ? '<p class="text-muted mb-0" style="font-size:0.7rem">' + drivers + '</p>' : '') +
             '</div></div>';
     }
+})();
+
+// ── QuickBooks Sync ───────────────────────────────────────────────────────────
+(function() {
+    const WO_ID   = {{ workorder.id }};
+    const SC      = {success:'success', failed:'danger', conflict:'warning', skipped:'secondary', pending:'info', received:'primary'};
+    let _loaded   = false;
+
+    window.loadQbSyncTab = function() {
+        if (_loaded) return;
+        _loaded = true;
+        _fetchQbStatus();
+    };
+
+    function _fetchQbStatus() {
+        fetch('/api/qb/wo-sync-status/' + WO_ID)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                document.getElementById('qbSyncLoading').style.display = 'none';
+                if (!d) { _showErr('Could not load QB sync status.'); return; }
+
+                // Tab indicator
+                const ind = document.getElementById('qb-sync-tab-indicator');
+                if (ind) {
+                    if (!d.connected) {
+                        ind.innerHTML = '<span class="badge bg-secondary" style="font-size:0.6rem;">Not Connected</span>';
+                    } else if (d.mapping && d.mapping.sync_status === 'synced') {
+                        ind.innerHTML = '<span class="badge bg-success" style="font-size:0.6rem;"><i class="bi bi-check-circle-fill"></i></span>';
+                    } else {
+                        ind.innerHTML = '<span class="badge bg-warning text-dark" style="font-size:0.6rem;">Not Synced</span>';
+                    }
+                }
+
+                // Status banner
+                const banner = document.getElementById('qbStatusBanner');
+                if (!d.connected) {
+                    banner.innerHTML = '<div class="alert alert-warning py-2 small mb-0"><i class="bi bi-plug me-1"></i>QuickBooks is not connected. <a href="/qb/dashboard" target="_blank">Configure integration</a> to enable sync.</div>';
+                } else if (d.sandbox_mode) {
+                    banner.innerHTML = '<div class="alert alert-info py-2 small mb-0"><i class="bi bi-info-circle me-1"></i>QuickBooks is connected in <strong>Sandbox / Test</strong> mode. Syncs go to your QB developer sandbox.</div>';
+                } else {
+                    banner.innerHTML = '<div class="alert alert-success py-2 small mb-0"><i class="bi bi-check-circle-fill me-1"></i>QuickBooks connected — Production mode.</div>';
+                }
+
+                document.getElementById('qbSyncContent').style.display = '';
+
+                // Mapping card
+                const map  = d.mapping;
+                const mapEl = document.getElementById('qbMappingInfo');
+                if (map) {
+                    mapEl.innerHTML = '<table class="table table-sm table-borderless mb-0">' +
+                        '<tr><td class="text-muted small">QB Invoice ID</td><td><code>' + (map.qb_invoice_id||'-') + '</code></td></tr>' +
+                        '<tr><td class="text-muted small">QB Doc Number</td><td>' + (map.qb_invoice_number||'-') + '</td></tr>' +
+                        '<tr><td class="text-muted small">QB Total</td><td>$' + parseFloat(map.qb_total_amount||0).toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>' +
+                        '<tr><td class="text-muted small">Last Synced</td><td class="small">' + (map.last_synced_at||'').slice(0,16) + '</td></tr>' +
+                        '<tr><td class="text-muted small">Status</td><td><span class="badge bg-' + (SC[map.sync_status]||'secondary') + '">' + map.sync_status + '</span></td></tr>' +
+                        '</table>';
+                } else {
+                    mapEl.innerHTML = '<div class="text-muted small fst-italic">This work order has not been synced to QuickBooks yet.</div>';
+                }
+
+                // Conflicts
+                const cfEl = document.getElementById('qbConflictsInfo');
+                if (d.pending_conflicts && d.pending_conflicts.length) {
+                    cfEl.innerHTML = d.pending_conflicts.map(c =>
+                        '<div class="border border-warning rounded p-2 mb-2">' +
+                        '<span class="badge bg-warning text-dark me-1">' + c.conflict_type + '</span>' +
+                        '<small class="text-muted">ERP: ' + c.erp_value + ' vs QB: ' + c.qb_value + '</small>' +
+                        '<div class="mt-1"><a href="/qb/dashboard" target="_blank" class="btn btn-xs btn-outline-warning btn-sm">Resolve on Dashboard</a></div>' +
+                        '</div>'
+                    ).join('');
+                } else {
+                    cfEl.innerHTML = '<div class="text-success small"><i class="bi bi-check-circle me-1"></i>No pending conflicts.</div>';
+                }
+
+                // Logs
+                const logs = d.logs || [];
+                const tbody = document.getElementById('qbLogsBody');
+                if (!logs.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No sync events yet.</td></tr>';
+                } else {
+                    tbody.innerHTML = logs.map(l =>
+                        '<tr><td class="small">' + l.event + '</td>' +
+                        '<td><span class="badge bg-' + (SC[l.status]||'secondary') + '">' + l.status + '</span></td>' +
+                        '<td class="small text-danger">' + (l.error||'') + '</td>' +
+                        '<td class="small text-muted">' + (l.at||'').slice(0,16) + '</td></tr>'
+                    ).join('');
+                }
+            })
+            .catch(() => _showErr('Failed to load QB sync status.'));
+    }
+
+    function _showErr(msg) {
+        document.getElementById('qbSyncLoading').style.display = 'none';
+        document.getElementById('qbSyncError').style.display   = '';
+        document.getElementById('qbSyncError').textContent      = msg;
+    }
+
+    window.syncWoToQb = function() {
+        const btn = document.querySelector('#qbSyncPane .btn-success');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing...'; }
+        fetch('/api/qb/sync-wo/' + WO_ID, {method:'POST'})
+            .then(r => r.json())
+            .then(d => {
+                if (btn) { btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload me-1"></i>Sync to QuickBooks'; }
+                if (d.status === 'success') {
+                    alert('Synced successfully! QB Invoice: ' + (d.qb_doc_number||d.qb_invoice_id));
+                } else if (d.status === 'conflict') {
+                    alert('Conflict detected: ' + (d.reason||'') + '\nResolve via the QB Dashboard.');
+                } else if (d.status === 'skipped') {
+                    alert('Sync skipped: ' + (d.reason||''));
+                } else {
+                    alert('Sync failed: ' + (d.reason||'Unknown error'));
+                }
+                _loaded = false;
+                document.getElementById('qbSyncLoading').style.display = '';
+                document.getElementById('qbSyncContent').style.display  = 'none';
+                loadQbSyncTab();
+            })
+            .catch(() => {
+                if (btn) { btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload me-1"></i>Sync to QuickBooks'; }
+                alert('Network error — sync could not be completed.');
+            });
+    };
 })();
 
 // ── Priority Intelligence ─────────────────────────────────────────────────────

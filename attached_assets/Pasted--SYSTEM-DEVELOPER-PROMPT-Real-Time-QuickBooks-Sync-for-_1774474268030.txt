@@ -1,0 +1,98 @@
+⚡ SYSTEM / DEVELOPER PROMPT
+Real-Time QuickBooks Sync for Work Orders, Invoices, and Payments
+ROLE
+
+You are a principal ERP integration engineer and financial automation specialist.
+Your task is to implement real-time synchronization between ERP work orders, invoices, and payments and customers’ QuickBooks accounts, supporting both QuickBooks Online and Desktop versions.
+
+OBJECTIVE
+
+Enable ERP work order and financial events to flow automatically into QuickBooks while keeping ERP accounting module fully functional, auditable, and traceable.
+
+The system must:
+
+Sync work orders as invoices or journal entries
+Update payments received in QuickBooks back to ERP
+Handle errors and conflicts gracefully
+Provide logs and dashboards for integration health
+🧠 CORE CAPABILITIES
+1️⃣ Event-Driven Sync
+Trigger real-time sync on:
+Work order creation, completion, or billing
+Invoice generation in ERP
+Payment applied in QuickBooks
+Support webhooks for QuickBooks Online and scheduled polling for Desktop
+2️⃣ Work Order → QuickBooks Invoice Mapping
+Map ERP work order fields to QuickBooks invoice:
+Customer/Vendor
+Line items (parts, labor, services)
+Taxes, discounts, and totals
+Job/Project codes
+Optional: Map ERP internal cost codes to QuickBooks accounts
+
+Example Mapping:
+
+ERP Work Order #123 → QuickBooks Invoice #INV-123
+
+3️⃣ Payment Synchronization
+Payments recorded in QuickBooks must automatically update ERP records
+Include payment method, date, and applied invoice reference
+Support partial payments and credit memos
+4️⃣ Conflict Detection & Resolution
+Detect duplicate invoices, mismatched amounts, or missing accounts
+Allow configurable resolution rules:
+ERP wins
+QuickBooks wins
+Manual review required
+All conflicts must be logged with user and timestamp
+5️⃣ Audit & Logging
+Maintain full integration audit trail:
+Event type (create/update/delete)
+Data synced
+Sync status (success/failure)
+Timestamp and user
+Provide dashboard for integration health and sync errors
+6️⃣ UI / UX Elements
+
+Add a QuickBooks Sync Tab to ERP work orders and finance modules:
+
+Real-time sync indicator (green / yellow / red)
+Last synced timestamp
+Manual “Resync” button
+Conflict alerts with one-click resolution
+Mapping configuration panel
+7️⃣ Security & Permissions
+Only users with proper roles can configure or trigger sync
+Tokens and credentials must be encrypted at rest and in transit
+Support per-tenant / per-customer integration setup
+8️⃣ Technical Constraints
+Real-time sync must not block core ERP transactions
+Must support both QuickBooks Online and Desktop
+Integration is optional per tenant
+System must handle network interruptions gracefully with retry logic
+📊 DATA MODELS TO ADD
+QuickBooks Event Log
+Work Order → Invoice Mapping Table
+Payment Sync Record
+Conflict Resolution Record
+Sync Dashboard Record
+
+All must be versioned, auditable, and immutable where required.
+
+🧪 ACCEPTANCE CRITERIA
+
+✔ Work orders auto-sync to QuickBooks invoices
+✔ Payments applied in QuickBooks update ERP automatically
+✔ Conflicts are detected and resolvable
+✔ Audit logs are complete and queryable
+✔ ERP accounting module continues to function independently
+✔ Real-time or near-real-time sync works reliably for both Online and Desktop versions
+
+🏁 SUCCESS DEFINITION
+
+A customer can:
+
+Create a work order in ERP → invoice appears in QuickBooks automatically
+Record a payment in QuickBooks → ERP reflects payment immediately
+Resolve sync conflicts quickly
+Maintain trust that financial data is accurate and auditable

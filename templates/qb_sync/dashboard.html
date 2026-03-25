@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% block title %}QuickBooks Sync — Dynamic.IQ-COREx{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+    <div>
+        <h3 class="mb-1 fw-bold"><i class="bi bi-plug-fill text-success me-2"></i>QuickBooks Integration</h3>
+        <p class="text-muted mb-0 small">Real-time sync for work orders, invoices, and payments.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <div id="qbConnectionBadge">
+            <span class="badge bg-secondary px-3 py-2"><span class="spinner-border spinner-border-sm me-1" role="status"></span>Checking...</span>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadAll()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Connection Panel -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header py-2 fw-semibold"><i class="bi bi-link-45deg me-2"></i>Connection</div>
+            <div class="card-body" id="connectionPanel">
+                <div class="text-center py-4 text-muted">
+                    <span class="spinner-border" role="status"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Settings -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header py-2 fw-semibold"><i class="bi bi-sliders me-2"></i>Sync Settings</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold mb-1">Conflict Resolution Rule</label>
+                    <select class="form-select form-select-sm" id="conflictRule">
+                        <option value="manual_review">Manual Review Required</option>
+                        <option value="erp_wins">ERP Wins — overwrite QB</option>
+                        <option value="qb_wins">QB Wins — skip ERP push</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoSyncWo">
+                        <label class="form-check-label small" for="autoSyncWo">Auto-sync work orders on completion</label>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoSyncInv">
+                        <label class="form-check-label small" for="autoSyncInv">Auto-sync invoices on generation</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoSyncPay">
+                        <label class="form-check-label small" for="autoSyncPay">Auto-pull QB payments (daily)</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="sandboxMode" checked>
+                        <label class="form-check-label small" for="sandboxMode">Sandbox / Test mode</label>
+                    </div>
+                    <div class="text-muted" style="font-size:0.75rem;">Disable for production QB account.</div>
+                </div>
+                <button class="btn btn-sm btn-primary w-100" onclick="saveSettings()">
+                    <i class="bi bi-floppy me-1"></i>Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 24h Stats -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header py-2 fw-semibold"><i class="bi bi-activity me-2"></i>Activity (Last 24 h)</div>
+            <div class="card-body" id="statsPanel">
+                <div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs: Logs / Conflicts / Payments -->
+<ul class="nav nav-tabs mb-0 border-bottom" id="qbTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#logsPane" type="button"><i class="bi bi-journal-text me-1"></i>Sync Log</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#conflictsPane" type="button"><i class="bi bi-exclamation-diamond me-1"></i>Conflicts <span id="conflictCountBadge" class="badge bg-danger ms-1" style="display:none;"></span></button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#paymentsPane" type="button" onclick="loadPayments()"><i class="bi bi-currency-dollar me-1"></i>QB Payments</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#setupPane" type="button"><i class="bi bi-gear me-1"></i>Setup Guide</button></li>
+</ul>
+
+<div class="tab-content border border-top-0 p-3 bg-white rounded-bottom">
+
+    <!-- Sync Log -->
+    <div class="tab-pane fade show active" id="logsPane">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="logEntityFilter" style="width:140px" onchange="loadLogs()">
+                    <option value="">All entities</option>
+                    <option value="work_order">Work Orders</option>
+                    <option value="invoice">Invoices</option>
+                    <option value="payment">Payments</option>
+                </select>
+                <select class="form-select form-select-sm" id="logStatusFilter" style="width:130px" onchange="loadLogs()">
+                    <option value="">All statuses</option>
+                    <option value="success">Success</option>
+                    <option value="failed">Failed</option>
+                    <option value="conflict">Conflict</option>
+                    <option value="skipped">Skipped</option>
+                </select>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadLogs()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Entity</th><th>ID</th><th>Event</th><th>Direction</th>
+                        <th>QB ID</th><th>Status</th><th>Error</th><th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody"><tr><td colspan="8" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Conflicts -->
+    <div class="tab-pane fade" id="conflictsPane">
+        <div id="conflictsContainer">
+            <div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading conflicts...</div>
+        </div>
+    </div>
+
+    <!-- Payments -->
+    <div class="tab-pane fade" id="paymentsPane">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="small text-muted">Payments pulled from QuickBooks and applied to ERP invoices.</span>
+            <div class="d-flex gap-2 align-items-center">
+                <select class="form-select form-select-sm" id="paymentDays" style="width:130px">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
+                </select>
+                <button class="btn btn-sm btn-success" onclick="pullPayments()">
+                    <i class="bi bi-cloud-download me-1"></i>Pull QB Payments
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr><th>QB Payment ID</th><th>Amount</th><th>Method</th><th>Date</th><th>ERP Invoice</th><th>Applied</th><th>Status</th></tr>
+                </thead>
+                <tbody id="paymentsTableBody"><tr><td colspan="7" class="text-center py-3 text-muted">Click Pull QB Payments to load.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Setup Guide -->
+    <div class="tab-pane fade" id="setupPane">
+        <div class="row g-4 py-2">
+            <div class="col-md-6">
+                <h6 class="fw-bold mb-3"><i class="bi bi-cloud me-2 text-primary"></i>QuickBooks Online Setup</h6>
+                <ol class="small lh-lg">
+                    <li>Go to <a href="https://developer.intuit.com" target="_blank">developer.intuit.com</a> and create a free developer account.</li>
+                    <li>Create a new app — select <strong>QuickBooks Online and Payments</strong>.</li>
+                    <li>Under <em>Keys & credentials</em>, copy your <strong>Client ID</strong> and <strong>Client Secret</strong>.</li>
+                    <li>Add the following Redirect URI in your app settings:<br>
+                        <code class="small">{{ request.host_url }}qb/callback</code>
+                    </li>
+                    <li>Set the following environment secrets on your server:<br>
+                        <code>QB_CLIENT_ID</code>, <code>QB_CLIENT_SECRET</code><br>
+                        <code>QB_REDIRECT_URI</code> (optional, defaults to above)<br>
+                        <code>QB_SANDBOX</code> = <code>false</code> for production
+                    </li>
+                    <li>Return here and click <strong>Connect to QuickBooks</strong>.</li>
+                </ol>
+            </div>
+            <div class="col-md-6">
+                <h6 class="fw-bold mb-3"><i class="bi bi-display me-2 text-secondary"></i>QuickBooks Desktop (Polling Mode)</h6>
+                <ol class="small lh-lg">
+                    <li>Install the <strong>QuickBooks Web Connector</strong> on the machine running QuickBooks Desktop.</li>
+                    <li>In your QB Desktop settings, enable Web Services and note the service URL.</li>
+                    <li>Enter the Web Connector polling URL in the <em>Desktop Poll URL</em> field (not shown in online mode).</li>
+                    <li>The sync engine will poll QB Desktop on a scheduled interval to push/pull data.</li>
+                    <li>Desktop sync events are logged identically to Online events in the Sync Log tab.</li>
+                </ol>
+                <div class="alert alert-info py-2 small mt-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    QB Desktop sync requires network access from this server to the QB Desktop machine.
+                </div>
+            </div>
+            <div class="col-12">
+                <h6 class="fw-bold mb-2"><i class="bi bi-shield-lock me-2 text-success"></i>Security Notes</h6>
+                <ul class="small text-muted">
+                    <li>OAuth tokens are stored in the database and refreshed automatically before expiry.</li>
+                    <li>In production, ensure <code>QB_SANDBOX=false</code> is set and your QB app is approved for production.</li>
+                    <li>Webhook signatures are verified using HMAC-SHA256 against the <code>intuit-signature</code> header.</li>
+                    <li>Only Admin and Accountant roles can connect, configure, or disconnect the integration.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+const STATUS_COLOR = {success:'success', failed:'danger', conflict:'warning', skipped:'secondary', pending:'info', received:'primary'};
+
+function loadAll() {
+    loadStatus();
+    loadLogs();
+    loadConflicts();
+}
+
+function loadStatus() {
+    fetch('/api/qb/status')
+        .then(r => r.json())
+        .then(d => {
+            const badge = document.getElementById('qbConnectionBadge');
+            if (d.connected && d.token_valid) {
+                badge.innerHTML = '<span class="badge bg-success px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Connected' + (d.sandbox_mode ? ' (Sandbox)' : '') + '</span>';
+            } else if (d.connected) {
+                badge.innerHTML = '<span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-exclamation-circle-fill me-1"></i>Connected — Token Expired</span>';
+            } else {
+                badge.innerHTML = '<span class="badge bg-danger px-3 py-2"><i class="bi bi-x-circle-fill me-1"></i>Not Connected</span>';
+            }
+
+            const cp = document.getElementById('connectionPanel');
+            if (d.connected) {
+                cp.innerHTML = `
+                    <div class="mb-2"><span class="text-muted small">Realm ID:</span><br><code class="small">${d.realm_id || 'N/A'}</code></div>
+                    <div class="mb-2"><span class="text-muted small">Connected by:</span> <strong>${d.connected_by || '-'}</strong></div>
+                    <div class="mb-2"><span class="text-muted small">Connected at:</span><br><small>${(d.connected_at||'').slice(0,16)}</small></div>
+                    <div class="mb-3"><span class="text-muted small">Mode:</span> <span class="badge ${d.sandbox_mode?'bg-warning text-dark':'bg-success'}">${d.sandbox_mode?'Sandbox':'Production'}</span></div>
+                    <button class="btn btn-outline-danger btn-sm w-100" onclick="disconnectQb()">
+                        <i class="bi bi-plug me-1"></i>Disconnect QuickBooks
+                    </button>`;
+            } else {
+                cp.innerHTML = `
+                    <div class="text-center py-2 mb-3">
+                        <i class="bi bi-plug display-4 text-muted opacity-50 d-block mb-2"></i>
+                        <p class="small text-muted">QuickBooks is not connected. Follow the Setup Guide tab to get your credentials, then connect below.</p>
+                    </div>
+                    <a href="/qb/connect" class="btn btn-success w-100">
+                        <i class="bi bi-plug-fill me-1"></i>Connect to QuickBooks
+                    </a>`;
+            }
+
+            // Settings
+            if (d.conflict_rule) {
+                document.getElementById('conflictRule').value = d.conflict_rule;
+                document.getElementById('autoSyncWo').checked = d.auto_sync_wo;
+                document.getElementById('autoSyncInv').checked = d.auto_sync_inv;
+                document.getElementById('autoSyncPay').checked = d.auto_sync_pay;
+                document.getElementById('sandboxMode').checked = d.sandbox_mode;
+            }
+
+            // Stats
+            const s = d.stats_24h || {};
+            const total = Object.values(s).reduce((a,b)=>a+b,0);
+            const sp = document.getElementById('statsPanel');
+            sp.innerHTML = `
+                <div class="row text-center g-2">
+                    <div class="col-6"><div class="p-2 rounded bg-success bg-opacity-10"><div class="fw-bold fs-4 text-success">${s.success||0}</div><div class="text-muted small">Synced</div></div></div>
+                    <div class="col-6"><div class="p-2 rounded bg-danger bg-opacity-10"><div class="fw-bold fs-4 text-danger">${s.failed||0}</div><div class="text-muted small">Failed</div></div></div>
+                    <div class="col-6"><div class="p-2 rounded bg-warning bg-opacity-10"><div class="fw-bold fs-4 text-warning">${s.conflict||0}</div><div class="text-muted small">Conflicts</div></div></div>
+                    <div class="col-6"><div class="p-2 rounded bg-secondary bg-opacity-10"><div class="fw-bold fs-4 text-secondary">${s.skipped||0}</div><div class="text-muted small">Skipped</div></div></div>
+                </div>
+                <div class="mt-3 text-center text-muted small">${total} total sync events in last 24 h</div>
+                ${d.pending_conflicts>0?`<div class="alert alert-warning py-2 small mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>${d.pending_conflicts} conflict(s) require attention.</div>`:''}`;
+
+            if (d.pending_conflicts > 0) {
+                const b = document.getElementById('conflictCountBadge');
+                b.style.display = '';
+                b.textContent   = d.pending_conflicts;
+            }
+        });
+}
+
+function loadLogs() {
+    const entity = document.getElementById('logEntityFilter').value;
+    const status = document.getElementById('logStatusFilter').value;
+    let url = `/api/qb/logs?limit=50${entity?'&entity_type='+entity:''}${status?'&status='+status:''}`;
+    fetch(url).then(r=>r.json()).then(rows => {
+        const tbody = document.getElementById('logsTableBody');
+        if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" class="text-center py-4 text-muted">No sync events found.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r => `<tr>
+            <td><span class="badge bg-secondary">${r.entity_type}</span></td>
+            <td class="small">${r.entity_id||'-'}</td>
+            <td class="small">${r.event_type}</td>
+            <td class="small text-muted">${r.direction||''}</td>
+            <td class="small"><code>${r.qb_entity_id||'-'}</code></td>
+            <td><span class="badge bg-${STATUS_COLOR[r.status]||'secondary'}">${r.status}</span></td>
+            <td class="small text-danger">${r.error_message?r.error_message.slice(0,60):''}</td>
+            <td class="small text-muted">${(r.created_at||'').slice(0,16)}</td>
+        </tr>`).join('');
+    });
+}
+
+function loadConflicts() {
+    fetch('/api/qb/conflicts').then(r=>r.json()).then(rows => {
+        const c = document.getElementById('conflictsContainer');
+        if (!rows.length) { c.innerHTML='<div class="text-center py-5 text-muted"><i class="bi bi-check-circle display-4 d-block mb-3 text-success opacity-50"></i>No conflicts detected.</div>'; return; }
+        c.innerHTML = rows.map(r => `
+            <div class="border rounded p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <span class="badge bg-secondary me-1">${r.entity_type}</span>
+                        <span class="badge bg-warning text-dark me-2">${r.conflict_type}</span>
+                        <small class="text-muted">ID: ${r.entity_id} &bull; QB: ${r.qb_entity_id}</small>
+                    </div>
+                    <span class="badge ${r.resolution==='pending'?'bg-danger':'bg-success'}">${r.resolution}</span>
+                </div>
+                <div class="row g-2 mt-2 mb-2">
+                    <div class="col-6"><small class="text-muted d-block">ERP Value</small><code class="small">${r.erp_value}</code></div>
+                    <div class="col-6"><small class="text-muted d-block">QB Value</small><code class="small">${r.qb_value}</code></div>
+                </div>
+                ${r.resolution==='pending'?`
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="text" class="form-control form-control-sm flex-grow-1" placeholder="Resolution notes..." id="cNotes${r.id}">
+                    <button class="btn btn-sm btn-success" onclick="resolveConflict(${r.id},'erp_wins')">ERP Wins</button>
+                    <button class="btn btn-sm btn-info" onclick="resolveConflict(${r.id},'qb_wins')">QB Wins</button>
+                    <button class="btn btn-sm btn-secondary" onclick="resolveConflict(${r.id},'deferred')">Defer</button>
+                </div>`:
+                `<small class="text-muted">Resolved by ${r.resolved_by||'-'} at ${(r.resolved_at||'').slice(0,16)} — ${r.resolution_notes||''}</small>`}
+            </div>`).join('');
+    });
+}
+
+function resolveConflict(id, resolution) {
+    const notes = document.getElementById(`cNotes${id}`)?.value || '';
+    fetch(`/api/qb/conflicts/${id}/resolve`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({resolution, notes}),
+    }).then(r=>r.json()).then(d=>{ alert(d.message); loadConflicts(); loadStatus(); });
+}
+
+function loadPayments() {
+    fetch('/api/qb/payments').then(r=>r.json()).then(rows => {
+        const tbody = document.getElementById('paymentsTableBody');
+        if (!rows.length) { tbody.innerHTML='<tr><td colspan="7" class="text-center py-3 text-muted">No payment records. Click Pull QB Payments.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r => `<tr>
+            <td><code class="small">${r.qb_payment_id}</code></td>
+            <td>$${parseFloat(r.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+            <td class="small">${r.payment_method||'-'}</td>
+            <td class="small">${r.payment_date||'-'}</td>
+            <td class="small">${r.erp_invoice_id?'INV-'+r.erp_invoice_id:'-'}</td>
+            <td>${r.applied_to_erp?'<span class="badge bg-success">Applied</span>':'<span class="badge bg-warning text-dark">Pending</span>'}</td>
+            <td><span class="badge bg-${STATUS_COLOR[r.sync_status]||'secondary'}">${r.sync_status}</span></td>
+        </tr>`).join('');
+    });
+}
+
+function pullPayments() {
+    const days = document.getElementById('paymentDays').value;
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Pulling...';
+    fetch('/api/qb/pull-payments', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({days_back: parseInt(days)}),
+    }).then(r=>r.json()).then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-download me-1"></i>Pull QB Payments';
+        alert(`Pulled ${d.synced} new payment(s) from QuickBooks.`);
+        loadPayments();
+        loadStatus();
+    }).catch(()=>{ btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-download me-1"></i>Pull QB Payments'; });
+}
+
+function saveSettings() {
+    fetch('/api/qb/settings', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            conflict_rule: document.getElementById('conflictRule').value,
+            auto_sync_wo:  document.getElementById('autoSyncWo').checked,
+            auto_sync_inv: document.getElementById('autoSyncInv').checked,
+            auto_sync_pay: document.getElementById('autoSyncPay').checked,
+            sandbox_mode:  document.getElementById('sandboxMode').checked,
+        }),
+    }).then(r=>r.json()).then(d=>{ alert(d.message || 'Saved.'); });
+}
+
+function disconnectQb() {
+    if (!confirm('Disconnect QuickBooks? All sync will stop until you reconnect.')) return;
+    fetch('/qb/disconnect', {method:'POST'}).then(r=>r.json()).then(d=>{ alert(d.message); loadAll(); });
+}
+
+document.addEventListener('DOMContentLoaded', loadAll);
+document.getElementById('conflictsPane').addEventListener('shown.bs.tab', loadConflicts);
+document.getElementById('paymentsPane')?.addEventListener?.('shown.bs.tab', loadPayments);
+</script>
+{% endblock %}
