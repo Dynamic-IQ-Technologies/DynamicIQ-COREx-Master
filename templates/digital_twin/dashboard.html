@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% block title %}Digital Twin Simulation — Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-diagram-3 text-info me-2"></i>Digital Twin Simulation Suite</h2>
+        <small class="text-muted">Mirror live operations, run what-if scenarios, quantify impact before it happens.</small>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <div id="sync-spinner" class="d-none">
+            <span class="spinner-border spinner-border-sm text-info me-1"></span>
+            <span class="small text-muted">Syncing twins...</span>
+        </div>
+        <button id="sync-btn" class="btn btn-outline-info" onclick="syncTwins()">
+            <i class="bi bi-arrow-repeat me-1"></i>Sync Twins
+        </button>
+    </div>
+</div>
+
+<!-- Twin Status Bar -->
+<div class="row g-2 mb-4">
+    {% set type_icons = {'supplier':'building','inventory':'box-seam','schedule':'calendar-check'} %}
+    {% set type_labels = {'supplier':'Supplier Twins','inventory':'Inventory Twins','schedule':'Schedule Twin'} %}
+    {% for ttype in ['supplier','inventory','schedule'] %}
+    {% set info = twin_map.get(ttype, {}) %}
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-{{ type_icons[ttype] }} text-info fs-4"></i>
+                    <div>
+                        <div class="fw-bold">{{ info.get('count', 0) }}</div>
+                        <div class="small text-muted">{{ type_labels[ttype] }}</div>
+                        {% if info.get('last_sync') %}
+                        <div class="small text-muted" style="font-size:.7rem">Synced {{ info.last_sync }}</div>
+                        {% else %}
+                        <div class="small text-warning" style="font-size:.7rem">Not synced yet</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-play-circle text-success fs-4"></i>
+                    <div>
+                        <div class="fw-bold">{{ simulations|length }}</div>
+                        <div class="small text-muted">Simulations Run</div>
+                        <div class="small text-muted" style="font-size:.7rem">All time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not has_twins %}
+<div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+    <i class="bi bi-info-circle-fill fs-5"></i>
+    <div>Twins not yet synced. Click <strong>Sync Twins</strong> to mirror your live ERP data before running simulations.</div>
+</div>
+{% endif %}
+
+<!-- Main layout: Scenario Builder + Results -->
+<div class="row g-4">
+
+    <!-- ── Scenario Builder ── -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+                <span class="text-white fw-semibold"><i class="bi bi-sliders me-2"></i>Scenario Configuration</span>
+            </div>
+            <div class="card-body">
+                <div id="sim-alert" class="d-none mb-3"></div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Simulation Name <span class="text-muted small">(optional)</span></label>
+                    <input type="text" class="form-control" id="sim-name" placeholder="e.g. Supplier risk Q2">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Scenario Type</label>
+                    <select class="form-select" id="scenario-type" onchange="updateForm()">
+                        <option value="">— Select a scenario —</option>
+                        <option value="supplier_failure">Supplier Failure or Shutdown</option>
+                        <option value="lead_time_increase">Lead Time Increase</option>
+                        <option value="demand_spike">Sudden Demand Spike</option>
+                        <option value="maintenance_deferral">Maintenance Schedule Deferral</option>
+                    </select>
+                </div>
+
+                <div id="scenario-params"></div>
+
+                <button id="run-btn" class="btn btn-success w-100 mt-2 d-none" onclick="runSimulation()">
+                    <i class="bi bi-play-fill me-1"></i>Run Simulation
+                </button>
+                <div id="run-spinner" class="text-center py-3 d-none">
+                    <span class="spinner-border text-success mb-2"></span>
+                    <div class="small text-muted" id="run-msg">Initialising simulation...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Results Panel ── -->
+    <div class="col-lg-8">
+        <div id="results-placeholder" class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center py-5 text-center">
+                <i class="bi bi-play-circle display-3 text-muted mb-3"></i>
+                <h5 class="text-muted">No simulation running</h5>
+                <p class="text-muted small mb-0" style="max-width:360px">
+                    Configure a scenario on the left and click Run to see quantified impact before it happens.
+                </p>
+            </div>
+        </div>
+        <div id="results-panel" class="d-none"></div>
+    </div>
+</div>
+
+<!-- ── Simulation History ── -->
+{% if simulations %}
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+        <span class="text-white fw-semibold"><i class="bi bi-clock-history me-2"></i>Simulation History</span>
+        <span class="badge bg-secondary">{{ simulations|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Simulation</th>
+                        <th>Scenario</th>
+                        <th class="text-center">Downtime</th>
+                        <th class="text-center">Revenue Risk</th>
+                        <th class="text-center">Parts at Risk</th>
+                        <th class="text-center">Confidence</th>
+                        <th>Run At</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in simulations %}
+                {% set kpi = s.impact_kpis %}
+                <tr>
+                    <td class="fw-semibold">{{ s.name or s.scenario_type }}</td>
+                    <td><span class="badge bg-secondary">{{ s.scenario_type.replace('_',' ').title() }}</span></td>
+                    <td class="text-center">{{ kpi.get('downtime_hours', 0)|int }}h</td>
+                    <td class="text-center text-danger fw-semibold">${{ "{:,.0f}".format(kpi.get('revenue_impact_usd', 0)) }}</td>
+                    <td class="text-center">{{ kpi.get('parts_at_risk', 0) }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-{{ {'High':'success','Medium':'warning','Low':'secondary'}.get(s.confidence_level,'secondary') }}">
+                            {{ s.confidence_level }}
+                        </span>
+                    </td>
+                    <td class="small text-muted">{{ s.created_at_fmt }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadSimulation({{ s.id }})">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.kpi-card { border-radius: 12px; padding: 16px 20px; }
+.kpi-value { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+.kpi-label { font-size: .8rem; color: #888; margin-top: 4px; }
+.sim-divider { border-top: 2px solid #f0f0f0; margin: 16px 0; }
+</style>
+
+<script>
+const SUPPLIERS = {{ suppliers | tojson }};
+let runJobId = null, syncJobId = null;
+
+// Pre-fill from URL params (e.g. from Risk Radar)
+(function prefillFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const suppId = params.get('supplier');
+    if (suppId) {
+        const sel = document.getElementById('scenario-type');
+        sel.value = 'supplier_failure';
+        updateForm();
+        const suppSel = document.getElementById('p-supplier_id');
+        if (suppSel) suppSel.value = suppId;
+    }
+})();
+let runTimer = null, syncTimer = null;
+
+const SCENARIO_FORMS = {
+    supplier_failure: `
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Supplier</label>
+            <select class="form-select" id="p-supplier_id" required>
+                <option value="">— Select supplier —</option>
+                ${SUPPLIERS.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Failure Duration</label>
+            <div class="input-group">
+                <input type="number" class="form-control" id="p-failure_duration_days" value="30" min="1" max="365">
+                <span class="input-group-text">days</span>
+            </div>
+        </div>`,
+    lead_time_increase: `
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Lead Time Increase</label>
+            <div class="input-group">
+                <input type="number" class="form-control" id="p-increase_pct" value="50" min="5" max="500">
+                <span class="input-group-text">%</span>
+            </div>
+            <div class="form-text">e.g. 50 = lead times 1.5x longer than current</div>
+        </div>`,
+    demand_spike: `
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Demand Increase</label>
+            <div class="input-group">
+                <input type="number" class="form-control" id="p-increase_pct" value="30" min="5" max="500">
+                <span class="input-group-text">%</span>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Duration</label>
+            <div class="input-group">
+                <input type="number" class="form-control" id="p-duration_days" value="30" min="1" max="365">
+                <span class="input-group-text">days</span>
+            </div>
+        </div>`,
+    maintenance_deferral: `
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Deferral Period</label>
+            <div class="input-group">
+                <input type="number" class="form-control" id="p-deferral_weeks" value="4" min="1" max="52">
+                <span class="input-group-text">weeks</span>
+            </div>
+        </div>`,
+};
+
+function updateForm() {
+    const type = document.getElementById('scenario-type').value;
+    const container = document.getElementById('scenario-params');
+    const btn = document.getElementById('run-btn');
+    container.innerHTML = SCENARIO_FORMS[type] || '';
+    btn.classList.toggle('d-none', !type);
+}
+
+function getParams() {
+    const type = document.getElementById('scenario-type').value;
+    const p = {};
+    document.querySelectorAll('#scenario-params [id^="p-"]').forEach(el => {
+        const key = el.id.replace('p-', '');
+        p[key] = el.type === 'number' ? parseFloat(el.value) : el.value;
+    });
+    return {type, params: p};
+}
+
+function runSimulation() {
+    const {type, params} = getParams();
+    if (!type) return;
+    if (type === 'supplier_failure' && !params.supplier_id) {
+        showSimAlert('Please select a supplier.', 'warning');
+        return;
+    }
+    const name = document.getElementById('sim-name').value.trim();
+    document.getElementById('run-btn').classList.add('d-none');
+    document.getElementById('run-spinner').classList.remove('d-none');
+    document.getElementById('results-placeholder').classList.add('d-none');
+    document.getElementById('results-panel').classList.add('d-none');
+    document.getElementById('sim-alert').classList.add('d-none');
+
+    fetch('/api/twin/simulate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scenario_type: type, parameters: params, name}),
+    }).then(r => r.json()).then(d => {
+        runJobId = d.job_id;
+        runTimer = setInterval(pollRun, 1500);
+    }).catch(() => showSimAlert('Network error — please try again.', 'danger'));
+}
+
+const RUN_STEPS = [
+    'Syncing digital twin state...','Calculating inventory coverage...',
+    'Projecting shortage dates...','Quantifying revenue exposure...',
+    'Generating AI executive summary...','Finalising recommendations...',
+];
+let runStep = 0;
+
+function pollRun() {
+    document.getElementById('run-msg').textContent = RUN_STEPS[runStep % RUN_STEPS.length];
+    runStep++;
+    fetch(`/api/twin/poll/${runJobId}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'running') return;
+            clearInterval(runTimer);
+            document.getElementById('run-spinner').classList.add('d-none');
+            document.getElementById('run-btn').classList.remove('d-none');
+            if (d.status === 'done') {
+                loadSimulation(d.sim_id);
+            } else {
+                showSimAlert(d.error || 'Simulation failed.', 'danger');
+                document.getElementById('results-placeholder').classList.remove('d-none');
+            }
+        })
+        .catch(() => {
+            clearInterval(runTimer);
+            showSimAlert('Network error during polling.', 'danger');
+            document.getElementById('run-btn').classList.remove('d-none');
+            document.getElementById('run-spinner').classList.add('d-none');
+        });
+}
+
+function loadSimulation(simId) {
+    fetch(`/api/twin/simulation/${simId}`)
+        .then(r => r.json())
+        .then(data => renderResults(data))
+        .catch(() => showSimAlert('Failed to load simulation result.', 'danger'));
+}
+
+const CONF_COLOR = {High:'success', Medium:'warning', Low:'danger'};
+const LEVEL_ICON = {Critical:'🔴', High:'🟠', Medium:'🟡', Low:'🟢'};
+const URGENCY_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+
+function renderResults(d) {
+    const cur = d.current_state || {};
+    const sim = d.simulated_state || {};
+    const kpi = d.impact_kpis || {};
+    const mits = d.mitigations || [];
+    const conf = d.confidence_level || 'Medium';
+
+    const fmt = n => isNaN(n) ? 'N/A' : Number(n).toLocaleString();
+
+    // Executive summary bar
+    const summaryHTML = d.executive_summary
+        ? `<div class="alert mb-4" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a);border:none;color:#fff">
+            <i class="bi bi-cpu me-2 text-info"></i><strong class="text-info">AI Simulation Summary:</strong>
+            <span class="ms-1">${d.executive_summary}</span>
+           </div>`
+        : '';
+
+    // KPI cards
+    const kpiHTML = `
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="kpi-card bg-danger bg-opacity-10 border border-danger border-opacity-25 text-center">
+                    <div class="kpi-value text-danger">${fmt(kpi.downtime_hours)}h</div>
+                    <div class="kpi-label">Expected Downtime</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kpi-card bg-warning bg-opacity-10 border border-warning border-opacity-25 text-center">
+                    <div class="kpi-value text-warning">$${fmt(kpi.revenue_impact_usd)}</div>
+                    <div class="kpi-label">Revenue at Risk</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kpi-card bg-info bg-opacity-10 border border-info border-opacity-25 text-center">
+                    <div class="kpi-value text-info">${fmt(kpi.parts_at_risk)}</div>
+                    <div class="kpi-label">Parts at Risk</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kpi-card bg-${CONF_COLOR[conf]} bg-opacity-10 border border-${CONF_COLOR[conf]} border-opacity-25 text-center">
+                    <div class="kpi-value text-${CONF_COLOR[conf]}">${conf}</div>
+                    <div class="kpi-label">Confidence Level</div>
+                </div>
+            </div>
+        </div>`;
+
+    // Side-by-side state comparison
+    const stateHTML = `
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-success h-100">
+                    <div class="card-header bg-success text-white">
+                        <i class="bi bi-check-circle me-2"></i>Current State
+                    </div>
+                    <div class="card-body small">
+                        ${renderStateCard(cur, false)}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-danger h-100">
+                    <div class="card-header bg-danger text-white">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Simulated State
+                    </div>
+                    <div class="card-body small">
+                        ${renderStateCard(sim, true)}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Mitigation recommendations
+    const mitHTML = mits.map((m, i) => `
+        <div class="d-flex gap-3 p-3 rounded mb-2" style="background:#f8f9fa;border-left:4px solid var(--bs-${URGENCY_COLOR[m.urgency]||'secondary'})">
+            <div class="fw-bold text-muted" style="min-width:24px">${i + 1}</div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">${m.action}</div>
+                <div class="text-muted small mt-1">${m.detail}</div>
+                <div class="d-flex gap-3 mt-2 small flex-wrap">
+                    <span class="badge bg-${URGENCY_COLOR[m.urgency]||'secondary'}">${m.urgency}</span>
+                    ${m.risk_reduction_pct > 0 ? `<span class="text-success"><i class="bi bi-arrow-down-circle me-1"></i>Risk -${m.risk_reduction_pct}%</span>` : ''}
+                    ${m.cost_impact > 0 ? `<span class="text-warning"><i class="bi bi-cash me-1"></i>$${fmt(m.cost_impact)} est. cost</span>` : ''}
+                    ${m.time_impact_days < 0 ? `<span class="text-info"><i class="bi bi-clock me-1"></i>${Math.abs(m.time_impact_days)}d time saving</span>` : ''}
+                </div>
+            </div>
+        </div>`).join('');
+
+    document.getElementById('results-panel').innerHTML = `
+        <div class="card border-0 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+                <span class="text-white fw-semibold"><i class="bi bi-bar-chart-line me-2"></i>${d.name || d.scenario_type.replace(/_/g,' ')}</span>
+                <span class="badge bg-secondary">${d.scenario_type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
+            </div>
+            <div class="card-body">
+                ${summaryHTML}
+                ${kpiHTML}
+                ${stateHTML}
+                <h6 class="fw-bold mb-3"><i class="bi bi-lightning text-warning me-2"></i>Recommended Mitigation Actions</h6>
+                ${mitHTML || '<div class="text-muted small">No mitigations generated.</div>'}
+            </div>
+        </div>`;
+    document.getElementById('results-panel').classList.remove('d-none');
+    document.getElementById('results-placeholder').classList.add('d-none');
+    document.getElementById('results-panel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function renderStateCard(state, isSim) {
+    const rows = [];
+    const skip = ['all_parts','parts_detail','affected_parts','parts'];
+    for (const [k, v] of Object.entries(state)) {
+        if (skip.includes(k) || typeof v === 'object') continue;
+        const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+        let val = v;
+        if (typeof v === 'number') {
+            if (k.includes('usd') || k.includes('cost') || k.includes('value')) val = '$' + Number(v).toLocaleString();
+            else if (k.includes('pct') || k.includes('rate')) val = v + '%';
+            else val = Number(v).toLocaleString();
+        }
+        const danger = isSim && (k.includes('risk') || k.includes('blocked') || k.includes('downtime') || k.includes('impact'));
+        rows.push(`<div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">${label}</span>
+            <span class="fw-semibold ${danger && v > 0 ? 'text-danger' : ''}">${val}</span>
+        </div>`);
+    }
+
+    // Parts detail
+    const parts = state.parts_detail || state.affected_parts || [];
+    if (parts.length > 0) {
+        rows.push(`<div class="sim-divider"></div><div class="fw-semibold mb-1">Parts Affected</div>`);
+        parts.slice(0, 5).forEach(p => {
+            const days = p.days_coverage !== undefined ? ` (${p.days_coverage}d stock)` : '';
+            rows.push(`<div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">${p.code}</span>
+                <span class="text-danger small">${isSim ? 'Stockout' + (p.shortage_date ? ' ~' + p.shortage_date : '') : 'OK'}${days}</span>
+            </div>`);
+        });
+        if (parts.length > 5) rows.push(`<div class="text-muted small">+ ${parts.length - 5} more...</div>`);
+    }
+    return rows.length ? rows.join('') : '<div class="text-muted">No data available.</div>';
+}
+
+function showSimAlert(msg, type) {
+    const el = document.getElementById('sim-alert');
+    el.innerHTML = `<div class="alert alert-${type} py-2 small mb-0">${msg}</div>`;
+    el.classList.remove('d-none');
+}
+
+// ── Sync twins ────────────────────────────────
+function syncTwins() {
+    document.getElementById('sync-btn').disabled = true;
+    document.getElementById('sync-spinner').classList.remove('d-none');
+    fetch('/api/twin/sync', {method:'POST'})
+        .then(r => r.json())
+        .then(d => {
+            syncJobId = d.job_id;
+            syncTimer = setInterval(pollSync, 1500);
+        }).catch(() => {
+            document.getElementById('sync-btn').disabled = false;
+            document.getElementById('sync-spinner').classList.add('d-none');
+        });
+}
+
+function pollSync() {
+    fetch(`/api/twin/poll/${syncJobId}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'running') return;
+            clearInterval(syncTimer);
+            document.getElementById('sync-btn').disabled = false;
+            document.getElementById('sync-spinner').classList.add('d-none');
+            if (d.status === 'done') {
+                const r = d.results;
+                showSimAlert(`Twins synced: ${r.suppliers} suppliers, ${r.inventory} inventory, ${r.schedule} schedule.`, 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        }).catch(() => clearInterval(syncTimer));
+}
+</script>
+{% endblock %}

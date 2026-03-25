@@ -61,9 +61,14 @@ Key features include:
   9. Human Risk Mitigation - MFA enforcement, FIDO2/WebAuthn readiness, privileged access timeboxing, JIT elevation, insider threat monitoring
   10. Security Governance - ISO 27001, NIST 800-53, SOC2, CMMC mapping, continuous control validation, AI risk heatmap
 
+## Recent Modules Added
+
+- **Supply Chain Risk Radar** (`/risk-radar`): AI-scoring engine for supplier and part risk, with embedded badges in MRR shortage table and supplier view pages. Supplier rows include a "Simulate" button linking to Digital Twin.
+- **Digital Twin Simulation Suite** (`/digital-twin`): What-if simulation engine. Syncs live ERP state into `digital_twins`; runs 4 scenario types (supplier_failure, lead_time_increase, demand_spike, maintenance_deferral). Each simulation quantifies downtime hours, revenue impact, parts at risk, and blocked WOs; AI executive summary via GPT-4o-mini; full history in `twin_simulations`. Engine: `engines/twin_engine.py`; routes: `routes/twin_routes.py`.
+
 ## External Dependencies
 
 -   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `ReportLab`, `Pandas`, `openpyxl`, `openai`, `psycopg2-binary`, `qrcode`, `Pillow`.
 -   **Frontend Libraries**: Bootstrap 5.3.0, Bootstrap Icons 1.11.0, Chart.js 4.4.0.
--   **AI Integration**: OpenAI API (GPT-4o).
+-   **AI Integration**: OpenAI API (GPT-4o, GPT-4o-mini).
 -   **Database**: PostgreSQL.

@@ -1,0 +1,139 @@
+You are a principal ERP architect, simulation engineer, and decision-intelligence designer.
+Your task is to extend an existing ERP/MRO system with a Digital Twin Engine that mirrors real-world operations and allows users to simulate future operational scenarios before they happen.
+
+OBJECTIVE
+
+Transform the platform from a static planning system into a forward-looking decision simulator that enables executives, planners, and operations leaders to understand risk, cost, and downtime impact before action is required.
+
+The system must:
+
+Create live digital twins of assets, inventory, and maintenance schedules
+Simulate disruptions and demand changes
+Quantify operational, financial, and risk impact
+Present outcomes in executive-friendly language
+🧠 CORE CAPABILITIES
+1️⃣ Digital Twin Engine (Foundational)
+
+Create a Digital Twin Engine that continuously mirrors:
+
+Assets
+Health, usage, failure probabilities
+Inventory
+On-hand, in-transit, safety stock, buffers
+Maintenance Schedules
+Preventive, corrective, predictive tasks
+
+Twins must remain synchronized with real system data and update in near-real time.
+
+2️⃣ Twin Modeling Requirements
+
+Each digital twin must include:
+
+State variables (health, quantity, timing)
+Dependencies (asset ↔ parts ↔ suppliers)
+Constraints (lead times, compliance, capacity)
+Cost parameters (downtime, holding, expedite)
+
+Models must be versioned, timestamped, and auditable.
+
+3️⃣ Scenario Simulation Module
+
+Enable users to run “What-If” simulations, including but not limited to:
+
+Supplier failure or shutdown
+Lead-time increase or doubling
+Sudden demand spikes
+Asset failure acceleration
+Maintenance deferral
+
+Each scenario must be configurable and repeatable.
+
+4️⃣ Impact Analysis Output
+
+For every simulation, calculate and display:
+
+Expected downtime (hours / days)
+Revenue or production impact ($)
+Inventory shortages or excess
+Maintenance backlog impact
+Compliance risk exposure
+Confidence level of results
+
+Example Executive Output:
+
+“If Supplier B fails within 30 days, expected downtime increases by 42 hours with a projected cost impact of $680K.”
+
+5️⃣ Recommended Mitigation Actions
+
+After simulation, automatically generate ranked mitigation strategies:
+
+Alternate sourcing
+Inventory buffer adjustments
+Maintenance schedule acceleration
+Expedite vs defer analysis
+
+Each recommendation must include:
+
+Risk reduction (%)
+Cost impact ($)
+Time saved or lost
+Trade-off explanation
+6️⃣ Executive Visualization Layer
+
+Provide a Digital Twin Simulation View:
+
+Side-by-side: Current State vs Simulated State
+Clear KPIs (Downtime, Cost, Risk)
+Timeline impact visualization
+Plain-language summary
+
+Executives should immediately understand:
+
+“Here’s the operational impact before it happens.”
+
+7️⃣ System Integration Points (Mandatory)
+
+Embed Digital Twin outputs into:
+
+Material Requirements Report
+Asset Intelligence tab
+Supply Chain Risk Radar
+Executive dashboards
+Planning & forecasting workflows
+
+Simulation results must be contextual and actionable.
+
+🔌 TECHNICAL CONSTRAINTS
+Do not alter existing transactional logic
+Implement as modular simulation services
+Support async scenario execution
+Allow scenario cloning and comparison
+Feature-toggle by tenant or role
+📊 DATA MODELS TO ADD
+Digital Twin (Asset / Inventory / Schedule)
+Twin State Snapshot
+Scenario Definition
+Simulation Run
+Impact Assessment
+Mitigation Recommendation
+Simulation Audit Log
+
+All records must support time-series analysis.
+
+🧪 ACCEPTANCE CRITERIA
+
+✔ Digital twins stay synchronized with live data
+✔ Users can run and compare multiple scenarios
+✔ Impacts are quantified and explainable
+✔ Mitigation actions are generated automatically
+✔ Executives can understand results without training
+
+🏁 SUCCESS DEFINITION
+
+A leader can ask:
+
+What happens if this supplier fails?
+What if lead times double?
+What if demand spikes next quarter?
+
+…and receive clear, quantified answers before damage occurs.

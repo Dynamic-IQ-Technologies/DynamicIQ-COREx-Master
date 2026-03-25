@@ -812,6 +812,12 @@
                     <span>Risk Radar</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('digital_twin.dashboard') }}">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Digital Twin</span>
+                </a>
+            </li>
             {% endif %}
             {% if user_permissions.get('menu_rfq', 1) == 1 %}
             <li class="sidebar-nav-item">

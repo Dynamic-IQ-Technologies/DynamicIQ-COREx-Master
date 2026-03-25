@@ -146,9 +146,14 @@
                     </td>
                     <td class="text-center">{{ s.trend_icon|safe }}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="showDetail('supplier', {{ s.entity_id }}, '{{ s.entity_name }}')">
-                            <i class="bi bi-bar-chart me-1"></i>Details
-                        </button>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" onclick="showDetail('supplier', {{ s.entity_id }}, '{{ s.entity_name }}')">
+                                <i class="bi bi-bar-chart me-1"></i>Details
+                            </button>
+                            <a class="btn btn-sm btn-outline-warning" href="/digital-twin?supplier={{ s.entity_id }}" title="Simulate failure scenario">
+                                <i class="bi bi-diagram-3"></i>
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

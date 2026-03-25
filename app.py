@@ -81,6 +81,7 @@ from routes.inventory_intelligence_routes import inv_intel_bp
 from routes.asset_intelligence_routes import asset_intel_bp
 from routes.mrr_ai_routes import mrr_ai_bp
 from routes.risk_radar_routes import risk_radar_bp
+from routes.twin_routes import twin_bp
 from engines.asc_ai import asc_engine
 import os
 
@@ -375,6 +376,7 @@ app.register_blueprint(inv_intel_bp)
 app.register_blueprint(asset_intel_bp)
 app.register_blueprint(mrr_ai_bp)
 app.register_blueprint(risk_radar_bp)
+app.register_blueprint(twin_bp)
 
 def get_database():
     from models import Database
