@@ -542,7 +542,7 @@ def view_workorder(id):
         SELECT tt.id, tt.template_code, tt.template_name, tt.category,
                (SELECT COUNT(*) FROM task_template_items WHERE template_id = tt.id) as item_count
         FROM task_templates tt
-        WHERE tt.status = 'Active'
+        WHERE tt.status NOT IN ('Archived', 'Inactive') OR tt.status IS NULL
         ORDER BY tt.template_name
     ''').fetchall()
 
@@ -551,7 +551,7 @@ def view_workorder(id):
                mr.status, mr.revision,
                (SELECT COUNT(*) FROM master_routing_operations WHERE routing_id = mr.id) as op_count
         FROM master_routings mr
-        WHERE mr.status IN ('Active', 'Approved')
+        WHERE mr.status NOT IN ('Obsolete', 'Inactive') OR mr.status IS NULL
         ORDER BY mr.routing_code
     ''').fetchall()
 
