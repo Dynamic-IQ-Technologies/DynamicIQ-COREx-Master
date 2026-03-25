@@ -291,9 +291,9 @@ def customer_risk_detail(customer_id):
         # ── 2. Overdue invoices risk (0-25 pts) ──────────────────────────────
         try:
             overdue = conn.execute('''
-                SELECT COALESCE(SUM(total_amount - amount_paid), 0) as overdue_amt,
+                SELECT COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) as overdue_amt,
                        COUNT(*) as overdue_count
-                FROM vendor_invoices
+                FROM invoices
                 WHERE customer_id = %s
                   AND due_date < CURRENT_DATE
                   AND status NOT IN ('Paid', 'Voided', 'Cancelled')
@@ -301,6 +301,7 @@ def customer_risk_detail(customer_id):
             overdue_amt = float(overdue['overdue_amt'] or 0)
             overdue_count = int(overdue['overdue_count'] or 0)
         except Exception:
+            conn.rollback()
             overdue_amt = 0
             overdue_count = 0
 
