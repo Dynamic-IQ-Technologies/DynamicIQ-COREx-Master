@@ -797,7 +797,12 @@
                         </span>
                         {% endif %}
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% if master_routings_list and master_routings_list|length > 0 %}
+                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#applyRoutingModal">
+                            <i class="bi bi-diagram-3-fill"></i> Apply Routing
+                        </button>
+                        {% endif %}
                         {% if task_templates and task_templates|length > 0 %}
                         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyTemplateModal">
                             <i class="bi bi-file-earmark-plus"></i> Apply Template
@@ -2373,39 +2378,297 @@
 </div>
 {% endif %}
 
-{% if task_templates and task_templates|length > 0 %}
-<div class="modal fade" id="applyTemplateModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<!-- ── Apply Master Routing Modal ───────────────────────────────────────── -->
+{% if master_routings_list and master_routings_list|length > 0 %}
+<div class="modal fade" id="applyRoutingModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <form method="POST" action="{{ url_for('task_routes.apply_template', wo_id=workorder.id) }}">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-file-earmark-plus"></i> Apply Task Template</h5>
+            <form method="POST" action="{{ url_for('workorder_routes.apply_routing_to_wo', wo_id=workorder.id) }}" id="applyRoutingForm">
+                <div class="modal-header" style="background:linear-gradient(135deg,#0d6efd,#0a58ca)">
+                    <h5 class="modal-title text-white"><i class="bi bi-diagram-3-fill me-2"></i>Apply Master Routing</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted">Select a template to add its tasks to this work order.</p>
-                    <div class="mb-3">
-                        <label class="form-label">Select Template <span class="text-danger">*</span></label>
-                        <select class="form-select" name="template_id" required>
-                            <option value="">-- Choose a template --</option>
-                            {% for tpl in task_templates %}
-                            <option value="{{ tpl.id }}">{{ tpl.template_code }} - {{ tpl.template_name }} ({{ tpl.item_count }} tasks)</option>
-                            {% endfor %}
-                        </select>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold">Select Routing <span class="text-danger">*</span></label>
+                            <select class="form-select" name="routing_id" id="routingSelect" required onchange="previewRouting(this.value)">
+                                <option value="">— Choose a master routing —</option>
+                                {% for r in master_routings_list %}
+                                <option value="{{ r.id }}">{{ r.routing_code }} — {{ r.routing_name }}
+                                    {% if r.revision %}(Rev {{ r.revision }}){% endif %}
+                                    · {{ r.op_count }} operation(s)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">Apply Mode</label>
+                            <div class="d-flex gap-3 mt-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="mode" id="modeAdd" value="add" checked>
+                                    <label class="form-check-label" for="modeAdd">
+                                        <strong>Add to existing tasks</strong><br>
+                                        <span class="text-muted small">Appends operations after current tasks</span>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="mode" id="modeReplace" value="replace">
+                                    <label class="form-check-label" for="modeReplace">
+                                        <strong class="text-danger">Replace all tasks</strong><br>
+                                        <span class="text-muted small">Deletes existing tasks first</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Existing tasks will not be affected.
+
+                    <!-- Summary bar (hidden until routing chosen) -->
+                    <div id="routingSummaryBar" class="d-none alert alert-info py-2 mb-3 d-flex gap-4 flex-wrap align-items-center">
+                        <span><i class="bi bi-list-check me-1"></i><strong id="rsOps">0</strong> operations</span>
+                        <span><i class="bi bi-clock me-1"></i><strong id="rsHours">0</strong>h planned</span>
+                        <span><i class="bi bi-box-seam me-1"></i><strong id="rsMats">0</strong> materials</span>
+                        <span><i class="bi bi-shield-check me-1"></i><strong id="rsQc">0</strong> quality checks</span>
                     </div>
+
+                    <!-- Replace warning -->
+                    <div id="replaceWarning" class="alert alert-warning d-none py-2">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Replace mode:</strong> All {{ tasks|length }} existing task(s) on this work order will be permanently deleted before the routing is applied.
+                    </div>
+
+                    <!-- Operations preview table -->
+                    <div id="routingPreviewContainer" class="d-none">
+                        <h6 class="fw-bold mb-2 text-muted">Operations Preview</h6>
+                        <div class="table-responsive" style="max-height:340px;overflow-y:auto;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:50px">Seq</th>
+                                        <th>Operation</th>
+                                        <th>Type / Dept</th>
+                                        <th>Work Center</th>
+                                        <th class="text-center">Hours</th>
+                                        <th class="text-center">Materials</th>
+                                        <th class="text-center">QC</th>
+                                        <th class="text-center">Flags</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="routingPreviewBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="routingPreviewSpinner" class="text-center py-3 d-none">
+                        <span class="spinner-border text-primary"></span>
+                        <div class="small text-muted mt-1">Loading routing details...</div>
+                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Apply Template</button>
+                    <button type="submit" id="applyRoutingBtn" class="btn btn-primary" disabled>
+                        <i class="bi bi-check-lg me-1"></i>Apply Routing
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 {% endif %}
+
+<!-- ── Apply Task Template Modal ────────────────────────────────────────── -->
+{% if task_templates and task_templates|length > 0 %}
+<div class="modal fade" id="applyTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('task_routes.apply_template', wo_id=workorder.id) }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-plus me-2"></i>Apply Task Template</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Template <span class="text-danger">*</span></label>
+                        <select class="form-select" name="template_id" id="templateSelect" required onchange="previewTemplate(this.value)">
+                            <option value="">— Choose a template —</option>
+                            {% for tpl in task_templates %}
+                            <option value="{{ tpl.id }}">{{ tpl.template_code }} — {{ tpl.template_name }} ({{ tpl.item_count }} task(s){% if tpl.category %}, {{ tpl.category }}{% endif %})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Summary bar -->
+                    <div id="templateSummaryBar" class="d-none alert alert-info py-2 mb-3 d-flex gap-4 flex-wrap align-items-center">
+                        <span><i class="bi bi-list-check me-1"></i><strong id="tsTasks">0</strong> tasks</span>
+                        <span><i class="bi bi-clock me-1"></i><strong id="tsHours">0</strong>h planned</span>
+                        <span class="text-muted small" id="tsDesc"></span>
+                    </div>
+
+                    <!-- Tasks preview -->
+                    <div id="templatePreviewContainer" class="d-none">
+                        <h6 class="fw-bold mb-2 text-muted">Tasks Preview</h6>
+                        <div class="table-responsive" style="max-height:320px;overflow-y:auto;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:50px">Seq</th>
+                                        <th>Task Name</th>
+                                        <th>Category</th>
+                                        <th>Priority</th>
+                                        <th class="text-center">Planned Hrs</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="templatePreviewBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="templatePreviewSpinner" class="text-center py-3 d-none">
+                        <span class="spinner-border text-primary"></span>
+                        <div class="small text-muted mt-1">Loading template details...</div>
+                    </div>
+
+                    <div class="alert alert-secondary py-2 mt-3 mb-0 small">
+                        <i class="bi bi-info-circle me-1"></i> Tasks are appended after any existing tasks on this work order.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="applyTemplateBtn" class="btn btn-primary" disabled>
+                        <i class="bi bi-check-lg me-1"></i>Apply Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// ── Master Routing preview ──────────────────────────────────────────────────
+function previewRouting(routingId) {
+    const container = document.getElementById('routingPreviewContainer');
+    const spinner = document.getElementById('routingPreviewSpinner');
+    const summaryBar = document.getElementById('routingSummaryBar');
+    const btn = document.getElementById('applyRoutingBtn');
+
+    container.classList.add('d-none');
+    summaryBar.classList.add('d-none');
+    btn.disabled = true;
+
+    if (!routingId) return;
+
+    spinner.classList.remove('d-none');
+    fetch(`/api/routing/${routingId}/preview`)
+        .then(r => r.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            if (data.error) { alert('Error: ' + data.error); return; }
+
+            const s = data.summary;
+            document.getElementById('rsOps').textContent = s.total_operations;
+            document.getElementById('rsHours').textContent = s.total_labor_hours.toFixed(1);
+            document.getElementById('rsMats').textContent = s.total_materials;
+            document.getElementById('rsQc').textContent = s.total_quality_checks;
+            summaryBar.classList.remove('d-none');
+
+            const tbody = document.getElementById('routingPreviewBody');
+            tbody.innerHTML = '';
+            data.operations.forEach(op => {
+                const matList = op.materials.map(m => `<span class="badge bg-secondary me-1">${m.code} ×${m.qty} ${m.uom}</span>`).join('');
+                const qcList = op.quality_checks.map(q => `<span class="badge bg-warning text-dark me-1">${q.code || q.name}</span>`).join('');
+                const flags = [
+                    op.mandatory ? '<span class="badge bg-danger">Required</span>' : '',
+                    op.inspection_gate ? '<span class="badge bg-info text-dark">Gate</span>' : '',
+                ].filter(Boolean).join(' ');
+                tbody.innerHTML += `<tr>
+                    <td class="text-center fw-bold">${op.sequence}</td>
+                    <td>
+                        <strong>${op.name}</strong>
+                        ${op.code ? `<span class="badge bg-secondary ms-1">${op.code}</span>` : ''}
+                        ${op.description ? `<br><small class="text-muted">${op.description.substring(0,80)}${op.description.length>80?'…':''}</small>` : ''}
+                        ${op.skill ? `<br><small class="text-muted"><i class="bi bi-person-badge me-1"></i>${op.skill}</small>` : ''}
+                    </td>
+                    <td><small>${op.type || '—'}<br class="d-block">${op.department || ''}</small></td>
+                    <td><small>${op.work_center || '—'}</small></td>
+                    <td class="text-center"><strong>${op.labor_hours.toFixed(1)}h</strong></td>
+                    <td>${matList || '<span class="text-muted small">—</span>'}</td>
+                    <td>${qcList || '<span class="text-muted small">—</span>'}</td>
+                    <td>${flags || '<span class="text-muted small">—</span>'}</td>
+                </tr>`;
+            });
+
+            container.classList.remove('d-none');
+            btn.disabled = false;
+        })
+        .catch(() => { spinner.classList.add('d-none'); });
+}
+
+// ── Replace mode warning ────────────────────────────────────────────────────
+document.querySelectorAll('input[name="mode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+        const warn = document.getElementById('replaceWarning');
+        warn.classList.toggle('d-none', radio.value !== 'replace' || !radio.checked);
+    });
+});
+
+// ── Task Template preview ───────────────────────────────────────────────────
+function previewTemplate(templateId) {
+    const container = document.getElementById('templatePreviewContainer');
+    const spinner = document.getElementById('templatePreviewSpinner');
+    const summaryBar = document.getElementById('templateSummaryBar');
+    const btn = document.getElementById('applyTemplateBtn');
+
+    container.classList.add('d-none');
+    summaryBar.classList.add('d-none');
+    btn.disabled = true;
+
+    if (!templateId) return;
+
+    spinner.classList.remove('d-none');
+    fetch(`/api/task-template/${templateId}/preview`)
+        .then(r => r.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            if (data.error) { alert('Error: ' + data.error); return; }
+            if (!data.items || data.items.length === 0) {
+                container.classList.remove('d-none');
+                document.getElementById('templatePreviewBody').innerHTML =
+                    '<tr><td colspan="6" class="text-center text-muted py-3">This template has no tasks defined yet.</td></tr>';
+                summaryBar.classList.add('d-none');
+                btn.disabled = true;
+                return;
+            }
+
+            document.getElementById('tsTasks').textContent = data.summary.total_tasks;
+            document.getElementById('tsHours').textContent = data.summary.total_planned_hours.toFixed(1);
+            document.getElementById('tsDesc').textContent = data.template.description || '';
+            summaryBar.classList.remove('d-none');
+
+            const PRIORITY_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+            const tbody = document.getElementById('templatePreviewBody');
+            tbody.innerHTML = '';
+            data.items.forEach(it => {
+                const pColor = PRIORITY_COLOR[it.priority] || 'secondary';
+                tbody.innerHTML += `<tr>
+                    <td class="text-center">${it.sequence || '—'}</td>
+                    <td><strong>${it.name}</strong>
+                        ${it.description ? `<br><small class="text-muted">${it.description.substring(0,80)}${it.description.length>80?'…':''}</small>` : ''}</td>
+                    <td><small>${it.category || '—'}</small></td>
+                    <td><span class="badge bg-${pColor}">${it.priority}</span></td>
+                    <td class="text-center">${it.planned_hours > 0 ? it.planned_hours.toFixed(1) + 'h' : '—'}</td>
+                    <td><small class="text-muted">${it.remarks || '—'}</small></td>
+                </tr>`;
+            });
+
+            container.classList.remove('d-none');
+            btn.disabled = false;
+        })
+        .catch(() => { spinner.classList.add('d-none'); });
+}
+</script>
 
 <script>
 function openAllocateModal(reqId, prodCode, requiredQty, allocatedQty, availableQty) {

@@ -545,7 +545,16 @@ def view_workorder(id):
         WHERE tt.status = 'Active'
         ORDER BY tt.template_name
     ''').fetchall()
-    
+
+    master_routings_list = conn.execute('''
+        SELECT mr.id, mr.routing_code, mr.routing_name, mr.routing_type,
+               mr.status, mr.revision,
+               (SELECT COUNT(*) FROM master_routing_operations WHERE routing_id = mr.id) as op_count
+        FROM master_routings mr
+        WHERE mr.status IN ('Active', 'Approved')
+        ORDER BY mr.routing_code
+    ''').fetchall()
+
     labor_resources = conn.execute('''
         SELECT id, first_name, last_name, employee_code, role
         FROM labor_resources 
@@ -761,6 +770,7 @@ def view_workorder(id):
                          task_materials=task_materials,
                          task_material_summary=task_material_summary,
                          task_templates=task_templates,
+                         master_routings_list=master_routings_list,
                          labor_resources=labor_resources,
                          documents=documents,
                          notes=notes,
@@ -4942,3 +4952,287 @@ def check_similar_products():
     except Exception as e:
         conn.close()
         return jsonify({'similar': [], 'error': str(e)})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API: preview a master routing's operations + materials (for modal preview)
+# ─────────────────────────────────────────────────────────────────────────────
+@workorder_bp.route('/api/routing/<int:routing_id>/preview')
+@login_required
+def api_routing_preview(routing_id):
+    db = Database()
+    conn = db.get_connection()
+    try:
+        routing = conn.execute(
+            'SELECT id, routing_code, routing_name, routing_type, revision, status FROM master_routings WHERE id = %s',
+            (routing_id,)
+        ).fetchone()
+        if not routing:
+            return jsonify({'error': 'Routing not found'}), 404
+
+        ops = conn.execute('''
+            SELECT mro.id, mro.sequence_number, mro.operation_code, mro.operation_name,
+                   mro.description, mro.operation_type, mro.department,
+                   COALESCE(mro.standard_labor_hours, 0) AS labor_hours,
+                   mro.skill_required, mro.certification_required,
+                   mro.is_mandatory, mro.is_inspection_gate,
+                   wc.name AS work_center_name
+            FROM master_routing_operations mro
+            LEFT JOIN work_centers wc ON mro.work_center_id = wc.id
+            WHERE mro.routing_id = %s
+            ORDER BY mro.sequence_number
+        ''', (routing_id,)).fetchall()
+
+        ops_list = []
+        for op in ops:
+            materials = conn.execute('''
+                SELECT p.code, p.name, mrm.quantity_required, mrm.uom
+                FROM master_routing_materials mrm
+                JOIN products p ON mrm.product_id = p.id
+                WHERE mrm.operation_id = %s
+                ORDER BY p.code
+            ''', (op['id'],)).fetchall()
+
+            qc = conn.execute('''
+                SELECT check_code, check_name, inspection_type, is_mandatory
+                FROM master_routing_quality_checks
+                WHERE operation_id = %s
+                ORDER BY check_code
+            ''', (op['id'],)).fetchall()
+
+            ops_list.append({
+                'sequence': op['sequence_number'],
+                'code': op['operation_code'],
+                'name': op['operation_name'],
+                'description': op['description'] or '',
+                'type': op['operation_type'] or '',
+                'department': op['department'] or '',
+                'work_center': op['work_center_name'] or '',
+                'labor_hours': float(op['labor_hours'] or 0),
+                'skill': op['skill_required'] or '',
+                'certification': op['certification_required'] or '',
+                'mandatory': bool(op['is_mandatory']),
+                'inspection_gate': bool(op['is_inspection_gate']),
+                'materials': [
+                    {'code': m['code'], 'name': m['name'],
+                     'qty': float(m['quantity_required'] or 0), 'uom': m['uom'] or 'EA'}
+                    for m in materials
+                ],
+                'quality_checks': [
+                    {'code': q['check_code'], 'name': q['check_name'],
+                     'type': q['inspection_type'], 'mandatory': bool(q['is_mandatory'])}
+                    for q in qc
+                ],
+            })
+
+        total_hours = sum(o['labor_hours'] for o in ops_list)
+        total_materials = sum(len(o['materials']) for o in ops_list)
+        total_qc = sum(len(o['quality_checks']) for o in ops_list)
+
+        return jsonify({
+            'routing': {
+                'id': routing['id'],
+                'code': routing['routing_code'],
+                'name': routing['routing_name'],
+                'type': routing['routing_type'] or '',
+                'revision': routing['revision'] or '',
+                'status': routing['status'],
+            },
+            'operations': ops_list,
+            'summary': {
+                'total_operations': len(ops_list),
+                'total_labor_hours': round(total_hours, 2),
+                'total_materials': total_materials,
+                'total_quality_checks': total_qc,
+            }
+        })
+    finally:
+        conn.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API: preview a task template's items (for modal preview)
+# ─────────────────────────────────────────────────────────────────────────────
+@workorder_bp.route('/api/task-template/<int:template_id>/preview')
+@login_required
+def api_template_preview(template_id):
+    db = Database()
+    conn = db.get_connection()
+    try:
+        tpl = conn.execute(
+            'SELECT id, template_code, template_name, category, description FROM task_templates WHERE id = %s',
+            (template_id,)
+        ).fetchone()
+        if not tpl:
+            return jsonify({'error': 'Template not found'}), 404
+
+        items = conn.execute('''
+            SELECT sequence_number, task_name, description, category,
+                   priority, COALESCE(planned_hours, 0) AS planned_hours, remarks
+            FROM task_template_items
+            WHERE template_id = %s
+            ORDER BY sequence_number, id
+        ''', (template_id,)).fetchall()
+
+        items_list = [
+            {
+                'sequence': it['sequence_number'],
+                'name': it['task_name'],
+                'description': it['description'] or '',
+                'category': it['category'] or '',
+                'priority': it['priority'] or 'Medium',
+                'planned_hours': float(it['planned_hours'] or 0),
+                'remarks': it['remarks'] or '',
+            }
+            for it in items
+        ]
+        total_hours = sum(i['planned_hours'] for i in items_list)
+
+        return jsonify({
+            'template': {
+                'id': tpl['id'],
+                'code': tpl['template_code'],
+                'name': tpl['template_name'],
+                'category': tpl['category'] or '',
+                'description': tpl['description'] or '',
+            },
+            'items': items_list,
+            'summary': {
+                'total_tasks': len(items_list),
+                'total_planned_hours': round(total_hours, 2),
+            }
+        })
+    finally:
+        conn.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Apply master routing to an existing work order
+# ─────────────────────────────────────────────────────────────────────────────
+@workorder_bp.route('/workorders/<int:wo_id>/apply-routing', methods=['POST'])
+@login_required
+@role_required('Admin', 'Production Staff')
+def apply_routing_to_wo(wo_id):
+    db = Database()
+    conn = db.get_connection()
+    try:
+        wo = conn.execute(
+            'SELECT id, wo_number FROM work_orders WHERE id = %s', (wo_id,)
+        ).fetchone()
+        if not wo:
+            flash('Work order not found.', 'danger')
+            return redirect(url_for('workorder_routes.list_workorders'))
+
+        routing_id = request.form.get('routing_id', type=int)
+        mode = request.form.get('mode', 'add')  # 'add' or 'replace'
+
+        if not routing_id:
+            flash('Please select a master routing.', 'warning')
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+        routing = conn.execute(
+            'SELECT id, routing_name, routing_code FROM master_routings WHERE id = %s', (routing_id,)
+        ).fetchone()
+        if not routing:
+            flash('Selected routing not found.', 'danger')
+            return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+
+        # Optionally clear existing tasks first
+        if mode == 'replace':
+            task_ids = [r['id'] for r in conn.execute(
+                'SELECT id FROM work_order_tasks WHERE work_order_id = %s', (wo_id,)
+            ).fetchall()]
+            if task_ids:
+                conn.execute(
+                    'DELETE FROM work_order_task_materials WHERE task_id = ANY(%s)', (task_ids,)
+                )
+                conn.execute(
+                    'DELETE FROM work_order_tasks WHERE work_order_id = %s', (wo_id,)
+                )
+
+        ops = conn.execute('''
+            SELECT mro.*, wc.name AS work_center_name
+            FROM master_routing_operations mro
+            LEFT JOIN work_centers wc ON mro.work_center_id = wc.id
+            WHERE mro.routing_id = %s
+            ORDER BY mro.sequence_number
+        ''', (routing_id,)).fetchall()
+
+        # Find current max sequence so we don't collide when mode='add'
+        max_seq = 0
+        if mode == 'add':
+            row = conn.execute(
+                'SELECT COALESCE(MAX(sequence_number), 0) AS ms FROM work_order_tasks WHERE work_order_id = %s',
+                (wo_id,)
+            ).fetchone()
+            max_seq = int(row['ms'] or 0)
+
+        tasks_created = 0
+        for op in ops:
+            # Generate task number
+            row = conn.execute(
+                'SELECT task_number FROM work_order_tasks ORDER BY id DESC LIMIT 1'
+            ).fetchone()
+            if row:
+                try:
+                    last_num = int(row['task_number'].split('-')[1])
+                    task_num = f'TSK-{last_num + 1:04d}'
+                except (IndexError, ValueError):
+                    task_num = f'TSK-{op["sequence_number"]:04d}'
+            else:
+                task_num = f'TSK-{op["sequence_number"]:04d}'
+
+            seq = max_seq + op['sequence_number']
+            try:
+                instructions = op['instructions'] or op['description'] or ''
+            except Exception:
+                instructions = op['description'] or ''
+
+            new_task = conn.execute('''
+                INSERT INTO work_order_tasks
+                    (task_number, work_order_id, task_name, description, category,
+                     sequence_number, priority, planned_hours, work_center_id,
+                     task_instructions, status)
+                VALUES (%s, %s, %s, %s, %s, %s, 'Medium', %s, %s, %s, 'Not Started')
+                RETURNING id
+            ''', (
+                task_num, wo_id, op['operation_name'],
+                op['description'], op['operation_type'],
+                seq,
+                float(op['standard_labor_hours'] or 0),
+                op['work_center_id'],
+                instructions,
+            )).fetchone()
+            task_id = new_task['id']
+
+            # Insert materials for this operation
+            materials = conn.execute(
+                'SELECT * FROM master_routing_materials WHERE operation_id = %s', (op['id'],)
+            ).fetchall()
+            for mat in materials:
+                conn.execute('''
+                    INSERT INTO work_order_task_materials (task_id, product_id, required_qty, status)
+                    VALUES (%s, %s, %s, 'Pending')
+                ''', (task_id, mat['product_id'], mat['quantity_required']))
+
+            tasks_created += 1
+
+        # Link WO to this routing
+        conn.execute(
+            'UPDATE work_orders SET master_routing_id = %s WHERE id = %s', (routing_id, wo_id)
+        )
+        conn.commit()
+
+        mode_label = 'replaced with' if mode == 'replace' else 'added from'
+        flash(
+            f'{tasks_created} task(s) {mode_label} routing "{routing["routing_code"]} — {routing["routing_name"]}".',
+            'success'
+        )
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id) + '#tasks-tab')
+
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error applying routing: {str(e)}', 'danger')
+        return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
+    finally:
+        conn.close()
