@@ -608,9 +608,11 @@ def qb_connect():
     config = _get_config(conn)
     conn.close()
     client_id, _ = _get_credentials(config)
-    redirect_uri  = (config.get('redirect_uri') if config else None) or \
-                    os.environ.get('QB_REDIRECT_URI') or \
-                    _auto_redirect_uri(request)
+    # Auto-detected public URL takes priority; stored value only used for
+    # explicitly custom overrides (env var → auto-detected → DB stored)
+    redirect_uri  = os.environ.get('QB_REDIRECT_URI') or \
+                    _auto_redirect_uri(request) or \
+                    (config.get('redirect_uri') if config else None)
     if not client_id:
         flash('QuickBooks credentials are not configured. Please enter your Client ID and Client Secret on this page first.', 'danger')
         return redirect(url_for('qb_sync_routes.qb_dashboard'))
@@ -618,15 +620,20 @@ def qb_connect():
     import secrets
     state = secrets.token_urlsafe(16)
     session['qb_oauth_state'] = state
+    session['qb_redirect_uri'] = redirect_uri  # store so callback uses same value
 
-    auth_url = (
-        f"{QB_OAUTH_URL}"
-        f"?client_id={client_id}"
-        f"&response_type=code"
-        f"&scope={QB_SCOPE}"
-        f"&redirect_uri={redirect_uri}"
-        f"&state={state}"
-    )
+    log.warning(f'[QB CONNECT] redirect_uri being sent to QB: {redirect_uri}')
+    log.warning(f'[QB CONNECT] client_id (first 8): {client_id[:8]}...')
+
+    from urllib.parse import urlencode
+    params = {
+        'client_id':     client_id,
+        'response_type': 'code',
+        'scope':         QB_SCOPE,
+        'redirect_uri':  redirect_uri,
+        'state':         state,
+    }
+    auth_url = QB_OAUTH_URL + '?' + urlencode(params)
     return redirect(auth_url)
 
 
@@ -646,9 +653,11 @@ def qb_callback():
     ensure_qb_tables(conn)
     config     = _get_config(conn)
     client_id, client_secret = _get_credentials(config)
-    redirect_uri = (config.get('redirect_uri') if config else None) or \
+    # Must use exactly the same redirect_uri that was sent during /qb/connect
+    redirect_uri = session.get('qb_redirect_uri') or \
                    os.environ.get('QB_REDIRECT_URI') or \
                    _auto_redirect_uri(request)
+    log.warning(f'[QB CALLBACK] redirect_uri used for token exchange: {redirect_uri}')
 
     try:
         resp = http.post(
