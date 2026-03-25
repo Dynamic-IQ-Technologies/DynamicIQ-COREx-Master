@@ -414,10 +414,70 @@ def create_purchaseorder():
         next_number = 1
     
     next_po_number = f'PO-{next_number:06d}'
-    
+
+    # --- AI pre-fill: populate form when arriving from AI Procurement Decisions ---
+    prefill = None
+    pf_product_id = request.args.get('product_id', type=int)
+    if pf_product_id:
+        pf_product = conn.execute(
+            'SELECT id, code, name, unit_of_measure, cost FROM products WHERE id = %s',
+            (pf_product_id,)
+        ).fetchone()
+        if pf_product:
+            pf_quantity = request.args.get('quantity', type=float) or 1
+            pf_supplier_name = request.args.get('supplier', '').strip()
+
+            # Resolve supplier: exact match first, then partial
+            pf_supplier = None
+            if pf_supplier_name:
+                pf_supplier = conn.execute(
+                    'SELECT id, name FROM suppliers WHERE LOWER(name) = LOWER(%s) LIMIT 1',
+                    (pf_supplier_name,)
+                ).fetchone()
+                if not pf_supplier:
+                    pf_supplier = conn.execute(
+                        "SELECT id, name FROM suppliers WHERE name ILIKE %s LIMIT 1",
+                        (f'%{pf_supplier_name}%',)
+                    ).fetchone()
+            # Fall back to most-used supplier for this product
+            if not pf_supplier:
+                pf_supplier = conn.execute('''
+                    SELECT s.id, s.name
+                    FROM purchase_order_lines pol
+                    JOIN purchase_orders po ON pol.po_id = po.id
+                    JOIN suppliers s ON po.supplier_id = s.id
+                    WHERE pol.product_id = %s
+                    GROUP BY s.id, s.name
+                    ORDER BY COUNT(*) DESC
+                    LIMIT 1
+                ''', (pf_product_id,)).fetchone()
+
+            # Get last unit price paid for this product
+            last_price = conn.execute('''
+                SELECT pol.unit_price
+                FROM purchase_order_lines pol
+                JOIN purchase_orders po ON pol.po_id = po.id
+                WHERE pol.product_id = %s
+                ORDER BY po.order_date DESC NULLS LAST
+                LIMIT 1
+            ''', (pf_product_id,)).fetchone()
+
+            prefill = {
+                'product_id': pf_product['id'],
+                'product_code': pf_product['code'],
+                'product_name': pf_product['name'],
+                'uom': pf_product['unit_of_measure'] or 'EA',
+                'quantity': pf_quantity,
+                'unit_cost': float(last_price['unit_price'] if last_price else (pf_product['cost'] or 0)),
+                'supplier_id': pf_supplier['id'] if pf_supplier else None,
+                'supplier_name': pf_supplier['name'] if pf_supplier else pf_supplier_name,
+                'ai_note': f"AI Procurement Decision: {pf_product['code']} - {pf_product['name']} x{pf_quantity:g}",
+            }
+
     conn.close()
     
-    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products_list, uoms=uoms_list, next_po_number=next_po_number)
+    return render_template('purchaseorders/create.html', suppliers=suppliers, products=products_list,
+                           uoms=uoms_list, next_po_number=next_po_number, prefill=prefill)
 
 @po_bp.route('/purchaseorders/<int:id>')
 @login_required

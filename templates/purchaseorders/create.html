@@ -5,6 +5,21 @@
 {% block content %}
 <h2 class="mb-4">Create Purchase Order</h2>
 
+{% if prefill %}
+<div class="alert border-0 mb-4 d-flex align-items-start gap-3" style="background:linear-gradient(135deg,#0d1b2a,#1b3a5a);color:#fff;border-radius:12px">
+    <i class="bi bi-cpu fs-4 text-warning flex-shrink-0 mt-1"></i>
+    <div>
+        <div class="fw-bold mb-1">Pre-populated from AI Procurement Decision</div>
+        <div class="small opacity-90">
+            Part <strong>{{ prefill.product_code }}</strong> — {{ prefill.product_name }} &nbsp;|&nbsp;
+            Qty: <strong>{{ prefill.quantity|int }}</strong> &nbsp;|&nbsp;
+            {% if prefill.supplier_name %}Supplier: <strong>{{ prefill.supplier_name }}</strong>{% endif %}
+        </div>
+        <div class="small opacity-75 mt-1">Review and adjust any details before submitting.</div>
+    </div>
+</div>
+{% endif %}
+
 <div class="card">
     <div class="card-body">
         <form method="POST" id="poForm">
@@ -356,6 +371,60 @@ addLine();
 
 // Set today's date
 document.getElementById('order_date').value = new Date().toISOString().split('T')[0];
+
+{% if prefill %}
+// ── AI Procurement Decision pre-fill ──────────────────────
+(async function applyAIPrefill() {
+    const pf = {{ prefill|tojson }};
+
+    // 1. Pre-select supplier
+    if (pf.supplier_id) {
+        document.getElementById('supplier_id').value = pf.supplier_id;
+    }
+
+    // 2. Pre-fill notes
+    if (pf.ai_note) {
+        document.getElementById('notes').value = pf.ai_note;
+    }
+
+    // 3. Pre-select product in line 1 and wait for UOMs to load
+    const productSel = document.querySelector('.line-product[data-line="1"]');
+    if (productSel && pf.product_id) {
+        productSel.value = pf.product_id;
+
+        // Fire async handleProductChange so UOM dropdown is populated
+        try {
+            await handleProductChange({ target: productSel });
+        } catch (e) {
+            console.warn('AI prefill: UOM load failed', e);
+        }
+
+        // 4. Fill quantity
+        const qtyInput = document.querySelector('.line-qty[data-line="1"]');
+        if (qtyInput) {
+            qtyInput.value = pf.quantity || 1;
+        }
+
+        // 5. Fill unit price (last paid price, or product cost)
+        const priceInput = document.querySelector('.line-price[data-line="1"]');
+        if (priceInput && pf.unit_cost > 0) {
+            priceInput.value = pf.unit_cost;
+        }
+
+        // 6. Recalculate totals and base qty
+        if (qtyInput)   qtyInput.dispatchEvent(new Event('input'));
+        if (priceInput) priceInput.dispatchEvent(new Event('input'));
+        await calculateConversion(1);
+
+        // 7. Highlight the pre-filled row
+        const row = document.getElementById('line-1');
+        if (row) {
+            row.style.background = '#f0f7ff';
+            row.title = 'Pre-populated from AI Procurement Decision';
+        }
+    }
+})();
+{% endif %}
 
 // Quick Add Product Functions
 function openQuickAddProduct(lineNum) {
