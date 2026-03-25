@@ -179,20 +179,22 @@ def list_invoices():
     )
 
     # QB sync context
+    qb_connected    = False
+    qb_synced_ids   = set()
+    qb_auto_sync_inv = False
     try:
         from routes.qb_sync_routes import _get_config, ensure_qb_tables
         ensure_qb_tables(conn)
-        qb_config     = _get_config(conn)
-        qb_connected  = bool(qb_config and qb_config['is_active'])
-        qb_synced_ids = set()
+        qb_config       = _get_config(conn)
+        qb_connected    = bool(qb_config and qb_config['is_active'])
+        qb_auto_sync_inv = bool(qb_config and qb_config.get('auto_sync_inv'))
         if qb_connected:
             rows = conn.execute(
                 'SELECT invoice_id FROM qb_wo_invoice_map WHERE invoice_id IS NOT NULL'
             ).fetchall()
             qb_synced_ids = {r['invoice_id'] for r in rows}
     except Exception:
-        qb_connected  = False
-        qb_synced_ids = set()
+        pass
 
     conn.close()
 
@@ -210,7 +212,8 @@ def list_invoices():
                          overdue_amount=overdue_amount,
                          today=today_str,
                          qb_connected=qb_connected,
-                         qb_synced_ids=qb_synced_ids)
+                         qb_synced_ids=qb_synced_ids,
+                         qb_auto_sync_inv=qb_auto_sync_inv)
 
 @invoice_bp.route('/invoices/<int:id>')
 @login_required

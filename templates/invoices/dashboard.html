@@ -23,6 +23,42 @@
         </div>
     </div>
 
+    <!-- QB Auto-Sync Banner (Admin/Accountant only when QB is connected) -->
+    {% if session.role in ['Admin', 'Accountant'] and qb_connected %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="background:linear-gradient(90deg,#f0fdf4,#fff);">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-plug-fill text-success fs-5"></i>
+                            <div>
+                                <span class="fw-semibold">QuickBooks Nightly Auto-Sync</span>
+                                <span class="text-muted small ms-2">Automatically pushes unsynced invoices to QuickBooks every night</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <small id="qbAutoSyncStatus" class="text-muted"></small>
+                            <button class="btn btn-sm btn-outline-secondary" id="syncNowBtn" onclick="syncUnsyncedNow(this)">
+                                <i class="bi bi-cloud-upload me-1"></i>Sync Now
+                            </button>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="autoSyncInvToggle"
+                                       {{ 'checked' if qb_auto_sync_inv else '' }}
+                                       onchange="setAutoSyncInv(this.checked)">
+                                <label class="form-check-label fw-semibold" for="autoSyncInvToggle">
+                                    {{ 'On' if qb_auto_sync_inv else 'Off' }}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="qbAutoSyncMsg" class="mt-1" style="min-height:1.2rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Dashboard Metrics -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -325,6 +361,59 @@ function qbSyncRow(invoiceId, btn) {
             btn.disabled = false;
             btn.innerHTML = orig;
         });
+}
+
+// ── QB Auto-Sync toggle ────────────────────────────────
+function setAutoSyncInv(enabled) {
+    const toggle = document.getElementById('autoSyncInvToggle');
+    const label  = toggle ? toggle.nextElementSibling : null;
+    const msg    = document.getElementById('qbAutoSyncMsg');
+    if (toggle) toggle.disabled = true;
+    fetch('/api/invoices/qb-auto-sync-inv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled}),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (toggle) { toggle.disabled = false; toggle.checked = d.enabled; }
+        if (label)    label.textContent = d.enabled ? 'On' : 'Off';
+        if (msg)      msg.innerHTML = `<small class="text-${d.enabled ? 'success' : 'muted'}"><i class="bi bi-${d.enabled ? 'check-circle' : 'dash-circle'} me-1"></i>${d.message || ''}</small>`;
+        setTimeout(() => { if (msg) msg.innerHTML = ''; }, 4000);
+    })
+    .catch(() => {
+        if (toggle) toggle.disabled = false;
+        if (msg)    msg.innerHTML = '<small class="text-danger">Failed to save setting.</small>';
+    });
+}
+
+// ── Sync unsynced invoices now ─────────────────────────
+function syncUnsyncedNow(btn) {
+    const msg = document.getElementById('qbAutoSyncMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
+    if (msg) msg.innerHTML = '';
+    fetch('/api/invoices/qb-sync-unsynced-now', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync Now';
+        if (d.auth_expired) {
+            if (msg) msg.innerHTML = '<small class="text-danger"><i class="bi bi-lock me-1"></i>QuickBooks session expired. <a href="/qb-sync/dashboard">Reconnect here</a>.</small>';
+        } else {
+            const synced  = d.synced  || 0;
+            const failed  = d.failed  || 0;
+            const skipped = d.skipped || 0;
+            const colour  = failed > 0 ? 'warning' : 'success';
+            if (msg) msg.innerHTML = `<small class="text-${colour}"><i class="bi bi-check-circle me-1"></i>Done — ${synced} synced, ${skipped} skipped, ${failed} failed.</small>`;
+            if (synced > 0) setTimeout(() => location.reload(), 2000);
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync Now';
+        if (msg) msg.innerHTML = '<small class="text-danger">Network error — please try again.</small>';
+    });
 }
 </script>
 {% endif %}

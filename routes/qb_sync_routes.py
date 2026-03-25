@@ -1243,38 +1243,163 @@ def qb_dashboard():
         conn.close()
 
 
-# ─── Background Auto-Pull Scheduler ──────────────────────────────────────────
+# ─── Nightly Invoice Sync ─────────────────────────────────────────────────────
+
+def _sync_unsynced_invoices(conn):
+    """Find all standard invoices not yet pushed to QB and sync them one by one.
+    Returns summary dict: {synced, failed, skipped, auth_expired}."""
+    config = _get_config(conn)
+    if not config or not config['is_active']:
+        return {'synced': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
+
+    try:
+        unsynced = conn.execute('''
+            SELECT i.id
+            FROM invoices i
+            WHERE i.invoice_type != 'NDT'
+              AND COALESCE(i.status, '') NOT IN ('Cancelled', 'Draft')
+              AND COALESCE(i.total_amount, 0) > 0
+              AND i.id NOT IN (
+                  SELECT invoice_id FROM qb_wo_invoice_map
+                  WHERE invoice_id IS NOT NULL
+              )
+            ORDER BY i.id DESC
+            LIMIT 100
+        ''').fetchall()
+    except Exception as ex:
+        log.error(f'[QB NightlySync] Query failed: {ex}')
+        return {'synced': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
+
+    results = {'synced': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
+    for row in unsynced:
+        r = sync_invoice_to_qb(conn, row['id'], trigger='nightly_auto')
+        if r['status'] == 'success':
+            results['synced'] += 1
+        elif r['status'] == 'auth_expired':
+            results['auth_expired'] = True
+            results['auth_reason'] = r.get('reason', 'QB session expired')
+            break
+        elif r['status'] in ('skipped', 'conflict'):
+            results['skipped'] += 1
+        else:
+            results['failed'] += 1
+
+    log.info(f'[QB NightlySync] Complete: {results}')
+    return results
+
+
+# ─── Background Auto-Pull / Nightly Sync Scheduler ───────────────────────────
 
 import threading as _threading
-_qb_scheduler_started = False
+_qb_scheduler_started     = False
+_last_nightly_inv_sync_dt = None   # tracks the date of the last nightly push
+
 
 def _qb_auto_pull_loop():
-    """Background thread: pull QB invoice updates every 30 minutes if auto_sync_pay is on."""
+    """Background thread:
+       - Every 30 minutes: pull QB payment/balance updates if auto_sync_pay is on.
+       - Once per night (00:00–01:00): push unsynced invoices to QB if auto_sync_inv is on.
+    """
     import time
+    global _last_nightly_inv_sync_dt
     while True:
-        time.sleep(1800)
+        time.sleep(1800)   # wake every 30 minutes
         try:
             db   = Database()
             conn = db.get_connection()
             try:
                 config = _get_config(conn)
-                if config and config['is_active'] and config.get('auto_sync_pay'):
+                if not (config and config['is_active']):
+                    continue
+
+                # ── 30-minute: pull QB updates back into ERP ──
+                if config.get('auto_sync_pay'):
                     log.info('[QB Auto-Pull] Running scheduled pull from QuickBooks...')
                     results = pull_all_synced_invoices(conn)
                     log.info(f'[QB Auto-Pull] Done: {results}')
+
+                # ── Nightly (midnight window): push unsynced invoices to QB ──
+                if config.get('auto_sync_inv'):
+                    now   = datetime.now()
+                    today = now.date()
+                    if 0 <= now.hour < 1 and _last_nightly_inv_sync_dt != today:
+                        log.info('[QB NightlySync] Starting nightly push of unsynced invoices...')
+                        _last_nightly_inv_sync_dt = today
+                        results = _sync_unsynced_invoices(conn)
+                        log.info(f'[QB NightlySync] Done: {results}')
             finally:
                 conn.close()
         except Exception as ex:
-            log.warning(f'[QB Auto-Pull] Error: {ex}')
+            log.warning(f'[QB Scheduler] Error: {ex}')
 
 
 def start_qb_scheduler():
     global _qb_scheduler_started
     if not _qb_scheduler_started:
         _qb_scheduler_started = True
-        t = _threading.Thread(target=_qb_auto_pull_loop, name='qb-auto-pull', daemon=True)
+        t = _threading.Thread(target=_qb_auto_pull_loop, name='qb-scheduler', daemon=True)
         t.start()
-        log.info('[QB] Background auto-pull scheduler started')
+        log.info('[QB] Background scheduler started (auto-pull + nightly sync)')
 
 
 start_qb_scheduler()
+
+
+# ─── Invoice Auto-Sync Toggle Endpoints ───────────────────────────────────────
+
+@qb_sync_bp.route('/api/invoices/qb-auto-sync-inv', methods=['GET'])
+@login_required
+def get_auto_sync_inv():
+    """Return current auto_sync_inv flag and last nightly sync date."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        config = _get_config(conn)
+        return jsonify({
+            'enabled':    bool(config and config.get('auto_sync_inv')),
+            'last_run':   str(_last_nightly_inv_sync_dt) if _last_nightly_inv_sync_dt else None,
+            'qb_active':  bool(config and config.get('is_active')),
+        })
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/invoices/qb-auto-sync-inv', methods=['POST'])
+@login_required
+def set_auto_sync_inv():
+    """Toggle or set the auto_sync_inv flag."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    data    = request.get_json() or {}
+    enabled = bool(data.get('enabled', False))
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        conn.execute(
+            "UPDATE qb_sync_config SET auto_sync_inv=%s, updated_at=NOW() WHERE tenant_id='default'",
+            (enabled,),
+        )
+        conn.commit()
+        return jsonify({'enabled': enabled, 'message': f'Nightly QB auto-sync {"enabled" if enabled else "disabled"}.'})
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/invoices/qb-sync-unsynced-now', methods=['POST'])
+@login_required
+def sync_unsynced_now():
+    """Immediately push all unsynced invoices to QB (manual trigger)."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        results = _sync_unsynced_invoices(conn)
+        return jsonify(results)
+    finally:
+        conn.close()
