@@ -22,17 +22,6 @@
     </div>
 </div>
 
-<!-- Risk Radar detail card (hidden until loaded) -->
-<div id="supplier-risk-card" class="d-none mb-4">
-    <div class="card border-0 shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
-            <span class="text-white fw-semibold"><i class="bi bi-radar me-2"></i>Supply Chain Risk Score</span>
-            <a href="{{ url_for('risk_radar.dashboard') }}" class="btn btn-sm btn-outline-light">View All Scores</a>
-        </div>
-        <div class="card-body" id="supplier-risk-detail"></div>
-    </div>
-</div>
-
 <div class="card mb-4">
     <div class="card-header bg-primary text-white">
         <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Financial Summary</h5>
@@ -135,6 +124,12 @@
                             <span class="badge bg-primary ms-1" style="font-size:0.65rem;">AI</span>
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="supp-risk-tab" data-bs-toggle="tab" data-bs-target="#supp-risk-pane" type="button" role="tab">
+                            <i class="bi bi-radar me-1"></i> Risk Score
+                            <span id="risk-tab-badge" class="ms-1"></span>
+                        </button>
+                    </li>
                 </ul>
             </div>
             <div class="tab-content">
@@ -202,6 +197,24 @@
                         <i class="bi bi-shield-exclamation display-4 d-block mb-3 opacity-25"></i>
                         <p class="mb-1">No intelligence report generated yet.</p>
                         <p class="small">Click <strong>Generate Intelligence Report</strong> to get AI-powered supplier insights and a risk assessment.</p>
+                    </div>
+                </div>
+
+                <!-- ── Risk Score Tab Pane ── -->
+                <div class="tab-pane fade p-3" id="supp-risk-pane" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0 fw-bold">
+                            <i class="bi bi-radar me-2 text-danger"></i>Supply Chain Risk Score — {{ supplier.name }}
+                        </h6>
+                        <a href="{{ url_for('risk_radar.dashboard') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-bar-chart me-1"></i>View All Scores
+                        </a>
+                    </div>
+                    <div id="supplier-risk-detail">
+                        <div class="text-center py-5 text-muted">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Loading risk assessment...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -529,9 +542,16 @@ async function generateSuppIntel() {
         .then(r => r.status === 404 ? null : r.json())
         .then(d => {
             const badge = document.getElementById('supplier-risk-badge');
+            const tabBadge = document.getElementById('risk-tab-badge');
             if (!d || d.error) {
                 badge.innerHTML = `<a href="/risk-radar" class="badge bg-light text-muted border" style="font-size:.8rem;text-decoration:none">
                     <i class="bi bi-radar me-1"></i>No risk score yet</a>`;
+                document.getElementById('supplier-risk-detail').innerHTML =
+                    `<div class="text-center py-5 text-muted">
+                        <i class="bi bi-radar display-4 d-block mb-3 opacity-25"></i>
+                        <p class="mb-1">No risk score available yet.</p>
+                        <p class="small">Run the <a href="/risk-radar">Risk Radar</a> to calculate this supplier's supply chain risk score.</p>
+                    </div>`;
                 return;
             }
             const color = LEVEL_COLORS[d.risk_level] || 'secondary';
@@ -541,9 +561,11 @@ async function generateSuppIntel() {
                     <i class="bi bi-radar me-1"></i>Risk: ${d.risk_level} (${Math.round(d.risk_score)}/100) ${trend}
                 </span></a>`;
 
-            // Show detail card
-            const card = document.getElementById('supplier-risk-card');
-            card.classList.remove('d-none');
+            // Update tab badge
+            if (tabBadge) {
+                tabBadge.innerHTML = `<span class="badge bg-${color}" style="font-size:0.65rem;">${d.risk_level}</span>`;
+            }
+
             const bd = d.score_breakdown || {};
             const mits = d.mitigation_recommendations || [];
 
