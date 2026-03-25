@@ -292,6 +292,24 @@ function qbSyncRow(invoiceId, btn) {
                 btn.className = 'btn btn-sm btn-warning';
                 btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i>';
                 btn.title     = 'Conflict — ' + (d.reason || 'check QB dashboard');
+            } else if (d.status === 'auth_expired') {
+                btn.className = 'btn btn-sm btn-outline-danger';
+                btn.innerHTML = '<i class="bi bi-lock-fill"></i>';
+                btn.title     = 'QB session expired — click to reconnect';
+                btn.onclick   = () => window.location.href = '/qb-sync/dashboard';
+                const row = btn.closest('tr');
+                if (row) {
+                    const td = document.createElement('td');
+                    td.colSpan = 99;
+                    td.innerHTML = '<span class="text-danger small"><i class="bi bi-lock me-1"></i>QuickBooks session expired. <a href="/qb-sync/dashboard">Reconnect here</a>.</span>';
+                }
+                if (!document.getElementById('qb-auth-alert')) {
+                    const alert = document.createElement('div');
+                    alert.id = 'qb-auth-alert';
+                    alert.className = 'alert alert-danger alert-dismissible fade show mt-2';
+                    alert.innerHTML = '<i class="bi bi-lock me-1"></i><strong>QuickBooks session expired.</strong> Please <a href="/qb-sync/dashboard" class="alert-link">reconnect QuickBooks</a> to continue syncing. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    document.querySelector('.container, .container-fluid, main')?.prepend(alert);
+                }
             } else {
                 btn.className = 'btn btn-sm btn-danger';
                 btn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';

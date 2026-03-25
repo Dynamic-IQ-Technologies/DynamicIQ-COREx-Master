@@ -419,6 +419,10 @@
                     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Synced';
                     btn.className = 'btn btn-sm btn-success';
                     setTimeout(() => location.reload(), 1500);
+                } else if (d.status === 'auth_expired') {
+                    msg.innerHTML = '<span class="text-danger"><i class="bi bi-lock me-1"></i>QuickBooks session has expired. <a href="/qb-sync/dashboard">Click here to reconnect</a>.</span>';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-up-circle me-1"></i>Re-sync to QuickBooks';
                 } else {
                     msg.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (d.reason || d.error || 'Sync failed') + '</span>';
                     btn.disabled = false;
@@ -448,6 +452,8 @@
                     setTimeout(() => location.reload(), 1800);
                 } else if (d.status === 'skipped') {
                     msg.innerHTML = '<span class="text-warning"><i class="bi bi-info-circle me-1"></i>' + (d.reason || 'Not yet synced to QB') + '</span>';
+                } else if (d.status === 'auth_expired') {
+                    msg.innerHTML = '<span class="text-danger"><i class="bi bi-lock me-1"></i>QuickBooks session has expired. <a href="/qb-sync/dashboard">Click here to reconnect</a>.</span>';
                 } else {
                     msg.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (d.reason || d.error || 'Pull failed') + '</span>';
                 }

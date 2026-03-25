@@ -4079,6 +4079,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Conflict detected: ' + (d.reason||'') + '\nResolve via the QB Dashboard.');
                 } else if (d.status === 'skipped') {
                     alert('Sync skipped: ' + (d.reason||''));
+                } else if (d.status === 'auth_expired') {
+                    if (confirm('QuickBooks session has expired and needs to be reconnected.\n\nGo to the QB Sync dashboard to reconnect now?')) {
+                        window.location.href = '/qb-sync/dashboard';
+                    }
                 } else {
                     alert('Sync failed: ' + (d.reason||'Unknown error'));
                 }

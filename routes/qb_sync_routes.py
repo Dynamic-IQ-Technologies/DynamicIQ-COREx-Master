@@ -178,6 +178,10 @@ def _credentials_configured(config):
     return bool(cid and csec)
 
 
+class QBAuthExpiredError(Exception):
+    """Raised when the QB access token cannot be refreshed and the session must be reconnected."""
+
+
 def _refresh_token(conn, config):
     client_id, client_secret = _get_credentials(config)
     if not client_id or not client_secret or not config.get('refresh_token'):
@@ -199,7 +203,10 @@ def _refresh_token(conn, config):
             ''', (data['access_token'], data.get('refresh_token', config['refresh_token']),
                   expiry.isoformat()))
             conn.commit()
+            log.info('QB token refreshed successfully.')
             return data['access_token']
+        else:
+            log.error(f'QB token refresh HTTP {resp.status_code}: {resp.text[:200]}')
     except Exception as ex:
         log.error(f'QB token refresh failed: {ex}')
     return None
@@ -208,12 +215,34 @@ def _refresh_token(conn, config):
 def _qb_headers(conn, config):
     token = config['access_token']
     if _token_expired(config):
-        token = _refresh_token(conn, config) or token
+        new_token = _refresh_token(conn, config)
+        if new_token:
+            token = new_token
+        else:
+            raise QBAuthExpiredError(
+                'QuickBooks session has expired. Please reconnect QuickBooks from the QB Sync dashboard.'
+            )
     return {
         'Authorization': f'Bearer {token}',
         'Accept': 'application/json',
         'Content-Type': 'application/json',
     }
+
+
+def _qb_request(conn, config, method, url, **kwargs):
+    """Make a QB API request, automatically refreshing the token once on 401."""
+    headers = _qb_headers(conn, config)
+    resp    = http.request(method, url, headers=headers, **kwargs)
+    if resp.status_code == 401:
+        log.warning('QB 401 received — attempting token refresh and retry.')
+        new_token = _refresh_token(conn, config)
+        if not new_token:
+            raise QBAuthExpiredError(
+                'QuickBooks session has expired. Please reconnect QuickBooks from the QB Sync dashboard.'
+            )
+        headers['Authorization'] = f'Bearer {new_token}'
+        resp = http.request(method, url, headers=headers, **kwargs)
+    return resp
 
 
 def _log_event(conn, entity_type, entity_id, event_type, direction, status,
@@ -254,19 +283,18 @@ def _log_conflict(conn, entity_type, entity_id, qb_entity_id,
 
 def _qb_find_or_create_customer(conn, config, wo):
     """Find or create a QB Customer matching ERP customer, return QB Id."""
-    headers = _qb_headers(conn, config)
     cust_name = (wo.get('customer_full_name') or wo.get('customer_name') or 'Unknown Customer').replace("'", "\\'")
 
     query_url = _api_url(config, f"query?query=SELECT Id,DisplayName FROM Customer WHERE DisplayName LIKE '{cust_name[:40]}' MAXRESULTS 5&minorversion=65")
-    resp = http.get(query_url, headers=headers, timeout=10)
+    resp = _qb_request(conn, config, 'GET', query_url, timeout=10)
     if resp.status_code == 200:
         items = resp.json().get('QueryResponse', {}).get('Customer', [])
         if items:
             return items[0]['Id']
 
     payload = {'DisplayName': cust_name[:100], 'CompanyName': cust_name[:100]}
-    resp = http.post(_api_url(config, 'customer?minorversion=65'),
-                     headers=headers, json=payload, timeout=10)
+    resp = _qb_request(conn, config, 'POST', _api_url(config, 'customer?minorversion=65'),
+                       json=payload, timeout=10)
     if resp.status_code in (200, 201):
         return resp.json().get('Customer', {}).get('Id')
     return None
@@ -355,16 +383,14 @@ def sync_wo_to_qb(conn, wo_id, trigger='manual', max_retries=3):
     while attempt < max_retries:
         attempt += 1
         try:
-            headers = _qb_headers(conn, config)
-
             qb_cust_id = _qb_find_or_create_customer(conn, config, wo)
             if not qb_cust_id:
                 raise ValueError('Could not find or create QB customer')
 
             # Check for existing QB invoice by DocNumber to detect conflicts
             if existing and existing.get('qb_invoice_id'):
-                check_url = _api_url(config, f"invoice/{existing['qb_invoice_id']}?minorversion=65")
-                check_resp = http.get(check_url, headers=headers, timeout=10)
+                check_url  = _api_url(config, f"invoice/{existing['qb_invoice_id']}?minorversion=65")
+                check_resp = _qb_request(conn, config, 'GET', check_url, timeout=10)
                 if check_resp.status_code == 200:
                     qb_inv = check_resp.json().get('Invoice', {})
                     qb_total = float(qb_inv.get('TotalAmt', 0))
@@ -398,7 +424,7 @@ def sync_wo_to_qb(conn, wo_id, trigger='manual', max_retries=3):
                 method = 'POST'
                 url    = _api_url(config, 'invoice?operation=update&minorversion=65')
 
-            resp = http.request(method, url, headers=headers, json=payload, timeout=15)
+            resp = _qb_request(conn, config, method, url, json=payload, timeout=15)
 
             if resp.status_code in (200, 201):
                 inv_data     = resp.json().get('Invoice', {})
@@ -438,6 +464,9 @@ def sync_wo_to_qb(conn, wo_id, trigger='manual', max_retries=3):
                 last_error = f'QB API {resp.status_code}: {resp.text[:300]}'
                 log.warning(f'QB sync WO {wo_id} attempt {attempt}: {last_error}')
 
+        except QBAuthExpiredError as ex:
+            _log_event(conn, 'work_order', wo_id, 'sync_failed', 'erp_to_qb', 'failed', error=str(ex))
+            return {'status': 'auth_expired', 'reason': str(ex)}
         except Exception as ex:
             last_error = str(ex)
             log.warning(f'QB sync WO {wo_id} attempt {attempt} exception: {ex}')
@@ -463,18 +492,17 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
         return {'status': 'error', 'reason': 'Invoice not found'}
 
     try:
-        headers    = _qb_headers(conn, config)
         cust_name  = (inv.get('customer_full_name') or 'Unknown Customer').replace("'", "\\'")
         query_url  = _api_url(config, f"query?query=SELECT Id FROM Customer WHERE DisplayName LIKE '{cust_name[:40]}' MAXRESULTS 1&minorversion=65")
         qb_cust_id = None
-        resp = http.get(query_url, headers=headers, timeout=10)
+        resp = _qb_request(conn, config, 'GET', query_url, timeout=10)
         if resp.status_code == 200:
             items = resp.json().get('QueryResponse', {}).get('Customer', [])
             if items:
                 qb_cust_id = items[0]['Id']
         if not qb_cust_id:
-            cr = http.post(_api_url(config, 'customer?minorversion=65'), headers=headers,
-                           json={'DisplayName': cust_name[:100]}, timeout=10)
+            cr = _qb_request(conn, config, 'POST', _api_url(config, 'customer?minorversion=65'),
+                              json={'DisplayName': cust_name[:100]}, timeout=10)
             if cr.status_code in (200, 201):
                 qb_cust_id = cr.json().get('Customer', {}).get('Id')
 
@@ -492,8 +520,8 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
             'DueDate': str(inv.get('due_date') or (datetime.now() + timedelta(days=30)).date()),
         }
 
-        resp = http.post(_api_url(config, 'invoice?minorversion=65'),
-                         headers=headers, json=payload, timeout=15)
+        resp = _qb_request(conn, config, 'POST', _api_url(config, 'invoice?minorversion=65'),
+                           json=payload, timeout=15)
         if resp.status_code in (200, 201):
             inv_data  = resp.json().get('Invoice', {})
             qb_inv_id = inv_data.get('Id')
@@ -511,6 +539,9 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
             _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
             return {'status': 'failed', 'reason': err}
 
+    except QBAuthExpiredError as ex:
+        _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=str(ex))
+        return {'status': 'auth_expired', 'reason': str(ex)}
     except Exception as ex:
         err = str(ex)
         _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
@@ -523,9 +554,8 @@ def pull_invoice_from_qb(conn, erp_invoice_id, qb_invoice_id):
     if not config or not config['is_active']:
         return {'status': 'skipped', 'reason': 'QB not connected'}
     try:
-        headers  = _qb_headers(conn, config)
-        url      = _api_url(config, f"invoice/{qb_invoice_id}?minorversion=65")
-        resp     = http.get(url, headers=headers, timeout=10)
+        url  = _api_url(config, f"invoice/{qb_invoice_id}?minorversion=65")
+        resp = _qb_request(conn, config, 'GET', url, timeout=10)
         if resp.status_code != 200:
             return {'status': 'failed', 'reason': f'QB API {resp.status_code}: {resp.text[:200]}'}
 
@@ -569,6 +599,9 @@ def pull_invoice_from_qb(conn, erp_invoice_id, qb_invoice_id):
             'amount_paid': amount_paid,
             'new_status':  new_status,
         }
+    except QBAuthExpiredError as ex:
+        conn.rollback()
+        return {'status': 'auth_expired', 'reason': str(ex)}
     except Exception as ex:
         conn.rollback()
         log.error(f'pull_invoice_from_qb error: {ex}')
@@ -591,13 +624,17 @@ def pull_all_synced_invoices(conn):
         LIMIT 200
     ''').fetchall()
 
-    results = {'pulled': 0, 'failed': 0, 'skipped': 0}
+    results = {'pulled': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
     for m in mappings:
         r = pull_invoice_from_qb(conn, m['invoice_id'], m['qb_invoice_id'])
         if r['status'] == 'success':
             results['pulled'] += 1
         elif r['status'] == 'skipped':
             results['skipped'] += 1
+        elif r['status'] == 'auth_expired':
+            results['auth_expired'] = True
+            results['auth_reason']  = r.get('reason', 'QB session expired')
+            break
         else:
             results['failed'] += 1
 
@@ -620,10 +657,9 @@ def pull_qb_payments(conn, days_back=7):
         return []
 
     try:
-        headers = _qb_headers(conn, config)
-        since   = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
-        url     = _api_url(config, f"query?query=SELECT * FROM Payment WHERE TxnDate >= '{since}' MAXRESULTS 100&minorversion=65")
-        resp    = http.get(url, headers=headers, timeout=15)
+        since = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+        url   = _api_url(config, f"query?query=SELECT * FROM Payment WHERE TxnDate >= '{since}' MAXRESULTS 100&minorversion=65")
+        resp  = _qb_request(conn, config, 'GET', url, timeout=15)
         if resp.status_code != 200:
             return []
 

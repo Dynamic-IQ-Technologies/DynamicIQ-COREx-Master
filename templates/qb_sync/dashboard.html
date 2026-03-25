@@ -583,7 +583,9 @@ function pullAllInvoices() {
         .then(d => {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-cloud-download me-1"></i>Pull All from QuickBooks';
-            if (d.error) {
+            if (d.auth_expired) {
+                msg.innerHTML = `<span class="text-danger"><i class="bi bi-lock me-1"></i><strong>QuickBooks session expired.</strong> Please reconnect above to continue syncing.</span>`;
+            } else if (d.error) {
                 msg.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${d.error}</span>`;
             } else {
                 msg.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Done — ${d.pulled} updated, ${d.failed} failed, ${d.skipped} skipped</span>`;
