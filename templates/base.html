@@ -1211,6 +1211,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if session.role in ['Admin', 'Accountant'] %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('qb_sync_routes.qb_dashboard') }}">
+                    <i class="bi bi-plug-fill"></i>
+                    <span>QuickBooks Sync</span>
+                </a>
+            </li>
+            {% endif %}
         </ul>
         {% endif %}
         
