@@ -243,6 +243,252 @@ def part_risk_detail(product_id):
         conn.close()
 
 
+@risk_radar_bp.route('/api/risk-radar/customer/<int:customer_id>')
+@login_required
+def customer_risk_detail(customer_id):
+    """Compute and return a live customer risk score from transactional data."""
+    db = Database()
+    conn = db.get_connection()
+    try:
+        customer = conn.execute(
+            'SELECT * FROM customers WHERE id = %s', (customer_id,)
+        ).fetchone()
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+
+        credit_limit = float(customer['credit_limit'] or 0)
+        factors = {}
+        total_risk = 0
+
+        # ── 1. Credit utilisation risk (0-30 pts) ────────────────────────────
+        open_order_value = conn.execute('''
+            SELECT COALESCE(SUM(total_amount), 0) as val
+            FROM sales_orders
+            WHERE customer_id = %s AND status IN ('Pending', 'Confirmed', 'In Progress', 'Open')
+        ''', (customer_id,)).fetchone()['val'] or 0
+
+        if credit_limit > 0:
+            utilisation = (float(open_order_value) / credit_limit) * 100
+        else:
+            utilisation = 0
+
+        if utilisation >= 90:
+            credit_pts = 30
+        elif utilisation >= 70:
+            credit_pts = 18
+        elif utilisation >= 50:
+            credit_pts = 8
+        else:
+            credit_pts = 0
+
+        factors['credit_exposure'] = {
+            'label': 'Credit Exposure',
+            'risk_contribution': credit_pts,
+            'note': f'Open order value: ${float(open_order_value):,.0f} / Credit limit: ${credit_limit:,.0f} ({utilisation:.1f}% utilised)',
+        }
+        total_risk += credit_pts
+
+        # ── 2. Overdue invoices risk (0-25 pts) ──────────────────────────────
+        try:
+            overdue = conn.execute('''
+                SELECT COALESCE(SUM(total_amount - amount_paid), 0) as overdue_amt,
+                       COUNT(*) as overdue_count
+                FROM vendor_invoices
+                WHERE customer_id = %s
+                  AND due_date < CURRENT_DATE
+                  AND status NOT IN ('Paid', 'Voided', 'Cancelled')
+            ''', (customer_id,)).fetchone()
+            overdue_amt = float(overdue['overdue_amt'] or 0)
+            overdue_count = int(overdue['overdue_count'] or 0)
+        except Exception:
+            overdue_amt = 0
+            overdue_count = 0
+
+        if overdue_amt > 0 and credit_limit > 0:
+            overdue_pct = (overdue_amt / credit_limit) * 100
+            if overdue_pct >= 30 or overdue_count >= 3:
+                inv_pts = 25
+            elif overdue_pct >= 15 or overdue_count >= 2:
+                inv_pts = 15
+            else:
+                inv_pts = 8
+        elif overdue_count > 0:
+            inv_pts = 10
+        else:
+            inv_pts = 0
+
+        factors['overdue_invoices'] = {
+            'label': 'Overdue Invoices',
+            'risk_contribution': inv_pts,
+            'count': overdue_count,
+            'note': f'${overdue_amt:,.0f} overdue across {overdue_count} invoice(s)',
+        }
+        total_risk += inv_pts
+
+        # ── 3. Activity / recency risk (0-20 pts) ────────────────────────────
+        last_order = conn.execute('''
+            SELECT order_date FROM sales_orders
+            WHERE customer_id = %s AND status NOT IN ('Cancelled', 'Draft')
+            ORDER BY order_date DESC LIMIT 1
+        ''', (customer_id,)).fetchone()
+
+        if last_order and last_order['order_date']:
+            from datetime import date as _date
+            try:
+                from datetime import datetime as _dt
+                lo = last_order['order_date']
+                if isinstance(lo, str):
+                    lo = _dt.strptime(lo[:10], '%Y-%m-%d').date()
+                days_since = (_date.today() - lo).days
+            except Exception:
+                days_since = 0
+        else:
+            days_since = 9999
+
+        if days_since > 365:
+            activity_pts = 20
+        elif days_since > 180:
+            activity_pts = 12
+        elif days_since > 90:
+            activity_pts = 5
+        else:
+            activity_pts = 0
+
+        factors['activity'] = {
+            'label': 'Order Activity',
+            'risk_contribution': activity_pts,
+            'note': f'Last active order: {"Never" if days_since == 9999 else f"{days_since} days ago"}',
+        }
+        total_risk += activity_pts
+
+        # ── 4. Cancellation rate risk (0-15 pts) ─────────────────────────────
+        order_stats = conn.execute('''
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) as cancelled
+            FROM sales_orders WHERE customer_id = %s
+        ''', (customer_id,)).fetchone()
+
+        total_orders = int(order_stats['total'] or 0)
+        cancelled = int(order_stats['cancelled'] or 0)
+        cancel_rate = (cancelled / total_orders * 100) if total_orders > 0 else 0
+
+        if cancel_rate >= 30:
+            cancel_pts = 15
+        elif cancel_rate >= 15:
+            cancel_pts = 8
+        elif cancel_rate >= 5:
+            cancel_pts = 3
+        else:
+            cancel_pts = 0
+
+        factors['cancellation_rate'] = {
+            'label': 'Cancellation Rate',
+            'risk_contribution': cancel_pts,
+            'rate_pct': round(cancel_rate, 1),
+            'data_points': total_orders,
+            'note': f'{cancelled} cancelled of {total_orders} total orders ({cancel_rate:.1f}%)',
+        }
+        total_risk += cancel_pts
+
+        # ── 5. Volume trend risk (0-10 pts) ──────────────────────────────────
+        from datetime import datetime as _dts
+        ytd_start = _dts.now().replace(month=1, day=1, hour=0, minute=0, second=0).date().isoformat()
+        ly_start = str(int(ytd_start[:4]) - 1) + ytd_start[4:]
+        ly_end   = str(int(ytd_start[:4]) - 1) + '-12-31'
+
+        ytd_sales = conn.execute('''
+            SELECT COALESCE(SUM(total_amount), 0) as val FROM sales_orders
+            WHERE customer_id = %s AND status NOT IN ('Cancelled') AND order_date >= %s
+        ''', (customer_id, ytd_start)).fetchone()['val'] or 0
+
+        ly_sales = conn.execute('''
+            SELECT COALESCE(SUM(total_amount), 0) as val FROM sales_orders
+            WHERE customer_id = %s AND status NOT IN ('Cancelled')
+              AND order_date >= %s AND order_date <= %s
+        ''', (customer_id, ly_start, ly_end)).fetchone()['val'] or 0
+
+        if ly_sales > 0:
+            trend_change = ((float(ytd_sales) - float(ly_sales)) / float(ly_sales)) * 100
+        else:
+            trend_change = 0
+
+        if trend_change < -50:
+            trend_pts = 10
+            trend_label = 'Significant decline vs LY'
+        elif trend_change < -20:
+            trend_pts = 6
+            trend_label = 'Moderate decline vs LY'
+        elif trend_change < 0:
+            trend_pts = 2
+            trend_label = 'Slight decline vs LY'
+        else:
+            trend_pts = 0
+            trend_label = 'Stable or growing'
+
+        factors['volume_trend'] = {
+            'label': 'Sales Volume Trend',
+            'risk_contribution': trend_pts,
+            'note': f'YTD: ${float(ytd_sales):,.0f} vs LY: ${float(ly_sales):,.0f} — {trend_label}',
+        }
+        total_risk += trend_pts
+
+        # ── 6. Customer status risk (0 or 10 pts) ────────────────────────────
+        if customer.get('status') == 'Inactive':
+            status_pts = 10
+        else:
+            status_pts = 0
+        factors['status'] = {
+            'label': 'Account Status',
+            'risk_contribution': status_pts,
+            'note': customer.get('status', 'Active'),
+        }
+        total_risk += status_pts
+
+        # ── Risk level bucketing ──────────────────────────────────────────────
+        total_risk = min(total_risk, 100)
+        if total_risk <= 20:
+            risk_level = 'Low'
+            trend = 'stable'
+        elif total_risk <= 45:
+            risk_level = 'Medium'
+            trend = 'stable'
+        elif total_risk <= 70:
+            risk_level = 'High'
+            trend = 'degrading'
+        else:
+            risk_level = 'Critical'
+            trend = 'degrading'
+
+        # ── Mitigation recommendations ────────────────────────────────────────
+        mitigations = []
+        if credit_pts >= 18:
+            mitigations.append({'urgency': 'High', 'action': 'Review credit limit',
+                'detail': 'Open order value is consuming most of the credit limit. Consider requiring payment on account.'})
+        if inv_pts >= 15:
+            mitigations.append({'urgency': 'Critical', 'action': 'Chase overdue invoices',
+                'detail': f'{overdue_count} overdue invoice(s) totalling ${overdue_amt:,.0f}. Escalate to collections.'})
+        if activity_pts >= 12:
+            mitigations.append({'urgency': 'Medium', 'action': 'Re-engagement outreach',
+                'detail': f'Customer has not placed an active order in {days_since} days. Schedule account review.'})
+        if cancel_pts >= 8:
+            mitigations.append({'urgency': 'Medium', 'action': 'Investigate cancellations',
+                'detail': f'Cancellation rate of {cancel_rate:.0f}% is above threshold. Identify root causes.'})
+        if trend_pts >= 6:
+            mitigations.append({'urgency': 'Medium', 'action': 'Account growth review',
+                'detail': 'Year-over-year sales are declining. Schedule a business review meeting.'})
+
+        return jsonify({
+            'customer_id': customer_id,
+            'risk_score': round(total_risk, 1),
+            'risk_level': risk_level,
+            'trend': trend,
+            'score_breakdown': factors,
+            'mitigation_recommendations': mitigations,
+        })
+    finally:
+        conn.close()
+
+
 @risk_radar_bp.route('/api/risk-radar/events')
 @login_required
 def event_log():

@@ -3,8 +3,14 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-person"></i> Customer Details</h2>
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-person me-2"></i>{{ customer.name }}</h2>
+            <span class="badge bg-primary fs-6">{{ customer.customer_number }}</span>
+            <span id="customer-risk-badge" class="ms-2">
+                <span class="badge bg-secondary"><span class="spinner-border spinner-border-sm me-1"></span>Loading risk...</span>
+            </span>
+        </div>
         <div class="btn-group">
             <a href="{{ url_for('customer_routes.list_customers') }}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Back to List
@@ -118,6 +124,12 @@
                     <button class="nav-link" id="intel-tab" data-bs-toggle="tab" data-bs-target="#intel-pane" type="button" role="tab">
                         <i class="bi bi-cpu me-1"></i> Customer Intel
                         <span class="badge bg-primary ms-1" style="font-size:0.65rem;">AI</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cust-risk-tab" data-bs-toggle="tab" data-bs-target="#cust-risk-pane" type="button" role="tab">
+                        <i class="bi bi-shield-exclamation me-1"></i> Risk Score
+                        <span id="cust-risk-tab-badge" class="ms-1"></span>
                     </button>
                 </li>
             </ul>
@@ -236,6 +248,22 @@
                     <p class="small">Click <strong>Generate Intelligence Report</strong> to get AI-powered market insights for this customer.</p>
                 </div>
             </div>
+
+            <!-- ── Customer Risk Score Tab Pane ── -->
+            <div class="tab-pane fade p-3" id="cust-risk-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-shield-exclamation me-2 text-warning"></i>Customer Risk Score — {{ customer.name }}
+                    </h6>
+                    <small class="text-muted fst-italic">Computed live from credit, invoicing, and order data</small>
+                </div>
+                <div id="cust-risk-detail">
+                    <div class="text-center py-5 text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Computing risk assessment...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -348,6 +376,115 @@
 </div>
 
 <script>
+// ── Customer Risk Score ───────────────────────────────────────────────────────
+(function loadCustomerRisk() {
+    const LEVEL_COLORS = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    const TREND_ICONS  = {degrading:'&#x2191;', improving:'&#x2193;', stable:'&#x2192;'};
+
+    fetch('/api/risk-radar/customer/{{ customer.id }}')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+            const badge     = document.getElementById('customer-risk-badge');
+            const tabBadge  = document.getElementById('cust-risk-tab-badge');
+            const detail    = document.getElementById('cust-risk-detail');
+
+            if (!d || d.error) {
+                badge.innerHTML = '<span class="badge bg-light text-muted border" style="font-size:.8rem">Risk score unavailable</span>';
+                detail.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-shield display-4 d-block mb-3 opacity-25"></i><p>Risk score could not be computed.</p></div>';
+                return;
+            }
+
+            const color = LEVEL_COLORS[d.risk_level] || 'secondary';
+            const trend = TREND_ICONS[d.trend] || '&#x2192;';
+
+            // Header badge
+            badge.innerHTML = `<span class="badge bg-${color} fs-6 px-3 py-1">
+                <i class="bi bi-shield-exclamation me-1"></i>Risk: ${d.risk_level} (${Math.round(d.risk_score)}/100) ${trend}
+            </span>`;
+
+            // Tab badge
+            if (tabBadge) tabBadge.innerHTML = `<span class="badge bg-${color}" style="font-size:0.65rem;">${d.risk_level}</span>`;
+
+            // ── Detail panel ────────────────────────────────────────────────
+            const bd   = d.score_breakdown || {};
+            const mits = d.mitigation_recommendations || [];
+
+            // Score ring
+            const ringColor = color === 'danger' ? '#dc3545' : color === 'warning' ? '#ffc107' : color === 'info' ? '#0dcaf0' : '#198754';
+            const score = Math.round(d.risk_score);
+            const circumference = 2 * Math.PI * 40;
+            const dash = (score / 100) * circumference;
+
+            const scoreHTML = `
+                <div class="d-flex align-items-center gap-4 mb-4 p-3 rounded-3 border" style="background:#f8fafc;">
+                    <div class="flex-shrink-0" style="position:relative;width:100px;height:100px;">
+                        <svg width="100" height="100" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#e9ecef" stroke-width="10"/>
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="${ringColor}" stroke-width="10"
+                                stroke-dasharray="${dash.toFixed(1)} ${circumference.toFixed(1)}"
+                                stroke-dashoffset="${(circumference / 4).toFixed(1)}"
+                                stroke-linecap="round" transform="rotate(-90 50 50)"/>
+                        </svg>
+                        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+                            <div class="fw-bold fs-4 text-${color}">${score}</div>
+                            <div style="font-size:0.6rem;color:#6c757d;">/ 100</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Risk Level: <span class="badge bg-${color} fs-6">${d.risk_level}</span></h5>
+                        <div class="text-muted small">Trend: ${trend}</div>
+                    </div>
+                </div>`;
+
+            const factorsHTML = Object.values(bd).map(f => {
+                const pts = f.risk_contribution || 0;
+                const barColor = pts >= 20 ? 'danger' : pts >= 10 ? 'warning' : pts > 0 ? 'info' : 'success';
+                return `<div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small fw-semibold">${f.label}</span>
+                        <span class="small fw-bold text-${barColor}">${pts} pts</span>
+                    </div>
+                    <div class="progress mb-1" style="height:6px">
+                        <div class="progress-bar bg-${barColor}" style="width:${Math.min(100, pts * 3.3)}%"></div>
+                    </div>
+                    ${f.rate_pct !== undefined ? `<div class="small text-muted">Rate: ${f.rate_pct}% (${f.data_points || 0} orders)</div>` : ''}
+                    ${f.count !== undefined ? `<div class="small text-muted">Count: ${f.count}</div>` : ''}
+                    ${f.note ? `<div class="small text-muted fst-italic">${f.note}</div>` : ''}
+                </div>`;
+            }).join('');
+
+            const urgMap = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+            const mitHTML = mits.length ? mits.map(m => `
+                <div class="d-flex gap-2 p-2 rounded mb-2" style="background:#f8f9fa">
+                    <span class="badge bg-${urgMap[m.urgency]||'secondary'} align-self-start mt-1" style="font-size:0.7rem;">${m.urgency}</span>
+                    <div class="small">
+                        <div class="fw-semibold">${m.action}</div>
+                        <div class="text-muted">${m.detail}</div>
+                    </div>
+                </div>`).join('') :
+                '<div class="text-success small"><i class="bi bi-check-circle me-1"></i>No risk mitigations required — customer is in good standing.</div>';
+
+            detail.innerHTML = `
+                ${scoreHTML}
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-3">Risk Factor Breakdown</h6>
+                        ${factorsHTML || '<div class="text-muted small">No breakdown available.</div>'}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-2"><i class="bi bi-lightning text-warning me-1"></i>Recommended Actions</h6>
+                        ${mitHTML}
+                    </div>
+                </div>`;
+        })
+        .catch(() => {
+            const badge = document.getElementById('customer-risk-badge');
+            if (badge) badge.innerHTML = '<span class="badge bg-light text-muted border" style="font-size:.8rem">Risk score unavailable</span>';
+            const detail = document.getElementById('cust-risk-detail');
+            if (detail) detail.innerHTML = '<div class="alert alert-warning">Could not load risk score.</div>';
+        });
+})();
+
 async function generateIntel() {
     const btn = document.getElementById('generateIntelBtn');
     const loading = document.getElementById('intelLoading');
