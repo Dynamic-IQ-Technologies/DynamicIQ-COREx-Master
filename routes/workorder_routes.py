@@ -1050,7 +1050,9 @@ def toggle_workorder_flag(id):
         new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
         
         # Log audit trail
-        log_audit(conn, 'work_orders', id, 'UPDATE', dict(old_record), dict(new_record), session.get('user_id'))
+        changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
+        if changes:
+            AuditLogger.log_change(conn, 'work_orders', id, 'UPDATE', session.get('user_id'), changes)
         
         conn.commit()
         return jsonify({'success': True, 'flag': flag_name, 'value': flag_value})
