@@ -2483,6 +2483,7 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('task_routes.apply_template', wo_id=workorder.id) }}">
+                <input type="hidden" id="woNextTaskSeq" value="{{ next_task_seq }}">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title"><i class="bi bi-file-earmark-plus me-2"></i>Apply Task Template</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -2705,11 +2706,25 @@ document.querySelectorAll('input[name="mode"]').forEach(radio => {
 
 // ── Inline add task to template ─────────────────────────────────────────────
 let _inlineTasksAdded = 0;
+let _currentTemplateName = '';
 
 function toggleInlineAdd() {
     const f = document.getElementById('inlineAddForm');
+    const isHidden = f.classList.contains('d-none');
     f.classList.toggle('d-none');
-    if (!f.classList.contains('d-none')) document.getElementById('inlineTaskName').focus();
+    if (isHidden) {
+        // Pre-fill task name with template name if field is still empty
+        const nameField = document.getElementById('inlineTaskName');
+        if (!nameField.value && _currentTemplateName) {
+            nameField.value = _currentTemplateName;
+        }
+        // Pre-fill sequence with next available WO task sequence
+        const seqField = document.getElementById('inlineTaskSeq');
+        const nextSeq = parseInt(document.getElementById('woNextTaskSeq').value || 10);
+        seqField.value = nextSeq;
+        nameField.focus();
+        nameField.select();
+    }
 }
 
 function submitInlineTask(addAnother) {
@@ -2763,6 +2778,7 @@ function addAnotherTask() { submitInlineTask(true); }
 function reloadTemplatePreview() {
     _inlineTasksAdded = 0;
     document.getElementById('inlineTasksAdded').classList.add('d-none');
+    document.getElementById('inlineTaskName').value = '';
     previewTemplate(_currentTemplateId);
 }
 
@@ -2791,6 +2807,9 @@ function previewTemplate(templateId) {
         .then(data => {
             spinner.classList.add('d-none');
             if (data.error) { alert('Error: ' + data.error); return; }
+
+            // Store template name for inline add pre-fill
+            _currentTemplateName = data.template.name || '';
 
             if (!data.items || data.items.length === 0) {
                 // Show empty message with edit link — still allow apply (server handles gracefully)

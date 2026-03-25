@@ -754,7 +754,9 @@ def view_workorder(id):
     ''', (id,)).fetchall()
     
     conn.close()
-    
+
+    next_task_seq = (max((t['sequence_number'] or 0 for t in tasks), default=0) + 10) if tasks else 10
+
     return render_template('workorders/view.html', 
                          workorder=workorder, 
                          requirements=requirements,
@@ -780,7 +782,8 @@ def view_workorder(id):
                          suppliers=suppliers,
                          buyout_customers=buyout_customers,
                          component_buyout_pos=component_buyout_pos,
-                         quote_for_comparison=quote_for_comparison)
+                         quote_for_comparison=quote_for_comparison,
+                         next_task_seq=next_task_seq)
 
 @workorder_bp.route('/workorders/<int:id>/delete', methods=['POST'])
 @login_required
