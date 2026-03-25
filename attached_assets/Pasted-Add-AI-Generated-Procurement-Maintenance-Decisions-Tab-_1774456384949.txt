@@ -1,0 +1,92 @@
+Add “AI-Generated Procurement & Maintenance Decisions” Tab to Material Requirements Report
+ROLE
+
+You are a principal enterprise ERP architect and AI engineer.
+Your task is to extend the Material Requirements Report (MRR) by adding a new tab called “AI Procurement & Maintenance Decisions” that delivers explainable, value-driven recommendations for procurement and maintenance planning.
+
+OBJECTIVE
+
+Enable planners, managers, and CFOs to make data-backed, actionable decisions using AI, rather than relying on static inventory reports.
+
+The system must:
+
+Provide recommendations that are fully explainable
+Quantify risk, cost, and benefit
+Be actionable directly from the report
+🧠 FUNCTIONAL REQUIREMENTS
+1️⃣ New UI Tab
+
+Add a new tab to the Material Requirements Report:
+
+Tab Name:
+
+AI Procurement & Maintenance Decisions
+
+This tab should load dynamically based on the material, asset, and supplier context of the report.
+
+2️⃣ Recommendation Engine
+
+Generate AI-powered recommendations for each material line:
+
+Suggested supplier
+Suggested quantity
+Recommended timing
+Recommended maintenance alignment (if asset-specific)
+3️⃣ Explainable AI Section
+
+Every recommendation must answer:
+
+Why this supplier?
+Why this quantity?
+Why now?
+What happens if ignored?
+
+Example Output:
+
+“Ordering 12 units instead of 8 reduces expected downtime risk by 47% with a net cash impact of +$18K.”
+
+4️⃣ Financial & Risk Metrics
+
+Display a Finance & Risk panel for each recommendation:
+
+Expected downtime reduction (%)
+Net cash impact ($)
+Confidence level of recommendation
+Impact if ignored (risk exposure)
+
+All outputs should be numerical and visual (color-coded risk, charts, or bars).
+
+5️⃣ Actionable Workflow Integration
+
+Allow users to:
+
+Convert AI recommendations into Purchase Orders
+Trigger Work Orders for maintenance alignment
+Flag priority items for expedited procurement
+Export decision summary for CFO approval
+6️⃣ Compliance & Audit
+Maintain audit logs of all AI recommendations
+Include decision justification (inputs, calculations, models used)
+Ensure traceability for regulatory or internal reviews
+7️⃣ Explainability Layer
+
+For each AI recommendation, provide a plain-language explanation:
+
+Key drivers of the recommendation (supplier reliability, lead times, inventory levels, predicted asset failures)
+Quantified benefits (downtime avoided, cost savings)
+Risks if recommendation is ignored
+
+No black-box outputs are allowed.
+
+🔌 TECHNICAL CONSTRAINTS
+Do not alter existing MRR fields or reports
+Implement as a modular, asynchronously-loaded tab
+Support feature toggles for pilot customers
+Compatible with existing ERP/CMMS integrations
+🏁 ACCEPTANCE CRITERIA
+
+✔ Tab appears on all Material Requirements Reports
+✔ AI recommendations are material-specific, supplier-specific, and time-specific
+✔ Recommendations are explainable with financial & risk metrics
+✔ Recommendations can be converted into POs or WOs
+✔ Audit logs of AI outputs are maintained
