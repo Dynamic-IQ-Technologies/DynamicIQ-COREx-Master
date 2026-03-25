@@ -564,6 +564,19 @@
                     <i class="bi bi-file-earmark me-1"></i> Documents ({{ documents|length }})
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="compliance-tab" data-bs-toggle="tab" data-bs-target="#compliance-pane" type="button">
+                    {% set cs = compliance_profile.get('compliance_status', 'Pending') if compliance_profile else 'Pending' %}
+                    {% if cs == 'Compliant' %}<i class="bi bi-shield-check me-1 text-success"></i>
+                    {% elif cs == 'Non-Compliant' %}<i class="bi bi-shield-x me-1 text-danger"></i>
+                    {% elif cs == 'At Risk' %}<i class="bi bi-shield-exclamation me-1 text-warning"></i>
+                    {% elif cs == 'Expired' %}<i class="bi bi-shield-slash me-1 text-danger"></i>
+                    {% else %}<i class="bi bi-shield me-1 text-secondary"></i>{% endif %}
+                    Compliance
+                    {% if cs == 'Non-Compliant' or cs == 'Expired' %}<span class="badge bg-danger ms-1">!</span>
+                    {% elif cs == 'At Risk' %}<span class="badge bg-warning text-dark ms-1">!</span>{% endif %}
+                </button>
+            </li>
         </ul>
         <div class="tab-content pt-3" id="transactionTabContent">
             <div class="tab-pane fade show active" id="receiving" role="tabpanel">
@@ -1072,6 +1085,424 @@
                 </div>
                 {% endif %}
             </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 COMPLIANCE TAB PANE
+            ══════════════════════════════════════════════════════════════════ -->
+            <div class="tab-pane fade" id="compliance-pane" role="tabpanel">
+                {% set cp = compliance_profile or {} %}
+                {% set cs = cp.get('compliance_status', 'Pending') %}
+                {% set risk = cp.get('risk_score', 0) %}
+
+                <!-- Status header -->
+                <div class="d-flex align-items-center gap-3 mb-4 p-3 rounded-3
+                    {% if cs == 'Compliant' %}bg-success bg-opacity-10 border border-success
+                    {% elif cs == 'Non-Compliant' %}bg-danger bg-opacity-10 border border-danger
+                    {% elif cs == 'At Risk' %}bg-warning bg-opacity-10 border border-warning
+                    {% elif cs == 'Expired' %}bg-danger bg-opacity-10 border border-danger
+                    {% else %}bg-secondary bg-opacity-10 border border-secondary{% endif %}">
+                    <div class="fs-1">
+                        {% if cs == 'Compliant' %}<i class="bi bi-shield-check text-success"></i>
+                        {% elif cs == 'Non-Compliant' %}<i class="bi bi-shield-x text-danger"></i>
+                        {% elif cs == 'At Risk' %}<i class="bi bi-shield-exclamation text-warning"></i>
+                        {% elif cs == 'Expired' %}<i class="bi bi-shield-slash text-danger"></i>
+                        {% else %}<i class="bi bi-shield text-secondary"></i>{% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-1 fw-bold">Compliance Status:
+                            <span class="badge fs-6
+                                {% if cs == 'Compliant' %}bg-success
+                                {% elif cs == 'Non-Compliant' or cs == 'Expired' %}bg-danger
+                                {% elif cs == 'At Risk' %}bg-warning text-dark
+                                {% else %}bg-secondary{% endif %}">{{ cs }}</span>
+                        </h5>
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <div class="d-flex align-items-center gap-2">
+                                <small class="text-muted">Risk Score:</small>
+                                <div class="progress" style="width:120px;height:8px;">
+                                    <div class="progress-bar
+                                        {% if risk <= 20 %}bg-success{% elif risk <= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                        style="width:{{ risk }}%"></div>
+                                </div>
+                                <small class="fw-bold
+                                    {% if risk <= 20 %}text-success{% elif risk <= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ risk }}/100
+                                </small>
+                            </div>
+                            {% if cp.get('last_validated_at') %}
+                            <small class="text-muted">Last validated: {{ cp.last_validated_at }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if cp.get('use_blocked') %}
+                        <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>USE BLOCKED</span>{% endif %}
+                        {% if cp.get('ship_blocked') %}
+                        <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>SHIP BLOCKED</span>{% endif %}
+                        {% if cp.get('transfer_blocked') %}
+                        <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>TRANSFER BLOCKED</span>{% endif %}
+                        {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                        <form method="POST" action="{{ url_for('inv_compliance_routes.run_compliance_validation', inv_id=inventory.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Re-validate
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- LEFT: Profile form -->
+                    <div class="col-lg-7">
+                        {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                        <form method="POST" action="{{ url_for('inv_compliance_routes.update_compliance', inv_id=inventory.id) }}">
+                        {% endif %}
+                        <div class="card mb-3">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Documentation Requirements</h6></div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr><th>Document</th><th class="text-center">Required</th><th class="text-center">Received</th><th>CoC Expiry</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {% set doc_rows = [
+                                                ('Certificate of Conformance', 'coc_required', 'coc_received'),
+                                                ('Test Report', 'test_report_required', 'test_report_received'),
+                                                ('Material Certification', 'material_cert_required', 'material_cert_received'),
+                                                ('Country of Origin Document', 'country_origin_doc_required', 'country_origin_doc_received'),
+                                                ('Inspection Record', 'inspection_record_required', 'inspection_record_received'),
+                                            ] %}
+                                            {% for label, req_col, recv_col in doc_rows %}
+                                            <tr class="{% if cp.get(req_col) and not cp.get(recv_col) %}table-danger{% elif cp.get(req_col) and cp.get(recv_col) %}table-success{% endif %}">
+                                                <td>{{ label }}</td>
+                                                <td class="text-center">
+                                                    {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                                                    <input type="checkbox" name="{{ req_col }}" class="form-check-input" {% if cp.get(req_col) %}checked{% endif %}>
+                                                    {% else %}
+                                                    {% if cp.get(req_col) %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-dash-circle text-muted"></i>{% endif %}
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                                                    <input type="checkbox" name="{{ recv_col }}" class="form-check-input" {% if cp.get(recv_col) %}checked{% endif %}>
+                                                    {% else %}
+                                                    {% if cp.get(recv_col) %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-danger"></i>{% endif %}
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if req_col == 'coc_required' %}
+                                                    {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                                                    <input type="date" name="coc_expiry_date" class="form-control form-control-sm" value="{{ cp.get('coc_expiry_date', '') or '' }}">
+                                                    {% else %}{{ cp.get('coc_expiry_date', '-') or '-' }}{% endif %}
+                                                    {% else %}-{% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-globe me-2"></i>Regulatory Applicability</h6></div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    {% set regs = [
+                                        ('faa_easa_applicable', 'FAA / EASA'),
+                                        ('dod_far_dfars_applicable', 'DoD / FAR / DFARS'),
+                                        ('itar_ear_applicable', 'ITAR / EAR'),
+                                        ('as9100_applicable', 'AS9100 / ISO 9001'),
+                                        ('customer_specific_applicable', 'Customer-Specific'),
+                                    ] %}
+                                    {% for col, label in regs %}
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input type="checkbox" name="{{ col }}" class="form-check-input" id="reg_{{ col }}"
+                                                {% if cp.get(col) %}checked{% endif %}
+                                                {% if session.role not in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}disabled{% endif %}>
+                                            <label class="form-check-label" for="reg_{{ col }}">{{ label }}</label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                                    <div class="col-12">
+                                        <label class="form-label small text-muted">Customer-Specific Requirements</label>
+                                        <textarea name="customer_requirement_details" class="form-control form-control-sm" rows="2" placeholder="Describe customer-specific requirements...">{{ cp.get('customer_requirement_details', '') or '' }}</textarea>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-lock me-2"></i>Blocking Flags & Supplier</h6></div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="use_blocked" class="form-check-input" id="use_blocked"
+                                                {% if cp.get('use_blocked') %}checked{% endif %}
+                                                {% if session.role not in ['Admin', 'QMS Manager'] %}disabled{% endif %}>
+                                            <label class="form-check-label text-danger fw-semibold" for="use_blocked">Block Use</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="ship_blocked" class="form-check-input" id="ship_blocked"
+                                                {% if cp.get('ship_blocked') %}checked{% endif %}
+                                                {% if session.role not in ['Admin', 'QMS Manager'] %}disabled{% endif %}>
+                                            <label class="form-check-label text-danger fw-semibold" for="ship_blocked">Block Shipment</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="transfer_blocked" class="form-check-input" id="transfer_blocked"
+                                                {% if cp.get('transfer_blocked') %}checked{% endif %}
+                                                {% if session.role not in ['Admin', 'QMS Manager'] %}disabled{% endif %}>
+                                            <label class="form-check-label text-danger fw-semibold" for="transfer_blocked">Block Transfer</label>
+                                        </div>
+                                    </div>
+                                    {% if session.role in ['Admin', 'QMS Manager'] %}
+                                    <div class="col-12">
+                                        <label class="form-label small">Block Reason</label>
+                                        <input type="text" name="block_reason" class="form-control form-control-sm" value="{{ cp.get('block_reason', '') or '' }}" placeholder="Required when blocking...">
+                                    </div>
+                                    {% elif cp.get('block_reason') %}
+                                    <div class="col-12"><small class="text-danger"><strong>Block reason:</strong> {{ cp.block_reason }}</small></div>
+                                    {% endif %}
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="supplier_approved" class="form-check-input" id="supplier_approved"
+                                                {% if cp.get('supplier_approved', True) %}checked{% endif %}
+                                                {% if session.role not in ['Admin', 'QMS Manager', 'Procurement'] %}disabled{% endif %}>
+                                            <label class="form-check-label" for="supplier_approved">Supplier Approved</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        {% if session.role in ['Admin', 'QMS Manager', 'Procurement'] %}
+                                        <label class="form-label small">Supplier Approval Date</label>
+                                        <input type="date" name="supplier_approval_date" class="form-control form-control-sm" value="{{ cp.get('supplier_approval_date', '') or '' }}">
+                                        {% else %}
+                                        <small class="text-muted">Approval date: {{ cp.get('supplier_approval_date', '-') or '-' }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {% if session.role in ['Admin', 'QMS Manager', 'Planner', 'Procurement', 'Production Staff'] %}
+                                        <label class="form-label small">Compliance Review Date</label>
+                                        <input type="date" name="compliance_review_date" class="form-control form-control-sm" value="{{ cp.get('compliance_review_date', '') or '' }}">
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {% if session.role in ['Admin', 'QMS Manager', 'Planner', 'Procurement', 'Production Staff'] %}
+                                        <label class="form-label small">Next Review Date</label>
+                                        <input type="date" name="next_review_date" class="form-control form-control-sm" value="{{ cp.get('next_review_date', '') or '' }}">
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-12">
+                                        {% if session.role in ['Admin', 'QMS Manager', 'Planner', 'Procurement', 'Production Staff'] %}
+                                        <label class="form-label small">Compliance Notes</label>
+                                        <textarea name="compliance_notes" class="form-control form-control-sm" rows="2" placeholder="Internal compliance notes...">{{ cp.get('compliance_notes', '') or '' }}</textarea>
+                                        {% elif cp.get('compliance_notes') %}
+                                        <small class="text-muted">{{ cp.compliance_notes }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if session.role in ['Admin', 'Planner', 'Production Staff', 'Procurement', 'QMS Manager'] %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>Save Compliance Profile
+                            </button>
+                        </div>
+                        </form>
+                        {% endif %}
+                    </div>
+
+                    <!-- RIGHT: Documents + History -->
+                    <div class="col-lg-5">
+                        <!-- Add document form -->
+                        {% if session.role in ['Admin', 'QMS Manager', 'Planner', 'Production Staff', 'Procurement'] %}
+                        <div class="card mb-3 border-primary">
+                            <div class="card-header bg-primary text-white py-2">
+                                <h6 class="mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Log Compliance Document</h6>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST" action="{{ url_for('inv_compliance_routes.add_compliance_document', inv_id=inventory.id) }}">
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <select name="doc_type" class="form-select form-select-sm" required>
+                                                <option value="">— Document Type —</option>
+                                                <option>Certificate of Conformance</option>
+                                                <option>Test Report</option>
+                                                <option>Material Certification</option>
+                                                <option>Country of Origin</option>
+                                                <option>Inspection Record</option>
+                                                <option>Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-8">
+                                            <input type="text" name="doc_name" class="form-control form-control-sm" placeholder="Document name / reference *" required>
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="text" name="doc_number" class="form-control form-control-sm" placeholder="Doc #">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small mb-0">Issued Date</label>
+                                            <input type="date" name="issued_date" class="form-control form-control-sm">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small mb-0">Expiry Date</label>
+                                            <input type="date" name="expiry_date" class="form-control form-control-sm">
+                                        </div>
+                                        <div class="col-12">
+                                            <input type="text" name="issued_by" class="form-control form-control-sm" placeholder="Issued by (org / person)">
+                                        </div>
+                                        <div class="col-12">
+                                            <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Notes (optional)"></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                <i class="bi bi-plus-circle me-1"></i>Log Document
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Compliance documents list -->
+                        <div class="card mb-3">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-files me-2"></i>Logged Documents ({{ compliance_documents|length }})</h6></div>
+                            <div class="card-body p-0">
+                                {% if compliance_documents %}
+                                {% for doc in compliance_documents %}
+                                <div class="d-flex align-items-start gap-2 p-3 border-bottom">
+                                    <div class="flex-shrink-0 mt-1">
+                                        {% if doc.is_approved %}<i class="bi bi-patch-check-fill text-success fs-5"></i>
+                                        {% else %}<i class="bi bi-file-earmark-text fs-5 text-secondary"></i>{% endif %}
+                                    </div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="badge bg-secondary">{{ doc.doc_type }}</span>
+                                            {% if doc.is_approved %}<span class="badge bg-success">Approved</span>{% endif %}
+                                            {% if doc.doc_number %}<code class="small">{{ doc.doc_number }}</code>{% endif %}
+                                        </div>
+                                        <div class="fw-semibold small mt-1">{{ doc.doc_name }}</div>
+                                        {% if doc.issued_by %}<div class="text-muted small">By: {{ doc.issued_by }}</div>{% endif %}
+                                        <div class="text-muted small">
+                                            {% if doc.issued_date %}Issued: {{ doc.issued_date }}{% endif %}
+                                            {% if doc.expiry_date %}
+                                            &nbsp;| Expires:
+                                            <span class="{% if doc.expiry_date < today_str %}text-danger fw-bold{% endif %}">{{ doc.expiry_date }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if doc.notes %}<div class="text-muted small fst-italic">{{ doc.notes }}</div>{% endif %}
+                                        <div class="text-muted small">Added by {{ doc.created_by_name or 'System' }}</div>
+                                    </div>
+                                    {% if not doc.is_approved and session.role in ['Admin', 'QMS Manager'] %}
+                                    <form method="POST" action="{{ url_for('inv_compliance_routes.approve_compliance_document', inv_id=inventory.id, doc_id=doc.id) }}" class="flex-shrink-0">
+                                        <button type="submit" class="btn btn-outline-success btn-sm" title="Approve & Lock">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="text-center py-4 text-muted"><i class="bi bi-file-earmark display-6"></i><p class="small mt-2">No compliance documents logged yet.</p></div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Override log -->
+                        {% if session.role in ['Admin', 'QMS Manager'] %}
+                        <div class="card mb-3 border-warning">
+                            <div class="card-header bg-warning text-dark py-2">
+                                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Log Compliance Override</h6>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST" action="{{ url_for('inv_compliance_routes.log_compliance_override', inv_id=inventory.id) }}">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <select name="override_type" class="form-select form-select-sm" required>
+                                                <option value="">— Override Type —</option>
+                                                <option value="use">Allow Use</option>
+                                                <option value="ship">Allow Shipment</option>
+                                                <option value="transfer">Allow Transfer</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="text" name="transaction_ref" class="form-control form-control-sm" placeholder="Ref # (WO, PO, etc.)">
+                                        </div>
+                                        <div class="col-12">
+                                            <textarea name="justification" class="form-control form-control-sm" rows="2" placeholder="Justification (required) *" required></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-warning btn-sm w-100 text-dark fw-semibold">
+                                                <i class="bi bi-pen me-1"></i>Log Override
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Validation history -->
+                        {% if compliance_events %}
+                        <div class="card">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Validation History</h6></div>
+                            <div class="list-group list-group-flush" style="max-height:240px;overflow-y:auto;">
+                                {% for ev in compliance_events %}
+                                <div class="list-group-item list-group-item-action py-2 px-3">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge
+                                            {% if ev.status_after == 'Compliant' %}bg-success
+                                            {% elif ev.status_after in ['Non-Compliant','Expired'] %}bg-danger
+                                            {% elif ev.status_after == 'At Risk' %}bg-warning text-dark
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ ev.status_after or 'Unknown' }}
+                                        </span>
+                                        <small class="text-muted flex-grow-1">{{ ev.triggered_by }} — {{ ev.user_name or 'System' }}</small>
+                                        <small class="text-muted">{{ ev.created_at }}</small>
+                                    </div>
+                                    {% if ev.issues_found and ev.issues_found != 'None' %}
+                                    <small class="text-danger d-block mt-1">{{ ev.issues_found }}</small>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Override history -->
+                        {% if compliance_overrides %}
+                        <div class="card mt-3">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-journal-x me-2"></i>Override Log ({{ compliance_overrides|length }})</h6></div>
+                            <div class="list-group list-group-flush" style="max-height:200px;overflow-y:auto;">
+                                {% for ov in compliance_overrides %}
+                                <div class="list-group-item py-2 px-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="badge bg-warning text-dark">{{ ov.override_type }}</span>
+                                        <small class="text-muted">{{ ov.authorized_at }}</small>
+                                    </div>
+                                    <small class="d-block mt-1">{{ ov.justification }}</small>
+                                    <small class="text-muted">By {{ ov.authorized_by_name or 'Unknown' }}{% if ov.transaction_ref %} — Ref: {{ ov.transaction_ref }}{% endif %}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <!-- ════════════════ END COMPLIANCE TAB ════════════════ -->
+
         </div>
     </div>
 </div>

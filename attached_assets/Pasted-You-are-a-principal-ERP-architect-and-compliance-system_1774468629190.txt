@@ -1,0 +1,146 @@
+You are a principal ERP architect and compliance systems engineer.
+Your task is to extend an existing ERP/MRO application by adding the ability to track, enforce, and audit compliance at the individual inventory line level.
+
+OBJECTIVE
+
+Transform inventory records from simple quantity trackers into compliance-aware digital records that ensure every unit in stock is traceable, auditable, and eligible for use.
+
+The system must:
+
+Track compliance per inventory line / lot / serial
+Enforce compliance during issue, transfer, and consumption
+Provide real-time compliance visibility
+Maintain audit-ready documentation
+🧠 CORE CAPABILITIES
+1️⃣ Inventory Line Compliance Model
+
+Extend the Inventory Record to include a Compliance Profile per line item, supporting:
+
+Lot / Serial Number
+Supplier & origin
+Certification status
+Regulatory applicability
+Expiration / review dates
+Compliance risk score
+
+Each inventory line must be independently compliant or non-compliant.
+
+2️⃣ Compliance Standards Support
+
+Support configurable compliance frameworks, including but not limited to:
+
+FAA / EASA
+DoD / FAR / DFARS
+ITAR / EAR
+AS9100 / ISO 9001
+Customer-specific requirements
+
+Compliance rules must be configurable by part class, asset class, or customer.
+
+3️⃣ New UI Section on Inventory Record
+
+Add a Compliance tab to the Inventory Record:
+
+Tab Name:
+
+Inventory Line Compliance
+
+For each inventory line, display:
+
+Compliance status (Compliant / At Risk / Non-Compliant / Expired)
+Required vs received documentation
+Expiration or revalidation dates
+Blocking flags (use / ship / transfer)
+4️⃣ Document & Traceability Management
+
+Attach and track compliance artifacts:
+
+Certificates of Conformance (CoC)
+Test reports
+Material certifications
+Country of origin documentation
+Inspection records
+
+Documents must be:
+
+Linked to specific inventory lines
+Versioned and timestamped
+Non-editable after approval
+5️⃣ Automated Compliance Validation
+
+Implement automated checks that:
+
+Validate documentation completeness
+Check expiration dates
+Confirm supplier approval status
+Ensure part eligibility for intended use
+
+Compliance must be re-evaluated automatically on:
+
+Receipt
+Transfer
+Issue to Work Order
+PO or WO linkage changes
+6️⃣ Enforcement & Blocking Logic (Critical)
+
+Enforce compliance rules system-wide:
+
+Prevent issuing non-compliant inventory to Work Orders
+Block shipment of non-compliant material
+Flag inventory at risk of expiration
+Require override justification with audit logging
+7️⃣ Alerts & Risk Indicators
+
+Generate proactive alerts for:
+
+Upcoming compliance expirations
+Missing or invalid documentation
+Supplier decertification
+Regulatory rule changes
+
+Display visual indicators (color-coded) at inventory line level.
+
+8️⃣ Audit & Reporting
+
+Maintain a Compliance Audit Log:
+
+Who approved compliance
+When status changed
+What documents were used
+What transactions were blocked or overridden
+
+Enable reports for:
+
+Inventory compliance exposure
+At-risk inventory
+Historical compliance violations
+🔌 TECHNICAL CONSTRAINTS
+Do not alter existing inventory quantity logic
+Implement as a modular compliance layer
+Support feature toggles by tenant
+Ensure high-performance lookups
+Maintain backward compatibility
+📊 DATA MODELS TO ADD
+Inventory Line Compliance Profile
+Compliance Rule Set
+Compliance Document
+Compliance Validation Event
+Compliance Override Log
+
+All records must be audit-ready and immutable where required.
+
+🧪 ACCEPTANCE CRITERIA
+
+✔ Each inventory line has an independent compliance status
+✔ Non-compliant inventory is blocked from use
+✔ Compliance rules are configurable and enforced automatically
+✔ Documentation is traceable and audit-ready
+✔ Compliance exposure can be reported instantly
+
+🏁 SUCCESS DEFINITION
+
+A user can instantly answer:
+
+Is this specific inventory line legally and contractually usable?
+What documentation supports it?
+What risk exists if it is consumed?

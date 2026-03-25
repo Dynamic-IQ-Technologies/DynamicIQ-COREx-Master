@@ -146,8 +146,23 @@ def create_issue():
                 conn.close()
                 return redirect(url_for('issuance_routes.create_issue'))
             
+            # ── Compliance block check ────────────────────────────────────────
+            try:
+                from routes.inv_compliance_routes import check_inventory_compliance_block
+                blocked, block_reason = check_inventory_compliance_block(conn, inventory['id'])
+                if blocked:
+                    flash(
+                        f'Issuance blocked — Compliance hold: {block_reason}. '
+                        f'A QMS Manager must log an override before this part can be issued.',
+                        'danger'
+                    )
+                    conn.close()
+                    return redirect(url_for('issuance_routes.create_issue'))
+            except Exception:
+                pass  # Compliance tables not yet ready; allow issuance
+
             available = inventory['quantity'] - (inventory['reserved_quantity'] or 0)
-            
+
             if quantity_issued > available:
                 flash(f'Insufficient inventory. Available: {available} {inventory["unit_of_measure"]}', 'danger')
                 conn.close()

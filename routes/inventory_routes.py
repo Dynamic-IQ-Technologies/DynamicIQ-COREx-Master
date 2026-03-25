@@ -9,7 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.graphics.barcode import code128
 from reportlab.pdfgen import canvas
-from datetime import datetime
+from datetime import datetime, date
 import csv
 import io
 import math
@@ -305,8 +305,36 @@ def view_inventory(id):
         ORDER BY wo.actual_start_date DESC
     ''', (id, id, id)).fetchall()
     
+    # ── Compliance data ──────────────────────────────────────────────────────
+    try:
+        from routes.inv_compliance_routes import ensure_compliance_tables, _get_or_create_profile
+        ensure_compliance_tables(conn)
+        compliance_profile = dict(_get_or_create_profile(conn, id))
+        compliance_documents = [dict(d) for d in conn.execute(
+            'SELECT cd.*, u.username as created_by_name, a.username as approved_by_name '
+            'FROM compliance_documents cd '
+            'LEFT JOIN users u ON cd.created_by = u.id '
+            'LEFT JOIN users a ON cd.approved_by = a.id '
+            'WHERE cd.inventory_id = %s ORDER BY cd.created_at DESC', (id,)
+        ).fetchall()]
+        compliance_events = [dict(e) for e in conn.execute(
+            'SELECT cve.*, u.username as user_name FROM compliance_validation_events cve '
+            'LEFT JOIN users u ON cve.triggered_by_user = u.id '
+            'WHERE cve.inventory_id = %s ORDER BY cve.created_at DESC LIMIT 20', (id,)
+        ).fetchall()]
+        compliance_overrides = [dict(o) for o in conn.execute(
+            'SELECT col.*, u.username as authorized_by_name FROM compliance_override_logs col '
+            'LEFT JOIN users u ON col.authorized_by = u.id '
+            'WHERE col.inventory_id = %s ORDER BY col.authorized_at DESC LIMIT 20', (id,)
+        ).fetchall()]
+    except Exception:
+        compliance_profile = {}
+        compliance_documents = []
+        compliance_events = []
+        compliance_overrides = []
+
     conn.close()
-    
+
     return render_template('inventory/view.html', 
                           inventory=inventory,
                           receiving_history=receiving_history,
@@ -318,7 +346,12 @@ def view_inventory(id):
                           audit_trail=audit_trail,
                           documents=documents,
                           cost_transfers=cost_transfers,
-                          related_work_orders=related_work_orders)
+                          related_work_orders=related_work_orders,
+                          compliance_profile=compliance_profile,
+                          compliance_documents=compliance_documents,
+                          compliance_events=compliance_events,
+                          compliance_overrides=compliance_overrides,
+                          today_str=date.today().isoformat())
 
 @inventory_bp.route('/inventory/create', methods=['GET', 'POST'])
 @role_required('Admin', 'Production Staff')
