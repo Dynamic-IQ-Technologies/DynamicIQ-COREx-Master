@@ -66,7 +66,7 @@ def _gather_asset_data(product_id, work_order_id, conn):
     data['procurement_history'] = [dict(r) for r in po_data]
 
     ndt_records = conn.execute(
-        '''SELECT status, created_at, description
+        '''SELECT status, created_at, part_description as description
            FROM ndt_work_orders
            WHERE work_order_id IN (
                SELECT id FROM work_orders WHERE product_id = %s
