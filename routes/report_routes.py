@@ -499,8 +499,8 @@ def material_requirements_report():
     
     # Convert product shortages dict to list
     shortages_by_product = sorted(
-        [{'code': v['code'], 'name': v['name'], 'total_shortage': v['total_shortage'], 'shortage_value': v['shortage_value']}
-         for v in filtered_product_shortages.values()],
+        [{'product_id': pid, 'code': v['code'], 'name': v['name'], 'total_shortage': v['total_shortage'], 'shortage_value': v['shortage_value']}
+         for pid, v in filtered_product_shortages.items()],
         key=lambda x: x['shortage_value'],
         reverse=True
     )

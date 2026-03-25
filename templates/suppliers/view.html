@@ -3,18 +3,33 @@
 {% block title %}{{ supplier.name }} - Supplier Details - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
     <div>
         <h2 class="mb-1"><i class="bi bi-building me-2"></i>{{ supplier.name }}</h2>
         <span class="badge bg-primary fs-6">{{ supplier.code }}</span>
+        <!-- Risk Radar inline badge -->
+        <span id="supplier-risk-badge" class="ms-2">
+            <span class="badge bg-secondary"><span class="spinner-border spinner-border-sm me-1"></span>Loading risk...</span>
+        </span>
     </div>
-    <div>
+    <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('supplier_routes.edit_supplier', id=supplier.id) }}" class="btn btn-primary">
             <i class="bi bi-pencil me-1"></i>Edit
         </a>
         <a href="{{ url_for('supplier_routes.list_suppliers') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Back to Suppliers
         </a>
+    </div>
+</div>
+
+<!-- Risk Radar detail card (hidden until loaded) -->
+<div id="supplier-risk-card" class="d-none mb-4">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+            <span class="text-white fw-semibold"><i class="bi bi-radar me-2"></i>Supply Chain Risk Score</span>
+            <a href="{{ url_for('risk_radar.dashboard') }}" class="btn btn-sm btn-outline-light">View All Scores</a>
+        </div>
+        <div class="card-body" id="supplier-risk-detail"></div>
     </div>
 </div>
 
@@ -505,5 +520,85 @@ async function generateSuppIntel() {
         btn.innerHTML = '<i class="bi bi-stars me-1"></i> Regenerate Report';
     }
 }
+
+// ── Risk Radar ───────────────────────────────
+(function loadSupplierRisk() {
+    const LEVEL_COLORS = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    const TREND_ICONS  = {degrading:'↑', improving:'↓', stable:'→'};
+    fetch('/api/risk-radar/supplier/{{ supplier.id }}')
+        .then(r => r.status === 404 ? null : r.json())
+        .then(d => {
+            const badge = document.getElementById('supplier-risk-badge');
+            if (!d || d.error) {
+                badge.innerHTML = `<a href="/risk-radar" class="badge bg-light text-muted border" style="font-size:.8rem;text-decoration:none">
+                    <i class="bi bi-radar me-1"></i>No risk score yet</a>`;
+                return;
+            }
+            const color = LEVEL_COLORS[d.risk_level] || 'secondary';
+            const trend = TREND_ICONS[d.trend] || '→';
+            badge.innerHTML = `<a href="/risk-radar" style="text-decoration:none">
+                <span class="badge bg-${color} fs-6 px-3 py-1">
+                    <i class="bi bi-radar me-1"></i>Risk: ${d.risk_level} (${Math.round(d.risk_score)}/100) ${trend}
+                </span></a>`;
+
+            // Show detail card
+            const card = document.getElementById('supplier-risk-card');
+            card.classList.remove('d-none');
+            const bd = d.score_breakdown || {};
+            const mits = d.mitigation_recommendations || [];
+
+            const factorsHTML = Object.values(bd).map(f => {
+                const pts = f.risk_contribution || 0;
+                const barColor = pts >= 15 ? 'danger' : pts >= 8 ? 'warning' : 'success';
+                return `<div class="mb-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small">${f.label}</span>
+                        <span class="small fw-bold text-${barColor}">${pts} pts</span>
+                    </div>
+                    <div class="progress" style="height:6px">
+                        <div class="progress-bar bg-${barColor}" style="width:${Math.min(100,pts*2)}%"></div>
+                    </div>
+                    ${f.rate_pct !== undefined && f.rate_pct !== null ? `<div class="small text-muted">OTIF: ${f.rate_pct}% (${f.data_points || 0} POs)</div>` : ''}
+                    ${f.count !== undefined ? `<div class="small text-muted">Count: ${f.count}</div>` : ''}
+                    ${f.note ? `<div class="small text-muted fst-italic">${f.note}</div>` : ''}
+                </div>`;
+            }).join('');
+
+            const urgMap = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+            const mitHTML = mits.slice(0, 3).map(m => `
+                <div class="d-flex gap-2 p-2 rounded mb-1" style="background:#f8f9fa">
+                    <span class="badge bg-${urgMap[m.urgency]||'secondary'} align-self-start mt-1">${m.urgency}</span>
+                    <div class="small">
+                        <div class="fw-semibold">${m.action}</div>
+                        <div class="text-muted">${m.detail}</div>
+                    </div>
+                </div>`).join('');
+
+            const narrative = d.ai_narrative ? `<div class="alert alert-light border-start border-primary border-3 mb-3 small">
+                <strong class="text-primary"><i class="bi bi-cpu me-1"></i>AI Assessment:</strong> ${d.ai_narrative}</div>` : '';
+
+            document.getElementById('supplier-risk-detail').innerHTML = `
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        ${narrative}
+                        <h6 class="fw-bold mb-3">Risk Factor Breakdown</h6>
+                        ${factorsHTML || '<div class="text-muted small">No breakdown available.</div>'}
+                    </div>
+                    <div class="col-md-7">
+                        <h6 class="fw-bold mb-2"><i class="bi bi-lightning text-warning me-1"></i>Recommended Actions</h6>
+                        ${mitHTML || '<div class="text-muted small">No mitigations.</div>'}
+                        <div class="mt-3">
+                            <a href="/risk-radar" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-bar-chart me-1"></i>Full Risk Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('supplier-risk-badge').innerHTML =
+                '<span class="badge bg-light text-muted border" style="font-size:.8rem">Risk score unavailable</span>';
+        });
+})();
 </script>
 {% endblock %}

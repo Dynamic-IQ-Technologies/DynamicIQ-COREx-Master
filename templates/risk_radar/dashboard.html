@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}Supply Chain Risk Radar - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-radar text-danger me-2"></i>Supply Chain Risk Radar</h2>
+        <small class="text-muted">
+            Live risk intelligence for every supplier and part.
+            {% if last_updated %}Last updated: {{ (last_updated|string)[:16] }}{% endif %}
+        </small>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <div id="recalc-spinner" class="d-none">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            <span id="recalc-msg" class="text-muted small">Calculating...</span>
+        </div>
+        <button id="recalc-btn" class="btn btn-primary" onclick="startRecalculate()">
+            <i class="bi bi-arrow-repeat me-1"></i>Recalculate All Scores
+        </button>
+        <a href="{{ url_for('risk_radar.event_log') }}" class="btn btn-outline-secondary d-none" id="audit-link">
+            <i class="bi bi-journal-text me-1"></i>Audit Log
+        </a>
+    </div>
+</div>
+
+<!-- Summary metric cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-3">
+                <div class="fs-3 fw-bold text-danger">{{ high_risk_suppliers }}</div>
+                <div class="small text-muted">High/Critical Suppliers</div>
+                <div class="mt-1"><i class="bi bi-building text-danger"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-3">
+                <div class="fs-3 fw-bold text-warning">{{ high_risk_parts }}</div>
+                <div class="small text-muted">High/Critical Parts</div>
+                <div class="mt-1"><i class="bi bi-gear text-warning"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-3">
+                <div class="fs-3 fw-bold text-info">{{ supplier_profiles|length }}</div>
+                <div class="small text-muted">Suppliers Monitored</div>
+                <div class="mt-1"><i class="bi bi-shield-check text-info"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-3">
+                <div class="fs-3 fw-bold text-danger">${{ "{:,.0f}".format(total_exposure) }}</div>
+                <div class="small text-muted">Shortage Exposure</div>
+                <div class="mt-1"><i class="bi bi-cash-stack text-danger"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not has_data %}
+<!-- Empty state -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-radar display-4 text-muted mb-3"></i>
+        <h5>No Risk Scores Calculated Yet</h5>
+        <p class="text-muted mb-4" style="max-width:440px;margin:auto">
+            Click <strong>Recalculate All Scores</strong> to analyse every supplier and part
+            using your live ERP data. Scores are cached and update in seconds.
+        </p>
+        <button class="btn btn-primary btn-lg" onclick="startRecalculate()">
+            <i class="bi bi-play-circle me-2"></i>Run First Analysis
+        </button>
+    </div>
+</div>
+{% else %}
+
+<!-- Recalc alert area -->
+<div id="recalc-alert" class="d-none mb-3"></div>
+
+<!-- ── SUPPLIER RISK TABLE ────────────────────── -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+        <span class="text-white fw-semibold"><i class="bi bi-building me-2"></i>Supplier Risk Profiles</span>
+        <span class="badge bg-secondary">{{ supplier_profiles|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if supplier_profiles %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Supplier</th>
+                        <th class="text-center" style="width:90px">Risk Score</th>
+                        <th class="text-center" style="width:90px">Level</th>
+                        <th class="text-center" style="width:70px">OTIF</th>
+                        <th class="text-center" style="width:90px">Overdue POs</th>
+                        <th class="text-center" style="width:80px">Open CAPA</th>
+                        <th class="text-center" style="width:70px">Trend</th>
+                        <th style="width:100px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in supplier_profiles %}
+                {% set bd = s.breakdown %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ s.entity_name }}</div>
+                        {% if s.country %}<div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ s.country }}</div>{% endif %}
+                        {% if s.ai_narrative %}
+                        <div class="small text-muted fst-italic mt-1" style="max-width:360px">{{ s.ai_narrative }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="risk-score-pill risk-{{ s.risk_level|lower }}">{{ s.risk_score|int }}</div>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-{{ s.level_color }}">{{ s.risk_level }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if bd.otif and bd.otif.rate_pct is not none %}
+                        <span class="fw-semibold {% if bd.otif.rate_pct < 80 %}text-danger{% elif bd.otif.rate_pct < 90 %}text-warning{% else %}text-success{% endif %}">
+                            {{ bd.otif.rate_pct }}%
+                        </span>
+                        {% else %}<span class="text-muted small">N/A</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if bd.overdue_pos %}
+                        <span class="{% if bd.overdue_pos.count > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                            {{ bd.overdue_pos.count }}
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if bd.quality_incidents %}
+                        <span class="{% if bd.quality_incidents.count > 0 %}text-warning fw-bold{% else %}text-success{% endif %}">
+                            {{ bd.quality_incidents.count }}
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">{{ s.trend_icon|safe }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showDetail('supplier', {{ s.entity_id }}, '{{ s.entity_name }}')">
+                            <i class="bi bi-bar-chart me-1"></i>Details
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">No supplier scores — click Recalculate.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── PART RISK TABLE ────────────────────────── -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+        <span class="text-white fw-semibold"><i class="bi bi-gear me-2"></i>Part Risk Profiles</span>
+        <span class="badge bg-secondary">{{ part_profiles|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if part_profiles %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Part</th>
+                        <th class="text-center" style="width:90px">Risk Score</th>
+                        <th class="text-center" style="width:90px">Level</th>
+                        <th class="text-center" style="width:90px">Shortage Qty</th>
+                        <th class="text-center" style="width:100px">Supplier Risk</th>
+                        <th class="text-center" style="width:90px">Lead Time</th>
+                        <th class="text-center" style="width:70px">Trend</th>
+                        <th style="width:100px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in part_profiles %}
+                {% set bd = p.breakdown %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ p.entity_name }}</div>
+                        <div class="small text-muted">{{ p.product_name }}</div>
+                    </td>
+                    <td class="text-center">
+                        <div class="risk-score-pill risk-{{ p.risk_level|lower }}">{{ p.risk_score|int }}</div>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-{{ p.level_color }}">{{ p.risk_level }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="{% if p.shortage_qty > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                            {{ p.shortage_qty|int }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        {% if bd.supplier_risk %}
+                        {% set ss = bd.supplier_risk.supplier_score %}
+                        <span class="{% if ss >= 76 %}text-danger{% elif ss >= 51 %}text-warning{% elif ss >= 26 %}text-info{% else %}text-success{% endif %} fw-semibold">
+                            {{ ss|int }}/100
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if bd.urgency %}{{ bd.urgency.lead_time_days }}d{% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">{{ p.trend_icon|safe }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showDetail('part', {{ p.entity_id }}, '{{ p.entity_name }}')">
+                            <i class="bi bi-bar-chart me-1"></i>Details
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">No part scores — click Recalculate.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── RECENT ALERTS ─────────────────────────── -->
+{% if recent_events %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header"><span class="fw-semibold"><i class="bi bi-bell me-2 text-warning"></i>Recent Risk Events</span></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr><th>Time</th><th>Entity</th><th>Type</th><th>Score Change</th><th>Level</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                {% for ev in recent_events %}
+                <tr>
+                    <td class="small text-muted">{{ (ev.created_at|string)[:16] }}</td>
+                    <td><span class="badge bg-secondary">{{ ev.entity_type }}</span> {{ ev.entity_name }}</td>
+                    <td><span class="badge bg-warning text-dark">{{ ev.event_type }}</span></td>
+                    <td class="small">
+                        {% if ev.old_score is not none %}{{ ev.old_score|int }} → {% endif %}{{ ev.new_score|int }}
+                    </td>
+                    <td><span class="badge bg-{{ {'Critical':'danger','High':'warning','Medium':'info','Low':'success'}.get(ev.risk_level,'secondary') }}">{{ ev.risk_level }}</span></td>
+                    <td class="small">{{ ev.description }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endif %} {# end has_data #}
+
+<!-- ── DETAIL MODAL ──────────────────────────── -->
+<div class="modal fade" id="riskDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background:linear-gradient(135deg,#0d1b2a,#1b2a4a)">
+                <h5 class="modal-title text-white"><i class="bi bi-bar-chart me-2"></i><span id="detail-title">Risk Detail</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detail-body">
+                <div class="text-center py-4"><span class="spinner-border text-primary"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.risk-score-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: .95rem;
+    color: #fff;
+}
+.risk-critical { background: #dc3545; }
+.risk-high     { background: #fd7e14; }
+.risk-medium   { background: #0dcaf0; color: #000 !important; }
+.risk-low      { background: #198754; }
+</style>
+
+<script>
+let recalcTimer = null;
+let recalcJobId  = null;
+
+function startRecalculate() {
+    document.getElementById('recalc-btn').disabled = true;
+    document.getElementById('recalc-spinner').classList.remove('d-none');
+    document.getElementById('recalc-alert').classList.add('d-none');
+
+    fetch('/api/risk-radar/recalculate', {method:'POST'})
+        .then(r => r.json())
+        .then(d => {
+            recalcJobId = d.job_id;
+            recalcTimer = setInterval(pollRecalc, 1500);
+        })
+        .catch(() => showRecalcError('Network error — please try again.'));
+}
+
+function pollRecalc() {
+    fetch(`/api/risk-radar/poll/${recalcJobId}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'running') {
+                const step = ['Fetching supplier data...','Scoring delivery performance...','Analysing part shortages...','Generating AI narratives...'];
+                const idx = Math.floor(Date.now() / 1500) % step.length;
+                document.getElementById('recalc-msg').textContent = step[idx];
+                return;
+            }
+            clearInterval(recalcTimer);
+            document.getElementById('recalc-spinner').classList.add('d-none');
+            document.getElementById('recalc-btn').disabled = false;
+            if (d.status === 'done') {
+                const alertEl = document.getElementById('recalc-alert');
+                alertEl.innerHTML = `<div class="alert alert-success">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Scored <strong>${d.supplier_count}</strong> suppliers and <strong>${d.part_count}</strong> parts.
+                    ${d.alert_count > 0 ? `<span class="badge bg-danger ms-2">${d.alert_count} alert(s)</span>` : ''}
+                    <a href="." class="btn btn-sm btn-outline-success ms-3">Refresh Dashboard</a>
+                </div>`;
+                alertEl.classList.remove('d-none');
+            } else {
+                showRecalcError(d.error || 'Recalculation failed.');
+            }
+        })
+        .catch(() => {
+            clearInterval(recalcTimer);
+            showRecalcError('Network error during polling.');
+            document.getElementById('recalc-btn').disabled = false;
+            document.getElementById('recalc-spinner').classList.add('d-none');
+        });
+}
+
+function showRecalcError(msg) {
+    const alertEl = document.getElementById('recalc-alert');
+    alertEl.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1"></i>${msg}</div>`;
+    alertEl.classList.remove('d-none');
+}
+
+function showDetail(entityType, entityId, entityName) {
+    document.getElementById('detail-title').textContent = entityName + ' — Risk Breakdown';
+    document.getElementById('detail-body').innerHTML = '<div class="text-center py-4"><span class="spinner-border text-primary"></span></div>';
+    const modal = new bootstrap.Modal(document.getElementById('riskDetailModal'));
+    modal.show();
+
+    fetch(`/api/risk-radar/${entityType}/${entityId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('detail-body').innerHTML = `<div class="alert alert-warning">${data.error}</div>`;
+                return;
+            }
+            renderDetail(data, entityType);
+        })
+        .catch(() => {
+            document.getElementById('detail-body').innerHTML = '<div class="alert alert-danger">Failed to load detail.</div>';
+        });
+}
+
+const LEVEL_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+
+function renderDetail(d, entityType) {
+    const bd = d.score_breakdown || {};
+    const mits = d.mitigation_recommendations || [];
+    const level = d.risk_level || 'Low';
+    const color = LEVEL_COLOR[level] || 'secondary';
+
+    let breakdownHTML = Object.values(bd).map(f => {
+        const pts = f.risk_contribution || 0;
+        const pct = Math.min(100, pts * 2);
+        const barColor = pts >= 15 ? 'danger' : pts >= 8 ? 'warning' : 'success';
+        return `<div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="small fw-semibold">${f.label}</span>
+                <span class="small fw-bold text-${barColor}">${pts} pts</span>
+            </div>
+            <div class="progress" style="height:8px">
+                <div class="progress-bar bg-${barColor}" style="width:${pct}%"></div>
+            </div>
+            ${f.note ? `<div class="small text-muted mt-1">${f.note}</div>` : ''}
+            ${f.rate_pct !== undefined && f.rate_pct !== null ? `<div class="small text-muted">OTIF: ${f.rate_pct}% (${f.data_points} POs)</div>` : ''}
+            ${f.count !== undefined ? `<div class="small text-muted">Count: ${f.count}</div>` : ''}
+            ${f.avg_variance_days !== undefined ? `<div class="small text-muted">Avg variance: ${f.avg_variance_days} days</div>` : ''}
+            ${f.value_usd !== undefined ? `<div class="small text-muted">Exposure: $${Number(f.value_usd).toLocaleString()}</div>` : ''}
+            ${f.shortage_qty !== undefined ? `<div class="small text-muted">Shortage: ${f.shortage_qty} units</div>` : ''}
+        </div>`;
+    }).join('');
+
+    const urgMap = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    let mitHTML = mits.map(m => `
+        <div class="d-flex gap-2 mb-2 p-2 rounded" style="background:#f8f9fa">
+            <span class="badge bg-${urgMap[m.urgency]||'secondary'} align-self-start mt-1">${m.urgency}</span>
+            <div>
+                <div class="fw-semibold small">${m.action}</div>
+                <div class="small text-muted">${m.detail}</div>
+                ${m.risk_reduction_pct > 0 ? `<div class="small text-success mt-1"><i class="bi bi-arrow-down"></i> Risk -${m.risk_reduction_pct}%</div>` : ''}
+                ${m.cost_impact > 0 ? `<div class="small text-warning">Est. cost: $${Number(m.cost_impact).toLocaleString()}</div>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    const narrative = d.ai_narrative ? `
+        <div class="alert alert-light border-start border-primary border-3 mb-3">
+            <div class="small fw-semibold text-primary mb-1"><i class="bi bi-cpu me-1"></i>AI Risk Assessment</div>
+            <div class="small">${d.ai_narrative}</div>
+        </div>` : '';
+
+    document.getElementById('detail-body').innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-4 text-center">
+                <div class="risk-score-pill risk-${level.toLowerCase()} mx-auto mb-2" style="width:80px;height:80px;font-size:1.8rem">${Math.round(d.risk_score)}</div>
+                <div><span class="badge bg-${color} fs-6">${level}</span></div>
+                <div class="small text-muted mt-2">Trend: ${d.trend || 'stable'}</div>
+                <div class="small text-muted">Confidence: ${d.confidence || 'Medium'}</div>
+            </div>
+            <div class="col-md-8">
+                ${narrative}
+                <h6 class="fw-bold mb-3">Score Breakdown</h6>
+                ${breakdownHTML || '<div class="text-muted small">No breakdown available.</div>'}
+            </div>
+            <div class="col-12">
+                <h6 class="fw-bold mb-2"><i class="bi bi-lightning me-1 text-warning"></i>Recommended Mitigations</h6>
+                ${mitHTML || '<div class="text-muted small">No mitigations generated.</div>'}
+            </div>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

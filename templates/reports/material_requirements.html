@@ -261,6 +261,7 @@
                                 <th class="sortable-shortage" data-sort="name" style="cursor:pointer">Product Name <i class="bi bi-arrow-down-up text-muted"></i></th>
                                 <th class="sortable-shortage" data-sort="qty" style="cursor:pointer">Total Shortage Qty <i class="bi bi-arrow-down-up text-muted"></i></th>
                                 <th class="sortable-shortage" data-sort="value" style="cursor:pointer">Shortage Value <i class="bi bi-arrow-down-up text-muted"></i></th>
+                                <th class="text-center" style="width:90px" title="Supply Chain Risk Score">Risk Score</th>
                             </tr>
                         </thead>
                         <tbody id="shortagesBody">
@@ -270,6 +271,13 @@
                                 <td>{{ item.name }}</td>
                                 <td class="text-danger fw-bold">{{ item.total_shortage|int }}</td>
                                 <td class="text-danger fw-bold">{{ item.shortage_value|currency }}</td>
+                                <td class="text-center">
+                                    <span class="risk-badge" data-pid="{{ item.product_id }}">
+                                        <span class="badge bg-secondary risk-badge-pill" style="font-size:.7rem">
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        </span>
+                                    </span>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -278,6 +286,7 @@
                                 <td colspan="2" class="text-end"><strong>Total:</strong></td>
                                 <td class="fw-bold">{{ shortages_by_product|map(attribute='total_shortage')|sum|int }}</td>
                                 <td class="fw-bold">{{ total_shortage_cost|currency }}</td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -1405,5 +1414,41 @@ function exportMRRAIReport() {
     document.getElementById('mrr-ai-cfo-block').style.display = 'block';
     window.print();
 }
+
+// ── Risk Radar badges ────────────────────────
+(function loadRiskBadges() {
+    const badges = document.querySelectorAll('.risk-badge[data-pid]');
+    if (!badges.length) return;
+    const LEVEL_COLORS = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    fetch('/api/risk-radar/scores')
+        .then(r => r.json())
+        .then(scores => {
+            badges.forEach(el => {
+                const pid = el.dataset.pid;
+                const key = 'part:' + pid;
+                const pill = el.querySelector('.risk-badge-pill');
+                if (scores[key]) {
+                    const d = scores[key];
+                    const color = LEVEL_COLORS[d.level] || 'secondary';
+                    const trend = d.trend === 'degrading' ? ' ↑' : d.trend === 'improving' ? ' ↓' : '';
+                    pill.className = `badge bg-${color} risk-badge-pill`;
+                    pill.style.fontSize = '.75rem';
+                    pill.innerHTML = `${Math.round(d.score)}${trend}`;
+                    pill.title = `Risk level: ${d.level} | Score: ${Math.round(d.score)}/100`;
+                } else {
+                    pill.className = 'badge bg-light text-muted risk-badge-pill';
+                    pill.style.fontSize = '.7rem';
+                    pill.innerHTML = 'N/A';
+                    pill.title = 'No risk score — run Risk Radar to calculate';
+                }
+            });
+        })
+        .catch(() => {
+            document.querySelectorAll('.risk-badge-pill').forEach(el => {
+                el.className = 'badge bg-light text-muted';
+                el.innerHTML = '—';
+            });
+        });
+})();
 </script>
 {% endblock %}

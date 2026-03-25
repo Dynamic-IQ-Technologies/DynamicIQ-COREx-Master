@@ -1,0 +1,134 @@
+Add Real-Time Supply Chain Risk Radar to Existing ERP/MRO Platform
+ROLE
+
+You are a principal ERP architect, data intelligence engineer, and OSINT integrator.
+Your task is to extend an existing production ERP/MRO application with a Real-Time Supply Chain Risk Radar that continuously evaluates every part and supplier and proactively mitigates supply failures.
+
+OBJECTIVE
+
+Transform the platform from a reactive ERP into an intelligence-driven operating system by embedding live risk awareness into procurement, planning, and maintenance workflows.
+
+The system must:
+
+Produce a live risk score for every part and supplier
+Detect emerging risks before failures occur
+Automatically recommend mitigation actions
+Be explainable, auditable, and CFO-trustworthy
+🧠 CORE CAPABILITIES
+1️⃣ Risk Scoring Engine (Foundational)
+
+Create a continuous risk scoring engine that calculates:
+
+Supplier Risk Score (0–100)
+Part Risk Score (0–100)
+
+Scores must update dynamically based on internal + external intelligence signals.
+
+2️⃣ Risk Signal Ingestion (OSINT + ERP)
+
+Continuously ingest and normalize risk signals including:
+
+Geo-political instability (supplier country & region)
+Tariff & trade policy exposure
+Port congestion & logistics disruption
+Supplier financial health indicators
+Historical delivery accuracy (OTIF, delays, expedites)
+Lead-time volatility
+Internal quality & compliance incidents
+
+All signals must be timestamped, weighted, and source-attributed.
+
+3️⃣ Explainable Risk Composition
+
+For each risk score, provide a clear breakdown:
+
+Risk factor contribution (%)
+Trend direction (improving / degrading)
+Confidence score
+Historical comparison
+
+No black-box scores are allowed.
+
+4️⃣ Thresholds & Intelligent Triggers
+
+Implement configurable risk thresholds:
+
+Low / Medium / High / Critical
+
+When a threshold is crossed:
+
+Generate real-time alerts
+Log a risk event
+Trigger mitigation workflows
+
+Example Alert:
+
+“Supplier A risk increased to 82 due to port congestion + financial stress. Alternate sourcing recommended.”
+
+5️⃣ Auto-Recommended Mitigation Actions
+
+When elevated risk is detected, automatically generate ranked recommendations:
+
+Alternate suppliers
+Adjusted order quantities
+Earlier order timing
+Expedite options
+Inventory buffer adjustments
+
+Each recommendation must include:
+
+Risk reduction (%)
+Cost impact ($)
+Time impact (days)
+Execution urgency
+6️⃣ Cross-System Embedding (Mandatory)
+
+Embed Risk Radar outputs across the platform:
+
+Material Requirements Report
+Supplier Master Record
+Purchase Order creation flow
+Work Orders & Asset Intelligence
+Executive & Ops dashboards
+
+Risk data must be contextual, not isolated.
+
+7️⃣ Audit & Governance Layer
+Maintain a Risk Event Log
+Record:
+Inputs used
+Scores generated
+Recommendations issued
+User actions taken or ignored
+Ensure audit readiness for compliance and executive review
+🔌 TECHNICAL CONSTRAINTS
+Do not break existing workflows
+Implement as modular services
+Support async updates and caching
+Allow feature toggles per tenant
+Ensure high availability & fault tolerance
+📊 DATA MODELS TO ADD
+Supplier Risk Profile
+Part Risk Profile
+Risk Signal Record
+Risk Event Log
+Mitigation Recommendation
+Risk Score History
+
+All records must be versioned and time-series compatible.
+
+🧪 ACCEPTANCE CRITERIA
+
+✔ Every supplier and part has a live risk score
+✔ Risk scores update as signals change
+✔ Threshold breaches trigger alerts & recommendations
+✔ Risk drivers are fully explainable
+✔ Alternate sourcing is recommended before failure occurs
+
+🏁 SUCCESS DEFINITION
+
+A user can instantly answer:
+
+Which suppliers are about to fail?
+Which parts are at risk of shortage?
+What should we do now to prevent downtime?

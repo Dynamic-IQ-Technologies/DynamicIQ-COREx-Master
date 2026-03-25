@@ -805,6 +805,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if user_permissions.get('menu_procurement', 1) == 1 %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('risk_radar.dashboard') }}">
+                    <i class="bi bi-radar"></i>
+                    <span>Risk Radar</span>
+                </a>
+            </li>
+            {% endif %}
             {% if user_permissions.get('menu_rfq', 1) == 1 %}
             <li class="sidebar-nav-item">
                 <a class="sidebar-nav-link" href="{{ url_for('rfq_routes.list_rfqs') }}">
