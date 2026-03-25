@@ -367,7 +367,7 @@
                             </td>
                             <td>
                                 {% if ex.days_outstanding and ex.days_outstanding > 0 %}
-                                <span class="{% if ex.days_outstanding > 60 %}text-danger fw-bold{% elif ex.days_outstanding > 30 %}text-warning{% endif %}">
+                                <span class="{% if (ex.days_outstanding or 0) > 60 %}text-danger fw-bold{% elif (ex.days_outstanding or 0) > 30 %}text-warning{% endif %}">
                                     {{ ex.days_outstanding }}
                                 </span>
                                 {% else %}

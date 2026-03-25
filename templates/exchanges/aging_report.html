@@ -115,7 +115,7 @@
                                 {% endif %}
                             </td>
                             <td>{{ item.core_due_date or '-' }}</td>
-                            <td class="text-center {% if item.days_outstanding > 60 %}text-danger fw-bold{% elif item.days_outstanding > 30 %}text-warning{% endif %}">
+                            <td class="text-center {% if (item.days_outstanding or 0) > 60 %}text-danger fw-bold{% elif (item.days_outstanding or 0) > 30 %}text-warning{% endif %}">
                                 {{ item.days_outstanding or 0 }}
                             </td>
                             <td>

@@ -41,7 +41,7 @@
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generateAgreementModal">
                 <i class="bi bi-file-earmark-text me-1"></i> Generate Agreement
             </button>
-            {% if core and core.days_outstanding > 0 %}
+            {% if core and (core.days_outstanding or 0) > 0 %}
             <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#lateFeeInvoiceModal">
                 <i class="bi bi-receipt me-1"></i> Create Late Fee Invoice
             </button>
