@@ -348,6 +348,86 @@
     </div>
     {% endif %}
 
+    <!-- QuickBooks Sync -->
+    {% if session.role in ['Admin', 'Accountant'] %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-plug-fill text-success me-2"></i>QuickBooks Sync</h5>
+            {% if qb_sync and qb_sync.qb_invoice_id %}
+                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Synced to QB</span>
+            {% elif not qb_connected %}
+                <span class="badge bg-secondary">QB Not Connected</span>
+            {% else %}
+                <span class="badge bg-warning text-dark">Not Synced</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if qb_sync and qb_sync.qb_invoice_id %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="text-muted small">QB Invoice ID</div>
+                        <div class="fw-semibold font-monospace">{{ qb_sync.qb_invoice_id }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">QB Doc Number</div>
+                        <div class="fw-semibold">{{ qb_sync.qb_invoice_number or '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Last Synced</div>
+                        <div class="fw-semibold">{{ (qb_sync.last_synced_at or '')|string|truncate(16, True, '') }}</div>
+                    </div>
+                </div>
+                {% if qb_sync.last_event_status == 'conflict' %}
+                <div class="alert alert-warning py-2 small mb-3">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    A sync conflict was detected. <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}">Resolve on the QB Sync dashboard.</a>
+                </div>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-success" onclick="syncToQb()">
+                    <i class="bi bi-arrow-repeat me-1"></i>Re-sync to QuickBooks
+                </button>
+            {% elif not qb_connected %}
+                <p class="text-muted small mb-2">QuickBooks is not connected. Go to the <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}">QB Sync dashboard</a> to connect your account.</p>
+            {% else %}
+                <p class="text-muted small mb-3">This invoice has not been sent to QuickBooks yet. Click below to push it now.</p>
+                <button class="btn btn-sm btn-success" onclick="syncToQb()">
+                    <i class="bi bi-cloud-upload me-1"></i>Sync Invoice to QuickBooks
+                </button>
+            {% endif %}
+            <div id="qbSyncMsg" class="mt-2 small"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+    function syncToQb() {
+        const btn = event.target;
+        const msg = document.getElementById('qbSyncMsg');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
+        msg.innerHTML = '';
+        fetch('/api/qb/sync-invoice/{{ invoice.id }}', {method: 'POST'})
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success') {
+                    msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Synced successfully. QB Invoice ID: ' + d.qb_invoice_id + '</span>';
+                    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Synced';
+                    btn.className = 'btn btn-sm btn-success';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    msg.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (d.reason || d.error || 'Sync failed') + '</span>';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync Invoice to QuickBooks';
+                }
+            })
+            .catch(e => {
+                msg.innerHTML = '<span class="text-danger">Error: ' + e + '</span>';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync Invoice to QuickBooks';
+            });
+    }
+    </script>
+
     <!-- Audit Trail -->
     {% if invoice.status != 'Draft' %}
     <div class="card border-0 shadow-sm">

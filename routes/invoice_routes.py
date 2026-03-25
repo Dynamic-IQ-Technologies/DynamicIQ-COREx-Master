@@ -221,7 +221,7 @@ def view_invoice(id):
         LEFT JOIN users u ON i.created_by = u.id
         LEFT JOIN users u2 ON i.approved_by = u2.id
         LEFT JOIN users u3 ON i.posted_by = u3.id
-        WHERE i.id = ?
+        WHERE i.id = %s
     ''', (id,)).fetchone()
     
     if not invoice:
@@ -234,24 +234,48 @@ def view_invoice(id):
         SELECT il.*, p.code as product_code, p.name as product_name
         FROM invoice_lines il
         LEFT JOIN products p ON il.product_id = p.id
-        WHERE il.invoice_id = ?
+        WHERE il.invoice_id = %s
         ORDER BY il.line_number
     ''', (id,)).fetchall()
     
     # Get payments
     payments = conn.execute('''
         SELECT * FROM payments
-        WHERE reference_type = 'Invoice' AND reference_id = ?
+        WHERE reference_type = 'Invoice' AND reference_id = %s
         ORDER BY payment_date DESC
     ''', (id,)).fetchall()
-    
+
+    # Get QB sync status for this invoice
+    qb_sync = None
+    try:
+        qb_sync = conn.execute('''
+            SELECT m.*, l.created_at as last_event_at, l.status as last_event_status, l.error_message
+            FROM qb_wo_invoice_map m
+            LEFT JOIN qb_sync_event_log l ON l.entity_type = 'invoice' AND l.entity_id = m.invoice_id
+            WHERE m.invoice_id = %s
+            ORDER BY l.created_at DESC
+            LIMIT 1
+        ''', (id,)).fetchone()
+    except Exception:
+        qb_sync = None
+
+    # Check if QB is connected
+    qb_connected = False
+    try:
+        cfg = conn.execute("SELECT is_active FROM qb_sync_config WHERE tenant_id='default' LIMIT 1").fetchone()
+        qb_connected = bool(cfg and cfg['is_active'])
+    except Exception:
+        qb_connected = False
+
     conn.close()
     
     return render_template('invoices/view.html',
                          invoice=invoice,
                          lines=lines,
                          payments=payments,
-                         today=date.today().isoformat())
+                         today=date.today().isoformat(),
+                         qb_sync=qb_sync,
+                         qb_connected=qb_connected)
 
 @invoice_bp.route('/invoices/create-from-so/<int:so_id>', methods=['GET', 'POST'])
 @login_required
