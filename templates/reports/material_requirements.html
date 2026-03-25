@@ -69,6 +69,12 @@
             <span class="badge bg-danger ms-1">{{ shortages_by_product|length }}</span>
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ai-decisions-tab" data-bs-toggle="tab" data-bs-target="#ai-procurement-decisions" type="button" role="tab" aria-controls="ai-procurement-decisions" aria-selected="false" onclick="initMRRAI()">
+            <i class="bi bi-cpu"></i> AI Procurement &amp; Maintenance Decisions
+            <span class="badge bg-primary ms-1">AI</span>
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="materialReqTabContent">
@@ -283,6 +289,155 @@
                     <p>All material requirements are currently satisfied.</p>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Procurement & Maintenance Decisions Tab Pane -->
+    <div class="tab-pane fade" id="ai-procurement-decisions" role="tabpanel" aria-labelledby="ai-decisions-tab">
+        <div class="card border-top-0 rounded-top-0">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#0d1b2a 0%,#1b2a4a 100%);">
+                <div>
+                    <h5 class="mb-0 text-white"><i class="bi bi-cpu me-2"></i>AI Procurement &amp; Maintenance Decisions</h5>
+                    <small class="text-light opacity-75">Explainable, value-driven recommendations for each shortage item</small>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span id="mrr-ai-confidence-badge" class="badge" style="display:none!important"></span>
+                    <button id="mrr-ai-export-btn" class="btn btn-sm btn-outline-light" onclick="exportMRRAIReport()" style="display:none">
+                        <i class="bi bi-download me-1"></i>Export CFO Report
+                    </button>
+                    <button id="mrr-ai-refresh-btn" class="btn btn-sm btn-outline-warning" onclick="refreshMRRAI()" style="display:none">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress state -->
+            <div id="mrr-ai-progress" class="card-body text-center py-5" style="display:none">
+                <div class="mb-4">
+                    <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem" role="status"></div>
+                    <h5 id="mrr-ai-progress-title" class="text-primary mb-2">Initializing Analysis</h5>
+                    <p id="mrr-ai-progress-msg" class="text-muted mb-3">Gathering shortage data...</p>
+                </div>
+                <div class="progress mx-auto" style="max-width:400px;height:8px">
+                    <div id="mrr-ai-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:15%"></div>
+                </div>
+                <div id="mrr-ai-steps" class="d-flex justify-content-center gap-4 mt-4">
+                    <div class="text-center" id="mrr-step-1">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;background:#e9ecef">
+                            <i class="bi bi-database text-muted"></i>
+                        </div>
+                        <div class="small text-muted">Fetching Data</div>
+                    </div>
+                    <div class="text-center" id="mrr-step-2">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;background:#e9ecef">
+                            <i class="bi bi-graph-up text-muted"></i>
+                        </div>
+                        <div class="small text-muted">Risk Analysis</div>
+                    </div>
+                    <div class="text-center" id="mrr-step-3">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;background:#e9ecef">
+                            <i class="bi bi-cpu text-muted"></i>
+                        </div>
+                        <div class="small text-muted">AI Reasoning</div>
+                    </div>
+                    <div class="text-center" id="mrr-step-4">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;background:#e9ecef">
+                            <i class="bi bi-clipboard-check text-muted"></i>
+                        </div>
+                        <div class="small text-muted">Recommendations</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ready state: idle -->
+            <div id="mrr-ai-idle" class="card-body text-center py-5">
+                <i class="bi bi-cpu display-4 text-primary mb-3"></i>
+                <h5 class="text-primary">AI Procurement &amp; Maintenance Intelligence</h5>
+                <p class="text-muted mb-4" style="max-width:480px;margin:auto">
+                    Analyse your current material shortages with AI to receive explainable,
+                    quantified recommendations for procurement and maintenance planning.
+                </p>
+                {% if shortages_by_product %}
+                <button class="btn btn-primary btn-lg px-4" onclick="refreshMRRAI()">
+                    <i class="bi bi-play-circle me-2"></i>Run AI Analysis
+                    <span class="badge bg-light text-primary ms-2">{{ shortages_by_product|length }} items</span>
+                </button>
+                {% else %}
+                <div class="alert alert-success d-inline-flex align-items-center gap-2 px-4">
+                    <i class="bi bi-check-circle-fill"></i>
+                    No active shortages — nothing to analyse right now.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Error state -->
+            <div id="mrr-ai-error" class="card-body text-center py-5" style="display:none">
+                <i class="bi bi-exclamation-triangle display-4 text-danger mb-3"></i>
+                <h5 class="text-danger">Analysis Failed</h5>
+                <p id="mrr-ai-error-msg" class="text-muted mb-3"></p>
+                <button class="btn btn-outline-danger" onclick="refreshMRRAI()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Try Again
+                </button>
+            </div>
+
+            <!-- Results state -->
+            <div id="mrr-ai-results" class="card-body" style="display:none">
+                <!-- Executive summary banner -->
+                <div id="mrr-ai-summary-card" class="alert mb-4 border-0" style="background:linear-gradient(135deg,#0d1b2a,#1b3a5a);color:#fff;border-radius:12px">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-7">
+                            <div class="d-flex align-items-start gap-2 mb-2">
+                                <i class="bi bi-brain fs-5 mt-1 text-warning"></i>
+                                <div>
+                                    <div class="fw-bold mb-1">AI Summary</div>
+                                    <div id="mrr-ai-summary-text" class="opacity-90" style="font-size:.95rem"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="row g-2 text-center">
+                                <div class="col-4">
+                                    <div class="p-2 rounded" style="background:rgba(255,255,255,.1)">
+                                        <div id="mrr-risk-exposure" class="fs-6 fw-bold text-warning">-</div>
+                                        <div class="small opacity-75">Risk Exposure</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2 rounded" style="background:rgba(255,255,255,.1)">
+                                        <div id="mrr-urgency-val" class="fs-6 fw-bold">-</div>
+                                        <div class="small opacity-75">Urgency</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2 rounded" style="background:rgba(255,255,255,.1)">
+                                        <div id="mrr-confidence-val" class="fs-6 fw-bold text-info">-</div>
+                                        <div class="small opacity-75">Confidence</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fallback notice -->
+                <div id="mrr-ai-fallback-notice" class="alert alert-warning d-flex gap-2 mb-3" style="display:none!important">
+                    <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+                    <span>AI engine unavailable — showing statistical estimates based on shortage data. Confidence levels are marked Low.</span>
+                </div>
+
+                <!-- Recommendation cards -->
+                <div id="mrr-ai-rec-container"></div>
+
+                <!-- CFO export section (hidden, used for print) -->
+                <div id="mrr-ai-cfo-block" class="mt-4 p-3 border rounded" style="display:none">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-person-badge me-1"></i>CFO Approval Summary</h6>
+                    <p id="mrr-ai-cfo-text" class="mb-0 text-muted small"></p>
+                    <div class="mt-2 small text-muted">
+                        <i class="bi bi-shield-check me-1"></i>Generated by Dynamic.IQ COREx — audit log maintained.
+                        Analysis time: <span id="mrr-ai-generated-at"></span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -979,4 +1134,276 @@ function sortShortagesTable(column) {
 }
 </script>
 {% endif %}
+
+<script>
+// ============================================================
+// MRR AI Procurement & Maintenance Decisions
+// ============================================================
+let mrrAiJobId = null;
+let mrrAiPollTimer = null;
+let mrrAiStarted = false;
+let mrrAiPollStep = 0;
+
+const MRR_STEPS = [
+    { title: 'Fetching Data',       msg: 'Loading material shortages and supplier history...',  pct: 20 },
+    { title: 'Risk Analysis',       msg: 'Calculating financial exposure and urgency levels...',  pct: 45 },
+    { title: 'AI Reasoning',        msg: 'Generating explainable procurement recommendations...',  pct: 75 },
+    { title: 'Finalising Output',   msg: 'Preparing actionable decision report...',               pct: 90 }
+];
+
+function initMRRAI() {
+    if (mrrAiStarted) return;
+    mrrAiStarted = true;
+    refreshMRRAI();
+}
+
+function refreshMRRAI() {
+    mrrAiStarted = true;
+    clearInterval(mrrAiPollTimer);
+    mrrAiJobId = null;
+    mrrAiPollStep = 0;
+    showMRRAIState('progress');
+    updateMRRAIStep(0);
+
+    fetch('/api/mrr/ai-decisions', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(d => {
+            if (d.job_id) {
+                mrrAiJobId = d.job_id;
+                mrrAiPollTimer = setInterval(pollMRRAI, 2500);
+            } else {
+                showMRRAIError('Failed to start analysis.');
+            }
+        })
+        .catch(() => showMRRAIError('Network error — please try again.'));
+}
+
+function pollMRRAI() {
+    mrrAiPollStep = Math.min(mrrAiPollStep + 1, MRR_STEPS.length - 1);
+    updateMRRAIStep(mrrAiPollStep);
+
+    fetch(`/api/mrr/ai-decisions/poll/${mrrAiJobId}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'generating') return;
+            clearInterval(mrrAiPollTimer);
+            if (d.success) {
+                renderMRRAI(d);
+            } else {
+                showMRRAIError(d.error || 'Analysis failed.');
+            }
+        })
+        .catch(() => {
+            clearInterval(mrrAiPollTimer);
+            showMRRAIError('Network error during polling.');
+        });
+}
+
+function updateMRRAIStep(idx) {
+    const s = MRR_STEPS[idx];
+    document.getElementById('mrr-ai-progress-title').textContent = s.title;
+    document.getElementById('mrr-ai-progress-msg').textContent = s.msg;
+    document.getElementById('mrr-ai-progress-bar').style.width = s.pct + '%';
+    for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('mrr-step-' + i);
+        const circle = el.querySelector('.rounded-circle');
+        const icon = el.querySelector('i');
+        if (i <= idx + 1) {
+            circle.style.background = '#0d6efd';
+            icon.className = icon.className.replace('text-muted', 'text-white');
+        } else {
+            circle.style.background = '#e9ecef';
+        }
+    }
+}
+
+function showMRRAIState(state) {
+    ['idle', 'progress', 'error', 'results'].forEach(s => {
+        const el = document.getElementById('mrr-ai-' + s);
+        if (el) el.style.display = (s === state) ? (s === 'results' ? 'block' : '') : 'none';
+    });
+}
+
+function showMRRAIError(msg) {
+    document.getElementById('mrr-ai-error-msg').textContent = msg;
+    showMRRAIState('error');
+}
+
+const URGENCY_COLOR  = { Low: '#198754', Medium: '#fd7e14', High: '#dc3545', Critical: '#6f1212' };
+const URGENCY_BADGE  = { Low: 'bg-success', Medium: 'bg-warning text-dark', High: 'bg-danger', Critical: 'bg-dark' };
+const CONF_COLOR     = { Low: '#6c757d', Medium: '#0dcaf0', High: '#198754' };
+
+function formatCurrency(v) {
+    v = parseFloat(v) || 0;
+    const abs = Math.abs(v);
+    const sign = v < 0 ? '-' : '+';
+    if (abs >= 1000000) return sign + '$' + (abs / 1000000).toFixed(1) + 'M';
+    if (abs >= 1000) return sign + '$' + (abs / 1000).toFixed(1) + 'K';
+    return sign + '$' + abs.toFixed(0);
+}
+
+function renderMRRAI(data) {
+    // summary panel
+    document.getElementById('mrr-ai-summary-text').textContent = data.summary || '';
+    document.getElementById('mrr-risk-exposure').textContent   = formatCurrency(data.total_risk_exposure || 0);
+    const urg = data.overall_urgency || 'Medium';
+    const conf = data.overall_confidence || 'Medium';
+    document.getElementById('mrr-urgency-val').textContent   = urg;
+    document.getElementById('mrr-urgency-val').style.color   = URGENCY_COLOR[urg] || '#fff';
+    document.getElementById('mrr-confidence-val').textContent = conf;
+    document.getElementById('mrr-confidence-val').style.color = CONF_COLOR[conf] || '#fff';
+
+    // fallback notice
+    if (data.fallback) {
+        const fb = document.getElementById('mrr-ai-fallback-notice');
+        if (fb) fb.style.removeProperty('display');
+    }
+
+    // CFO block
+    if (data.cfo_summary) {
+        document.getElementById('mrr-ai-cfo-text').textContent = data.cfo_summary;
+        document.getElementById('mrr-ai-generated-at').textContent = data.generated_at || '';
+        document.getElementById('mrr-ai-cfo-block').style.display = 'block';
+    }
+
+    // recommendation cards
+    const container = document.getElementById('mrr-ai-rec-container');
+    container.innerHTML = '';
+    const recs = data.recommendations || [];
+
+    if (data.empty || recs.length === 0) {
+        container.innerHTML = `<div class="text-center py-4 text-muted">
+            <i class="bi bi-check-circle-fill display-5 text-success mb-3"></i>
+            <h5>No shortages to analyse</h5>
+            <p>All material requirements are currently satisfied.</p></div>`;
+    } else {
+        recs.forEach((r, idx) => buildRecCard(container, r, idx));
+    }
+
+    // show header buttons
+    document.getElementById('mrr-ai-refresh-btn').style.display = '';
+    document.getElementById('mrr-ai-export-btn').style.display = '';
+    showMRRAIState('results');
+}
+
+function buildRecCard(container, r, idx) {
+    const urgColor  = URGENCY_COLOR[r.timing_urgency]  || '#6c757d';
+    const urgBadge  = URGENCY_BADGE[r.timing_urgency]  || 'bg-secondary';
+    const confColor = CONF_COLOR[r.confidence]          || '#6c757d';
+    const riskFmt   = formatCurrency(r.risk_exposure    || 0);
+    const cashFmt   = formatCurrency(r.net_cash_impact  || 0);
+    const cashClass = (r.net_cash_impact || 0) >= 0 ? 'text-success' : 'text-danger';
+    const downtime  = r.downtime_reduction_pct || 0;
+
+    const actions = (r.recommended_actions || []);
+    let actionBtns = '';
+    if (actions.includes('create_po')) {
+        actionBtns += `<a href="/purchase-orders/new?product_id=${r.product_id}&quantity=${r.suggested_quantity || ''}&supplier=${encodeURIComponent(r.suggested_supplier || '')}" class="btn btn-sm btn-primary"><i class="bi bi-cart-plus me-1"></i>Create PO</a>`;
+    }
+    if (actions.includes('create_wo')) {
+        actionBtns += `<a href="/workorders/new?product_id=${r.product_id}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-tools me-1"></i>Create WO</a>`;
+    }
+    if (actions.includes('flag_expedite')) {
+        actionBtns += `<button class="btn btn-sm btn-warning text-dark" onclick="this.innerHTML='<i class=\\'bi bi-lightning-fill\\'></i> Expedited';this.disabled=true">
+            <i class="bi bi-lightning me-1"></i>Flag Expedite</button>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'card mb-3 shadow-sm';
+    card.style.borderLeft = `4px solid ${urgColor}`;
+    card.innerHTML = `
+    <div class="card-header d-flex justify-content-between align-items-start py-2 px-3">
+        <div>
+            <span class="fw-bold">${idx+1}. ${r.product_code || ''}</span>
+            <span class="ms-2 text-muted">${r.product_name || ''}</span>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge ${urgBadge}">${r.timing_urgency || 'Medium'}</span>
+            <span class="badge" style="background:${confColor}">${r.confidence || 'Medium'} Confidence</span>
+        </div>
+    </div>
+    <div class="card-body px-3 py-3">
+        <div class="row g-3">
+            <!-- Metrics strip -->
+            <div class="col-12">
+                <div class="row g-2 text-center">
+                    <div class="col-3 col-md-3">
+                        <div class="p-2 rounded" style="background:#f8f9fa">
+                            <div class="fs-6 fw-bold text-danger">${r.shortage_qty || 0}</div>
+                            <div class="small text-muted">Net Shortage</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-3">
+                        <div class="p-2 rounded" style="background:#f8f9fa">
+                            <div class="fs-6 fw-bold text-primary">${r.suggested_quantity || 0}</div>
+                            <div class="small text-muted">Suggested Qty</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-3">
+                        <div class="p-2 rounded" style="background:#f8f9fa">
+                            <div class="fs-6 fw-bold text-warning">${riskFmt}</div>
+                            <div class="small text-muted">Risk if Ignored</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-3">
+                        <div class="p-2 rounded" style="background:#f8f9fa">
+                            <div class="fs-6 fw-bold ${cashClass}">${cashFmt}</div>
+                            <div class="small text-muted">Cash Impact</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Downtime reduction bar -->
+            <div class="col-12">
+                <div class="d-flex justify-content-between mb-1">
+                    <small class="text-muted">Expected Downtime Reduction</small>
+                    <small class="fw-bold text-success">${downtime}%</small>
+                </div>
+                <div class="progress" style="height:6px">
+                    <div class="progress-bar bg-success" style="width:${downtime}%"></div>
+                </div>
+            </div>
+
+            <!-- Explainability -->
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:#f0f7ff;border:1px solid #cce0ff">
+                    <div class="fw-semibold mb-2 text-primary"><i class="bi bi-lightbulb me-1"></i>Explainability</div>
+                    <div class="mb-1 small"><span class="text-muted fw-semibold">Supplier: </span>${r.suggested_supplier || 'TBD'}</div>
+                    <div class="mb-1 small"><i class="bi bi-question-circle text-primary me-1"></i><strong>Why this supplier?</strong> ${r.why_supplier || ''}</div>
+                    <div class="mb-1 small"><i class="bi bi-question-circle text-primary me-1"></i><strong>Why this quantity?</strong> ${r.why_quantity || ''}</div>
+                    <div class="mb-1 small"><i class="bi bi-question-circle text-primary me-1"></i><strong>Why now?</strong> ${r.why_now || ''}</div>
+                </div>
+            </div>
+
+            <!-- Risk & timing -->
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:#fff8f0;border:1px solid #ffd8a8">
+                    <div class="fw-semibold mb-2 text-warning"><i class="bi bi-clock-history me-1"></i>Timing &amp; Risk</div>
+                    <div class="mb-2 small">
+                        <span class="badge" style="background:${urgColor};font-size:.8rem">${r.suggested_timing || 'Order soon'}</span>
+                    </div>
+                    <div class="small mb-2">
+                        <i class="bi bi-exclamation-triangle text-danger me-1"></i>
+                        <strong>If ignored: </strong>${r.if_ignored || ''}
+                    </div>
+                    <div class="small text-muted">
+                        <i class="bi bi-graph-down-arrow me-1"></i>
+                        Financial exposure if unresolved: <strong class="text-danger">${riskFmt}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            ${actionBtns ? `<div class="col-12 d-flex gap-2 flex-wrap pt-1">${actionBtns}</div>` : ''}
+        </div>
+    </div>`;
+    container.appendChild(card);
+}
+
+function exportMRRAIReport() {
+    document.getElementById('mrr-ai-cfo-block').style.display = 'block';
+    window.print();
+}
+</script>
 {% endblock %}

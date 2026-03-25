@@ -79,6 +79,7 @@ from routes.trace_routes import trace_bp
 from routes.intelligent_reports_routes import intelligent_reports_bp
 from routes.inventory_intelligence_routes import inv_intel_bp
 from routes.asset_intelligence_routes import asset_intel_bp
+from routes.mrr_ai_routes import mrr_ai_bp
 from engines.asc_ai import asc_engine
 import os
 
@@ -371,6 +372,7 @@ app.register_blueprint(trace_bp)
 app.register_blueprint(intelligent_reports_bp)
 app.register_blueprint(inv_intel_bp)
 app.register_blueprint(asset_intel_bp)
+app.register_blueprint(mrr_ai_bp)
 
 def get_database():
     from models import Database
