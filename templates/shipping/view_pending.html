@@ -83,7 +83,7 @@
                         </tr>
                         <tr>
                             <th>Released Date:</th>
-                            <td>{{ shipment.released_at[:16] if shipment.released_at else '-' }}</td>
+                            <td>{{ (shipment.released_at|string)[:16] if shipment.released_at else '-' }}</td>
                         </tr>
                         {% if shipment.confirmed_by_name %}
                         <tr>
@@ -92,7 +92,7 @@
                         </tr>
                         <tr>
                             <th>Confirmed Date:</th>
-                            <td>{{ shipment.confirmed_at[:16] if shipment.confirmed_at else '-' }}</td>
+                            <td>{{ (shipment.confirmed_at|string)[:16] if shipment.confirmed_at else '-' }}</td>
                         </tr>
                         {% endif %}
                     </table>

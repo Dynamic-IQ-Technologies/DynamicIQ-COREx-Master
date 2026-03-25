@@ -50,7 +50,7 @@
                         <tr><th>Record Count</th><td>{{ "{:,}".format(object.record_count) }}</td></tr>
                         <tr><th>Migration Priority</th><td>{{ object.migration_priority }}</td></tr>
                         <tr><th>ERP Table</th><td>{{ object.erp_table_name or 'Not Created' }}</td></tr>
-                        <tr><th>Discovered</th><td>{{ object.discovered_at[:16] if object.discovered_at else '-' }}</td></tr>
+                        <tr><th>Discovered</th><td>{{ (object.discovered_at|string)[:16] if object.discovered_at else '-' }}</td></tr>
                     </table>
                 </div>
             </div>

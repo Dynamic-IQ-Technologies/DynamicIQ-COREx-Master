@@ -186,7 +186,7 @@
                                             {{ err.resolution_status }}
                                         </span>
                                     </td>
-                                    <td>{{ err.created_at[:16] if err.created_at else '' }}</td>
+                                    <td>{{ (err.created_at|string)[:16] if err.created_at else '' }}</td>
                                 </tr>
                                 {% else %}
                                 <tr>

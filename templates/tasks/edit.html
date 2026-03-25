@@ -82,13 +82,13 @@
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="planned_start_date" class="form-label">Planned Start Date</label>
-                        <input type="datetime-local" class="form-control" id="planned_start_date" name="planned_start_date" value="{{ task.planned_start_date[:16] if task.planned_start_date else '' }}">
+                        <input type="datetime-local" class="form-control" id="planned_start_date" name="planned_start_date" value="{{ (task.planned_start_date|string)[:16] if task.planned_start_date else '' }}">
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="planned_end_date" class="form-label">Planned End Date</label>
-                        <input type="datetime-local" class="form-control" id="planned_end_date" name="planned_end_date" value="{{ task.planned_end_date[:16] if task.planned_end_date else '' }}">
+                        <input type="datetime-local" class="form-control" id="planned_end_date" name="planned_end_date" value="{{ (task.planned_end_date|string)[:16] if task.planned_end_date else '' }}">
                     </div>
                 </div>
             </div>

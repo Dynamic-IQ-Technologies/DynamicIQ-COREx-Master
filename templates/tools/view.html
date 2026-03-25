@@ -102,10 +102,10 @@
                             {% for co in checkouts %}
                             <tr>
                                 <td>{{ co.employee_name }}</td>
-                                <td>{{ co.checkout_date[:16] if co.checkout_date else '-' }}</td>
+                                <td>{{ (co.checkout_date|string)[:16] if co.checkout_date else '-' }}</td>
                                 <td>
                                     {% if co.return_date %}
-                                    {{ co.return_date[:16] }}
+                                    {{ (co.return_date|string)[:16] }}
                                     {% else %}
                                     <span class="badge bg-info">Currently Out</span>
                                     {% endif %}
