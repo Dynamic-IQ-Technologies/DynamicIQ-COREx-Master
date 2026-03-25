@@ -124,13 +124,13 @@
                                 <div class="col-6"><strong>Subtotal:</strong></div>
                                 <div class="col-6 text-end">{{ sales_order.subtotal|currency }}</div>
                             </div>
-                            {% if sales_order.tax_amount > 0 %}
+                            {% if (sales_order.tax_amount or 0) > 0 %}
                             <div class="row">
                                 <div class="col-6"><strong>Tax:</strong></div>
                                 <div class="col-6 text-end">{{ sales_order.tax_amount|currency }}</div>
                             </div>
                             {% endif %}
-                            {% if sales_order.discount_amount > 0 %}
+                            {% if (sales_order.discount_amount or 0) > 0 %}
                             <div class="row">
                                 <div class="col-6"><strong>Discount:</strong></div>
                                 <div class="col-6 text-end text-danger">-{{ sales_order.discount_amount|currency }}</div>

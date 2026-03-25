@@ -159,7 +159,7 @@
                 <hr>
                 <div class="d-flex justify-content-between">
                     <strong>Balance Due:</strong>
-                    <strong class="fs-4 text-{{ 'danger' if invoice.balance_due > 0 else 'success' }}">
+                    <strong class="fs-4 text-{{ 'danger' if (invoice.balance_due or 0) > 0 else 'success' }}">
                         {{ "%.2f"|format(invoice.balance_due or 0) }}
                     </strong>
                 </div>

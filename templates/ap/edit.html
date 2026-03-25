@@ -67,7 +67,7 @@
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle"></i> 
                             <strong>Note:</strong> Amount paid: {{ (ap.amount_paid or 0)|currency }}. 
-                            {% if ap.amount_paid > 0 %}
+                            {% if (ap.amount_paid or 0) > 0 %}
                                 Cannot reduce total amount below amount already paid.
                             {% endif %}
                         </div>
