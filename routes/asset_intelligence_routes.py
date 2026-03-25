@@ -55,7 +55,7 @@ def _gather_asset_data(product_id, work_order_id, conn):
 
     po_data = conn.execute(
         '''SELECT pol.unit_price, pol.quantity, po.order_date, po.status,
-                  s.name as supplier_name, s.lead_time_days
+                  s.name as supplier_name
            FROM purchase_order_lines pol
            JOIN purchase_orders po ON pol.po_id = po.id
            LEFT JOIN suppliers s ON po.supplier_id = s.id
