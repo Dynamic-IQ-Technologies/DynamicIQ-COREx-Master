@@ -4,6 +4,7 @@ from auth import login_required
 import logging
 import json
 import os
+import threading
 from datetime import datetime, timedelta, date
 
 logger = logging.getLogger(__name__)
@@ -356,9 +357,89 @@ def _fallback_intelligence(data):
     }
 
 
-@asset_intel_bp.route('/workorder/<int:work_order_id>', methods=['GET'])
-@login_required
-def get_intelligence(work_order_id):
+_jobs = {}
+_jobs_lock = threading.Lock()
+
+
+def _save_intelligence(conn, work_order_id, product_id, user_id, intelligence, prompt):
+    conn.execute(
+        'UPDATE asset_intelligence_snapshots SET is_current = FALSE WHERE work_order_id = %s',
+        (work_order_id,)
+    )
+    pfw = intelligence.get('predicted_failure_window', {})
+    today = date.today()
+    conn.execute(
+        '''INSERT INTO asset_intelligence_snapshots
+           (work_order_id, product_id, generated_by, criticality_score, health_score,
+            health_label, predicted_failure_start, predicted_failure_end,
+            downtime_cost_estimate, compliance_status,
+            dna_profile, failure_predictions, financial_impact,
+            recommendations, compliance_evaluation, explainability,
+            raw_ai_response, data_sources, is_current)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)''',
+        (
+            work_order_id, product_id, user_id,
+            intelligence.get('criticality_score'),
+            intelligence.get('health_score'),
+            intelligence.get('health_label'),
+            today + timedelta(days=pfw.get('start_days', 30)),
+            today + timedelta(days=pfw.get('end_days', 90)),
+            intelligence.get('downtime_cost_estimate'),
+            intelligence.get('compliance_status'),
+            json.dumps(intelligence.get('dna_profile', {})),
+            json.dumps(intelligence.get('failure_predictions', {})),
+            json.dumps(intelligence.get('financial_impact', {})),
+            json.dumps(intelligence.get('recommendations', [])),
+            json.dumps(intelligence.get('compliance_evaluation', {})),
+            json.dumps(intelligence.get('explainability', {})),
+            prompt[:500],
+            json.dumps(intelligence.get('explainability', {}).get('data_sources', [])),
+        )
+    )
+    conn.commit()
+
+
+def _run_analysis_thread(work_order_id, user_id):
+    try:
+        db = Database()
+        conn = db.get_connection()
+        wo = conn.execute('SELECT * FROM work_orders WHERE id = %s', (work_order_id,)).fetchone()
+        if not wo:
+            with _jobs_lock:
+                _jobs[work_order_id] = {'status': 'error', 'error': 'Work order not found'}
+            conn.close()
+            return
+
+        product_id = wo['product_id']
+        asset_data = _gather_asset_data(product_id, work_order_id, conn)
+        prompt = _build_ai_prompt(asset_data)
+        intelligence = _call_ai(prompt)
+        used_fallback = False
+
+        if not intelligence:
+            intelligence = _fallback_intelligence(asset_data)
+            used_fallback = True
+
+        _save_intelligence(conn, work_order_id, product_id, user_id, intelligence, prompt)
+        conn.close()
+
+        result = {
+            'success': True,
+            'cached': False,
+            'fallback': used_fallback,
+            'generated_at': datetime.utcnow().isoformat(),
+            **intelligence
+        }
+        with _jobs_lock:
+            _jobs[work_order_id] = {'status': 'done', 'result': result}
+
+    except Exception as e:
+        logger.error(f"Background asset intelligence error for WO {work_order_id}: {e}", exc_info=True)
+        with _jobs_lock:
+            _jobs[work_order_id] = {'status': 'error', 'error': str(e)}
+
+
+def _cached_result(work_order_id):
     db = Database()
     conn = db.get_connection()
     try:
@@ -368,11 +449,10 @@ def get_intelligence(work_order_id):
                ORDER BY generated_at DESC LIMIT 1''',
             (work_order_id,)
         ).fetchone()
-
         if cached:
             age = (datetime.utcnow() - cached['generated_at']).total_seconds() / 3600
             if age < 24:
-                return jsonify({
+                return {
                     'success': True,
                     'cached': True,
                     'generated_at': cached['generated_at'].isoformat(),
@@ -387,87 +467,80 @@ def get_intelligence(work_order_id):
                     'recommendations': cached['recommendations'],
                     'compliance_evaluation': cached['compliance_evaluation'],
                     'explainability': cached['explainability'],
-                    'predicted_failure_window': cached['dna_profile'].get('predicted_failure_window') if cached['dna_profile'] else None
-                })
-
-        wo = conn.execute('SELECT * FROM work_orders WHERE id = %s', (work_order_id,)).fetchone()
-        if not wo:
-            return jsonify({'success': False, 'error': 'Work order not found'}), 404
-
-        product_id = wo['product_id']
-        if not product_id:
-            return jsonify({'success': False, 'error': 'No product linked to this work order'}), 400
-
-        asset_data = _gather_asset_data(product_id, work_order_id, conn)
-        prompt = _build_ai_prompt(asset_data)
-        intelligence = _call_ai(prompt)
-
-        if not intelligence:
-            intelligence = _fallback_intelligence(asset_data)
-            used_fallback = True
-        else:
-            used_fallback = False
-
-        conn.execute(
-            '''UPDATE asset_intelligence_snapshots SET is_current = FALSE
-               WHERE work_order_id = %s''',
-            (work_order_id,)
-        )
-
-        pfw = intelligence.get('predicted_failure_window', {})
-        start_days = pfw.get('start_days', 30)
-        end_days = pfw.get('end_days', 90)
-        today = date.today()
-
-        conn.execute(
-            '''INSERT INTO asset_intelligence_snapshots
-               (work_order_id, product_id, generated_by, criticality_score, health_score,
-                health_label, predicted_failure_start, predicted_failure_end,
-                downtime_cost_estimate, compliance_status,
-                dna_profile, failure_predictions, financial_impact,
-                recommendations, compliance_evaluation, explainability,
-                raw_ai_response, data_sources, is_current)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)''',
-            (
-                work_order_id, product_id, session.get('user_id'),
-                intelligence.get('criticality_score'),
-                intelligence.get('health_score'),
-                intelligence.get('health_label'),
-                today + timedelta(days=start_days),
-                today + timedelta(days=end_days),
-                intelligence.get('downtime_cost_estimate'),
-                intelligence.get('compliance_status'),
-                json.dumps(intelligence.get('dna_profile', {})),
-                json.dumps(intelligence.get('failure_predictions', {})),
-                json.dumps(intelligence.get('financial_impact', {})),
-                json.dumps(intelligence.get('recommendations', [])),
-                json.dumps(intelligence.get('compliance_evaluation', {})),
-                json.dumps(intelligence.get('explainability', {})),
-                prompt[:500],
-                json.dumps(intelligence.get('explainability', {}).get('data_sources', [])),
-            )
-        )
-        conn.commit()
-
-        return jsonify({
-            'success': True,
-            'cached': False,
-            'fallback': used_fallback,
-            'generated_at': datetime.utcnow().isoformat(),
-            **intelligence
-        })
-
-    except Exception as e:
-        logger.error(f"Asset intelligence error: {e}", exc_info=True)
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+                    'predicted_failure_window': (cached['dna_profile'] or {}).get('predicted_failure_window')
+                }
+        return None
     finally:
         conn.close()
+
+
+@asset_intel_bp.route('/workorder/<int:work_order_id>', methods=['GET'])
+@login_required
+def get_intelligence(work_order_id):
+    cached = _cached_result(work_order_id)
+    if cached:
+        return jsonify(cached)
+
+    with _jobs_lock:
+        job = _jobs.get(work_order_id)
+
+    if job:
+        if job['status'] == 'generating':
+            return jsonify({'status': 'generating'})
+        if job['status'] == 'done':
+            with _jobs_lock:
+                _jobs.pop(work_order_id, None)
+            return jsonify(job['result'])
+        if job['status'] == 'error':
+            with _jobs_lock:
+                _jobs.pop(work_order_id, None)
+            return jsonify({'success': False, 'error': job['error']}), 500
+
+    user_id = session.get('user_id')
+    with _jobs_lock:
+        _jobs[work_order_id] = {'status': 'generating'}
+
+    t = threading.Thread(target=_run_analysis_thread, args=(work_order_id, user_id), daemon=True)
+    t.start()
+
+    return jsonify({'status': 'generating'})
+
+
+@asset_intel_bp.route('/workorder/<int:work_order_id>/poll', methods=['GET'])
+@login_required
+def poll_intelligence(work_order_id):
+    cached = _cached_result(work_order_id)
+    if cached:
+        return jsonify(cached)
+
+    with _jobs_lock:
+        job = _jobs.get(work_order_id)
+
+    if not job:
+        return jsonify({'status': 'not_started'})
+
+    if job['status'] == 'generating':
+        return jsonify({'status': 'generating'})
+
+    if job['status'] == 'done':
+        with _jobs_lock:
+            _jobs.pop(work_order_id, None)
+        return jsonify(job['result'])
+
+    if job['status'] == 'error':
+        with _jobs_lock:
+            _jobs.pop(work_order_id, None)
+        return jsonify({'success': False, 'error': job['error']}), 500
+
+    return jsonify({'status': 'unknown'})
 
 
 @asset_intel_bp.route('/workorder/<int:work_order_id>/refresh', methods=['POST'])
 @login_required
 def refresh_intelligence(work_order_id):
+    with _jobs_lock:
+        _jobs.pop(work_order_id, None)
+
     db = Database()
     conn = db.get_connection()
     try:
@@ -476,9 +549,16 @@ def refresh_intelligence(work_order_id):
             (work_order_id,)
         )
         conn.commit()
-        conn.close()
-        return get_intelligence(work_order_id)
-    except Exception as e:
+    except Exception:
         conn.rollback()
+    finally:
         conn.close()
-        return jsonify({'success': False, 'error': str(e)}), 500
+
+    user_id = session.get('user_id')
+    with _jobs_lock:
+        _jobs[work_order_id] = {'status': 'generating'}
+
+    t = threading.Thread(target=_run_analysis_thread, args=(work_order_id, user_id), daemon=True)
+    t.start()
+
+    return jsonify({'status': 'generating'})

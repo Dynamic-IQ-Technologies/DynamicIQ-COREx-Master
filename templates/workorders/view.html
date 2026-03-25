@@ -44,6 +44,8 @@
     0%, 100% { background-color: rgba(255, 193, 7, 0.1); }
     50% { background-color: rgba(255, 193, 7, 0.25); }
 }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinning { display: inline-block; animation: spin 1s linear infinite; }
 .sticky-action-bar {
     position: sticky;
     top: 0;
@@ -1986,7 +1988,13 @@
         <div id="assetIntelContainer">
             <div id="assetIntelLoading" class="text-center py-5" style="display:none;">
                 <div class="spinner-border text-primary mb-3" role="status"></div>
-                <p class="text-muted">Analyzing asset intelligence — this may take a few seconds...</p>
+                <p class="fw-semibold mb-3" id="assetIntelStep">Starting analysis...</p>
+                <div class="d-flex flex-column align-items-center gap-1" id="assetIntelSteps" style="max-width:320px;margin:0 auto;">
+                    <div class="d-flex align-items-center gap-2 w-100" id="step1"><i class="bi bi-circle text-muted"></i><small class="text-muted">Gathering asset &amp; repair history</small></div>
+                    <div class="d-flex align-items-center gap-2 w-100" id="step2"><i class="bi bi-circle text-muted"></i><small class="text-muted">Analysing procurement &amp; supplier data</small></div>
+                    <div class="d-flex align-items-center gap-2 w-100" id="step3"><i class="bi bi-circle text-muted"></i><small class="text-muted">Running AI predictive engine</small></div>
+                    <div class="d-flex align-items-center gap-2 w-100" id="step4"><i class="bi bi-circle text-muted"></i><small class="text-muted">Calculating risk &amp; compliance scores</small></div>
+                </div>
             </div>
             <div id="assetIntelError" class="alert alert-danger m-3" style="display:none;"></div>
             <div id="assetIntelContent" style="display:none;">
@@ -3102,45 +3110,110 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
     var aiLoaded = false;
 
+    var _pollTimer = null;
+    var _stepTimer = null;
+    var _stepIdx = 0;
+    var _steps = ['step1','step2','step3','step4'];
+
     window.loadAssetIntelligence = function() {
         if (aiLoaded) return;
         aiLoaded = true;
-        _fetchIntelligence('/api/asset-intelligence/workorder/{{ workorder.id }}', false);
+        _startRequest('/api/asset-intelligence/workorder/{{ workorder.id }}', 'GET');
     };
 
     window.refreshAssetIntelligence = function() {
         aiLoaded = false;
+        _stopPolling();
         document.getElementById('assetIntelContent').style.display = 'none';
         document.getElementById('assetIntelError').style.display = 'none';
-        _fetchIntelligence('/api/asset-intelligence/workorder/{{ workorder.id }}/refresh', true);
+        _startRequest('/api/asset-intelligence/workorder/{{ workorder.id }}/refresh', 'POST');
     };
 
-    function _fetchIntelligence(url, isPost) {
-        var loading = document.getElementById('assetIntelLoading');
-        var errEl = document.getElementById('assetIntelError');
-        loading.style.display = 'block';
-        errEl.style.display = 'none';
-
-        fetch(url, {
-            method: isPost ? 'POST' : 'GET',
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        })
+    function _startRequest(url, method) {
+        _showLoading();
+        fetch(url, {method: method, headers: {'X-Requested-With': 'XMLHttpRequest'}})
         .then(function(r) { return r.json(); })
         .then(function(d) {
-            loading.style.display = 'none';
-            if (!d.success) {
-                errEl.textContent = d.error || 'Analysis unavailable.';
-                errEl.style.display = 'block';
-                return;
+            if (d.status === 'generating') {
+                _startPolling();
+            } else {
+                _hideLoading();
+                _handleResult(d);
             }
-            _render(d);
-            document.getElementById('assetIntelContent').style.display = 'block';
         })
         .catch(function(e) {
-            loading.style.display = 'none';
-            errEl.textContent = 'Failed to load asset intelligence: ' + e.message;
-            errEl.style.display = 'block';
+            _hideLoading();
+            _showError('Failed to start analysis: ' + e.message);
         });
+    }
+
+    function _startPolling() {
+        _pollTimer = setInterval(function() {
+            fetch('/api/asset-intelligence/workorder/{{ workorder.id }}/poll', {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.status === 'generating' || d.status === 'not_started') return;
+                _stopPolling();
+                _hideLoading();
+                _handleResult(d);
+            })
+            .catch(function() {});
+        }, 2500);
+    }
+
+    function _stopPolling() {
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        if (_stepTimer) { clearInterval(_stepTimer); _stepTimer = null; }
+    }
+
+    function _showLoading() {
+        document.getElementById('assetIntelLoading').style.display = 'block';
+        document.getElementById('assetIntelError').style.display = 'none';
+        _stepIdx = 0;
+        _advanceStep();
+        _stepTimer = setInterval(_advanceStep, 3000);
+    }
+
+    function _hideLoading() {
+        document.getElementById('assetIntelLoading').style.display = 'none';
+        if (_stepTimer) { clearInterval(_stepTimer); _stepTimer = null; }
+    }
+
+    function _advanceStep() {
+        _steps.forEach(function(id, i) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var icon = el.querySelector('i');
+            var txt = el.querySelector('small');
+            if (i < _stepIdx) {
+                icon.className = 'bi bi-check-circle-fill text-success';
+                txt.className = 'text-success';
+            } else if (i === _stepIdx) {
+                icon.className = 'bi bi-arrow-repeat text-primary spinning';
+                txt.className = 'text-primary fw-semibold';
+            } else {
+                icon.className = 'bi bi-circle text-muted';
+                txt.className = 'text-muted';
+            }
+        });
+        if (_stepIdx < _steps.length - 1) _stepIdx++;
+    }
+
+    function _handleResult(d) {
+        if (!d.success) {
+            _showError(d.error || 'Analysis unavailable.');
+            return;
+        }
+        _render(d);
+        document.getElementById('assetIntelContent').style.display = 'block';
+    }
+
+    function _showError(msg) {
+        var errEl = document.getElementById('assetIntelError');
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
     }
 
     function _healthColor(label) {
