@@ -1298,10 +1298,10 @@ function buildRecCard(container, r, idx) {
     const actions = (r.recommended_actions || []);
     let actionBtns = '';
     if (actions.includes('create_po')) {
-        actionBtns += `<a href="/purchase-orders/new?product_id=${r.product_id}&quantity=${r.suggested_quantity || ''}&supplier=${encodeURIComponent(r.suggested_supplier || '')}" class="btn btn-sm btn-primary"><i class="bi bi-cart-plus me-1"></i>Create PO</a>`;
+        actionBtns += `<a href="/purchaseorders/create?product_id=${r.product_id}&quantity=${r.suggested_quantity || ''}&supplier=${encodeURIComponent(r.suggested_supplier || '')}" class="btn btn-sm btn-primary"><i class="bi bi-cart-plus me-1"></i>Create PO</a>`;
     }
     if (actions.includes('create_wo')) {
-        actionBtns += `<a href="/workorders/new?product_id=${r.product_id}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-tools me-1"></i>Create WO</a>`;
+        actionBtns += `<a href="/workorders/create?product_id=${r.product_id}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-tools me-1"></i>Create WO</a>`;
     }
     if (actions.includes('flag_expedite')) {
         actionBtns += `<button class="btn btn-sm btn-warning text-dark" onclick="this.innerHTML='<i class=\\'bi bi-lightning-fill\\'></i> Expedited';this.disabled=true">
