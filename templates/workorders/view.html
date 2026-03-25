@@ -270,6 +270,13 @@
         </button>
     </li>
     {% endif %}
+    {% if workorder.product_id %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="assetintel-tab" data-bs-toggle="tab" data-bs-target="#assetIntelPane" type="button" role="tab" onclick="loadAssetIntelligence()">
+            <i class="bi bi-cpu"></i> Asset Intelligence
+        </button>
+    </li>
+    {% endif %}
 </ul>
 
 <div class="tab-content" id="workOrderTabContent">
@@ -1973,6 +1980,132 @@
         </div>
     </div>
     {% endif %}
+
+    {% if workorder.product_id %}
+    <div class="tab-pane fade" id="assetIntelPane" role="tabpanel">
+        <div id="assetIntelContainer">
+            <div id="assetIntelLoading" class="text-center py-5" style="display:none;">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <p class="text-muted">Analyzing asset intelligence — this may take a few seconds...</p>
+            </div>
+            <div id="assetIntelError" class="alert alert-danger m-3" style="display:none;"></div>
+            <div id="assetIntelContent" style="display:none;">
+
+                <div class="row g-3 mb-3 mt-1 mx-1">
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted" id="assetIntelTimestamp"></small>
+                            <span class="badge bg-secondary ms-2" id="assetIntelCacheLabel" style="display:none;">Cached</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshAssetIntelligence()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh Analysis
+                        </button>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-2"><i class="bi bi-shield-check fs-2 text-primary"></i></div>
+                                <h6 class="text-muted mb-1">Criticality Score</h6>
+                                <div class="display-6 fw-bold" id="aiCriticality">—</div>
+                                <small class="text-muted">/ 100</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-2"><i class="bi bi-heart-pulse fs-2"></i></div>
+                                <h6 class="text-muted mb-1">Health Score</h6>
+                                <div class="display-6 fw-bold" id="aiHealth">—</div>
+                                <div><span class="badge fs-6" id="aiHealthLabel">—</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-2"><i class="bi bi-shield-exclamation fs-2"></i></div>
+                                <h6 class="text-muted mb-1">Compliance Status</h6>
+                                <div class="mt-2"><span class="badge fs-5" id="aiCompliance">—</span></div>
+                                <div id="aiDowntimeCost" class="small text-muted mt-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3 mx-1">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0"><i class="bi bi-dna me-2 text-info"></i>Asset DNA Profile</h6>
+                            </div>
+                            <div class="card-body" id="aiDNA"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-2 text-danger"></i>Predictive Failure Intelligence</h6>
+                            </div>
+                            <div class="card-body" id="aiFailure"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3 mx-1">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0"><i class="bi bi-currency-dollar me-2 text-success"></i>Financial Impact</h6>
+                            </div>
+                            <div class="card-body" id="aiFinancial"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0"><i class="bi bi-patch-check me-2 text-warning"></i>Compliance Intelligence</h6>
+                            </div>
+                            <div class="card-body" id="aiCompliance2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-3 mx-1">
+                    <div class="card-header bg-transparent">
+                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2 text-primary"></i>Recommended Actions</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Priority</th>
+                                        <th>Type</th>
+                                        <th>Action</th>
+                                        <th class="text-center">Risk Reduced</th>
+                                        <th class="text-end">Cost Impact</th>
+                                        <th class="text-center">Urgency</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="aiRecommendations"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-3 mx-1 border-start border-4 border-secondary">
+                    <div class="card-header bg-transparent">
+                        <h6 class="mb-0"><i class="bi bi-eye me-2 text-secondary"></i>Explainability &amp; Trust</h6>
+                    </div>
+                    <div class="card-body" id="aiExplain"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
@@ -2964,5 +3097,177 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var aiLoaded = false;
+
+    window.loadAssetIntelligence = function() {
+        if (aiLoaded) return;
+        aiLoaded = true;
+        _fetchIntelligence('/api/asset-intelligence/workorder/{{ workorder.id }}', false);
+    };
+
+    window.refreshAssetIntelligence = function() {
+        aiLoaded = false;
+        document.getElementById('assetIntelContent').style.display = 'none';
+        document.getElementById('assetIntelError').style.display = 'none';
+        _fetchIntelligence('/api/asset-intelligence/workorder/{{ workorder.id }}/refresh', true);
+    };
+
+    function _fetchIntelligence(url, isPost) {
+        var loading = document.getElementById('assetIntelLoading');
+        var errEl = document.getElementById('assetIntelError');
+        loading.style.display = 'block';
+        errEl.style.display = 'none';
+
+        fetch(url, {
+            method: isPost ? 'POST' : 'GET',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            loading.style.display = 'none';
+            if (!d.success) {
+                errEl.textContent = d.error || 'Analysis unavailable.';
+                errEl.style.display = 'block';
+                return;
+            }
+            _render(d);
+            document.getElementById('assetIntelContent').style.display = 'block';
+        })
+        .catch(function(e) {
+            loading.style.display = 'none';
+            errEl.textContent = 'Failed to load asset intelligence: ' + e.message;
+            errEl.style.display = 'block';
+        });
+    }
+
+    function _healthColor(label) {
+        return {Critical:'danger',Poor:'warning',Fair:'secondary',Good:'success',Excellent:'primary'}[label] || 'secondary';
+    }
+    function _compColor(s) {
+        return {Pass:'success','At Risk':'warning',Blocked:'danger',High:'danger',Moderate:'warning',Low:'success',Critical:'danger',Medium:'warning'}[s] || 'secondary';
+    }
+    function _urgColor(u) { return {High:'danger',Medium:'warning',Low:'success'}[u] || 'secondary'; }
+    function _probColor(p) { return p >= 60 ? 'danger' : p >= 35 ? 'warning' : 'success'; }
+    function _fmtMoney(n) {
+        if (n == null) return 'N/A';
+        return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    function _render(d) {
+        var ts = document.getElementById('assetIntelTimestamp');
+        if (d.generated_at) ts.textContent = 'Generated: ' + new Date(d.generated_at).toLocaleString();
+
+        var cacheLabel = document.getElementById('assetIntelCacheLabel');
+        cacheLabel.style.display = d.cached ? '' : 'none';
+
+        var crit = document.getElementById('aiCriticality');
+        crit.textContent = d.criticality_score != null ? d.criticality_score : '—';
+        crit.className = 'display-6 fw-bold text-' + (d.criticality_score >= 70 ? 'danger' : d.criticality_score >= 40 ? 'warning' : 'success');
+
+        var hl = d.health_label || 'Fair';
+        var hc = _healthColor(hl);
+        var health = document.getElementById('aiHealth');
+        health.textContent = d.health_score != null ? d.health_score : '—';
+        health.className = 'display-6 fw-bold text-' + hc;
+        var hlBadge = document.getElementById('aiHealthLabel');
+        hlBadge.textContent = hl; hlBadge.className = 'badge bg-' + hc;
+
+        var cs = document.getElementById('aiCompliance');
+        cs.textContent = d.compliance_status || '—';
+        cs.className = 'badge fs-5 bg-' + _compColor(d.compliance_status);
+        document.getElementById('aiDowntimeCost').textContent = d.downtime_cost_estimate ? 'Exposure: ' + _fmtMoney(d.downtime_cost_estimate) : '';
+
+        var dna = d.dna_profile || {};
+        var pfw = d.predicted_failure_window || {};
+        document.getElementById('aiDNA').innerHTML =
+            '<dl class="mb-0 row row-cols-2 g-1">' +
+            '<dt class="col-6 text-muted small">Maintenance Freq</dt><dd class="col-6 small fw-semibold">' + (dna.maintenance_frequency||'—') + '</dd>' +
+            '<dt class="col-6 text-muted small">MTBF</dt><dd class="col-6 small">' + (dna.mtbf_assessment||'—') + '</dd>' +
+            '<dt class="col-6 text-muted small">Vendor Risk</dt><dd class="col-6 small"><span class="badge bg-' + _compColor(dna.vendor_quality_risk) + '">' + (dna.vendor_quality_risk||'—') + '</span></dd>' +
+            '<dt class="col-6 text-muted small">Lead Time Risk</dt><dd class="col-6 small"><span class="badge bg-' + _compColor(dna.lead_time_risk) + '">' + (dna.lead_time_risk||'—') + '</span></dd>' +
+            '<dt class="col-6 text-muted small">Failure Window</dt><dd class="col-6 small">' + (pfw.label||'—') + '</dd>' +
+            '</dl>' +
+            '<hr class="my-2"><p class="small text-muted mb-1">' + (dna.summary||'') + '</p>' +
+            (dna.failure_mode_patterns && dna.failure_mode_patterns.length ?
+                '<div>' + dna.failure_mode_patterns.map(function(p){ return '<span class="badge bg-light text-dark border me-1">' + p + '</span>'; }).join('') + '</div>' : '');
+
+        var fp = d.failure_predictions || {};
+        var fc = d.likely_failure_components || [];
+        document.getElementById('aiFailure').innerHTML =
+            '<div class="row text-center mb-2">' +
+            _probCard('7-Day', fp['7_day']) + _probCard('30-Day', fp['30_day']) + _probCard('90-Day', fp['90_day']) +
+            '</div>' +
+            (d.prediction_explanation ? '<p class="small text-muted mb-2"><i class="bi bi-info-circle me-1"></i>' + d.prediction_explanation + '</p>' : '') +
+            (fc.length ? '<div>' + fc.map(function(c){ return '<span class="badge bg-danger-subtle text-danger border me-1">' + c + '</span>'; }).join('') + '</div>' : '');
+
+        var fi = d.financial_impact || {};
+        document.getElementById('aiFinancial').innerHTML =
+            '<dl class="row row-cols-2 g-1 mb-2">' +
+            '<dt class="col-6 text-muted small">Downtime / Hour</dt><dd class="col-6 small fw-semibold">' + _fmtMoney(fi.downtime_cost_per_hour) + '</dd>' +
+            '<dt class="col-6 text-muted small">Total Exposure</dt><dd class="col-6 small fw-semibold text-danger">' + _fmtMoney(fi.total_downtime_exposure) + '</dd>' +
+            '<dt class="col-6 text-muted small">Cost of Delay / Day</dt><dd class="col-6 small">' + _fmtMoney(fi.cost_of_delay_per_day) + '</dd>' +
+            '<dt class="col-6 text-muted small">Inventory Risk</dt><dd class="col-6 small"><span class="badge bg-' + _compColor(fi.inventory_availability_risk) + '">' + (fi.inventory_availability_risk||'—') + '</span></dd>' +
+            '</dl>' +
+            '<div class="alert alert-light border py-2 px-3 mb-0 small"><strong>' + (fi.repair_vs_replace||'—') + '</strong><br><span class="text-muted">' + (fi.repair_vs_replace_rationale||'') + '</span></div>';
+
+        var ce = d.compliance_evaluation || {};
+        var blocking = ce.blocking_issues || [];
+        var missing = ce.missing_certs || [];
+        document.getElementById('aiCompliance2').innerHTML =
+            '<dl class="row row-cols-2 g-1 mb-2">' +
+            '<dt class="col-6 text-muted small">FAA 8130</dt><dd class="col-6 small">' + (ce.faa_status||'—') + '</dd>' +
+            '<dt class="col-6 text-muted small">AS9100</dt><dd class="col-6 small"><span class="badge bg-' + _compColor(ce.as9100_status) + '">' + (ce.as9100_status||'—') + '</span></dd>' +
+            '<dt class="col-6 text-muted small">ITAR Flag</dt><dd class="col-6 small">' + (ce.itar_flag ? '<span class="badge bg-danger">Yes</span>' : '<span class="badge bg-success">No</span>') + '</dd>' +
+            '</dl>' +
+            (blocking.length ? '<div class="alert alert-danger py-2 px-3 small mb-1"><strong>Blocking:</strong> ' + blocking.join('; ') + '</div>' : '') +
+            (missing.length ? '<div class="alert alert-warning py-2 px-3 small mb-1"><strong>Missing:</strong> ' + missing.join(', ') + '</div>' : '') +
+            (ce.notes ? '<p class="small text-muted mb-0">' + ce.notes + '</p>' : '');
+
+        var recs = d.recommendations || [];
+        var tbody = document.getElementById('aiRecommendations');
+        tbody.innerHTML = recs.length ? recs.map(function(r) {
+            var costFmt = r.cost_impact < 0 ? '<span class="text-danger">' + _fmtMoney(Math.abs(r.cost_impact)) + ' cost</span>' :
+                (r.cost_impact > 0 ? '<span class="text-success">' + _fmtMoney(r.cost_impact) + ' saved</span>' : '—');
+            return '<tr><td><span class="badge bg-dark rounded-pill">' + r.rank + '</span></td>' +
+                '<td><span class="badge bg-light text-dark border">' + r.type + '</span></td>' +
+                '<td>' + r.action + '<br><small class="text-muted">' + (r.rationale||'') + '</small></td>' +
+                '<td class="text-center"><span class="badge bg-success">' + (r.risk_reduced_pct||0) + '%</span></td>' +
+                '<td class="text-end small">' + costFmt + '</td>' +
+                '<td class="text-center"><span class="badge bg-' + _urgColor(r.urgency) + '">' + (r.urgency||'—') + '</span></td></tr>';
+        }).join('') : '<tr><td colspan="6" class="text-center text-muted py-3">No recommendations generated.</td></tr>';
+
+        var ex = d.explainability || {};
+        var sources = ex.data_sources || [];
+        var drivers = ex.key_drivers || [];
+        var confColor = {High:'success', Medium:'warning', Low:'secondary'}[ex.overall_confidence] || 'secondary';
+        document.getElementById('aiExplain').innerHTML =
+            '<div class="row g-3">' +
+            '<div class="col-md-4"><p class="fw-semibold small text-muted mb-1">Data Sources</p>' +
+            sources.map(function(s){ return '<span class="badge bg-light text-dark border me-1 mb-1">' + s + '</span>'; }).join('') + '</div>' +
+            '<div class="col-md-4"><p class="fw-semibold small text-muted mb-1">Key Drivers</p>' +
+            drivers.map(function(k){ return '<span class="badge bg-primary-subtle text-primary border me-1 mb-1">' + k + '</span>'; }).join('') + '</div>' +
+            '<div class="col-md-4"><p class="fw-semibold small text-muted mb-1">Confidence: <span class="badge bg-' + confColor + '">' + (ex.overall_confidence||'—') + '</span></p>' +
+            (ex.if_ignored ? '<p class="small text-danger mb-0"><i class="bi bi-exclamation-triangle me-1"></i><strong>If ignored:</strong> ' + ex.if_ignored + '</p>' : '') + '</div>' +
+            '</div>';
+    }
+
+    function _probCard(label, obj) {
+        if (!obj) return '<div class="col-4"><div class="border rounded p-2"><small>' + label + '</small><div class="fw-bold">—</div></div></div>';
+        var prob = obj.probability || 0;
+        var conf = obj.confidence || 'Low';
+        var confColor = {High:'success',Medium:'warning',Low:'secondary'}[conf] || 'secondary';
+        var drivers = (obj.drivers||[]).slice(0,2).join(', ');
+        return '<div class="col-4"><div class="border rounded p-2 border-' + _probColor(prob) + '">' +
+            '<small class="text-muted">' + label + '</small>' +
+            '<div class="fw-bold fs-5 text-' + _probColor(prob) + '">' + prob + '%</div>' +
+            '<span class="badge bg-' + confColor + ' mb-1">' + conf + '</span>' +
+            (drivers ? '<p class="text-muted mb-0" style="font-size:0.7rem">' + drivers + '</p>' : '') +
+            '</div></div>';
+    }
+})();
+</script>
 
 {% endblock %}

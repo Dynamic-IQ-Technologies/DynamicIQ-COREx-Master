@@ -1,0 +1,144 @@
+🧠 FUNCTIONAL REQUIREMENTS
+1️⃣ New UI Tab
+
+Add a new tab to the Work Order record:
+
+Tab Name:
+
+Asset Intelligence
+
+This tab loads dynamically based on the Asset ID linked to the Work Order.
+
+2️⃣ Asset Intelligence Overview Panel
+
+Display a high-level snapshot:
+
+Asset Name / ID
+Asset Criticality Score (1–100)
+Current Health Score (color-coded)
+Predicted Failure Window (date range)
+Estimated Downtime Cost if Unaddressed ($)
+Compliance Status (Pass / At Risk / Blocked)
+3️⃣ Asset DNA Profile (Core Innovation)
+
+Generate and display an Asset DNA Profile, composed of:
+
+Historical maintenance frequency
+Mean time between failure (MTBF)
+Failure mode patterns
+Environmental exposure (heat, load, usage cycles)
+Vendor quality variance
+Lead-time volatility for critical parts
+
+All data must be aggregated automatically from:
+
+Historical Work Orders
+Inventory transactions
+Supplier performance records
+External risk signals (if available)
+4️⃣ Predictive Failure Intelligence
+
+Inside the tab, create a Predictive Insights section that:
+
+Calculates probability of failure within:
+7 days
+30 days
+90 days
+Identifies likely failure components
+Explains why the prediction exists using contributing factors
+
+Example Output:
+
+“Bearing failure probability = 62% within 30 days due to elevated repair frequency, heat exposure, and supplier quality degradation.”
+
+5️⃣ Financial Impact Engine
+
+Add a Cost & Risk Impact panel:
+
+Estimated downtime cost per hour
+Estimated total downtime exposure
+Repair vs replace recommendation
+Cost of delay (per day)
+Inventory availability risk score
+
+All recommendations must include:
+
+Quantified impact
+Confidence level
+Plain-language explanation
+6️⃣ Recommended Actions (Autonomous-Ready)
+
+Generate AI-recommended actions, ranked by risk reduction:
+
+Preventive maintenance action
+Inventory reservation or reorder
+Alternate supplier recommendation
+Expedite suggestion
+Compliance documentation requirement
+
+Each recommendation must include:
+
+Risk reduced (%)
+Cost impact ($)
+Execution urgency (Low / Medium / High)
+7️⃣ Compliance Intelligence (Mandatory)
+
+Embed compliance checks based on asset type:
+
+FAA / DoD / ITAR / AS9100 / ISO rules
+Block non-compliant actions
+Flag missing certifications or traceability
+Auto-attach required documents to the Work Order
+
+Compliance status must be visible at all times.
+
+8️⃣ Explainability & Trust Layer
+
+Every score, prediction, and recommendation must include:
+
+Data sources used
+Key drivers
+Confidence score
+“What happens if ignored” scenario
+
+No black-box outputs are allowed.
+
+🔌 TECHNICAL CONSTRAINTS
+Do not alter existing Work Order fields or logic
+Implement as a modular extension
+Load data asynchronously
+Support feature toggles (on/off per customer)
+Ensure audit-ready logging of AI outputs
+📊 DATA MODEL ADDITIONS
+
+Create or extend models for:
+
+Asset Intelligence Snapshot
+Asset DNA Profile
+Failure Prediction Record
+Financial Risk Assessment
+Compliance Evaluation
+AI Recommendation Log
+
+All AI-generated outputs must be timestamped and versioned.
+
+🧪 ACCEPTANCE CRITERIA
+
+✔ Asset Intelligence tab appears on all Work Orders with linked assets
+✔ Insights are asset-specific and update over time
+✔ Recommendations are explainable and quantifiable
+✔ Compliance violations block execution
+✔ No regression in existing Work Order workflows
+
+🏁 SUCCESS DEFINITION
+
+A planner or technician can open a Work Order and instantly know:
+
+What will fail
+When it will fail
+What it will cost
+What action prevents downtime
+What compliance risks exist
+🔑 POSITIONING NOTE (DO NOT DISPLAY IN UI)
+
+This feature establishes the platform as an Autonomous MRO Intelligence System, not a traditional ERP.
