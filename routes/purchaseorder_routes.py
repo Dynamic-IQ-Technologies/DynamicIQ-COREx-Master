@@ -498,17 +498,21 @@ def view_purchaseorder(id):
         flash('Purchase order not found', 'danger')
         return redirect(url_for('po_routes.list_purchaseorders'))
     
-    # Get line items with product, UOM, and base UOM info
+    # Get line items with product, UOM, base UOM, and supplier portal update info
     # Use subquery for inventory to avoid duplicate rows when multiple inventory records exist
     lines = conn.execute('''
         SELECT pol.*, p.code as product_code, p.name as product_name, p.unit_of_measure, p.product_type,
                uom.uom_code, uom.uom_name,
                base_uom.uom_code as base_uom_code, base_uom.uom_name as base_uom_name,
-               (SELECT COALESCE(SUM(i.quantity), 0) FROM inventory i WHERE i.product_id = p.id) as inventory_quantity
+               (SELECT COALESCE(SUM(i.quantity), 0) FROM inventory i WHERE i.product_id = p.id) as inventory_quantity,
+               spu.tracking_number, spu.estimated_ship_date,
+               spu.supplier_notes as portal_supplier_notes,
+               spu.updated_at as supplier_update_at
         FROM purchase_order_lines pol
         JOIN products p ON pol.product_id = p.id
         LEFT JOIN uom_master uom ON pol.uom_id = uom.id
         LEFT JOIN uom_master base_uom ON pol.base_uom_id = base_uom.id
+        LEFT JOIN supplier_portal_updates spu ON pol.id = spu.po_line_id
         WHERE pol.po_id = ?
         ORDER BY pol.line_number
     ''', (id,)).fetchall()

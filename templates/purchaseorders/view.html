@@ -430,6 +430,7 @@
                         <th>Base Unit Cost</th>
                         <th>Extended Cost</th>
                         <th>In Stock</th>
+                        <th>Supplier Update</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -506,6 +507,37 @@
                             <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
+                        <td style="min-width:160px;">
+                            {% if line.tracking_number or line.estimated_ship_date %}
+                            <div class="d-flex flex-column gap-1">
+                                <span class="badge bg-info text-dark mb-1" style="font-size:0.7rem;">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>Portal Update
+                                </span>
+                                {% if line.tracking_number %}
+                                <div class="d-flex align-items-center gap-1">
+                                    <i class="bi bi-truck text-primary" title="Tracking Number"></i>
+                                    <code class="small">{{ line.tracking_number }}</code>
+                                </div>
+                                {% endif %}
+                                {% if line.estimated_ship_date %}
+                                <div class="d-flex align-items-center gap-1">
+                                    <i class="bi bi-calendar-check text-success" title="Estimated Ship Date"></i>
+                                    <small class="fw-semibold text-success">{{ line.estimated_ship_date }}</small>
+                                </div>
+                                {% endif %}
+                                {% if line.portal_supplier_notes %}
+                                <div class="text-muted small fst-italic" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ line.portal_supplier_notes }}">
+                                    {{ line.portal_supplier_notes }}
+                                </div>
+                                {% endif %}
+                                {% if line.supplier_update_at %}
+                                <small class="text-muted" style="font-size:0.65rem;">{{ line.supplier_update_at[:16] }}</small>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">Awaiting</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% set remaining = (line.quantity or 0) - (line.received_quantity or 0) %}
                             {% if remaining > 0 and po.status not in ['Cancelled', 'Closed'] %}
@@ -549,7 +581,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="table-light">
-                        <td colspan="10" class="text-end"><strong>Total Order Value:</strong></td>
+                        <td colspan="11" class="text-end"><strong>Total Order Value:</strong></td>
                         <td colspan="2" class="fw-bold text-primary">{{ ns.total|currency }}</td>
                     </tr>
                 </tfoot>
