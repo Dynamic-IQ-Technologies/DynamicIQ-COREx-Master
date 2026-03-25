@@ -542,7 +542,7 @@ def pull_invoice_from_qb(conn, erp_invoice_id, qb_invoice_id):
         else:
             new_status = None
 
-        update_parts = ['amount_paid=%s', 'balance_due=%s', 'updated_at=NOW()']
+        update_parts = ['amount_paid=%s', 'balance_due=%s']
         params       = [amount_paid, balance]
         if new_status:
             update_parts.append('status=%s')
