@@ -167,6 +167,9 @@
                             <th class="text-end">Balance</th>
                             <th>Status</th>
                             <th>Actions</th>
+                            {% if session.role in ['Admin', 'Accountant'] and qb_connected %}
+                            <th class="text-center" title="QuickBooks Sync"><i class="bi bi-plug-fill text-success"></i> QB</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -241,6 +244,21 @@
                                 </a>
                                 {% endif %}
                             </td>
+                            {% if session.role in ['Admin', 'Accountant'] and qb_connected %}
+                            <td class="text-center">
+                                {% if invoice.invoice_type != 'NDT' %}
+                                {% set already_synced = invoice.id in qb_synced_ids %}
+                                <button class="btn btn-sm {{ 'btn-success' if already_synced else 'btn-outline-secondary' }}"
+                                        id="qb-btn-{{ invoice.id }}"
+                                        onclick="qbSyncRow({{ invoice.id }}, this)"
+                                        title="{{ 'Synced — click to re-sync' if already_synced else 'Sync to QuickBooks' }}">
+                                    <i class="bi bi-plug-fill"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -255,4 +273,41 @@
         </div>
     </div>
 </div>
+
+{% if session.role in ['Admin', 'Accountant'] and qb_connected %}
+<script>
+function qbSyncRow(invoiceId, btn) {
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch('/api/qb/sync-invoice/' + invoiceId, {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            if (d.status === 'success') {
+                btn.className = 'btn btn-sm btn-success';
+                btn.innerHTML = '<i class="bi bi-plug-fill"></i>';
+                btn.title     = 'Synced — click to re-sync';
+            } else if (d.status === 'conflict') {
+                btn.className = 'btn btn-sm btn-warning';
+                btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i>';
+                btn.title     = 'Conflict — ' + (d.reason || 'check QB dashboard');
+            } else {
+                btn.className = 'btn btn-sm btn-danger';
+                btn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                btn.title     = d.reason || d.error || 'Sync failed';
+                setTimeout(() => {
+                    btn.className = 'btn btn-sm btn-outline-secondary';
+                    btn.innerHTML = '<i class="bi bi-plug-fill"></i>';
+                    btn.title     = 'Sync to QuickBooks';
+                }, 3000);
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        });
+}
+</script>
+{% endif %}
 {% endblock %}

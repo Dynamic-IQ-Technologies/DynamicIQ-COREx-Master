@@ -173,12 +173,29 @@ def list_invoices():
     today_date = datetime.now().date()
     today_str = today_date.strftime('%Y-%m-%d')
     overdue_amount = sum(
-        inv['balance_due'] for inv in invoices 
-        if inv['status'] in ['Posted', 'Approved'] and inv['due_date'] and str(inv['due_date'])[:10] < today_str and inv['balance_due'] > 0
+        float(inv['balance_due'] or 0) for inv in invoices
+        if inv['status'] in ['Posted', 'Approved'] and inv['due_date']
+        and str(inv['due_date'])[:10] < today_str and (inv['balance_due'] or 0) > 0
     )
-    
+
+    # QB sync context
+    try:
+        from routes.qb_sync_routes import _get_config, ensure_qb_tables
+        ensure_qb_tables(conn)
+        qb_config     = _get_config(conn)
+        qb_connected  = bool(qb_config and qb_config['is_active'])
+        qb_synced_ids = set()
+        if qb_connected:
+            rows = conn.execute(
+                'SELECT invoice_id FROM qb_wo_invoice_map WHERE invoice_id IS NOT NULL'
+            ).fetchall()
+            qb_synced_ids = {r['invoice_id'] for r in rows}
+    except Exception:
+        qb_connected  = False
+        qb_synced_ids = set()
+
     conn.close()
-    
+
     return render_template('invoices/dashboard.html',
                          invoices=invoices,
                          customers=customers,
@@ -191,7 +208,9 @@ def list_invoices():
                          total_paid=total_paid,
                          total_outstanding=total_outstanding,
                          overdue_amount=overdue_amount,
-                         today=today_str)
+                         today=today_str,
+                         qb_connected=qb_connected,
+                         qb_synced_ids=qb_synced_ids)
 
 @invoice_bp.route('/invoices/<int:id>')
 @login_required
