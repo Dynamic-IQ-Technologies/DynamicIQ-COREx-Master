@@ -10,9 +10,14 @@ MATERIAL_STATUSES = ['Pending', 'Partially Issued', 'Issued', 'Received']
 SKILL_LEVELS = ['Apprentice', 'Intermediate', 'Advanced', 'Expert']
 
 def generate_task_number(conn):
-    last_task = conn.execute('SELECT task_number FROM work_order_tasks ORDER BY id DESC LIMIT 1').fetchone()
-    if last_task:
-        last_number = int(last_task['task_number'].split('-')[1])
+    last_task = conn.execute(
+        "SELECT task_number FROM work_order_tasks WHERE task_number LIKE 'TASK-%' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    if last_task and last_task['task_number']:
+        try:
+            last_number = int(last_task['task_number'].split('-')[1])
+        except (IndexError, ValueError):
+            last_number = 0
         new_number = last_number + 1
     else:
         new_number = 1
@@ -660,7 +665,7 @@ def apply_template(wo_id):
     db = Database()
     conn = db.get_connection()
     
-    work_order = conn.execute('SELECT * FROM work_orders WHERE id = ?', (wo_id,)).fetchone()
+    work_order = conn.execute('SELECT * FROM work_orders WHERE id = %s', (wo_id,)).fetchone()
     
     if not work_order:
         conn.close()
@@ -675,7 +680,7 @@ def apply_template(wo_id):
         return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
     
     try:
-        template = conn.execute('SELECT * FROM task_templates WHERE id = ?', (template_id,)).fetchone()
+        template = conn.execute('SELECT * FROM task_templates WHERE id = %s', (template_id,)).fetchone()
         
         if not template:
             conn.close()
@@ -684,7 +689,7 @@ def apply_template(wo_id):
         
         template_items = conn.execute('''
             SELECT * FROM task_template_items 
-            WHERE template_id = ? 
+            WHERE template_id = %s 
             ORDER BY sequence_number, id
         ''', (template_id,)).fetchall()
         
@@ -694,9 +699,11 @@ def apply_template(wo_id):
             return redirect(url_for('workorder_routes.view_workorder', id=wo_id))
         
         tasks_created = 0
-        base_sequence = conn.execute('''
-            SELECT COALESCE(MAX(sequence_number), 0) FROM work_order_tasks WHERE work_order_id = ?
-        ''', (wo_id,)).fetchone()[0] or 0
+        row = conn.execute('''
+            SELECT COALESCE(MAX(sequence_number), 0) AS max_seq
+            FROM work_order_tasks WHERE work_order_id = %s
+        ''', (wo_id,)).fetchone()
+        base_sequence = (row['max_seq'] or 0) if row else 0
         
         for idx, item in enumerate(template_items):
             task_number = generate_task_number(conn)
@@ -706,7 +713,7 @@ def apply_template(wo_id):
                 INSERT INTO work_order_tasks 
                 (task_number, work_order_id, task_name, description, category, 
                  sequence_number, priority, planned_hours, status, remarks)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (task_number, wo_id, item['task_name'], item['description'], 
                   item['category'], seq_num, item['priority'],
                   item['planned_hours'] or 0, 'Not Started', item['remarks']))
