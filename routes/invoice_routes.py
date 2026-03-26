@@ -224,7 +224,7 @@ def view_invoice(id):
     conn = db.get_connection()
     
     invoice = conn.execute('''
-        SELECT 
+        SELECT
             i.*,
             c.name as customer_name,
             c.customer_number,
@@ -235,7 +235,8 @@ def view_invoice(id):
             wo.wo_number,
             u.username as created_by_name,
             u2.username as approved_by_name,
-            u3.username as posted_by_name
+            u3.username as posted_by_name,
+            ge.entry_number as gl_entry_number
         FROM invoices i
         JOIN customers c ON i.customer_id = c.id
         LEFT JOIN sales_orders so ON i.so_id = so.id
@@ -243,6 +244,7 @@ def view_invoice(id):
         LEFT JOIN users u ON i.created_by = u.id
         LEFT JOIN users u2 ON i.approved_by = u2.id
         LEFT JOIN users u3 ON i.posted_by = u3.id
+        LEFT JOIN gl_entries ge ON ge.id = i.gl_entry_id
         WHERE i.id = %s
     ''', (id,)).fetchone()
     
@@ -744,10 +746,10 @@ def post_invoice(id):
             flash('Invoice not found', 'danger')
             return redirect(url_for('invoice_routes.list_invoices'))
         
-        if invoice['status'] != 'Approved':
-            flash('Only Approved invoices can be posted to GL', 'warning')
+        if invoice['status'] in ('Draft', 'Void'):
+            flash('Draft and Void invoices cannot be posted to GL', 'warning')
             return redirect(url_for('invoice_routes.view_invoice', id=id))
-        
+
         if invoice['gl_entry_id']:
             flash('Invoice already posted to GL', 'warning')
             return redirect(url_for('invoice_routes.view_invoice', id=id))
@@ -810,15 +812,17 @@ def post_invoice(id):
             VALUES (?, ?, 0, ?)
         ''', (gl_entry_id, revenue_account['id'], invoice['total_amount']))
         
-        # Update invoice with GL entry reference
+        # Update invoice with GL entry reference.
+        # Only advance status to 'Posted' if it was 'Approved'; keep Paid/Partially Paid as-is.
+        new_status = 'Posted' if invoice['status'] == 'Approved' else invoice['status']
         conn.execute('''
-            UPDATE invoices 
-            SET status = 'Posted', 
+            UPDATE invoices
+            SET status = ?,
                 gl_entry_id = ?,
-                posted_by = ?, 
+                posted_by = ?,
                 posted_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        ''', (gl_entry_id, session['user_id'], id))
+        ''', (new_status, gl_entry_id, session['user_id'], id))
         
         # Update balance due
         conn.execute('''

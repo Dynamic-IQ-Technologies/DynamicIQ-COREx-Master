@@ -61,6 +61,12 @@
                             <i class="bi bi-journal-check"></i> Post to GL
                         </button>
                     </form>
+                    {% elif invoice.status not in ['Draft', 'Void'] and not invoice.gl_entry_id %}
+                    <form method="POST" action="{{ url_for('invoice_routes.post_invoice', id=invoice.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-warning" onclick="return confirm('This invoice has no GL entry. Post revenue recognition entry now?')">
+                            <i class="bi bi-journal-check"></i> Post Missing GL Entry
+                        </button>
+                    </form>
                     {% endif %}
                     
                     {% if invoice.status not in ['Draft', 'Void'] and invoice.customer_id %}
@@ -488,6 +494,11 @@
                 <div class="col-md-4 mb-3">
                     <strong>Posted:</strong>
                     <div class="text-muted">{{ invoice.posted_at }} by {{ invoice.posted_by_name }}</div>
+                    {% if invoice.gl_entry_number %}
+                    <div class="text-success small fw-bold">
+                        <i class="bi bi-journal-check me-1"></i>GL Entry: {{ invoice.gl_entry_number }}
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
