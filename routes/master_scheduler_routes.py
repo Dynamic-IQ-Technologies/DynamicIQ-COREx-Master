@@ -11,6 +11,17 @@ import os
 from models import Database
 from engines.master_scheduler import MasterSchedulerEngine
 
+
+def _ds(d):
+    """Convert a DB date value (datetime.date or str) to an ISO string, or None."""
+    if d is None:
+        return None
+    if isinstance(d, str):
+        return d
+    if hasattr(d, 'strftime'):
+        return d.strftime('%Y-%m-%d')
+    return str(d)
+
 def track_master_scheduler_action(action_type='query', approved=True):
     """Track Master Scheduler AI agent action"""
     try:
@@ -120,7 +131,7 @@ def dashboard():
     late_orders = conn.execute('''
         SELECT COUNT(*) as count FROM work_orders
         WHERE status IN ('Planned', 'Released', 'In Progress')
-        AND planned_end_date < date('now')
+        AND planned_end_date < CURRENT_DATE
     ''').fetchone()['count']
     
     otd_rate = ((total_orders - late_orders) / total_orders * 100) if total_orders > 0 else 100
@@ -283,7 +294,7 @@ def regenerate_schedule(id):
             return jsonify({'success': False, 'error': 'Schedule not found'})
         
         engine = MasterSchedulerEngine(conn)
-        result = engine.generate_schedule(id, schedule['horizon_start'], schedule['horizon_end'], session.get('user_id'))
+        result = engine.generate_schedule(id, _ds(schedule['horizon_start']), _ds(schedule['horizon_end']), session.get('user_id'))
         
         conn.close()
         return jsonify({
@@ -340,14 +351,14 @@ def edit_schedule(id):
         try:
             name = request.form.get('name', schedule['name'])
             description = request.form.get('description', '')
-            horizon_start = request.form.get('horizon_start', schedule['horizon_start'])
-            horizon_end = request.form.get('horizon_end', schedule['horizon_end'])
+            horizon_start = request.form.get('horizon_start', _ds(schedule['horizon_start']))
+            horizon_end = request.form.get('horizon_end', _ds(schedule['horizon_end']))
             time_bucket = request.form.get('time_bucket', schedule['time_bucket'])
             
             conn.execute('''
                 UPDATE master_schedules
                 SET name = ?, description = ?, horizon_start = ?, horizon_end = ?,
-                    time_bucket = ?, updated_at = datetime('now')
+                    time_bucket = ?, updated_at = NOW()
                 WHERE id = ?
             ''', (name, description, horizon_start, horizon_end, time_bucket, id))
             conn.commit()
@@ -417,7 +428,7 @@ def resolve_exception(id):
         
         conn.execute('''
             UPDATE schedule_exceptions
-            SET is_resolved = 1, resolved_by = ?, resolved_at = datetime('now'),
+            SET is_resolved = 1, resolved_by = ?, resolved_at = NOW(),
                 resolution_notes = ?
             WHERE id = ?
         ''', (session.get('user_id'), resolution_notes, id))
@@ -447,7 +458,7 @@ def recommendation_decision(id):
         conn.execute('''
             UPDATE schedule_recommendations
             SET status = ?, decision = ?, decision_notes = ?,
-                reviewed_by = ?, reviewed_at = datetime('now')
+                reviewed_by = ?, reviewed_at = NOW()
             WHERE id = ?
         ''', (decision, decision, notes, session.get('user_id'), id))
         
@@ -888,7 +899,7 @@ def kpi_otd():
     late = conn.execute('''
         SELECT COUNT(*) as count FROM work_orders
         WHERE status IN ('Planned', 'Released', 'In Progress')
-        AND planned_end_date < date('now')
+        AND planned_end_date < CURRENT_DATE
     ''').fetchone()['count']
     
     on_time = total - late
@@ -898,17 +909,19 @@ def kpi_otd():
     for i in range(4):
         week_start_days = (i + 1) * 7
         week_end_days = i * 7
+        week_start_dt = (datetime.now() - timedelta(days=week_start_days)).strftime('%Y-%m-%d')
+        week_end_dt = (datetime.now() - timedelta(days=week_end_days)).strftime('%Y-%m-%d')
         
         week_total = conn.execute('''
             SELECT COUNT(*) as count FROM work_orders 
-            WHERE date(created_at) BETWEEN date('now', ? || ' days') AND date('now', ? || ' days')
-        ''', (f'-{week_start_days}', f'-{week_end_days}')).fetchone()['count'] or 1
+            WHERE created_at::date BETWEEN ? AND ?
+        ''', (week_start_dt, week_end_dt)).fetchone()['count'] or 1
         
         week_late = conn.execute('''
             SELECT COUNT(*) as count FROM work_orders
-            WHERE date(created_at) BETWEEN date('now', ? || ' days') AND date('now', ? || ' days')
-            AND planned_end_date < date('now')
-        ''', (f'-{week_start_days}', f'-{week_end_days}')).fetchone()['count']
+            WHERE created_at::date BETWEEN ? AND ?
+            AND planned_end_date < CURRENT_DATE
+        ''', (week_start_dt, week_end_dt)).fetchone()['count']
         
         week_rate = ((week_total - week_late) / week_total * 100) if week_total > 0 else 100
         weekly_trend.append({
@@ -939,12 +952,12 @@ def kpi_late_orders():
     
     orders = conn.execute('''
         SELECT wo.order_number, wo.status, wo.planned_end_date,
-               julianday('now') - julianday(wo.planned_end_date) as days_late,
+               (CURRENT_DATE - wo.planned_end_date) as days_late,
                p.name as product_name
         FROM work_orders wo
         LEFT JOIN products p ON wo.product_id = p.id
         WHERE wo.status IN ('Planned', 'Released', 'In Progress')
-        AND wo.planned_end_date < date('now')
+        AND wo.planned_end_date < CURRENT_DATE
         ORDER BY days_late DESC
     ''').fetchall()
     
@@ -970,7 +983,7 @@ def kpi_late_orders():
             'total_days_late': total_days_late,
             'by_severity': by_severity,
             'orders': [{'order_number': o['order_number'], 'status': o['status'],
-                       'planned_end_date': o['planned_end_date'], 'days_late': int(o['days_late'] or 0),
+                       'planned_end_date': _ds(o['planned_end_date']), 'days_late': int(o['days_late'] or 0),
                        'product_name': o['product_name']} for o in orders]
         }
     })
@@ -1069,8 +1082,8 @@ def gantt_data(schedule_id):
             'id': item['id'],
             'order_number': item['order_number'],
             'product': item['product_name'] or item['product_code'] or '-',
-            'start': item['scheduled_start'],
-            'end': item['scheduled_end'],
+            'start': _ds(item['scheduled_start']),
+            'end': _ds(item['scheduled_end']),
             'priority': item['priority_class'],
             'status': item['status'],
             'color': color,
@@ -1083,8 +1096,8 @@ def gantt_data(schedule_id):
             'schedule': {
                 'id': schedule['id'],
                 'name': schedule['name'],
-                'horizon_start': schedule['horizon_start'],
-                'horizon_end': schedule['horizon_end']
+                'horizon_start': _ds(schedule['horizon_start']),
+                'horizon_end': _ds(schedule['horizon_end'])
             },
             'items': gantt_items
         }

@@ -32,7 +32,21 @@ class MasterSchedulerEngine:
     
     def __init__(self, conn):
         self.conn = conn
-    
+
+    @staticmethod
+    def _ds(d) -> Optional[str]:
+        """Normalise any date value coming from the DB to an ISO string (or None).
+        PostgreSQL returns DATE columns as datetime.date objects; SQLite returns
+        strings. This helper makes the engine work with both."""
+        if d is None:
+            return None
+        if isinstance(d, str):
+            return d
+        # datetime.date or datetime.datetime
+        if hasattr(d, 'strftime'):
+            return d.strftime('%Y-%m-%d')
+        return str(d)
+
     def generate_schedule_number(self) -> str:
         """Generate next sequential schedule number"""
         last = self.conn.execute('''
@@ -81,8 +95,8 @@ class MasterSchedulerEngine:
                 'product_code': wo['product_code'],
                 'product_name': wo['product_name'],
                 'quantity': wo['quantity'],
-                'due_date': wo['planned_end_date'],
-                'start_date': wo['planned_start_date'],
+                'due_date': self._ds(wo['planned_end_date']),
+                'start_date': self._ds(wo['planned_start_date']),
                 'priority': wo['priority'],
                 'priority_score': self.PRIORITY_MAP.get(wo['priority'], 50),
                 'status': wo['status'],
@@ -117,8 +131,8 @@ class MasterSchedulerEngine:
                     'product_code': line['code'],
                     'product_name': line['name'],
                     'quantity': line['quantity'],
-                    'due_date': so['expected_ship_date'],
-                    'start_date': so['order_date'],
+                    'due_date': self._ds(so['expected_ship_date']),
+                    'start_date': self._ds(so['order_date']),
                     'priority': 'Medium',
                     'priority_score': self.PRIORITY_MAP.get('Medium', 50),
                     'status': so['status'],
@@ -476,7 +490,7 @@ class MasterSchedulerEngine:
         self._calculate_capacity_load(schedule_id, date_from, date_to, capacity_data)
         
         self.conn.execute('''
-            UPDATE master_schedules SET updated_at = datetime('now') WHERE id = ?
+            UPDATE master_schedules SET updated_at = NOW() WHERE id = ?
         ''', (schedule_id,))
         
         self.conn.commit()
@@ -526,10 +540,10 @@ class MasterSchedulerEngine:
                 if wc_id not in wc_daily_load:
                     continue
                     
-                start = op['planned_start_date'] or date_from
-                end = op['planned_end_date'] or date_to
+                start = self._ds(op['planned_start_date']) or date_from
+                end = self._ds(op['planned_end_date']) or date_to
                 total_hours = op['total_hours'] or 0
-                
+
                 try:
                     start_dt = datetime.strptime(start, '%Y-%m-%d')
                     end_dt = datetime.strptime(end, '%Y-%m-%d')
@@ -596,7 +610,7 @@ class MasterSchedulerEngine:
         late_orders = self.conn.execute('''
             SELECT COUNT(*) as count FROM master_schedule_items
             WHERE schedule_id = ?
-            AND scheduled_end < date('now')
+            AND scheduled_end < CURRENT_DATE
             AND status != 'Completed'
         ''', (schedule_id,)).fetchone()['count']
         
@@ -621,7 +635,7 @@ class MasterSchedulerEngine:
             SELECT msi.*, 
                    JULIANDAY(msi.scheduled_end) - JULIANDAY('now') as days_remaining,
                    CASE 
-                       WHEN msi.scheduled_end < date('now') THEN 'Past Due'
+                       WHEN msi.scheduled_end < CURRENT_DATE THEN 'Past Due'
                        WHEN JULIANDAY(msi.scheduled_end) - JULIANDAY('now') <= 2 THEN 'Critical'
                        WHEN JULIANDAY(msi.scheduled_end) - JULIANDAY('now') <= 5 THEN 'At Risk'
                        ELSE 'On Track'
@@ -629,7 +643,7 @@ class MasterSchedulerEngine:
             FROM master_schedule_items msi
             WHERE msi.schedule_id = ?
             AND msi.status != 'Completed'
-            AND (msi.scheduled_end < date('now', '+7 days') OR msi.priority_class = 'Critical')
+            AND (msi.scheduled_end < CURRENT_DATE + INTERVAL '7 days' OR msi.priority_class = 'Critical')
             ORDER BY msi.scheduled_end ASC, msi.priority DESC
             LIMIT ?
         ''', (schedule_id, limit)).fetchall()
