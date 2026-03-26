@@ -241,6 +241,49 @@
         </div>
         {% endif %}
 
+        <!-- QuickBooks Sync -->
+        {% if session.role in ['Admin', 'Accountant'] %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-plug-fill text-success me-2"></i>QuickBooks Sync</h5>
+                {% if qb_sync and qb_sync.qb_invoice_id %}
+                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Synced</span>
+                {% elif not qb_connected %}
+                    <span class="badge bg-secondary">QB Not Connected</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">Not Synced</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if qb_sync and qb_sync.qb_invoice_id %}
+                    <div class="mb-3 small">
+                        <div class="text-muted">QB Invoice ID</div>
+                        <div class="fw-semibold font-monospace">{{ qb_sync.qb_invoice_id }}</div>
+                    </div>
+                    <div class="mb-3 small">
+                        <div class="text-muted">QB Doc Number</div>
+                        <div class="fw-semibold">{{ qb_sync.qb_invoice_number or '-' }}</div>
+                    </div>
+                    <div class="mb-3 small">
+                        <div class="text-muted">Last Synced</div>
+                        <div class="fw-semibold">{{ (qb_sync.last_synced_at or '')|string|truncate(16, True, '') }}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="syncNdtToQb()">
+                        <i class="bi bi-arrow-up-circle me-1"></i>Re-sync to QuickBooks
+                    </button>
+                {% elif not qb_connected %}
+                    <p class="text-muted small mb-0">QuickBooks is not connected. Go to the <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}">QB Sync dashboard</a> to connect.</p>
+                {% else %}
+                    <p class="text-muted small mb-3">This NDT invoice has not been sent to QuickBooks yet.</p>
+                    <button class="btn btn-sm btn-success w-100" onclick="syncNdtToQb()">
+                        <i class="bi bi-cloud-upload me-1"></i>Sync to QuickBooks
+                    </button>
+                {% endif %}
+                <div id="qbNdtSyncMsg" class="mt-2 small"></div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> Update Status</h5>
@@ -287,4 +330,43 @@
         <i class="bi bi-envelope"></i> Email to Customer
     </a>
 </div>
+
+<script>
+function syncNdtToQb() {
+    const btn  = event.target;
+    const msg  = document.getElementById('qbNdtSyncMsg');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
+    msg.innerHTML = '';
+    fetch('/api/qb/sync-ndt-invoice/{{ invoice.id }}', {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                const action = d.action === 'updated' ? 'Updated in QuickBooks' : 'Created in QuickBooks';
+                msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>' + action + '. QB Invoice ID: ' + d.qb_invoice_id + '</span>';
+                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Synced';
+                btn.className = btn.className.replace('btn-success', 'btn-outline-success');
+                setTimeout(() => location.reload(), 1500);
+            } else if (d.status === 'auth_expired') {
+                msg.innerHTML = '<span class="text-danger"><i class="bi bi-lock me-1"></i>QuickBooks session expired. <a href="/qb-sync/dashboard">Reconnect here</a>.</span>';
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            } else if (d.status === 'skipped') {
+                msg.innerHTML = '<span class="text-warning"><i class="bi bi-info-circle me-1"></i>' + (d.reason || 'QB not configured') + '</span>';
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            } else {
+                msg.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (d.reason || d.error || 'Sync failed') + '</span>';
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            }
+        })
+        .catch(e => {
+            msg.innerHTML = '<span class="text-danger">Error: ' + e + '</span>';
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        });
+}
+</script>
 {% endblock %}

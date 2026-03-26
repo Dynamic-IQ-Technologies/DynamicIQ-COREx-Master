@@ -1606,12 +1606,33 @@ def invoice_view(id):
         flash('NDT Invoice not found', 'error')
         return redirect(url_for('ndt_routes.invoices_list'))
 
+    # QB sync status for this NDT invoice
+    qb_sync = None
+    qb_connected = False
+    try:
+        qb_cfg = conn.execute(
+            'SELECT is_active FROM qb_sync_config WHERE is_active = TRUE LIMIT 1'
+        ).fetchone()
+        qb_connected = bool(qb_cfg)
+        if qb_connected:
+            qb_sync = conn.execute('''
+                SELECT qb_invoice_id, qb_invoice_number, qb_total_amount,
+                       last_synced_at, sync_status
+                FROM qb_wo_invoice_map
+                WHERE ndt_invoice_id = ?
+                ORDER BY last_synced_at DESC LIMIT 1
+            ''', (id,)).fetchone()
+    except Exception:
+        pass
+
     conn.close()
 
     return render_template('ndt/invoice_view.html',
         invoice=invoice,
         statuses=NDT_INVOICE_STATUSES,
-        today=date.today().isoformat()
+        today=date.today().isoformat(),
+        qb_sync=qb_sync,
+        qb_connected=qb_connected
     )
 
 

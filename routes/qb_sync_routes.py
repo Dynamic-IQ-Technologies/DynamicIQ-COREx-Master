@@ -597,6 +597,131 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
         return {'status': 'failed', 'reason': err}
 
 
+def sync_ndt_invoice_to_qb(conn, ndt_invoice_id, trigger='manual'):
+    """Sync an NDT invoice to QB as a standard invoice. Updates if already synced,
+    creates otherwise. Uses qb_wo_invoice_map with ndt_invoice_id column."""
+    config = _get_config(conn)
+    if not config or not config['is_active']:
+        return {'status': 'skipped', 'reason': 'QB integration not configured'}
+
+    inv = conn.execute('''
+        SELECT ni.*, c.name as customer_full_name
+        FROM ndt_invoices ni
+        LEFT JOIN customers c ON c.id = ni.customer_id
+        WHERE ni.id = %s
+    ''', (ndt_invoice_id,)).fetchone()
+    if not inv:
+        return {'status': 'error', 'reason': 'NDT Invoice not found'}
+
+    try:
+        # ── 1. Resolve or create the QB Customer ─────────────────────────────
+        cust_name  = (inv.get('customer_full_name') or 'Unknown Customer').replace("'", "\\'")
+        query_url  = _api_url(config, f"query?query=SELECT Id FROM Customer WHERE DisplayName LIKE '{cust_name[:40]}' MAXRESULTS 1&minorversion=65")
+        qb_cust_id = None
+        resp = _qb_request(conn, config, 'GET', query_url, timeout=10)
+        if resp.status_code == 200:
+            items = resp.json().get('QueryResponse', {}).get('Customer', [])
+            if items:
+                qb_cust_id = items[0]['Id']
+        if not qb_cust_id:
+            cr = _qb_request(conn, config, 'POST', _api_url(config, 'customer?minorversion=65'),
+                              json={'DisplayName': cust_name[:100]}, timeout=10)
+            if cr.status_code in (200, 201):
+                qb_cust_id = cr.json().get('Customer', {}).get('Id')
+
+        total       = float(inv.get('total_amount') or 0)
+        description = (
+            f"NDT Invoice {inv.get('invoice_number')} — "
+            f"{inv.get('ndt_methods') or 'NDT Inspection'}"
+            + (f" | Part: {inv['part_description']}" if inv.get('part_description') else '')
+            + (f" | S/N: {inv['serial_number']}" if inv.get('serial_number') else '')
+        )
+        payload = {
+            'DocNumber':   inv.get('invoice_number', f'NDT-INV-{ndt_invoice_id}'),
+            'TxnDate':     str(inv.get('invoice_date') or datetime.now().date()),
+            'CustomerRef': {'value': qb_cust_id},
+            'Line': [{
+                'Amount': total,
+                'DetailType': 'SalesItemLineDetail',
+                'Description': description[:1000],
+                'SalesItemLineDetail': {'Qty': 1, 'UnitPrice': total},
+            }],
+            'DueDate': str(inv.get('due_date') or (datetime.now() + timedelta(days=30)).date()),
+        }
+
+        # ── 2. Check if this NDT invoice was previously synced ────────────────
+        existing_map = conn.execute('''
+            SELECT qb_invoice_id FROM qb_wo_invoice_map
+            WHERE ndt_invoice_id = %s AND qb_invoice_id IS NOT NULL
+            ORDER BY last_synced_at DESC LIMIT 1
+        ''', (ndt_invoice_id,)).fetchone()
+
+        if existing_map:
+            # ── UPDATE path ───────────────────────────────────────────────────
+            qb_inv_id  = existing_map['qb_invoice_id']
+            fetch_resp = _qb_request(conn, config, 'GET',
+                                     _api_url(config, f'invoice/{qb_inv_id}?minorversion=65'),
+                                     timeout=10)
+            if fetch_resp.status_code != 200:
+                err = f'Failed to fetch QB invoice for update: {fetch_resp.status_code} {fetch_resp.text[:200]}'
+                _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+            qb_existing      = fetch_resp.json().get('Invoice', {})
+            payload['Id']        = qb_inv_id
+            payload['SyncToken'] = qb_existing.get('SyncToken')
+            payload['sparse']    = True
+
+            resp = _qb_request(conn, config, 'POST',
+                               _api_url(config, 'invoice?minorversion=65'),
+                               json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                inv_data = resp.json().get('Invoice', {})
+                conn.execute('''
+                    UPDATE qb_wo_invoice_map
+                    SET qb_total_amount = %s, last_synced_at = NOW(), sync_status = 'synced'
+                    WHERE ndt_invoice_id = %s AND qb_invoice_id = %s
+                ''', (total, ndt_invoice_id, qb_inv_id))
+                conn.commit()
+                _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'updated', 'erp_to_qb', 'success',
+                           qb_entity_id=qb_inv_id, payload_sent=payload, payload_recv=inv_data)
+                return {'status': 'success', 'qb_invoice_id': qb_inv_id, 'action': 'updated'}
+            else:
+                err = f'QB {resp.status_code}: {resp.text[:300]}'
+                _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+        else:
+            # ── CREATE path ───────────────────────────────────────────────────
+            resp = _qb_request(conn, config, 'POST',
+                               _api_url(config, 'invoice?minorversion=65'),
+                               json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                inv_data  = resp.json().get('Invoice', {})
+                qb_inv_id = inv_data.get('Id')
+                conn.execute('''
+                    INSERT INTO qb_wo_invoice_map
+                        (ndt_invoice_id, qb_invoice_id, qb_invoice_number, qb_total_amount, last_synced_at, sync_status)
+                    VALUES (%s, %s, %s, %s, NOW(), 'synced')
+                ''', (ndt_invoice_id, qb_inv_id, inv_data.get('DocNumber'), total))
+                conn.commit()
+                _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'created', 'erp_to_qb', 'success',
+                           qb_entity_id=qb_inv_id, payload_sent=payload, payload_recv=inv_data)
+                return {'status': 'success', 'qb_invoice_id': qb_inv_id, 'action': 'created'}
+            else:
+                err = f'QB {resp.status_code}: {resp.text[:300]}'
+                _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+    except QBAuthExpiredError as ex:
+        _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=str(ex))
+        return {'status': 'auth_expired', 'reason': str(ex)}
+    except Exception as ex:
+        err = str(ex)
+        _log_event(conn, 'ndt_invoice', ndt_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+        return {'status': 'failed', 'reason': err}
+
+
 def pull_invoice_from_qb(conn, erp_invoice_id, qb_invoice_id):
     """Fetch a single QB invoice and update ERP invoice status, amount_paid, balance_due."""
     config = _get_config(conn)
@@ -1064,6 +1189,21 @@ def api_sync_invoice(invoice_id):
     conn = db.get_connection()
     try:
         result = sync_invoice_to_qb(conn, invoice_id, trigger='manual_ui')
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/qb/sync-ndt-invoice/<int:ndt_invoice_id>', methods=['POST'])
+@login_required
+def api_sync_ndt_invoice(ndt_invoice_id):
+    """Push an NDT invoice to QB. Creates or updates as needed."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        result = sync_ndt_invoice_to_qb(conn, ndt_invoice_id, trigger='manual_ui')
         return jsonify(result)
     finally:
         conn.close()
