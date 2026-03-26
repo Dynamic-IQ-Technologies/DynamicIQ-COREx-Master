@@ -1470,7 +1470,7 @@ function project3D(x3, y3, z3, radius) {
 
 function drawSphere() {
     if (!ctx) return;
-    time += 0.010;
+    time += 0.012;
 
     let targetAmplitude = 0;
     if (sphereState === 'listening' || sphereState === 'responding') {
@@ -1481,142 +1481,179 @@ function drawSphere() {
     ctx.clearRect(0, 0, canvasW, canvasH);
 
     const amp = smoothAmplitude;
-    const r = baseRadius * (1 + Math.sin(time * 0.8) * 0.012);
+    const breathe = 1 + Math.sin(time * 0.9) * 0.018 + amp * 0.06;
+    const r = baseRadius * breathe;
     const cx = centerX;
     const cy = centerY;
     const isActive = sphereState === 'responding' || sphereState === 'listening';
-    const speedMult = isActive ? 2.8 : 1;
+    const speedMult = isActive ? 2.5 : 1.0;
     const t = time * speedMult;
+    const activeBoost = isActive ? 1.3 + amp * 0.8 : 1.0;
 
-    // Ambient deep glow behind sphere
-    const ambGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.8);
-    ambGrad.addColorStop(0,   `rgba(30, 0, 60,  ${0.10 + amp * 0.08})`);
-    ambGrad.addColorStop(0.4, `rgba(0,  20, 60, ${0.06 + amp * 0.04})`);
-    ambGrad.addColorStop(1,   'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = ambGrad;
+    // === DEEP BACKGROUND BLOOM ===
+    const bgBloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2.5);
+    bgBloom.addColorStop(0,    `rgba(5, 0, 30, ${0.60 + amp * 0.18})`);
+    bgBloom.addColorStop(0.25, 'rgba(0, 5, 40, 0.40)');
+    bgBloom.addColorStop(0.55, 'rgba(0, 0, 20, 0.20)');
+    bgBloom.addColorStop(1,    'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = bgBloom;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Sphere boundary ring (faint circle outline)
-    const ringAlpha = 0.18 + Math.sin(t * 0.6) * 0.04 + amp * 0.12;
-    const ringGrad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-    ringGrad.addColorStop(0,    `rgba(0, 210, 255, ${ringAlpha})`);
-    ringGrad.addColorStop(0.45, `rgba(120, 55, 230, ${ringAlpha * 0.7})`);
-    ringGrad.addColorStop(1,    `rgba(0, 210, 255, ${ringAlpha})`);
+    // === OUTER HALO ===
+    const haloOuter = ctx.createRadialGradient(cx, cy, r * 0.75, cx, cy, r * 2.0);
+    haloOuter.addColorStop(0,   'rgba(0, 0, 0, 0)');
+    haloOuter.addColorStop(0.30, `rgba(0, 200, 220, ${0.08 * activeBoost})`);
+    haloOuter.addColorStop(0.50, `rgba(120, 50, 230, ${0.10 * activeBoost})`);
+    haloOuter.addColorStop(0.70, `rgba(0, 180, 200, ${0.06 * activeBoost})`);
+    haloOuter.addColorStop(1,    'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = haloOuter;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // === SPHERE BASE BODY ===
+    const bodyGrad = ctx.createRadialGradient(
+        cx - r * 0.18, cy - r * 0.18, r * 0.04,
+        cx, cy, r
+    );
+    bodyGrad.addColorStop(0,    `rgba(20, 50, 100, ${0.70 + amp * 0.12})`);
+    bodyGrad.addColorStop(0.25, 'rgba(10, 25, 70,  0.82)');
+    bodyGrad.addColorStop(0.55, 'rgba(5,  12, 45,  0.90)');
+    bodyGrad.addColorStop(0.80, 'rgba(2,  5,  30,  0.93)');
+    bodyGrad.addColorStop(1,    'rgba(0,  0,  15,  0.75)');
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = ringGrad;
-    ctx.lineWidth = 1.2;
-    ctx.shadowColor = 'rgba(0, 200, 255, 0.22)';
-    ctx.shadowBlur = 14;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
 
-    // Flowing ribbon strands
-    // Fields: a1=start angle, a2=end angle, color=rgb, bendDir=+1/-1, phase=anim offset, w=width scale
-    const ribbons = [
-        { a1: Math.PI * 0.70, a2: Math.PI * 1.72, color: '0, 225, 255',   bendDir:  1, phase: 0.0, w: 1.00 },
-        { a1: Math.PI * 1.25, a2: Math.PI * 0.18, color: '190, 55, 255',  bendDir: -1, phase: 1.6, w: 1.00 },
-        { a1: Math.PI * 0.35, a2: Math.PI * 1.38, color: '0,  195, 240',  bendDir:  1, phase: 0.9, w: 0.55 },
-        { a1: Math.PI * 1.85, a2: Math.PI * 0.92, color: '215, 70, 255',  bendDir: -1, phase: 2.6, w: 0.50 },
-        { a1: Math.PI * 1.55, a2: Math.PI * 0.55, color: '90, 220, 255',  bendDir:  1, phase: 3.5, w: 0.35 },
+    // === INTERIOR ENERGY FLOWS (clipped to sphere) ===
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.985, 0, Math.PI * 2);
+    ctx.clip();
+
+    const energyFlows = [
+        { yOff:  0.00, freq: 2.5, wAmp: 0.18, color: '0, 220, 240',  w: r*0.28, alpha: 0.55, spd: 1.0, phase: 0.0 },
+        { yOff:  0.38, freq: 3.0, wAmp: 0.14, color: '150, 55, 255', w: r*0.22, alpha: 0.48, spd: 0.8, phase: 1.4 },
+        { yOff: -0.35, freq: 3.5, wAmp: 0.12, color: '0, 200, 225',  w: r*0.18, alpha: 0.40, spd: 1.3, phase: 2.8 },
+        { yOff:  0.65, freq: 2.0, wAmp: 0.20, color: '180, 70, 255', w: r*0.16, alpha: 0.35, spd: 0.7, phase: 4.2 },
+        { yOff: -0.65, freq: 4.0, wAmp: 0.10, color: '0, 240, 255',  w: r*0.12, alpha: 0.28, spd: 1.6, phase: 5.6 },
     ];
 
-    const activeBoost = isActive ? 1.5 + amp * 1.5 : 1.0;
+    energyFlows.forEach(ef => {
+        const segs = 100;
+        const yBase = cy + (Math.sin(t * ef.spd * 0.35 + ef.phase) * 0.28 + ef.yOff) * r;
 
-    ribbons.forEach(rib => {
-        const a1 = rib.a1 + Math.sin(t * 0.28 + rib.phase) * 0.13;
-        const a2 = rib.a2 + Math.cos(t * 0.32 + rib.phase + 1.1) * 0.13;
+        const flowGrad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+        flowGrad.addColorStop(0,    'rgba(0,0,0,0)');
+        flowGrad.addColorStop(0.10, `rgba(${ef.color}, ${ef.alpha * activeBoost})`);
+        flowGrad.addColorStop(0.50, `rgba(${ef.color}, ${ef.alpha * 0.65 * activeBoost})`);
+        flowGrad.addColorStop(0.90, `rgba(${ef.color}, ${ef.alpha * activeBoost})`);
+        flowGrad.addColorStop(1,    'rgba(0,0,0,0)');
 
-        const sx = cx + Math.cos(a1) * r;
-        const sy = cy + Math.sin(a1) * r;
-        const ex = cx + Math.cos(a2) * r;
-        const ey = cy + Math.sin(a2) * r;
-
-        const dx = ex - sx;
-        const dy = ey - sy;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const perpX = (-dy / len) * rib.bendDir;
-        const perpY = ( dx / len) * rib.bendDir;
-
-        const bendMag = r * (0.52 + Math.sin(t * 0.38 + rib.phase) * 0.14);
-        const driftX  = Math.sin(t * 0.50 + rib.phase * 0.75) * r * 0.07;
-        const driftY  = Math.cos(t * 0.45 + rib.phase * 0.85) * r * 0.07;
-
-        const cp1x = sx + dx * 0.4 + perpX * bendMag + driftX;
-        const cp1y = sy + dy * 0.4 + perpY * bendMag + driftY;
-        const cp2x = ex - dx * 0.4 + perpX * bendMag - driftX;
-        const cp2y = ey - dy * 0.4 + perpY * bendMag - driftY;
-
-        const c = rib.color;
-        const w = rib.w;
-
-        ctx.lineCap = 'round';
-
-        // Wide outer glow
+        // Wide glow band
         ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
-        ctx.strokeStyle = `rgba(${c}, ${0.06 * activeBoost})`;
-        ctx.lineWidth = 44 * w;
-        ctx.shadowColor = `rgba(${c}, 0.18)`;
-        ctx.shadowBlur = 32;
-        ctx.stroke();
-
-        // Medium glow
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
-        ctx.strokeStyle = `rgba(${c}, ${0.20 * activeBoost})`;
-        ctx.lineWidth = 18 * w;
-        ctx.shadowColor = `rgba(${c}, 0.45)`;
-        ctx.shadowBlur = 16;
-        ctx.stroke();
-
-        // Inner bright glow
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
-        ctx.strokeStyle = `rgba(${c}, ${0.52 * activeBoost})`;
-        ctx.lineWidth = 6 * w;
-        ctx.shadowColor = `rgba(${c}, 0.75)`;
-        ctx.shadowBlur = 10;
+        for (let i = 0; i <= segs; i++) {
+            const px = cx - r + (i / segs) * r * 2;
+            const wy = yBase + Math.sin((i / segs) * Math.PI * ef.freq + t * ef.spd + ef.phase) * r * ef.wAmp;
+            if (i === 0) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+        }
+        ctx.strokeStyle = flowGrad;
+        ctx.lineWidth   = ef.w;
+        ctx.lineCap     = 'round';
+        ctx.shadowColor = `rgba(${ef.color}, 0.45)`;
+        ctx.shadowBlur  = 18;
         ctx.stroke();
 
         // Bright core line
         ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
-        ctx.strokeStyle = `rgba(${c}, ${Math.min(1, 0.92 * activeBoost)})`;
-        ctx.lineWidth = 1.8 * w;
-        ctx.shadowColor = `rgba(${c}, 1)`;
-        ctx.shadowBlur = 6;
+        for (let i = 0; i <= segs; i++) {
+            const px = cx - r + (i / segs) * r * 2;
+            const wy = yBase + Math.sin((i / segs) * Math.PI * ef.freq + t * ef.spd + ef.phase) * r * ef.wAmp;
+            if (i === 0) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+        }
+        ctx.strokeStyle = `rgba(${ef.color}, ${Math.min(0.95, (ef.alpha + 0.28) * activeBoost)})`;
+        ctx.lineWidth   = 2.5;
+        ctx.shadowColor = `rgba(${ef.color}, 0.85)`;
+        ctx.shadowBlur  = 8;
         ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        // Glowing anchor spots at each endpoint on the sphere boundary
-        [{x: sx, y: sy}, {x: ex, y: ey}].forEach(pt => {
-            const ag = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, r * 0.14);
-            ag.addColorStop(0,   `rgba(${c}, ${0.80 * activeBoost})`);
-            ag.addColorStop(0.4, `rgba(${c}, ${0.28 * activeBoost})`);
-            ag.addColorStop(1,   'rgba(0, 0, 0, 0)');
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, r * 0.14, 0, Math.PI * 2);
-            ctx.fillStyle = ag;
-            ctx.fill();
-        });
+        ctx.shadowBlur  = 0;
     });
 
-    // Expanding ripple rings when active or reacting to audio
+    ctx.restore();
+
+    // === LIMB GLOW (edge brightening) ===
+    const limbGrad = ctx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r * 1.06);
+    limbGrad.addColorStop(0,    'rgba(0, 0, 0, 0)');
+    limbGrad.addColorStop(0.72, `rgba(0, 195, 220,  ${0.06 * activeBoost})`);
+    limbGrad.addColorStop(0.87, `rgba(0, 220, 245,  ${0.42 * activeBoost})`);
+    limbGrad.addColorStop(0.94, `rgba(140, 65, 255, ${0.30 * activeBoost})`);
+    limbGrad.addColorStop(1.00, `rgba(80,  30, 180, ${0.15 * activeBoost})`);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = limbGrad;
+    ctx.fill();
+
+    // === CORONA GLOW RINGS ===
+    for (let ci = 0; ci < 3; ci++) {
+        const cR     = r * (1.015 + ci * 0.038 + Math.sin(t * 0.6 + ci * 1.5) * 0.008);
+        const cAlpha = (0.28 - ci * 0.07) * activeBoost * (0.85 + Math.sin(t * 0.8 + ci) * 0.15);
+        const cColor = ci % 2 === 0 ? '0, 220, 240' : '150, 60, 255';
+        ctx.beginPath();
+        ctx.arc(cx, cy, cR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${cColor}, ${cAlpha})`;
+        ctx.lineWidth   = 2.2 - ci * 0.5;
+        ctx.shadowColor = `rgba(${cColor}, 0.65)`;
+        ctx.shadowBlur  = 14 - ci * 3;
+        ctx.stroke();
+        ctx.shadowBlur  = 0;
+    }
+
+    // === SPECULAR HIGHLIGHT ===
+    const specGrad = ctx.createRadialGradient(
+        cx - r * 0.25, cy - r * 0.25, 0,
+        cx - r * 0.25, cy - r * 0.25, r * 0.48
+    );
+    specGrad.addColorStop(0,    `rgba(200, 255, 255, ${0.22 + amp * 0.12})`);
+    specGrad.addColorStop(0.35, `rgba(100, 230, 245, 0.08)`);
+    specGrad.addColorStop(1,    'rgba(0, 0, 0, 0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = specGrad;
+    ctx.fill();
+
+    // === ORBITING ENERGY RINGS ===
+    const ringData = [
+        { incl: t * 0.22,       color: '0, 220, 240',  alpha: 0.58, lw: 2.8 },
+        { incl: t * 0.17 + 1.0, color: '160, 55, 255', alpha: 0.48, lw: 2.0 },
+    ];
+    ringData.forEach(rd => {
+        const segs = 120;
+        ctx.beginPath();
+        for (let i = 0; i <= segs; i++) {
+            const a  = (i / segs) * Math.PI * 2;
+            const ox = cx + Math.cos(a) * r * 1.08;
+            const oy = cy + Math.sin(a) * r * 0.24 * Math.cos(rd.incl);
+            if (i === 0) ctx.moveTo(ox, oy); else ctx.lineTo(ox, oy);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(${rd.color}, ${rd.alpha * activeBoost})`;
+        ctx.lineWidth   = rd.lw;
+        ctx.shadowColor = `rgba(${rd.color}, 0.72)`;
+        ctx.shadowBlur  = 16;
+        ctx.stroke();
+        ctx.shadowBlur  = 0;
+    });
+
+    // === RIPPLE RINGS (active state) ===
     if (isActive || amp > 0.02) {
         for (let i = 0; i < 3; i++) {
-            const rph   = (time * 0.4 + i * 0.333) % 1;
-            const rr    = r + rph * r * 0.45;
-            const ra    = (1 - rph) * 0.13 * (isActive ? 1.6 : 0.5);
+            const rph = (time * 0.42 + i * 0.333) % 1;
+            const rr  = r * (1.03 + rph * 0.48);
+            const ra  = (1 - rph) * 0.22 * activeBoost;
             ctx.beginPath();
             ctx.arc(cx, cy, rr, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(0, 210, 255, ${ra})`;
-            ctx.lineWidth = 1;
-            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(0, 210, 235, ${ra})`;
+            ctx.lineWidth   = 1.5;
+            ctx.shadowBlur  = 0;
             ctx.stroke();
         }
     }
