@@ -3,311 +3,394 @@
 {% block title %}Work Orders - Dynamic.IQ.MRP{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Work Orders <small class="text-muted">({{ workorders|length }} found)</small></h2>
-    <div>
+
+{#-- Derive sub-lists from the already-filtered workorders list --#}
+{% set aog_list = workorders | selectattr('is_aog') | list %}
+{% set warranty_list = workorders | selectattr('is_warranty') | list %}
+
+{#-- ================================================================
+     MACRO: Renders the table for a given list of work orders
+     show_checkbox: whether to add a select column (All tab only)
+     table_id: unique HTML id for the <table> element
+     empty_msg: message shown when the list is empty
+================================================================ --#}
+{% macro wo_table(wo_list, table_id, show_checkbox=false, empty_msg='No work orders found matching your criteria.') %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle" id="{{ table_id }}">
+        <thead>
+            <tr>
+                {% if show_checkbox %}
+                <th style="width:40px;" data-sortable="false">
+                    <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()">
+                </th>
+                {% endif %}
+                <th data-sortable="false" style="width:44px;" title="Material shortage: Red = materials not yet fully issued | Green = all issued or none required">Mat.</th>
+                <th data-sort-type="string">WO Number</th>
+                <th data-sort-type="string">Product</th>
+                <th data-sort-type="string">Customer</th>
+                <th data-sort-type="number">Qty</th>
+                <th data-sort-type="string">Disposition</th>
+                <th data-sort-type="string">Status</th>
+                <th data-sort-type="string">Stage</th>
+                <th data-sort-type="string">Priority</th>
+                <th data-sort-type="number" title="AI-computed priority score (0-100)">AI Score</th>
+                <th data-sort-type="date">Planned Start</th>
+                <th data-sort-type="date">Planned End</th>
+                <th data-sortable="false">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if wo_list %}
+                {% for wo in wo_list %}
+                <tr>
+                    {% if show_checkbox %}
+                    <td>
+                        <input type="checkbox" class="form-check-input wo-checkbox" value="{{ wo.id }}"
+                               data-wo-number="{{ wo.wo_number }}" data-status="{{ wo.status }}"
+                               onclick="updateSelectedCount()">
+                    </td>
+                    {% endif %}
+                    <td class="text-center">
+                        {% if wo.material_status == 'shortage' %}
+                        <span title="Material Shortage: one or more required materials have not been fully issued"
+                              style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#dc3545;box-shadow:0 0 0 2px rgba(220,53,69,.25);"></span>
+                        {% else %}
+                        <span title="Materials Ready: all materials issued or none required"
+                              style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#198754;box-shadow:0 0 0 2px rgba(25,135,84,.2);"></span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="fw-semibold text-decoration-none">{{ wo.wo_number }}</a>
+                        {% if wo.is_aog %}
+                        <span class="badge bg-danger ms-1" title="Aircraft on Ground"><i class="bi bi-exclamation-triangle-fill"></i> AOG</span>
+                        {% endif %}
+                        {% if wo.is_warranty %}
+                        <span class="badge bg-success ms-1" title="Warranty"><i class="bi bi-shield-check"></i></span>
+                        {% endif %}
+                    </td>
+                    <td>{{ wo.code }} - {{ wo.name }}</td>
+                    <td>
+                        {% if wo.customer_id %}
+                        <a href="{{ url_for('customer_routes.view_customer', id=wo.customer_id) }}" class="text-decoration-none small">
+                            {{ wo.customer_number }} - {{ wo.customer_full_name }}
+                        </a>
+                        {% elif wo.customer_name %}
+                        <span class="small">{{ wo.customer_name }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ wo.quantity }}</td>
+                    <td><span class="badge bg-primary">{{ wo.disposition or 'Manufacture' }}</span></td>
+                    <td>
+                        {% if wo.status == 'Completed' %}
+                        <span class="badge bg-success">{{ wo.status }}</span>
+                        {% elif wo.status == 'In Progress' %}
+                        <span class="badge bg-info">{{ wo.status }}</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">{{ wo.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm stage-select" data-wo-id="{{ wo.id }}"
+                                style="min-width:120px;{% if wo.stage_color %}background-color:{{ wo.stage_color }};color:white;{% endif %}">
+                            <option value="">No Stage</option>
+                            {% for stage in stages %}
+                            <option value="{{ stage.id }}" data-color="{{ stage.color }}" {% if stage.id == wo.stage_id %}selected{% endif %}>{{ stage.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>{{ wo.priority }}</td>
+                    <td>
+                        <span class="wo-ai-score-cell text-muted small" data-wo-id="{{ wo.id }}">
+                            <span class="spinner-border spinner-border-sm opacity-25" style="width:.7rem;height:.7rem;" role="status"></span>
+                        </span>
+                    </td>
+                    <td>{{ wo.planned_start_date or '-' }}</td>
+                    <td>{{ wo.planned_end_date or '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="{{ 14 if show_checkbox else 13 }}" class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size:3rem;color:#ccc;"></i>
+                        <p class="text-muted mt-3">{{ empty_msg }}</p>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
+
+
+{# ================================================================
+   PAGE HEADER
+================================================================ #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Work Orders</h2>
+    <div class="d-flex gap-2">
         {% if session.role in ['Admin', 'Planner'] %}
-        <button type="button" class="btn btn-warning me-2 d-none" id="massUpdateBtn" onclick="openMassUpdateModal()">
+        <button type="button" class="btn btn-warning d-none" id="massUpdateBtn" onclick="openMassUpdateModal()">
             <i class="bi bi-pencil-square"></i> Mass Update (<span id="selectedCount">0</span>)
         </button>
         {% endif %}
         {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
-        <a href="{{ url_for('workorder_routes.create_workorder') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Create Work Order</a>
+        <a href="{{ url_for('workorder_routes.create_workorder') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Work Order
+        </a>
         {% endif %}
     </div>
 </div>
 
-<!-- Filter & Search Panel -->
-<div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-funnel"></i> Filters & Search</h5>
-        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
-            <i class="bi bi-chevron-down"></i> Toggle
+{# ================================================================
+   TAB NAVIGATION
+================================================================ #}
+<ul class="nav nav-tabs mb-0" id="woMainTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-all" data-bs-toggle="tab" data-bs-target="#pane-all"
+                type="button" role="tab" aria-controls="pane-all" aria-selected="true">
+            <i class="bi bi-grid-3x3-gap-fill"></i> Work Orders
+            <span class="badge bg-secondary ms-1">{{ workorders|length }}</span>
         </button>
-    </div>
-    <div class="collapse show" id="filterPanel">
-        <div class="card-body">
-            <form method="GET" action="{{ url_for('workorder_routes.list_workorders') }}" id="filterForm">
-                <div class="row g-3">
-                    <!-- Search Box -->
-                    <div class="col-md-4">
-                        <label for="search" class="form-label"><i class="bi bi-search"></i> Search</label>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               placeholder="WO Number, Product, Customer..." 
-                               value="{{ filters.search }}">
-                    </div>
-                    
-                    <!-- Status Filter -->
-                    <div class="col-md-2">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status">
-                            <option value="">All Statuses</option>
-                            {% for s in statuses %}
-                            <option value="{{ s.status }}" {% if filters.status == s.status %}selected{% endif %}>{{ s.status }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- Disposition Filter -->
-                    <div class="col-md-2">
-                        <label for="disposition" class="form-label">Disposition</label>
-                        <select class="form-select" id="disposition" name="disposition">
-                            <option value="">All Dispositions</option>
-                            {% for d in dispositions %}
-                            <option value="{{ d.disposition }}" {% if filters.disposition == d.disposition %}selected{% endif %}>{{ d.disposition }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- Priority Filter -->
-                    <div class="col-md-2">
-                        <label for="priority" class="form-label">Priority</label>
-                        <select class="form-select" id="priority" name="priority">
-                            <option value="">All Priorities</option>
-                            {% for p in priorities %}
-                            <option value="{{ p.priority }}" {% if filters.priority == p.priority %}selected{% endif %}>{{ p.priority }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- Stage Filter -->
-                    <div class="col-md-2">
-                        <label for="stage_id" class="form-label">Stage</label>
-                        <select class="form-select" id="stage_id" name="stage_id">
-                            <option value="">All Stages</option>
-                            {% for stage in stages %}
-                            <option value="{{ stage.id }}" {% if filters.stage_id|string == stage.id|string %}selected{% endif %}>{{ stage.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-aog" data-bs-toggle="tab" data-bs-target="#pane-aog"
+                type="button" role="tab" aria-controls="pane-aog" aria-selected="false">
+            <i class="bi bi-exclamation-triangle-fill text-danger"></i> AOG
+            {% if aog_list %}
+            <span class="badge bg-danger ms-1">{{ aog_list|length }}</span>
+            {% else %}
+            <span class="badge bg-secondary ms-1">0</span>
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-warranty" data-bs-toggle="tab" data-bs-target="#pane-warranty"
+                type="button" role="tab" aria-controls="pane-warranty" aria-selected="false">
+            <i class="bi bi-shield-check text-success"></i> Warranty
+            {% if warranty_list %}
+            <span class="badge bg-success ms-1">{{ warranty_list|length }}</span>
+            {% else %}
+            <span class="badge bg-secondary ms-1">0</span>
+            {% endif %}
+        </button>
+    </li>
+</ul>
 
-                    <!-- Material Shortage Filter -->
-                    <div class="col-md-2">
-                        <label for="shortage" class="form-label"><i class="bi bi-boxes"></i> Materials</label>
-                        <select class="form-select" id="shortage" name="shortage">
-                            <option value="">All</option>
-                            <option value="shortage" {% if filters.shortage == 'shortage' %}selected{% endif %}>
-                                Shortage (Red)
-                            </option>
-                            <option value="ok" {% if filters.shortage == 'ok' %}selected{% endif %}>
-                                Ready (Green)
-                            </option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row g-3 mt-2">
-                    <!-- Customer Filter -->
-                    <div class="col-md-3">
-                        <label for="customer" class="form-label">Customer</label>
-                        <select class="form-select" id="customer" name="customer">
-                            <option value="">All Customers</option>
-                            {% for c in customers %}
-                            <option value="{{ c.id }}" {% if filters.customer == c.id|string %}selected{% endif %}>
-                                {{ c.customer_number }} - {{ c.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- Date Range -->
-                    <div class="col-md-2">
-                        <label for="date_from" class="form-label">Start Date From</label>
-                        <input type="date" class="form-control" id="date_from" name="date_from" value="{{ filters.date_from }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="date_to" class="form-label">Start Date To</label>
-                        <input type="date" class="form-control" id="date_to" name="date_to" value="{{ filters.date_to }}">
-                    </div>
-                    
-                    <!-- Sort By -->
-                    <div class="col-md-2">
-                        <label for="sort_by" class="form-label"><i class="bi bi-sort-down"></i> Sort By</label>
-                        <select class="form-select" id="sort_by" name="sort_by">
-                            <option value="planned_start_date" {% if filters.sort_by == 'planned_start_date' %}selected{% endif %}>Planned Start Date</option>
-                            <option value="wo_number" {% if filters.sort_by == 'wo_number' %}selected{% endif %}>WO Number</option>
-                            <option value="product" {% if filters.sort_by == 'product' %}selected{% endif %}>Product</option>
-                            <option value="customer" {% if filters.sort_by == 'customer' %}selected{% endif %}>Customer</option>
-                            <option value="status" {% if filters.sort_by == 'status' %}selected{% endif %}>Status</option>
-                            <option value="priority" {% if filters.sort_by == 'priority' %}selected{% endif %}>Priority</option>
-                            <option value="quantity" {% if filters.sort_by == 'quantity' %}selected{% endif %}>Quantity</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Sort Order -->
-                    <div class="col-md-1">
-                        <label for="sort_order" class="form-label">Order</label>
-                        <select class="form-select" id="sort_order" name="sort_order">
-                            <option value="ASC" {% if filters.sort_order == 'ASC' %}selected{% endif %}>↑ ASC</option>
-                            <option value="DESC" {% if filters.sort_order == 'DESC' %}selected{% endif %}>↓ DESC</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Action Buttons -->
-                    <div class="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary flex-fill">
-                            <i class="bi bi-filter"></i> Apply
-                        </button>
-                        <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-secondary">
-                            <i class="bi bi-x-circle"></i> Clear
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{# ================================================================
+   TAB CONTENT
+================================================================ #}
+<div class="tab-content border border-top-0 rounded-bottom bg-white shadow-sm" id="woTabContent">
 
-<!-- Active Filters Display -->
-{% set active_filters = [] %}
-{% if filters.search %}{% set _ = active_filters.append(('Search', filters.search)) %}{% endif %}
-{% if filters.status %}{% set _ = active_filters.append(('Status', filters.status)) %}{% endif %}
-{% if filters.disposition %}{% set _ = active_filters.append(('Disposition', filters.disposition)) %}{% endif %}
-{% if filters.priority %}{% set _ = active_filters.append(('Priority', filters.priority)) %}{% endif %}
-{% if filters.stage_id %}
-    {% for stage in stages %}
-        {% if stage.id|string == filters.stage_id|string %}
-            {% set _ = active_filters.append(('Stage', stage.name)) %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-{% if filters.customer %}
-    {% for c in customers %}
-        {% if c.id|string == filters.customer %}
-            {% set _ = active_filters.append(('Customer', c.customer_number ~ ' - ' ~ c.name)) %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-{% if filters.date_from %}{% set _ = active_filters.append(('Date From', filters.date_from)) %}{% endif %}
-{% if filters.date_to %}{% set _ = active_filters.append(('Date To', filters.date_to)) %}{% endif %}
-{% if filters.shortage == 'shortage' %}{% set _ = active_filters.append(('Materials', 'Shortage')) %}{% elif filters.shortage == 'ok' %}{% set _ = active_filters.append(('Materials', 'Ready')) %}{% endif %}
+    {# ---- ALL WORK ORDERS PANE ---- #}
+    <div class="tab-pane fade show active p-3" id="pane-all" role="tabpanel" aria-labelledby="tab-all">
 
-{% if active_filters %}
-<div class="alert alert-info d-flex align-items-center justify-content-between">
-    <div>
-        <strong><i class="bi bi-info-circle"></i> Active Filters:</strong>
-        {% for name, value in active_filters %}
-        <span class="badge bg-primary ms-2">{{ name }}: {{ value }}</span>
-        {% endfor %}
-    </div>
-    <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-x"></i> Clear All
-    </a>
-</div>
-{% endif %}
-
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover" id="workordersTable">
-                <thead>
-                    <tr>
-                        {% if session.role in ['Admin', 'Planner'] %}
-                        <th data-sortable="false" style="width: 40px;">
-                            <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()">
-                        </th>
-                        {% endif %}
-                        <th data-sortable="false" title="Material shortage flag: Red = materials not yet fully issued, Green = all materials issued or none required" style="width:52px;">Mat.</th>
-                        <th data-sort-type="string">WO Number</th>
-                        <th data-sort-type="string">Product</th>
-                        <th data-sort-type="string">Customer</th>
-                        <th data-sort-type="number">Quantity</th>
-                        <th data-sort-type="string">Disposition</th>
-                        <th data-sort-type="string">Status</th>
-                        <th data-sort-type="string">Stage</th>
-                        <th data-sort-type="string">Priority</th>
-                        <th data-sort-type="number" title="AI-computed priority score (0-100)">AI Score</th>
-                        <th data-sort-type="date">Planned Start</th>
-                        <th data-sort-type="date">Planned End</th>
-                        <th data-sortable="false">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if workorders %}
-                        {% for wo in workorders %}
-                        <tr>
-                            {% if session.role in ['Admin', 'Planner'] %}
-                            <td>
-                                <input type="checkbox" class="form-check-input wo-checkbox" value="{{ wo.id }}"
-                                       data-wo-number="{{ wo.wo_number }}" data-status="{{ wo.status }}"
-                                       onclick="updateSelectedCount()">
-                            </td>
-                            {% endif %}
-                            <td class="text-center align-middle">
-                                {% if wo.material_status == 'shortage' %}
-                                <span title="Material Shortage: one or more required materials have not been fully issued"
-                                      style="display:inline-block;width:16px;height:16px;border-radius:50%;background:#dc3545;box-shadow:0 0 0 2px rgba(220,53,69,.25);"></span>
-                                {% else %}
-                                <span title="Materials Ready: all materials issued or none required"
-                                      style="display:inline-block;width:16px;height:16px;border-radius:50%;background:#198754;box-shadow:0 0 0 2px rgba(25,135,84,.2);"></span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a>
-                                {% if wo.is_aog %}
-                                <span class="badge bg-danger ms-1" title="Aircraft on Ground"><i class="bi bi-exclamation-triangle-fill"></i> AOG</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ wo.code }} - {{ wo.name }}</td>
-                            <td>
-                                {% if wo.customer_id %}
-                                <a href="{{ url_for('customer_routes.view_customer', id=wo.customer_id) }}" class="text-decoration-none">
-                                    {{ wo.customer_number }} - {{ wo.customer_full_name }}
-                                </a>
-                                {% elif wo.customer_name %}
-                                {{ wo.customer_name }}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ wo.quantity }}</td>
-                            <td><span class="badge bg-primary">{{ wo.disposition or 'Manufacture' }}</span></td>
-                            <td>
-                                {% if wo.status == 'Completed' %}
-                                <span class="badge bg-success">{{ wo.status }}</span>
-                                {% elif wo.status == 'In Progress' %}
-                                <span class="badge bg-info">{{ wo.status }}</span>
-                                {% else %}
-                                <span class="badge bg-warning">{{ wo.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <select class="form-select form-select-sm stage-select" data-wo-id="{{ wo.id }}" 
-                                        style="min-width: 120px; {% if wo.stage_color %}background-color: {{ wo.stage_color }}; color: white;{% endif %}">
-                                    <option value="">No Stage</option>
-                                    {% for stage in stages %}
-                                    <option value="{{ stage.id }}" data-color="{{ stage.color }}" {% if stage.id == wo.stage_id %}selected{% endif %}>{{ stage.name }}</option>
+        {# Filter & Search Panel #}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold"><i class="bi bi-funnel"></i> Filters &amp; Search</span>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
+                    <i class="bi bi-chevron-down"></i> Toggle
+                </button>
+            </div>
+            <div class="collapse show" id="filterPanel">
+                <div class="card-body pb-2">
+                    <form method="GET" action="{{ url_for('workorder_routes.list_workorders') }}" id="filterForm">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold"><i class="bi bi-search"></i> Search</label>
+                                <input type="text" class="form-control form-control-sm" name="search"
+                                       placeholder="WO Number, Product, Customer..."
+                                       value="{{ filters.search }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Status</label>
+                                <select class="form-select form-select-sm" name="status">
+                                    <option value="">All Statuses</option>
+                                    {% for s in statuses %}
+                                    <option value="{{ s.status }}" {% if filters.status == s.status %}selected{% endif %}>{{ s.status }}</option>
                                     {% endfor %}
                                 </select>
-                            </td>
-                            <td>{{ wo.priority }}</td>
-                            <td>
-                                <span class="wo-ai-score-cell text-muted small" data-wo-id="{{ wo.id }}">
-                                    <span class="spinner-border spinner-border-sm opacity-25" style="width:.7rem;height:.7rem;" role="status"></span>
-                                </span>
-                            </td>
-                            <td>{{ wo.planned_start_date or '-' }}</td>
-                            <td>{{ wo.planned_end_date or '-' }}</td>
-                            <td>
-                                <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="{% if session.role in ['Admin', 'Planner'] %}13{% else %}12{% endif %}" class="text-center py-5">
-                                <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
-                                <p class="text-muted mt-3">No work orders found matching your criteria.</p>
-                                <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Disposition</label>
+                                <select class="form-select form-select-sm" name="disposition">
+                                    <option value="">All</option>
+                                    {% for d in dispositions %}
+                                    <option value="{{ d.disposition }}" {% if filters.disposition == d.disposition %}selected{% endif %}>{{ d.disposition }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Priority</label>
+                                <select class="form-select form-select-sm" name="priority">
+                                    <option value="">All</option>
+                                    {% for p in priorities %}
+                                    <option value="{{ p.priority }}" {% if filters.priority == p.priority %}selected{% endif %}>{{ p.priority }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Stage</label>
+                                <select class="form-select form-select-sm" name="stage_id">
+                                    <option value="">All Stages</option>
+                                    {% for stage in stages %}
+                                    <option value="{{ stage.id }}" {% if filters.stage_id|string == stage.id|string %}selected{% endif %}>{{ stage.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold"><i class="bi bi-boxes"></i> Materials</label>
+                                <select class="form-select form-select-sm" name="shortage">
+                                    <option value="">All</option>
+                                    <option value="shortage" {% if filters.shortage == 'shortage' %}selected{% endif %}>Shortage (Red)</option>
+                                    <option value="ok" {% if filters.shortage == 'ok' %}selected{% endif %}>Ready (Green)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Customer</label>
+                                <select class="form-select form-select-sm" name="customer">
+                                    <option value="">All Customers</option>
+                                    {% for c in customers %}
+                                    <option value="{{ c.id }}" {% if filters.customer == c.id|string %}selected{% endif %}>
+                                        {{ c.customer_number }} - {{ c.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Start Date From</label>
+                                <input type="date" class="form-control form-control-sm" name="date_from" value="{{ filters.date_from }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Start Date To</label>
+                                <input type="date" class="form-control form-control-sm" name="date_to" value="{{ filters.date_to }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold"><i class="bi bi-sort-down"></i> Sort By</label>
+                                <select class="form-select form-select-sm" name="sort_by">
+                                    <option value="planned_start_date" {% if filters.sort_by == 'planned_start_date' %}selected{% endif %}>Planned Start</option>
+                                    <option value="wo_number"          {% if filters.sort_by == 'wo_number' %}selected{% endif %}>WO Number</option>
+                                    <option value="product"            {% if filters.sort_by == 'product' %}selected{% endif %}>Product</option>
+                                    <option value="customer"           {% if filters.sort_by == 'customer' %}selected{% endif %}>Customer</option>
+                                    <option value="status"             {% if filters.sort_by == 'status' %}selected{% endif %}>Status</option>
+                                    <option value="priority"           {% if filters.sort_by == 'priority' %}selected{% endif %}>Priority</option>
+                                    <option value="quantity"           {% if filters.sort_by == 'quantity' %}selected{% endif %}>Quantity</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label small fw-semibold">Order</label>
+                                <select class="form-select form-select-sm" name="sort_order">
+                                    <option value="ASC"  {% if filters.sort_order == 'ASC' %}selected{% endif %}>↑ ASC</option>
+                                    <option value="DESC" {% if filters.sort_order == 'DESC' %}selected{% endif %}>↓ DESC</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                                    <i class="bi bi-filter"></i> Apply
+                                </button>
+                                <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-sm btn-secondary">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
 
+        {# Active Filters display #}
+        {% set active_filters = [] %}
+        {% if filters.search %}{% set _ = active_filters.append(('Search', filters.search)) %}{% endif %}
+        {% if filters.status %}{% set _ = active_filters.append(('Status', filters.status)) %}{% endif %}
+        {% if filters.disposition %}{% set _ = active_filters.append(('Disposition', filters.disposition)) %}{% endif %}
+        {% if filters.priority %}{% set _ = active_filters.append(('Priority', filters.priority)) %}{% endif %}
+        {% if filters.stage_id %}
+            {% for stage in stages %}
+                {% if stage.id|string == filters.stage_id|string %}
+                    {% set _ = active_filters.append(('Stage', stage.name)) %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if filters.customer %}
+            {% for c in customers %}
+                {% if c.id|string == filters.customer %}
+                    {% set _ = active_filters.append(('Customer', c.customer_number ~ ' - ' ~ c.name)) %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if filters.date_from %}{% set _ = active_filters.append(('Date From', filters.date_from)) %}{% endif %}
+        {% if filters.date_to %}{% set _ = active_filters.append(('Date To', filters.date_to)) %}{% endif %}
+        {% if filters.shortage == 'shortage' %}{% set _ = active_filters.append(('Materials', 'Shortage')) %}{% elif filters.shortage == 'ok' %}{% set _ = active_filters.append(('Materials', 'Ready')) %}{% endif %}
+
+        {% if active_filters %}
+        <div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-3">
+            <div>
+                <strong><i class="bi bi-info-circle"></i> Active Filters:</strong>
+                {% for name, value in active_filters %}
+                <span class="badge bg-primary ms-2">{{ name }}: {{ value }}</span>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x"></i> Clear All
+            </a>
+        </div>
+        {% endif %}
+
+        {# All Work Orders table #}
+        {{ wo_table(workorders, 'workordersTable',
+                    show_checkbox=(session.role in ['Admin', 'Planner']),
+                    empty_msg='No work orders found matching your criteria.') }}
+    </div>
+
+    {# ---- AOG PANE ---- #}
+    <div class="tab-pane fade p-3" id="pane-aog" role="tabpanel" aria-labelledby="tab-aog">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="badge bg-danger px-3 py-2 fs-6">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> Aircraft on Ground (AOG)
+            </span>
+            <span class="text-muted small">Work orders flagged as Aircraft on Ground — highest priority.</span>
+        </div>
+        {% if not aog_list %}
+        <div class="text-center py-5">
+            <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
+            <p class="text-muted mt-3 fw-semibold">No AOG work orders — all clear.</p>
+        </div>
+        {% else %}
+        {{ wo_table(aog_list, 'aogTable', show_checkbox=false,
+                    empty_msg='No AOG work orders.') }}
+        {% endif %}
+    </div>
+
+    {# ---- WARRANTY PANE ---- #}
+    <div class="tab-pane fade p-3" id="pane-warranty" role="tabpanel" aria-labelledby="tab-warranty">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="badge bg-success px-3 py-2 fs-6">
+                <i class="bi bi-shield-check me-1"></i> Warranty Work Orders
+            </span>
+            <span class="text-muted small">Work orders covered under a warranty agreement.</span>
+        </div>
+        {% if not warranty_list %}
+        <div class="text-center py-5">
+            <i class="bi bi-shield-x text-muted" style="font-size:3rem;"></i>
+            <p class="text-muted mt-3 fw-semibold">No warranty work orders found.</p>
+        </div>
+        {% else %}
+        {{ wo_table(warranty_list, 'warrantyTable', show_checkbox=false,
+                    empty_msg='No warranty work orders.') }}
+        {% endif %}
+    </div>
+
+</div>{# /tab-content #}
+
+
+{# ================================================================
+   MASS UPDATE MODAL (Admin / Planner only)
+================================================================ #}
 {% if session.role in ['Admin', 'Planner'] %}
 <div class="modal fade" id="massUpdateModal" tabindex="-1" aria-labelledby="massUpdateModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -323,14 +406,11 @@
                     <i class="bi bi-info-circle"></i> You are about to update <strong id="modalSelectedCount">0</strong> work orders.
                     Select the fields you want to update and set their new values.
                 </div>
-                
                 <div class="mb-3" id="selectedWOsList">
                     <label class="form-label fw-bold">Selected Work Orders:</label>
-                    <div id="selectedWOsContainer" class="border rounded p-2" style="max-height: 100px; overflow-y: auto; background: #f8f9fa;"></div>
+                    <div id="selectedWOsContainer" class="border rounded p-2" style="max-height:100px;overflow-y:auto;background:#f8f9fa;"></div>
                 </div>
-                
                 <hr>
-                
                 <form id="massUpdateForm">
                     <div class="row">
                         <div class="col-md-6">
@@ -350,7 +430,6 @@
                                 </select>
                             </div>
                         </div>
-                        
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <div class="form-check">
@@ -367,7 +446,6 @@
                             </div>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -380,7 +458,6 @@
                                 </select>
                             </div>
                         </div>
-                        
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <div class="form-check">
@@ -398,7 +475,6 @@
                             </div>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -409,7 +485,6 @@
                                 <input type="date" class="form-control mt-2" id="massPlannedStartDate" disabled>
                             </div>
                         </div>
-                        
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <div class="form-check">
@@ -432,169 +507,147 @@
     </div>
 </div>
 {% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof TableUtils !== 'undefined') {
-        TableUtils.initSortable('#workordersTable');
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ── Tab persistence via localStorage ───────────────────────────────────────
+    const SAVED_TAB_KEY = 'wo_active_tab_target';
+    const savedTarget = localStorage.getItem(SAVED_TAB_KEY);
+    if (savedTarget) {
+        const btn = document.querySelector(`#woMainTabs button[data-bs-target="${savedTarget}"]`);
+        if (btn) new bootstrap.Tab(btn).show();
     }
-    
-    // Inline stage editing
+    document.querySelectorAll('#woMainTabs button').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', e => {
+            localStorage.setItem(SAVED_TAB_KEY, e.target.dataset.bsTarget);
+        });
+    });
+
+    // ── Table sorting for all three tables ─────────────────────────────────────
+    if (typeof TableUtils !== 'undefined') {
+        ['#workordersTable', '#aogTable', '#warrantyTable'].forEach(id => {
+            if (document.querySelector(id)) TableUtils.initSortable(id);
+        });
+    }
+
+    // ── Inline stage editing (works across all tabs) ────────────────────────────
     document.querySelectorAll('.stage-select').forEach(select => {
-        select.addEventListener('change', async function() {
+        select.addEventListener('change', async function () {
             const woId = this.dataset.woId;
             const stageId = this.value;
             const selectedOption = this.options[this.selectedIndex];
             const stageColor = selectedOption.dataset.color || '';
-            
             try {
                 const response = await fetch(`/api/workorders/${woId}/update-stage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ stage_id: stageId || null })
                 });
-                
                 const result = await response.json();
                 if (result.success) {
-                    if (stageColor) {
-                        this.style.backgroundColor = stageColor;
-                        this.style.color = 'white';
-                    } else {
-                        this.style.backgroundColor = '';
-                        this.style.color = '';
-                    }
+                    // Update all stage selects for this WO (may appear in multiple tabs)
+                    document.querySelectorAll(`.stage-select[data-wo-id="${woId}"]`).forEach(sel => {
+                        sel.value = stageId;
+                        sel.style.backgroundColor = stageColor || '';
+                        sel.style.color = stageColor ? 'white' : '';
+                    });
                 } else {
                     alert('Error updating stage: ' + result.error);
+                    this.value = this.dataset.prevValue || '';
                 }
             } catch (error) {
                 alert('Error updating stage: ' + error.message);
             }
         });
+        // Remember previous value for rollback
+        select.addEventListener('focus', function () { this.dataset.prevValue = this.value; });
     });
 });
 
+
+// ── Mass update helpers ────────────────────────────────────────────────────────
 function updateSelectedCount() {
-    const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
-    const count = checkboxes.length;
+    const count = document.querySelectorAll('.wo-checkbox:checked').length;
     document.getElementById('selectedCount').textContent = count;
-    
-    const massUpdateBtn = document.getElementById('massUpdateBtn');
-    if (count > 0) {
-        massUpdateBtn.classList.remove('d-none');
-    } else {
-        massUpdateBtn.classList.add('d-none');
-    }
+    const btn = document.getElementById('massUpdateBtn');
+    if (btn) btn.classList.toggle('d-none', count === 0);
 }
 
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.wo-checkbox');
-    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    document.querySelectorAll('.wo-checkbox').forEach(cb => cb.checked = selectAll.checked);
     updateSelectedCount();
 }
 
 function toggleField(fieldName) {
-    const checkbox = document.getElementById('update' + fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_([a-z])/g, (m, c) => c.toUpperCase()));
+    const capKey = fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+                    .replace(/_([a-z])/g, (m, c) => c.toUpperCase());
+    const checkbox = document.getElementById('update' + capKey);
     const fieldMap = {
-        'status': 'massStatus',
-        'priority': 'massPriority',
-        'stage': 'massStage',
-        'disposition': 'massDisposition',
-        'planned_start_date': 'massPlannedStartDate',
-        'planned_end_date': 'massPlannedEndDate'
+        status: 'massStatus', priority: 'massPriority', stage: 'massStage',
+        disposition: 'massDisposition',
+        planned_start_date: 'massPlannedStartDate', planned_end_date: 'massPlannedEndDate'
     };
     const field = document.getElementById(fieldMap[fieldName]);
     if (field) {
         field.disabled = !checkbox.checked;
-        if (!checkbox.checked) {
-            field.value = '';
-        }
+        if (!checkbox.checked) field.value = '';
     }
 }
 
 function openMassUpdateModal() {
     document.getElementById('massUpdateForm').reset();
-    ['massStatus', 'massPriority', 'massStage', 'massDisposition', 'massPlannedStartDate', 'massPlannedEndDate'].forEach(id => {
-        const field = document.getElementById(id);
-        if (field) field.disabled = true;
+    ['massStatus','massPriority','massStage','massDisposition','massPlannedStartDate','massPlannedEndDate']
+        .forEach(id => { const f = document.getElementById(id); if (f) f.disabled = true; });
+
+    fetch('/api/workorder-stages').then(r => r.json()).then(data => {
+        if (data.success) {
+            const sel = document.getElementById('massStage');
+            sel.innerHTML = '<option value="">Select Stage</option>';
+            data.stages.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.name}</option>`; });
+        }
     });
-    
-    // Load stages
-    fetch('/api/workorder-stages')
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                const sel = document.getElementById('massStage');
-                sel.innerHTML = '<option value="">Select Stage</option>';
-                data.stages.forEach(s => {
-                    sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-                });
-            }
-        });
-    
+
     const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
-    const count = checkboxes.length;
-    document.getElementById('modalSelectedCount').textContent = count;
-    
-    const container = document.getElementById('selectedWOsContainer');
-    const woNumbers = Array.from(checkboxes).map(cb => cb.dataset.woNumber);
-    container.innerHTML = woNumbers.map(wo => `<span class="badge bg-secondary me-1 mb-1">${wo}</span>`).join('');
-    
-    const modal = new bootstrap.Modal(document.getElementById('massUpdateModal'));
-    modal.show();
+    document.getElementById('modalSelectedCount').textContent = checkboxes.length;
+    document.getElementById('selectedWOsContainer').innerHTML =
+        Array.from(checkboxes).map(cb => `<span class="badge bg-secondary me-1 mb-1">${cb.dataset.woNumber}</span>`).join('');
+
+    new bootstrap.Modal(document.getElementById('massUpdateModal')).show();
 }
 
 async function executeMassUpdate() {
     const checkboxes = document.querySelectorAll('.wo-checkbox:checked');
     const woIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
-    
-    if (woIds.length === 0) {
-        alert('No work orders selected');
-        return;
-    }
-    
+    if (!woIds.length) { alert('No work orders selected'); return; }
+
     const updates = {};
-    
-    if (document.getElementById('updateStatus').checked && document.getElementById('massStatus').value) {
+    if (document.getElementById('updateStatus').checked && document.getElementById('massStatus').value)
         updates.status = document.getElementById('massStatus').value;
-    }
-    if (document.getElementById('updatePriority').checked && document.getElementById('massPriority').value) {
+    if (document.getElementById('updatePriority').checked && document.getElementById('massPriority').value)
         updates.priority = document.getElementById('massPriority').value;
-    }
-    if (document.getElementById('updateStage').checked && document.getElementById('massStage').value) {
+    if (document.getElementById('updateStage').checked && document.getElementById('massStage').value)
         updates.stage_id = document.getElementById('massStage').value;
-    }
-    if (document.getElementById('updateDisposition').checked && document.getElementById('massDisposition').value) {
+    if (document.getElementById('updateDisposition').checked && document.getElementById('massDisposition').value)
         updates.disposition = document.getElementById('massDisposition').value;
-    }
-    if (document.getElementById('updatePlannedStartDate').checked && document.getElementById('massPlannedStartDate').value) {
+    if (document.getElementById('updatePlannedStartDate').checked && document.getElementById('massPlannedStartDate').value)
         updates.planned_start_date = document.getElementById('massPlannedStartDate').value;
-    }
-    if (document.getElementById('updatePlannedEndDate').checked && document.getElementById('massPlannedEndDate').value) {
+    if (document.getElementById('updatePlannedEndDate').checked && document.getElementById('massPlannedEndDate').value)
         updates.planned_end_date = document.getElementById('massPlannedEndDate').value;
-    }
-    
-    if (Object.keys(updates).length === 0) {
-        alert('Please select at least one field to update');
-        return;
-    }
-    
+
+    if (!Object.keys(updates).length) { alert('Please select at least one field to update'); return; }
+
     try {
         const response = await fetch('/api/workorders/mass-update', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                wo_ids: woIds,
-                updates: updates
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wo_ids: woIds, updates })
         });
-        
         const result = await response.json();
-        
         if (result.success) {
             alert(`Successfully updated ${result.updated_count} work orders`);
             bootstrap.Modal.getInstance(document.getElementById('massUpdateModal')).hide();
@@ -607,9 +660,9 @@ async function executeMassUpdate() {
     }
 }
 
-// ── Load AI Priority Scores for all visible WOs ───────────────────────────────
+// ── Load AI Priority Scores for all visible WOs ────────────────────────────────
 (function loadAiPriorityScores() {
-    const CLS_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
+    const CLS_COLOR = { Critical: 'danger', High: 'warning', Medium: 'info', Low: 'success' };
     const cells = document.querySelectorAll('.wo-ai-score-cell');
     if (!cells.length) return;
 
@@ -620,20 +673,18 @@ async function executeMassUpdate() {
             queue.forEach(w => { byId[w.id] = w; });
             cells.forEach(cell => {
                 const wid = parseInt(cell.dataset.woId);
-                const w   = byId[wid];
+                const w = byId[wid];
                 if (w) {
                     const color = CLS_COLOR[w.eff_class] || 'secondary';
-                    const ovr   = w.override_active ? ' <i class="bi bi-lock-fill" title="Override active" style="font-size:0.65rem;"></i>' : '';
-                    cell.innerHTML = '<span class="badge bg-' + color + '" style="font-size:0.7rem;">' +
-                        Math.round(w.eff_score) + ' ' + w.eff_class + '</span>' + ovr;
+                    const ovr = w.override_active
+                        ? ' <i class="bi bi-lock-fill" title="Override active" style="font-size:0.65rem;"></i>' : '';
+                    cell.innerHTML = `<span class="badge bg-${color}" style="font-size:0.7rem;">${Math.round(w.eff_score)} ${w.eff_class}</span>${ovr}`;
                 } else {
                     cell.innerHTML = '<span class="text-muted">--</span>';
                 }
             });
         })
-        .catch(() => {
-            cells.forEach(c => { c.innerHTML = '<span class="text-muted">--</span>'; });
-        });
+        .catch(() => cells.forEach(c => { c.innerHTML = '<span class="text-muted">--</span>'; }));
 })();
 </script>
 {% endblock %}
