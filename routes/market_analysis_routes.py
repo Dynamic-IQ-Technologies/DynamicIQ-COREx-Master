@@ -325,6 +325,19 @@ def auto_generate_fleet_data():
                 'sample_category': 'Radio Access',
                 'sample_desc': 'Remote Radio Unit',
             },
+            'Rare Earth Materials': {
+                'company_type': 'rare earth mining companies, processors, and end-use product manufacturers',
+                'asset_type': 'rare earth elements and associated products (magnets, alloys, catalysts, phosphors)',
+                'asset_examples': 'Neodymium (Nd), Dysprosium (Dy), Lanthanum (La), Cerium (Ce), Praseodymium (Pr), Terbium (Tb), Yttrium (Y), Scandium (Sc), Europium (Eu), Gadolinium (Gd), NdFeB permanent magnets, mixed rare earth oxides, rare earth alloys',
+                'part_examples': 'rare earth product codes like RE-ND-OX-99, RE-NDFEB-MAG-N52, RE-LA-CARB-98, RE-CE-CL3-99, RE-DY-OX-995, CATAL-REO-TWC-001',
+                'category_field': 'ATAChapter',
+                'category_desc': 'material/product category (Oxides, Metals, Magnets, Alloys, Catalysts, Phosphors, Batteries, Defense Applications)',
+                'sample_company': 'MP Materials',
+                'sample_asset': 'NdFeB Permanent Magnet Grade N52',
+                'sample_part': 'RE-NDFEB-MAG-N52',
+                'sample_category': 'Magnets',
+                'sample_desc': 'High-Performance Neodymium-Iron-Boron Permanent Magnet for EV Motors',
+            },
         }
         
         config = industry_configs.get(industry, industry_configs['Aviation MRO'])
@@ -551,7 +564,8 @@ def generate_ai_insights(source_id, run_id):
             sname = source_info['source_name']
             for ind in ['Aerospace & Defense', 'Automotive', 'Oil & Gas', 'Marine & Shipbuilding',
                         'Power Generation & Energy', 'Rail & Transportation', 'Industrial Manufacturing',
-                        'Medical Devices', 'Electronics & Semiconductor', 'Mining & Heavy Equipment', 'Telecommunications']:
+                        'Medical Devices', 'Electronics & Semiconductor', 'Mining & Heavy Equipment',
+                        'Telecommunications', 'Rare Earth Materials']:
                 if ind in sname:
                     industry = ind
                     break
