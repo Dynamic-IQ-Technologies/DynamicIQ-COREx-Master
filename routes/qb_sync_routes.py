@@ -135,6 +135,32 @@ def ensure_qb_tables(conn):
             created_at       TIMESTAMP DEFAULT NOW()
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS qb_ap_bill_map (
+            id               SERIAL PRIMARY KEY,
+            vendor_invoice_id INTEGER,
+            qb_bill_id       TEXT,
+            qb_bill_number   TEXT,
+            qb_total_amount  NUMERIC(12,2),
+            last_synced_at   TIMESTAMP,
+            sync_status      TEXT DEFAULT 'pending',
+            created_at       TIMESTAMP DEFAULT NOW()
+        )
+    ''')
+    for col, definition in [
+        ('auto_sync_ap', 'BOOLEAN DEFAULT FALSE'),
+        ('ndt_invoice_id', 'INTEGER'),
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE qb_sync_config ADD COLUMN IF NOT EXISTS {col} {definition}')
+            conn.commit()
+        except Exception:
+            conn.rollback()
+    try:
+        conn.execute('ALTER TABLE qb_wo_invoice_map ADD COLUMN IF NOT EXISTS ndt_invoice_id INTEGER')
+        conn.commit()
+    except Exception:
+        conn.rollback()
     conn.commit()
 
 
@@ -722,6 +748,175 @@ def sync_ndt_invoice_to_qb(conn, ndt_invoice_id, trigger='manual'):
         return {'status': 'failed', 'reason': err}
 
 
+# ─── Accounts Payable — Vendor Invoice → QB Bill ─────────────────────────────
+
+def sync_vendor_invoice_to_qb(conn, vendor_invoice_id, trigger='manual'):
+    """Push an ERP vendor invoice to QuickBooks as a Bill.
+    Creates a new Bill on first sync; sparse-updates the existing one on re-sync."""
+    config = _get_config(conn)
+    if not config or not config['is_active']:
+        return {'status': 'skipped', 'reason': 'QB integration not configured'}
+
+    ensure_qb_tables(conn)
+
+    vi = conn.execute('''
+        SELECT vi.*, s.name AS vendor_name
+        FROM vendor_invoices vi
+        LEFT JOIN suppliers s ON s.id = vi.vendor_id
+        WHERE vi.id = %s
+    ''', (vendor_invoice_id,)).fetchone()
+    if not vi:
+        return {'status': 'error', 'reason': 'Vendor invoice not found'}
+
+    try:
+        # ── 1. Resolve or create the QB Vendor ───────────────────────────────
+        vendor_name = (vi.get('vendor_name') or 'Unknown Vendor').replace("'", "\\'")
+        query_url   = _api_url(config, f"query?query=SELECT Id FROM Vendor WHERE DisplayName LIKE '{vendor_name[:40]}' MAXRESULTS 1&minorversion=65")
+        qb_vendor_id = None
+        resp = _qb_request(conn, config, 'GET', query_url, timeout=10)
+        if resp.status_code == 200:
+            items = resp.json().get('QueryResponse', {}).get('Vendor', [])
+            if items:
+                qb_vendor_id = items[0]['Id']
+        if not qb_vendor_id:
+            vr = _qb_request(conn, config, 'POST', _api_url(config, 'vendor?minorversion=65'),
+                              json={'DisplayName': vendor_name[:100]}, timeout=10)
+            if vr.status_code in (200, 201):
+                qb_vendor_id = vr.json().get('Vendor', {}).get('Id')
+        if not qb_vendor_id:
+            return {'status': 'failed', 'reason': 'Could not resolve or create QB Vendor'}
+
+        # ── 2. Build Bill payload ─────────────────────────────────────────────
+        total = float(vi.get('total_amount') or vi.get('amount') or 0)
+        payload = {
+            'DocNumber':  vi.get('invoice_number', f'VIN-{vendor_invoice_id}'),
+            'TxnDate':    str(vi.get('invoice_date') or datetime.now().date()),
+            'DueDate':    str(vi.get('due_date') or (datetime.now() + timedelta(days=30)).date()),
+            'VendorRef':  {'value': qb_vendor_id},
+            'Line': [{
+                'Amount': total,
+                'DetailType': 'AccountBasedExpenseLineDetail',
+                'Description': f'Vendor Invoice {vi.get("invoice_number")} — ERP AP',
+                'AccountBasedExpenseLineDetail': {
+                    'AccountRef': {'name': 'Accounts Payable (A/P)'},
+                },
+            }],
+        }
+
+        # ── 3. Check for existing QB Bill mapping ─────────────────────────────
+        existing = conn.execute('''
+            SELECT qb_bill_id FROM qb_ap_bill_map
+            WHERE vendor_invoice_id = %s AND qb_bill_id IS NOT NULL
+            ORDER BY last_synced_at DESC LIMIT 1
+        ''', (vendor_invoice_id,)).fetchone()
+
+        if existing:
+            qb_bill_id = existing['qb_bill_id']
+            fetch_resp = _qb_request(conn, config, 'GET',
+                                     _api_url(config, f'bill/{qb_bill_id}?minorversion=65'),
+                                     timeout=10)
+            if fetch_resp.status_code != 200:
+                err = f'Failed to fetch QB Bill for update: {fetch_resp.status_code} {fetch_resp.text[:200]}'
+                _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+            qb_existing  = fetch_resp.json().get('Bill', {})
+            sync_token   = qb_existing.get('SyncToken')
+            payload['Id']        = qb_bill_id
+            payload['SyncToken'] = sync_token
+            payload['sparse']    = True
+
+            resp = _qb_request(conn, config, 'POST',
+                               _api_url(config, 'bill?minorversion=65'),
+                               json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                bill_data = resp.json().get('Bill', {})
+                conn.execute('''
+                    UPDATE qb_ap_bill_map
+                    SET qb_total_amount = %s, last_synced_at = NOW(), sync_status = 'synced'
+                    WHERE vendor_invoice_id = %s AND qb_bill_id = %s
+                ''', (total, vendor_invoice_id, qb_bill_id))
+                conn.commit()
+                _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'updated', 'erp_to_qb', 'success',
+                           qb_entity_id=qb_bill_id, payload_sent=payload, payload_recv=bill_data)
+                return {'status': 'success', 'qb_bill_id': qb_bill_id, 'action': 'updated'}
+            else:
+                err = f'QB {resp.status_code}: {resp.text[:300]}'
+                _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+        else:
+            resp = _qb_request(conn, config, 'POST',
+                               _api_url(config, 'bill?minorversion=65'),
+                               json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                bill_data  = resp.json().get('Bill', {})
+                qb_bill_id = bill_data.get('Id')
+                conn.execute('''
+                    INSERT INTO qb_ap_bill_map
+                        (vendor_invoice_id, qb_bill_id, qb_bill_number, qb_total_amount, last_synced_at, sync_status)
+                    VALUES (%s, %s, %s, %s, NOW(), 'synced')
+                ''', (vendor_invoice_id, qb_bill_id, bill_data.get('DocNumber'), total))
+                conn.commit()
+                _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'created', 'erp_to_qb', 'success',
+                           qb_entity_id=qb_bill_id, payload_sent=payload, payload_recv=bill_data)
+                return {'status': 'success', 'qb_bill_id': qb_bill_id, 'action': 'created'}
+            else:
+                err = f'QB {resp.status_code}: {resp.text[:300]}'
+                _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+    except QBAuthExpiredError as ex:
+        _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=str(ex))
+        return {'status': 'auth_expired', 'reason': str(ex)}
+    except Exception as ex:
+        err = str(ex)
+        _log_event(conn, 'vendor_invoice', vendor_invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+        return {'status': 'failed', 'reason': err}
+
+
+def _sync_unsynced_vendor_invoices(conn):
+    """Push all unsynced vendor invoices to QB as Bills.
+    Returns summary dict: {synced, failed, skipped, auth_expired}."""
+    config = _get_config(conn)
+    if not config or not config['is_active']:
+        return {'synced': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
+
+    try:
+        unsynced = conn.execute('''
+            SELECT vi.id
+            FROM vendor_invoices vi
+            WHERE COALESCE(vi.status, '') NOT IN ('Cancelled', 'Draft', 'Void')
+              AND COALESCE(vi.total_amount, vi.amount, 0) > 0
+              AND vi.id NOT IN (
+                  SELECT vendor_invoice_id FROM qb_ap_bill_map
+                  WHERE vendor_invoice_id IS NOT NULL
+              )
+            ORDER BY vi.id DESC
+            LIMIT 100
+        ''').fetchall()
+    except Exception as ex:
+        log.error(f'[QB AP NightlySync] Query failed: {ex}')
+        return {'synced': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
+
+    results = {'synced': 0, 'failed': 0, 'skipped': 0, 'auth_expired': False}
+    for row in unsynced:
+        r = sync_vendor_invoice_to_qb(conn, row['id'], trigger='nightly_auto')
+        if r['status'] == 'success':
+            results['synced'] += 1
+        elif r['status'] == 'auth_expired':
+            results['auth_expired'] = True
+            results['auth_reason'] = r.get('reason', 'QB session expired')
+            break
+        elif r['status'] in ('skipped', 'conflict'):
+            results['skipped'] += 1
+        else:
+            results['failed'] += 1
+
+    log.info(f'[QB AP NightlySync] Complete: {results}')
+    return results
+
+
 def pull_invoice_from_qb(conn, erp_invoice_id, qb_invoice_id):
     """Fetch a single QB invoice and update ERP invoice status, amount_paid, balance_due."""
     config = _get_config(conn)
@@ -1095,6 +1290,7 @@ def save_qb_settings():
             bool(data.get('auto_sync_inv', False)),
             bool(data.get('auto_sync_pay', False)),
             bool(data.get('sandbox_mode', True)),
+            bool(data.get('auto_sync_ap', False)),
         ]
         extra_set = ''
         if 'webhook_secret' in data and data['webhook_secret']:
@@ -1103,7 +1299,7 @@ def save_qb_settings():
         conn.execute(
             f'''UPDATE qb_sync_config
                SET conflict_rule=%s, auto_sync_wo=%s, auto_sync_inv=%s,
-                   auto_sync_pay=%s, sandbox_mode=%s{extra_set}, updated_at=NOW()
+                   auto_sync_pay=%s, sandbox_mode=%s, auto_sync_ap=%s{extra_set}, updated_at=NOW()
                WHERE tenant_id='default' ''',
             params,
         )
@@ -1160,6 +1356,7 @@ def qb_status():
             'auto_sync_wo':            bool(config['auto_sync_wo']),
             'auto_sync_inv':           bool(config['auto_sync_inv']),
             'auto_sync_pay':           bool(config['auto_sync_pay']),
+            'auto_sync_ap':            bool(config.get('auto_sync_ap', False)),
             'stats_24h':               stats,
             'pending_conflicts':       int(pending_conflicts['cnt'] or 0) if pending_conflicts else 0,
             'credentials_configured':  creds_ok,
@@ -1205,6 +1402,64 @@ def api_sync_ndt_invoice(ndt_invoice_id):
     try:
         result = sync_ndt_invoice_to_qb(conn, ndt_invoice_id, trigger='manual_ui')
         return jsonify(result)
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/qb/sync-vendor-invoice/<int:vendor_invoice_id>', methods=['POST'])
+@login_required
+def api_sync_vendor_invoice(vendor_invoice_id):
+    """Push a vendor invoice (AP) to QB as a Bill."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        result = sync_vendor_invoice_to_qb(conn, vendor_invoice_id, trigger='manual_ui')
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/qb/sync-ap/all', methods=['POST'])
+@login_required
+def api_sync_all_ap_bills():
+    """Push all unsynced vendor invoices to QB as Bills (manual batch trigger)."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        results = _sync_unsynced_vendor_invoices(conn)
+        return jsonify(results)
+    finally:
+        conn.close()
+
+
+@qb_sync_bp.route('/api/qb/ap-sync-status', methods=['GET'])
+@login_required
+def api_ap_sync_status():
+    """Return list of vendor invoices with their QB Bill sync state."""
+    if session.get('role') not in ('Admin', 'Accountant'):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        ensure_qb_tables(conn)
+        rows = conn.execute('''
+            SELECT vi.id, vi.invoice_number, vi.invoice_date, vi.total_amount,
+                   vi.amount, vi.status, s.name AS vendor_name,
+                   m.qb_bill_id, m.qb_bill_number, m.qb_total_amount,
+                   m.last_synced_at, m.sync_status AS qb_sync_status
+            FROM vendor_invoices vi
+            LEFT JOIN suppliers s ON s.id = vi.vendor_id
+            LEFT JOIN qb_ap_bill_map m ON m.vendor_invoice_id = vi.id
+            WHERE COALESCE(vi.status,'') NOT IN ('Cancelled','Void')
+            ORDER BY vi.id DESC
+            LIMIT 200
+        ''').fetchall()
+        return jsonify([dict(r) for r in rows])
     finally:
         conn.close()
 
@@ -1482,15 +1737,17 @@ def _sync_unsynced_invoices(conn):
 import threading as _threading
 _qb_scheduler_started     = False
 _last_nightly_inv_sync_dt = None   # tracks the date of the last nightly push
+_last_nightly_ap_sync_dt  = None   # tracks the date of the last nightly AP (bill) push
 
 
 def _qb_auto_pull_loop():
     """Background thread:
        - Every 30 minutes: pull QB payment/balance updates if auto_sync_pay is on.
-       - Once per night (00:00–01:00): push unsynced invoices to QB if auto_sync_inv is on.
+       - Once per night (00:00–01:00): push unsynced AR invoices to QB if auto_sync_inv is on.
+       - Once per night (00:00–01:00): push unsynced vendor invoices to QB as Bills if auto_sync_ap is on.
     """
     import time
-    global _last_nightly_inv_sync_dt
+    global _last_nightly_inv_sync_dt, _last_nightly_ap_sync_dt
     while True:
         time.sleep(1800)   # wake every 30 minutes
         try:
@@ -1507,15 +1764,24 @@ def _qb_auto_pull_loop():
                     results = pull_all_synced_invoices(conn)
                     log.info(f'[QB Auto-Pull] Done: {results}')
 
-                # ── Nightly (midnight window): push unsynced invoices to QB ──
+                now   = datetime.now()
+                today = now.date()
+
+                # ── Nightly (midnight window): push unsynced AR invoices to QB ──
                 if config.get('auto_sync_inv'):
-                    now   = datetime.now()
-                    today = now.date()
                     if 0 <= now.hour < 1 and _last_nightly_inv_sync_dt != today:
-                        log.info('[QB NightlySync] Starting nightly push of unsynced invoices...')
+                        log.info('[QB NightlySync] Starting nightly push of unsynced AR invoices...')
                         _last_nightly_inv_sync_dt = today
                         results = _sync_unsynced_invoices(conn)
-                        log.info(f'[QB NightlySync] Done: {results}')
+                        log.info(f'[QB NightlySync AR] Done: {results}')
+
+                # ── Nightly (midnight window): push unsynced AP vendor invoices to QB ──
+                if config.get('auto_sync_ap'):
+                    if 0 <= now.hour < 1 and _last_nightly_ap_sync_dt != today:
+                        log.info('[QB AP NightlySync] Starting nightly push of unsynced vendor invoices (Bills)...')
+                        _last_nightly_ap_sync_dt = today
+                        results = _sync_unsynced_vendor_invoices(conn)
+                        log.info(f'[QB AP NightlySync] Done: {results}')
             finally:
                 conn.close()
         except Exception as ex:

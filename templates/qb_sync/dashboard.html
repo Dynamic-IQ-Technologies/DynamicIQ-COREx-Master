@@ -113,6 +113,13 @@
                 </div>
                 <div class="mb-3">
                     <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoSyncAp">
+                        <label class="form-check-label small" for="autoSyncAp">Auto-sync AP vendor invoices nightly</label>
+                    </div>
+                    <div class="text-muted" style="font-size:0.75rem;">When on, unsynced vendor invoices are pushed to QB as Bills at midnight.</div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="sandboxMode" checked>
                         <label class="form-check-label small" for="sandboxMode">Sandbox / Test mode</label>
                     </div>
@@ -191,11 +198,42 @@
     </div>
 </div>
 
-<!-- Tabs: Logs / Conflicts / Payments -->
+<!-- AP Sync Bills Panel -->
+<div class="card mb-4">
+    <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-receipt me-2 text-warning"></i>AP Sync — Vendor Invoices &rarr; QuickBooks Bills</span>
+        <span class="badge bg-warning text-dark small">ERP &rarr; QB</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-center mb-3">
+            <div class="col-md-7">
+                <p class="mb-1 small">
+                    Push vendor invoices (Accounts Payable) to QuickBooks as <strong>Bills</strong>.
+                    Each vendor is automatically matched or created in QB by name.
+                    Already-synced bills are <em>sparse-updated</em> on re-sync — only changed fields are written.
+                </p>
+                <p class="mb-0 text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Enable <em>Auto-sync AP vendor invoices nightly</em> in Sync Settings to push automatically at midnight.
+                    You can also sync individual bills from the AP Bills tab below.
+                </p>
+            </div>
+            <div class="col-md-5 text-md-end">
+                <button class="btn btn-warning" id="syncAllApBtn" onclick="syncAllApBills()">
+                    <i class="bi bi-cloud-upload me-1"></i>Sync All AP Bills to QB
+                </button>
+                <div id="syncAllApMsg" class="mt-2 small"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs: Logs / Conflicts / Payments / AP Bills -->
 <ul class="nav nav-tabs mb-0 border-bottom" id="qbTabs" role="tablist">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#logsPane" type="button"><i class="bi bi-journal-text me-1"></i>Sync Log</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#conflictsPane" type="button"><i class="bi bi-exclamation-diamond me-1"></i>Conflicts <span id="conflictCountBadge" class="badge bg-danger ms-1" style="display:none;"></span></button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#paymentsPane" type="button" onclick="loadPayments()"><i class="bi bi-currency-dollar me-1"></i>QB Payments</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#apBillsPane" type="button" onclick="loadApBills()"><i class="bi bi-receipt me-1"></i>AP Bills</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#setupPane" type="button"><i class="bi bi-gear me-1"></i>Setup Guide</button></li>
 </ul>
 
@@ -264,6 +302,38 @@
                 <tbody id="paymentsTableBody"><tr><td colspan="7" class="text-center py-3 text-muted">Click Pull QB Payments to load.</td></tr></tbody>
             </table>
         </div>
+    </div>
+
+    <!-- AP Bills -->
+    <div class="tab-pane fade" id="apBillsPane">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="small text-muted">Vendor invoices and their QuickBooks Bill sync status.</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadApBills()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+                <button class="btn btn-sm btn-warning" onclick="syncAllApBills()"><i class="bi bi-cloud-upload me-1"></i>Sync All</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Vendor</th>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>ERP Status</th>
+                        <th>QB Bill ID</th>
+                        <th>QB Sync</th>
+                        <th>Last Synced</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="apBillsTableBody">
+                    <tr><td colspan="9" class="text-center py-4 text-muted">Click the AP Bills tab to load.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="apBillsMsg" class="mt-2 small"></div>
     </div>
 
     <!-- Setup Guide -->
@@ -443,6 +513,7 @@ function loadStatus() {
                 document.getElementById('autoSyncWo').checked = d.auto_sync_wo;
                 document.getElementById('autoSyncInv').checked = d.auto_sync_inv;
                 document.getElementById('autoSyncPay').checked = d.auto_sync_pay;
+                document.getElementById('autoSyncAp').checked  = d.auto_sync_ap;
                 document.getElementById('sandboxMode').checked = d.sandbox_mode;
             }
 
@@ -567,9 +638,102 @@ function saveSettings() {
             auto_sync_wo:  document.getElementById('autoSyncWo').checked,
             auto_sync_inv: document.getElementById('autoSyncInv').checked,
             auto_sync_pay: document.getElementById('autoSyncPay').checked,
+            auto_sync_ap:  document.getElementById('autoSyncAp').checked,
             sandbox_mode:  document.getElementById('sandboxMode').checked,
         }),
     }).then(r=>r.json()).then(d=>{ alert(d.message || 'Saved.'); });
+}
+
+function loadApBills() {
+    const tbody = document.getElementById('apBillsTableBody');
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading...</td></tr>';
+    fetch('/api/qb/ap-sync-status')
+        .then(r => r.json())
+        .then(rows => {
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No vendor invoices found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(r => {
+                const amt  = parseFloat(r.total_amount || r.amount || 0).toLocaleString('en-US',{minimumFractionDigits:2});
+                const synced = r.qb_bill_id;
+                const syncBadge = synced
+                    ? `<span class="badge bg-success">Synced</span>`
+                    : `<span class="badge bg-secondary">Not Synced</span>`;
+                const billId = synced ? `<code class="small">${r.qb_bill_id}</code>` : '<span class="text-muted">—</span>';
+                const lastSync = synced ? `<small class="text-muted">${(r.last_synced_at||'').slice(0,16)}</small>` : '<span class="text-muted">—</span>';
+                return `<tr>
+                    <td class="small">${r.vendor_name||'—'}</td>
+                    <td class="small">${r.invoice_number||'—'}</td>
+                    <td class="small">${r.invoice_date||'—'}</td>
+                    <td class="small">$${amt}</td>
+                    <td><span class="badge bg-secondary">${r.status||'—'}</span></td>
+                    <td>${billId}</td>
+                    <td>${syncBadge}</td>
+                    <td>${lastSync}</td>
+                    <td><button class="btn btn-xs btn-outline-warning py-0 px-2" style="font-size:0.75rem" onclick="syncSingleApBill(${r.id},this)">
+                        <i class="bi bi-cloud-upload me-1"></i>Sync
+                    </button></td>
+                </tr>`;
+            }).join('');
+        })
+        .catch(() => {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-3 text-danger">Error loading AP bills.</td></tr>';
+        });
+}
+
+function syncSingleApBill(vendorInvoiceId, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch(`/api/qb/sync-vendor-invoice/${vendorInvoiceId}`, {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            if (d.status === 'success') {
+                btn.innerHTML = '<i class="bi bi-check-circle text-success"></i>';
+                loadApBills();
+                loadLogs();
+            } else if (d.status === 'skipped') {
+                btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Sync';
+                alert('Skipped: ' + (d.reason||'Already synced.'));
+            } else {
+                btn.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i>Failed';
+                alert('Sync failed: ' + (d.reason||'Unknown error'));
+                setTimeout(()=>{ btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload me-1"></i>Sync'; }, 3000);
+            }
+        })
+        .catch(() => { btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload me-1"></i>Sync'; });
+}
+
+function syncAllApBills() {
+    const btn = document.getElementById('syncAllApBtn');
+    const msg = document.getElementById('syncAllApMsg');
+    if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Syncing...'; }
+    if (msg) msg.innerHTML = '';
+    fetch('/api/qb/sync-ap/all', {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            if (btn) { btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload me-1"></i>Sync All AP Bills to QB'; }
+            if (d.auth_expired) {
+                const m = `<span class="text-danger"><i class="bi bi-lock me-1"></i><strong>QB session expired.</strong> Reconnect above.</span>`;
+                if (msg) msg.innerHTML = m;
+                else alert('QB session expired. Please reconnect.');
+            } else if (d.error) {
+                if (msg) msg.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${d.error}</span>`;
+                else alert('Error: ' + d.error);
+            } else {
+                const m = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Done — ${d.synced||0} synced, ${d.failed||0} failed, ${d.skipped||0} skipped</span>`;
+                if (msg) msg.innerHTML = m;
+                else alert(`Synced: ${d.synced||0}, Failed: ${d.failed||0}, Skipped: ${d.skipped||0}`);
+                loadApBills();
+                loadLogs();
+                loadStatus();
+            }
+        })
+        .catch(e => {
+            if (btn) { btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload me-1"></i>Sync All AP Bills to QB'; }
+            if (msg) msg.innerHTML = `<span class="text-danger">Error: ${e}</span>`;
+        });
 }
 
 function pullAllInvoices() {
@@ -639,5 +803,6 @@ function disconnectQb() {
 document.addEventListener('DOMContentLoaded', () => { loadAll(); loadWebhookUrl(); });
 document.getElementById('conflictsPane').addEventListener('shown.bs.tab', loadConflicts);
 document.getElementById('paymentsPane')?.addEventListener?.('shown.bs.tab', loadPayments);
+document.getElementById('apBillsPane')?.addEventListener?.('shown.bs.tab', loadApBills);
 </script>
 {% endblock %}

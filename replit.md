@@ -124,3 +124,12 @@ All outbound email across the system uses Brevo (formerly Sendinblue) via the `u
 - **Database**: PostgreSQL (development and production).
 - **Secrets in use**: `BREVO_API_KEY`, `BREVO_FROM_EMAIL`.
 - **Pending secrets** (not yet provided): `QB_CLIENT_ID`, `QB_CLIENT_SECRET` (QuickBooks integration).
+
+## QB AP Sync (Accounts Payable → QuickBooks Bills)
+- **`qb_ap_bill_map`** table tracks each `vendor_invoice_id → QB Bill ID` mapping with `sync_status`, `last_synced_at`, `qb_bill_number`, `qb_total_amount`.
+- **`auto_sync_ap`** boolean column added to `qb_sync_config`; saved/loaded in the settings panel.
+- **`sync_vendor_invoice_to_qb(conn, vendor_invoice_id, trigger)`** — core sync function: resolves/creates QB Vendor by `DisplayName`, builds Bill payload, creates on first push and sparse-updates on re-sync.
+- **`_sync_unsynced_vendor_invoices(conn)`** — nightly batch: finds all `vendor_invoices` not yet in `qb_ap_bill_map` and pushes them.
+- **Background scheduler** (`_qb_auto_pull_loop`) now also calls `_sync_unsynced_vendor_invoices` nightly (00:00–01:00) when `auto_sync_ap` is enabled.
+- **API endpoints**: `POST /api/qb/sync-vendor-invoice/<id>` (single), `POST /api/qb/sync-ap/all` (batch), `GET /api/qb/ap-sync-status` (list with sync state).
+- **QB Dashboard**: AP Sync panel card, "AP Bills" tab with per-row Sync buttons and bulk Sync All button, `autoSyncAp` toggle in Sync Settings.
