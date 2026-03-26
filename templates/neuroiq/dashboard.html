@@ -1814,7 +1814,10 @@ let neuroIsProcessing = false;
 let neuroIsListening = false;
 let neuroRecognition = null;
 let neuroSynthesis = window.speechSynthesis;
-let neuroIsPaused = false;
+let neuroIsPaused  = false;
+let cachedVoice    = null;   // resolved once on voiceschanged
+let ttsQueue       = [];     // sentence pipeline for streaming playback
+let ttsRunning     = false;  // true while any utterance is active
 
 function initVoiceRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1940,82 +1943,110 @@ function stopVoice() {
 
 window.stopVoice = stopVoice;
 
+// ─── TTS ENGINE ─────────────────────────────────────────────────────────────
+
+function resolveVoice() {
+    if (!neuroSynthesis) return;
+    const v = neuroSynthesis.getVoices();
+    if (!v.length) return;
+    cachedVoice =
+        v.find(x => /Natural/i.test(x.name) && x.lang.startsWith('en')) ||
+        v.find(x => /Samantha|Karen|Daniel|Moira|Tessa|Rishi|Fiona/i.test(x.name) && x.lang.startsWith('en')) ||
+        v.find(x => /Google US English|Google UK English Female/i.test(x.name)) ||
+        v.find(x => /Microsoft.*Online.*Natural/i.test(x.name) && x.lang.startsWith('en')) ||
+        v.find(x => x.lang.startsWith('en-') && !/Zira|David|compact|espeak/i.test(x.name)) ||
+        v.find(x => x.lang.startsWith('en')) || null;
+}
+
+function _ttsOnStart() {
+    const btn  = document.getElementById('voice-btn');
+    const stxt = document.getElementById('voice-status-text');
+    const vis  = document.getElementById('voice-visualizer');
+    if (btn) btn.classList.add('speaking');
+    if (stxt) { stxt.textContent = 'Speaking...'; stxt.className = 'voice-status-text speaking'; }
+    document.getElementById('pause-btn').disabled = false;
+    document.getElementById('stop-btn').disabled  = false;
+    neuroIsPaused = false;
+    document.getElementById('pause-icon').className = 'bi bi-pause-fill';
+    if (vis) { vis.classList.add('active', 'speaking'); vis.classList.remove('listening'); }
+    setSphereState('responding');
+}
+
+function _ttsOnDone() {
+    const btn  = document.getElementById('voice-btn');
+    const stxt = document.getElementById('voice-status-text');
+    const vis  = document.getElementById('voice-visualizer');
+    if (btn) btn.classList.remove('speaking');
+    document.getElementById('pause-btn').disabled = true;
+    document.getElementById('stop-btn').disabled  = true;
+    neuroIsPaused = false;
+    if (vis) vis.classList.remove('active', 'speaking');
+    setSphereState('idle');
+    const cont = document.getElementById('continuous-mode');
+    if (cont && cont.checked) {
+        if (stxt) { stxt.textContent = 'Listening...'; stxt.className = 'voice-status-text listening'; }
+        setTimeout(() => {
+            if (!neuroIsListening && neuroRecognition) {
+                try { neuroRecognition.start(); }
+                catch (e) { if (stxt) { stxt.textContent = 'Click mic to speak'; stxt.className = 'voice-status-text'; } }
+            }
+        }, 500);
+    } else {
+        if (stxt) { stxt.textContent = 'Click mic to speak'; stxt.className = 'voice-status-text'; }
+    }
+}
+
+function _ttsPlayNext() {
+    if (!neuroSynthesis || ttsQueue.length === 0) {
+        ttsRunning = false;
+        _ttsOnDone();
+        return;
+    }
+    const text = ttsQueue.shift();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.94; u.pitch = 1.03; u.volume = 1.0;
+    if (cachedVoice) u.voice = cachedVoice;
+    u.onend   = () => _ttsPlayNext();
+    u.onerror = e  => {
+        if (e.error !== 'interrupted' && e.error !== 'canceled') console.error('TTS:', e.error);
+        _ttsPlayNext();
+    };
+    neuroSynthesis.speak(u);
+    ttsRunning = true;
+}
+
+// Add text to queue; fires _ttsOnStart once and starts playing immediately
+function ttsEnqueue(text) {
+    const en = document.getElementById('tts-enabled');
+    if (!neuroSynthesis || !en || !en.checked) return;
+    if (!text || text.trim().length < 3) return;
+    const wasRunning = ttsRunning;
+    ttsQueue.push(text.trim());
+    if (!wasRunning) {
+        _ttsOnStart();
+        _ttsPlayNext();
+    }
+}
+
+// Stop all speech and clear queue
+function ttsReset() {
+    ttsQueue   = [];
+    ttsRunning = false;
+    if (neuroSynthesis) neuroSynthesis.cancel();
+}
+
+// Single-shot speak (welcome message, strategic prompts, etc.)
 function speakResponse(text) {
-    const ttsEnabled = document.getElementById('tts-enabled');
-    if (!neuroSynthesis || !ttsEnabled || !ttsEnabled.checked) return;
-    if (!text || text.trim().length === 0) return;
-
-    neuroSynthesis.cancel();
-
-    const voices = neuroSynthesis.getVoices();
-    const naturalVoice = voices.find(v => /Natural/i.test(v.name) && v.lang.startsWith('en'))
-        || voices.find(v => /Samantha|Karen|Daniel|Moira|Tessa|Rishi|Fiona/i.test(v.name) && v.lang.startsWith('en'))
-        || voices.find(v => /Google US English|Google UK English Female/i.test(v.name))
-        || voices.find(v => /Microsoft.*Online.*Natural/i.test(v.name) && v.lang.startsWith('en'))
-        || voices.find(v => v.lang.startsWith('en-') && !(/Zira|David|compact|espeak/i.test(v.name)))
-        || voices.find(v => v.lang.startsWith('en'));
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.94;
-    utterance.pitch = 1.03;
-    utterance.volume = 1.0;
-
-    if (naturalVoice) utterance.voice = naturalVoice;
-
-    const vis = document.getElementById('voice-visualizer');
-
-    utterance.onstart = function() {
-        const btn = document.getElementById('voice-btn');
-        const statusText = document.getElementById('voice-status-text');
-        if (btn) btn.classList.add('speaking');
-        if (statusText) { statusText.textContent = 'Speaking...'; statusText.className = 'voice-status-text speaking'; }
-        document.getElementById('pause-btn').disabled = false;
-        document.getElementById('stop-btn').disabled = false;
-        neuroIsPaused = false;
-        document.getElementById('pause-icon').className = 'bi bi-pause-fill';
-        if (vis) { vis.classList.add('active', 'speaking'); vis.classList.remove('listening'); }
-        setSphereState('responding');
-    };
-
-    utterance.onend = function() {
-        const btn = document.getElementById('voice-btn');
-        const statusText = document.getElementById('voice-status-text');
-        if (btn) btn.classList.remove('speaking');
-        document.getElementById('pause-btn').disabled = true;
-        document.getElementById('stop-btn').disabled = true;
-        neuroIsPaused = false;
-        if (vis) vis.classList.remove('active', 'speaking');
-        setSphereState('idle');
-
-        const continuousMode = document.getElementById('continuous-mode');
-        if (continuousMode && continuousMode.checked) {
-            if (statusText) { statusText.textContent = 'Listening...'; statusText.className = 'voice-status-text listening'; }
-            setTimeout(() => {
-                if (!neuroIsListening && neuroRecognition) {
-                    try { neuroRecognition.start(); } catch (e) {
-                        if (statusText) { statusText.textContent = 'Click mic to speak'; statusText.className = 'voice-status-text'; }
-                    }
-                }
-            }, 500);
-        } else {
-            if (statusText) { statusText.textContent = 'Click mic to speak'; statusText.className = 'voice-status-text'; }
-        }
-    };
-
-    utterance.onerror = function(event) {
-        if (event.error === 'interrupted' || event.error === 'canceled') return;
-        console.error('TTS error:', event.error);
-        if (vis) vis.classList.remove('active', 'speaking');
-        setSphereState('idle');
-    };
-
-    setTimeout(() => neuroSynthesis.speak(utterance), 80);
+    if (!neuroSynthesis || !text || text.trim().length === 0) return;
+    const wasPlaying = neuroSynthesis.speaking;
+    ttsReset();
+    setTimeout(() => ttsEnqueue(text), wasPlaying ? 80 : 0);
 }
 
 initVoiceRecognition();
 if (neuroSynthesis) {
-    neuroSynthesis.onvoiceschanged = () => neuroSynthesis.getVoices();
-    neuroSynthesis.getVoices();
+    neuroSynthesis.onvoiceschanged = () => { resolveVoice(); };
+    resolveVoice();
 }
 
 window.addEventListener('load', function() {
@@ -2107,8 +2138,12 @@ async function neuroSendMessage() {
     addMessage('user', message);
     neuroConversationHistory.push({ role: 'user', content: message });
 
-    let bubble = null;
-    let fullText = '';
+    let bubble      = null;
+    let fullText    = '';
+    let sentenceBuf = '';   // accumulates incoming delta until a sentence boundary
+
+    // Reset TTS queue for the new response
+    ttsReset();
 
     try {
         const response = await fetch('/neuroiq/analyze', {
@@ -2123,9 +2158,9 @@ async function neuroSendMessage() {
         bubble = addMessage('assistant', '');
         setSphereState('responding');
 
-        const reader = response.body.getReader();
+        const reader  = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        let buffer    = '';
 
         while (true) {
             const { done, value } = await reader.read();
@@ -2140,11 +2175,24 @@ async function neuroSendMessage() {
                 try {
                     const payload = JSON.parse(line.slice(6));
                     if (payload.delta) {
-                        fullText += payload.delta;
+                        fullText    += payload.delta;
+                        sentenceBuf += payload.delta;
                         updateMessage(bubble, fullText);
+
+                        // Start TTS on first complete sentence (min 25 chars)
+                        // or flush if buffer grows large (no boundary found yet)
+                        const bIdx = sentenceBuf.search(/[.!?]["']?\s/);
+                        if ((bIdx >= 25) || (bIdx < 0 && sentenceBuf.length > 160)) {
+                            const cutAt = bIdx >= 0 ? bIdx + 2 : sentenceBuf.length;
+                            const chunk = sentenceBuf.slice(0, cutAt).trim();
+                            sentenceBuf = sentenceBuf.slice(cutAt);
+                            if (chunk.length >= 3) ttsEnqueue(chunk);
+                        }
                     } else if (payload.done) {
                         neuroConversationHistory.push({ role: 'assistant', content: fullText });
-                        speakResponse(fullText);
+                        // Speak any remaining buffered text
+                        if (sentenceBuf.trim().length >= 3) ttsEnqueue(sentenceBuf.trim());
+                        sentenceBuf = '';
                     } else if (payload.error) {
                         updateMessage(bubble, 'I encountered an issue processing your request. Please try again.');
                         setSphereState('idle');

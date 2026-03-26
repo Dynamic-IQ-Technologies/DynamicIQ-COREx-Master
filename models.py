@@ -6426,6 +6426,40 @@ def init_qms_tables(cursor):
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+
+    # Enterprise Risk Intelligence snapshot and audit tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS risk_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            domain TEXT NOT NULL,
+            risk_name TEXT NOT NULL,
+            probability_score REAL,
+            severity TEXT,
+            financial_exposure REAL,
+            time_horizon INTEGER,
+            confidence_level REAL,
+            description TEXT,
+            contributing_signals TEXT,
+            recommended_actions TEXT,
+            status TEXT DEFAULT 'Active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS risk_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            domain TEXT NOT NULL,
+            risk_name TEXT NOT NULL,
+            probability_score REAL,
+            severity TEXT,
+            financial_exposure REAL,
+            variables_used TEXT,
+            rationale TEXT,
+            action TEXT,
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     
     # Inventory Cost Transfer table for controlled cost transfers between inventory records
     cursor.execute('''
