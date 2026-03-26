@@ -38,13 +38,22 @@ def list_workorders():
     sort_by = request.args.get('sort_by', 'planned_start_date')
     sort_order = request.args.get('sort_order', 'DESC')
 
-    # Subquery that computes material status for each WO:
-    #   'ok'       = no requirements OR all fully issued
-    #   'shortage' = at least one requirement not yet fully issued
+    # Subquery that computes material status for each WO.
+    # Materials can live in two places:
+    #   1. material_requirements  (direct WO BOM lines, issued via material_issues)
+    #   2. work_order_task_materials (per-task materials, issued_qty stored on the row)
+    # 'ok'       = neither table has any rows, OR every row is fully covered
+    # 'shortage' = at least one row in either table is not yet fully issued
+    # work_order_task_materials.work_order_id is never populated;
+    # the WO link is through task_id -> work_order_tasks.work_order_id
     _mat_status_sql = """
         CASE
             WHEN (SELECT COUNT(*) FROM material_requirements mr
-                  WHERE mr.work_order_id = wo.id) = 0 THEN 'ok'
+                  WHERE mr.work_order_id = wo.id) = 0
+             AND (SELECT COUNT(*) FROM work_order_task_materials wtm
+                  JOIN work_order_tasks wot ON wtm.task_id = wot.id
+                  WHERE wot.work_order_id = wo.id) = 0
+            THEN 'ok'
             WHEN EXISTS (
                 SELECT 1 FROM material_requirements mr2
                 WHERE mr2.work_order_id = wo.id
@@ -53,6 +62,12 @@ def list_workorders():
                        FROM material_issues mi
                        WHERE mi.work_order_id = wo.id
                          AND mi.product_id = mr2.product_id), 0)
+            ) THEN 'shortage'
+            WHEN EXISTS (
+                SELECT 1 FROM work_order_task_materials wtm
+                JOIN work_order_tasks wot ON wtm.task_id = wot.id
+                WHERE wot.work_order_id = wo.id
+                  AND COALESCE(wtm.required_qty, 0) > COALESCE(wtm.issued_qty, 0)
             ) THEN 'shortage'
             ELSE 'ok'
         END
@@ -102,14 +117,22 @@ def list_workorders():
 
     if shortage_filter == 'shortage':
         query += '''
-            AND EXISTS (
-                SELECT 1 FROM material_requirements mr2
-                WHERE mr2.work_order_id = wo.id
-                  AND mr2.required_quantity > COALESCE(
-                      (SELECT SUM(mi.quantity_issued)
-                       FROM material_issues mi
-                       WHERE mi.work_order_id = wo.id
-                         AND mi.product_id = mr2.product_id), 0)
+            AND (
+                EXISTS (
+                    SELECT 1 FROM material_requirements mr2
+                    WHERE mr2.work_order_id = wo.id
+                      AND mr2.required_quantity > COALESCE(
+                          (SELECT SUM(mi.quantity_issued)
+                           FROM material_issues mi
+                           WHERE mi.work_order_id = wo.id
+                             AND mi.product_id = mr2.product_id), 0)
+                )
+                OR EXISTS (
+                    SELECT 1 FROM work_order_task_materials wtm2
+                    JOIN work_order_tasks wot2 ON wtm2.task_id = wot2.id
+                    WHERE wot2.work_order_id = wo.id
+                      AND COALESCE(wtm2.required_qty, 0) > COALESCE(wtm2.issued_qty, 0)
+                )
             )'''
     elif shortage_filter == 'ok':
         query += '''
@@ -121,6 +144,12 @@ def list_workorders():
                        FROM material_issues mi
                        WHERE mi.work_order_id = wo.id
                          AND mi.product_id = mr2.product_id), 0)
+            )
+            AND NOT EXISTS (
+                SELECT 1 FROM work_order_task_materials wtm2
+                JOIN work_order_tasks wot2 ON wtm2.task_id = wot2.id
+                WHERE wot2.work_order_id = wo.id
+                  AND COALESCE(wtm2.required_qty, 0) > COALESCE(wtm2.issued_qty, 0)
             )'''
 
     if search:
@@ -532,10 +561,30 @@ def view_workorder(id):
         WHERE mr.work_order_id=?
     ''', (id,)).fetchall()
 
-    # Compute material shortage flag for the view page
-    if not requirements:
+    # Compute material shortage flag for the view page.
+    # Must check both material_requirements (direct WO lines) AND
+    # work_order_task_materials (per-task lines), because either table
+    # can be the sole source of materials for a given work order.
+    req_shortage = any(
+        (r['quantity_issued'] or 0) < (r['required_quantity'] or 0)
+        for r in requirements
+    )
+    # task_material_summary is computed later in this function; use a
+    # direct DB query here so the flag is available before that loop runs.
+    task_mat_row = conn.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN COALESCE(wtm.required_qty,0) > COALESCE(wtm.issued_qty,0) THEN 1 ELSE 0 END) as short
+        FROM work_order_task_materials wtm
+        JOIN work_order_tasks wot ON wtm.task_id = wot.id
+        WHERE wot.work_order_id = ?
+    ''', (id,)).fetchone()
+    task_mat_total = task_mat_row['total'] if task_mat_row else 0
+    task_mat_short = task_mat_row['short'] if task_mat_row else 0
+
+    has_any_material = len(requirements) > 0 or (task_mat_total or 0) > 0
+    if not has_any_material:
         material_status = 'ok'
-    elif any((r['quantity_issued'] or 0) < (r['required_quantity'] or 0) for r in requirements):
+    elif req_shortage or (task_mat_short or 0) > 0:
         material_status = 'shortage'
     else:
         material_status = 'ok'
