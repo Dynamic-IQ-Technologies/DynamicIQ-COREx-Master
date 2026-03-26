@@ -421,7 +421,8 @@
             .then(r => r.json())
             .then(d => {
                 if (d.status === 'success') {
-                    msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Synced successfully. QB Invoice ID: ' + d.qb_invoice_id + '</span>';
+                    const action = d.action === 'updated' ? 'Updated in QuickBooks' : 'Created in QuickBooks';
+                    msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>' + action + '. QB Invoice ID: ' + d.qb_invoice_id + '</span>';
                     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Synced';
                     btn.className = 'btn btn-sm btn-success';
                     setTimeout(() => location.reload(), 1500);

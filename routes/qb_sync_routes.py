@@ -477,7 +477,8 @@ def sync_wo_to_qb(conn, wo_id, trigger='manual', max_retries=3):
 
 
 def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
-    """Sync an ERP invoice record to QB."""
+    """Sync an ERP invoice to QB. Updates the existing QB invoice if already synced,
+    otherwise creates a new one. Prevents duplicates on re-sync."""
     config = _get_config(conn)
     if not config or not config['is_active']:
         return {'status': 'skipped', 'reason': 'QB integration not configured'}
@@ -492,6 +493,7 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
         return {'status': 'error', 'reason': 'Invoice not found'}
 
     try:
+        # ── 1. Resolve or create the QB Customer ──────────────────────────────
         cust_name  = (inv.get('customer_full_name') or 'Unknown Customer').replace("'", "\\'")
         query_url  = _api_url(config, f"query?query=SELECT Id FROM Customer WHERE DisplayName LIKE '{cust_name[:40]}' MAXRESULTS 1&minorversion=65")
         qb_cust_id = None
@@ -520,24 +522,71 @@ def sync_invoice_to_qb(conn, invoice_id, trigger='manual'):
             'DueDate': str(inv.get('due_date') or (datetime.now() + timedelta(days=30)).date()),
         }
 
-        resp = _qb_request(conn, config, 'POST', _api_url(config, 'invoice?minorversion=65'),
-                           json=payload, timeout=15)
-        if resp.status_code in (200, 201):
-            inv_data  = resp.json().get('Invoice', {})
-            qb_inv_id = inv_data.get('Id')
-            conn.execute('''
-                INSERT INTO qb_wo_invoice_map
-                    (invoice_id, qb_invoice_id, qb_invoice_number, qb_total_amount, last_synced_at, sync_status)
-                VALUES (%s, %s, %s, %s, NOW(), 'synced')
-            ''', (invoice_id, qb_inv_id, inv_data.get('DocNumber'), total))
-            conn.commit()
-            _log_event(conn, 'invoice', invoice_id, 'created', 'erp_to_qb', 'success',
-                       qb_entity_id=qb_inv_id, payload_sent=payload, payload_recv=inv_data)
-            return {'status': 'success', 'qb_invoice_id': qb_inv_id}
+        # ── 2. Check if this invoice was previously synced to QB ──────────────
+        existing_map = conn.execute('''
+            SELECT qb_invoice_id FROM qb_wo_invoice_map
+            WHERE invoice_id = %s AND qb_invoice_id IS NOT NULL
+            ORDER BY last_synced_at DESC LIMIT 1
+        ''', (invoice_id,)).fetchone()
+
+        if existing_map:
+            # ── UPDATE path: fetch current SyncToken then sparse-update ──────
+            qb_inv_id = existing_map['qb_invoice_id']
+            fetch_resp = _qb_request(conn, config, 'GET',
+                                     _api_url(config, f'invoice/{qb_inv_id}?minorversion=65'),
+                                     timeout=10)
+            if fetch_resp.status_code != 200:
+                err = f'Failed to fetch QB invoice for update: {fetch_resp.status_code} {fetch_resp.text[:200]}'
+                _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
+            qb_existing = fetch_resp.json().get('Invoice', {})
+            sync_token  = qb_existing.get('SyncToken')
+
+            payload['Id']        = qb_inv_id
+            payload['SyncToken'] = sync_token
+            payload['sparse']    = True
+
+            resp = _qb_request(conn, config, 'POST',
+                               _api_url(config, 'invoice?minorversion=65'),
+                               json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                inv_data = resp.json().get('Invoice', {})
+                conn.execute('''
+                    UPDATE qb_wo_invoice_map
+                    SET qb_total_amount = %s, last_synced_at = NOW(), sync_status = 'synced'
+                    WHERE invoice_id = %s AND qb_invoice_id = %s
+                ''', (total, invoice_id, qb_inv_id))
+                conn.commit()
+                _log_event(conn, 'invoice', invoice_id, 'updated', 'erp_to_qb', 'success',
+                           qb_entity_id=qb_inv_id, payload_sent=payload, payload_recv=inv_data)
+                return {'status': 'success', 'qb_invoice_id': qb_inv_id, 'action': 'updated'}
+            else:
+                err = f'QB {resp.status_code}: {resp.text[:300]}'
+                _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
+
         else:
-            err = f'QB {resp.status_code}: {resp.text[:300]}'
-            _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
-            return {'status': 'failed', 'reason': err}
+            # ── CREATE path: new invoice, no prior QB mapping ─────────────────
+            resp = _qb_request(conn, config, 'POST',
+                               _api_url(config, 'invoice?minorversion=65'),
+                               json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                inv_data  = resp.json().get('Invoice', {})
+                qb_inv_id = inv_data.get('Id')
+                conn.execute('''
+                    INSERT INTO qb_wo_invoice_map
+                        (invoice_id, qb_invoice_id, qb_invoice_number, qb_total_amount, last_synced_at, sync_status)
+                    VALUES (%s, %s, %s, %s, NOW(), 'synced')
+                ''', (invoice_id, qb_inv_id, inv_data.get('DocNumber'), total))
+                conn.commit()
+                _log_event(conn, 'invoice', invoice_id, 'created', 'erp_to_qb', 'success',
+                           qb_entity_id=qb_inv_id, payload_sent=payload, payload_recv=inv_data)
+                return {'status': 'success', 'qb_invoice_id': qb_inv_id, 'action': 'created'}
+            else:
+                err = f'QB {resp.status_code}: {resp.text[:300]}'
+                _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=err)
+                return {'status': 'failed', 'reason': err}
 
     except QBAuthExpiredError as ex:
         _log_event(conn, 'invoice', invoice_id, 'sync_failed', 'erp_to_qb', 'failed', error=str(ex))
