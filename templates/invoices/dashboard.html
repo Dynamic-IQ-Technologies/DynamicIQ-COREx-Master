@@ -282,7 +282,15 @@
                             </td>
                             {% if session.role in ['Admin', 'Accountant'] and qb_connected %}
                             <td class="text-center">
-                                {% if invoice.invoice_type != 'NDT' %}
+                                {% if invoice.invoice_type == 'NDT' %}
+                                {% set already_synced = invoice.id in qb_ndt_synced_ids %}
+                                <button class="btn btn-sm {{ 'btn-success' if already_synced else 'btn-outline-secondary' }}"
+                                        id="qb-btn-ndt-{{ invoice.id }}"
+                                        onclick="qbSyncNdtRow({{ invoice.id }}, this)"
+                                        title="{{ 'Synced — click to re-sync' if already_synced else 'Sync NDT Invoice to QuickBooks' }}">
+                                    <i class="bi bi-plug-fill"></i>
+                                </button>
+                                {% else %}
                                 {% set already_synced = invoice.id in qb_synced_ids %}
                                 <button class="btn btn-sm {{ 'btn-success' if already_synced else 'btn-outline-secondary' }}"
                                         id="qb-btn-{{ invoice.id }}"
@@ -290,8 +298,6 @@
                                         title="{{ 'Synced — click to re-sync' if already_synced else 'Sync to QuickBooks' }}">
                                     <i class="bi bi-plug-fill"></i>
                                 </button>
-                                {% else %}
-                                <span class="text-muted small">—</span>
                                 {% endif %}
                             </td>
                             {% endif %}
@@ -354,6 +360,47 @@ function qbSyncRow(invoiceId, btn) {
                     btn.className = 'btn btn-sm btn-outline-secondary';
                     btn.innerHTML = '<i class="bi bi-plug-fill"></i>';
                     btn.title     = 'Sync to QuickBooks';
+                }, 3000);
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        });
+}
+
+function qbSyncNdtRow(ndtInvoiceId, btn) {
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch('/api/qb/sync-ndt-invoice/' + ndtInvoiceId, {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            if (d.status === 'success') {
+                btn.className = 'btn btn-sm btn-success';
+                btn.innerHTML = '<i class="bi bi-plug-fill"></i>';
+                btn.title     = 'Synced — click to re-sync';
+            } else if (d.status === 'auth_expired') {
+                btn.className = 'btn btn-sm btn-outline-danger';
+                btn.innerHTML = '<i class="bi bi-lock-fill"></i>';
+                btn.title     = 'QB session expired — click to reconnect';
+                btn.onclick   = () => window.location.href = '/qb-sync/dashboard';
+                if (!document.getElementById('qb-auth-alert')) {
+                    const alert = document.createElement('div');
+                    alert.id = 'qb-auth-alert';
+                    alert.className = 'alert alert-danger alert-dismissible fade show mt-2';
+                    alert.innerHTML = '<i class="bi bi-lock me-1"></i><strong>QuickBooks session expired.</strong> Please <a href="/qb-sync/dashboard" class="alert-link">reconnect QuickBooks</a> to continue syncing. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    document.querySelector('.container, .container-fluid, main')?.prepend(alert);
+                }
+            } else {
+                btn.className = 'btn btn-sm btn-danger';
+                btn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                btn.title     = d.reason || d.error || 'Sync failed';
+                setTimeout(() => {
+                    btn.className = 'btn btn-sm btn-outline-secondary';
+                    btn.innerHTML = '<i class="bi bi-plug-fill"></i>';
+                    btn.title     = 'Sync NDT Invoice to QuickBooks';
                 }, 3000);
             }
         })
