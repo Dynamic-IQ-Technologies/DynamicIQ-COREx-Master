@@ -80,6 +80,20 @@
                             {% endfor %}
                         </select>
                     </div>
+
+                    <!-- Material Shortage Filter -->
+                    <div class="col-md-2">
+                        <label for="shortage" class="form-label"><i class="bi bi-boxes"></i> Materials</label>
+                        <select class="form-select" id="shortage" name="shortage">
+                            <option value="">All</option>
+                            <option value="shortage" {% if filters.shortage == 'shortage' %}selected{% endif %}>
+                                Shortage (Red)
+                            </option>
+                            <option value="ok" {% if filters.shortage == 'ok' %}selected{% endif %}>
+                                Ready (Green)
+                            </option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="row g-3 mt-2">
@@ -166,6 +180,7 @@
 {% endif %}
 {% if filters.date_from %}{% set _ = active_filters.append(('Date From', filters.date_from)) %}{% endif %}
 {% if filters.date_to %}{% set _ = active_filters.append(('Date To', filters.date_to)) %}{% endif %}
+{% if filters.shortage == 'shortage' %}{% set _ = active_filters.append(('Materials', 'Shortage')) %}{% elif filters.shortage == 'ok' %}{% set _ = active_filters.append(('Materials', 'Ready')) %}{% endif %}
 
 {% if active_filters %}
 <div class="alert alert-info d-flex align-items-center justify-content-between">
@@ -192,6 +207,7 @@
                             <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()">
                         </th>
                         {% endif %}
+                        <th data-sortable="false" title="Material shortage flag: Red = materials not yet fully issued, Green = all materials issued or none required" style="width:52px;">Mat.</th>
                         <th data-sort-type="string">WO Number</th>
                         <th data-sort-type="string">Product</th>
                         <th data-sort-type="string">Customer</th>
@@ -212,11 +228,20 @@
                         <tr>
                             {% if session.role in ['Admin', 'Planner'] %}
                             <td>
-                                <input type="checkbox" class="form-check-input wo-checkbox" value="{{ wo.id }}" 
+                                <input type="checkbox" class="form-check-input wo-checkbox" value="{{ wo.id }}"
                                        data-wo-number="{{ wo.wo_number }}" data-status="{{ wo.status }}"
                                        onclick="updateSelectedCount()">
                             </td>
                             {% endif %}
+                            <td class="text-center align-middle">
+                                {% if wo.material_status == 'shortage' %}
+                                <span title="Material Shortage: one or more required materials have not been fully issued"
+                                      style="display:inline-block;width:16px;height:16px;border-radius:50%;background:#dc3545;box-shadow:0 0 0 2px rgba(220,53,69,.25);"></span>
+                                {% else %}
+                                <span title="Materials Ready: all materials issued or none required"
+                                      style="display:inline-block;width:16px;height:16px;border-radius:50%;background:#198754;box-shadow:0 0 0 2px rgba(25,135,84,.2);"></span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <a href="{{ url_for('workorder_routes.view_workorder', id=wo.id) }}">{{ wo.wo_number }}</a>
                                 {% if wo.is_aog %}
@@ -270,7 +295,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="{% if session.role in ['Admin', 'Planner'] %}12{% else %}11{% endif %}" class="text-center py-5">
+                            <td colspan="{% if session.role in ['Admin', 'Planner'] %}13{% else %}12{% endif %}" class="text-center py-5">
                                 <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
                                 <p class="text-muted mt-3">No work orders found matching your criteria.</p>
                                 <a href="{{ url_for('workorder_routes.list_workorders') }}" class="btn btn-outline-secondary btn-sm">Clear Filters</a>

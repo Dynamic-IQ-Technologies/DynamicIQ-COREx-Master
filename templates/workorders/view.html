@@ -114,6 +114,15 @@
                 {% if workorder.stage_name %}
                 <span class="badge ms-1" style="background-color: {{ workorder.stage_color or '#6c757d' }};">{{ workorder.stage_name }}</span>
                 {% endif %}
+                {% if material_status == 'shortage' %}
+                <span class="badge ms-1" style="background:#dc3545;" title="Material Shortage: one or more required materials have not been fully issued">
+                    <i class="bi bi-exclamation-circle-fill"></i> Material Shortage
+                </span>
+                {% else %}
+                <span class="badge ms-1" style="background:#198754;" title="All materials issued or none required">
+                    <i class="bi bi-check-circle-fill"></i> Materials Ready
+                </span>
+                {% endif %}
             </h4>
             <div class="d-flex align-items-center gap-3 ms-3">
                 <div class="form-check form-switch mb-0">

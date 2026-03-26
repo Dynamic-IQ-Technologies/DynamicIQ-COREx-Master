@@ -32,15 +32,37 @@ def list_workorders():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     search = request.args.get('search', '')
-    
+    shortage_filter = request.args.get('shortage', '')
+
     # Get sort parameters
     sort_by = request.args.get('sort_by', 'planned_start_date')
     sort_order = request.args.get('sort_order', 'DESC')
-    
+
+    # Subquery that computes material status for each WO:
+    #   'ok'       = no requirements OR all fully issued
+    #   'shortage' = at least one requirement not yet fully issued
+    _mat_status_sql = """
+        CASE
+            WHEN (SELECT COUNT(*) FROM material_requirements mr
+                  WHERE mr.work_order_id = wo.id) = 0 THEN 'ok'
+            WHEN EXISTS (
+                SELECT 1 FROM material_requirements mr2
+                WHERE mr2.work_order_id = wo.id
+                  AND mr2.required_quantity > COALESCE(
+                      (SELECT SUM(mi.quantity_issued)
+                       FROM material_issues mi
+                       WHERE mi.work_order_id = wo.id
+                         AND mi.product_id = mr2.product_id), 0)
+            ) THEN 'shortage'
+            ELSE 'ok'
+        END
+    """
+
     # Build dynamic query
-    query = '''
+    query = f'''
         SELECT wo.*, p.code, p.name, c.customer_number, c.name as customer_full_name,
-               wos.name as stage_name, wos.color as stage_color
+               wos.name as stage_name, wos.color as stage_color,
+               ({_mat_status_sql}) as material_status
         FROM work_orders wo
         JOIN products p ON wo.product_id = p.id
         LEFT JOIN customers c ON wo.customer_id = c.id
@@ -48,38 +70,61 @@ def list_workorders():
         WHERE 1=1
     '''
     params = []
-    
+
     # Apply filters
     if status_filter:
         query += ' AND wo.status = ?'
         params.append(status_filter)
-    
+
     if disposition_filter:
         query += ' AND wo.disposition = ?'
         params.append(disposition_filter)
-    
+
     if priority_filter:
         query += ' AND wo.priority = ?'
         params.append(priority_filter)
-    
+
     if stage_id_filter:
         query += ' AND wo.stage_id = ?'
         params.append(int(stage_id_filter))
-    
+
     if customer_filter:
         query += ' AND wo.customer_id = ?'
         params.append(int(customer_filter))
-    
+
     if date_from:
         query += ' AND wo.planned_start_date >= ?'
         params.append(date_from)
-    
+
     if date_to:
         query += ' AND wo.planned_start_date <= ?'
         params.append(date_to)
-    
+
+    if shortage_filter == 'shortage':
+        query += '''
+            AND EXISTS (
+                SELECT 1 FROM material_requirements mr2
+                WHERE mr2.work_order_id = wo.id
+                  AND mr2.required_quantity > COALESCE(
+                      (SELECT SUM(mi.quantity_issued)
+                       FROM material_issues mi
+                       WHERE mi.work_order_id = wo.id
+                         AND mi.product_id = mr2.product_id), 0)
+            )'''
+    elif shortage_filter == 'ok':
+        query += '''
+            AND NOT EXISTS (
+                SELECT 1 FROM material_requirements mr2
+                WHERE mr2.work_order_id = wo.id
+                  AND mr2.required_quantity > COALESCE(
+                      (SELECT SUM(mi.quantity_issued)
+                       FROM material_issues mi
+                       WHERE mi.work_order_id = wo.id
+                         AND mi.product_id = mr2.product_id), 0)
+            )'''
+
     if search:
-        query += ''' AND (wo.wo_number LIKE ? OR p.code LIKE ? OR p.name LIKE ? 
+        query += ''' AND (wo.wo_number LIKE ? OR p.code LIKE ? OR p.name LIKE ?
                      OR c.customer_number LIKE ? OR c.name LIKE ?)'''
         search_param = f'%{search}%'
         params.extend([search_param] * 5)
@@ -114,7 +159,7 @@ def list_workorders():
     
     conn.close()
     
-    return render_template('workorders/list.html', 
+    return render_template('workorders/list.html',
                          workorders=workorders,
                          customers=customers,
                          statuses=statuses,
@@ -132,7 +177,8 @@ def list_workorders():
                              'date_to': date_to,
                              'search': search,
                              'sort_by': sort_by,
-                             'sort_order': sort_order
+                             'sort_order': sort_order,
+                             'shortage': shortage_filter
                          })
 
 @workorder_bp.route('/workorders/list-json')
@@ -485,9 +531,17 @@ def view_workorder(id):
         JOIN products p ON mr.product_id = p.id
         WHERE mr.work_order_id=?
     ''', (id,)).fetchall()
-    
+
+    # Compute material shortage flag for the view page
+    if not requirements:
+        material_status = 'ok'
+    elif any((r['quantity_issued'] or 0) < (r['required_quantity'] or 0) for r in requirements):
+        material_status = 'shortage'
+    else:
+        material_status = 'ok'
+
     all_products = conn.execute('SELECT * FROM products ORDER BY code').fetchall()
-    
+
     task_summary = conn.execute('''
         SELECT 
             COUNT(*) as total_tasks,
@@ -783,7 +837,8 @@ def view_workorder(id):
                          buyout_customers=buyout_customers,
                          component_buyout_pos=component_buyout_pos,
                          quote_for_comparison=quote_for_comparison,
-                         next_task_seq=next_task_seq)
+                         next_task_seq=next_task_seq,
+                         material_status=material_status)
 
 @workorder_bp.route('/workorders/<int:id>/delete', methods=['POST'])
 @login_required
