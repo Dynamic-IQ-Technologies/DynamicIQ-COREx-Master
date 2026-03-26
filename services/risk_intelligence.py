@@ -162,8 +162,8 @@ class EnterpriseRiskEngine:
                 SELECT COUNT(*) as cnt
                 FROM work_orders
                 WHERE status IN ('Open', 'In Progress')
-                AND due_date < CURRENT_DATE
-                AND due_date IS NOT NULL
+                AND planned_end_date < CURRENT_DATE
+                AND planned_end_date IS NOT NULL
             ''').fetchone()
             overdue_cnt = overdue['cnt'] or 0
             if overdue_cnt > 0:

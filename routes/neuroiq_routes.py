@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, Response, stream_with_context
 from models import Database, safe_float
 from auth import login_required, role_required
 from datetime import datetime, timedelta
@@ -540,25 +540,35 @@ TRANSACTION QUERY RESULTS (Live Data for User's Question):
         messages.append({"role": "user", "content": user_message})
         
         client = get_openai_client()
-        
-        max_tok = 3500 if strategic_context else 2048
-        
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            max_tokens=max_tok
+        max_tok = 1500 if strategic_context else 800
+        timestamp = context['timestamp']
+        include_debug = data.get('include_debug')
+
+        def generate():
+            full_response = ""
+            try:
+                stream = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    max_tokens=max_tok,
+                    stream=True
+                )
+                for chunk in stream:
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        full_response += delta
+                        yield f"data: {json.dumps({'delta': delta})}\n\n"
+                log_neuroiq_query(user_message, parsed_intent, transaction_data, full_response)
+                yield f"data: {json.dumps({'done': True, 'context_updated': timestamp})}\n\n"
+            except Exception as se:
+                yield f"data: {json.dumps({'error': str(se)})}\n\n"
+
+        return Response(
+            stream_with_context(generate()),
+            content_type='text/event-stream',
+            headers={'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache'}
         )
-        
-        assistant_message = response.choices[0].message.content
-        
-        log_neuroiq_query(user_message, parsed_intent, transaction_data, assistant_message)
-        
-        return jsonify({
-            'response': assistant_message,
-            'context_updated': context['timestamp'],
-            'parsed_intent': parsed_intent if data.get('include_debug') else None
-        })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

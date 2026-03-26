@@ -2021,18 +2021,21 @@ function loadInsights() {
 
 function addMessage(role, content) {
     const display = document.getElementById('conversation-display');
-
     const msgDiv = document.createElement('div');
     msgDiv.className = `msg msg-${role}`;
-
     const label = role === 'user' ? 'You' : 'COREx NeuroIQ';
-
     msgDiv.innerHTML = `
         <div class="msg-label">${label}</div>
         <div class="msg-bubble">${content.replace(/\n/g, '<br>')}</div>
     `;
-
     display.appendChild(msgDiv);
+    display.scrollTop = display.scrollHeight;
+    return msgDiv.querySelector('.msg-bubble');
+}
+
+function updateMessage(bubble, content) {
+    bubble.innerHTML = content.replace(/\n/g, '<br>');
+    const display = document.getElementById('conversation-display');
     display.scrollTop = display.scrollHeight;
 }
 
@@ -2054,29 +2057,57 @@ async function neuroSendMessage() {
     addMessage('user', message);
     neuroConversationHistory.push({ role: 'user', content: message });
 
+    let bubble = null;
+    let fullText = '';
+
     try {
         const response = await fetch('/neuroiq/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({
-                message: message,
-                history: neuroConversationHistory
-            })
+            body: JSON.stringify({ message: message, history: neuroConversationHistory })
         });
 
-        const data = await response.json();
+        if (!response.ok) throw new Error('Network error');
 
-        if (data.error) {
-            addMessage('assistant', 'I apologize, but I encountered an issue processing your request. Please try again.');
-            setSphereState('idle');
-        } else {
-            addMessage('assistant', data.response);
-            neuroConversationHistory.push({ role: 'assistant', content: data.response });
-            speakResponse(data.response);
+        bubble = addMessage('assistant', '');
+        setSphereState('responding');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                try {
+                    const payload = JSON.parse(line.slice(6));
+                    if (payload.delta) {
+                        fullText += payload.delta;
+                        updateMessage(bubble, fullText);
+                    } else if (payload.done) {
+                        neuroConversationHistory.push({ role: 'assistant', content: fullText });
+                        speakResponse(fullText);
+                    } else if (payload.error) {
+                        updateMessage(bubble, 'I encountered an issue processing your request. Please try again.');
+                        setSphereState('idle');
+                    }
+                } catch (e) {}
+            }
         }
     } catch (error) {
-        addMessage('assistant', 'I apologize, but I am currently unable to process your request. Please try again in a moment.');
+        if (bubble) {
+            updateMessage(bubble, 'I am currently unable to process your request. Please try again in a moment.');
+        } else {
+            addMessage('assistant', 'I am currently unable to process your request. Please try again in a moment.');
+        }
         setSphereState('idle');
     } finally {
         neuroIsProcessing = false;
