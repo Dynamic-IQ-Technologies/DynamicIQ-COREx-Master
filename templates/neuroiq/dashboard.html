@@ -1667,27 +1667,51 @@ function drawSphere() {
     ctx.fillStyle = specGrad;
     ctx.fill();
 
-    // === ORBITING ENERGY RINGS ===
-    const ringSpdMult = isActive ? 3.2 : 1.0;
-    const ringData = [
-        { incl: t * 1.80 * ringSpdMult,              color: '0, 220, 240',  alpha: 0.62, lw: 2.8 },
-        { incl: t * 1.40 * ringSpdMult + 1.0,        color: '160, 55, 255', alpha: 0.52, lw: 2.0 },
-        { incl: t * 2.20 * ringSpdMult + 2.2,        color: '0, 200, 255',  alpha: 0.44, lw: 1.5 },
+    // === ELECTRIC ORBIT WAVES ===
+    const ewSpd = isActive ? 2.8 : 1.0;
+    const electricWaves = [
+        { cosIncl: Math.cos(0.10), freq: 10, amp: 0.048, jFreq: 2.4, jAmp: 0.30,
+          travel: t * 2.0 * ewSpd,          color: '0, 240, 255',  alpha: 0.85, glowW: 5.5, coreW: 1.4 },
+        { cosIncl: Math.cos(0.42), freq: 8,  amp: 0.056, jFreq: 2.8, jAmp: 0.28,
+          travel: t * -1.6 * ewSpd + 1.0,   color: '170, 70, 255', alpha: 0.75, glowW: 4.5, coreW: 1.3 },
+        { cosIncl: Math.cos(-0.22), freq: 13, amp: 0.038, jFreq: 3.1, jAmp: 0.25,
+          travel: t * 2.6 * ewSpd + 2.2,    color: '60, 210, 255', alpha: 0.68, glowW: 3.5, coreW: 1.1 },
     ];
-    ringData.forEach(rd => {
-        const segs = 120;
-        ctx.beginPath();
+
+    electricWaves.forEach(ew => {
+        const segs = 240;
+        const rx   = r * 1.06;
+        const ryBase = r * 0.25;
+
+        // Compute path points once, reuse for glow + core
+        const pts = [];
         for (let i = 0; i <= segs; i++) {
-            const a  = (i / segs) * Math.PI * 2;
-            const ox = cx + Math.cos(a) * r * 1.08;
-            const oy = cy + Math.sin(a) * r * 0.24 * Math.cos(rd.incl);
-            if (i === 0) ctx.moveTo(ox, oy); else ctx.lineTo(ox, oy);
+            const a     = (i / segs) * Math.PI * 2;
+            const wave  = Math.sin(ew.freq * a + ew.travel) * r * ew.amp;
+            const jit   = Math.sin(ew.freq * ew.jFreq * a + ew.travel * 1.65) * r * ew.amp * ew.jAmp;
+            const disp  = (wave + jit) * ew.cosIncl;
+            pts.push([cx + Math.cos(a) * rx,
+                      cy + Math.sin(a) * ryBase * ew.cosIncl + disp]);
         }
+
+        // Wide electric glow layer
+        ctx.beginPath();
+        pts.forEach(([px, py], i) => i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py));
         ctx.closePath();
-        ctx.strokeStyle = `rgba(${rd.color}, ${rd.alpha * activeBoost})`;
-        ctx.lineWidth   = rd.lw;
-        ctx.shadowColor = `rgba(${rd.color}, 0.72)`;
-        ctx.shadowBlur  = 16;
+        ctx.strokeStyle = `rgba(${ew.color}, ${ew.alpha * activeBoost})`;
+        ctx.lineWidth   = ew.glowW;
+        ctx.shadowColor = `rgba(${ew.color}, 0.95)`;
+        ctx.shadowBlur  = 22;
+        ctx.stroke();
+
+        // Bright white-tinted core line
+        ctx.beginPath();
+        pts.forEach(([px, py], i) => i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py));
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(200, 240, 255, ${ew.alpha * 0.55 * activeBoost})`;
+        ctx.lineWidth   = ew.coreW;
+        ctx.shadowColor = `rgba(${ew.color}, 1.0)`;
+        ctx.shadowBlur  = 10;
         ctx.stroke();
         ctx.shadowBlur  = 0;
     });
