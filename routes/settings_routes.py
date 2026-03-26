@@ -132,7 +132,10 @@ def edit_company_settings():
             'brand_tone': current_settings['brand_tone'] if current_settings else 'Enterprise',
             'marketing_description': current_settings['marketing_description'] if current_settings else None,
             'target_industries': current_settings['target_industries'] if current_settings else None,
-            'key_differentiators': current_settings['key_differentiators'] if current_settings else None
+            'key_differentiators': current_settings['key_differentiators'] if current_settings else None,
+            'brevo_api_key': request.form.get('brevo_api_key', '').strip() or (current_settings['brevo_api_key'] if current_settings else None),
+            'brevo_from_email': request.form.get('brevo_from_email', '').strip() or (current_settings['brevo_from_email'] if current_settings else None),
+            'brevo_from_name': request.form.get('brevo_from_name', '').strip() or (current_settings['brevo_from_name'] if current_settings else None),
         }
         
         if current_settings and current_settings['logo_filename']:

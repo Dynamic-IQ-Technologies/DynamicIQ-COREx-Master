@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 def _send_brevo_email(to_email, to_name, subject, html_body):
-    api_key = os.environ.get('BREVO_API_KEY')
-    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    from utils.brevo_helper import get_brevo_credentials
+    api_key, from_email, from_name = get_brevo_credentials()
     if not api_key or not from_email:
-        return False, 'Email service not configured (missing BREVO_API_KEY or BREVO_FROM_EMAIL)'
+        return False, 'Email service not configured. Add Brevo credentials in Company Settings.'
     try:
         import sib_api_v3_sdk
         cfg = sib_api_v3_sdk.Configuration()
@@ -21,7 +21,7 @@ def _send_brevo_email(to_email, to_name, subject, html_body):
         api = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(cfg))
         msg = sib_api_v3_sdk.SendSmtpEmail(
             to=[{'email': to_email, 'name': to_name}],
-            sender={'email': from_email, 'name': 'Customer Service'},
+            sender={'email': from_email, 'name': from_name},
             subject=subject,
             html_content=html_body
         )

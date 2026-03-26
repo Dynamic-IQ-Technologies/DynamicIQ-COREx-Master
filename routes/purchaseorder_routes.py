@@ -25,9 +25,9 @@ import os
 
 
 def get_brevo_credentials():
-    """Get Brevo API key and from email from environment"""
-    api_key = os.environ.get('BREVO_API_KEY')
-    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    """Get Brevo credentials from company settings (falls back to env vars)"""
+    from utils.brevo_helper import get_brevo_credentials as _get
+    api_key, from_email, from_name = _get()
     return api_key, from_email
 
 
@@ -2631,7 +2631,7 @@ def email_supplier_link(po_id):
         api_key, from_email = get_brevo_credentials()
         if not api_key or not from_email:
             conn.close()
-            flash('Email service not configured. Please set BREVO_API_KEY and BREVO_FROM_EMAIL in Secrets.', 'danger')
+            flash('Email service not configured. Please add your Brevo credentials in Company Settings.', 'danger')
             return redirect(url_for('po_routes.send_to_supplier', po_id=po_id))
         
         company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()

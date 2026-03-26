@@ -9,9 +9,9 @@ import requests
 
 
 def get_brevo_credentials():
-    """Get Brevo API key and from email from environment"""
-    api_key = os.environ.get('BREVO_API_KEY')
-    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    """Get Brevo credentials from company settings (falls back to env vars)"""
+    from utils.brevo_helper import get_brevo_credentials as _get
+    api_key, from_email, from_name = _get()
     return api_key, from_email
 
 

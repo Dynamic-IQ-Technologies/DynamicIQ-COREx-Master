@@ -13,9 +13,9 @@ def get_form_date(field_name, default=None):
     return default
 
 def get_brevo_credentials():
-    """Get Brevo API key and from email from environment"""
-    api_key = os.environ.get('BREVO_API_KEY')
-    from_email = os.environ.get('BREVO_FROM_EMAIL')
+    """Get Brevo credentials from company settings (falls back to env vars)"""
+    from utils.brevo_helper import get_brevo_credentials as _get
+    api_key, from_email, from_name = _get()
     return api_key, from_email
 
 def send_email_via_brevo(to_email, to_name, subject, html_content, from_email, from_name, api_key, cc_email=None):

@@ -110,6 +110,49 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-envelope-at"></i> Email Integration (Brevo)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3 py-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        These credentials are used to send all system emails — invoices, order acknowledgements, customer communications, and more. Get your API key from <a href="https://app.brevo.com/settings/keys/api" target="_blank" class="alert-link">app.brevo.com</a>.
+                    </div>
+                    <div class="mb-3">
+                        <label for="brevo_api_key" class="form-label">Brevo API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="brevo_api_key" name="brevo_api_key"
+                                   placeholder="{{ '••••••••  (key saved — leave blank to keep)' if settings.brevo_api_key else 'xkeysib-...' }}"
+                                   autocomplete="new-password">
+                            <button class="btn btn-outline-secondary" type="button" id="toggle-api-key"
+                                    onclick="toggleApiKeyVisibility()">
+                                <i class="bi bi-eye" id="eye-icon"></i>
+                            </button>
+                        </div>
+                        {% if settings.brevo_api_key %}
+                        <div class="form-text text-success"><i class="bi bi-check-circle me-1"></i>API key is saved. Leave blank to keep the current key.</div>
+                        {% else %}
+                        <div class="form-text">Enter your Brevo API key to enable email sending.</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="brevo_from_email" class="form-label">Sender Email Address</label>
+                        <input type="email" class="form-control" id="brevo_from_email" name="brevo_from_email"
+                               value="{{ settings.brevo_from_email or '' }}"
+                               placeholder="noreply@yourcompany.com">
+                        <div class="form-text">Must be a verified sender in your Brevo account.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="brevo_from_name" class="form-label">Sender Display Name</label>
+                        <input type="text" class="form-control" id="brevo_from_name" name="brevo_from_name"
+                               value="{{ settings.brevo_from_name or '' }}"
+                               placeholder="{{ settings.company_name or 'Your Company Name' }}">
+                        <div class="form-text">The name recipients will see in the From field.</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="col-md-4">
@@ -148,4 +191,20 @@
         </div>
     </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('brevo_api_key');
+    const icon  = document.getElementById('eye-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
+</script>
 {% endblock %}

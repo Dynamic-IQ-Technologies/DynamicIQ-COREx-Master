@@ -805,6 +805,9 @@ class Database:
                 cage_code TEXT,
                 logo_filename TEXT,
                 auto_post_invoice_gl INTEGER DEFAULT 0,
+                brevo_api_key TEXT,
+                brevo_from_email TEXT,
+                brevo_from_name TEXT,
                 updated_by INTEGER,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (updated_by) REFERENCES users(id)
@@ -4899,6 +4902,7 @@ class CompanySettings:
                     marketing_tagline = ?, brand_primary_color = ?, brand_secondary_color = ?,
                     brand_accent_color = ?, brand_tone = ?, marketing_description = ?,
                     target_industries = ?, key_differentiators = ?,
+                    brevo_api_key = ?, brevo_from_email = ?, brevo_from_name = ?,
                     updated_by = ?, last_updated = CURRENT_TIMESTAMP
                 WHERE id = 1
             ''', (
@@ -4912,6 +4916,8 @@ class CompanySettings:
                 data.get('brand_secondary_color', '#f97316'), data.get('brand_accent_color', '#10b981'),
                 data.get('brand_tone', 'Enterprise'), data.get('marketing_description'),
                 data.get('target_industries'), data.get('key_differentiators'),
+                data.get('brevo_api_key') or None, data.get('brevo_from_email') or None,
+                data.get('brevo_from_name') or None,
                 user_id
             ))
         else:
@@ -4922,8 +4928,9 @@ class CompanySettings:
                     tax_id, duns_number, cage_code, logo_filename, auto_post_invoice_gl,
                     marketing_tagline, brand_primary_color, brand_secondary_color,
                     brand_accent_color, brand_tone, marketing_description,
-                    target_industries, key_differentiators, updated_by
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    target_industries, key_differentiators,
+                    brevo_api_key, brevo_from_email, brevo_from_name, updated_by
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get('company_name'), data.get('dba'), data.get('address_line1'),
                 data.get('address_line2'), data.get('city'), data.get('state'),
@@ -4935,7 +4942,8 @@ class CompanySettings:
                 data.get('brand_secondary_color', '#f97316'), data.get('brand_accent_color', '#10b981'),
                 data.get('brand_tone', 'Enterprise'), data.get('marketing_description'),
                 data.get('target_industries'), data.get('key_differentiators'),
-                user_id
+                data.get('brevo_api_key') or None, data.get('brevo_from_email') or None,
+                data.get('brevo_from_name') or None, user_id
             ))
         
         conn.commit()
