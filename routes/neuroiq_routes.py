@@ -554,7 +554,9 @@ TRANSACTION QUERY RESULTS (Live Data for User's Question):
                     stream=True
                 )
                 for chunk in stream:
-                    delta = chunk.choices[0].delta.content
+                    if not chunk.choices:
+                        continue
+                    delta = chunk.choices[0].delta.content if chunk.choices[0].delta else None
                     if delta:
                         full_response += delta
                         yield f"data: {json.dumps({'delta': delta})}\n\n"

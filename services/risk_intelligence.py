@@ -417,8 +417,8 @@ class EnterpriseRiskEngine:
                 audit_issues = conn.execute('''
                     SELECT COUNT(*) as cnt
                     FROM audit_trail
-                    WHERE action LIKE '%corrective%' OR action LIKE '%non-conformance%'
-                    AND created_at >= CURRENT_DATE - INTERVAL '90 days'
+                    WHERE action_type LIKE '%corrective%' OR action_type LIKE '%non-conformance%'
+                    AND modified_at >= CURRENT_DATE - INTERVAL '90 days'
                 ''').fetchone()
                 open_issues = audit_issues['cnt'] or 0
                 if open_issues > 5:

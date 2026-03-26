@@ -66,6 +66,14 @@ Key features include:
 - **Supply Chain Risk Radar** (`/risk-radar`): AI-scoring engine for supplier and part risk, with embedded badges in MRR shortage table and supplier view pages. Supplier rows include a "Simulate" button linking to Digital Twin.
 - **Digital Twin Simulation Suite** (`/digital-twin`): What-if simulation engine. Syncs live ERP state into `digital_twins`; runs 4 scenario types (supplier_failure, lead_time_increase, demand_spike, maintenance_deferral). Each simulation quantifies downtime hours, revenue impact, parts at risk, and blocked WOs; AI executive summary via GPT-4o-mini; full history in `twin_simulations`. Engine: `engines/twin_engine.py`; routes: `routes/twin_routes.py`.
 
+## Key DB Column Notes (prevent repeat bugs)
+
+- `audit_trail` columns: `id, record_type, record_id, action_type, modified_by, modified_by_name, modified_at, changed_fields, ip_address, user_agent` — NO `action` column, NO `created_at`; use `action_type` and `modified_at`
+- `work_orders`: use `planned_end_date` NOT `due_date`
+- `purchase_orders.expected_date`: stored as TEXT — guard `IS NOT NULL AND != ''` then cast `::date`
+- `invoices` (AR): has `due_date`; NO `updated_at`
+- NeuroIQ streaming: guard `chunk.choices` before accessing — `if not chunk.choices: continue`
+
 ## External Dependencies
 
 -   **Python Packages**: `Flask`, `Flask-Login`, `Werkzeug`, `ReportLab`, `Pandas`, `openpyxl`, `openai`, `psycopg2-binary`, `qrcode`, `Pillow`.
