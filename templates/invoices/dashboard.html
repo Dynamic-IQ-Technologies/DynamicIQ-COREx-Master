@@ -135,7 +135,9 @@
                             <option value="Draft" {% if status_filter == 'Draft' %}selected{% endif %}>Draft</option>
                             <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Approved</option>
                             <option value="Posted" {% if status_filter == 'Posted' %}selected{% endif %}>Posted</option>
+                            <option value="Sent" {% if status_filter == 'Sent' %}selected{% endif %}>Sent</option>
                             <option value="Paid" {% if status_filter == 'Paid' %}selected{% endif %}>Paid</option>
+                            <option value="Partially Paid" {% if status_filter == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
                             <option value="Void" {% if status_filter == 'Void' %}selected{% endif %}>Void</option>
                         </select>
                     </div>
@@ -263,8 +265,14 @@
                                 <span class="badge bg-success">Posted</span>
                                 {% elif invoice.status == 'Paid' %}
                                 <span class="badge bg-success">Paid</span>
+                                {% elif invoice.status == 'Partially Paid' %}
+                                <span class="badge bg-warning text-dark">Partially Paid</span>
+                                {% elif invoice.status == 'Sent' %}
+                                <span class="badge bg-info text-dark">Sent</span>
                                 {% elif invoice.status == 'Void' %}
                                 <span class="badge bg-dark">Void</span>
+                                {% elif invoice.status %}
+                                <span class="badge bg-secondary">{{ invoice.status }}</span>
                                 {% endif %}
                             </td>
                             <td>
