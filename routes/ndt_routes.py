@@ -1591,21 +1591,23 @@ def invoice_view(id):
         SELECT ni.*, c.name as customer_name, c.billing_address,
                nw.ndt_wo_number, nw.product_id,
                p.name as product_name, p.code as product_code,
-               u.username as created_by_name
+               u.username as created_by_name,
+               ge.entry_number as gl_entry_number
         FROM ndt_invoices ni
         LEFT JOIN customers c ON ni.customer_id = c.id
         LEFT JOIN ndt_work_orders nw ON ni.ndt_wo_id = nw.id
         LEFT JOIN products p ON nw.product_id = p.id
         LEFT JOIN users u ON ni.created_by = u.id
+        LEFT JOIN gl_entries ge ON ge.id = ni.gl_entry_id
         WHERE ni.id = ?
     ''', (id,)).fetchone()
-    
+
     if not invoice:
         flash('NDT Invoice not found', 'error')
         return redirect(url_for('ndt_routes.invoices_list'))
-    
+
     conn.close()
-    
+
     return render_template('ndt/invoice_view.html',
         invoice=invoice,
         statuses=NDT_INVOICE_STATUSES,
@@ -1698,28 +1700,138 @@ def invoice_edit(id):
     )
 
 
+def _create_ndt_revenue_je(conn, invoice, user_id):
+    """Create a revenue recognition GL entry for an NDT invoice.
+    DR: Accounts Receivable (1120)  CR: Service Revenue (4200).
+    Returns the gl_entry_id on success, None if already posted or accounts missing."""
+    if invoice.get('gl_entry_id'):
+        return None  # already posted
+
+    ar_account  = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1120'").fetchone()
+    rev_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '4200'").fetchone()
+    if not ar_account or not rev_account:
+        raise ValueError('Required GL accounts not found (AR: 1120, Service Revenue: 4200)')
+
+    last_entry = conn.execute(
+        "SELECT entry_number FROM gl_entries WHERE entry_number LIKE 'NDT-JE-%' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    if last_entry:
+        try:
+            next_num = int(last_entry['entry_number'].split('-')[2]) + 1
+        except Exception:
+            next_num = 1
+    else:
+        next_num = 1
+    entry_number = f'NDT-JE-{next_num:06d}'
+
+    gl_entry_id = conn.execute('''
+        INSERT INTO gl_entries (
+            entry_number, entry_date, description,
+            transaction_source, reference_type, reference_id,
+            status, created_by, posted_by, posted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ''', (
+        entry_number,
+        str(invoice.get('invoice_date') or date.today().isoformat()),
+        f"NDT Revenue Recognition - {invoice['invoice_number']}",
+        'NDT Invoice', 'ndt_invoice', invoice['id'],
+        'Posted', user_id, user_id,
+    )).lastrowid
+
+    total = float(invoice.get('total_amount') or 0)
+
+    conn.execute(
+        'INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description) VALUES (?, ?, ?, ?, ?)',
+        (gl_entry_id, ar_account['id'], total, 0, f'NDT AR - {invoice["invoice_number"]}'),
+    )
+    conn.execute(
+        'INSERT INTO gl_entry_lines (gl_entry_id, account_id, debit, credit, description) VALUES (?, ?, ?, ?, ?)',
+        (gl_entry_id, rev_account['id'], 0, total, f'NDT Revenue - {invoice["invoice_number"]}'),
+    )
+    conn.execute(
+        'UPDATE ndt_invoices SET gl_entry_id = ? WHERE id = ?',
+        (gl_entry_id, invoice['id']),
+    )
+    return entry_number
+
+
 @ndt_bp.route('/ndt/invoices/<int:id>/status', methods=['POST'])
 def invoice_update_status(id):
-    """Update NDT invoice status"""
+    """Update NDT invoice status; auto-creates revenue JE when moved to Sent."""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
-    
+
     new_status = request.form['status']
-    
-    db = Database()
+
+    db   = Database()
     conn = db.get_connection()
-    
-    invoice = conn.execute('SELECT * FROM ndt_invoices WHERE id = ?', (id,)).fetchone()
-    if not invoice:
+
+    try:
+        invoice = conn.execute('SELECT * FROM ndt_invoices WHERE id = ?', (id,)).fetchone()
+        if not invoice:
+            flash('NDT Invoice not found', 'error')
+            return redirect(url_for('ndt_routes.invoices_list'))
+
+        conn.execute('UPDATE ndt_invoices SET status = ? WHERE id = ?', (new_status, id))
+
+        # Auto-create revenue recognition JE when invoice is sent / posted
+        je_number = None
+        if new_status == 'Sent' and not invoice.get('gl_entry_id'):
+            # Re-fetch so gl_entry_id is current
+            updated_inv = dict(invoice)
+            updated_inv['status'] = new_status
+            try:
+                je_number = _create_ndt_revenue_je(conn, updated_inv, session['user_id'])
+            except Exception as je_err:
+                flash(f'Warning: could not create GL entry — {je_err}', 'warning')
+
+        conn.commit()
+
+        if je_number:
+            flash(f'Invoice status updated to {new_status}. GL entry {je_number} created.', 'success')
+        else:
+            flash(f'Invoice status updated to {new_status}', 'success')
+
+    except Exception as ex:
+        conn.rollback()
+        flash(f'Error updating status: {ex}', 'danger')
+    finally:
         conn.close()
-        flash('NDT Invoice not found', 'error')
-        return redirect(url_for('ndt_routes.invoices_list'))
-    
-    conn.execute('UPDATE ndt_invoices SET status = ? WHERE id = ?', (new_status, id))
-    conn.commit()
-    conn.close()
-    
-    flash(f'Invoice status updated to {new_status}', 'success')
+
+    return redirect(url_for('ndt_routes.invoice_view', id=id))
+
+
+@ndt_bp.route('/ndt/invoices/<int:id>/post-to-gl', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def ndt_invoice_post_to_gl(id):
+    """Manually post an NDT invoice to GL (revenue recognition) without changing its status."""
+    db   = Database()
+    conn = db.get_connection()
+    try:
+        invoice = conn.execute('SELECT * FROM ndt_invoices WHERE id = ?', (id,)).fetchone()
+        if not invoice:
+            flash('NDT Invoice not found', 'danger')
+            return redirect(url_for('ndt_routes.invoices_list'))
+
+        if invoice.get('gl_entry_id'):
+            flash('This invoice has already been posted to GL.', 'warning')
+            return redirect(url_for('ndt_routes.invoice_view', id=id))
+
+        if invoice.get('status') in ('Cancelled',):
+            flash('Cannot post a cancelled invoice to GL.', 'warning')
+            return redirect(url_for('ndt_routes.invoice_view', id=id))
+
+        je_number = _create_ndt_revenue_je(conn, dict(invoice), session['user_id'])
+        conn.commit()
+        flash(f'Invoice posted to GL. Revenue recognition entry {je_number} created.', 'success')
+
+    except Exception as ex:
+        conn.rollback()
+        flash(f'Error posting to GL: {ex}', 'danger')
+    finally:
+        conn.close()
+
     return redirect(url_for('ndt_routes.invoice_view', id=id))
 
 
@@ -1999,13 +2111,24 @@ def invoice_send_email(id):
     if success:
         if update_status and invoice['status'] == 'Draft':
             conn.execute('UPDATE ndt_invoices SET status = ? WHERE id = ?', ('Sent', id))
+            je_number = None
+            if not invoice.get('gl_entry_id'):
+                try:
+                    updated_inv        = dict(invoice)
+                    updated_inv['status'] = 'Sent'
+                    je_number = _create_ndt_revenue_je(conn, updated_inv, session.get('user_id', 0))
+                except Exception as je_err:
+                    flash(f'Warning: GL entry could not be created — {je_err}', 'warning')
             conn.commit()
-            flash(f'Invoice emailed successfully and status updated to Sent!', 'success')
+            if je_number:
+                flash(f'Invoice emailed and status updated to Sent. GL entry {je_number} created.', 'success')
+            else:
+                flash(f'Invoice emailed successfully and status updated to Sent!', 'success')
         else:
             flash(f'Invoice emailed successfully to {recipient_email}!', 'success')
     else:
         flash(f'Failed to send email: {error}', 'danger')
-    
+
     conn.close()
     return redirect(url_for('ndt_routes.invoice_view', id=id))
 
