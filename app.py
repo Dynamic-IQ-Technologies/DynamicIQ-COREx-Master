@@ -560,6 +560,15 @@ def handle_exception(error):
                           category='System',
                           error_detail=str(error) if app.debug else None), 500
 
+def _is_production() -> bool:
+    """Return True when running in any production environment (Replit or Railway)."""
+    return (
+        os.environ.get('REPLIT_DEPLOYMENT') == '1'
+        or os.environ.get('RAILWAY_ENVIRONMENT') is not None
+        or os.environ.get('FLASK_ENV') == 'production'
+    )
+
+
 def validate_environment():
     """Validate critical environment variables at startup"""
     warnings = []
@@ -572,7 +581,7 @@ def validate_environment():
     else:
         print("[Startup] Using SQLite database (no DATABASE_URL)")
     
-    if os.environ.get('REPLIT_DEPLOYMENT') == '1':
+    if _is_production():
         print("[Startup] Running in PRODUCTION mode")
         if not os.environ.get('SESSION_SECRET'):
             print("WARNING: SESSION_SECRET should be set in production!")
@@ -641,6 +650,5 @@ def initialize_application():
 initialize_application()
 
 if __name__ == '__main__':
-    import os
-    is_production = os.environ.get('REPLIT_DEPLOYMENT') == '1'
-    app.run(host='0.0.0.0', port=5000, debug=not is_production)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=not _is_production())
