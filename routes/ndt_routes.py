@@ -2037,7 +2037,7 @@ def invoice_send_email(id):
         return redirect(url_for('ndt_routes.invoices_list'))
     
     company = conn.execute('SELECT * FROM company_settings LIMIT 1').fetchone()
-    company_name = company['name'] if company else 'Dynamic.IQ-COREx'
+    company_name = company['company_name'] if company else 'Dynamic.IQ-COREx'
     
     html_content = f'''
     <html>

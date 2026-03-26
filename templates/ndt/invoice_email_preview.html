@@ -53,7 +53,7 @@
                     <div class="mb-3">
                         <label class="form-label">Subject <span class="text-danger">*</span></label>
                         <input type="text" name="email_subject" class="form-control" required
-                               value="NDT Invoice {{ invoice.invoice_number }} from {{ company.name or 'Dynamic.IQ-COREx' }}">
+                               value="NDT Invoice {{ invoice.invoice_number }} from {{ company.company_name or 'Dynamic.IQ-COREx' }}">
                     </div>
                     
                     <div class="mb-3">
@@ -67,7 +67,7 @@ Payment is due by {{ invoice.due_date }}.
 Thank you for your business.
 
 Best regards,
-{{ company.name or 'Dynamic.IQ-COREx' }}</textarea>
+{{ company.company_name or 'Dynamic.IQ-COREx' }}</textarea>
                     </div>
                     
                     {% if invoice.status == 'Draft' %}

@@ -59,7 +59,7 @@
             </div>
             <div class="card-body">
                 {% if company %}
-                <p class="mb-1 fw-medium">{{ company.name or 'Company Name' }}</p>
+                <p class="mb-1 fw-medium">{{ company.company_name or 'Company Name' }}</p>
                 {% if company.address %}<p class="mb-1 text-muted small">{{ company.address }}</p>{% endif %}
                 {% if company.city or company.state or company.zip %}
                 <p class="mb-1 text-muted small">{{ company.city or '' }}{% if company.city and company.state %}, {% endif %}{{ company.state or '' }} {{ company.zip or '' }}</p>
