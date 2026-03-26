@@ -84,9 +84,11 @@ def create_journal_entry(conn, entry_date, description, transaction_source, refe
         cursor = conn.execute('''
             INSERT INTO gl_entries (entry_number, entry_date, description, transaction_source, reference_type, reference_id, status, created_by, created_at, posted_by, posted_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
         ''', (entry_number, entry_date, description, transaction_source, reference_type, str(reference_id) if reference_id is not None else None, status, user_id, datetime.now(), posted_by, posted_at))
         
-        gl_entry_id = cursor.lastrowid
+        row = cursor.fetchone()
+        gl_entry_id = row[0] if row else None
         
         for line in lines:
             account_code = line.get('account_code')

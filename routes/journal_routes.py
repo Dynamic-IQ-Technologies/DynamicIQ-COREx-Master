@@ -39,11 +39,11 @@ def list_journals():
             u.username as created_by_name,
             (SELECT SUM(debit) FROM gl_entry_lines WHERE gl_entry_id = gl.id) as total_debit,
             (SELECT SUM(credit) FROM gl_entry_lines WHERE gl_entry_id = gl.id) as total_credit,
-            (SELECT GROUP_CONCAT(coa.account_code || ' - ' || coa.account_name, ', ')
+            (SELECT STRING_AGG(coa.account_code || ' - ' || coa.account_name, ', ')
              FROM gl_entry_lines l 
              JOIN chart_of_accounts coa ON l.account_id = coa.id
              WHERE l.gl_entry_id = gl.id AND l.debit > 0) as debit_accounts,
-            (SELECT GROUP_CONCAT(coa.account_code || ' - ' || coa.account_name, ', ')
+            (SELECT STRING_AGG(coa.account_code || ' - ' || coa.account_name, ', ')
              FROM gl_entry_lines l 
              JOIN chart_of_accounts coa ON l.account_id = coa.id
              WHERE l.gl_entry_id = gl.id AND l.credit > 0) as credit_accounts
@@ -200,9 +200,11 @@ def create_journal():
             cursor.execute('''
                 INSERT INTO gl_entries (entry_number, entry_date, description, transaction_source, status, created_by, created_at)
                 VALUES (?, ?, ?, 'Manual Journal', 'Draft', ?, ?)
+                RETURNING id
             ''', (entry_number, entry_date, description, session.get('user_id'), datetime.now().isoformat()))
             
-            entry_id = cursor.lastrowid
+            row = cursor.fetchone()
+            entry_id = row[0] if row else None
             
             # Insert journal entry lines
             for line in lines:
