@@ -1978,12 +1978,13 @@ function speakResponse(text) {
     };
 
     utterance.onerror = function(event) {
+        if (event.error === 'interrupted' || event.error === 'canceled') return;
         console.error('TTS error:', event.error);
         if (vis) vis.classList.remove('active', 'speaking');
         setSphereState('idle');
     };
 
-    neuroSynthesis.speak(utterance);
+    setTimeout(() => neuroSynthesis.speak(utterance), 80);
 }
 
 initVoiceRecognition();

@@ -320,7 +320,7 @@ class EnterpriseRiskEngine:
             po_stats = conn.execute('''
                 SELECT COUNT(*) as total,
                     SUM(CASE WHEN status IN ('Open', 'Sent', 'Acknowledged') THEN 1 ELSE 0 END) as open_pos,
-                    SUM(CASE WHEN expected_date < CURRENT_DATE AND status NOT IN ('Received', 'Closed', 'Cancelled') THEN 1 ELSE 0 END) as overdue
+                    SUM(CASE WHEN expected_date IS NOT NULL AND expected_date != '' AND expected_date::date < CURRENT_DATE AND status NOT IN ('Received', 'Closed', 'Cancelled') THEN 1 ELSE 0 END) as overdue
                 FROM purchase_orders
             ''').fetchone()
 
