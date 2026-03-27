@@ -866,6 +866,12 @@
                     <span>Work Orders</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('workorder_routes.list_stages') }}">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>WO Stages</span>
+                </a>
+            </li>
             {% endif %}
             {% if user_permissions.get('menu_task_templates', 1) == 1 %}
             <li class="sidebar-nav-item">
