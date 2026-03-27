@@ -127,6 +127,48 @@ class PostgresTranslatingCursor:
         except Exception:
             pass
     
+    @staticmethod
+    def _strip_fk_from_create_table(sql):
+        """Remove inline FOREIGN KEY constraints from a CREATE TABLE statement.
+        
+        PostgreSQL enforces FK constraints at CREATE TABLE time, requiring the
+        referenced table to already exist. SQLite does not enforce this ordering.
+        Since all FK relationships in this schema are treated as soft references
+        (application-level enforcement), we drop the inline constraints so that
+        tables can be created in any order.
+        """
+        import re
+        stripped = sql.strip()
+        if not re.match(r'\s*CREATE\s+TABLE\b', stripped, re.IGNORECASE):
+            return sql
+        
+        # Pass 1: remove lines that are FOREIGN KEY table constraints
+        lines = stripped.split('\n')
+        filtered = []
+        for line in lines:
+            if line.strip().upper().startswith('FOREIGN KEY'):
+                continue
+            filtered.append(line)
+        
+        # Pass 2: fix any trailing comma left before a bare closing ')'.
+        # This happens when the last column/constraint before ')' was a FK line
+        # that we just removed, leaving the previous real line with a dangling comma.
+        result = []
+        for i, line in enumerate(filtered):
+            trimmed = line.strip()
+            if trimmed.endswith(','):
+                # Find next non-empty line
+                j = i + 1
+                while j < len(filtered) and not filtered[j].strip():
+                    j += 1
+                if j < len(filtered) and filtered[j].strip() in (')', ');'):
+                    # Remove the trailing comma — nothing follows before the close paren
+                    result.append(line.rstrip()[:-1])
+                    continue
+            result.append(line)
+        
+        return '\n'.join(result)
+
     def execute(self, query, params=None):
         import re
         self._pragma_results = None
@@ -214,6 +256,11 @@ class PostgresTranslatingCursor:
         
         query_stripped = self._translate(query_stripped)
         query_stripped = query_stripped.replace('?', '%s')
+        
+        # Strip inline FOREIGN KEY constraints from CREATE TABLE statements so that
+        # tables can be created regardless of whether referenced tables exist yet.
+        if re.match(r'\s*CREATE\s+TABLE\b', query_stripped, re.IGNORECASE):
+            query_stripped = self._strip_fk_from_create_table(query_stripped)
         
         # Auto-add RETURNING id for INSERT statements to capture lastrowid
         needs_returning = False
@@ -816,6 +863,15 @@ class Database:
     
     def init_db(self):
         conn = self.get_connection()
+        # Enable autocommit for PostgreSQL during schema initialisation.
+        # Without it, the psycopg2 connection wraps all DDL in one big
+        # transaction.  Any failing ALTER TABLE ADD COLUMN (column already
+        # exists on a fresh DB) triggers a full rollback, wiping every
+        # CREATE TABLE that came before it.  Autocommit makes each statement
+        # its own transaction so an error in one DDL line never rolls back
+        # the others.
+        if self.use_postgres:
+            conn._conn.autocommit = True
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -922,8 +978,7 @@ class Database:
                 payment_terms INTEGER DEFAULT 30,
                 customer_link_id INTEGER,
                 is_customer_supplier INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (customer_link_id) REFERENCES customers(id)
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -969,23 +1024,6 @@ class Database:
         ''')
         
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS work_order_stage_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                work_order_id INTEGER NOT NULL,
-                stage_id INTEGER NOT NULL,
-                entered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                exited_at TIMESTAMP,
-                duration_hours REAL,
-                changed_by INTEGER,
-                FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
-                FOREIGN KEY (stage_id) REFERENCES work_order_stages(id),
-                FOREIGN KEY (changed_by) REFERENCES users(id)
-            )
-        ''')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_stage_history_wo ON work_order_stage_history(work_order_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_stage_history_stage ON work_order_stage_history(stage_id)')
-        
-        cursor.execute('''
             CREATE TABLE IF NOT EXISTS work_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 wo_number TEXT UNIQUE NOT NULL,
@@ -1008,6 +1046,23 @@ class Database:
                 FOREIGN KEY (stage_id) REFERENCES work_order_stages(id)
             )
         ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_stage_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_order_id INTEGER NOT NULL,
+                stage_id INTEGER NOT NULL,
+                entered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                exited_at TIMESTAMP,
+                duration_hours REAL,
+                changed_by INTEGER,
+                FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (stage_id) REFERENCES work_order_stages(id),
+                FOREIGN KEY (changed_by) REFERENCES users(id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_stage_history_wo ON work_order_stage_history(work_order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_wo_stage_history_stage ON work_order_stage_history(stage_id)')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS purchase_orders (
@@ -1046,8 +1101,6 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
                 FOREIGN KEY (product_id) REFERENCES products(id),
-                FOREIGN KEY (uom_id) REFERENCES uom_master(id),
-                FOREIGN KEY (source_so_line_id) REFERENCES sales_order_lines(id),
                 UNIQUE(po_id, line_number)
             )
         ''')
