@@ -1744,11 +1744,11 @@ class Database:
                 cursor.execute('ALTER TABLE suppliers ADD COLUMN contact_phone TEXT')
             except sqlite3.OperationalError:
                 pass
-        if 'status' not in supplier_columns:
-            try:
-                cursor.execute("ALTER TABLE suppliers ADD COLUMN status TEXT DEFAULT 'Active'")
-            except sqlite3.OperationalError:
-                pass
+        # Use IF NOT EXISTS to safely add status regardless of PRAGMA translation accuracy
+        try:
+            cursor.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active'")
+        except Exception:
+            pass
         
         # Ensure work_order_task_materials table exists (per-task material requirements)
         cursor.execute('''
