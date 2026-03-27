@@ -7,7 +7,7 @@ import os
 
 main_bp = Blueprint('main_routes', __name__)
 
-USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
+USE_POSTGRES = os.environ.get('DATABASE_URL') is not None
 
 @main_bp.route('/system-repository')
 @login_required

@@ -6,7 +6,7 @@ import os
 
 operations_bp = Blueprint('operations_routes', __name__)
 
-USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
+USE_POSTGRES = os.environ.get('DATABASE_URL') is not None
 
 @operations_bp.route('/operations-dashboard')
 @login_required

@@ -9,7 +9,7 @@ import os
 
 executive_routes = Blueprint('executive_routes', __name__)
 
-USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
+USE_POSTGRES = os.environ.get('DATABASE_URL') is not None
 
 def role_required(*roles):
     def decorator(f):

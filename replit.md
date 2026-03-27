@@ -21,12 +21,13 @@ The system incorporates a novel architecture for ERP exchange management, compri
 
 ### System Design Choices
 
-The system uses **PostgreSQL for both development and production** to ensure consistent behavior, eliminating compatibility issues. All SQL throughout the codebase uses PostgreSQL-native syntax:
-- Date literals: `CURRENT_DATE`, `NOW()`, `CURRENT_TIMESTAMP`
-- Date arithmetic: `CURRENT_DATE + INTERVAL '7 days'`, `date_col::date`
-- No SQLite-specific functions (`julianday`, `date('now', ...)`, `datetime('now')`, `strftime`) anywhere
-- `?` placeholders are auto-converted to `%s` by the Database compatibility layer
-- PostgreSQL returns DATE columns as `datetime.date` objects — all engines/routes normalise these to ISO strings using `_ds()` helpers before comparison or JSON serialisation
+The system uses **PostgreSQL for both development and production** to ensure consistent behavior. When `DATABASE_URL` is present (Replit, Railway, or any hosted environment) the app uses PostgreSQL. Key SQL compatibility notes:
+- **Translation layer** in `PostgresConnection` automatically converts SQLite syntax to PostgreSQL (julianday→EXTRACT, strftime→TO_CHAR, date('now',...)→CURRENT_DATE±INTERVAL, GROUP_CONCAT→STRING_AGG, INSERT OR IGNORE/REPLACE→ON CONFLICT)
+- `?` placeholders are auto-converted to `%s`; subquery aliases injected automatically for bare `FROM (subquery)` patterns
+- Four route files (`main_routes`, `executive_routes`, `operations_routes`, `customer_service_routes`) have `USE_POSTGRES = os.environ.get('DATABASE_URL') is not None` which selects native PostgreSQL branches (TO_CHAR, CURRENT_DATE) when DB is PostgreSQL
+- PostgreSQL returns DATE columns as `datetime.date` objects — all engines/routes normalise to ISO strings using `_ds()` helpers
+
+**Connection Pooling**: `models.py` maintains a per-process `psycopg2.pool.ThreadedConnectionPool` (min=1, max=6) via the `_get_pg_pool()` singleton. `Database.get_connection()` allocates a connection from this pool; `PostgresConnection.close()` returns it. This keeps Railway's PostgreSQL well within its connection limit across all gunicorn workers.
 
 The system implements enterprise-grade error handling with a Global Exception Handler, Request Correlation IDs, Structured Error Responses, and Safe Template Utilities. Production hardening includes environment parity validation, schema validation and drift detection, transaction safety, and pre-insert validation. Health check endpoints provide monitoring for application readiness, database connectivity, transaction capability, and schema consistency.
 

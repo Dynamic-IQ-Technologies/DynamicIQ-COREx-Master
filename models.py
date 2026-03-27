@@ -39,6 +39,21 @@ if USE_POSTGRES:
     import psycopg2
     from psycopg2.extras import RealDictCursor
 
+# --- Connection pool (per-process singleton) ---
+_pg_pool = None
+
+def _get_pg_pool():
+    """Return the per-process psycopg2 ThreadedConnectionPool, creating it on first call."""
+    global _pg_pool
+    if _pg_pool is None:
+        import psycopg2.pool as _pool
+        _pg_pool = _pool.ThreadedConnectionPool(
+            minconn=1,
+            maxconn=6,
+            dsn=DATABASE_URL,
+        )
+    return _pg_pool
+
 class PostgresTranslatingCursor:
     """Cursor wrapper that translates SQLite SQL to PostgreSQL and converts Decimal to float"""
     def __init__(self, cursor, translate_func):
@@ -228,8 +243,9 @@ class PostgresTranslatingCursor:
 
 class PostgresConnection:
     """Wrapper to make psycopg2 connection behave more like sqlite3 connection"""
-    def __init__(self, conn):
+    def __init__(self, conn, pool=None):
         self._conn = conn
+        self._pool = pool
         self._cursor = None
         self._last_insert_id = None
     
@@ -610,7 +626,23 @@ class PostgresConnection:
         self._conn.rollback()
     
     def close(self):
-        self._conn.close()
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
+        if self._pool is not None:
+            try:
+                self._pool.putconn(self._conn)
+            except Exception:
+                try:
+                    self._conn.close()
+                except Exception:
+                    pass
+        else:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
 
 class PostgresCursor:
     """Wrapper for psycopg2 cursor to provide sqlite3-like interface"""
@@ -660,8 +692,9 @@ class Database:
         
     def get_connection(self):
         if self.use_postgres:
-            conn = psycopg2.connect(DATABASE_URL)
-            return PostgresConnection(conn)
+            pg_pool = _get_pg_pool()
+            raw_conn = pg_pool.getconn()
+            return PostgresConnection(raw_conn, pool=pg_pool)
         else:
             conn = sqlite3.connect(self.db_name)
             conn.row_factory = sqlite3.Row
@@ -674,13 +707,18 @@ class Database:
         For SQLite, %s is automatically converted to ?.
         """
         if self.use_postgres:
-            conn = psycopg2.connect(DATABASE_URL)
+            pg_pool = _get_pg_pool()
+            raw_conn = pg_pool.getconn()
             try:
-                cursor = conn.cursor()
+                cursor = raw_conn.cursor()
                 cursor.execute(query, params or ())
                 return cursor.fetchall()
             finally:
-                conn.close()
+                try:
+                    raw_conn.rollback()
+                except Exception:
+                    pass
+                pg_pool.putconn(raw_conn)
         else:
             conn = sqlite3.connect(self.db_name)
             conn.row_factory = None

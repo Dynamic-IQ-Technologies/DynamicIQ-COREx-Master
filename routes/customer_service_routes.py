@@ -157,7 +157,7 @@ Requirements:
 
 customer_service_bp = Blueprint('customer_service', __name__)
 
-USE_POSTGRES = os.environ.get('REPLIT_DEPLOYMENT') == '1' and os.environ.get('DATABASE_URL') is not None
+USE_POSTGRES = os.environ.get('DATABASE_URL') is not None
 
 DEFAULT_STAGES = [
     ('Order Received', 1),
