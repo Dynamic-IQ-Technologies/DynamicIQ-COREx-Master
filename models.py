@@ -4651,6 +4651,9 @@ class Database:
                 customer_approval_notes TEXT,
                 customer_declined_at TEXT,
                 customer_decline_reason TEXT,
+                acknowledged INTEGER DEFAULT 0,
+                acknowledged_by INTEGER,
+                acknowledged_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
@@ -4688,14 +4691,17 @@ class Database:
                 ('customer_approval_notes', 'TEXT'),
                 ('customer_declined_at', 'TEXT'),
                 ('customer_decline_reason', 'TEXT'),
+                ('acknowledged', 'INTEGER DEFAULT 0'),
+                ('acknowledged_by', 'INTEGER'),
+                ('acknowledged_at', 'TIMESTAMP'),
             ]
             for col_name, col_type in new_wo_quote_cols:
                 if col_name not in wo_quote_columns:
                     try:
-                        cursor.execute(f'ALTER TABLE work_order_quotes ADD COLUMN {col_name} {col_type}')
-                    except sqlite3.OperationalError:
+                        cursor.execute(f'ALTER TABLE work_order_quotes ADD COLUMN IF NOT EXISTS {col_name} {col_type}')
+                    except Exception:
                         pass
-        except sqlite3.OperationalError:
+        except Exception:
             pass
         
         # Initialize QMS tables
