@@ -193,6 +193,31 @@
         </div>
     </div>
 
+    {% if session.role in ['Admin', 'Accountant'] %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> QuickBooks Sync</h5>
+            <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-box-arrow-up-right"></i> QB Dashboard
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div id="qbSyncStatus" class="text-muted small">
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span> Checking sync status…
+                </div>
+                <button id="qbSyncBtn" class="btn btn-sm btn-outline-success d-none" onclick="syncToQB()">
+                    <i class="bi bi-cloud-upload me-1"></i> Push to QuickBooks as Bill
+                </button>
+                <button id="qbResyncBtn" class="btn btn-sm btn-outline-secondary d-none" onclick="syncToQB()">
+                    <i class="bi bi-arrow-repeat me-1"></i> Re-sync to QuickBooks
+                </button>
+            </div>
+            <div id="qbSyncResult" class="mt-2"></div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if session.role in ['Admin', 'Accountant'] and ap.status != 'Paid' %}
     <div class="card mb-4">
         <div class="card-header bg-success text-white">
@@ -330,4 +355,84 @@
     </div>
     {% endif %}
 </div>
+
+{% if session.role in ['Admin', 'Accountant'] %}
+<script>
+(function() {
+    const apId = {{ ap.id }};
+
+    function setStatus(html) {
+        document.getElementById('qbSyncStatus').innerHTML = html;
+    }
+    function showBtn(synced) {
+        document.getElementById('qbSyncBtn').classList.toggle('d-none', synced);
+        document.getElementById('qbResyncBtn').classList.toggle('d-none', !synced);
+    }
+
+    // Load sync status on page load
+    fetch('/api/qb/ap-sync-status')
+        .then(r => r.json())
+        .then(rows => {
+            const row = rows.find(r => r.id === apId);
+            if (!row) {
+                setStatus('<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>QB not connected or status unavailable.</span>');
+                return;
+            }
+            if (row.qb_bill_id) {
+                const syncedAt = row.last_synced_at ? new Date(row.last_synced_at).toLocaleDateString() : 'unknown date';
+                setStatus(`<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Synced to QB as Bill <strong>${row.qb_bill_number || row.qb_bill_id}</strong> on ${syncedAt}</span>`);
+                showBtn(true);
+            } else {
+                setStatus('<span class="text-muted"><i class="bi bi-cloud me-1"></i>Not yet synced to QuickBooks.</span>');
+                showBtn(false);
+            }
+        })
+        .catch(() => {
+            setStatus('<span class="text-muted"><i class="bi bi-cloud-slash me-1"></i>QB sync status unavailable — credentials may not be configured.</span>');
+        });
+
+    window.syncToQB = function() {
+        const btn = document.getElementById('qbSyncBtn').classList.contains('d-none')
+            ? document.getElementById('qbResyncBtn')
+            : document.getElementById('qbSyncBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Syncing…';
+        document.getElementById('qbSyncResult').innerHTML = '';
+
+        fetch(`/api/qb/sync-vendor-invoice/${apId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = btn.id === 'qbResyncBtn'
+                    ? '<i class="bi bi-arrow-repeat me-1"></i> Re-sync to QuickBooks'
+                    : '<i class="bi bi-cloud-upload me-1"></i> Push to QuickBooks as Bill';
+
+                if (data.status === 'success') {
+                    document.getElementById('qbSyncResult').innerHTML =
+                        `<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>
+                        Successfully pushed to QB as Bill <strong>${data.qb_doc_number || data.qb_bill_id || ''}</strong>.
+                        <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}" class="ms-2">View in QB Dashboard</a></div>`;
+                    showBtn(true);
+                    setStatus(`<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Synced to QB — Bill <strong>${data.qb_doc_number || data.qb_bill_id}</strong></span>`);
+                } else if (data.status === 'auth_expired') {
+                    document.getElementById('qbSyncResult').innerHTML =
+                        `<div class="alert alert-warning py-2 mb-0"><i class="bi bi-key me-1"></i>
+                        QuickBooks session expired. <a href="{{ url_for('qb_sync_routes.qb_dashboard') }}">Reconnect QuickBooks</a>.</div>`;
+                } else if (data.status === 'skipped') {
+                    document.getElementById('qbSyncResult').innerHTML =
+                        `<div class="alert alert-info py-2 mb-0"><i class="bi bi-info-circle me-1"></i>${data.reason || 'QB integration not configured.'}</div>`;
+                } else {
+                    document.getElementById('qbSyncResult').innerHTML =
+                        `<div class="alert alert-danger py-2 mb-0"><i class="bi bi-x-circle me-1"></i>Sync failed: ${data.reason || 'Unknown error'}</div>`;
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                document.getElementById('qbSyncResult').innerHTML =
+                    `<div class="alert alert-danger py-2 mb-0">Request error: ${err}</div>`;
+            });
+    };
+})();
+</script>
+{% endif %}
 {% endblock %}
