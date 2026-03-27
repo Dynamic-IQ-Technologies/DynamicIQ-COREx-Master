@@ -473,11 +473,18 @@ class PostgresConnection:
         
         # PostgreSQL requires all subqueries in FROM clauses to have an alias.
         # Automatically add synthetic aliases where missing.
+        # IMPORTANT: Must NOT alias EXTRACT(field FROM (...)) expressions.
         def add_subquery_aliases(q):
             sql_keywords = {
                 'WHERE', 'ON', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL',
                 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'INTERSECT',
                 'EXCEPT', 'AND', 'OR', 'NOT', 'SET', 'RETURNING', 'FETCH', 'FOR',
+            }
+            # Date/time fields used in EXTRACT(field FROM ...) - these are NOT subqueries
+            extract_fields = {
+                'EPOCH', 'DAY', 'MONTH', 'YEAR', 'HOUR', 'MINUTE', 'SECOND',
+                'QUARTER', 'WEEK', 'DOW', 'DOY', 'TIMEZONE', 'MICROSECONDS',
+                'MILLISECONDS', 'DECADE', 'CENTURY', 'MILLENNIUM', 'ISODOW', 'ISOYEAR',
             }
             pattern = re.compile(r'\bFROM\s*\(', re.IGNORECASE)
             alias_counter = [0]
@@ -487,6 +494,12 @@ class PostgresConnection:
                 match = pattern.search(result, offset)
                 if not match:
                     break
+                # Check if this FROM is inside EXTRACT(field FROM ...) - skip if so
+                before_from = result[:match.start()].rstrip()
+                last_word_m = re.search(r'([A-Za-z_][A-Za-z0-9_]*)$', before_from)
+                if last_word_m and last_word_m.group(1).upper() in extract_fields:
+                    offset = match.end()
+                    continue
                 open_paren = match.end() - 1
                 close_paren = find_matching_paren(result, open_paren)
                 if close_paren == -1:
