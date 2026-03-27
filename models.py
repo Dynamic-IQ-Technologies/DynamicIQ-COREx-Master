@@ -2796,6 +2796,7 @@ class Database:
                 description TEXT,
                 quantity REAL NOT NULL,
                 unit_price REAL NOT NULL,
+                cost REAL DEFAULT 0,
                 discount_percent REAL DEFAULT 0,
                 line_total REAL NOT NULL,
                 is_core INTEGER DEFAULT 0,
@@ -4950,39 +4951,44 @@ class Database:
         
         # Define new columns to add
         new_columns = {
-            'line_type': "ALTER TABLE sales_order_lines ADD COLUMN line_type TEXT DEFAULT 'Outright'",
-            'line_status': "ALTER TABLE sales_order_lines ADD COLUMN line_status TEXT DEFAULT 'Draft'",
+            'line_type': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS line_type TEXT DEFAULT 'Outright'",
+            'line_status': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS line_status TEXT DEFAULT 'Draft'",
+            'cost': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS cost REAL DEFAULT 0",
             # Exchange-specific fields
-            'core_charge': "ALTER TABLE sales_order_lines ADD COLUMN core_charge REAL DEFAULT 0",
-            'core_due_days': "ALTER TABLE sales_order_lines ADD COLUMN core_due_days INTEGER",
-            'expected_core_condition': "ALTER TABLE sales_order_lines ADD COLUMN expected_core_condition TEXT",
-            'core_disposition': "ALTER TABLE sales_order_lines ADD COLUMN core_disposition TEXT",
-            'stock_disposition': "ALTER TABLE sales_order_lines ADD COLUMN stock_disposition TEXT",
+            'core_charge': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS core_charge REAL DEFAULT 0",
+            'core_due_days': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS core_due_days INTEGER",
+            'expected_core_condition': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS expected_core_condition TEXT",
+            'core_disposition': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS core_disposition TEXT",
+            'stock_disposition': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS stock_disposition TEXT",
             # Managed Repair fields
-            'quoted_tat': "ALTER TABLE sales_order_lines ADD COLUMN quoted_tat INTEGER",
-            'repair_nte': "ALTER TABLE sales_order_lines ADD COLUMN repair_nte REAL",
-            'vendor_repair_source': "ALTER TABLE sales_order_lines ADD COLUMN vendor_repair_source TEXT",
-            'repair_status': "ALTER TABLE sales_order_lines ADD COLUMN repair_status TEXT",
-            'return_to_address': "ALTER TABLE sales_order_lines ADD COLUMN return_to_address TEXT",
+            'quoted_tat': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS quoted_tat INTEGER",
+            'repair_nte': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS repair_nte REAL",
+            'vendor_repair_source': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS vendor_repair_source TEXT",
+            'repair_status': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS repair_status TEXT",
+            'return_to_address': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS return_to_address TEXT",
             # Inventory allocation fields
-            'allocated_quantity': "ALTER TABLE sales_order_lines ADD COLUMN allocated_quantity REAL DEFAULT 0",
-            'allocation_status': "ALTER TABLE sales_order_lines ADD COLUMN allocation_status TEXT DEFAULT 'Pending'",
-            'allocation_notes': "ALTER TABLE sales_order_lines ADD COLUMN allocation_notes TEXT",
-            'inventory_id': "ALTER TABLE sales_order_lines ADD COLUMN inventory_id INTEGER REFERENCES inventory(id)",
-            'work_order_id': "ALTER TABLE sales_order_lines ADD COLUMN work_order_id INTEGER REFERENCES work_orders(id)",
-            'released_to_shipping_at': "ALTER TABLE sales_order_lines ADD COLUMN released_to_shipping_at TIMESTAMP",
-            'released_by': "ALTER TABLE sales_order_lines ADD COLUMN released_by INTEGER REFERENCES users(id)",
-            'shipped_quantity': "ALTER TABLE sales_order_lines ADD COLUMN shipped_quantity REAL DEFAULT 0",
+            'allocated_quantity': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS allocated_quantity REAL DEFAULT 0",
+            'allocation_status': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS allocation_status TEXT DEFAULT 'Pending'",
+            'allocation_notes': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS allocation_notes TEXT",
+            'inventory_id': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS inventory_id INTEGER",
+            'work_order_id': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS work_order_id INTEGER",
+            'released_to_shipping_at': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS released_to_shipping_at TIMESTAMP",
+            'released_by': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS released_by INTEGER",
+            'shipped_quantity': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS shipped_quantity REAL DEFAULT 0",
             # Audit trail fields
-            'created_by': "ALTER TABLE sales_order_lines ADD COLUMN created_by INTEGER",
-            'modified_by': "ALTER TABLE sales_order_lines ADD COLUMN modified_by INTEGER",
-            'modified_at': "ALTER TABLE sales_order_lines ADD COLUMN modified_at TIMESTAMP"
+            'created_by': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS created_by INTEGER",
+            'modified_by': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS modified_by INTEGER",
+            'modified_at': "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP"
         }
-        
-        # Add missing columns
+
+        # Add missing columns — use IF NOT EXISTS and catch all errors so one
+        # failure never blocks the rest of the migrations
         for column_name, alter_sql in new_columns.items():
             if column_name not in existing_columns:
-                cursor.execute(alter_sql)
+                try:
+                    cursor.execute(alter_sql)
+                except Exception:
+                    pass
     
     def _migrate_service_wo_materials(self, cursor):
         """Add serial_number column to service_wo_materials table if it doesn't exist"""
