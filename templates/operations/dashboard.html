@@ -528,7 +528,73 @@
     <div class="tab-content tab-content-area" id="opsDashboardTabContent">
         
         <div class="tab-pane fade show active" id="stages-panel" role="tabpanel">
-            <div class="section-title"><i class="bi bi-layers"></i>Work Order Stage Pipeline</div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="section-title mb-0"><i class="bi bi-layers"></i>Work Order Stage Pipeline</div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#opsDashCreateStageModal">
+                        <i class="bi bi-plus-circle"></i> Add Stage
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleManageStagesBtn" onclick="toggleManageStages()">
+                        <i class="bi bi-pencil-square"></i> Manage Stages
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inline stage management table (hidden by default) -->
+            <div id="manageStagesTable" style="display:none;" class="mb-3">
+                <div class="card border-0 bg-light">
+                    <div class="card-body p-2">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width:50px;">Order</th>
+                                    <th style="width:40px;">Color</th>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th style="width:80px;">Status</th>
+                                    <th style="width:100px;">WOs</th>
+                                    <th style="width:110px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stage in stage_load %}
+                                <tr>
+                                    <td>{{ stage.sequence }}</td>
+                                    <td><div style="width:20px;height:20px;border-radius:3px;background:{{ stage.color or '#6c757d' }};"></div></td>
+                                    <td><span class="badge" style="background:{{ stage.color or '#6c757d' }};">{{ stage.stage_name }}</span></td>
+                                    <td class="text-muted small">{{ stage.description or '-' }}</td>
+                                    <td>
+                                        {% if stage.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-info">{{ stage.wo_count or 0 }}</span></td>
+                                    <td>
+                                        <button class="btn btn-xs btn-outline-primary py-0 px-1"
+                                                onclick="opsDashEditStage({{ stage.id }}, '{{ stage.stage_name|replace("'", "\\'") }}', '{{ (stage.description or '')|replace("'", "\\'") }}', '{{ stage.color or '#6c757d' }}', {{ stage.sequence }}, {{ 1 if stage.is_active else 0 }})">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>
+                                        {% if (stage.wo_count or 0) == 0 %}
+                                        <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}" method="POST" class="d-inline"
+                                              onsubmit="return confirm('Delete stage {{ stage.stage_name }}?')">
+                                            <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7" class="text-center text-muted py-2">No stages defined yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="stage-pipeline">
                 {% for stage in stage_load %}
                 <div class="stage-card" style="border-color: {{ stage.color or '#6c757d' }};" 
@@ -564,7 +630,7 @@
                     </div>
                 </div>
                 {% else %}
-                <div class="text-muted">No stages configured. <a href="{{ url_for('workorder_routes.list_stages') }}">Configure stages</a></div>
+                <div class="text-muted">No stages configured yet. Use <strong>Add Stage</strong> above to create your first stage.</div>
                 {% endfor %}
             </div>
         </div>
@@ -1247,4 +1313,109 @@ function showStageWorkOrders(stageId, stageName, stageColor) {
         </div>
     </div>
 </div>
+
+<!-- Create Stage Modal -->
+<div class="modal fade" id="opsDashCreateStageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('workorder_routes.create_stage') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add Work Order Stage</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Stage Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g., Receiving, In Work, QC">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2" placeholder="Optional description"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="color" class="form-control form-control-color" name="color" value="#007bff">
+                            <span class="text-muted small">Select a color for the stage badge</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Display Order</label>
+                        <input type="number" class="form-control" name="sequence" value="10" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Stage</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Stage Modal -->
+<div class="modal fade" id="opsDashEditStageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="opsDashEditStageForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Stage</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Stage Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="opsDashEditName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" id="opsDashEditDescription" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color" name="color" id="opsDashEditColor">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Display Order</label>
+                        <input type="number" class="form-control" name="sequence" id="opsDashEditSequence" min="0">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="is_active" id="opsDashEditIsActive" value="1">
+                        <label class="form-check-label" for="opsDashEditIsActive">Active</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleManageStages() {
+    const table = document.getElementById('manageStagesTable');
+    const btn = document.getElementById('toggleManageStagesBtn');
+    if (table.style.display === 'none') {
+        table.style.display = 'block';
+        btn.innerHTML = '<i class="bi bi-x-circle"></i> Hide';
+        btn.classList.replace('btn-outline-secondary', 'btn-outline-danger');
+    } else {
+        table.style.display = 'none';
+        btn.innerHTML = '<i class="bi bi-pencil-square"></i> Manage Stages';
+        btn.classList.replace('btn-outline-danger', 'btn-outline-secondary');
+    }
+}
+
+function opsDashEditStage(id, name, description, color, sequence, isActive) {
+    document.getElementById('opsDashEditStageForm').action = '/workorders/stages/' + id + '/update';
+    document.getElementById('opsDashEditName').value = name;
+    document.getElementById('opsDashEditDescription').value = description;
+    document.getElementById('opsDashEditColor').value = color;
+    document.getElementById('opsDashEditSequence').value = sequence;
+    document.getElementById('opsDashEditIsActive').checked = isActive == 1;
+    new bootstrap.Modal(document.getElementById('opsDashEditStageModal')).show();
+}
+</script>
 {% endblock %}

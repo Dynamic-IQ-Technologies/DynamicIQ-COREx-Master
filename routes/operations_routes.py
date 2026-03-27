@@ -35,6 +35,8 @@ def operations_dashboard():
             wos.name as stage_name,
             wos.color,
             wos.sequence,
+            wos.description,
+            wos.is_active,
             COUNT(wo.id) as wo_count,
             SUM(CASE WHEN wo.status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
             COALESCE(SUM(wo.quantity), 0) as total_qty,
@@ -72,7 +74,7 @@ def operations_dashboard():
         FROM work_order_stages wos
         LEFT JOIN work_orders wo ON wos.id = wo.stage_id AND wo.status NOT IN ('Completed', 'Cancelled')
         WHERE wos.is_active = 1
-        GROUP BY wos.id, wos.name, wos.color, wos.sequence
+        GROUP BY wos.id, wos.name, wos.color, wos.sequence, wos.description, wos.is_active
         ORDER BY wos.sequence
     ''').fetchall()
     
@@ -84,6 +86,8 @@ def operations_dashboard():
         'stage_name': row['stage_name'],
         'color': row['color'],
         'sequence': row['sequence'],
+        'description': row['description'],
+        'is_active': row['is_active'],
         'wo_count': row['wo_count'],
         'in_progress_count': row['in_progress_count'],
         'total_qty': row['total_qty'],
