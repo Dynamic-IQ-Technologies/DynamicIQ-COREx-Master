@@ -1039,6 +1039,16 @@ class Database:
                 UNIQUE(user_id, permission_key)
             )
         ''')
+        # Ensure the unique index exists for ON CONFLICT(user_id, permission_key) to work in PostgreSQL.
+        # CREATE TABLE IF NOT EXISTS never modifies existing tables, so on databases that predate the
+        # UNIQUE constraint we must add it explicitly. CREATE UNIQUE INDEX IF NOT EXISTS is idempotent.
+        try:
+            cursor.execute('''
+                CREATE UNIQUE INDEX IF NOT EXISTS user_permissions_user_perm_unique
+                ON user_permissions(user_id, permission_key)
+            ''')
+        except Exception:
+            pass
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS company_settings (
@@ -4634,6 +4644,47 @@ class Database:
             )
         ''')
         
+        # ── Idempotent UNIQUE index migrations ────────────────────────────────────
+        # ON CONFLICT (cols) DO UPDATE requires an explicit UNIQUE constraint in PostgreSQL.
+        # CREATE TABLE IF NOT EXISTS never modifies existing tables, so databases that
+        # predate these constraints need them added here.  CREATE UNIQUE INDEX IF NOT EXISTS
+        # is safe to run repeatedly — it is a no-op when the index already exists.
+        # Tables that may not exist yet (created lazily by engines) are wrapped in try/except.
+        _unique_indexes = [
+            # table · index name · columns
+            ('user_permissions',   'user_permissions_user_perm_unique',   'user_id, permission_key'),
+            ('wo_priority_profiles', 'wo_priority_profiles_wo_id_unique', 'wo_id'),
+        ]
+        for _tbl, _idx, _cols in _unique_indexes:
+            try:
+                cursor.execute(
+                    f'CREATE UNIQUE INDEX IF NOT EXISTS {_idx} ON {_tbl}({_cols})'
+                )
+            except Exception:
+                pass
+
+        # These tables are created lazily by background engines; add indexes only when
+        # the table already exists so we do not block startup on first deployment.
+        _lazy_indexes = [
+            ('digital_twins',       'digital_twins_type_entity_unique',       'twin_type, entity_id'),
+            ('supply_risk_profiles', 'supply_risk_profiles_type_entity_unique', 'entity_type, entity_id'),
+            ('mrr_ai_decisions',    'mrr_ai_decisions_job_unique',             'job_id'),
+        ]
+        for _tbl, _idx, _cols in _lazy_indexes:
+            try:
+                cursor.execute(
+                    f"SELECT to_regclass('{_tbl}')"
+                )
+                row = cursor.fetchone()
+                table_exists = row and (row[0] if isinstance(row, (list, tuple)) else list(row.values())[0])
+                if table_exists:
+                    cursor.execute(
+                        f'CREATE UNIQUE INDEX IF NOT EXISTS {_idx} ON {_tbl}({_cols})'
+                    )
+            except Exception:
+                pass
+        # ── End UNIQUE index migrations ────────────────────────────────────────
+
         conn.commit()
         conn.close()
     
