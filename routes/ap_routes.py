@@ -137,6 +137,7 @@ def edit_ap(id):
             
             # Get form data
             invoice_number = request.form['invoice_number']
+            vendor_invoice_number = request.form.get('vendor_invoice_number', '').strip()
             invoice_date = request.form['invoice_date']
             due_date = request.form['due_date']
             total_amount = float(request.form['total_amount'])
@@ -161,12 +162,13 @@ def edit_ap(id):
             conn.execute('''
                 UPDATE vendor_invoices 
                 SET invoice_number = ?,
+                    vendor_invoice_number = ?,
                     invoice_date = ?,
                     due_date = ?,
                     total_amount = ?,
                     description = ?
                 WHERE id = ?
-            ''', (invoice_number, invoice_date, due_date, total_amount, description, id))
+            ''', (invoice_number, vendor_invoice_number or None, invoice_date, due_date, total_amount, description, id))
             
             # Get new record for audit
             new_ap = conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()
@@ -201,6 +203,60 @@ def edit_ap(id):
     
     conn.close()
     return render_template('ap/edit.html', ap=ap)
+
+@ap_bp.route('/accounts-payable/<int:id>/set-vendor-invoice-number', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant', 'Procurement')
+def set_vendor_invoice_number(id):
+    """Set or update the vendor's own invoice number on an A/P record."""
+    db = Database()
+    conn = db.get_connection()
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+    try:
+        ap = conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()
+        if not ap:
+            flash('A/P record not found.', 'danger')
+            return redirect(url_for('ap_routes.list_ap'))
+
+        vendor_invoice_number = request.form.get('vendor_invoice_number', '').strip()
+        if not vendor_invoice_number:
+            flash('Vendor invoice number cannot be blank.', 'warning')
+            return redirect(url_for('ap_routes.view_ap', id=id))
+
+        old_ap = dict(ap)
+        conn.execute(
+            'UPDATE vendor_invoices SET vendor_invoice_number = ? WHERE id = ?',
+            (vendor_invoice_number, id)
+        )
+
+        changes = AuditLogger.compare_records(old_ap, dict(conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()))
+        if changes:
+            AuditLogger.log_change(
+                conn=conn,
+                record_type='accounts_payable',
+                record_id=id,
+                action_type='Updated',
+                modified_by=session.get('user_id'),
+                changed_fields=changes,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+
+        conn.commit()
+        flash(f'Vendor invoice number set to <strong>{vendor_invoice_number}</strong>.', 'success')
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        flash(f'Error updating vendor invoice number: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('ap_routes.view_ap', id=id))
+
 
 @ap_bp.route('/accounts-payable/<int:id>/record-payment', methods=['POST'])
 @login_required

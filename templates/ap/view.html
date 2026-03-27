@@ -30,6 +30,50 @@
                         <div class="col-8">{{ ap.invoice_number }}</div>
                     </div>
                     <div class="row mb-3">
+                        <div class="col-4"><strong>Vendor Invoice #:</strong></div>
+                        <div class="col-8">
+                            {% if ap.vendor_invoice_number %}
+                            <span class="fw-semibold text-dark">{{ ap.vendor_invoice_number }}</span>
+                            {% if ap.status != 'Paid' %}
+                            <button class="btn btn-sm btn-link p-0 ms-2 text-secondary" 
+                                    onclick="document.getElementById('vendorInvForm').classList.toggle('d-none')" 
+                                    title="Change vendor invoice number">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted fst-italic me-2">Not entered</span>
+                            {% if ap.status != 'Paid' %}
+                            <button class="btn btn-sm btn-warning" 
+                                    onclick="document.getElementById('vendorInvForm').classList.remove('d-none');document.getElementById('vendor_invoice_number_input').focus()">
+                                <i class="bi bi-pencil"></i> Enter Invoice #
+                            </button>
+                            {% endif %}
+                            {% endif %}
+
+                            {% if ap.status != 'Paid' %}
+                            <form id="vendorInvForm" method="POST" 
+                                  action="{{ url_for('ap_routes.set_vendor_invoice_number', id=ap.id) }}"
+                                  class="mt-2 {% if ap.vendor_invoice_number %}d-none{% endif %}">
+                                <div class="input-group input-group-sm" style="max-width: 320px;">
+                                    <input type="text" class="form-control" id="vendor_invoice_number_input"
+                                           name="vendor_invoice_number"
+                                           value="{{ ap.vendor_invoice_number or '' }}"
+                                           placeholder="e.g. INV-2024-0042" required>
+                                    <button class="btn btn-primary" type="submit">
+                                        <i class="bi bi-check-lg"></i> Save
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="document.getElementById('vendorInvForm').classList.add('d-none')">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">The invoice number from the vendor's document</small>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-4"><strong>Status:</strong></div>
                         <div class="col-8">
                             {% if ap.status == 'Paid' %}

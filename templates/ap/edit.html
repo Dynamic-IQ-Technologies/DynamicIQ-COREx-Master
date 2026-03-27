@@ -28,11 +28,24 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="invoice_number" class="form-label">Invoice Number <span class="text-danger">*</span></label>
+                                    <label for="invoice_number" class="form-label">AP Number <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="invoice_number" name="invoice_number" 
                                            value="{{ ap.invoice_number }}" required>
+                                    <small class="text-muted">Internal AP reference number</small>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="vendor_invoice_number" class="form-label">Vendor Invoice # <span class="text-info"><i class="bi bi-info-circle" title="The invoice number from the vendor's document"></i></span></label>
+                                    <input type="text" class="form-control" id="vendor_invoice_number" name="vendor_invoice_number" 
+                                           value="{{ ap.vendor_invoice_number or '' }}"
+                                           placeholder="e.g. INV-2024-0042">
+                                    <small class="text-muted">Number on the vendor's invoice document</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="total_amount" class="form-label">Total Amount <span class="text-danger">*</span></label>

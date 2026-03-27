@@ -70,6 +70,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>AP Number</th>
+                            <th>Vendor Invoice #</th>
                             <th>Vendor</th>
                             <th>PO Number</th>
                             <th>Invoice Date</th>
@@ -85,6 +86,17 @@
                         {% for ap in payables %}
                         <tr>
                             <td><strong>{{ ap.invoice_number }}</strong></td>
+                            <td>
+                                {% if ap.vendor_invoice_number %}
+                                <span class="text-dark">{{ ap.vendor_invoice_number }}</span>
+                                {% else %}
+                                <a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" 
+                                   class="badge bg-warning text-dark text-decoration-none" 
+                                   title="Click to enter vendor invoice number">
+                                    <i class="bi bi-exclamation-circle"></i> Missing
+                                </a>
+                                {% endif %}
+                            </td>
                             <td>{{ ap.vendor_name }}</td>
                             <td>
                                 {% if ap.po_number %}
