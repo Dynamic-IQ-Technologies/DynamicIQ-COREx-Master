@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}GL Integrity Check - Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-shield-check text-primary me-2"></i>GL Integrity Check</h2>
+        <p class="text-muted mb-0">GAAP Compliance &amp; Journal Entry Coverage</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('accounting_routes.gl_integrity') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </a>
+        {% if report.summary.total_violations > 0 %}
+        <button class="btn btn-warning" id="backfillBtn" onclick="runBackfill()">
+            <i class="bi bi-wrench me-1"></i> Backfill Missing JEs ({{ report.summary.total_violations }} issues)
+        </button>
+        {% else %}
+        <span class="btn btn-success disabled"><i class="bi bi-check-circle me-1"></i> All Clear</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 {% if report.summary.total_violations > 0 %}border-start border-danger border-4{% else %}border-start border-success border-4{% endif %}">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold {% if report.summary.total_violations > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ report.summary.total_violations }}
+                </div>
+                <div class="text-muted small">Total Violations</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 {% if report.summary.ar_missing > 0 %}border-start border-warning border-4{% else %}border-start border-success border-4{% endif %}">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold {% if report.summary.ar_missing > 0 %}text-warning{% else %}text-success{% endif %}">
+                    {{ report.summary.ar_missing }}
+                </div>
+                <div class="text-muted small">AR Invoices Missing JE</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 {% if report.summary.ap_missing > 0 %}border-start border-warning border-4{% else %}border-start border-success border-4{% endif %}">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold {% if report.summary.ap_missing > 0 %}text-warning{% else %}text-success{% endif %}">
+                    {{ report.summary.ap_missing }}
+                </div>
+                <div class="text-muted small">AP Invoices Missing JE</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 {% if report.summary.unbalanced > 0 %}border-start border-danger border-4{% else %}border-start border-success border-4{% endif %}">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold {% if report.summary.unbalanced > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ report.summary.unbalanced }}
+                </div>
+                <div class="text-muted small">Unbalanced Journal Entries</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backfill Result Area -->
+<div id="backfillResult" class="d-none mb-4">
+    <div class="alert" id="backfillAlert" role="alert"></div>
+</div>
+
+<!-- AR Invoices Missing JE -->
+{% if report.ar_invoices_missing_je %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-warning"><i class="bi bi-exclamation-triangle me-2"></i>AR Invoices Without Journal Entry</h5>
+        <span class="badge bg-warning text-dark">{{ report.ar_invoices_missing_je|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in report.ar_invoices_missing_je %}
+                    <tr>
+                        <td><strong>{{ inv.invoice_number }}</strong></td>
+                        <td>{{ inv.invoice_date }}</td>
+                        <td><span class="badge bg-secondary">{{ inv.status }}</span></td>
+                        <td class="text-end">${{ '%.2f'|format(inv.total_amount or 0) }}</td>
+                        <td>
+                            <a href="/invoices/{{ inv.id }}" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size:.75rem">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <button class="btn btn-xs btn-outline-success py-0 px-2" style="font-size:.75rem"
+                                    onclick="postSingleAR({{ inv.id }}, '{{ inv.invoice_number }}')">
+                                <i class="bi bi-journal-plus"></i> Post GL
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- AP Invoices Missing JE -->
+{% if report.ap_invoices_missing_je %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-warning"><i class="bi bi-exclamation-triangle me-2"></i>AP Vendor Invoices Without Journal Entry</h5>
+        <span class="badge bg-warning text-dark">{{ report.ap_invoices_missing_je|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Vendor</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vi in report.ap_invoices_missing_je %}
+                    <tr>
+                        <td><strong>{{ vi.invoice_number }}</strong></td>
+                        <td>{{ vi.vendor_name or '—' }}</td>
+                        <td>{{ vi.invoice_date }}</td>
+                        <td><span class="badge bg-secondary">{{ vi.status }}</span></td>
+                        <td class="text-end">${{ '%.2f'|format(vi.total_amount or 0) }}</td>
+                        <td>
+                            <a href="/accounts-payable/{{ vi.id }}" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size:.75rem">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Unbalanced JEs -->
+{% if report.unbalanced_entries %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-danger"><i class="bi bi-x-octagon me-2"></i>Unbalanced Journal Entries (Debits ≠ Credits)</h5>
+        <span class="badge bg-danger">{{ report.unbalanced_entries|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Entry #</th>
+                        <th>Description</th>
+                        <th>Source</th>
+                        <th class="text-end">Total Debit</th>
+                        <th class="text-end">Total Credit</th>
+                        <th class="text-end text-danger">Imbalance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for je in report.unbalanced_entries %}
+                    <tr class="table-danger">
+                        <td><a href="/accounting/journal-entries/{{ je.id }}"><strong>{{ je.entry_number }}</strong></a></td>
+                        <td>{{ je.description }}</td>
+                        <td>{{ je.transaction_source }}</td>
+                        <td class="text-end">${{ '%.2f'|format(je.total_debit or 0) }}</td>
+                        <td class="text-end">${{ '%.2f'|format(je.total_credit or 0) }}</td>
+                        <td class="text-end text-danger fw-bold">${{ '%.4f'|format(je.imbalance or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Empty JE Headers -->
+{% if report.empty_journal_entries %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-secondary bg-opacity-10 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-journal-x me-2"></i>Journal Entries With No Lines</h5>
+        <span class="badge bg-secondary">{{ report.empty_journal_entries|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>Entry #</th><th>Date</th><th>Description</th><th>Source</th></tr>
+                </thead>
+                <tbody>
+                    {% for je in report.empty_journal_entries %}
+                    <tr>
+                        <td><strong>{{ je.entry_number }}</strong></td>
+                        <td>{{ je.entry_date }}</td>
+                        <td>{{ je.description }}</td>
+                        <td>{{ je.transaction_source }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if report.summary.total_violations == 0 %}
+<div class="alert alert-success d-flex align-items-center">
+    <i class="bi bi-check-circle-fill fs-4 me-3"></i>
+    <div>
+        <strong>Full GL Integrity Confirmed.</strong>
+        All financial transactions have complete, balanced journal entries. Zero violations found.
+    </div>
+</div>
+{% endif %}
+
+<!-- GAAP Rules Reference -->
+<div class="card mt-4 shadow-sm">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Accounting Governance Rules</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6 class="fw-bold">Transaction → Journal Entry Mapping</h6>
+                <ul class="small text-muted">
+                    <li>AR Invoice: DR Accounts Receivable / CR Sales Revenue</li>
+                    <li>Customer Payment: DR Cash / CR Accounts Receivable</li>
+                    <li>AP Vendor Invoice: DR Inventory/Expense / CR Accounts Payable</li>
+                    <li>AP Vendor Payment: DR Accounts Payable / CR Cash</li>
+                    <li>Inventory Receipt: DR Inventory / CR Accounts Payable</li>
+                    <li>WIP Issuance: DR WIP / CR Inventory</li>
+                    <li>WO Completion: DR Finished Goods / CR WIP</li>
+                    <li>COGS: DR Cost of Goods Sold / CR Inventory</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6 class="fw-bold">GAAP Enforcement Rules</h6>
+                <ul class="small text-muted">
+                    <li>Every financial transaction requires a journal entry</li>
+                    <li>Total debits must equal total credits (tolerance ≤ $0.01)</li>
+                    <li>All lines must reference valid Chart of Accounts codes</li>
+                    <li>Transactions and JEs must post atomically</li>
+                    <li>Posted JEs are immutable — corrections via reversals only</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6 class="fw-bold">Integrity Checks Performed</h6>
+                <ul class="small text-muted">
+                    <li>AR invoices (non-Draft/Void) without GL entry</li>
+                    <li>AP vendor invoices without GL entry</li>
+                    <li>Journal entries where debits ≠ credits</li>
+                    <li>Journal entry headers with no lines</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function runBackfill() {
+    const btn = document.getElementById('backfillBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Running...';
+
+    fetch('/api/accounting/backfill-je', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() if csrf_token is defined else "" }}'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        const div = document.getElementById('backfillResult');
+        const alert = document.getElementById('backfillAlert');
+        div.classList.remove('d-none');
+
+        if (data.success) {
+            let msg = `<strong>Backfill Complete!</strong> Created ${data.created_count} journal entr${data.created_count === 1 ? 'y' : 'ies'}.`;
+            if (data.created_count > 0) {
+                msg += '<ul class="mt-2 mb-0">';
+                data.created.forEach(c => {
+                    msg += `<li>${c.type}: <strong>${c.ref}</strong> → JE ID ${c.gl_entry_id}</li>`;
+                });
+                msg += '</ul>';
+            }
+            if (data.error_count > 0) {
+                msg += `<div class="mt-2 text-warning"><strong>${data.error_count} error(s):</strong><ul>`;
+                data.errors.forEach(e => { msg += `<li>${e.type} ${e.ref}: ${e.error}</li>`; });
+                msg += '</ul></div>';
+            }
+            alert.className = 'alert alert-success';
+            alert.innerHTML = msg;
+            setTimeout(() => location.reload(), 3000);
+        } else {
+            alert.className = 'alert alert-danger';
+            alert.innerHTML = `<strong>Backfill failed:</strong> ${data.error}`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-wrench me-1"></i> Backfill Missing JEs';
+        }
+    })
+    .catch(err => {
+        document.getElementById('backfillResult').classList.remove('d-none');
+        const alert = document.getElementById('backfillAlert');
+        alert.className = 'alert alert-danger';
+        alert.innerHTML = `<strong>Request failed:</strong> ${err}`;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-wrench me-1"></i> Backfill Missing JEs';
+    });
+}
+
+function postSingleAR(invoiceId, invoiceNumber) {
+    if (!confirm(`Post Invoice ${invoiceNumber} to GL? This will create an AR/Revenue journal entry.`)) return;
+    fetch(`/invoices/${invoiceId}/post`, {method: 'POST'})
+    .then(() => location.reload())
+    .catch(err => alert('Error: ' + err));
+}
+</script>
+{% endblock %}

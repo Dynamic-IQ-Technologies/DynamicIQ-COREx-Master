@@ -790,21 +790,25 @@ def post_invoice(id):
             entry_number = 'JE-000003'
         
         # Create GL Entry
-        cursor = conn.execute('''
+        gl_cur = conn.execute('''
             INSERT INTO gl_entries (
                 entry_number, entry_date, description, 
-                transaction_source, created_by, status
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                transaction_source, reference_type, reference_id,
+                created_by, posted_by, posted_at, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
         ''', (
             entry_number,
             invoice['invoice_date'],
             f"Revenue Recognition - Invoice {invoice['invoice_number']}",
-            'Invoice',
+            'AR Invoice',
+            'invoice',
+            id,
+            session['user_id'],
             session['user_id'],
             'Posted'
         ))
         
-        gl_entry_id = cursor.lastrowid
+        gl_entry_id = gl_cur.lastrowid
         
         # Debit Accounts Receivable
         conn.execute('''
@@ -930,7 +934,7 @@ def record_payment(id):
             payment_entry_number, payment_date, gl_description,
             'Customer Payment', 'invoice', id,
             'Posted', session['user_id'], session['user_id']
-        )).lastrowid
+        )).lastrowid or conn.execute('SELECT id FROM gl_entries WHERE entry_number = ?', (payment_entry_number,)).fetchone()['id']
         
         # Get account IDs
         cash_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '1110'").fetchone()

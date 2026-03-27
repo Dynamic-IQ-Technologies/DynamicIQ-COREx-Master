@@ -125,6 +125,51 @@ All outbound email across the system uses Brevo (formerly Sendinblue) via the `u
 - **Secrets in use**: `BREVO_API_KEY`, `BREVO_FROM_EMAIL`.
 - **Pending secrets** (not yet provided): `QB_CLIENT_ID`, `QB_CLIENT_SECRET` (QuickBooks integration).
 
+## Accounting Governance & Journal Integrity (GAAP Compliance)
+
+### Central Accounting Engine (`utils/accounting_engine.py`)
+All financial transactions must generate a double-entry journal entry automatically. The engine enforces:
+- **Debits must equal credits** (tolerance ≤ $0.01) — engine raises `ValueError` if unbalanced
+- **Atomic posting** — JE creation and source record update occur in the same transaction
+- **Full traceability** — every JE records `transaction_source`, `reference_type`, `reference_id`, `created_by`, `created_at`
+
+### Transaction → Journal Entry Mappings
+| Transaction | Debit | Credit |
+|---|---|---|
+| AR Invoice issued | Accounts Receivable (1120) | Sales Revenue (4100) |
+| Customer payment received | Cash (1110) | Accounts Receivable (1120) |
+| AP Vendor Invoice | Inventory (1130) or Expense | Accounts Payable (2110) |
+| AP Vendor Payment | Accounts Payable (2110) | Cash (1110) |
+| Inventory Receipt | Inventory (1130) | Accounts Payable (2110) |
+| WIP Issuance | WIP (1140) | Inventory (1130) |
+| WO Completion | Finished Goods (1150) | WIP (1140) |
+| COGS | COGS (5000) | Inventory (1130) |
+| Inventory Write-Up | Inventory (1130) | Other Income (4300) |
+| Inventory Write-Down | COGS (5000) | Inventory (1130) |
+
+### Public Functions
+- `post_ar_invoice(conn, invoice_id, user_id)` — creates AR-INV-xxxxxx JE
+- `post_ap_invoice(conn, vendor_invoice_id, user_id, expense_account_code=None)` — creates AP-INV-xxxxxx JE
+- `post_ar_payment(conn, invoice_id, amount, date, method, ref, user_id)` — creates AR-PAY-xxxxxx JE
+- `post_ap_payment(conn, vi_id, amount, date, method, ref, user_id)` — creates AP-PAY-xxxxxx JE
+- `integrity_check(conn)` — returns dict with orphan transactions, unbalanced JEs, empty JE headers
+- `backfill_missing_je(conn, user_id)` — generates missing JEs for all historical transactions
+
+### Auto-JE Hooks (wired into routes)
+- **`purchaseorder_routes.py`**: quick-receive, exchange-PO-receive, service-PO-receive, component-buyout-receive — all link `gl_entry_id` to vendor_invoice on creation
+- **`invoice_routes.py`**: `post_invoice()` and `record_payment()` — `lastrowid` bugs fixed to use cursor properly
+- **`ap_routes.py`**: `record_payment()` — `lastrowid` bug fixed
+- **`models.py` GLAutoPost**: `SELECT last_insert_rowid()` replaced with `cursor.lastrowid`
+
+### GL Integrity Dashboard
+- **Route**: `GET /accounting/gl-integrity` — shows per-category violation counts, lists of offending records, backfill button
+- **API**: `POST /api/accounting/backfill-je` — generates missing JEs for all AR/AP invoices; returns created/errors JSON
+- **API**: `GET /api/accounting/integrity-check` — returns full integrity report as JSON
+- **Sidebar link**: "GL Integrity Check" under Accounting section (shield-check icon)
+
+### Backfill Status (run March 2026)
+10 historical JEs created: 4 AR invoices + 6 AP vendor invoices. Post-backfill: **0 violations**, all 22 GL entries balanced.
+
 ## QB AP Sync (Accounts Payable → QuickBooks Bills)
 - **`qb_ap_bill_map`** table tracks each `vendor_invoice_id → QB Bill ID` mapping with `sync_status`, `last_synced_at`, `qb_bill_number`, `qb_total_amount`.
 - **`auto_sync_ap`** boolean column added to `qb_sync_config`; saved/loaded in the settings panel.

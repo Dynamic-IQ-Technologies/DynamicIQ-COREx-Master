@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database
 from auth import login_required, role_required
 import logging
@@ -714,3 +714,70 @@ def revenue_tracker():
                          trend_data=trend_data,
                          start_date=start_date,
                          end_date=end_date)
+
+
+# ---------------------------------------------------------------------------
+# GL Integrity & Backfill
+# ---------------------------------------------------------------------------
+
+@accounting_bp.route('/accounting/gl-integrity')
+@login_required
+@role_required('Admin', 'Accountant')
+def gl_integrity():
+    """GL Integrity dashboard — shows orphan transactions and unbalanced JEs."""
+    from utils.accounting_engine import integrity_check
+    db = Database()
+    conn = db.get_connection()
+    try:
+        report = integrity_check(conn)
+    except Exception as e:
+        logger.error(f'GL integrity check failed: {e}')
+        report = {'summary': {'total_violations': 0, 'ar_missing': 0, 'ap_missing': 0,
+                               'unbalanced': 0, 'empty_headers': 0},
+                  'ar_invoices_missing_je': [], 'ap_invoices_missing_je': [],
+                  'unbalanced_entries': [], 'empty_journal_entries': []}
+    finally:
+        conn.close()
+    return render_template('accounting/gl_integrity.html', report=report)
+
+
+@accounting_bp.route('/api/accounting/backfill-je', methods=['POST'])
+@login_required
+@role_required('Admin', 'Accountant')
+def api_backfill_je():
+    """Create missing journal entries for historical transactions."""
+    from utils.accounting_engine import backfill_missing_je
+    db = Database()
+    conn = db.get_connection()
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+    try:
+        result = backfill_missing_je(conn, session['user_id'])
+        conn.commit()
+        return jsonify({'success': True, 'created': result['created'], 'errors': result['errors'],
+                        'created_count': len(result['created']), 'error_count': len(result['errors'])})
+    except Exception as e:
+        conn.rollback()
+        logger.error(f'Backfill failed: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@accounting_bp.route('/api/accounting/integrity-check')
+@login_required
+@role_required('Admin', 'Accountant')
+def api_integrity_check():
+    """Return integrity check results as JSON."""
+    from utils.accounting_engine import integrity_check
+    db = Database()
+    conn = db.get_connection()
+    try:
+        report = integrity_check(conn)
+        return jsonify({'success': True, 'report': report})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()

@@ -1154,6 +1154,12 @@
                     <span>General Ledger</span>
                 </a>
             </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('accounting_routes.gl_integrity') }}">
+                    <i class="bi bi-shield-check"></i>
+                    <span>GL Integrity Check</span>
+                </a>
+            </li>
             {% endif %}
             {% if user_permissions.get('menu_accounting', 1) == 1 %}
             <li class="sidebar-nav-item">

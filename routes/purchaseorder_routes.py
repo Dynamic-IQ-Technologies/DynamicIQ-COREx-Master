@@ -4,6 +4,7 @@ from mrp_logic import MRPEngine
 from auth import login_required, role_required
 from datetime import datetime, timedelta
 import logging
+from utils.accounting_engine import post_ap_invoice as _ae_post_ap_invoice
 
 logger = logging.getLogger(__name__)
 
@@ -1506,6 +1507,7 @@ def api_quick_receive_po_line(po_id, line_id):
             
             # Create GL Journal Entry for inventory receiving: DR Inventory, CR A/P
             total_value = base_quantity_received * base_unit_cost
+            rcv_gl_entry_id = None
             if total_value > 0:
                 product_info = conn.execute('SELECT code, name FROM products WHERE id = ?', (product_id,)).fetchone()
                 product_desc = f"{product_info['code']} - {product_info['name']}" if product_info else f"Product #{product_id}"
@@ -1525,7 +1527,7 @@ def api_quick_receive_po_line(po_id, line_id):
                     }
                 ]
                 
-                GLAutoPost.create_auto_journal_entry(
+                rcv_gl_entry_id = GLAutoPost.create_auto_journal_entry(
                     conn=conn,
                     entry_date=receipt_date,
                     description=f'Inventory Receiving - {receipt_number} - {product_desc}',
@@ -1586,8 +1588,8 @@ def api_quick_receive_po_line(po_id, line_id):
             conn.execute('''
                 INSERT INTO vendor_invoices 
                 (invoice_number, vendor_id, po_id, invoice_date, due_date, 
-                 amount, tax_amount, total_amount, amount_paid, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 amount, tax_amount, total_amount, amount_paid, status, gl_entry_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ap_number,
                 po['supplier_id'],
@@ -1598,10 +1600,11 @@ def api_quick_receive_po_line(po_id, line_id):
                 0,
                 receipt_value,
                 0,
-                'Pending Invoice'
+                'Pending Invoice',
+                rcv_gl_entry_id
             ))
             
-            logger.info(f"[Quick Receive] Created A/P {ap_number} for receipt {receipt_number} with value {receipt_value}")
+            logger.info(f"[Quick Receive] Created A/P {ap_number} for receipt {receipt_number} with value {receipt_value} gl_entry_id={rcv_gl_entry_id}")
         
         AuditLogger.log_change(
             conn=conn,
@@ -2113,7 +2116,7 @@ def receive_exchange_po(id):
         due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
         
         # Create A/P record for the Exchange Fee
-        conn.execute('''
+        xch_vi_cur = conn.execute('''
             INSERT INTO vendor_invoices 
             (invoice_number, vendor_id, po_id, invoice_date, due_date, 
              amount, tax_amount, total_amount, amount_paid, status)
@@ -2130,6 +2133,12 @@ def receive_exchange_po(id):
             0,  # amount_paid
             'Pending Invoice'
         ))
+        xch_vi_id = xch_vi_cur.lastrowid
+        if xch_vi_id and total_value > 0:
+            try:
+                _ae_post_ap_invoice(conn, xch_vi_id, session.get('user_id'))
+            except Exception as _je_err:
+                logger.error(f'Exchange PO AP GL entry failed for {ap_number}: {_je_err}')
         
         # Log audit trail
         AuditLogger.log_change(
@@ -2246,7 +2255,7 @@ def receive_service_po(id):
         due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
         
         # Create A/P record for the Service PO
-        conn.execute('''
+        svc_vi_cur = conn.execute('''
             INSERT INTO vendor_invoices 
             (invoice_number, vendor_id, po_id, invoice_date, due_date, 
              amount, tax_amount, total_amount, amount_paid, status)
@@ -2263,6 +2272,12 @@ def receive_service_po(id):
             0,  # amount_paid
             'Pending Invoice'
         ))
+        svc_vi_id = svc_vi_cur.lastrowid
+        if svc_vi_id and total_value > 0:
+            try:
+                _ae_post_ap_invoice(conn, svc_vi_id, session.get('user_id'), expense_account_code='6500')
+            except Exception as _je_err:
+                logger.error(f'Service PO AP GL entry failed for {ap_number}: {_je_err}')
         
         # Log audit trail
         AuditLogger.log_change(
@@ -2376,7 +2391,7 @@ def quick_receive_buyout(id):
         due_date = (receipt_dt + timedelta(days=30)).strftime('%Y-%m-%d')
         
         # Create A/P record for the Component Buyout
-        conn.execute('''
+        cbo_vi_cur = conn.execute('''
             INSERT INTO vendor_invoices 
             (invoice_number, vendor_id, po_id, invoice_date, due_date, 
              amount, tax_amount, total_amount, amount_paid, status)
@@ -2393,6 +2408,12 @@ def quick_receive_buyout(id):
             0,  # amount_paid
             'Pending Invoice'
         ))
+        cbo_vi_id = cbo_vi_cur.lastrowid
+        if cbo_vi_id and total_value > 0:
+            try:
+                _ae_post_ap_invoice(conn, cbo_vi_id, session.get('user_id'))
+            except Exception as _je_err:
+                logger.error(f'Component Buyout AP GL entry failed for {ap_number}: {_je_err}')
         
         # Log audit trail
         AuditLogger.log_change(

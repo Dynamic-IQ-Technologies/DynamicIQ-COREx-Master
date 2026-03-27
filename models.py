@@ -5271,8 +5271,8 @@ class GLAutoPost:
             if abs(total_debit - total_credit) > 0.01:
                 raise ValueError(f'Debits ({total_debit}) must equal credits ({total_credit})')
             
-            # Insert journal entry header - automatically posted (use conn.execute for PostgreSQL compatibility)
-            conn.execute('''
+            # Insert journal entry header - automatically posted
+            cur = conn.execute('''
                 INSERT INTO gl_entries (
                     entry_number, entry_date, description, transaction_source,
                     reference_type, reference_id, status, created_by, created_at,
@@ -5282,7 +5282,7 @@ class GLAutoPost:
             ''', (entry_number, entry_date, description, transaction_source,
                   reference_type, reference_id, created_by, created_by))
             
-            entry_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            entry_id = cur.lastrowid
             
             # Insert journal entry lines
             for line in lines:

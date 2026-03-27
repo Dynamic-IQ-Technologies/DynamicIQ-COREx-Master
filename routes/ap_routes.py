@@ -285,7 +285,7 @@ def record_payment(id):
         if payment_reference:
             gl_description += f' ({payment_reference})'
         
-        gl_entry_id = conn.execute('''
+        gl_pay_cur = conn.execute('''
             INSERT INTO gl_entries (
                 entry_number, entry_date, description, 
                 transaction_source, reference_type, reference_id, 
@@ -295,7 +295,8 @@ def record_payment(id):
             payment_entry_number, payment_date, gl_description,
             'AP Payment', 'vendor_invoice', id,
             'Posted', session.get('user_id'), session.get('user_id'), datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        )).lastrowid
+        ))
+        gl_entry_id = gl_pay_cur.lastrowid
         
         # Get account IDs
         ap_account = conn.execute("SELECT id FROM chart_of_accounts WHERE account_code = '2110'").fetchone()
