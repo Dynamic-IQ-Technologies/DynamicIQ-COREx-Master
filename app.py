@@ -561,11 +561,13 @@ def handle_exception(error):
                           error_detail=str(error) if app.debug else None), 500
 
 def _is_production() -> bool:
-    """Return True when running in any production environment (Replit or Railway)."""
+    """Return True when running in any production environment."""
     return (
         os.environ.get('REPLIT_DEPLOYMENT') == '1'
         or os.environ.get('RAILWAY_ENVIRONMENT') is not None
         or os.environ.get('FLASK_ENV') == 'production'
+        or os.environ.get('K_SERVICE') is not None          # Google Cloud Run
+        or os.environ.get('GOOGLE_CLOUD_PROJECT') is not None  # Google Cloud App Engine / GKE
     )
 
 

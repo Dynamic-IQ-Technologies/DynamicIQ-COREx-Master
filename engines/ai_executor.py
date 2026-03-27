@@ -127,8 +127,8 @@ class AIExecutionPathModifier:
     def _ensure_tables_exist(self):
         """Create AI execution tables."""
         import os
-        # Skip table creation in PostgreSQL production - tables are managed by init_postgres.py
-        if os.environ.get('DATABASE_URL') and os.environ.get('REPLIT_DEPLOYMENT') == '1':
+        # Skip SQLite table creation when PostgreSQL is in use — schema managed by init_db()
+        if os.environ.get('DATABASE_URL'):
             return
             
         conn = self.db.get_connection()

@@ -1,0 +1,53 @@
+# Version control
+.git
+.gitignore
+
+# Python byte-code and caches
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Local databases (never ship local SQLite files into the image)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Environment & secrets (must be injected as env vars at runtime)
+.env
+.env.*
+*.env
+
+# Development / IDE artefacts
+.vscode
+.idea
+*.swp
+*.swo
+
+# Replit-specific files (not needed inside the container)
+.replit
+replit.nix
+.local/
+.upm/
+
+# Test & CI
+tests/
+*.test.py
+pytest.ini
+.pytest_cache/
+
+# Build / dist artefacts
+dist/
+build/
+*.egg-info/
+
+# Large static assets that are already served from the container's /app/static
+# but we still include static/ — only skip bulky one-off exports if present
+exports/
+uploads/tmp/

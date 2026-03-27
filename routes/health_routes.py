@@ -12,6 +12,15 @@ logger = logging.getLogger('health_routes')
 health_bp = Blueprint('health_routes', __name__)
 
 
+@health_bp.route('/ping')
+def ping():
+    """Ultra-lightweight liveness probe — always returns 200.
+    Use this for Google Cloud Run / App Engine startup probes and load-balancer
+    health checks where a fast unconditional 200 is required.
+    """
+    return 'ok', 200
+
+
 @health_bp.route('/health')
 def health_check():
     """Basic health check endpoint"""
