@@ -916,6 +916,11 @@ class Database:
                 unit_of_measure TEXT NOT NULL,
                 product_type TEXT NOT NULL,
                 cost REAL DEFAULT 0,
+                lead_time INTEGER DEFAULT 0,
+                lead_time_days INTEGER DEFAULT 0,
+                safety_stock REAL DEFAULT 0,
+                reorder_point REAL DEFAULT 0,
+                reorder_qty REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -1283,8 +1288,12 @@ class Database:
         product_columns = [col[1] for col in cursor.fetchall()]
         
         product_new_columns = [
-            ('part_category', 'TEXT DEFAULT "Other"'),
+            ('part_category', 'TEXT'),
             ('lead_time', 'INTEGER DEFAULT 0'),
+            ('lead_time_days', 'INTEGER DEFAULT 0'),
+            ('safety_stock', 'REAL DEFAULT 0'),
+            ('reorder_point', 'REAL DEFAULT 0'),
+            ('reorder_qty', 'REAL DEFAULT 0'),
             ('product_category', 'TEXT'),
             ('manufacturer', 'TEXT'),
             ('applicability', 'TEXT'),
@@ -1299,8 +1308,8 @@ class Database:
         for col_name, col_type in product_new_columns:
             if col_name not in product_columns:
                 try:
-                    cursor.execute(f'ALTER TABLE products ADD COLUMN {col_name} {col_type}')
-                except sqlite3.OperationalError:
+                    cursor.execute(f'ALTER TABLE products ADD COLUMN IF NOT EXISTS {col_name} {col_type}')
+                except Exception:
                     pass
         
         cursor.execute("PRAGMA table_info(boms)")
