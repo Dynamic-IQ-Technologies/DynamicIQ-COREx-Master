@@ -989,6 +989,7 @@ class Database:
                 payment_terms INTEGER DEFAULT 30,
                 customer_link_id INTEGER,
                 is_customer_supplier INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -1018,7 +1019,12 @@ class Database:
                 reorder_point REAL DEFAULT 0,
                 safety_stock REAL DEFAULT 0,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (product_id) REFERENCES products(id)
+                supplier_id INTEGER,
+                po_id INTEGER,
+                customer_id INTEGER,
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+                FOREIGN KEY (customer_id) REFERENCES customers(id)
             )
         ''')
         
@@ -1359,7 +1365,10 @@ class Database:
             ('time_remaining', 'REAL'),
             ('last_calibration_date', 'DATE'),
             ('calibration_frequency', 'INTEGER'),
-            ('next_calibration_date', 'DATE')
+            ('next_calibration_date', 'DATE'),
+            ('supplier_id', 'INTEGER'),
+            ('po_id', 'INTEGER'),
+            ('customer_id', 'INTEGER')
         ]
         
         for col_name, col_type in inventory_new_columns:
@@ -1733,6 +1742,11 @@ class Database:
         if 'contact_phone' not in supplier_columns:
             try:
                 cursor.execute('ALTER TABLE suppliers ADD COLUMN contact_phone TEXT')
+            except sqlite3.OperationalError:
+                pass
+        if 'status' not in supplier_columns:
+            try:
+                cursor.execute("ALTER TABLE suppliers ADD COLUMN status TEXT DEFAULT 'Active'")
             except sqlite3.OperationalError:
                 pass
         
