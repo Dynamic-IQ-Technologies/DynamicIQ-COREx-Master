@@ -750,6 +750,36 @@ def sync_ndt_invoice_to_qb(conn, ndt_invoice_id, trigger='manual'):
 
 # ─── Accounts Payable — Vendor Invoice → QB Bill ─────────────────────────────
 
+def _qb_get_expense_account(conn, config):
+    """Return an AccountRef dict suitable for QB Bill lines.
+    Tries (in order): 'Purchases', 'Cost of Goods Sold', first Expense-type account.
+    Returns {'value': id, 'name': name} or None."""
+    preferred = ['Purchases', 'Cost of Goods Sold', 'Supplies', 'Job Materials',
+                 'Other Business Expenses', 'Cost of Sales']
+    for acct_name in preferred:
+        safe_name = acct_name.replace("'", "\\'")
+        url = _api_url(config, f"query?query=SELECT Id,Name,AccountType FROM Account WHERE Name='{safe_name}' AND AccountType IN ('Cost of Goods Sold','Expense') MAXRESULTS 1&minorversion=65")
+        try:
+            resp = _qb_request(conn, config, 'GET', url, timeout=10)
+            if resp.status_code == 200:
+                items = resp.json().get('QueryResponse', {}).get('Account', [])
+                if items:
+                    return {'value': items[0]['Id'], 'name': items[0]['Name']}
+        except Exception:
+            pass
+    # Fall back: grab any Expense or COGS account
+    url = _api_url(config, "query?query=SELECT Id,Name FROM Account WHERE AccountType IN ('Cost of Goods Sold','Expense') MAXRESULTS 1&minorversion=65")
+    try:
+        resp = _qb_request(conn, config, 'GET', url, timeout=10)
+        if resp.status_code == 200:
+            items = resp.json().get('QueryResponse', {}).get('Account', [])
+            if items:
+                return {'value': items[0]['Id'], 'name': items[0]['Name']}
+    except Exception:
+        pass
+    return None
+
+
 def sync_vendor_invoice_to_qb(conn, vendor_invoice_id, trigger='manual'):
     """Push an ERP vendor invoice to QuickBooks as a Bill.
     Creates a new Bill on first sync; sparse-updates the existing one on re-sync."""
@@ -786,19 +816,30 @@ def sync_vendor_invoice_to_qb(conn, vendor_invoice_id, trigger='manual'):
         if not qb_vendor_id:
             return {'status': 'failed', 'reason': 'Could not resolve or create QB Vendor'}
 
-        # ── 2. Build Bill payload ─────────────────────────────────────────────
+        # ── 2. Resolve QB expense account for Bill lines ──────────────────────
+        account_ref = _qb_get_expense_account(conn, config)
+        if not account_ref:
+            return {
+                'status': 'failed',
+                'reason': 'No expense account found in QuickBooks. Please ensure you have at least one Expense or Cost of Goods Sold account in your QB chart of accounts.'
+            }
+
+        # ── 3. Build Bill payload ─────────────────────────────────────────────
         total = float(vi.get('total_amount') or vi.get('amount') or 0)
+        doc_number = vi.get('vendor_invoice_number') or vi.get('invoice_number') or f'VIN-{vendor_invoice_id}'
+        line_desc = (vi.get('description') or f'Vendor Invoice {vi.get("invoice_number")} — {vi.get("vendor_name", "ERP AP")}')[:4000]
         payload = {
-            'DocNumber':  vi.get('invoice_number', f'VIN-{vendor_invoice_id}'),
+            'DocNumber':  doc_number,
             'TxnDate':    str(vi.get('invoice_date') or datetime.now().date()),
             'DueDate':    str(vi.get('due_date') or (datetime.now() + timedelta(days=30)).date()),
             'VendorRef':  {'value': qb_vendor_id},
             'Line': [{
-                'Amount': total,
+                'Amount': round(total, 2),
                 'DetailType': 'AccountBasedExpenseLineDetail',
-                'Description': f'Vendor Invoice {vi.get("invoice_number")} — ERP AP',
+                'Description': line_desc,
                 'AccountBasedExpenseLineDetail': {
-                    'AccountRef': {'name': 'Accounts Payable (A/P)'},
+                    'AccountRef': account_ref,
+                    'BillableStatus': 'NotBillable',
                 },
             }],
         }
