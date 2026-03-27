@@ -801,7 +801,7 @@ def dashboard():
         'ready_to_ship': ready_to_ship_count,
         'pending_shipments': conn.execute("SELECT COUNT(*) as count FROM shipments WHERE status = 'Pending'").fetchone()['count'],
         'intransit': conn.execute("SELECT COUNT(*) as count FROM shipments WHERE status = 'Shipped'").fetchone()['count'],
-        'delivered_today': conn.execute("SELECT COUNT(*) as count FROM shipments WHERE status = 'Delivered' AND DATE(actual_delivery) = DATE('now')").fetchone()['count'],
+        'delivered_today': conn.execute("SELECT COUNT(*) as count FROM shipments WHERE status = 'Delivered' AND DATE(actual_delivery_date) = DATE('now')").fetchone()['count'],
         'receipts_today': conn.execute("SELECT COUNT(*) as count FROM receiving_transactions WHERE DATE(receipt_date) = DATE('now')").fetchone()['count'],
     }
     
