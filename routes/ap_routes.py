@@ -317,16 +317,14 @@ def record_payment(id):
             VALUES (?, ?, ?, ?, ?)
         ''', (gl_entry_id, cash_account['id'], 0, payment_amount, f'Payment for {ap["invoice_number"]}'))
         
-        # Update the vendor invoice record (payment GL entry is linked via reference_type/reference_id)
+        # Update the vendor invoice record (payment method/reference are stored on the GL entry)
         conn.execute('''
             UPDATE vendor_invoices 
             SET amount_paid = ?,
                 status = ?,
-                payment_date = ?,
-                payment_method = ?,
-                payment_reference = ?
+                payment_date = ?
             WHERE id = ?
-        ''', (new_amount_paid, new_status, payment_date, payment_method, payment_reference, id))
+        ''', (new_amount_paid, new_status, payment_date, id))
         
         # Get new record for audit
         new_ap = conn.execute('SELECT * FROM vendor_invoices WHERE id = ?', (id,)).fetchone()
