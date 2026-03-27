@@ -471,6 +471,50 @@ class PostgresConnection:
         # Convert DEFAULT "value" → DEFAULT 'value' for ALTER TABLE / CREATE TABLE in PostgreSQL
         query = re.sub(r'(DEFAULT\s*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
         
+        # PostgreSQL requires all subqueries in FROM clauses to have an alias.
+        # Automatically add synthetic aliases where missing.
+        def add_subquery_aliases(q):
+            sql_keywords = {
+                'WHERE', 'ON', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL',
+                'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'INTERSECT',
+                'EXCEPT', 'AND', 'OR', 'NOT', 'SET', 'RETURNING', 'FETCH', 'FOR',
+            }
+            pattern = re.compile(r'\bFROM\s*\(', re.IGNORECASE)
+            alias_counter = [0]
+            offset = 0
+            result = q
+            while True:
+                match = pattern.search(result, offset)
+                if not match:
+                    break
+                open_paren = match.end() - 1
+                close_paren = find_matching_paren(result, open_paren)
+                if close_paren == -1:
+                    offset = match.end()
+                    continue
+                after = result[close_paren + 1:]
+                after_stripped = after.lstrip()
+                needs_alias = True
+                if after_stripped:
+                    if re.match(r'^AS\b', after_stripped, re.IGNORECASE):
+                        needs_alias = False
+                    else:
+                        m = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)', after_stripped)
+                        if m:
+                            first_word = m.group(1).upper()
+                            if first_word not in sql_keywords:
+                                needs_alias = False
+                if needs_alias:
+                    alias_counter[0] += 1
+                    alias = f'_sq{alias_counter[0]}'
+                    result = result[:close_paren + 1] + f' AS {alias}' + result[close_paren + 1:]
+                    offset = close_paren + 1 + len(f' AS {alias}')
+                else:
+                    offset = close_paren + 1
+            return result
+        
+        query = add_subquery_aliases(query)
+        
         return query
     
     def execute(self, query, params=None):
