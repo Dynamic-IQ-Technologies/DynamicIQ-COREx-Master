@@ -741,6 +741,14 @@
                         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </button>
                 </form>
+
+                <div style="text-align:center; margin-top:1rem;">
+                    <a href="{{ url_for('auth_routes.forgot_password') }}"
+                       style="color:#64748b; font-size:0.9rem; text-decoration:none; transition:color 0.2s ease;"
+                       onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#64748b'">
+                        <i class="bi bi-key me-1"></i>Forgot your password?
+                    </a>
+                </div>
                 
                 <div class="divider">
                     <span><span class="text-primary">New to Dynamic.IQ-COREx?</span></span>
