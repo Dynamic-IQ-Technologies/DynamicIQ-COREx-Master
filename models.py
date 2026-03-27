@@ -2559,6 +2559,8 @@ class Database:
                 balance_due REAL DEFAULT 0,
                 notes TEXT,
                 terms_conditions TEXT,
+                source_type TEXT,
+                source_id INTEGER,
                 gl_entry_id INTEGER,
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2575,7 +2577,15 @@ class Database:
                 FOREIGN KEY (posted_by) REFERENCES users(id)
             )
         ''')
-        
+
+        # Migrate invoices table — add columns used by NDT/WO invoice routes
+        for _col, _type in [('source_type', 'TEXT'), ('source_id', 'INTEGER'),
+                             ('terms_conditions', 'TEXT')]:
+            try:
+                cursor.execute(f'ALTER TABLE invoices ADD COLUMN IF NOT EXISTS {_col} {_type}')
+            except Exception:
+                pass
+
         # Create invoice_lines table for line item details
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS invoice_lines (
