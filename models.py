@@ -41,18 +41,43 @@ if USE_POSTGRES:
 
 # --- Connection pool (per-process singleton) ---
 _pg_pool = None
+import threading as _threading
+_pool_lock = _threading.Lock()
 
 def _get_pg_pool():
-    """Return the per-process psycopg2 ThreadedConnectionPool, creating it on first call."""
+    """Return the per-process psycopg2 ThreadedConnectionPool, creating it on first call.
+
+    Uses minconn=maxconn=2 so all connections are pre-created at startup.
+    This avoids runtime OperationalError from 'too many connections' when the
+    pool tries to open a new connection under load (e.g. deploy-time spikes).
+    With sync gunicorn workers, each worker only needs 1-2 connections at a time.
+    4 workers × 2 = 8 connections max — well within PostgreSQL's 25-connection limit.
+    """
     global _pg_pool
-    if _pg_pool is None:
+    if _pg_pool is not None:
+        return _pg_pool
+    with _pool_lock:
+        if _pg_pool is not None:
+            return _pg_pool
         import psycopg2.pool as _pool
-        _pg_pool = _pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=6,
-            dsn=DATABASE_URL,
-        )
-    return _pg_pool
+        import time
+        last_exc = None
+        for attempt in range(3):
+            try:
+                _pg_pool = _pool.ThreadedConnectionPool(
+                    minconn=2,
+                    maxconn=2,
+                    dsn=DATABASE_URL,
+                )
+                print(f"[Database] Connection pool created (attempt {attempt + 1})")
+                return _pg_pool
+            except Exception as exc:
+                last_exc = exc
+                print(f"[Database] Pool creation attempt {attempt + 1} failed: {exc}")
+                if attempt < 2:
+                    time.sleep(2)
+        print(f"[Database] Pool creation failed after 3 attempts: {last_exc}")
+        return None
 
 class PostgresTranslatingCursor:
     """Cursor wrapper that translates SQLite SQL to PostgreSQL and converts Decimal to float"""
@@ -693,8 +718,14 @@ class Database:
     def get_connection(self):
         if self.use_postgres:
             pg_pool = _get_pg_pool()
-            raw_conn = pg_pool.getconn()
-            return PostgresConnection(raw_conn, pool=pg_pool)
+            if pg_pool is not None:
+                try:
+                    raw_conn = pg_pool.getconn()
+                    return PostgresConnection(raw_conn, pool=pg_pool)
+                except Exception as pool_err:
+                    print(f"[Database] Pool getconn failed ({pool_err}), using direct connection")
+            raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            return PostgresConnection(raw_conn, pool=None)
         else:
             conn = sqlite3.connect(self.db_name)
             conn.row_factory = sqlite3.Row
@@ -708,7 +739,16 @@ class Database:
         """
         if self.use_postgres:
             pg_pool = _get_pg_pool()
-            raw_conn = pg_pool.getconn()
+            raw_conn = None
+            use_pool = False
+            if pg_pool is not None:
+                try:
+                    raw_conn = pg_pool.getconn()
+                    use_pool = True
+                except Exception as pool_err:
+                    print(f"[Database] execute_query pool getconn failed ({pool_err}), using direct connection")
+            if raw_conn is None:
+                raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
             try:
                 cursor = raw_conn.cursor()
                 cursor.execute(query, params or ())
@@ -718,7 +758,13 @@ class Database:
                     raw_conn.rollback()
                 except Exception:
                     pass
-                pg_pool.putconn(raw_conn)
+                if use_pool:
+                    pg_pool.putconn(raw_conn)
+                else:
+                    try:
+                        raw_conn.close()
+                    except Exception:
+                        pass
         else:
             conn = sqlite3.connect(self.db_name)
             conn.row_factory = None
