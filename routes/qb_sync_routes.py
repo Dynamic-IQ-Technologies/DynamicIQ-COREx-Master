@@ -46,10 +46,10 @@ def _auto_redirect_uri(req):
 def ensure_qb_tables(conn):
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_sync_config (
-            id               SERIAL PRIMARY KEY,
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
             tenant_id        TEXT DEFAULT 'default',
             qb_mode          TEXT DEFAULT 'online',
-            sandbox_mode     BOOLEAN DEFAULT TRUE,
+            sandbox_mode     INTEGER DEFAULT 1,
             realm_id         TEXT,
             client_id        TEXT,
             client_secret    TEXT,
@@ -60,13 +60,13 @@ def ensure_qb_tables(conn):
             connected_at     TIMESTAMP,
             connected_by     TEXT,
             conflict_rule    TEXT DEFAULT 'manual_review',
-            auto_sync_wo     BOOLEAN DEFAULT FALSE,
-            auto_sync_inv    BOOLEAN DEFAULT FALSE,
-            auto_sync_pay    BOOLEAN DEFAULT FALSE,
+            auto_sync_wo     INTEGER DEFAULT 0,
+            auto_sync_inv    INTEGER DEFAULT 0,
+            auto_sync_pay    INTEGER DEFAULT 0,
             webhook_secret   TEXT,
             desktop_poll_url TEXT,
-            is_active        BOOLEAN DEFAULT FALSE,
-            updated_at       TIMESTAMP DEFAULT NOW()
+            is_active        INTEGER DEFAULT 0,
+            updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     for col, definition in [
@@ -75,13 +75,13 @@ def ensure_qb_tables(conn):
         ('redirect_uri',  'TEXT'),
     ]:
         try:
-            conn.execute(f'ALTER TABLE qb_sync_config ADD COLUMN IF NOT EXISTS {col} {definition}')
+            conn.execute(f'ALTER TABLE qb_sync_config ADD COLUMN {col} {definition}')
             conn.commit()
         except Exception:
             conn.rollback()
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_sync_event_log (
-            id            SERIAL PRIMARY KEY,
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
             entity_type   TEXT NOT NULL,
             entity_id     INTEGER,
             event_type    TEXT NOT NULL,
@@ -94,43 +94,43 @@ def ensure_qb_tables(conn):
             payload_recv  TEXT,
             synced_by     TEXT,
             retry_count   INTEGER DEFAULT 0,
-            created_at    TIMESTAMP DEFAULT NOW()
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_wo_invoice_map (
-            id               SERIAL PRIMARY KEY,
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
             wo_id            INTEGER,
             invoice_id       INTEGER,
             qb_invoice_id    TEXT,
             qb_invoice_number TEXT,
             qb_txn_date      DATE,
-            qb_total_amount  NUMERIC(12,2),
+            qb_total_amount  REAL,
             last_synced_at   TIMESTAMP,
             sync_status      TEXT DEFAULT 'pending',
-            created_at       TIMESTAMP DEFAULT NOW()
+            created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_payment_sync (
-            id               SERIAL PRIMARY KEY,
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
             qb_payment_id    TEXT,
             qb_invoice_id    TEXT,
             erp_invoice_id   INTEGER,
             erp_wo_id        INTEGER,
-            amount           NUMERIC(12,2),
+            amount           REAL,
             payment_method   TEXT,
             payment_date     DATE,
             memo             TEXT,
             sync_status      TEXT DEFAULT 'pending',
-            applied_to_erp   BOOLEAN DEFAULT FALSE,
+            applied_to_erp   INTEGER DEFAULT 0,
             applied_at       TIMESTAMP,
-            created_at       TIMESTAMP DEFAULT NOW()
+            created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_conflict_log (
-            id               SERIAL PRIMARY KEY,
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
             entity_type      TEXT,
             entity_id        INTEGER,
             qb_entity_id     TEXT,
@@ -141,32 +141,32 @@ def ensure_qb_tables(conn):
             resolved_by      TEXT,
             resolved_at      TIMESTAMP,
             resolution_notes TEXT,
-            created_at       TIMESTAMP DEFAULT NOW()
+            created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS qb_ap_bill_map (
-            id               SERIAL PRIMARY KEY,
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
             vendor_invoice_id INTEGER,
             qb_bill_id       TEXT,
             qb_bill_number   TEXT,
-            qb_total_amount  NUMERIC(12,2),
+            qb_total_amount  REAL,
             last_synced_at   TIMESTAMP,
             sync_status      TEXT DEFAULT 'pending',
-            created_at       TIMESTAMP DEFAULT NOW()
+            created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     for col, definition in [
-        ('auto_sync_ap', 'BOOLEAN DEFAULT FALSE'),
+        ('auto_sync_ap', 'INTEGER DEFAULT 0'),
         ('ndt_invoice_id', 'INTEGER'),
     ]:
         try:
-            conn.execute(f'ALTER TABLE qb_sync_config ADD COLUMN IF NOT EXISTS {col} {definition}')
+            conn.execute(f'ALTER TABLE qb_sync_config ADD COLUMN {col} {definition}')
             conn.commit()
         except Exception:
             conn.rollback()
     try:
-        conn.execute('ALTER TABLE qb_wo_invoice_map ADD COLUMN IF NOT EXISTS ndt_invoice_id INTEGER')
+        conn.execute('ALTER TABLE qb_wo_invoice_map ADD COLUMN ndt_invoice_id INTEGER')
         conn.commit()
     except Exception:
         conn.rollback()

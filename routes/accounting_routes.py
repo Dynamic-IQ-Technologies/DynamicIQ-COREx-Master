@@ -199,7 +199,7 @@ def department_transactions(dept):
                 c.name as customer_name,
                 so.total_amount as revenue,
                 COALESCE((
-                    SELECT SUM(CASE WHEN sol.cost > 0 THEN sol.cost ELSE sol.quantity * COALESCE(p.cost, 0) END)
+                    SELECT SUM(sol.quantity * COALESCE(p.cost, 0))
                     FROM sales_order_lines sol
                     LEFT JOIN products p ON sol.product_id = p.id
                     WHERE sol.so_id = so.id
@@ -420,15 +420,10 @@ def revenue_tracker():
         WHERE status NOT IN ('Cancelled', 'Draft') {date_filter_sales}
     ''', params_sales).fetchone()
     
-    # Calculate COGS from allocated inventory costs
-    # sol.cost is total cost for the line (qty * unit_cost from inventory at allocation time)
-    # If no allocation, fall back to product cost * quantity
+    # Calculate COGS from product cost * quantity
     sales_cogs = conn.execute(f'''
         SELECT COALESCE(SUM(
-            CASE 
-                WHEN sol.cost > 0 THEN sol.cost
-                ELSE sol.quantity * COALESCE(p.cost, 0)
-            END
+            sol.quantity * COALESCE(p.cost, 0)
         ), 0) as cogs
         FROM sales_order_lines sol
         JOIN sales_orders so ON sol.so_id = so.id
